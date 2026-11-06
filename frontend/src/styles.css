@@ -51,6 +51,13 @@
   --color-bad: #a83333;
 }
 
+/* A bare `grid` has one implicit column that grows to its widest child's min-content, which pushed pages wider than the
+   screen (tab strips, long titles). Give every grid without its own unprefixed grid-cols-* a single shrinkable column;
+   responsive classes such as lg:grid-cols-3 still win because utilities sit above this layer. */
+@layer base {
+  .grid:not([class^="grid-cols-"]):not([class*=" grid-cols-"]) { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* Icons come from the backend's sprite (/static/icons/ax-icons.svg), the same glyphs as the classic UI. */
 @layer components { .ax-icon { width: 20px; height: 20px; fill: currentColor; flex: none; } }
 

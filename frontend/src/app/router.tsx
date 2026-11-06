@@ -4,6 +4,7 @@ import { EntityDirectory } from '@/features/entities/EntityDirectory'
 import { PerformerPage } from '@/features/entities/PerformerPage'
 import { WatchPage } from '@/features/watch/WatchPage'
 import { OperationsPage } from '@/features/operations/OperationsPage'
+import { TransfersPage } from '@/features/transfers/TransfersPage'
 import { Shell } from './Shell'
 
 function ComingSoon({ title }: { title: string }) {
@@ -47,7 +48,7 @@ const routeTree = root.addChildren([
   watch,
   createRoute({ getParentRoute: () => root, path: '/studios', component: () => <EntityDirectory kind="studios" /> }),
   createRoute({ getParentRoute: () => root, path: '/operations', component: OperationsPage }),
-  later('/transfers', 'Transfers'),
+  createRoute({ getParentRoute: () => root, path: '/transfers', component: TransfersPage }),
   later('/settings', 'Settings'),
 ])
 

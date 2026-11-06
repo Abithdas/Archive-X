@@ -196,7 +196,7 @@ export function OperationsPage() {
 
       <Card title="Jobs" className="mb-4">
         <div className="mb-3"><Segmented label="Job filter" value={tab} onChange={setTab} options={JOB_TABS} /></div>
-        {shown.length ? <ul className="grid gap-2.5 md:grid-cols-2">{shown.map((j, i) => <JobRow key={String(j.id ?? j.job_id ?? i)} j={j} />)}</ul> : <p className="py-3 text-sm text-muted">{tab === 'all' ? 'No active jobs.' : 'No jobs match this filter.'}</p>}
+        {shown.length ? <ul className="grid grid-cols-[minmax(0,1fr)] gap-2.5 md:grid-cols-2">{shown.map((j, i) => <JobRow key={String(j.id ?? j.job_id ?? i)} j={j} />)}</ul> : <p className="py-3 text-sm text-muted">{tab === 'all' ? 'No active jobs.' : 'No jobs match this filter.'}</p>}
       </Card>
 
       <div className="mb-4 grid gap-4 lg:grid-cols-3">

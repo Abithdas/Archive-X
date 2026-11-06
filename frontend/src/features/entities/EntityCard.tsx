@@ -7,7 +7,7 @@ const imageUrl = (kind: EntityKind, e: Entity) => `/api/${kind}/${e.id}/image?v=
 const PLACEHOLDER = '/static/icons/ax-placeholder.png'
 
 /** Portrait box shared by the card and its skeleton: 3:4, 16px radius, same as the classic UI. */
-const PORTRAIT = 'relative aspect-[3/4] w-full overflow-hidden rounded-card border border-transparent bg-surface-3'
+const PORTRAIT = 'relative aspect-[3/4] w-full overflow-hidden [contain:paint] rounded-card border border-transparent bg-surface-3'
 
 export function EntityCard({ kind, entity }: { kind: EntityKind; entity: Entity }) {
   const [broken, setBroken] = useState(false)
