@@ -60,6 +60,7 @@ export interface LibraryQuery {
   tag?: string
   dateFrom?: string
   dateTo?: string
+  resolution?: string
 }
 
 /** Live status snapshot (/api/status and the /ws stream). Only the parts the shell shows are typed. */

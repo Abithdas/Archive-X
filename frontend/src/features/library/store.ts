@@ -19,8 +19,9 @@ export interface Filters {
   tag: string
   dateFrom: string
   dateTo: string
+  resolution: string
 }
-export const NO_FILTERS: Filters = { studio: '', performer: '', tag: '', dateFrom: '', dateTo: '' }
+export const NO_FILTERS: Filters = { studio: '', performer: '', tag: '', dateFrom: '', dateTo: '', resolution: '' }
 export const PER_CHOICES = [12, 24, 36, 48] as const
 
 interface LibraryState {
