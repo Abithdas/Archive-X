@@ -565,6 +565,9 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
     app.add_middleware(ResponseOptimizationMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(HTTP3AdvertisementMiddleware)
+    from .core import desktop_mode
+    if desktop_mode.enabled():
+        desktop_mode.install(app, db, sessions)   # outermost guard + /desktop/session and /desktop/shutdown
     app.state.db = db
     app.state.governor = governor
     app.state.resources = resources

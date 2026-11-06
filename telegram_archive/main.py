@@ -15,6 +15,7 @@ from .core.certs import ensure_certificate
 from .core.database import Database
 from .core.runtime_cleanup import cleanup_runtime_artifacts
 from .core.process_topology import startup_message
+from .core import desktop_mode
 
 
 def write_default_config():
@@ -83,6 +84,8 @@ OBSOLETE_FILES = (
 
 
 def remove_obsolete_files():
+    if desktop_mode.frozen():
+        return  # a frozen install folder is read-only and updated as a whole by the installer
     import shutil
     for rel in OBSOLETE_FILES:
         path = config.PACKAGE_DIR / rel
@@ -142,8 +145,43 @@ async def _serve_hypercorn(serve, app, hcfg):
     await serve(app, hcfg, shutdown_trigger=stop.wait)
 
 
+def _run_desktop_server(app):
+    """Desktop mode: plain HTTP on a bound loopback socket, announced to the shell on stdout.
+
+    The listening socket is created first and handed to uvicorn, so the port the shell learns about cannot be
+    taken by another program between "pick a port" and "start serving".
+    """
+    import uvicorn
+
+    sock = desktop_mode.pick_socket(desktop_mode.requested_port())
+    port = sock.getsockname()[1]
+
+    async def _serve():
+        loop = asyncio.get_running_loop()
+        server = uvicorn.Server(uvicorn.Config(app, log_level="warning", lifespan="on"))
+
+        def _request_stop():
+            loop.call_soon_threadsafe(setattr, server, "should_exit", True)
+
+        app.state.request_shutdown = _request_stop
+        desktop_mode.watch_parent(_request_stop)
+
+        async def _announce_when_started():
+            while not server.started:
+                await asyncio.sleep(0.05)
+            desktop_mode.announce_ready(port)
+
+        asyncio.create_task(_announce_when_started())
+        await server.serve(sockets=[sock])
+
+    asyncio.run(_serve())
+
+
 def _run_web_server(app, certfile, keyfile):
     """Run HTTPS over TCP plus HTTP/3 over QUIC on the same port when enabled."""
+    if desktop_mode.enabled():
+        _run_desktop_server(app)
+        return
     mode = str(config.HTTP3_MODE or "auto").lower()
     available, reason = _http3_capability()
 
@@ -280,13 +318,21 @@ def main():
                 print(f"  Persistent asset export: {asset_result}")
         except Exception as exc:
             print(f"  Persistent asset export skipped: {type(exc).__name__}: {exc}")
+    desktop = desktop_mode.enabled()
     with _phase("credentials + certificate"):
         ensure_web_credentials(db)
-        certfile, keyfile = ensure_certificate()
+        if desktop:
+            desktop_mode.prepare_credentials(db)   # local mode: no web login, no LAN certificate
+            certfile = keyfile = None
+        else:
+            certfile, keyfile = ensure_certificate()
     with _phase("dependency check"):
-        print_startup()
-        print(f"  Process model: {startup_message()}")
-    if config.AUTO_OPEN_BROWSER:
+        if desktop:
+            print(f"  Archive X desktop backend {config.APP_VERSION} (loopback only); data: {config.USER_DATA_DIR}", flush=True)
+        else:
+            print_startup()
+            print(f"  Process model: {startup_message()}")
+    if config.AUTO_OPEN_BROWSER and not desktop:
         threading.Thread(target=_open_browser_when_ready, name="archive-x-browser-open", daemon=True).start()
 
     with _phase("application setup"):
