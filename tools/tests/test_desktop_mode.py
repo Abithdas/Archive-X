@@ -84,10 +84,11 @@ def main() -> int:
         print("session hand-off")
         r = request(port, "GET", "/desktop/session?token=nope"); r.read()
         check("bad token refused", r.status == 403, str(r.status))
-        r = request(port, "GET", f"/desktop/session?token={SECRET}"); r.read()
+        r = request(port, "GET", f"/desktop/session?token={SECRET}"); page = r.read()
+        check("hand-off page navigates to /", b'location.replace("/")' in page and b'http-equiv="refresh"' in page)
         cookies = r.getheader("set-cookie") or ""
         raw = [h[1] for h in r.getheaders() if h[0].lower() == "set-cookie"]
-        check("good token redirects to /", r.status == 302 and r.getheader("location") == "/", f"{r.status} {r.getheader('location')}")
+        check("good token returns the hand-off page (not a redirect: WebView cross-site cookie rule)", r.status == 200 and r.getheader("location") is None, f"{r.status} {r.getheader('location')}")
         names = {c.split("=")[0] for c in raw}
         check("session + guard cookies set", "ax_desktop" in names and len(names) >= 2, str(names))
         check("cookies are HttpOnly", all("httponly" in c.lower() for c in raw))

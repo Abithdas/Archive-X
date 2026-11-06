@@ -42,6 +42,11 @@ COOKIE = "ax_desktop"
 READY_PREFIX = "ARCHIVE_X_READY "
 # Reachable without the secret: liveness probe only (it reveals nothing but the version).
 _OPEN_PATHS = {"/health"}
+_HANDOFF_PAGE = (
+    '<!doctype html><meta charset="utf-8"><title>Archive X</title>'
+    '<meta http-equiv="refresh" content="0;url=/">'
+    '<style>html{background:#232833}</style><script>location.replace("/")</script>'
+)
 
 
 def enabled() -> bool:
@@ -137,7 +142,7 @@ class DesktopGuardMiddleware:
 
 def install(app, db, sessions) -> None:
     """Add the guard middleware and the /desktop/* endpoints to the FastAPI app (desktop mode only)."""
-    from fastapi.responses import JSONResponse, RedirectResponse
+    from fastapi.responses import HTMLResponse, JSONResponse
     from .session_cookie import set_session_cookie
     from . import auth
 
@@ -146,7 +151,10 @@ def install(app, db, sessions) -> None:
         if not secret_matches(token):
             return JSONResponse({"detail": "Invalid desktop token"}, status_code=403)
         username = str(db.setting("web_username") or auth.DEFAULT_WEB_USERNAME)
-        response = RedirectResponse("/", status_code=302)
+        # Not a 302: the shell opens this URL from its own origin (tauri://localhost), so the WebView treats a
+        # redirect chain as cross-site and withholds the SameSite=Strict cookies from the redirected request.
+        # A page that navigates itself starts a fresh same-site navigation, and the cookies are sent.
+        response = HTMLResponse(_HANDOFF_PAGE, headers={"Cache-Control": "no-store"})
         set_session_cookie(response, request, sessions.create(username))
         response.set_cookie(COOKIE, _cookie_value(), path="/", httponly=True, samesite="strict",
                             secure=False, max_age=config.SESSION_TTL_SECONDS)

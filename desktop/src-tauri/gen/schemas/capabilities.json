@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Splash window only. The Archive X web UI (loaded from the local backend) gets no IPC access.","local":true,"windows":["main"],"permissions":["core:default","dialog:allow-message"]}}

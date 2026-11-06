@@ -1,0 +1,13 @@
+[package]
+name = "archive-x-launcher-core"
+version = "0.1.0"
+edition = "2021"
+description = "Starts, supervises and stops the Archive X backend sidecar. No GUI dependencies."
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+getrandom = "0.2"
+
+[dev-dependencies]
+tempfile = "3"

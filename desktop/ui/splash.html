@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Archive X</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; margin: 0; background: #232833; color: #e8ecf4; font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  main { height: 100%; display: grid; place-content: center; justify-items: center; gap: 18px; text-align: center; padding: 24px; }
+  .mark { width: 72px; height: 72px; border-radius: 18px; display: grid; place-items: center; background: #2d3341; font-weight: 800; font-size: 26px; letter-spacing: .04em; }
+  .bar { width: 220px; height: 4px; border-radius: 4px; background: #343b4b; overflow: hidden; position: relative; }
+  .bar::after { content: ""; position: absolute; inset: 0; width: 40%; border-radius: 4px; background: #4f8cff; animation: slide 1.2s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
+  p { margin: 0; color: #9aa6bd; }
+  @media (prefers-reduced-motion: reduce) { .bar::after { animation: none; width: 100%; opacity: .5; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="mark" aria-hidden="true">AX</div>
+  <h1 style="margin:0;font-size:20px">Starting Archive X…</h1>
+  <div class="bar" role="progressbar" aria-label="Starting"></div>
+  <p>Preparing your library</p>
+</main>
+</body>
+</html>
