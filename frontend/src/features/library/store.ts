@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ResolutionKey, SortKey } from '@/api/types'
+import type { SortKey } from '@/api/types'
 
 const KEY = 'ax_next_library_channels'
 
@@ -13,15 +13,28 @@ function load(): string[] {
   }
 }
 
+export interface Filters {
+  studio: string
+  performer: string
+  tag: string
+  dateFrom: string
+  dateTo: string
+}
+export const NO_FILTERS: Filters = { studio: '', performer: '', tag: '', dateFrom: '', dateTo: '' }
+export const PER_CHOICES = [12, 24, 36, 48] as const
+
 interface LibraryState {
   channels: string[]
   page: number
   sort: SortKey
   favorites: boolean
-  resolution: ResolutionKey
+  filters: Filters
+  per: number
   setSort: (s: SortKey) => void
   setFavorites: (v: boolean) => void
-  setResolution: (r: ResolutionKey) => void
+  setFilters: (f: Filters) => void
+  removeFilter: (k: keyof Filters) => void
+  setPer: (n: number) => void
   resetFilters: () => void
   toggle: (id: string) => void
   selectAll: (ids: string[]) => void
@@ -42,11 +55,14 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   page: 0,
   sort: 'date_desc',
   favorites: false,
-  resolution: '',
+  filters: NO_FILTERS,
+  per: 24,
   setSort: (sort) => set({ sort, page: 0 }),
   setFavorites: (favorites) => set({ favorites, page: 0 }),
-  setResolution: (resolution) => set({ resolution, page: 0 }),
-  resetFilters: () => set({ favorites: false, resolution: '', sort: 'date_desc', page: 0 }),
+  setFilters: (filters) => set({ filters, page: 0 }),
+  removeFilter: (k) => set((st) => ({ filters: { ...st.filters, [k]: '' }, page: 0 })),
+  setPer: (per) => set({ per, page: 0 }),
+  resetFilters: () => set({ favorites: false, filters: NO_FILTERS, sort: 'date_desc', page: 0 }),
   toggle: (id) => {
     const cur = get().channels
     const next = cur.includes(id) ? cur.filter((c) => c !== id) : [...cur, id]

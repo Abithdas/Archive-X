@@ -49,3 +49,16 @@ export const useStorage = () =>
 
 export const useProfile = () =>
   useQuery({ queryKey: ['profile'] as const, queryFn: () => api<{ name: string; username: string }>('/api/account/profile'), staleTime: 300_000, retry: false })
+
+/** Names for the filter drawer's type-ahead (studios, performers, tags), fetched once and cached. */
+export const useSuggestions = (enabled: boolean) =>
+  useQuery({
+    queryKey: ['suggestions'] as const,
+    enabled,
+    staleTime: 120_000,
+    queryFn: async () => {
+      const names = async (path: string) => (await api<Array<{ name: string }>>(path)).map((x) => x.name).filter(Boolean)
+      const [studios, performers, tags] = await Promise.all([names('/api/studios?limit=240&brief=1'), names('/api/performers?limit=240&brief=1'), names('/api/tags?limit=320&brief=1')])
+      return { studios, performers, tags }
+    },
+  })

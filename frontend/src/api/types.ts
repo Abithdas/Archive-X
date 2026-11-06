@@ -47,7 +47,6 @@ export interface LibraryPage {
 }
 
 export type SortKey = 'date_desc' | 'date_asc' | 'size_desc' | 'dur_desc' | 'name_asc' | 'studio_asc' | 'performer_asc' | 'tag_asc'
-export type ResolutionKey = '' | '2160' | '1440' | '1080' | '720' | '480'
 
 export interface LibraryQuery {
   channels: string[]
@@ -56,7 +55,11 @@ export interface LibraryQuery {
   sort: SortKey
   q?: string
   favorites?: boolean
-  resolution?: ResolutionKey
+  studio?: string
+  performer?: string
+  tag?: string
+  dateFrom?: string
+  dateTo?: string
 }
 
 /** Live status snapshot (/api/status and the /ws stream). Only the parts the shell shows are typed. */

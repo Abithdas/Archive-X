@@ -49,7 +49,7 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   return (await response.json()) as T
 }
 
-export function libraryUrl(query: { channels: string[]; page: number; per: number; sort: string; q?: string; favorites?: boolean; resolution?: string }): string {
+export function libraryUrl(query: { channels: string[]; page: number; per: number; sort: string; q?: string; favorites?: boolean; studio?: string; performer?: string; tag?: string; dateFrom?: string; dateTo?: string }): string {
   const params = new URLSearchParams({
     page: String(query.page),
     per: String(query.per),
@@ -58,7 +58,11 @@ export function libraryUrl(query: { channels: string[]; page: number; per: numbe
     q: query.q ?? '',
     favorites: query.favorites ? '1' : '0',
   })
-  if (query.resolution) params.set('resolution', query.resolution)
+  if (query.studio) params.set('studio', query.studio)
+  if (query.performer) params.set('performer', query.performer)
+  if (query.tag) params.set('tag', query.tag)
+  if (query.dateFrom) params.set('date_from', query.dateFrom)
+  if (query.dateTo) params.set('date_to', query.dateTo)
   return `/api/library?${params.toString()}`
 }
 

@@ -7,9 +7,15 @@ const respond = (status: number, body: unknown, ok = status < 400) =>
 afterEach(() => vi.restoreAllMocks())
 
 describe('api()', () => {
-  it('adds the resolution filter only when set', () => {
-    expect(libraryUrl({ channels: ['1'], page: 0, per: 24, sort: 'date_desc', resolution: '1080' })).toContain('resolution=1080')
-    expect(libraryUrl({ channels: ['1'], page: 0, per: 24, sort: 'date_desc', resolution: '' })).not.toContain('resolution')
+  it('adds filters only when set, using the API parameter names', () => {
+    const base = { channels: ['1'], page: 0, per: 24, sort: 'date_desc' }
+    const url = libraryUrl({ ...base, studio: 'Northlight', performer: 'Ava Stone', tag: 'pov', dateFrom: '2026-01-01', dateTo: '2026-02-01' })
+    expect(url).toContain('studio=Northlight')
+    expect(url).toContain('performer=Ava+Stone')
+    expect(url).toContain('tag=pov')
+    expect(url).toContain('date_from=2026-01-01')
+    expect(url).toContain('date_to=2026-02-01')
+    expect(libraryUrl(base)).not.toMatch(/studio=|performer=|tag=|date_from|date_to/)
   })
   it('returns parsed JSON and sends the cookie session', async () => {
     const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ ok: 1 }), { status: 200 }))

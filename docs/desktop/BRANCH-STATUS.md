@@ -2,6 +2,7 @@
 
 > Update: the React UI now uses the classic UI's exact tokens (dark and light), the Outfit font and icon sprite served by the backend, the grouped sidebar with storage card, the top bar (search, Ctrl K, Telegram pill, theme, avatar), round channel chips and the classic video and performer cards. Checked side by side against the classic app.
 > Update: Videos toolbar done (Filters with resolution, sort with 8 options, favourites-only, header search with debounce), tested against the real backend. Still to do on the toolbar: studio/performer/tag/date filters, VLC/MPC-HC shuffle, bulk edit.
+> Update: Videos filters now match the classic drawer (studio, performer, tag with suggestions, upload-date range, Reset, Apply), active-filter chips, Favourites chip, refresh channels, ⋯ menu (select all, clear, reload), numbered pagination with page input and page size. Resolution chips removed because the classic UI only has a hidden resolution control. Still missing: VLC/MPC-HC shuffle, card ⋯ menu (move, send, mapping, delete), bulk edit, notifications panel, account menu, command palette, sidebar collapse, phone More sheet.
 > Update: React Performers and Studios directory pages and the performer profile page are done (search, gender filter, paging, skeletons, 38 unit tests, checked against the real backend). Studio detail page, performer editing, merge mode and the other sections are still to do.
 
 Executes the first parts of `Archive-X-MIGRATION-PLAN.md` as a separate line of work from `main`.
