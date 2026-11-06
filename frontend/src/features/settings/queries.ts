@@ -10,3 +10,4 @@ export const usePreflight = () => useQuery(q('preflight', '/api/media-manager/pr
 export const useIconsStatus = () => useQuery(q('icons', '/api/icons/status', 60_000))
 export const useMetadataSettings = () => useQuery(q('metadata', '/api/settings/metadata'))
 export const useWebLogin = () => useQuery(q('weblogin', '/api/settings/weblogin'))
+export const useTelegramSettings = () => useQuery(q('telegram', '/api/settings/telegram', 10_000))
