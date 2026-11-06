@@ -125,3 +125,11 @@ export const usePreviewManifest = (cid: string, mid: number) =>
     staleTime: 60_000,
     retry: false,
   })
+
+/** Diagnostics summary (levels, watchdogs, incidents, HTTP latency); polled while the Operations page is open. */
+export const useDiagnostics = () =>
+  useQuery({ queryKey: ['diagnostics'] as const, queryFn: () => api<Record<string, unknown>>('/api/diagnostics/summary'), refetchInterval: 5_000, staleTime: 4_000, retry: false })
+
+/** Resource controller snapshot (playback, background lanes, limits). */
+export const useResources = () =>
+  useQuery({ queryKey: ['resources'] as const, queryFn: () => api<{ resources?: Record<string, unknown> }>('/api/operations/resources'), refetchInterval: 5_000, staleTime: 4_000, retry: false })

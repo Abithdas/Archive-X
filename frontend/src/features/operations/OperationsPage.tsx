@@ -1,0 +1,298 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
+import { ApiError, api } from '@/api/client'
+import { useDiagnostics, useEntities, useResources, useStatus } from '@/api/hooks'
+import { Dialog } from '@/design/Dialog'
+import { Icon } from '@/design/Icon'
+import { PageHead } from '@/design/PageHead'
+import { Segmented } from '@/design/Segmented'
+import { Skeleton, SkeletonGroup } from '@/design/Skeleton'
+import { cn } from '@/design/cn'
+import { attention, diagnosticTiles, filterJobs, filterLog, healthTiles, jobCounts, laneRows, policyLine, resourceCards, telemetryTiles, type JobFilter, type LogLevel, type Tile, type Tone } from './ops'
+
+type Obj = Record<string, unknown>
+const CARD = 'rounded-[18px] border border-line bg-surface p-5'
+const TONE: Record<Tone, string> = { ok: 'text-good', warn: 'text-warn', bad: 'text-bad', neutral: 'text-fg' }
+const stamp = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+
+function Metric({ dot, value, label }: { dot: string; value: number; label: string }) {
+  return (
+    <div className="rounded-[14px] border border-line bg-surface px-4 py-3">
+      <strong className="block text-2xl font-extrabold tabular-nums">{value}</strong>
+      <span className="flex items-center gap-1.5 text-xs text-muted"><i className={cn('size-1.5 rounded-full', dot)} />{label}</span>
+    </div>
+  )
+}
+function TileGrid({ tiles, cols = 'grid-cols-2' }: { tiles: Tile[]; cols?: string }) {
+  return (
+    <dl className={cn('grid gap-2.5', cols)}>
+      {tiles.map((t) => (
+        <div key={t.label} className="min-w-0 rounded-xl bg-bg px-3.5 py-3">
+          <dt className="text-xs text-muted">{t.label}</dt>
+          <dd className={cn('mt-0.5 truncate text-[15px] font-bold', TONE[t.tone])} title={t.value}>{t.value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+const Card = ({ title, aside, children, className }: { title: string; aside?: ReactNode; children: ReactNode; className?: string }) => (
+  <section aria-label={title} className={cn(CARD, className)}>
+    <div className="mb-3.5 flex items-center justify-between gap-3"><h3 className="text-lg font-extrabold">{title}</h3><span className="text-xs text-faint">{aside}</span></div>
+    {children}
+  </section>
+)
+
+const statusTone = (st: string): Tone => (/^(RUNNING|ACTIVE)$/.test(st) ? 'ok' : /^(FAILED|ERROR|CANCELLED)$/.test(st) ? 'bad' : /^(QUEUED|PAUSED|WAITING|RETRYING|COMPLETED_WITH_ERRORS)$/.test(st) ? 'warn' : 'neutral')
+
+function JobRow({ j }: { j: Obj }) {
+  const total = Number(j.total) || 0
+  const done = Number(j.completed) || 0
+  const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0
+  const st = String(j.status ?? '').toUpperCase()
+  return (
+    <li className="rounded-xl bg-bg p-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="min-w-0 truncate font-bold">{String(j.name || j.type || 'Task')}</span>
+        <span className={cn('shrink-0 rounded-full bg-surface-3 px-2.5 py-0.5 text-[11px] font-bold', TONE[statusTone(st)])}>{st.replace(/_/g, ' ')}</span>
+      </div>
+      <p className="mt-0.5 truncate text-xs text-muted">{String(j.operation || '')}</p>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={total ? pct : undefined}>
+        <span className={cn('block h-full rounded-full bg-accent', !total && 'w-1/3 animate-pulse')} style={total ? { width: `${pct}%` } : undefined} />
+      </div>
+      <p className="mt-1 text-[11px] text-faint">{total ? `${pct}% · ${done.toLocaleString()} / ${total.toLocaleString()}` : 'progress not yet measurable'}</p>
+    </li>
+  )
+}
+
+const JOB_TABS: { value: JobFilter; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'running', label: 'Running' }, { value: 'queued', label: 'Queued' }, { value: 'failed', label: 'Failed' }, { value: 'completed', label: 'Completed' }]
+const LEVEL_TABS: { value: LogLevel; label: string }[] = [{ value: '', label: 'All' }, { value: 'INFO', label: 'Info' }, { value: 'WARN', label: 'Warning' }, { value: 'ERROR', label: 'Error' }, { value: 'SUCCESS', label: 'Success' }]
+const MODULES = ['Telegram Transfer Manager', 'Metadata & Assets Manager', 'Content Automation', 'Backup & Restore', 'playback', 'other']
+const OUTCOMES = ['EXPECTED', 'SUCCESS', 'TRANSIENT', 'DEGRADED', 'FAILURE', 'FATAL']
+const SELECT = 'h-10 rounded-xl border border-line bg-surface px-3 text-sm font-medium'
+const dot = (lv: string) => (lv === 'ERROR' || lv === 'CRITICAL' ? 'bg-bad' : lv === 'WARN' || lv === 'WARNING' ? 'bg-warn' : lv === 'SUCCESS' ? 'bg-good' : 'bg-accent')
+
+function ActivityLog({ events }: { events: unknown[] }) {
+  const [level, setLevel] = useState<LogLevel>('')
+  const [module, setModule] = useState('')
+  const [outcome, setOutcome] = useState('')
+  const [query, setQuery] = useState('')
+  const rows = useMemo(() => filterLog(events, { level, module, outcome, query }), [events, level, module, outcome, query])
+  const box = useRef<HTMLUListElement>(null)
+  const atEnd = useRef(true)
+  // Oldest to newest like the classic log; stay on the newest entry unless the reader scrolled up.
+  useEffect(() => {
+    const el = box.current
+    if (el && atEnd.current) el.scrollTop = el.scrollHeight
+  }, [rows])
+  return (
+    <section aria-label="Recent activity" className={CARD}>
+      <h3 className="mb-3.5 text-lg font-extrabold">Recent activity</h3>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Segmented label="Log level" value={level} onChange={setLevel} options={LEVEL_TABS} />
+        <select aria-label="Log source" value={module} onChange={(e) => setModule(e.target.value)} className={SELECT}><option value="">All modules</option>{MODULES.map((m) => <option key={m}>{m}</option>)}</select>
+        <select aria-label="Filter diagnostic outcome" value={outcome} onChange={(e) => setOutcome(e.target.value)} className={SELECT}><option value="">All outcomes</option>{OUTCOMES.map((m) => <option key={m} value={m}>{m[0] + m.slice(1).toLowerCase()}</option>)}</select>
+        <label className="flex h-10 min-w-[200px] flex-1 items-center gap-2 rounded-xl border border-line bg-bg px-3 text-faint"><Icon name="search" className="size-4" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search visible logs…" aria-label="Search visible logs" className="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-faint" /></label>
+      </div>
+      <ul ref={box} onScroll={(e) => { const t = e.currentTarget; atEnd.current = t.scrollTop + t.clientHeight >= t.scrollHeight - 30 }} className="max-h-[420px] overflow-y-auto rounded-xl bg-bg" aria-label="Log entries">
+        {rows.map((e, i) => {
+          const lv = String(e.level ?? 'INFO').toUpperCase()
+          const t = e.created_at ?? e.ts
+          const time = t ? new Date(String(t)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''
+          return (
+            <li key={`${String(e.event_key ?? i)}:${i}`} className="grid grid-cols-[48px_10px_minmax(70px,130px)_minmax(0,1fr)] items-center gap-3 border-b border-line px-3 py-2.5 text-[13px] last:border-0">
+              <time className="tabular-nums text-faint">{time}</time><i className={cn('size-2 rounded-full', dot(lv))} aria-label={lv} />
+              <span className="truncate text-muted">{String(e.module ?? '')}</span><span className="min-w-0 truncate" title={String(e.message ?? '')}>{String(e.message ?? '')}</span>
+            </li>
+          )
+        })}
+        {!rows.length ? <li className="p-6 text-center text-sm text-muted">No log entries match.</li> : null}
+      </ul>
+    </section>
+  )
+}
+
+function MaintenanceLink({ title, text, label }: { title: string; text: string; label: string }) {
+  return (
+    <div className="rounded-xl border border-line bg-bg p-4">
+      <h5 className="text-[15px] font-bold">{title}</h5>
+      <p className="mb-3 mt-1 text-xs leading-relaxed text-muted">{text}</p>
+      <a href="/#admin" className="inline-flex h-9 items-center gap-2 rounded-xl border border-line-2 px-3 text-[13px] font-semibold hover:bg-fg/5">{label}<Icon name="external" className="size-3.5" /></a>
+    </div>
+  )
+}
+
+export function OperationsPage() {
+  const status = useStatus()
+  const diag = useDiagnostics()
+  const res = useResources()
+  const performers = useEntities('performers')
+  const studios = useEntities('studios')
+  const qc = useQueryClient()
+  const [tab, setTab] = useState<JobFilter>('all')
+  const [confirmReset, setConfirmReset] = useState(false)
+  const st: Obj = (status.data ?? {}) as Obj
+  const jobs = (Array.isArray(st.jobs) ? st.jobs : []) as Obj[]
+  const counts = jobCounts(jobs)
+  const shown = filterJobs(jobs, tab)
+  const resources = (res.data?.resources ?? {}) as Obj
+  const updated = stamp()
+
+  const exportHttp = async () => {
+    try {
+      const r = await fetch('/api/diagnostics/metrics/export', { credentials: 'same-origin', cache: 'no-store' })
+      if (!r.ok) throw new Error('export failed')
+      const url = URL.createObjectURL(await r.blob())
+      const a = document.createElement('a')
+      a.href = url
+      a.download = /filename="?([^";]+)"?/i.exec(r.headers.get('content-disposition') ?? '')?.[1] ?? 'archive-x-http-telemetry.json'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast('HTTP telemetry window exported.')
+    } catch {
+      toast.error('Could not export HTTP telemetry.')
+    }
+  }
+  const resetHttp = async () => {
+    try {
+      await api('/api/diagnostics/metrics/reset', { method: 'POST', json: {} })
+      await qc.invalidateQueries({ queryKey: ['diagnostics'] })
+      toast('HTTP telemetry window reset.')
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.detail || 'Could not reset HTTP telemetry.' : 'Could not reset HTTP telemetry.')
+    } finally {
+      setConfirmReset(false)
+    }
+  }
+
+  if (status.isPending)
+    return (
+      <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+        <SkeletonGroup label="Loading operations" className="grid gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-[68px] rounded-[14px]" />)}</div>
+          <Skeleton className="h-52 rounded-[18px]" />
+          <div className="grid gap-4 lg:grid-cols-3">{Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-60 rounded-[18px]" />)}</div>
+        </SkeletonGroup>
+      </section>
+    )
+
+  const tele = telemetryTiles(st)
+  return (
+    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+      <PageHead eyebrow="Control Center" title="Operations" blurb="Service health, resources, diagnostics and live jobs">
+        <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-good/15 px-3 text-xs font-bold text-good"><i className="size-1.5 rounded-full bg-good" />Live</span>
+      </PageHead>
+
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" role="group" aria-label="Job summary">
+        <Metric dot="bg-accent" value={counts.running} label="Running" />
+        <Metric dot="bg-warn" value={counts.queued} label="Queued" />
+        <Metric dot="bg-bad" value={counts.failed} label="Failed" />
+        <Metric dot="bg-good" value={counts.completed} label="Completed" />
+        <Metric dot="bg-accent" value={counts.withErrors} label="With errors" />
+      </div>
+
+      <Card title="Jobs" className="mb-4">
+        <div className="mb-3"><Segmented label="Job filter" value={tab} onChange={setTab} options={JOB_TABS} /></div>
+        {shown.length ? <ul className="grid gap-2.5 md:grid-cols-2">{shown.map((j, i) => <JobRow key={String(j.id ?? j.job_id ?? i)} j={j} />)}</ul> : <p className="py-3 text-sm text-muted">{tab === 'all' ? 'No active jobs.' : 'No jobs match this filter.'}</p>}
+      </Card>
+
+      <div className="mb-4 grid gap-4 lg:grid-cols-3">
+        <Card title="System health" aside={`Updated ${updated}`}><TileGrid tiles={healthTiles(st)} /></Card>
+        <Card title="Attention" aside="operator action">
+          <ul className="grid gap-2">
+            {attention(st).map((x) => (
+              <li key={x.key} className="flex items-start gap-3 rounded-xl bg-bg p-3 text-sm">
+                <span className={cn('mt-0.5 grid size-8 shrink-0 place-items-center rounded-full', x.tone === 'bad' ? 'bg-bad/15 text-bad' : x.tone === 'warn' ? 'bg-warn/15 text-warn' : 'bg-good/15 text-good')}><Icon name={x.tone === 'ok' ? 'check' : 'alert'} className="size-4" /></span>
+                <span className="self-center">{x.text}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+        <Card title="Transfer telemetry" aside={<span className="rounded-full bg-surface-3 px-2.5 py-0.5 text-[11px] font-bold text-muted">{tele.rate}</span>}><TileGrid tiles={tele.tiles} /></Card>
+      </div>
+
+      <Card title="Diagnostics" className="mb-4" aside={
+        <span className="flex gap-2">
+          <button type="button" onClick={() => void exportHttp()} className="h-8 rounded-lg border border-line-2 px-3 text-xs font-bold text-fg hover:bg-fg/5">Export HTTP window</button>
+          <button type="button" onClick={() => setConfirmReset(true)} className="h-8 rounded-lg border border-line-2 px-3 text-xs font-bold text-fg hover:bg-fg/5">Reset HTTP window</button>
+        </span>
+      }>
+        {diag.isPending ? <p className="text-sm text-muted">Loading diagnostics…</p> : diag.isError ? <p role="alert" className="text-sm text-warn">Diagnostics are unavailable right now.</p> : <TileGrid tiles={diagnosticTiles((diag.data ?? {}) as Obj)} cols="grid-cols-2 md:grid-cols-4" />}
+      </Card>
+
+      <section aria-label="Library maintenance" className={cn(CARD, 'mb-4')}>
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-accent">Library care</p>
+        <h2 className="text-2xl font-extrabold tracking-tight">Library Maintenance</h2>
+        <p className="mb-4 mt-1 max-w-3xl text-[15px] text-muted">Check library health and review duplicates or unmatched records. Fix issues to keep your library organized and up to date.</p>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
+            <h4 className="text-lg font-extrabold">Health &amp; Previews</h4>
+            <div className="grid grid-cols-3 gap-2 rounded-xl border border-line bg-bg p-3 text-center" aria-label="Library counts">
+              {[['Videos', Number(o2(st.stats).media) || 0], ['Performers', performers.data?.length], ['Studios', studios.data?.length]].map(([l, v]) => (
+                <div key={String(l)}><strong className="block text-xl font-extrabold tabular-nums">{v ?? '—'}</strong><span className="text-xs text-muted">{l}</span></div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2"><Link to="/" className="inline-flex h-9 items-center gap-2 rounded-xl bg-accent px-3 text-[13px] font-bold text-accent-fg"><Icon name="library" className="size-4" />Open library</Link></div>
+            <MaintenanceLink title="Full check and artwork repair" text="Run a library health check, view its details, or repair the artwork cache." label="Open in classic interface" />
+          </div>
+          <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
+            <h4 className="text-lg font-extrabold">Duplicates</h4>
+            <MaintenanceLink title="Duplicate performers" text="Compare names, aliases and artwork, then review the evidence before merging." label="Open performer review" />
+            <MaintenanceLink title="Duplicate video review" text="Choose a channel and scan for verified duplicate video posts." label="Open duplicate scan" />
+          </div>
+          <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
+            <h4 className="text-lg font-extrabold">Metadata &amp; scene matches</h4>
+            <MaintenanceLink title="Scene Match Review & Retry" text="Review missing metadata or recheck unmatched videos. Approving or rejecting candidates stays a separate action." label="Open review" />
+          </div>
+        </div>
+      </section>
+
+      <Card title="Resource Controller" className="mb-4" aside={<span className="rounded-full bg-surface-3 px-2.5 py-1 text-xs font-bold text-muted">{String(o2(resources.control).mode_label || 'Automatic')}</span>}>
+        <p className="-mt-2 mb-3 text-sm text-muted">Control how playback, background work, Telegram transfers and worker capacity share the machine.</p>
+        {res.isError || !Object.keys(resources).length ? (
+          <p role={res.isError ? 'alert' : 'status'} className="text-sm text-warn">{res.isPending ? 'Loading resource status…' : 'Resource status is unavailable. Retrying automatically.'}</p>
+        ) : (
+          <>
+            <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {resourceCards(resources, st).map((c) => (
+                <div key={c.title} className="min-w-0 rounded-xl bg-bg p-4">
+                  <p className="text-xs text-muted">{c.title}</p>
+                  <p className={cn('my-1 text-xl font-extrabold', TONE[c.tone])}>{c.value}</p>
+                  <p className="text-xs leading-relaxed text-muted [overflow-wrap:anywhere]">{c.sub}</p>
+                </div>
+              ))}
+            </div>
+            <ul className="grid gap-2.5" aria-label="Resource lanes">
+              {laneRows(resources).map((l) => (
+                <li key={l.key} className="grid grid-cols-[88px_minmax(0,1fr)_44px] items-center gap-3 text-sm">
+                  <b className="font-semibold">{l.label}</b>
+                  <span className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label={`${l.label} lane`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={l.pct}><i className="block h-full rounded-full bg-accent transition-[width]" style={{ width: `${l.pct}%` }} /></span>
+                  <span className="text-right text-xs tabular-nums text-muted">{l.active} / {l.limit}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs text-faint">{policyLine(resources, st, updated)}</p>
+          </>
+        )}
+      </Card>
+
+      <ActivityLog events={Array.isArray(st.events) ? st.events : []} />
+
+      {confirmReset ? (
+        <Dialog open onClose={() => setConfirmReset(false)} title="Reset HTTP telemetry">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+            <p className="text-sm text-muted">Reset the bounded HTTP telemetry window? This clears only the in-memory HTTP request counters and latency samples.</p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" onClick={() => setConfirmReset(false)} className="h-11 rounded-xl border border-line-2 px-4 text-sm font-semibold">Cancel</button>
+              <button type="button" onClick={() => void resetHttp()} className="h-11 rounded-xl bg-bad px-4 text-sm font-bold text-white">Reset telemetry</button>
+            </div>
+          </div>
+        </Dialog>
+      ) : null}
+    </section>
+  )
+}
+const o2 = (v: unknown): Obj => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Obj) : {})
