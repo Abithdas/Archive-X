@@ -1,0 +1,147 @@
+/* ============================================================================
+   FILE: css/153-ax-player-polish.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* v29.4.341 — dark dropdown lists, scene-marker ticks, fullscreen auto-hide, smooth snapshot crossfade */
+
+/* Native dropdown lists follow the app theme (they were white with a blue highlight). */
+html[data-theme-preset] select{color-scheme:inherit}
+html[data-theme-preset] select option,html[data-theme-preset] select optgroup{background-color:var(--rx-surf,#1b1f27);color:var(--rx-tx,#e8eaf0)}
+html[data-theme-preset] select option:checked,html[data-theme-preset] select option:hover{background:var(--rx-accbg,#243a40) linear-gradient(var(--rx-accbg,#243a40),var(--rx-accbg,#243a40));color:var(--rx-acctx,var(--rx-acc,#5ad1de))}
+
+/* Scene markers: short white line indicators on one continuous seek line. */
+
+
+
+
+/* Fullscreen: controls overlay the video and fade away while playing and idle. */
+
+
+
+/* Hover snapshots: incoming and outgoing canvases overlap during the crossfade. */
+@keyframes ax-snap-in{from{opacity:0}to{opacity:1}}
+
+
+
+
+
+
+
+/* Performer / studio cards load like video cards: no staggered entrance, no per-card blurred backdrop, images fade in once ready. */
+
+@keyframes ax-img-reveal{to{opacity:1}}
+
+/* Account card: photo, name and Edit button */
+html[data-theme-preset] body #app#app#app#app #vs .ax-account-av{position:relative;overflow:hidden}
+html[data-theme-preset] body #app#app#app#app #vs .ax-account-av .ax-account-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+html[data-theme-preset] body #app#app#app#app #vs .ax-account-av.has-photo [data-ax-account-initial]{opacity:0}
+html[data-theme-preset] body #app#app#app#app #vs .ax-account-edit{display:inline-flex;align-items:center;gap:6px;flex:none}
+html[data-theme-preset] body #app#app#app#app #vs .ax-account-edit .ax-icon{width:14px;height:14px}
+@media (max-width:520px){html[data-theme-preset] body #app#app#app#app #vs .ax-account-row{flex-wrap:wrap}html[data-theme-preset] body #app#app#app#app #vs .ax-account-id{flex:1 1 calc(100% - 70px)}}
+/* Account profile dialog = same layout as the channel editor */
+/* The channel editor was tall because the preview could grow to its source image size. */
+#account-edit-modal.mdl.open {
+  padding: 16px !important;
+}
+#account-edit-modal .channel-edit-box {
+  width: min(460px, calc(100vw - 32px)) !important;
+  max-width: 460px !important;
+  max-height: calc(100dvh - 32px) !important;
+  gap: 9px !important;
+  padding: 14px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+#account-edit-modal .channel-edit-intro {
+  margin: 0;
+  line-height: 1.45;
+}
+#account-edit-modal .channel-edit-name-field {
+  display: grid !important;
+  grid-template-columns: 100px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+#account-edit-modal .channel-edit-name-field input {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+#account-edit-modal .channel-edit-photo-section {flex-direction: column;;min-width: 0;}
+#account-edit-modal .channel-edit-photo-preview {display: grid;;place-items: center;;box-sizing: border-box;}
+#account-edit-modal #account-edit-preview {
+  display: block;
+  box-sizing: border-box;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain;
+}
+#account-edit-modal #account-edit-initials {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+#account-edit-modal .channel-edit-photo-controls > span {
+  font-size: 11px;
+  line-height: 1.4;
+}
+#account-edit-modal .channel-edit-photo-buttons,
+#account-edit-modal .channel-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+@media (max-width: 680px) {
+
+  #account-edit-modal.mdl.open {
+    padding: 10px !important;
+  }
+
+  #account-edit-modal .channel-edit-box {
+    width: calc(100vw - 20px) !important;
+    max-height: calc(100dvh - 20px) !important;
+    padding: 12px !important;
+  }
+
+  #account-edit-modal .channel-edit-name-field {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+}
+
+/* Operations: Attention rows get a real icon in their tile; duplicate-maintenance cards stack cleanly on tablets / landscape phones. */
+html[data-theme-preset] body #app#app #va #ops-attention .v54-attention .dot{display:grid!important;place-items:center}
+html[data-theme-preset] body #app#app #va #ops-attention .v54-attention .dot::before{content:"";width:18px;height:18px;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 8v5'/%3E%3Cpath d='M12 16.5v.01'/%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 8v5'/%3E%3Cpath d='M12 16.5v.01'/%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3C/svg%3E") center/contain no-repeat}
+html[data-theme-preset] body #app#app #va #ops-attention .v54-attention.ok .dot::before{
+  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m8 12.5 3 3 5-6'/%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3C/svg%3E");
+  mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m8 12.5 3 3 5-6'/%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3C/svg%3E")}
+@media (max-width:1180px){
+  html[data-theme-preset] body #app#app #va .ax2-ops-catalogue .v54-health-head,
+  html[data-theme-preset] body #app#app #va .ax2-ops-channel-maintenance .v54-health-head{justify-content:flex-start!important;flex-wrap:wrap;text-align:left}
+  html[data-theme-preset] body #app#app #va .ax2-ops-catalogue .v54-health-head>.muted,
+  html[data-theme-preset] body #app#app #va .ax2-ops-channel-maintenance .v54-health-head>.muted{flex:1 0 100%;text-align:left;margin:0}
+  html[data-theme-preset] body #app#app #va .ax-ops-maintenance-row,
+  html[data-theme-preset] body #app#app #va #ops-channel-maintenance .ax-channel-maintenance-row{display:flex!important;flex-direction:column;align-items:stretch!important;gap:12px}
+  html[data-theme-preset] body #app#app #va #ops-channel-maintenance .ax-channel-maintenance-controls{display:grid!important;;grid-template-columns:minmax(0,1fr) auto;;justify-content:stretch;}
+  html[data-theme-preset] body #app#app #va #ops-channel-maintenance .ax-channel-maintenance-controls>label{grid-column:1/-1}
+  html[data-theme-preset] body #app#app #va .ax-ops-maintenance-copy span{max-width:none!important}
+}
+
+/* Seek previews move while their frames decode. Dark shadows on the moving
+   preview layers can flash during video/compositor updates; keep the frame
+   outline and label background, but remove the redundant shadow layers. */
+

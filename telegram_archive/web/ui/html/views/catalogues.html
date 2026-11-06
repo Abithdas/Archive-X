@@ -1,0 +1,45 @@
+<!-- ======================================================================
+     PARTIAL: html/views/catalogues.html
+     PURPOSE: Performers and Studios catalogue views.
+     Composed into the page by web/html.py. DOM order follows the include order.
+     KEY IDS: vp, vsite, vtg
+     ====================================================================== -->
+<!-- ═══════════════════════ PERFORMERS ═══════════════════════ -->
+<div id="vp" class="view">
+  <div id="perf-page-heading" class="library-head ax2-page-head entity-ax2-page-head">
+    <div style="min-width:0">
+      <div class="entity-page-kicker">Library</div>
+      <h1>Performers</h1>
+      <p>Everyone linked to your videos</p>
+    </div>
+  </div>
+  <div id="perf-toolbar" class="entity-list-toolbar" aria-label="Performer filters"></div>
+  <div id="perf-list" style="display:grid"></div>
+  <div id="perf-pg" style="display:none;justify-content:center;align-items:center;gap:8px;margin:18px 0 8px"></div>
+  <div id="perf-detail"></div>
+
+</div>
+
+<!-- ═══════════════════════ SITES ═══════════════════════ -->
+<div id="vsite" class="view">
+  <div id="site-page-heading" class="library-head ax2-page-head entity-ax2-page-head">
+    <div style="min-width:0">
+      <div class="entity-page-kicker">Library</div>
+      <h1>Studios</h1>
+      <p>Studios and sites across your channels</p>
+    </div>
+  </div>
+  <div id="site-count" aria-live="polite"></div>
+  <div id="site-head" aria-hidden="true" style="display:none">
+    <input id="sitesearch" type="text" placeholder="Search studio…" oninput="loadSites()">
+  </div>
+  <div id="site-list" style="display:grid"></div>
+  <div id="site-pg" style="display:none;justify-content:center;align-items:center;gap:8px;margin:18px 0 8px"></div>
+  <div id="site-detail"></div>
+</div>
+
+<!-- ═══════════════════════ TAG DETAIL ═══════════════════════ -->
+<div id="vtg" class="view">
+  <div id="tag-detail" style="padding:14px 18px"></div>
+</div>
+

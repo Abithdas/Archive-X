@@ -1,0 +1,141 @@
+/* ============================================================================
+   FILE: css/161-ui-regression-hardening.css
+   AREA: General
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X v29.4.362 — fixes for viewport overlays and UI-scale-aware player layout.
+   Loaded after the legacy cascade. Keep interaction handlers and playback logic untouched. */
+
+/* A fixed overlay layer must be a true viewport-sized sibling of the scalable UI root. */
+body > #ax-global-overlay-root {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  /* Stretch via viewport insets, not viewport units: the app's global unit
+     compensation includes app zoom, which does not apply to this portal. */
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+  background: transparent !important;
+  pointer-events: none !important;
+  zoom: 1 !important;
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  perspective: none !important;
+  contain: none !important;
+  isolation: isolate !important;
+  z-index: 2147483000 !important;
+}
+body > #ax-global-overlay-root > * { pointer-events: auto; }
+
+/* Legacy modal roots own the full backdrop; the panel itself remains size-limited. */
+body > #ax-global-overlay-root#ax-global-overlay-root > :is(
+  .mdl, #ux-command, #ux-activity,
+  #v54-job-detail, #video-move-dialog, #ax-resume-dialog
+) {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  zoom: 1 !important;
+  transform: none !important;
+}
+body > #ax-global-overlay-root > .mdl.open {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: clamp(16px, 4vh, 40px) 16px !important;
+}
+body > #ax-global-overlay-root > .mdl.open > .mdl-box {
+  box-sizing: border-box !important;
+  max-width: min(920px, calc(100vw - 32px)) !important;
+  max-height: min(88dvh, 900px) !important;
+  margin: 0 auto !important;
+}
+
+/* Native scene-match dialog uses the same actual viewport, not the zoomed UI root. */
+body > #ax-global-overlay-root > #u-assets-scene-match-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  margin: auto !important;
+  transform: none !important;
+  box-sizing: border-box !important;
+  max-width: calc(100vw - 32px) !important;
+  max-height: min(90dvh, 940px) !important;
+  zoom: 1 !important;
+}
+body > #ax-global-overlay-root > #u-assets-scene-match-modal::backdrop {
+  background: var(--ax2-scrim, rgba(8, 10, 14, .64)) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  backdrop-filter: blur(6px) !important;
+}
+body > #ax-global-overlay-root > #ax2-layer-scrim,
+body > #ax-global-overlay-root > #ax-exit-overlay,
+body > #ax-global-overlay-root > #ax-performer-portrait-adjust {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  zoom: 1 !important;
+  transform: none !important;
+}
+
+/* Preserve the established phone bottom-sheet behavior for dialogs that are sheets. */
+@media (max-width: 599px) {
+  body > #ax-global-overlay-root > .mdl.open {
+    align-items: flex-end !important;
+    justify-content: stretch !important;
+    padding: 0 0 env(safe-area-inset-bottom, 0px) !important;
+  }
+  body > #ax-global-overlay-root > .mdl.open > .mdl-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px) !important;
+    margin: auto 0 0 !important;
+    border-radius: 24px 24px 0 0 !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body > #ax-global-overlay-root > #u-assets-scene-match-modal {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: 94dvh !important;
+  }
+}
+@media (min-width: 600px) and (max-height: 500px) and (orientation: landscape) {
+  body > #ax-global-overlay-root > .mdl.open { justify-content: center !important; }
+  body > #ax-global-overlay-root > .mdl.open > .mdl-box { margin: auto 0 0 !important; }
+}
+
+/* App zoom scales the application root, but CSS media queries still see the unscaled
+   browser viewport. The runtime adds ax-visual-under-* classes using effective UI width. */
+
+
+
+/* On a visually narrow UI, never keep a side-by-side desktop player/rail. */
+
+
+
+

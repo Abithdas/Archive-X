@@ -1,0 +1,355 @@
+<!-- ======================================================================
+     PARTIAL: html/views/transfers.html
+     PURPOSE: Transfers view: Telegram transfer and Metadata and Assets managers.
+     Composed into the page by web/html.py. DOM order follows the include order.
+     KEY IDS: vtransfers, automation-review-panel, automation-review-warning, automation-review-grid
+     ====================================================================== -->
+<!-- ═══════════════════════ TRANSFERS ═══════════════════════ -->
+<div id="vtransfers" class="view ax-transfers-page">
+  <header class="ax-transfer-page-intro ax2-page-head">
+    <div class="ax-transfer-page-title">
+      <span class="ax-transfer-kicker">TRANSFER WORKSPACE</span>
+      <h1>Transfers</h1>
+      <p>Upload local videos or images, move Telegram media and run release automation.</p>
+    </div>
+    <div class="ax-transfer-page-context">
+      <span class="ax-transfer-live-dot" aria-hidden="true"></span>
+      <div><strong>Shared job queue</strong><small>Live Lane for quick status · Jobs for details</small></div>
+      
+    </div>
+  </header>
+  <div class="ax-transfer-page-notice"><svg class="ax-icon" aria-hidden="true"><use href="#ax-transfer"></use></svg><span><strong>Preparation-first delivery</strong><small>Inventory and existing metadata are reused first; new metadata and assets are saved before delivery.</small></span></div>
+  <section class="pan ax2-transfer-live-board" id="ax-transfer-live-board" aria-label="Live transfer and resource lanes">
+    <div class="ax2-transfer-live-header">
+      <div class="ax2-transfer-live-title">
+        <h2>Live lanes</h2>
+        <span id="ax-transfer-resource-status" class="muted" aria-live="polite"><span class="ax-sk ax-sk-inline" style="--w:26ch" role="status" aria-label="Loading"></span></span>
+      </div>
+      <span class="ax2-transfer-playback-priority">Playback keeps priority</span>
+    </div>
+    <div id="ax-transfer-resource-usage" class="ax2-transfer-resource-usage" aria-label="Shared resource usage"></div>
+    <div id="ax-transfer-lane-list" class="ax2-transfer-lane-list" aria-live="polite"><div class="muted">No lane status received yet.</div></div>
+  </section>
+  <nav class="ax2-transfer-phone-tabs" id="ax-transfer-phone-tabs" role="tablist" aria-label="Transfer workspace modules">
+    <button type="button" role="tab" aria-selected="true" data-transfer-tab="transfer" class="is-active">Transfer</button>
+    <button type="button" role="tab" aria-selected="false" data-transfer-tab="metadata">Metadata</button>
+    <button type="button" role="tab" aria-selected="false" data-transfer-tab="automation">Automation</button>
+  </nav>
+  <div class="ax-transfer-module-stack ax-transfer-phone-transfer">
+    <section class="ax-transfer-workflow-section" data-transfer-module="transfer" aria-label="Telegram Transfer Manager">
+      <div class="mc2 unified-module-card" data-ops-module="transfer" id="ops-telegram-transfer">
+        <div class="mi"><svg class="ax-icon" aria-hidden="true"><use href="#ax-transfer"></use></svg></div><div class="mn">Telegram Transfer Manager</div>
+        <div class="md">Use one workflow for local video uploads, image-document uploads, or Telegram-to-Telegram transfers.</div>
+        <details class="ax-transfer-help"><summary>Workflow details</summary><p>One transfer manager handles both Local → Telegram and Telegram → Telegram. For Local Files, leave <strong>Upload images</strong> unchecked to use the existing video preparation workflow, or check it to send supported images as Telegram documents. Verified image uploads are indexed in Photos; local originals are deleted only after byte-level destination verification when cleanup is enabled.</p></details>
+        <div class="ax-transfer-source-row">
+          <label class="ax-transfer-field-label" for="u-transfer-source">Source</label>
+          <select id="u-transfer-source" class="ax2-transfer-source-native" onchange="unifiedTransferModeChanged()" aria-label="Transfer source" tabindex="-1" aria-hidden="true">
+            <option value="local">Local files</option>
+            <option value="telegram">Telegram media</option>
+          </select>
+          <div class="ax2-transfer-source-segment" role="group" aria-label="Transfer source">
+            <button type="button" data-transfer-source-choice="local" class="is-active" aria-pressed="true">Local files</button>
+            <button type="button" data-transfer-source-choice="telegram" aria-pressed="false">Telegram media</button>
+          </div>
+          <span class="ax-transfer-source-note">No CLI needed — Archive X runs this job in the background.</span>
+        </div>
+        <div id="u-transfer-local" class="ax-transfer-local-fields">
+          <div class="ax-transfer-folder-field">
+            <label class="ax-transfer-field-label" for="u-transfer-folder">Source folder</label>
+            <div class="ax-folder-pick-row"><input type="text" id="u-transfer-folder" placeholder="Choose a folder or enter its path…" autocomplete="off" aria-label="Source folder path"><button class="btn sm" type="button" onclick="browseFolderInto('u-transfer-folder','Select Telegram Transfer source folder','transfer_source',true)">Browse…</button><button class="btn sm" type="button" onclick="saveFolderPreference('u-transfer-folder','transfer_source','u-transfer-folder-msg')">Save folder</button></div>
+            <div id="u-transfer-folder-msg" class="ax-transfer-field-message muted" role="status"></div>
+          </div>
+          <label class="ax-transfer-media-mode-toggle" for="u-transfer-local-images">
+            <input id="u-transfer-local-images" type="checkbox" onchange="unifiedLocalMediaTypeChanged()" style="width:auto">
+            <span><strong>Upload images</strong><small>When enabled, supported images are sent to Telegram as documents. Verified images are added to Photos.</small></span>
+          </label>
+          <div class="ax-transfer-local-destination-row">
+            <div class="ax-transfer-destination-field">
+              <label class="ax-transfer-field-label" for="u-transfer-local-dst">Destination channel</label>
+              <select id="u-transfer-local-dst" aria-label="Destination Telegram channel"></select>
+            </div>
+            <div class="ax-transfer-resolution-field ax-transfer-video-only">
+              <label class="ax-transfer-field-label" for="u-transfer-local-orientation">Video orientation</label>
+              <select id="u-transfer-local-orientation" aria-label="Video orientation for local videos">
+                <option value="BOTH">Preserve / both</option>
+                <option value="HORIZONTAL">Horizontal only</option>
+                <option value="VERTICAL">Vertical only</option>
+              </select>
+              <span class="muted ax-transfer-resolution-hint">Uses the displayed orientation, including phone rotation metadata. A specific orientation skips files with unknown dimensions.</span>
+            </div>
+            <div class="ax-transfer-resolution-field ax-transfer-video-only">
+              <label class="ax-transfer-field-label" for="u-transfer-local-resolution">Source resolution</label>
+              <select id="u-transfer-local-resolution" aria-label="Source resolution for local videos">
+                <option value="ANY">Any resolution</option>
+                <option value="480P">SD · 480p (720 × 480)</option>
+                <option value="720P">HD · 720p (1280 × 720)</option>
+                <option value="1080P">Full HD · 1080p (1920 × 1080)</option>
+                <option value="1440P">Quad HD · 1440p (2560 × 1440)</option>
+                <option value="2160P">4K UHD · 2160p (3840 × 2160)</option>
+                <option value="4320P">8K · 4320p (7680 × 4320)</option>
+              </select>
+              <span class="muted ax-transfer-resolution-hint">Filters original files; no re-encoding. A specific tier skips unknown dimensions.</span>
+            </div>
+            <label class="ax-transfer-checkbox-field" for="u-transfer-subfolders"><input id="u-transfer-subfolders" type="checkbox" style="width:auto"> <span>Include subfolders</span></label>
+            <label class="ax-transfer-checkbox-field" for="u-transfer-delete-source"><input id="u-transfer-delete-source" type="checkbox" style="width:auto" checked> <span>Delete local source after verified delivery</span></label>
+            <div class="ax-transfer-resolution-field ax-transfer-video-only">
+              <label class="ax-transfer-field-label" for="u-transfer-oversized-policy">When a file exceeds Telegram's safe upload limit</label>
+              <select id="u-transfer-oversized-policy" aria-label="Oversized file handling">
+                <option value="optimize" selected>Optimize to fit (may reduce quality; original preserved)</option>
+                <option value="skip">Skip oversized files (keep local source)</option>
+              </select>
+              <span class="muted ax-transfer-resolution-hint">Optimize keeps one Telegram file but re-encodes when needed. Skip leaves oversized files on your device without uploading them.</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="u-transfer-telegram" class="ax-transfer-mode-hidden">
+          <label class="muted" style="font-size:11px">Source channel(s)</label>
+          <div class="pan" style="padding:7px;margin:5px 0 7px">
+            <div class="ax2-transfer-channel-toolbar"><input id="u-tg-channel-filter" placeholder="Search channels..." oninput="renderUnifiedTelegramChannels()" style="flex:1"><button class="btn xs" type="button" onclick="selectAllUnifiedTelegramChannels(true)">All</button><button class="btn xs" type="button" onclick="selectAllUnifiedTelegramChannels(false)">Clear</button></div>
+            <div id="u-tg-channel-list" style="max-height:150px;overflow:auto"></div>
+            <div id="u-tg-channel-summary" class="muted" style="font-size:10.5px;margin-top:5px">Selected: 0 channels</div>
+          </div>
+          <div class="ax-transfer-telegram-destination">
+            <label class="ax-transfer-field-label" for="u-tg-destination">Destination channel</label>
+            <select id="u-tg-destination" aria-label="Destination Telegram channel"></select>
+          </div>
+          <details class="ax-transfer-advanced">
+            <summary>Advanced options <span>Media format, orientation, duplicate checks, and cleanup</span></summary>
+            <div class="ax-transfer-advanced-grid">
+              <div class="ax-tg-media-options" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <div><label class="muted" style="font-size:11px">Source media</label><select id="u-tg-source-media" style="margin:4px 0 7px;width:100%"><option value="VIDEO">Video</option><option value="FILE">File / document</option></select></div>
+                <div><label class="muted" style="font-size:11px">Destination media</label><select id="u-tg-destination-media" style="margin:4px 0 7px;width:100%"><option value="VIDEO">Video</option><option value="FILE">File / document</option></select></div>
+              </div>
+              <label class="muted ax-transfer-orientation-label" for="u-tg-orientation">Video orientation</label>
+              <select id="u-tg-orientation" aria-label="Video orientation"><option value="BOTH">Preserve / both</option><option value="HORIZONTAL">Horizontal only</option><option value="VERTICAL">Vertical only</option></select>
+              <div class="ax-transfer-resolution-field">
+                <label class="muted" for="u-tg-resolution">Source resolution</label>
+                <select id="u-tg-resolution" aria-label="Source resolution for Telegram videos">
+                  <option value="ANY">Any resolution</option>
+                  <option value="480P">SD · 480p (720 × 480)</option>
+                  <option value="720P">HD · 720p (1280 × 720)</option>
+                  <option value="1080P">Full HD · 1080p (1920 × 1080)</option>
+                  <option value="1440P">Quad HD · 1440p (2560 × 1440)</option>
+                  <option value="2160P">4K UHD · 2160p (3840 × 2160)</option>
+                  <option value="4320P">8K · 4320p (7680 × 4320)</option>
+                </select>
+                <span class="muted ax-transfer-resolution-hint">Filters source videos; no re-encoding. A specific tier skips unknown dimensions.</span>
+              </div>
+              <div class="ax-tg-duplicate-options" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <label class="muted" style="font-size:11px;display:flex;align-items:center;gap:5px"><input id="u-tg-dup-source" type="checkbox" checked style="width:auto"> Check source duplicates</label>
+                <label class="muted" style="font-size:11px;display:flex;align-items:center;gap:5px"><input id="u-tg-dup-destination" type="checkbox" checked style="width:auto"> Check destination</label>
+                <label class="muted" style="font-size:11px;display:flex;align-items:center;gap:5px"><input id="u-tg-dup-db" type="checkbox" checked style="width:auto"> Check Archive-X DB</label>
+                <label class="muted" style="font-size:11px;display:flex;align-items:center;gap:5px"><input id="u-tg-cleanup" type="checkbox" style="width:auto" onchange="toggleUnifiedTelegramCleanup()"> Cleanup broken/orphaned</label>
+              </div>
+              <div id="u-tg-trash-wrap" style="display:none;margin-top:6px"><label class="muted" style="font-size:11px">Trash channel</label><select id="u-tg-trash" style="margin:4px 0 7px;width:100%"></select></div>
+              <div class="muted ax-transfer-telegram-note">New media is inventoried first. Existing metadata, entities and playback assets are reused; only new or incomplete records are prepared and saved before delivery.</div>
+            </div>
+          </details>
+        </div>
+        <div class="tg-transfer-actions">
+          <button class="btn pri" id="u-transfer-start" onclick="startUnifiedTransfer()">Inspect &amp; Prepare →</button>
+        </div>
+        <div id="u-transfer-msg" class="muted" style="font-size:11px;margin-top:7px"></div>
+      </div>
+    </section>
+    <section class="ax-transfer-workflow-section" id="ax-transfer-metadata-slot" data-transfer-module="metadata" aria-label="Metadata and Assets Manager">
+<div class="mc2 unified-module-card" data-ops-module="metadata">
+        <div class="mi"><svg class="ax-icon"><use href="#ax-settings"></use></svg></div><div class="mn">Metadata &amp; Assets Manager</div>
+        <div class="md">Select channels and run the recommended refresh. Use Advanced options only when you need a custom workflow.</div>
+        <div class="ax-assets-guidance">Select channels, then run the recommended refresh. Archive X runs tasks in dependency order and reuses valid saved results.</div>
+
+        <div class="pan ax-assets-channel-panel" style="padding:9px;margin:8px 0 9px">
+          <div class="ax-section-title" style="font-size:11px;font-weight:700;margin-bottom:6px">CHANNELS</div>
+          <div class="ax2-assets-channel-search-row">
+            <input id="u-assets-channel-filter" type="search" placeholder="Search channels…" oninput="renderMetadataAssetChannels()" style="flex:1;min-width:160px">
+            <button class="btn xs soft-action" type="button" onclick="selectAllMetadataAssetChannels(true)">Select all</button>
+            <button class="btn xs" type="button" onclick="selectAllMetadataAssetChannels(false)">Clear</button>
+          </div>
+          <div id="u-assets-channel-list" role="group" aria-label="Metadata and Assets channels" style="max-height:210px;overflow:auto;border:1px solid var(--line);border-radius:7px;padding:3px"></div>
+          <div id="u-assets-channel-summary" class="muted" style="font-size:11px;margin-top:6px" aria-live="polite">Selected: 0 channels</div>
+        </div>
+
+        <div class="pan ax-assets-processing-panel" style="padding:9px;margin:8px 0 9px">
+          <div class="ax-section-title" style="font-size:11px;font-weight:700;margin-bottom:6px">REFRESH SETTINGS</div>
+          <p class="ax-assets-processing-intro">The recommended refresh updates metadata, performer and studio details, and video snapshots.</p>
+          <label class="ax-assets-scope-field">Scope
+            <select id="u-assets-scope-preset" onchange="syncMetadataAssetScope(this.value)" aria-label="Videos to process">
+              <option value="all" selected>Entire channel (recommended)</option>
+              <option value="25">First 25 videos</option>
+              <option value="50">First 50 videos</option>
+              <option value="100">First 100 videos</option>
+              <option value="250">First 250 videos</option>
+            </select>
+          </label>
+          <div class="ax-assets-default-stages">Default workflow · Inventory → Metadata &amp; Entity Data → Build snapshots</div>
+          <div class="ax-assets-run-actions" aria-label="Metadata and Assets run actions">
+            <div class="ax-assets-run-primary">
+              <button class="btn pri ax-assets-main-action text-[9px] font-extrabold" id="u-assets-run-selected" type="button" onclick="runUnifiedMetadataAssets()" aria-describedby="u-assets-run-help">Run </button>
+              <small id="u-assets-run-help">Runs the selected channels using the chosen scope and processing stages.</small>
+            </div>
+            <div class="ax-assets-run-pending">
+              <button class="btn mt-[9px] mb-[9px]" id="u-assets-process-pending" type="button" onclick="processPendingLibraryItems()" aria-describedby="u-assets-pending-help">Run Pending (no scan)</button>
+              <small id="u-assets-pending-help" class="text-left">Processes saved channel/message IDs only; it does not read Telegram history.</small>
+            </div>
+          </div>
+
+          <details class="ax-assets-advanced-options">
+            <summary>Advanced options</summary>
+            <div class="ax-assets-advanced-inner">
+              <div class="ax-assets-option-group">
+                <div class="ax-assets-option-title">Processing stages</div>
+                <div class="ax-assets-stage-list">
+                  <label class="muted"><input id="u-assets-stage-inventory" type="checkbox" checked onchange="syncFullInventorySelection()"> <span><b>Inventory</b><small>Collect filenames and Telegram media information.</small></span></label>
+                  <label class="muted"><input id="u-assets-stage-metadata-entities" type="checkbox" checked onchange="syncMetadataEntityStageSelection()"> <span><b>Metadata &amp; Entity Data</b><small>Match video metadata, then collect linked performer details, artwork, and studio/site data in one pipeline.</small></span></label>
+                  <div hidden aria-hidden="true">
+                    <input id="u-assets-stage-metadata" type="checkbox" checked>
+                    <input id="u-assets-stage-performers" type="checkbox" checked>
+                    <input id="u-assets-stage-channel" type="checkbox" checked>
+                  </div>
+                  <label class="muted"><input id="u-assets-stage-snapshots" type="checkbox" checked> <span><b>Snapshots</b><small>Generate or repair the 36-frame playback snapshots.</small></span></label>
+                  <label class="muted"><input id="u-assets-stage-image-scan" type="checkbox"> <span><b>Image scan</b><small>Scan the selected Telegram channels' full message history for photos and image documents. This is read-only and runs independently of the video scope limit.</small></span></label>
+                  <label class="muted"><input id="u-assets-stage-photo-reconcile" type="checkbox"> <span><b>Reconcile deleted Telegram images</b><small>Check indexed image message IDs and remove local entries, cached files, thumbnails, and face-analysis records only when Telegram confirms the message is missing or no longer contains an image. This does not rescan channel history.</small></span></label>
+                </div>
+              </div>
+              <div class="ax-assets-option-group">
+                <div class="ax-assets-option-title">Recheck options</div>
+                <div class="ax-assets-force-list">
+                  <label class="muted"><input id="u-assets-force-metadata" type="checkbox"> Force metadata recheck</label>
+                  <label class="muted"><input id="u-assets-force-entity" type="checkbox"> Force performer/studio recheck for this run</label>
+                  <label class="muted"><input id="u-assets-full-inventory" type="checkbox" onchange="syncFullInventorySelection()"> <span style="display:block;min-width:0"><b style="display:block;color:var(--ax2-text,var(--text));font-size:12px">Reconcile</b><small style="display:block;color:var(--ax2-text-3,var(--text3));font-size:11px;line-height:1.4">Checks older Telegram history and reconciles captions of delivered posts. No media re-upload.</small></span></label>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <!-- The established handlers still read these canonical values. The visible scope selector syncs them. -->
+          <div class="ax-assets-legacy-scope-controls" aria-hidden="true">
+            <select id="u-assets-process-limit"><option value="25">First 25</option><option value="50" selected>First 50</option><option value="100">First 100</option><option value="250">First 250</option></select>
+            <input id="u-assets-process-all" type="checkbox" checked>
+          </div>
+          <div id="u-assets-process-msg" class="muted" style="font-size:11px;margin-top:7px" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+    <section class="ax-transfer-workflow-section ax-transfer-automation-section" data-transfer-module="automation" aria-label="Content Automation">
+      <div class="mc2 automation-card" data-ops-module="automation">
+        <div class="automation-head">
+          <div>
+            <div class="mi"><svg class="ax-icon" aria-hidden="true"><use href="#ax-settings"></use></svg></div><div class="mn">Content Automation</div>
+            <div class="md">RSS → qBittorrent → validate → identify local media → reuse/build individual snapshots → Telegram. Existing snapshots are reused only for the same unchanged local media; new or changed downloads build a new snapshot. qBittorrent is managed automatically by Archive X.</div>
+          </div>
+          <div class="automation-state" id="ms-CONTENT_AUTOMATION"><span class="status-dot idle"></span><span class="muted">Idle</span></div>
+        </div>
+        <div id="ms-CONTENT_AUTOMATION-live" class="module-live-strip automation-live-strip" aria-live="polite"></div>
+
+        <div class="automation-stepper" id="automation-stepper" role="tablist" aria-label="Content Automation steps">
+          <button type="button" class="automation-step on" data-auto-step="1" onclick="setAutomationStep(1)" role="tab" aria-selected="true"><span class="n">1</span>Source</button>
+          <button type="button" class="automation-step" data-auto-step="2" onclick="setAutomationStep(2)" role="tab" aria-selected="false"><span class="n">2</span>Runtime &amp; connectivity</button>
+          <button type="button" class="automation-step" data-auto-step="3" onclick="setAutomationStep(3)" role="tab" aria-selected="false"><span class="n">3</span>Release rules</button>
+          <button type="button" class="automation-step" data-auto-step="4" onclick="setAutomationStep(4)" role="tab" aria-selected="false"><span class="n">4</span>Queue &amp; activity</button>
+          <button type="button" class="automation-step" data-auto-step="5" onclick="setAutomationStep(5)" role="tab" aria-selected="false"><span class="n">5</span>Review</button>
+          <button type="button" class="automation-step" data-auto-step="6" onclick="setAutomationStep(6)" role="tab" aria-selected="false"><span class="n">6</span>Run</button>
+        </div>
+        <div class="automation-step-progress" aria-hidden="true"><span id="automation-step-progress"></span></div>
+<div class="automation-grid">
+          <section class="automation-panel automation-step-panel" data-wizard-step="1">
+            <div class="automation-panel-title">1 · Source & destination</div>
+            <div class="automation-fields">
+              <div class="field-wide"><label>RSS feed URL</label><input id="m-auto-rss" type="text" placeholder="https://example.com/feed.xml"></div>
+              <div><label>Destination channel</label><select id="m-auto-dst"></select></div>
+              <div class="field-wide"><div class="pan" style="padding:8px"><b style="font-size:11px">Telegram Delivery Policy</b><div class="muted" style="font-size:10.5px;line-height:1.4;margin-top:4px">Content Automation uses the shared Telegram delivery policy for canonical playback assets, delivery verification and cleanup. Workflow-specific destinations and source rules remain here.</div></div></div>
+              <div class="field-wide"><label>Torrent download folder</label><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><input id="m-auto-path" type="text" placeholder="Downloads\ContentAutomation" style="flex:1;min-width:240px"><button class="btn" type="button" onclick="pickAutomationFolder()">Browse…</button><button class="btn" type="button" onclick="saveAutomationDownloadFolder()">Save folder</button></div><div class="muted" style="font-size:11px;margin-top:5px">qBittorrent will save Content Automation torrents here. The folder is created if needed.</div></div>
+            </div>
+          </section>
+
+          <section class="automation-panel automation-step-panel" data-wizard-step="2">
+            <div class="automation-panel-title">2 · Runtime &amp; connectivity</div>
+            <div class="automation-fields compact">
+              <div class="field-wide"><label>Engine</label><select id="m-auto-backend" onchange="automationBackendChanged()">
+                <option value="qbittorrent">qBittorrent (Web API)</option>
+              </select></div>
+              <div><label>Poll interval</label><input id="m-auto-poll" type="number" min="30" max="3600" value="120"><span class="field-suffix">sec</span></div>
+              <div class="field-wide"><div class="muted" style="padding-top:7px">Each completed torrent is verified, then runs Inventory → Metadata Match → Performer Data → Channel Data → Snapshots. The database is committed before Telegram Transfer Manager delivery; source torrent/file cleanup happens only after verified delivery.</div></div>
+            </div>
+            <div id="m-auto-external-settings">
+              <div class="engine-ok" style="margin-top:8px"><span class="status-dot good"></span><b>qBittorrent</b><span class="muted">External process · recommended for stability testing</span></div>
+              <details class="advanced-settings">
+                <summary>qBittorrent connection</summary>
+                <div class="automation-fields compact" style="margin-top:8px">
+                  <div class="field-wide"><label>WebUI</label><input id="m-auto-qbt-url" type="text" value="http://127.0.0.1:8080"></div>
+                  <div><label>Username <span id="m-auto-qbt-user-state" class="credential-state not-saved"><span class="status-dot idle"></span>Not saved</span></label><input id="m-auto-qbt-user" type="text" autocomplete="username" placeholder="optional"></div>
+                  <div><label>Password <span id="m-auto-qbt-pass-state" class="credential-state not-saved"><span class="status-dot idle"></span>Not saved</span></label><input id="m-auto-qbt-pass" type="password" autocomplete="current-password" placeholder="Enter to replace saved password"></div>
+                  <div class="field-wide"><label>API key <span id="m-auto-qbt-key-state" class="credential-state not-saved"><span class="status-dot idle"></span>Not saved</span></label><input id="m-auto-qbt-key" type="password" autocomplete="off" placeholder="Enter to replace saved key (qBittorrent 5.2+)"></div>
+                </div>
+              </details>
+            </div>
+          </section>
+
+          <section class="automation-panel automation-step-panel" data-wizard-step="3">
+            <div class="automation-panel-title">3 · Release rules</div>
+            <div class="automation-fields compact">
+              <div><label>Name contains</label><input id="m-auto-must" type="text" value="1080p" placeholder="Optional release-name text"></div>
+              <div><label>Resolution</label><select id="m-auto-only1080"><option value="1080p" selected>1080p releases</option><option value="any">Any resolution</option></select></div>
+              <div><label>Min size</label><input id="m-auto-minsize" type="number" min="0" max="10240" step="1" value="0"><span class="field-suffix">MiB</span></div>
+              <div><label>Max size</label><input id="m-auto-maxsize" type="number" min="0" max="10240" step="1" value="0"><span class="field-suffix">MiB</span></div>
+            </div>
+            <div class="checkgrid">
+              <label class="checkline"><input id="m-auto-regex" type="checkbox"> Regex matching</label>
+              <label class="checkline"><input id="m-auto-rmtorrent" type="checkbox" checked disabled> Remove completed torrent after verified delivery (required)</label>
+              <label class="checkline"><input id="m-auto-rmlocal" type="checkbox" checked disabled> Delete local download after verified delivery (required)</label>
+              <div class="field-wide"><label for="m-auto-oversized-policy">When a file exceeds Telegram's safe upload limit</label><select id="m-auto-oversized-policy">
+                <option value="optimize" selected>Optimize to fit (may reduce quality; original preserved)</option>
+                <option value="skip">Skip oversized files (keep local download)</option>
+              </select><div class="muted" style="font-size:11px;line-height:1.4;margin-top:4px">Optimize may re-encode the video while preserving the original. Skip leaves the completed download on disk and does not remove its torrent.</div></div>
+            </div>
+            <input id="m-auto-dhtupnp" type="hidden" value="">
+            <input id="m-auto-incoming" type="hidden" value="">
+          </section>
+
+          <section class="automation-panel automation-status-panel automation-step-panel" data-wizard-step="4">
+            <div class="automation-panel-title automation-panel-title-row"><span>4 · Queue &amp; activity</span><button class="btn danger sm" type="button" onclick="clearAutomationAll()">Clear all</button></div>
+            <div id="m-auto-status" class="automation-status">No activity yet.</div>
+          </section>
+        </div>
+
+        <section id="automation-review-panel" class="automation-step-panel" data-wizard-step="5">
+          <div class="automation-review">
+            <div class="automation-panel-title">5 · Review</div>
+            <div id="automation-review-warning" class="muted" style="margin:6px 0 10px">Review the selected configuration before starting.</div>
+            <div id="automation-review-grid" class="automation-review-grid"></div>
+          </div>
+        </section>
+
+        <section id="automation-run-panel" class="automation-step-panel" data-wizard-step="6">
+          <div class="automation-review">
+            <div class="automation-panel-title">6 · Run</div>
+            <div class="muted" style="margin-top:6px">Start the configured automation or test the selected download engine. Active work remains visible in Operations and the task tray.</div>
+          </div>
+        </section>
+
+        <div class="automation-wizard-nav" id="automation-wizard-nav">
+          <button class="btn" id="automation-prev" type="button" onclick="setAutomationStep(_automationStep-1)" disabled>Back</button>
+          <div class="right">
+            <button class="btn" id="automation-save-secondary" type="button" onclick="saveAutomationSettings()">Save configuration</button>
+            <button class="btn pri" id="automation-next" type="button" onclick="automationNextStep()">Next</button>
+          </div>
+        </div>
+
+        <div class="automation-actions">
+          <button id="m-auto-save" class="btn" onclick="saveAutomationSettings()">Save configuration</button>
+          <button id="m-auto-test-engine" class="btn" onclick="testAutomationEngine()">Validate configuration</button>
+          <button class="btn pri" onclick="startAutomation()">Start automation</button>
+          <span id="m-auto-qbit-connection" class="muted" style="display:inline-flex;align-items:center;gap:6px"><span class="status-dot idle"></span><span>Not verified</span></span>
+          <button class="btn danger" onclick="stopAutomation()">Stop</button>
+          <span id="m-auto-msg" class="muted"></span>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+
+
+</div><!-- /app -->
+

@@ -1,0 +1,116 @@
+/* ============================================================================
+   FILE: css/122-bulk-edit-toolbar-cohesion.css
+   AREA: Videos library
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X v29.4.270 — integrate the shared bulk-edit toolbar with the app shell.
+   This toolbar is shared by Library, Performer, and Studio mapping mode. */
+#ax-ui-scale-root #mapbar.mapbar-shell {position: sticky !important;;top: calc(var(--ax-ui-header-height, 68px) + 8px) !important;;z-index: 130 !important;;width: auto !important;;max-width: none !important;;min-width: 0 !important;;margin: 0 var(--ax-ui-page-pad, 22px) 0 calc(var(--ax-ui-sidebar-width, 178px) + var(--ax-ui-page-pad, 22px)) !important;;padding: 9px 8px !important;;align-items: center !important;;gap: 8px !important;;flex-wrap: wrap !important;;background: color-mix(in srgb, var(--ax-background-secondary, #20211e) 96%, transparent) !important;;color: var(--ax-text-primary, #eceee7) !important;;border: 1px solid var(--ax-border-default, rgba(198,194,171,.22)) !important;;border-radius: var(--ax-ui-radius-md, 12px) !important;;box-shadow: 0 7px 20px rgba(0,0,0,.18) !important;;backdrop-filter: blur(14px) saturate(120%);;-webkit-backdrop-filter: blur(14px) saturate(120%);}
+
+#ax-ui-scale-root #mapbar .map-ui-count {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 30px !important;
+  padding: 0 10px !important;
+  border: 1px solid var(--ax-border-default, rgba(198,194,171,.22)) !important;
+  border-radius: 9px !important;
+  background: var(--ax-background-tertiary, #30312c) !important;
+  color: var(--ax-text-primary, #eceee7) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+#ax-ui-scale-root #mapbar .map-ui-hint {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 30px !important;
+  margin-right: 2px !important;
+  color: var(--ax-text-secondary, #b9b9ad) !important;
+  font-size: 11px !important;
+}
+#ax-ui-scale-root #mapbar .mapbar-spacer { flex: 1 1 auto !important; min-width: 12px !important; }
+#ax-ui-scale-root #mapbar .map-menu { position: relative !important; display: inline-flex !important; flex: 0 0 auto !important; min-width: 0 !important; }
+#ax-ui-scale-root #mapbar .map-ui-action,
+#ax-ui-scale-root #mapbar .map-ui-primary,
+#ax-ui-scale-root #mapbar .map-ui-danger {
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  min-height: 32px !important;
+  max-width: 100% !important;
+  padding: 0 11px !important;
+  border: 1px solid var(--ax-border-default, rgba(198,194,171,.25)) !important;
+  border-radius: 9px !important;
+  background: var(--ax-background-tertiary, #30312c) !important;
+  color: var(--ax-text-primary, #eceee7) !important;
+  font: inherit !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  line-height: 1.15 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  transform: none !important;
+  transition: background .15s ease, border-color .15s ease, color .15s ease !important;
+}
+#ax-ui-scale-root #mapbar .map-ui-action:hover:not(:disabled),
+#ax-ui-scale-root #mapbar .map-ui-primary:hover:not(:disabled) {
+  background: var(--ax-background-elevated, #3b3c35) !important;
+  border-color: var(--ax-border-strong, rgba(225,218,190,.42)) !important;
+}
+#ax-ui-scale-root #mapbar .map-ui-primary {
+  background: var(--ax-interactive-primary, #e7cf8d) !important;
+  border-color: var(--ax-interactive-primary, #e7cf8d) !important;
+  color: var(--ax-text-on-accent, #23231f) !important;
+}
+#ax-ui-scale-root #mapbar .map-ui-danger {
+  background: color-mix(in srgb, var(--ax-status-danger, #dc626c) 13%, var(--ax-background-tertiary, #30312c)) !important;
+  border-color: color-mix(in srgb, var(--ax-status-danger, #dc626c) 40%, var(--ax-border-default, #48483f)) !important;
+  color: var(--ax-status-danger-text, #f2a0a6) !important;
+}
+#ax-ui-scale-root #mapbar .map-menu-panel {
+  top: calc(100% + 6px) !important;
+  z-index: 1400 !important;
+  min-width: 220px !important;
+  max-width: min(320px, calc(100vw - 24px)) !important;
+  padding: 6px !important;
+  border: 1px solid var(--ax-border-default, rgba(198,194,171,.25)) !important;
+  border-radius: 11px !important;
+  background: var(--ax-background-elevated, #30312c) !important;
+  color: var(--ax-text-primary, #eceee7) !important;
+  box-shadow: 0 16px 38px rgba(0,0,0,.36) !important;
+}
+#ax-ui-scale-root #mapbar .map-menu-panel .btn { width: 100% !important; justify-content: flex-start !important; text-align: left !important; }
+
+/* At smaller widths the same component stays visible, but becomes a compact
+   bottom action dock above the mobile navigation. */
+@media (max-width: 780px) {
+  #ax-ui-scale-root #mapbar.mapbar-shell {
+    position: fixed !important;
+    top: auto !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: calc(66px + env(safe-area-inset-bottom)) !important;
+    width: auto !important;
+    max-height: min(42vh, 280px) !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 8px !important;
+    gap: 6px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 28px rgba(0,0,0,.38) !important;
+  }
+  #ax-ui-scale-root #mapbar .map-ui-hint,
+  #ax-ui-scale-root #mapbar .mapbar-spacer { display: none !important; }
+  #ax-ui-scale-root #mapbar .map-ui-count { order: 0 !important; margin-right: auto !important; }
+  #ax-ui-scale-root #mapbar > .btn { order: 1 !important; }
+  #ax-ui-scale-root #mapbar .map-menu { order: 2 !important; flex: 1 1 calc(33.333% - 6px) !important; position: static !important; }
+  #ax-ui-scale-root #mapbar .map-menu > .btn { width: 100% !important; padding-inline: 7px !important; }
+  #ax-ui-scale-root #mapbar .map-menu-panel { position: fixed !important; left: 8px !important; right: 8px !important; top: auto !important; bottom: calc(166px + env(safe-area-inset-bottom)) !important; min-width: 0 !important; max-width: none !important; }
+  body:has(#mapbar[style*="flex"]) #view-stage { padding-bottom: 180px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #ax-ui-scale-root #mapbar * { transition-duration: .01ms !important; }
+}

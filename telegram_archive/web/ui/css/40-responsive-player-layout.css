@@ -1,0 +1,31 @@
+/* ============================================================================
+   FILE: css/40-responsive-player-layout.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Responsive player geometry inspired by YouTube's adaptive watch page.
+   Layout-only: uses intrinsic video dimensions to size the viewport, but does
+   not touch sources, buffering, seeking, preview generation or snapshot logic. */
+
+
+
+/* At narrower widths, let the video and its details use the full row and move
+   Up next / Similar under the video, as the watch page does on small windows. */
+@media (max-width: 1100px) {
+
+  
+  
+  
+
+  #v55-related {
+    grid-template-columns: repeat(auto-fit,minmax(min(100%,245px),1fr)) !important;
+  }
+  
+}
+
+
+/* Full-screen mode intentionally releases the inline-page width/height cap. */
+
+

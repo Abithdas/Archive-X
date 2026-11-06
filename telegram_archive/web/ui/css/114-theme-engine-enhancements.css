@@ -1,0 +1,332 @@
+/* ============================================================================
+   FILE: css/114-theme-engine-enhancements.css
+   AREA: Theming
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* v29.4.259 theme engine: paired palettes, high-coverage semantic controls and sidebar mode switch. */
+
+html[data-theme-preset="nobuf"][data-theme="dark"] {
+  --ax-preset-bg:#013718; --ax-preset-surface:#0a5730; --ax-preset-surface-alt:#0d6338; --ax-preset-elevated:#125f3b; --ax-preset-selected:#176c45;
+  --ax-preset-accent:#1dfc9f; --ax-preset-accent-hover:#45ffb1; --ax-preset-secondary:#40a57f; --ax-preset-text:#ffffff; --ax-preset-subtext:#a8fadf; --ax-preset-muted:#82cdb1; --ax-preset-on-accent:#013718;
+  --ax-preset-border:rgba(29,252,159,.17); --ax-preset-border-strong:rgba(29,252,159,.32); --ax-overlay-light:rgba(255,255,255,.10); --ax-overlay-dark:rgba(0,0,0,.45); --ax-scrim:rgba(0,0,0,.62);
+}
+
+html[data-theme-preset="nobuf"][data-theme="light"] {
+  --ax-preset-bg:#f0faf5; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#e3f4eb; --ax-preset-elevated:#d7eee2; --ax-preset-selected:#cae9d8;
+  --ax-preset-accent:#0a5730; --ax-preset-accent-hover:#08703b; --ax-preset-secondary:#40a57f; --ax-preset-text:#013718; --ax-preset-subtext:#28704f; --ax-preset-muted:#52866f; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(10,87,48,.13); --ax-preset-border-strong:rgba(10,87,48,.28); --ax-overlay-light:rgba(255,255,255,.8); --ax-overlay-dark:rgba(0,0,0,.16); --ax-scrim:rgba(0,0,0,.30);
+}
+
+html[data-theme-preset="charcoal"][data-theme="dark"] {
+  --ax-preset-bg:#1e1e2e; --ax-preset-surface:#282838; --ax-preset-surface-alt:#303044; --ax-preset-elevated:#39394f; --ax-preset-selected:#42425c;
+  --ax-preset-accent:#6c63ff; --ax-preset-accent-hover:#8179ff; --ax-preset-secondary:#a78bfa; --ax-preset-text:#e4e4ef; --ax-preset-subtext:#b0b0cd; --ax-preset-muted:#8888a8; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(255,255,255,.09); --ax-preset-border-strong:rgba(255,255,255,.17); --ax-overlay-light:rgba(255,255,255,.08); --ax-overlay-dark:rgba(0,0,0,.50); --ax-scrim:rgba(0,0,0,.66);
+}
+
+html[data-theme-preset="charcoal"][data-theme="light"] {
+  --ax-preset-bg:#f3f2fb; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#e9e8f4; --ax-preset-elevated:#dfdeef; --ax-preset-selected:#e2defc;
+  --ax-preset-accent:#5b51d9; --ax-preset-accent-hover:#483fbd; --ax-preset-secondary:#8175c8; --ax-preset-text:#25243c; --ax-preset-subtext:#625f7c; --ax-preset-muted:#8a879e; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(45,41,86,.14); --ax-preset-border-strong:rgba(45,41,86,.25); --ax-overlay-light:rgba(30,28,60,.05); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.28);
+}
+
+html[data-theme-preset="nord"][data-theme="dark"] {--ax-overlay-light:rgba(255,255,255,.08);;--ax-overlay-dark:rgba(0,0,0,.46);}
+
+html[data-theme-preset="nord"][data-theme="light"] {
+  --ax-preset-bg:#eceff4; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#e5e9f0; --ax-preset-elevated:#d8dee9; --ax-preset-selected:#dce5f2;
+  --ax-preset-accent:#527ba5; --ax-preset-accent-hover:#3d668f; --ax-preset-secondary:#698bab; --ax-preset-text:#2e3440; --ax-preset-subtext:#4c566a; --ax-preset-muted:#7b8797; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(46,52,64,.13); --ax-preset-border-strong:rgba(46,52,64,.24); --ax-overlay-light:rgba(46,52,64,.05); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.28);
+}
+
+html[data-theme-preset="monokai"][data-theme="dark"] {
+  --ax-preset-bg:#272822; --ax-preset-surface:#2f302a; --ax-preset-surface-alt:#393a32; --ax-preset-elevated:#44453a; --ax-preset-selected:#4d4e40;
+  --ax-preset-accent:#a6e22e; --ax-preset-accent-hover:#b9f044; --ax-preset-secondary:#66d9ef; --ax-preset-text:#f8f8f2; --ax-preset-subtext:#c4c4b9; --ax-preset-muted:#90908a; --ax-preset-on-accent:#272822;
+  --ax-preset-border:rgba(255,255,255,.10); --ax-preset-border-strong:rgba(255,255,255,.19); --ax-overlay-light:rgba(255,255,255,.08); --ax-overlay-dark:rgba(0,0,0,.48); --ax-scrim:rgba(0,0,0,.64);
+}
+
+html[data-theme-preset="monokai"][data-theme="light"] {
+  --ax-preset-bg:#f7f7f2; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#eeefe5; --ax-preset-elevated:#e3e5d6; --ax-preset-selected:#e2ecc7;
+  --ax-preset-accent:#577a0d; --ax-preset-accent-hover:#426305; --ax-preset-secondary:#137b91; --ax-preset-text:#272822; --ax-preset-subtext:#5c5d50; --ax-preset-muted:#868779; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(39,40,34,.14); --ax-preset-border-strong:rgba(39,40,34,.24); --ax-overlay-light:rgba(39,40,34,.05); --ax-overlay-dark:rgba(0,0,0,.13); --ax-scrim:rgba(0,0,0,.26);
+}
+
+html[data-theme-preset="cyber-teal"][data-theme="dark"] {
+  --ax-preset-bg:#0a1628; --ax-preset-surface:#112240; --ax-preset-surface-alt:#17304e; --ax-preset-elevated:#1d3b59; --ax-preset-selected:#234866;
+  --ax-preset-accent:#00e5bf; --ax-preset-accent-hover:#33f0d0; --ax-preset-secondary:#00b4d8; --ax-preset-text:#e0f7f4; --ax-preset-subtext:#9ac9cc; --ax-preset-muted:#6faaaf; --ax-preset-on-accent:#0a1628;
+  --ax-preset-border:rgba(0,229,191,.15); --ax-preset-border-strong:rgba(0,229,191,.29); --ax-overlay-light:rgba(255,255,255,.07); --ax-overlay-dark:rgba(0,0,0,.50); --ax-scrim:rgba(0,0,0,.67);
+}
+
+html[data-theme-preset="cyber-teal"][data-theme="light"] {
+  --ax-preset-bg:#eefafa; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#ddf2f0; --ax-preset-elevated:#cbe9e6; --ax-preset-selected:#c2e7e0;
+  --ax-preset-accent:#007e73; --ax-preset-accent-hover:#00645b; --ax-preset-secondary:#087e9a; --ax-preset-text:#103236; --ax-preset-subtext:#426c6e; --ax-preset-muted:#729394; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(0,126,115,.16); --ax-preset-border-strong:rgba(0,126,115,.28); --ax-overlay-light:rgba(0,126,115,.05); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.26);
+}
+
+html[data-theme-preset="solarized"][data-theme="dark"] {
+  --ax-preset-bg:#002b36; --ax-preset-surface:#073642; --ax-preset-surface-alt:#0d414e; --ax-preset-elevated:#164c59; --ax-preset-selected:#1b5663;
+  --ax-preset-accent:#b58900; --ax-preset-accent-hover:#d4a51a; --ax-preset-secondary:#2aa198; --ax-preset-text:#fdf6e3; --ax-preset-subtext:#c4bda8; --ax-preset-muted:#9d9888; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(253,246,227,.13); --ax-preset-border-strong:rgba(253,246,227,.24); --ax-overlay-light:rgba(253,246,227,.06); --ax-overlay-dark:rgba(0,0,0,.48); --ax-scrim:rgba(0,0,0,.65);
+}
+
+html[data-theme-preset="solarized"][data-theme="light"] {
+  --ax-preset-bg:#fdf6e3; --ax-preset-surface:#eee8d5; --ax-preset-surface-alt:#e7dfc9; --ax-preset-elevated:#ded5bd; --ax-preset-selected:#d9cda9;
+  --ax-preset-accent:#b58900; --ax-preset-accent-hover:#987400; --ax-preset-secondary:#268bd2; --ax-preset-text:#073642; --ax-preset-subtext:#586e75; --ax-preset-muted:#74858a; --ax-preset-on-accent:#073642;
+  --ax-preset-border:rgba(7,54,66,.14); --ax-preset-border-strong:rgba(7,54,66,.25); --ax-overlay-light:rgba(255,255,255,.68); --ax-overlay-dark:rgba(0,0,0,.13); --ax-scrim:rgba(0,0,0,.28);
+}
+
+html[data-theme-preset="nero-gold"][data-theme="dark"] {
+  --ax-preset-bg:#131313; --ax-preset-surface:#262625; --ax-preset-surface-alt:#343331; --ax-preset-elevated:#4b4a48; --ax-preset-selected:#514a3b;
+  --ax-preset-accent:#efd395; --ax-preset-accent-hover:#f5dfaa; --ax-preset-secondary:#a4a4a4; --ax-preset-text:#ffffff; --ax-preset-subtext:#cfcdc7; --ax-preset-muted:#96948f; --ax-preset-on-accent:#201c13;
+  --ax-preset-border:rgba(239,211,149,.18); --ax-preset-border-strong:rgba(239,211,149,.32); --ax-overlay-light:rgba(255,255,255,.06); --ax-overlay-dark:rgba(0,0,0,.54); --ax-scrim:rgba(0,0,0,.72);
+}
+
+html[data-theme-preset="nero-gold"][data-theme="light"] {
+  --ax-preset-bg:#f7f4eb; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#eee8d8; --ax-preset-elevated:#e3d9bb; --ax-preset-selected:#f2e1b7;
+  --ax-preset-accent:#8d6a18; --ax-preset-accent-hover:#735410; --ax-preset-secondary:#777674; --ax-preset-text:#262625; --ax-preset-subtext:#5c5b57; --ax-preset-muted:#888782; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(38,38,37,.15); --ax-preset-border-strong:rgba(38,38,37,.26); --ax-overlay-light:rgba(38,38,37,.04); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.28);
+}
+
+html[data-theme-preset="dark-grey"][data-theme="dark"] {
+  --ax-preset-bg:#141413; --ax-preset-surface:#272727; --ax-preset-surface-alt:#3c3c3a; --ax-preset-elevated:#6a6a67; --ax-preset-selected:#494941;
+  --ax-preset-accent:#e3e2a1; --ax-preset-accent-hover:#f0efb8; --ax-preset-secondary:#c1c1a9; --ax-preset-text:#f5f5f0; --ax-preset-subtext:#c9c9bc; --ax-preset-muted:#99998d; --ax-preset-on-accent:#25251c;
+  --ax-preset-border:rgba(227,226,161,.16); --ax-preset-border-strong:rgba(227,226,161,.29); --ax-overlay-light:rgba(255,255,255,.06); --ax-overlay-dark:rgba(0,0,0,.52); --ax-scrim:rgba(0,0,0,.70);
+}
+
+html[data-theme-preset="dark-grey"][data-theme="light"] {
+  --ax-preset-bg:#f5f4ec; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#e3e2c3; --ax-preset-elevated:#c1c1a9; --ax-preset-selected:#dfdfac;
+  --ax-preset-accent:#676629; --ax-preset-accent-hover:#55551f; --ax-preset-secondary:#777674; --ax-preset-text:#272727; --ax-preset-subtext:#5f5f58; --ax-preset-muted:#8b8a87; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(39,39,39,.15); --ax-preset-border-strong:rgba(39,39,39,.25); --ax-overlay-light:rgba(39,39,39,.04); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.28);
+}
+
+html[data-theme-preset="black-essence"][data-theme="dark"] {
+  --ax-preset-bg:#030303; --ax-preset-surface:#141414; --ax-preset-surface-alt:#242424; --ax-preset-elevated:#343434; --ax-preset-selected:#393939;
+  --ax-preset-accent:#d1d1d1; --ax-preset-accent-hover:#eeeeee; --ax-preset-secondary:#828383; --ax-preset-text:#f9f9f9; --ax-preset-subtext:#c1c1c1; --ax-preset-muted:#8b8b8b; --ax-preset-on-accent:#111111;
+  --ax-preset-border:rgba(255,255,255,.12); --ax-preset-border-strong:rgba(255,255,255,.24); --ax-overlay-light:rgba(255,255,255,.07); --ax-overlay-dark:rgba(0,0,0,.56); --ax-scrim:rgba(0,0,0,.74);
+}
+
+html[data-theme-preset="black-essence"][data-theme="light"] {
+  --ax-preset-bg:#f2f2f2; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#e5e5e5; --ax-preset-elevated:#d1d1d1; --ax-preset-selected:#dfdfdf;
+  --ax-preset-accent:#343434; --ax-preset-accent-hover:#161616; --ax-preset-secondary:#686969; --ax-preset-text:#171717; --ax-preset-subtext:#5b5b5b; --ax-preset-muted:#828383; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(0,0,0,.13); --ax-preset-border-strong:rgba(0,0,0,.24); --ax-overlay-light:rgba(0,0,0,.04); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.28);
+}
+
+html[data-theme-preset="dark-navigation"][data-theme="dark"] {
+  --ax-preset-bg:#0a0a0a; --ax-preset-surface:#19191a; --ax-preset-surface-alt:#2a2a2a; --ax-preset-elevated:#363636; --ax-preset-selected:#414141;
+  --ax-preset-accent:#dddddd; --ax-preset-accent-hover:#ffffff; --ax-preset-secondary:#938a87; --ax-preset-text:#f7f7f7; --ax-preset-subtext:#c5c5c5; --ax-preset-muted:#888888; --ax-preset-on-accent:#0a0a0a;
+  --ax-preset-border:rgba(255,255,255,.12); --ax-preset-border-strong:rgba(255,255,255,.24); --ax-overlay-light:rgba(255,255,255,.06); --ax-overlay-dark:rgba(0,0,0,.56); --ax-scrim:rgba(0,0,0,.75);
+}
+
+html[data-theme-preset="dark-navigation"][data-theme="light"] {
+  --ax-preset-bg:#f1f1f1; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#e3e3e3; --ax-preset-elevated:#d0d0d0; --ax-preset-selected:#dddddd;
+  --ax-preset-accent:#333333; --ax-preset-accent-hover:#111111; --ax-preset-secondary:#696363; --ax-preset-text:#191919; --ax-preset-subtext:#585858; --ax-preset-muted:#888888; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(0,0,0,.13); --ax-preset-border-strong:rgba(0,0,0,.23); --ax-overlay-light:rgba(0,0,0,.04); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.28);
+}
+
+html[data-theme-preset="subtle-orange"][data-theme="dark"] {
+  --ax-preset-bg:#111111; --ax-preset-surface:#1a1919; --ax-preset-surface-alt:#2b2726; --ax-preset-elevated:#47403d; --ax-preset-selected:#51413c;
+  --ax-preset-accent:#e07b5b; --ax-preset-accent-hover:#f09070; --ax-preset-secondary:#77615a; --ax-preset-text:#f7f3f1; --ax-preset-subtext:#cdbdb8; --ax-preset-muted:#92837e; --ax-preset-on-accent:#20120e;
+  --ax-preset-border:rgba(224,123,91,.18); --ax-preset-border-strong:rgba(224,123,91,.32); --ax-overlay-light:rgba(255,255,255,.06); --ax-overlay-dark:rgba(0,0,0,.55); --ax-scrim:rgba(0,0,0,.72);
+}
+
+html[data-theme-preset="subtle-orange"][data-theme="light"] {
+  --ax-preset-bg:#f9f3f0; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#f1e2dc; --ax-preset-elevated:#e9cec4; --ax-preset-selected:#f2d3c8;
+  --ax-preset-accent:#b95031; --ax-preset-accent-hover:#9f4025; --ax-preset-secondary:#80645d; --ax-preset-text:#2b2726; --ax-preset-subtext:#655650; --ax-preset-muted:#927e77; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(43,39,38,.14); --ax-preset-border-strong:rgba(43,39,38,.25); --ax-overlay-light:rgba(43,39,38,.04); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.28);
+}
+
+html[data-theme-preset="rose-graphite"][data-theme="dark"] {
+  --ax-preset-bg:#0a0a0a; --ax-preset-surface:#1b1b1b; --ax-preset-surface-alt:#323232; --ax-preset-elevated:#5e5e5e; --ax-preset-selected:#483342;
+  --ax-preset-accent:#be779e; --ax-preset-accent-hover:#d48bb4; --ax-preset-secondary:#dddcdd; --ax-preset-text:#f7f5f7; --ax-preset-subtext:#c8bdc5; --ax-preset-muted:#8b8288; --ax-preset-on-accent:#1a1117;
+  --ax-preset-border:rgba(190,119,158,.18); --ax-preset-border-strong:rgba(190,119,158,.33); --ax-overlay-light:rgba(255,255,255,.06); --ax-overlay-dark:rgba(0,0,0,.55); --ax-scrim:rgba(0,0,0,.72);
+}
+
+html[data-theme-preset="rose-graphite"][data-theme="light"] {
+  --ax-preset-bg:#f7f3f6; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#e8e1e6; --ax-preset-elevated:#dddcde; --ax-preset-selected:#f0dce8;
+  --ax-preset-accent:#9c426f; --ax-preset-accent-hover:#813459; --ax-preset-secondary:#5e5e5e; --ax-preset-text:#323232; --ax-preset-subtext:#62575e; --ax-preset-muted:#8d828a; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(50,50,50,.14); --ax-preset-border-strong:rgba(50,50,50,.24); --ax-overlay-light:rgba(50,50,50,.04); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.28);
+}
+
+/* Theme every shared shell and panel through semantic variables, overriding the legacy fixed sidebar palette. */
+
+html[data-theme-preset] #tb,
+html[data-theme-preset] #afc,
+html[data-theme-preset] #cc,
+html[data-theme-preset] #fp,
+html[data-theme-preset] #view-stage,
+html[data-theme-preset] .settings-v54-banner,
+html[data-theme-preset] .settings-v54-section,
+html[data-theme-preset] .pan,
+html[data-theme-preset] .ops-metric,
+html[data-theme-preset] .v54-health-card,
+html[data-theme-preset] .v55-data-card,
+html[data-theme-preset] .ops-bar,
+html[data-theme-preset] .mc2,
+html[data-theme-preset] .settings-area-card,
+html[data-theme-preset] .settings-status-item,
+html[data-theme-preset] .settings-v54-pill,
+html[data-theme-preset] .ax-appearance-card,
+html[data-theme-preset] .ax-ux-panel,
+html[data-theme-preset] .ax-ux-command,
+html[data-theme-preset] .ax-ux-activity,
+html[data-theme-preset] .ax-ux-filter-drawer,
+html[data-theme-preset] .ax-custom-theme-editor,
+html[data-theme-preset] .map-menu-panel,
+html[data-theme-preset] .context-menu,
+html[data-theme-preset] .dropdown-menu,
+html[data-theme-preset] .popover,
+html[data-theme-preset] .dialog,
+html[data-theme-preset] .modal,
+html[data-theme-preset] .drawer,
+html[data-theme-preset] .video-person-card,
+html[data-theme-preset] .video-meta-grid,
+html[data-theme-preset] .ax-entity-suggested,
+html[data-theme-preset] .video-suggestion-toolbar {
+  background:var(--ax-background-secondary)!important;
+  color:var(--ax-text-primary)!important;
+  border-color:var(--ax-border-default)!important;
+}
+
+html[data-theme-preset] .settings-area-card:hover,
+html[data-theme-preset] .ax-entity-suggested:hover {
+  background:var(--ax-background-tertiary)!important;border-color:var(--ax-border-strong)!important;
+}
+
+
+html[data-theme-preset] input,
+html[data-theme-preset] select,
+html[data-theme-preset] textarea,
+html[data-theme-preset] .btn:not(.pri),
+html[data-theme-preset] .ax-round-close,
+html[data-theme-preset] .ax-theme-option,
+html[data-theme-preset] .ax-custom-theme-create {
+  background:var(--ax-background-tertiary)!important;color:var(--ax-text-primary)!important;border-color:var(--ax-border-strong)!important;
+}
+html[data-theme-preset] input::placeholder,
+html[data-theme-preset] textarea::placeholder { color:var(--ax-text-tertiary)!important; }
+html[data-theme-preset] input[type="checkbox"],html[data-theme-preset] input[type="radio"] { accent-color:var(--ax-interactive-primary)!important; }
+html[data-theme-preset] .btn.pri {
+  background:var(--ax-interactive-primary)!important;color:var(--ax-text-on-accent)!important;border-color:var(--ax-interactive-primary)!important;
+}
+
+html[data-theme-preset] .btn.pri:hover,
+html[data-theme-preset] .detail-action.pri:hover { background:var(--ax-interactive-hover)!important; }
+
+html[data-theme-preset] .muted,
+html[data-theme-preset] .rs,
+html[data-theme-preset] .ax-eyebrow,
+html[data-theme-preset] .ax-section-head p,
+html[data-theme-preset] .ax-activity-time,
+html[data-theme-preset] .settings-area-card small,
+html[data-theme-preset] .settings-area-card em,
+html[data-theme-preset] .library-head p,
+html[data-theme-preset] .library-section-head span,
+html[data-theme-preset] .library-filter-head span,
+html[data-theme-preset] .library-kicker,
+html[data-theme-preset] .settings-v54-section-head span { color:var(--ax-text-secondary)!important; }
+
+
+html[data-theme-preset] .v55-progress>span,
+html[data-theme-preset] .progress-bar>span,
+html[data-theme-preset] .progress-fill,
+html[data-theme-preset] progress::-webkit-progress-value { background:var(--ax-interactive-primary)!important; }
+
+
+
+
+
+
+
+
+
+
+/* Paired preset cards: family selection is independent of the active mode. */
+
+.ax-theme-family-card { position:relative; min-width:0; }
+.ax-theme-family-card .ax-theme-option { width:100%; min-height:112px; height:100%; padding:9px 8px 8px; text-align:left; }
+.ax-theme-family-card .ax-theme-option.active { border-color:var(--ax-interactive-primary)!important; box-shadow:0 0 0 1px var(--ax-interactive-primary)!important; }
+.ax-theme-family-card .ax-theme-name { display:block; margin-top:7px; padding-right:20px; }
+.ax-theme-variant-preview { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+.ax-theme-variant-block { display:flex; min-width:0; flex-direction:column; gap:3px; padding:4px; border-radius:6px; background:var(--ax-background-primary); border:1px solid var(--ax-border-default); }
+.ax-theme-variant-label { font-size:10.5px; letter-spacing:.08em; font-weight:750; text-transform:uppercase; color:var(--ax-text-secondary); }
+.ax-theme-variant-swatches { display:flex; gap:3px; }
+.ax-theme-variant-swatches i { display:block; width:15px; height:15px; border-radius:4px; border:1px solid rgba(127,127,127,.17); }
+.ax-theme-card-delete {opacity:.7;}
+.ax-theme-card-delete:hover {opacity:1;}
+.ax-theme-default-actions { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px; color:var(--ax-text-secondary); font-size:11px; }
+.ax-theme-default-actions [hidden] { display:none!important; }
+.ax-custom-theme-card { position:relative; min-width:0; }
+.ax-custom-theme-card .ax-theme-option { width:100%; min-height:112px; padding:9px 28px 8px 8px; }
+.ax-custom-theme-card .ax-theme-name { display:block; margin-top:7px; text-align:left; overflow-wrap:anywhere; }
+.ax-custom-theme-card .ax-theme-variant-preview { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+.ax-custom-theme-card .ax-theme-variant-block { padding:4px; }
+.ax-theme-card-delete { position:absolute; top:4px; right:4px; width:22px; height:22px; display:grid; place-items:center; border:1px solid var(--ax-border-default); border-radius:6px; background:var(--ax-background-secondary); color:var(--ax-text-secondary); font:500 16px/1 ui-sans-serif,system-ui,sans-serif; cursor:pointer; }
+.ax-theme-card-delete:hover { color:var(--ax-error); border-color:var(--ax-error); background:var(--ax-error-background); }
+.ax-custom-theme-option.active { border-color:var(--ax-interactive-primary)!important; box-shadow:0 0 0 1px var(--ax-interactive-primary)!important; }
+
+.ax-mode-switch:focus-visible { outline:2px solid var(--ax-interactive-primary); outline-offset:2px; }
+
+.ax-mode-switch[aria-checked="true"] .ax-mode-switch-sun { color:var(--ax-interactive-primary); }
+
+
+
+
+@media (max-width:780px) {
+  
+  
+
+  .ax-mobile-theme-switch[aria-checked="true"] .ax-mode-switch-sun { color:var(--ax-text-on-accent)!important; }
+  
+}
+
+@media(max-width:480px){  .ax-theme-default-actions { align-items:flex-start; flex-direction:column; } }
+
+/* v29.4.331 — two pastel and two minimal built-in themes (dark + light each). */
+
+html[data-theme-preset="pastel-lavender"][data-theme="dark"] {
+  --ax-preset-bg:#231f2e; --ax-preset-surface:#2d2839; --ax-preset-surface-alt:#383247; --ax-preset-elevated:#463f58; --ax-preset-selected:#4a4160;
+  --ax-preset-accent:#cbb8f5; --ax-preset-accent-hover:#dccdfb; --ax-preset-secondary:#9f94c4; --ax-preset-text:#f4f0fb; --ax-preset-subtext:#cbc3de; --ax-preset-muted:#9890b0; --ax-preset-on-accent:#2a2140;
+  --ax-preset-border:rgba(203,184,245,.16); --ax-preset-border-strong:rgba(203,184,245,.30); --ax-overlay-light:rgba(255,255,255,.06); --ax-overlay-dark:rgba(0,0,0,.50); --ax-scrim:rgba(0,0,0,.70);
+}
+
+html[data-theme-preset="pastel-lavender"][data-theme="light"] {
+  --ax-preset-bg:#f6f1fd; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#ece4fa; --ax-preset-elevated:#ded2f4; --ax-preset-selected:#e4d8fa;
+  --ax-preset-accent:#7a5fc0; --ax-preset-accent-hover:#644aa8; --ax-preset-secondary:#8f84ad; --ax-preset-text:#2b2540; --ax-preset-subtext:#5d5575; --ax-preset-muted:#8a82a0; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(43,37,64,.15); --ax-preset-border-strong:rgba(43,37,64,.26); --ax-overlay-light:rgba(43,37,64,.04); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.28);
+}
+
+html[data-theme-preset="pastel-mint"][data-theme="dark"] {
+  --ax-preset-bg:#1b2625; --ax-preset-surface:#243230; --ax-preset-surface-alt:#2e403d; --ax-preset-elevated:#3b504c; --ax-preset-selected:#36534b;
+  --ax-preset-accent:#a8e6cf; --ax-preset-accent-hover:#c2f0de; --ax-preset-secondary:#83b5a6; --ax-preset-text:#eff9f5; --ax-preset-subtext:#bfd8cf; --ax-preset-muted:#8aa89d; --ax-preset-on-accent:#12302a;
+  --ax-preset-border:rgba(168,230,207,.16); --ax-preset-border-strong:rgba(168,230,207,.30); --ax-overlay-light:rgba(255,255,255,.06); --ax-overlay-dark:rgba(0,0,0,.50); --ax-scrim:rgba(0,0,0,.70);
+}
+
+html[data-theme-preset="pastel-mint"][data-theme="light"] {
+  --ax-preset-bg:#eefaf5; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#def3ea; --ax-preset-elevated:#cdebdf; --ax-preset-selected:#d3efe3;
+  --ax-preset-accent:#2f8a6a; --ax-preset-accent-hover:#226f54; --ax-preset-secondary:#6f9d8e; --ax-preset-text:#1f3a32; --ax-preset-subtext:#4f6b61; --ax-preset-muted:#7f9a90; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(31,58,50,.15); --ax-preset-border-strong:rgba(31,58,50,.26); --ax-overlay-light:rgba(31,58,50,.04); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.28);
+}
+
+html[data-theme-preset="minimal-slate"][data-theme="dark"] {
+  --ax-preset-bg:#1a1d21; --ax-preset-surface:#22262b; --ax-preset-surface-alt:#2b3037; --ax-preset-elevated:#373d46; --ax-preset-selected:#333b45;
+  --ax-preset-accent:#8fa3b8; --ax-preset-accent-hover:#a7b8c9; --ax-preset-secondary:#6f7c8a; --ax-preset-text:#eceff2; --ax-preset-subtext:#b9c0c8; --ax-preset-muted:#86909b; --ax-preset-on-accent:#14181c;
+  --ax-preset-border:rgba(143,163,184,.16); --ax-preset-border-strong:rgba(143,163,184,.30); --ax-overlay-light:rgba(255,255,255,.06); --ax-overlay-dark:rgba(0,0,0,.50); --ax-scrim:rgba(0,0,0,.70);
+}
+
+html[data-theme-preset="minimal-slate"][data-theme="light"] {
+  --ax-preset-bg:#f4f6f8; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#e9edf1; --ax-preset-elevated:#dbe1e7; --ax-preset-selected:#e1e7ed;
+  --ax-preset-accent:#44586c; --ax-preset-accent-hover:#33455a; --ax-preset-secondary:#7a8794; --ax-preset-text:#1d242b; --ax-preset-subtext:#55616d; --ax-preset-muted:#84909b; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(29,36,43,.15); --ax-preset-border-strong:rgba(29,36,43,.26); --ax-overlay-light:rgba(29,36,43,.04); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.28);
+}
+
+html[data-theme-preset="minimal-sand"][data-theme="dark"] {
+  --ax-preset-bg:#1a1815; --ax-preset-surface:#231f1b; --ax-preset-surface-alt:#2d2823; --ax-preset-elevated:#3a342d; --ax-preset-selected:#373029;
+  --ax-preset-accent:#c4a484; --ax-preset-accent-hover:#d4b899; --ax-preset-secondary:#86796c; --ax-preset-text:#f3efe9; --ax-preset-subtext:#c4bcb1; --ax-preset-muted:#8f8579; --ax-preset-on-accent:#1a1410;
+  --ax-preset-border:rgba(196,164,132,.16); --ax-preset-border-strong:rgba(196,164,132,.30); --ax-overlay-light:rgba(255,255,255,.06); --ax-overlay-dark:rgba(0,0,0,.50); --ax-scrim:rgba(0,0,0,.70);
+}
+
+html[data-theme-preset="minimal-sand"][data-theme="light"] {
+  --ax-preset-bg:#f8f5f0; --ax-preset-surface:#ffffff; --ax-preset-surface-alt:#eee9e1; --ax-preset-elevated:#e1d9ce; --ax-preset-selected:#e9e1d4;
+  --ax-preset-accent:#86644a; --ax-preset-accent-hover:#6c4f3a; --ax-preset-secondary:#8c8176; --ax-preset-text:#2a241e; --ax-preset-subtext:#5f564c; --ax-preset-muted:#8b8176; --ax-preset-on-accent:#ffffff;
+  --ax-preset-border:rgba(42,36,30,.15); --ax-preset-border-strong:rgba(42,36,30,.26); --ax-overlay-light:rgba(42,36,30,.04); --ax-overlay-dark:rgba(0,0,0,.14); --ax-scrim:rgba(0,0,0,.28);
+}

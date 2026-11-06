@@ -1,0 +1,30 @@
+/* ============================================================================
+   FILE: css/18-final-shell-gutter-fix.css
+   AREA: Shell and navigation
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+
+/* V28.9 shell gutter correction: keep page content visually separated from the fixed sidebar. */
+:root{--ax-sidebar-width:208px;--ax-content-gutter:18px}
+
+#view-stage{margin-left:var(--ax-sidebar-width)!important;;padding-left:var(--ax-content-gutter)!important;;padding-right:var(--ax-content-gutter)!important;;width:auto!important;;min-width:0!important;}
+#mapbar{box-sizing:border-box!important;margin-left:var(--ax-sidebar-width)!important;padding-left:var(--ax-content-gutter)!important;padding-right:var(--ax-content-gutter)!important}
+#view-stage>.view{box-sizing:border-box!important;min-width:0!important;width:100%!important}
+#vl,#vp,#vsite,#vtg,#vs,#va,#mc,#tb,#afc,#cc,#fp{box-sizing:border-box!important;min-width:0!important}
+@media(max-width:1180px){
+  :root{--ax-sidebar-width:74px;--ax-content-gutter:14px}
+  #view-stage{margin-left:var(--ax-sidebar-width)!important;padding-left:var(--ax-content-gutter)!important;padding-right:var(--ax-content-gutter)!important}
+  #mapbar{margin-left:var(--ax-sidebar-width)!important;padding-left:var(--ax-content-gutter)!important;padding-right:var(--ax-content-gutter)!important}
+}
+@media(max-width:780px){
+  :root{--ax-sidebar-width:0px;--ax-content-gutter:12px}
+  #view-stage{margin-left:0!important;padding-left:var(--ax-content-gutter)!important;padding-right:var(--ax-content-gutter)!important}
+  #mapbar{margin-left:0!important;padding-left:var(--ax-content-gutter)!important;padding-right:var(--ax-content-gutter)!important}
+}
+@media(max-width:480px){
+  :root{--ax-content-gutter:10px}
+  #view-stage{padding-left:var(--ax-content-gutter)!important;padding-right:var(--ax-content-gutter)!important}
+  #mapbar{padding-left:var(--ax-content-gutter)!important;padding-right:var(--ax-content-gutter)!important}
+}

@@ -1,0 +1,183 @@
+/* ============================================================================
+   FILE: css/170-channel-shuffle-reference.css
+   AREA: Design system and global polish
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Player chooser follows the app's current theme while keeping the two actions clear. */
+#channel-shuffle-player .channel-shuffle-player-box {
+  display: flex !important;
+  flex-direction: column !important;
+  width: min(420px, calc(100vw - 32px)) !important;
+  max-width: 420px !important;
+  gap: 12px !important;
+  padding: 18px !important;
+  border: 1px solid var(--ax-border-default) !important;
+  border-radius: 18px !important;
+  background: var(--ax-background-secondary) !important;
+  color: var(--ax-text-primary) !important;
+}
+
+#channel-shuffle-player .channel-shuffle-player-box > .mdl-h {
+  position: static !important;
+  display: grid !important;
+  grid-template-columns: 34px minmax(0, 1fr) 36px !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-height: 34px !important;
+  margin: 0 !important;
+  padding: 0 0 12px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--ax-border-default) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+#channel-shuffle-player .channel-shuffle-heading-icon {
+  display: grid !important;
+  place-items: center !important;
+  width: 34px !important;
+  height: 34px !important;
+  border: 1px solid var(--ax-border-default) !important;
+  border-radius: 10px !important;
+  background: var(--ax-background-tertiary) !important;
+  color: var(--ax-interactive-primary) !important;
+}
+
+#channel-shuffle-player .channel-shuffle-heading-icon .ax-icon {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+#channel-shuffle-player #channel-shuffle-title {
+  min-width: 0 !important;
+  color: var(--ax-text-primary) !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  overflow-wrap: break-word !important;
+}
+
+#channel-shuffle-player .channel-shuffle-player-box > .mdl-h > button[aria-label="Close player chooser"] {
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 10px !important;
+}
+
+#channel-shuffle-player #channel-shuffle-copy {
+  margin: 0 !important;
+  color: var(--ax-text-secondary) !important;
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+  overflow-wrap: anywhere !important;
+}
+
+#channel-shuffle-player .channel-shuffle-player-choices {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 9px !important;
+  margin-top: 2px !important;
+}
+
+#channel-shuffle-player .channel-shuffle-choice {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  min-height: 104px !important;
+  padding: 12px 8px !important;
+  border: 1px solid var(--ax-border-default) !important;
+  border-radius: 13px !important;
+  background: var(--ax-background-tertiary) !important;
+  color: var(--ax-text-primary) !important;
+  text-align: center !important;
+  white-space: normal !important;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease !important;
+}
+
+#channel-shuffle-player .channel-shuffle-choice:hover:not(:disabled) {
+  border-color: var(--ax-interactive-primary) !important;
+  background: color-mix(in srgb, var(--ax-interactive-primary) 9%, var(--ax-background-tertiary)) !important;
+  transform: translateY(-1px);
+}
+
+#channel-shuffle-player .channel-shuffle-choice:focus-visible {
+  outline: 2px solid var(--ax-interactive-primary) !important;
+  outline-offset: 2px !important;
+}
+
+#channel-shuffle-player .channel-shuffle-choice:disabled {
+  cursor: wait !important;
+  opacity: 0.65 !important;
+}
+
+#channel-shuffle-player .channel-shuffle-choice-icon {
+  display: block !important;
+  width: 25px !important;
+  height: 25px !important;
+  object-fit: contain !important;
+  color: var(--ax-interactive-primary) !important;
+}
+
+#channel-shuffle-player .channel-shuffle-choice > strong {
+  color: var(--ax-text-primary) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+}
+
+#channel-shuffle-player .channel-shuffle-choice-hint {
+  color: var(--ax-text-secondary) !important;
+  font-size: 10.5px !important;
+  line-height: 1.3 !important;
+}
+
+#channel-shuffle-player #channel-shuffle-status {
+  min-height: 0 !important;
+  margin: 0 !important;
+  color: var(--ax-text-secondary) !important;
+  font-size: 11px !important;
+  line-height: 1.45 !important;
+  overflow-wrap: anywhere !important;
+}
+
+#channel-shuffle-player #channel-shuffle-status:empty {
+  display: none !important;
+}
+
+@media (max-width: 599px) {
+  #channel-shuffle-player .channel-shuffle-player-box {
+    width: min(420px, calc(100vw - 24px)) !important;
+    padding: 16px !important;
+  }
+
+  #channel-shuffle-player .channel-shuffle-player-box > .mdl-h {
+    grid-template-columns: 34px minmax(0, 1fr) 44px !important;
+  }
+
+  #channel-shuffle-player .channel-shuffle-player-box > .mdl-h > button[aria-label="Close player chooser"] {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  #channel-shuffle-player .channel-shuffle-choice {
+    min-height: 100px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #channel-shuffle-player .channel-shuffle-choice {
+    transition: none !important;
+  }
+
+  #channel-shuffle-player .channel-shuffle-choice:hover:not(:disabled) {
+    transform: none !important;
+  }
+}

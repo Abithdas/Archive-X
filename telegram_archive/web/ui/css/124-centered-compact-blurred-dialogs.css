@@ -1,0 +1,213 @@
+/* ============================================================================
+   FILE: css/124-centered-compact-blurred-dialogs.css
+   AREA: Dialogs and overlays
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X v29.4.276 — consistent compact, centered dialogs with a blurred backdrop.
+   This is a presentation-only final layer: all existing IDs, handlers and dialog content stay intact. */
+
+:root {
+  --ax-dialog-backdrop: rgba(5, 6, 8, .54);
+  --ax-dialog-blur: 10px;
+  --ax-dialog-shadow: 0 24px 80px rgba(0, 0, 0, .48);
+}
+
+/* Give every standard modal the same centered glass-backdrop treatment. */
+.mdl,
+.ax-ux-command,
+.ax-ux-activity,
+.ax-ux-filter-drawer {-webkit-backdrop-filter: blur(var(--ax-dialog-blur)) saturate(.82) !important;;backdrop-filter: blur(var(--ax-dialog-blur)) saturate(.82) !important;}
+
+.mdl.open {box-sizing: border-box !important;;overflow-x: hidden !important;;overflow-y: auto !important;}
+
+.mdl.open > .mdl-box {max-height: calc(100dvh - 28px);}
+
+/* Library Filters: use a compact floating dialog instead of a full-height side drawer. */
+#ux-filter-drawer.ax-ux-filter-drawer {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 30000 !important;
+  display: none !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 16px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  background: var(--ax-dialog-backdrop) !important;
+  -webkit-backdrop-filter: blur(var(--ax-dialog-blur)) saturate(.82) !important;
+  backdrop-filter: blur(var(--ax-dialog-blur)) saturate(.82) !important;
+}
+
+#ux-filter-drawer.ax-ux-filter-drawer.open {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#ux-filter-drawer .ax-ux-panel {flex: 0 1 auto !important;;width: min(460px, calc(100vw - 32px)) !important;;max-width: 460px !important;;height: auto !important;;min-height: 0 !important;;max-height: calc(100dvh - 32px) !important;;margin: auto !important;;overflow: hidden !important;;display: flex !important;;flex-direction: column !important;}
+
+#ux-filter-drawer .ax-ux-activity-head {flex: 0 0 auto;}
+
+#ux-filter-drawer .ax-ux-filter-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: calc(100dvh - 144px);
+  padding: 14px 16px 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+#ux-filter-drawer .ax-ux-filter-body > input,
+#ux-filter-drawer .ax-ux-filter-body > select {
+  box-sizing: border-box !important;
+  display: block;
+  width: 100% !important;
+  min-width: 0;
+}
+
+#ux-filter-drawer .ax-ux-filter-body .dr {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#ux-filter-drawer .ax-ux-filter-body .dr input {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+#ux-filter-drawer .ax-ux-filter-actions {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+}
+
+/* The video-move chooser already has a dedicated centered panel; align its overlay treatment. */
+#video-move-dialog.ax-ux-filter-drawer {
+  -webkit-backdrop-filter: blur(var(--ax-dialog-blur)) saturate(.82) !important;
+  backdrop-filter: blur(var(--ax-dialog-blur)) saturate(.82) !important;
+  background: var(--ax-dialog-backdrop) !important;
+}
+
+/* The channel editor was tall because the preview could grow to its source image size. */
+#channel-edit-modal.mdl.open {
+  padding: 16px !important;
+}
+
+#channel-edit-modal .channel-edit-box {
+  width: min(460px, calc(100vw - 32px)) !important;
+  max-width: 460px !important;
+  max-height: calc(100dvh - 32px) !important;
+  gap: 9px !important;
+  padding: 14px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+#channel-edit-modal .channel-edit-intro {
+  margin: 0;
+  line-height: 1.45;
+}
+
+#channel-edit-modal .channel-edit-name-field {
+  display: grid !important;
+  grid-template-columns: 100px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+#channel-edit-modal .channel-edit-name-field input {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+#channel-edit-modal .channel-edit-photo-section {flex-direction: column;;min-width: 0;}
+
+#channel-edit-modal .channel-edit-photo-preview {display: grid;;place-items: center;;box-sizing: border-box;}
+
+#channel-edit-modal #channel-edit-photo-preview {
+  display: block;
+  box-sizing: border-box;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain;
+}
+
+#channel-edit-modal #channel-edit-photo-initials {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+#channel-edit-modal .channel-edit-photo-controls > span {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+#channel-edit-modal .channel-edit-photo-buttons,
+#channel-edit-modal .channel-edit-actions {align-items: center;;justify-content: flex-end;}
+
+/* The three-column metadata editor remains roomy enough to work, without filling the viewport. */
+#video-quick-edit.mdl.open {
+  padding: 16px !important;
+  overflow-y: auto !important;
+}
+
+#video-quick-edit > .quick-edit-modal {
+  width: min(1160px, calc(100vw - 32px)) !important;
+  max-width: 1160px !important;
+  height: min(86dvh, 820px) !important;
+  max-height: calc(100dvh - 32px) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--ax-dialog-shadow) !important;
+}
+
+#video-quick-edit .quick-edit-pane {
+  padding: 10px !important;
+}
+
+@media (max-width: 680px) {
+  #ux-filter-drawer.ax-ux-filter-drawer {
+    padding: 10px !important;
+  }
+
+  #ux-filter-drawer .ax-ux-panel {width: min(460px, calc(100vw - 20px)) !important;;max-height: calc(100dvh - 20px) !important;}
+
+  #channel-edit-modal.mdl.open {
+    padding: 10px !important;
+  }
+
+  #channel-edit-modal .channel-edit-box {
+    width: calc(100vw - 20px) !important;
+    max-height: calc(100dvh - 20px) !important;
+    padding: 12px !important;
+  }
+
+  #channel-edit-modal .channel-edit-name-field {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  #video-quick-edit.mdl.open {
+    padding: 8px !important;
+  }
+
+  #video-quick-edit > .quick-edit-modal {
+    width: calc(100vw - 16px) !important;
+    height: min(90dvh, 780px) !important;
+    max-height: calc(100dvh - 16px) !important;
+    border-radius: 13px !important;
+  }
+}

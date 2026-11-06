@@ -1,0 +1,31 @@
+/* ============================================================================
+   FILE: css/04-theme-legacy-bridge.css
+   AREA: Theming
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+
+/* Legacy component bridge: old neutral literals are mapped at the shared theme layer. */
+:root{
+  --ax-legacy-bg-0:#0A0A0A;--ax-legacy-bg-1:#111111;--ax-legacy-bg-2:#181818;--ax-legacy-bg-3:#222222;
+  --ax-legacy-border-1:#2B2B2B;--ax-legacy-border-2:#3A3A3A;--ax-legacy-text-1:#F2F2F2;--ax-legacy-text-2:#A6A6A6;--ax-legacy-text-3:#707070;
+}
+html[data-theme="light"]{
+  --ax-legacy-bg-0:#EBEBEB;--ax-legacy-bg-1:#F5F7FF;--ax-legacy-bg-2:#DEEAF4;--ax-legacy-bg-3:#CFCFC4;
+  --ax-legacy-border-1:#B5B1B1;--ax-legacy-border-2:#929199;--ax-legacy-text-1:#292929;--ax-legacy-text-2:#676767;--ax-legacy-text-3:#929199;
+}
+
+.quick-edit-pane,
+.quick-edit-item,
+.entity-related-card {background:var(--ax-legacy-bg-2)!important}
+
+/* Shared shell and data-dense surfaces */
+#tb,
+#afc,
+#cc,
+#fp,
+#site-head,
+.settings-v54-section {background:var(--ax-legacy-bg-1)!important;color:var(--ax-legacy-text-1)!important;border-color:var(--ax-legacy-border-1)!important}
+/* Keep actual media surfaces neutral-black in both appearances. */
+

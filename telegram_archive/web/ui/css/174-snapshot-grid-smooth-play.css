@@ -1,0 +1,22 @@
+/* ============================================================================
+   FILE: css/174-snapshot-grid-smooth-play.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Let each cached snapshot tile perform its own staggered canvas entrance.
+   Keep a short surface fade only for the handoff to the decoded video frame. */
+
+
+
+
+
+
+
+/* Keep the existing center Play control above the snapshot canvas. */
+
+
+
+
+

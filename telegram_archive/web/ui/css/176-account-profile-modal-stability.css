@@ -1,0 +1,29 @@
+/* ============================================================================
+   FILE: css/176-account-profile-modal-stability.css
+   AREA: Settings
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Account profile editor stability: deterministic visibility and no repeated entrance animation. */
+body > #ax-global-overlay-root > #account-edit-modal.mdl {
+  display: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+body > #ax-global-overlay-root > #account-edit-modal.mdl.open {
+  display: flex !important;
+  animation: none !important;
+  transition: none !important;
+}
+body > #ax-global-overlay-root > #account-edit-modal.mdl > .channel-edit-box {
+  animation: none !important;
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  body > #ax-global-overlay-root > #account-edit-modal.mdl,
+  body > #ax-global-overlay-root > #account-edit-modal.mdl > .channel-edit-box {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,47 @@
+<!-- ======================================================================
+     PARTIAL: html/views/library.html
+     PURPOSE: Videos library view.
+     Composed into the page by web/html.py. DOM order follows the include order.
+     KEY IDS: vl, vg
+     ====================================================================== -->
+<!-- ═══════════════════════ LIBRARY ═══════════════════════ -->
+<div id="vl" class="view library-page">
+  <header class="library-head ax2-page-head">
+    <div><div class="library-kicker">LIBRARY</div><h1>Videos</h1><p>Browse and manage your video library</p></div>
+  </header>
+  <div id="tb" class="ax2-library-toolbar" role="toolbar" aria-label="Video library toolbar">
+    <div class="ax2-library-hidden-controls" aria-hidden="true">
+      <select id="tb-res" aria-label="Resolution" onchange="applyF()" tabindex="-1">
+        <option value="">All resolutions</option><option value="2160">4K</option><option value="1440">1440p</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">Below 720p</option>
+      </select>
+    </div>
+    <button class="btn ax2-toolbar-pill ax2-filter-trigger" id="fbtn" type="button" onclick="uxOpenFilters(this)" aria-haspopup="dialog" aria-expanded="false"><svg class="ax-icon" aria-hidden="true"><use href="#ax-filter"></use></svg><span>Filters</span><span id="fbc" class="ax2-count-badge" style="display:none">0</span></button>
+    <label class="ax-sort-control ax2-sort-pill" aria-label="Sort videos"><svg class="ax-icon" aria-hidden="true"><use href="#ax-sort"></use></svg><span data-ax2-sort-label>Newest first</span><select id="tb-sort" onchange="applyF()" aria-label="Sort videos"><option value="date_desc">Newest first</option><option value="date_asc">Oldest first</option><option value="size_desc">Largest first</option><option value="dur_desc">Longest first</option><option value="name_asc">Name A–Z</option><option value="studio_asc">Studio A–Z</option><option value="performer_asc">Actress A–Z</option><option value="tag_asc">Tag A–Z</option></select></label>
+    <button class="btn ax2-toolbar-icon ax2-desktop-library-action" type="button" onclick="doRefreshChannels()" title="Refresh channel list from Telegram" aria-label="Refresh channel list"><svg class="ax-icon" aria-hidden="true"><use href="#ax-refresh"></use></svg></button>
+    <button class="btn sm pri soft-action library-player-shuffle-btn library-player-shuffle-vlc" type="button" onclick="playRandom('vlc')" title="Shuffle the list in VLC" aria-label="Shuffle in VLC"><svg class="ax-icon library-player-brand-icon" aria-hidden="true"><use href="#ax-brand-vlc"></use></svg><span class="library-player-label">VLC</span><svg class="ax-icon library-player-shuffle-icon" aria-hidden="true"><use href="#ax-shuffle"></use></svg></button>
+    <button class="btn sm pri soft-action library-player-shuffle-btn library-player-shuffle-mpc" type="button" onclick="playRandom('mpc')" title="Shuffle the list in MPC-HC" aria-label="Shuffle in MPC-HC"><span class="library-player-label">MPC-HC</span><svg class="ax-icon library-player-shuffle-icon" aria-hidden="true"><use href="#ax-shuffle"></use></svg></button>
+    <button class="btn ax2-toolbar-icon ax2-library-more-trigger" id="ax2-library-more-trigger" type="button" onclick="uxOpenLibraryMore(this)" aria-label="More library actions" title="More actions" aria-haspopup="dialog" aria-expanded="false"><span class="ax2-more-dots" aria-hidden="true">•••</span></button>
+    <div id="library-secondary-actions" class="library-secondary-actions" role="group" aria-label="More actions" hidden aria-hidden="true"><span class="library-secondary-action-label" hidden>More actions</span><div class="library-secondary-action-items" hidden></div></div>
+  </div>
+  <section class="library-channels" aria-label="Library channels">
+    <div class="library-section-head ax2-visually-hidden"><h2>Channels</h2><span>Select one or more channels to view their videos</span><span id="library-channel-summary" class="library-section-count"></span></div>
+    <div class="ax2-channel-scroll-frame"><div id="channel-cards" class="entity-related-grid ax2-channel-track" style="margin:0">
+      <button type="button" class="ax2-channel-card ax2-channel-all" aria-pressed="false" title="Select all channel cards" onclick="chAll(1)"><span class="ax2-channel-avatar"><svg class="ax-icon" aria-hidden="true"><use href="#ax-grid"></use></svg></span><span class="ax2-channel-name">All</span><span class="ax2-channel-count">0</span></button>
+      <button type="button" class="ax2-channel-card ax2-channel-fav" id="favbtn" onclick="tgFav()" aria-pressed="false" title="Show favourite videos"><span class="ax2-channel-avatar"><svg class="ax-icon" aria-hidden="true"><use href="#ax-star"></use></svg></span><span class="ax2-channel-name">Favourites</span></button>
+    </div></div>
+    <div class="ax2-library-selection-row"><div class="ax2-library-selection-left"><span id="ax2-selected-channel-count" class="ax2-selection-pill" hidden></span><button type="button" id="ax2-selected-channel-shuffle" class="btn xs ax2-selection-action" disabled title="Select one channel" onclick="ax2RunSelectedChannel('shuffle')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-shuffle"></use></svg> Shuffle</button><button type="button" id="ax2-selected-channel-edit" class="btn xs ax2-selection-action" disabled title="Select one channel" onclick="ax2RunSelectedChannel('edit')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-edit"></use></svg> Edit</button></div><div id="library-bg-pipeline" class="ax2-pipeline-pill" aria-live="polite"></div></div>
+  </section>
+  <section class="ax2-library-summary-row" aria-label="Library summary"><div class="ax2-library-summary-title"><h2>Library</h2><span id="rs" class="rs"></span></div><div id="afc"></div></section>
+  <div id="fp" hidden aria-hidden="true">
+    <div class="library-filter-head"><div><h2>Filters</h2><span>Refine your results</span></div><button class="btn xs" type="button" onclick="uxOpenFilters()">Advanced</button></div>
+    <div class="fg">
+      <div class="fs"><label>Studio</label><input list="site-filter-list" type="text" id="f-studio" placeholder="Filter by studio…" oninput="applyF()"><datalist id="site-filter-list"></datalist></div>
+      <div class="fs"><label>Performer / Actress</label><input list="performer-list" type="text" id="f-perf" placeholder="Filter by performer…" oninput="applyF()"><datalist id="performer-list"></datalist></div>
+      <div class="fs"><label>Tag</label><input list="tag-list" type="text" id="f-tag" placeholder="Filter by tag…" oninput="applyF()"><datalist id="tag-list"></datalist></div>
+      <div class="fs"><label>Upload date</label><div class="dr"><input type="date" id="f-d1" onchange="applyF()"><input type="date" id="f-d2" onchange="applyF()"></div><div class="qd"><button class="btn xs" onclick="qDate(7)">7d</button><button class="btn xs" onclick="qDate(30)">30d</button><button class="btn xs" onclick="qDate(365)">1yr</button></div></div>
+    </div>
+    <div class="fa"><button class="btn" onclick="resetF()">Reset</button><button class="btn pri" onclick="tgFP()">Apply</button></div>
+  </div>
+  <div id="lb"><div id="mc"><div id="vg"></div><div id="pg"></div></div></div>
+</div>
+

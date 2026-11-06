@@ -1,0 +1,52 @@
+/* ============================================================================
+   FILE: css/84-video-quick-edit-viewport-containment.css
+   AREA: Responsive and input
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Keep the video quick-edit modal inside the viewport. Only its content lists should scroll. */
+#video-quick-edit.mdl {align-items: center;;justify-content: center;}
+
+#video-quick-edit > .quick-edit-modal {box-sizing: border-box;;height: min(92dvh, 900px);;max-height: calc(100dvh - 24px);;min-height: 0;;overflow: hidden;;display: flex;;flex-direction: column;;gap: 10px;;padding: clamp(10px, 1.2vw, 18px);}
+
+#video-quick-edit .quick-edit-modal > .mdl-h {
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  flex: 0 0 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 3px 0 10px;
+  background: var(--panel, var(--bg1));
+}
+
+#video-quick-edit .quick-edit-title-pane {box-sizing: border-box;;min-height: 0;}
+
+#video-quick-edit .quick-edit-grid > .quick-edit-pane {box-sizing: border-box;}
+
+#video-quick-edit .quick-edit-grid > .quick-edit-pane h3,
+#video-quick-edit .quick-edit-grid > .quick-edit-pane input.inp,
+#video-quick-edit .quick-edit-grid > .quick-edit-pane .quick-edit-current {
+  flex: 0 0 auto;
+}
+
+#video-quick-edit .quick-edit-footer {box-sizing: border-box;}
+
+@media (max-width: 1080px) {
+  #video-quick-edit .quick-edit-grid {grid-auto-rows: auto;;align-content: start;;padding: 1px 2px 1px 0;}
+
+}
+
+@media (max-width: 680px) {
+  
+  #video-quick-edit > .quick-edit-modal {height: calc(100dvh - 16px);;max-height: calc(100dvh - 16px);;padding: 10px;;gap: 8px;}
+
+  #video-quick-edit .quick-edit-grid {grid-auto-rows: auto;}
+  #video-quick-edit .quick-edit-grid > .quick-edit-pane,
+  #video-quick-edit .quick-edit-grid > .quick-edit-pane:last-child {grid-column: auto;;min-height: 0;}
+
+  #video-quick-edit #vq-meta-list .btn { justify-self: start; }
+  #video-quick-edit .quick-edit-footer {flex-wrap: wrap;}
+  #video-quick-edit .quick-edit-footer > span {flex: 1 1 100%;}
+}

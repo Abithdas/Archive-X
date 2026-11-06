@@ -1,0 +1,80 @@
+/* ============================================================================
+   FILE: css/98-content-automation-layout-fix.css
+   AREA: Operations and jobs
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Keep Content Automation full-width and isolate live recovery controls from its compact header badge. */
+#vtransfers .ax-transfer-automation-section {width: 100% !important;;min-width: 0 !important;;align-self: stretch;}
+#vtransfers .ax-transfer-automation-section > .automation-card {display: block !important;}
+#vtransfers .ax-transfer-automation-section .automation-head {justify-content: space-between !important;;flex-wrap: wrap;}
+#vtransfers .ax-transfer-automation-section .automation-head > div:first-child {
+  flex: 1 1 420px !important;
+  width: auto !important;
+  min-width: min(100%, 280px) !important;
+  max-width: none !important;
+}
+#vtransfers .ax-transfer-automation-section .automation-head .mn {display: block !important;;overflow-wrap: normal !important;}
+#vtransfers .ax-transfer-automation-section .automation-state {flex: 0 1 auto !important;;align-items: center !important;;gap: 7px !important;;min-width: max-content;;max-width: 100% !important;;white-space: normal !important;}
+#vtransfers #ms-CONTENT_AUTOMATION-live {
+  display: block;
+  clear: both;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 10px 0 14px;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+#vtransfers .automation-live-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid var(--ax-border-subtle, var(--border));
+  border-radius: 10px;
+  background: var(--ax-background-primary, var(--bg1));
+  min-width: 0;
+}
+#vtransfers .automation-live-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+  font-size: 11px;
+}
+#vtransfers .automation-live-operation,
+#vtransfers .automation-live-item {
+  min-width: 0;
+  color: var(--ax-text-secondary, var(--text2));
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+#vtransfers .automation-live-item { opacity: .9; }
+#vtransfers .automation-job-progress {
+  height: 4px;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ax-border-subtle, var(--border));
+}
+#vtransfers .automation-job-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ax-accent, var(--accent));
+  transition: width 220ms ease;
+}
+#vtransfers .automation-live-strip .module-recovery-controls,
+#vtransfers #ms-CONTENT_AUTOMATION-live [data-ax-live-key="module-recovery-controls"] { flex-wrap: wrap; }
+@media (max-width: 760px) {
+  
+  #vtransfers .ax-transfer-automation-section .automation-head > div:first-child { flex: 1 1 100% !important; min-width: 0 !important; }
+  #vtransfers .ax-transfer-automation-section .automation-state {min-width: 0;}
+}
+@media (prefers-reduced-motion: reduce) {
+  #vtransfers .automation-job-progress > span { transition: none !important; }
+}

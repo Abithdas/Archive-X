@@ -1,0 +1,105 @@
+/* ============================================================================
+   FILE: css/26-responsive-v131.css
+   AREA: Responsive and input
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.131 responsive layer: one fluid layout from a 375 px phone
+   (iPhone 13 mini, portrait and landscape) to an 8K monitor (both
+   orientations). Loaded last; it only adjusts sizing and wrapping. */
+
+/* Large-screen scaling is owned by js/27-large-screen-zoom.js. Do not add
+   stepped html{zoom} breakpoints here; they compound with Appearance scaling. */
+
+/* ── Video card badges: never break "1080p", keep clear of the star ── */
+
+/* ── Labels that must not break inside a word ─────────────────────── */
+.perf-gender-btn{white-space:nowrap}
+.v54-health-item{flex-wrap:wrap;row-gap:2px}
+.v54-health-item .label{white-space:nowrap;flex:0 0 auto}
+.v54-health-item .value{flex:1 1 auto;min-width:0;white-space:normal;overflow-wrap:anywhere}
+.v54-health-head{flex-wrap:wrap}
+.v54-health-head>span:first-child{white-space:nowrap}
+
+/* ── Phones and small tablets ──────────────────────────────────────── */
+@media (max-width:767px){
+  /* Performer / studio lists are outside this release's redesign scope; retain their existing two-card layout. */
+  #perf-list,#site-list{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important;padding-left:0!important;padding-right:0!important}
+}
+
+/* ── Tablets / narrow windows: keep the header on one clean row ───── */
+
+
+/* Mobile bottom navigation was consolidated in 132-mobile-first-foundation.css. */
+
+/* 2. Favourite buttons show whether the item is a favourite. */
+.entity-fav-btn.on{color:var(--amber,#f5b942)!important;border-color:color-mix(in srgb,var(--amber,#f5b942) 55%,transparent)!important}
+.entity-fav-btn.on svg{fill:currentColor;color:var(--amber,#f5b942)}
+/* 4. One Back control everywhere: same as the video page. */
+.entity-detail-back{width:34px!important;height:34px!important;min-width:34px!important;border-radius:9px!important;
+  background:var(--bg2,#222)!important;color:var(--text,#eaeaea)!important;border:1px solid var(--border2,#484848)!important;box-shadow:none!important}
+.entity-back-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;font-size:12px;font-weight:650;color:var(--text,#e7e7e7)}
+/* 5. A small "Matched" badge replaces the long provider text on cards. */
+.card-matched{display:inline-flex;;align-items:center;;height:18px;;padding:0 7px;;border-radius:9px;;font-size:11px;;font-weight:650;;letter-spacing:.02em;;background:color-mix(in srgb,var(--green,#4cc38a) 14%,transparent);;white-space:nowrap;}
+/* 6. One channel picker in the Library: the channel cards. */
+#vl #tb #legacy-channel-picker,#vl.library-page #legacy-channel-picker{display:none!important}
+/* 7. Filters live in the page toolbar, not the app header. */
+#perf-toolbar{display:flex;;align-items:center;;gap:8px;;flex-wrap:wrap;}
+#perf-toolbar:empty,#vp:has(#perf-detail.open) #perf-toolbar{display:none}
+#perf-toolbar .perf-gender-label{display:inline!important}
+/* 8. The main action on a detail page looks like a main action. */
+.pd-actions #perf-rnd.btn.pri,.pd-actions #site-rnd.btn.pri{background:var(--ax-interactive-primary,#3b82f6)!important;
+  border-color:var(--ax-interactive-primary,#3b82f6)!important;color:var(--ax-text-on-accent,#fff)!important;opacity:1}
+.pd-actions #perf-rnd.btn.pri:disabled,.pd-actions #site-rnd.btn.pri:disabled{opacity:.6}
+/* 9. Performers/studios without a photo: a small rounded initial instead
+      of a big empty tile. */
+
+
+
+/* Background-work strip in the Library: hidden while it has nothing to say. */
+#library-bg-pipeline:empty{display:none!important}
+
+/* V29.4.133 review of earlier filename auto-matches */
+#amr .amr-box{max-width:820px;width:min(820px,calc(100vw - 24px))}
+#amr .amr-note{font-size:11px;line-height:1.45}
+#amr .amr-list{display:flex;;flex-direction:column;;gap:8px;;min-height:0;}
+#amr .amr-item{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px;border:1px solid var(--border,#2a2a2a);border-radius:10px;background:var(--bg2,#1a1a1a)}
+#amr .amr-thumb{width:96px;height:54px;object-fit:cover;border-radius:6px;background:#000}
+#amr .amr-file{font-size:12px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#amr .amr-applied{font-size:11px;margin-top:2px;overflow-wrap:anywhere}
+#amr .amr-why{font-size:11px;margin-top:2px}
+#amr .amr-actions{display:flex;gap:6px}
+@media (max-width:429px){#amr .amr-item{grid-template-columns:72px minmax(0,1fr)}#amr .amr-thumb{width:72px;height:40px}#amr .amr-actions{grid-column:1/-1;justify-content:flex-end}}
+.v54-attention-action{all:unset;box-sizing:border-box;display:flex;gap:8px;align-items:center;cursor:pointer;width:100%;font-size:inherit;color:inherit}
+.v54-attention-action:hover span:last-child{text-decoration:underline}
+.v54-attention-action:focus-visible{outline:2px solid var(--accent,#6ea8fe);outline-offset:2px;border-radius:6px}
+/* V29.4.136: selected inventory scans and bounded bulk review controls. */
+
+/* V29.4.136: selected inventory scans and bounded bulk review controls. */
+#amr .amr-bulk{display:flex;;gap:8px;;align-items:center;;margin:8px 0;;padding:8px;;border:1px solid var(--border,#2a2a2a);;border-radius:8px;}
+#amr .amr-bulk label{display:flex;align-items:center;gap:6px;font-size:11px;margin-right:auto}
+#amr .amr-file-row{display:flex;gap:7px;align-items:center;min-width:0}
+#amr .amr-select{flex:0 0 auto;width:16px;height:16px;accent-color:var(--accent,#6ea8fe)}
+#amr .amr-file-row .amr-file{min-width:0}
+@media(max-width:429px){#amr .amr-bulk{gap:5px}#amr .amr-bulk .btn{flex:1}}
+
+/* V29.4.162: fixed-spacer pinning keeps performer filters and merge actions reachable. */
+#perf-toolbar{position:relative!important;top:auto!important;z-index:130!important;box-sizing:border-box;width:100%;padding:9px 10px!important;margin:0 0 12px!important;background:rgba(12,13,16,.97)!important;border:1px solid var(--border,#2c2c2c)!important;border-radius:10px!important;box-shadow:0 8px 24px rgba(0,0,0,.24)!important;backdrop-filter:blur(12px);isolation:isolate}
+#perf-toolbar #perf-merge-hint{min-width:180px;;max-width:none;;line-height:1.4;;white-space:normal;}
+#perf-toolbar #perf-sort-wrap{flex:0 0 auto}
+#perf-toolbar #perf-merge-commit-btn{flex:0 0 auto}
+@media(max-width:767px){#perf-toolbar{top:calc(58px + env(safe-area-inset-top,0px) + 4px)!important;gap:6px!important;padding:7px!important}#perf-toolbar #perf-merge-hint{order:20;}#perf-toolbar #perf-sort-select{min-width:106px;max-width:145px}}
+
+/* V29.4.162: viewport-fixed performer controls (with a flow spacer) remain reachable while selecting cards. */
+#perf-toolbar.performer-toolbar-pinned{position:fixed!important;z-index:10020!important;box-sizing:border-box!important;isolation:isolate;will-change:left,top,width}
+#perf-toolbar-spacer{display:none;height:0;width:100%;pointer-events:none}
+
+/* V29.4.162: entity video cards use one compact overflow control for destructive actions. */
+.video-card-actions{display:flex;justify-content:flex-end;align-items:center;min-height:25px;margin-top:5px}
+.video-card-more-trigger.btn{display:inline-flex;align-items:center;justify-content:center;width:28px!important;min-width:28px!important;height:25px!important;min-height:25px!important;padding:0!important;border-radius:7px!important;font-size:19px!important;line-height:1;color:var(--text2);font-weight:800}
+.video-card-more-trigger.btn:hover,.video-card-more-trigger.btn[aria-expanded="true"]{color:var(--text);border-color:var(--border2);background:var(--bg3)}
+.video-card-action-popover{position:fixed;;z-index:30100;;max-width:min(230px,calc(100vw - 16px));;backdrop-filter:blur(12px);}
+.video-card-action-option{display:flex;;align-items:center;;width:100%;;min-height:34px;;padding:7px 9px;;border:1px solid transparent;;border-radius:7px;;background:transparent;;font:inherit;;font-size:11px;;text-align:left;;cursor:pointer;;white-space:normal;}
+.video-card-action-option:hover,.video-card-action-option:focus-visible{background:var(--bg3);;outline:none;}
+

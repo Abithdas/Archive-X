@@ -1,0 +1,90 @@
+/* ============================================================================
+   FILE: css/08-library-redesign-v1.css
+   AREA: Videos library
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+
+/* V29.4.115 — Library-only responsive redesign. Existing IDs/contracts remain intact. */
+
+#vl.library-page .library-head{display:flex;;justify-content:space-between;}
+
+#vl.library-page .library-head h1{letter-spacing:-.025em;}
+
+#vl.library-page .library-view-toggle{display:flex;gap:4px}
+#vl.library-page .library-view-toggle .btn{width:38px;height:34px;padding:0;display:inline-flex;align-items:center;justify-content:center;color:#8e97a4}
+#vl.library-page .library-view-toggle .btn.on{background:#1b61c8;border-color:#2b73df;color:#fff}
+
+#vl.library-page #tb{grid-template-columns:minmax(120px,auto) minmax(120px,auto) minmax(180px,1fr) auto auto auto auto auto;}
+
+#vl.library-page #tb select:focus,#vl.library-page #tb .btn:focus-visible{box-shadow:0 0 0 2px rgba(45,112,194,.18)!important;}
+
+#vl.library-page #tb .soft-action:hover{background:#1b202a!important;border-color:#3a4350!important}
+
+#vl.library-page .library-section-head h2,#vl.library-page .library-filter-head h2{line-height:1.2;}
+#vl.library-page .library-section-head span,#vl.library-page .library-filter-head span{display:block;;margin-top:3px;}
+#vl.library-page .library-section-count{margin-left:auto!important;font-size:10.5px!important;color:#8f99a6!important;white-space:nowrap}
+
+
+
+
+
+
+
+#vl.library-page #cc{display:flex!important;;align-items:center!important;;flex-wrap:nowrap!important;}
+#vl.library-page #cc .muted{font-size:10.5px!important;color:#737d8a!important;flex:0 0 auto}
+#vl.library-page #chip-wrap{min-width:0!important;overflow-x:auto!important;flex-wrap:nowrap!important;scrollbar-width:none}
+#vl.library-page #chip-wrap::-webkit-scrollbar{display:none}
+#vl.library-page #cc .pill{white-space:nowrap!important;;font-size:10.5px!important;;padding:4px 8px!important;;border-radius:999px!important;;border:1px solid #2c3948!important;}
+
+#vl.library-page #library-bg-pipeline{display:flex!important;;align-items:center!important;;gap:9px!important;;font-size:10.5px!important;;white-space:nowrap!important;;overflow:hidden!important;;text-overflow:ellipsis!important;}
+#vl.library-page #library-bg-pipeline:not(:empty)::before{content:"";width:7px;height:7px;flex:0 0 auto;border-radius:50%;background:#28bd73;box-shadow:0 0 0 3px rgba(40,189,115,.10)}
+
+#vl.library-page #fp{display:none!important}
+#vl.library-page #afc{display:none!important;;align-items:center!important;;gap:6px!important;;flex-wrap:wrap!important;;padding:8px 10px!important;;margin:0 0 10px!important;}
+#vl.library-page #afc.has{display:flex!important}
+#vl.library-page #afc .pill{white-space:nowrap!important;;font-size:10.5px!important;;padding:4px 8px!important;;border-radius:999px!important;;border:1px solid #2c3948!important;}
+#vl.library-page #afc .x{margin-left:5px!important;color:#8f9aaa!important}
+
+#vl.library-page #lb{display:block!important;}
+
+#vl.library-page #rs::before{content:"";;width:7px;;height:7px;;margin-right:8px;;border-radius:50%;;flex:0 0 auto;}
+
+
+
+
+@media(max-width:1180px){
+ #vl.library-page #tb{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+ 
+}
+@media (max-width:780px) {
+
+ #vl.library-page .library-view-toggle{display:none}
+ #vl.library-page #tb{grid-template-columns:repeat(4,minmax(0,1fr))!important;;backdrop-filter:blur(12px)!important;}
+ #vl.library-page #tb .btn{overflow:hidden!important;;text-overflow:ellipsis!important;}
+
+ 
+ #vl.library-page #cc{overflow:hidden!important}
+
+}
+
+@media (max-width:780px) and (orientation:landscape) {
+
+ #vl.library-page #tb{grid-template-columns:repeat(6,minmax(0,1fr))!important;overflow-x:visible!important}
+ 
+ 
+}
+
+@media(max-width:520px){
+ #vl.library-page .library-head p{display:none}
+ #vl.library-page #tb{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ #vl.library-page #tb .btn.pri{display:none!important}
+
+}
+@media(max-width:380px){
+ #vl.library-page #tb{grid-template-columns:1fr 1fr!important}
+ #vl.library-page #tb .btn{font-size:11px!important;}
+ 
+}
+

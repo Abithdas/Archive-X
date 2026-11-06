@@ -1,0 +1,28 @@
+/* ============================================================================
+   FILE: css/56-player-audio-skip-controls.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — aligned volume icon, pill slider, and visible 30-second labels.
+   Presentation-only: keep the existing player event handlers and seek-preview runtime unchanged. */
+
+/* The skip glyph is overlaid on the circular arrow so the 30-second action
+   remains understandable at normal and compact control sizes. */
+
+/* Give the audio button an optically centered speaker and make the range a
+   short rounded pill, using Archive X's current accent color for the thumb. */
+
+
+
+
+
+
+/* Keep the requested 30-second actions available on compact watch layouts too. */
+
+/* V29.4.204 mute control icon repair: keep the speaker silhouette visible in both
+   states; mute state adds a separate slash instead of replacing the speaker cone. */
+
+
+

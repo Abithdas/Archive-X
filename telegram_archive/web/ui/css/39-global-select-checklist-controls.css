@@ -1,0 +1,113 @@
+/* ============================================================================
+   FILE: css/39-global-select-checklist-controls.css
+   AREA: General
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Application-wide themed dropdown and checklist controls.
+   Visual-only layer: native select values/events remain authoritative. */
+.ax-autonext-combobox.ax-app-select,
+.ax-autonext-combobox {
+  position: relative !important;
+  display: inline-flex !important;
+  vertical-align: middle !important;
+  box-sizing: border-box !important;
+  width: var(--ax-select-width, max-content) !important;
+  min-width: var(--ax-select-min-width, 9rem) !important;
+  max-width: min(100%, var(--ax-select-max-width, 100%)) !important;
+  margin: var(--ax-select-margin, 0) !important;
+  flex: 0 1 auto !important;
+}
+.ax-autonext-combobox.ax-select-full-width {
+  display: flex !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+select.ax-autonext-native {
+  display: none !important;
+}
+.ax-autonext-trigger {
+  min-width: 0 !important;
+  min-height: 36px !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 8px 11px !important;
+  border: 1px solid var(--ax-border-strong, var(--border2)) !important;
+  border-radius: 9px !important;
+  background: var(--ax-background-tertiary, var(--bg2)) !important;
+  color: var(--ax-text-primary, var(--text)) !important;
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  box-shadow: 0 1px 1px rgba(0,0,0,.035) !important;
+}
+.ax-autonext-trigger:hover,
+.ax-autonext-trigger[aria-expanded="true"] {
+  background: var(--ax-surface-selected, var(--bg3)) !important;
+  border-color: var(--ax-interactive-primary, var(--accent)) !important;
+}
+.ax-autonext-trigger:focus-visible {
+  outline: 2px solid var(--ax-interactive-focus, var(--accent)) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ax-interactive-primary, var(--accent)) 14%, transparent) !important;
+}
+.ax-autonext-trigger:disabled {
+  opacity: .52 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+.ax-autonext-chevron { width: 7px !important; height: 7px !important; }
+.ax-autonext-menu {min-width: min(160px, calc(100vw - 20px)) !important;;padding: 5px !important;;border: 1px solid var(--ax-border-strong, var(--border2)) !important;;border-radius: 11px !important;;box-shadow: var(--ax-shadow-large, 0 14px 36px rgba(0,0,0,.24)) !important;;backdrop-filter: blur(14px);;-webkit-backdrop-filter: blur(14px);}
+.ax-autonext-option {display: flex !important;;align-items: center !important;;justify-content: space-between !important;;gap: 10px !important;;min-height: 34px !important;;padding: 7px 10px !important;;border-radius: 7px !important;;font-family: inherit !important;;font-size: 12px !important;;line-height: 1.35 !important;;font-weight: 500 !important;}
+.ax-autonext-option:hover,
+.ax-autonext-option[data-active="true"] {
+  background: color-mix(in srgb, var(--ax-interactive-primary, var(--accent)) 12%, var(--ax-background-secondary, var(--bg1))) !important;
+}
+.ax-autonext-option[aria-selected="true"] {background: var(--ax-interactive-primary, var(--accent)) !important;;font-weight: 700 !important;}
+/* Keep form controls on the same visual language even outside Settings. */
+input[type="checkbox"],
+input[type="radio"] {cursor: pointer;}
+label.ax-check-row {
+  gap: 8px !important;
+  line-height: 1.45 !important;
+  cursor: pointer;
+}
+label.ax-check-row:not(.fr) {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-block: 4px;
+}
+label.ax-check-row:not(.fr) > input[type="checkbox"],
+label.ax-check-row:not(.fr) > input[type="radio"] {
+  flex: 0 0 16px !important;
+  width: 16px !important;
+  min-width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  vertical-align: middle !important;
+}
+label.ax-check-row:not(.fr):has(> span:has(span)) {
+  align-items: flex-start;
+}
+label.ax-check-row:not(.fr):has(> input[type="checkbox"]:focus-visible),
+label.ax-check-row:not(.fr):has(> input[type="radio"]:focus-visible) {
+  border-radius: 6px;
+}
+label.ax-check-row:not(.fr):has(> input[type="checkbox"]:focus-visible) > input,
+label.ax-check-row:not(.fr):has(> input[type="radio"]:focus-visible) > input {
+  outline: 2px solid var(--ax-interactive-focus, var(--accent));
+  outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .ax-autonext-combobox.ax-app-select {
+    max-width: 100% !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-autonext-trigger, .ax-autonext-chevron, .ax-autonext-option { transition: none !important; }
+}

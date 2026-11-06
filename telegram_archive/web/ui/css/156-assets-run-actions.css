@@ -1,0 +1,64 @@
+/* ============================================================================
+   FILE: css/156-assets-run-actions.css
+   AREA: General
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X v29.4.357 — remove informational-only Metadata & Assets settings step. */
+html[data-theme-preset] #vtransfers .ax-metadata-wizard .ax-assets-run-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+html[data-theme-preset] #vtransfers .ax-metadata-wizard .ax-assets-run-primary,
+html[data-theme-preset] #vtransfers .ax-metadata-wizard .ax-assets-run-pending {
+  display: grid;
+  grid-template-rows: auto minmax(30px, auto);
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+html[data-theme-preset] #vtransfers .ax-metadata-wizard #u-assets-run-selected,
+html[data-theme-preset] #vtransfers .ax-metadata-wizard #u-assets-process-pending {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 43px !important;
+  height: auto !important;
+  box-sizing: border-box;
+  align-self: start;
+  white-space: normal;
+  line-height: 1.35;
+}
+html[data-theme-preset] #vtransfers .ax-metadata-wizard #u-assets-process-pending {
+  margin-top: 9px;
+  margin-bottom: 9px;
+}
+#vtransfers .ax-metadata-wizard #u-assets-run-selected {
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+}
+html[data-theme-preset] #vtransfers .ax-metadata-wizard .ax-assets-run-primary > small,
+html[data-theme-preset] #vtransfers .ax-metadata-wizard .ax-assets-run-pending > small {
+  display: block;
+  min-width: 0;
+  color: var(--ax2-text-3);
+  font: 400 11px/1.45 var(--ax2-font);
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+html[data-theme-preset] #vtransfers .ax-metadata-wizard #u-assets-pending-help {
+  text-align: left;
+}
+@media (max-width: 540px) {
+  html[data-theme-preset] #vtransfers .ax-metadata-wizard .ax-assets-run-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-theme-preset] #vtransfers .ax-metadata-wizard .ax-assets-run-primary,
+  html[data-theme-preset] #vtransfers .ax-metadata-wizard .ax-assets-run-pending {
+    grid-template-rows: auto auto;
+  }
+}

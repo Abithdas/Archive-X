@@ -1,0 +1,69 @@
+/* ============================================================================
+   FILE: css/07-ux-redesign-v1.css
+   AREA: Design system and global polish
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+
+/* Archive X UX Architecture v1 — interaction layer over existing contracts */
+:root{--ax-ux-bg:#000000;;--ax-ux-surface:#292929;;--ax-ux-surface2:#676767;;--ax-ux-border:#2D2D2D;;--ax-ux-text:#f2f4f7;;--ax-ux-muted:#9ba3af;;--ax-ux-accent:#dfe5ee;;--ax-ux-focus:#d9e2ef;;--ax-ux-header:68px;;--ax-ux-radius:12px;;--ax-ux-gap:14px;}
+/* Make the shell quiet and information-led. Existing components retain their contracts. */
+
+.signout-btn{border-color:#2a3038!important}
+/* Library is the primary workspace */
+#vl{margin:0 auto;;padding-top:18px!important;}
+#tb{position:sticky!important;;top:68px!important;;z-index:45!important;;display:flex!important;;align-items:center!important;;gap:8px!important;;padding:10px 0!important;;border:0!important;;box-shadow:none!important;}
+#tb select,#tb .btn{min-height:38px!important;border-radius:9px!important}
+#tb .btn.soft-action{background:#292929!important;border-color:#2D2D2D!important}
+#cc{border:1px solid #232833!important;;border-radius:10px!important;;padding:9px 11px!important;}
+#fp{border:1px solid #2D2D2D!important;;border-radius:12px!important;;padding:14px!important;;box-shadow:0 16px 40px rgba(0,0,0,.22)!important;}
+#lb{border:0!important;background:transparent!important}
+#rs{padding:12px 2px 8px!important;color:#9ba3af!important}
+/* Shared content rhythm */
+
+/* Operations: control room hierarchy */
+
+#va .ops-metric b,#va .ops-metric strong{font-size:20px!important}
+
+/* Universal surfaces */
+.ax-ux-command,.ax-ux-activity,.ax-ux-filter-drawer{position:fixed;;inset:0;;z-index:1200;;display:none;;padding:9vh 16px 16px;;box-sizing:border-box;}
+.ax-ux-command.open,.ax-ux-activity.open,.ax-ux-filter-drawer.open{display:flex;align-items:flex-start;justify-content:center}
+.ax-ux-panel{width:min(720px,100%);;overflow:hidden;}
+.ax-ux-command-head{display:flex;;align-items:center;;gap:10px;;border-bottom:1px solid #2D2D2D;}
+.ax-ux-command-head input{flex:1;;min-width:0;;height:42px;;border:0!important;;font-size:15px!important;}
+.ax-ux-command-list{max-height:55vh;;overflow:auto;}
+.ax-ux-command-item{display:flex;;align-items:center;;gap:12px;;width:100%;;padding:11px 12px;;border:1px solid transparent;;background:transparent;;text-align:left;;cursor:pointer;}
+
+.ax-ux-command-item small{display:block;;margin-top:2px;}
+.ax-ux-kbd{margin-left:auto;border:1px solid #303640;border-radius:5px;padding:2px 6px;font:10px ArchiveXMono;color:#8e97a4}
+.ax-ux-activity .ax-ux-panel{width:min(640px,100%)}
+.ax-ux-activity-head{display:flex;;justify-content:space-between;;align-items:center;;border-bottom:1px solid #2D2D2D;}
+.ax-ux-activity-body{max-height:65vh;;overflow:auto;}
+.ax-ux-activity-row{display:grid;grid-template-columns:22px 1fr auto;gap:10px;padding:11px;border-bottom:1px solid #1e2229}
+.ax-ux-activity-row:last-child{border-bottom:0}
+.ax-ux-activity-row small{display:block;color:#7f8792;margin-top:3px}
+.ax-ux-search-pop{position:absolute;;left:0;;right:0;;top:46px;;overflow:hidden;;display:none;;z-index:300;}
+
+.sw:focus-within .ax-ux-search-pop{display:block}
+.ax-ux-search-pop-inner{padding:8px}
+.ax-ux-search-pop button{width:100%;;text-align:left;;background:transparent;;border:0;;padding:9px;;cursor:pointer;}
+
+.ax-ux-context{display:flex;align-items:center;gap:8px;min-height:34px;color:#8d96a3;font-size:11px}
+.ax-ux-context strong{color:#e5e9ee;font-weight:600}
+.ax-ux-section-label{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#6f7783;margin:0 0 8px}
+.ax-ux-filter-drawer{padding:0;align-items:stretch;justify-content:flex-end}
+.ax-ux-filter-drawer .ax-ux-panel{width:min(420px,100%);;height:100%;;display:flex;;flex-direction:column;}
+.ax-ux-filter-body{padding:14px;overflow:auto;flex:1}
+.ax-ux-filter-actions{padding:12px;border-top:1px solid #2D2D2D;display:flex;gap:8px}
+
+@media(max-width:780px){
+ .signout-btn {display:none}
+
+ #tb{top:58px!important;overflow-x:auto!important;flex-wrap:nowrap!important;padding:8px 0!important}#tb>*{flex:0 0 auto!important}
+
+ .ax-shelf{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .ax-ux-command{padding:5vh 10px 10px}
+}
+@media(max-width:390px){.ax-shelf{grid-template-columns:1fr 1fr!important}}
+

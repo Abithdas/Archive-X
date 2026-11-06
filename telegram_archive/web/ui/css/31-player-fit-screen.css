@@ -1,0 +1,16 @@
+/* ============================================================================
+   FILE: css/31-player-fit-screen.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Player fit-to-screen refinement (presentation only).
+   Keeps the existing player DOM, controls, seek preview, snapshot canvas and JS untouched.
+   The player gets a bounded viewport; metadata remains accessible in its own scroll region. */
+
+
+@media (max-width: 980px) {
+  /* Keep the existing mobile/tablet flow and its scroll behavior. */
+  
+}

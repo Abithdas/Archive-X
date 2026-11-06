@@ -1,0 +1,12 @@
+/* ============================================================================
+   FILE: css/172-ax-seek-idle-style.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Idle (not hovered / focused) seek bar: themed played + buffered fill, 6px thick (was 5px).
+   Hover / focus / expanded states are excluded, so the four-row NoBuf timeline is unchanged. */
+
+
+

@@ -1,0 +1,47 @@
+/* ============================================================================
+   FILE: css/165-video-player-reference.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X — final video page layout matching the six-view player reference.
+   Presentation only. One rounded player surface with the timeline/control strip
+   overlaid on the bottom of the video; Up next on the right for wide landscape,
+   below content for portrait/narrow. Fullscreen and #pmsg (164) are untouched. */
+
+/* The legacy header moves these existing nodes into #dtopbar. Keep its
+   contents in the main grid: navigation above, title/metadata below video. */
+
+/* Unified rounded player surface. */
+
+
+
+/* Control strip overlays bottom of the video. */
+
+/* Hide the complete control strip after playback idles, including when the
+   strip is in normal flow below the video. Pointer movement over the player
+   removes ui-idle; focus keeps controls available to keyboard users. */
+
+
+
+/* Centered play + side navigation. */
+
+/* Title + metadata directly below. */
+
+/* Up next below content on portrait/narrow. */
+
+/* Wide landscape: Up next to the right. */
+
+
+/* Landscape phone: player fills the height, compact chrome. */
+
+
+/* Narrow: edge-inset rounded player, compact controls. */
+
+/* Compact the control strip and put its buttons immediately above the timeline. */
+
+/* Keep long Telegram filenames inside the title column on narrow screens.
+   The older reference styles force a single line, which can overflow the
+   title block and collide with neighboring player-header content. */
+

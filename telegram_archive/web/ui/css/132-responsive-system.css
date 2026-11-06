@@ -1,0 +1,324 @@
+/* ============================================================================
+   FILE: css/132-responsive-system.css
+   AREA: Responsive and input
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X v29.4.295 — Responsive System (phone-first, all screens)
+   Breakpoint contract for all new/changed CSS:
+   base phone: 0–429px, designed at 375px CSS width;
+   phone-lg: min-width 430px; tablet: min-width 768px; laptop: min-width 1024px;
+   desktop: min-width 1440px; wide: min-width 1920px; qhd: min-width 2560px;
+   uhd: min-width 3840px; 8k: min-width 7680px.
+   Orientation/height contracts: (max-height:500px) and (orientation:landscape) = phone landscape;
+   max-height:800px = short laptop; (orientation:portrait) and (min-width:1024px) = portrait monitor/tablet;
+   (min-aspect-ratio:21/9) = ultrawide. CSS custom properties document values; CSS media queries use literals.
+   Existing mobile foundation rules from v29.4.294 are retained below and extended, not duplicated.
+*/
+
+:root {--ax-bp-phone: 0px;;--ax-bp-phone-lg: 430px;;--ax-bp-tablet: 768px;;--ax-bp-laptop: 1024px;;--ax-bp-desktop: 1440px;;--ax-bp-wide: 1920px;;--ax-bp-qhd: 2560px;;--ax-bp-uhd: 3840px;;--ax-bp-8k: 7680px;;--ax-space-1: clamp(4px, .22vw + 3px, 6px);;--ax-space-2: clamp(7px, .25vw + 5px, 10px);;--ax-space-3: clamp(10px, .35vw + 7px, 14px);;--ax-space-4: clamp(14px, .45vw + 10px, 20px);;--ax-space-5: clamp(18px, .65vw + 12px, 28px);;--ax-space-6: clamp(24px, .85vw + 16px, 36px);;--ax-responsive-layout-scale: 1;}
+
+/* Consolidated from Archive X v29.4.294 mobile-first foundation. Shared clamp-based spacing
+   lives in the responsive-system root above; do not redeclare it here. */
+:root {--ax-mobile-gutter: clamp(10px, 3vw, 16px);}
+
+@media (max-width: 767px), (max-height: 450px) and (orientation: landscape) {
+  html, body {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {margin: 0;;padding: 0;}
+  *, *::before, *::after { box-sizing: border-box; }
+  #app {width: 100%;;max-width: 100%;}
+
+  /* Fix common overflow at the element source; the document itself is not clipped. */
+  #view-stage, #view-stage > .view, #view-stage .view-content,
+  #view-stage .panel, #view-stage .card, #view-stage .section,
+  #view-stage .toolbar, #view-stage .workspace, #view-stage .workspace-main {
+    min-width: 0;
+    max-width: 100%;
+  }
+  #view-stage img, #view-stage video, #view-stage canvas,
+  #view-stage iframe, #view-stage object, #view-stage embed {
+    max-width: 100%;
+  }
+  #view-stage pre, #view-stage table, #view-stage .table-wrap,
+  #view-stage .table-responsive, #view-stage .code-block {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  #view-stage :where(.filename, .video-filename, .file-name, .entity-name, .performer-name, .studio-name, .channel-name) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  /* App shell: one row for brand, search and actions. */
+
+  
+  
+
+  /* Content reserves space above fixed chrome, with the home bar included. */
+  #view-stage {display: block;;max-width: 100%;;margin: 0;;overflow: visible;}
+  #view-stage > .view {max-width: 100%;;margin-left: 0;;margin-right: 0;;scroll-margin-top: calc(var(--ax-mobile-header-height) + var(--ax-safe-top) + 8px);}
+
+  /* Bottom navigation keeps every destination usable and respects the home bar. */
+
+  /* Hide bottom navigation while the on-screen keyboard is open. */
+  
+
+  /* Library toolbar, filters, and paging adapt without hiding page overflow. */
+  
+  #vl, #vp, #vsite, #vtg, #vs, #va, #vai, #vtransfers { min-width: 0; max-width: 100%; }
+  .library-head { padding: 4px 2px 8px; min-width: 0; }
+  .library-head h1 { max-width: 100%; font-size: 23px; line-height: 1.15; overflow-wrap: anywhere; }
+  .library-head p { font-size: 12px; line-height: 1.4; }
+  #tb {grid-template-columns: repeat(2, minmax(0, 1fr));;width: 100%;;margin: 0 0 8px;;overflow: visible;}
+  #tb > *, #tb select, #tb .btn {
+    box-sizing: border-box;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    min-height: var(--ax-tap);
+    height: auto;
+    margin: 0;
+  }
+  #tb input, #tb select { font-size: 16px; }
+  #tb #library-secondary-actions { grid-column: 1 / -1; min-width: 0; }
+  #tb .library-secondary-action-items { display: flex; flex-wrap: wrap; gap: 8px; }
+  #tb .library-secondary-action-items > * { flex: 1 1 calc(50% - 8px); min-width: 0; min-height: var(--ax-tap); }
+  #fp {margin: 8px 0;}
+  #fp .fg, #fp .g2, #fp .g3 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; }
+  #fp .fa { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  #fp input, #fp select, #fp textarea { width: 100%; min-width: 0; max-width: 100%; min-height: var(--ax-tap); font-size: 16px; }
+  #afc, #cc, #mc, #lb { min-width: 0; max-width: 100%; }
+
+  
+
+  #pg {min-width: 0;;max-width: 100%;}
+  #pg .ax-pagination-bar { flex-wrap: wrap; gap: 8px; padding: 8px; }
+  #pg .ax-pagination-summary, #pg .ax-pagination-goto, #pg .ax-pagination-controls { min-width: 0; max-width: 100%; flex-wrap: wrap; }
+  #pg .ax-pagination-input { width: 58px; min-width: 58px; height: var(--ax-tap); font-size: 16px; }
+  #pg .ax-pagination-go-btn, #pg .ax-page-nav, #pg .ax-page-number { min-width: var(--ax-tap); min-height: var(--ax-tap); height: var(--ax-tap); }
+
+  /* Shared controls are touch sized throughout the app. Text fields stay at 16px to prevent iOS focus zoom. */
+  button,
+.btn,
+[role="button"],
+summary,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+select {
+    min-height: var(--ax-tap);
+    touch-action: manipulation;
+  }
+  #app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  #app select, #app textarea,
+  #ax-confirm input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  #ax-confirm select, #ax-confirm textarea {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+    min-height: var(--ax-tap);
+    font-size: 16px;
+  }
+  input[type="range"] { min-height: var(--ax-tap); max-width: 100%; touch-action: pan-x; }
+  body { font-size: 14px; }
+  #app :is(.muted, .sub, .hint, .meta, small, time, .video-card-channel, .video-property, .video-property-unknown) {
+    font-size: max(12px, 1em);
+  }
+
+  /* Multi-video selection stays above the bottom navigation and its menus open upward. */
+  
+  .mapbar-shell, #mapbar, .mapbar, .mapbar-toolbar { min-width: 0; max-width: 100%; }
+  #mapbar.mapbar-shell {position: fixed;;top: auto;;left: max(8px, var(--ax-safe-left));;right: max(8px, var(--ax-safe-right));;bottom: calc(var(--ax-mobile-bottom-nav-height) + var(--ax-safe-bottom) + 8px);;margin: 0;;display: flex;;flex-wrap: wrap;;gap: 8px;;padding: 8px;;border-radius: 14px;;background: var(--ax-background-secondary, #15161b);;border: 1px solid var(--ax-border-default, #2d2d2d);;box-shadow: 0 10px 30px rgba(0,0,0,.35);;align-items: center;}
+  #mapbar.mapbar-shell > * { flex: 0 0 auto; min-width: 0; max-width: 100%; }
+  #mapbar .map-ui-count { order: 0; margin-right: auto; }
+  #mapbar > .btn { order: 1; white-space: normal; }
+  #mapbar .map-menu { order: 2; position: static; flex: 1 1 calc(50% - 8px); width: auto; min-width: 0; }
+  #mapbar .map-menu > .btn { width: 100%; justify-content: center; }
+  #mapbar .map-ui-hint, #mapbar .mapbar-spacer { display: none; }
+  #mapbar .map-menu-panel { position: fixed; left: max(8px, var(--ax-safe-left)); right: max(8px, var(--ax-safe-right)); top: auto; bottom: calc(var(--ax-mobile-bottom-nav-height) + var(--ax-safe-bottom) + 166px); min-width: 0; max-width: calc(100vw - var(--ax-safe-left) - var(--ax-safe-right) - 16px); }
+
+  /* Dialogs/sheets fit between safe areas, with internal scrolling and usable close controls. */
+  .mdl, .modal, .ax-ux-command, .ax-ux-activity, .ax-ux-filter-drawer,
+  .entity-modal-backdrop, .video-quick-edit-backdrop {
+    padding: max(8px, var(--ax-safe-top)) max(8px, var(--ax-safe-right)) max(8px, var(--ax-safe-bottom)) max(8px, var(--ax-safe-left));
+  }
+  .mdl-box, .modal-dialog, .ax-ux-panel, .video-quick-edit-modal {
+    width: 100%; max-width: 100%;
+    max-height: calc(100dvh - var(--ax-safe-top) - var(--ax-safe-bottom) - 16px);
+    min-width: 0; overflow: auto; border-radius: 14px;
+  }
+  /* Legacy layers fixed some icon-only close controls at 28–30px with !important.
+     These mobile-only hit-area overrides are necessary to meet the 44px touch target. */
+  .mdl-h>button[aria-label^="Close"], .ax-ux-activity-head>button[aria-label^="Close"],
+  .ax-ux-filter-head>button[aria-label^="Close"], .ax-round-close {
+    width: var(--ax-tap) !important; height: var(--ax-tap) !important;
+    min-width: var(--ax-tap) !important; min-height: var(--ax-tap) !important;
+    max-width: var(--ax-tap) !important; flex: 0 0 var(--ax-tap) !important;
+  }
+  .mdl :is(.close, .mdl-close, [aria-label*="Close"], [title*="Close"]),
+  .modal :is(.close, .mdl-close, [aria-label*="Close"], [title*="Close"]),
+  [role="dialog"] :is(.close, .mdl-close, [aria-label*="Close"], [title*="Close"]) {
+    min-width: var(--ax-tap); min-height: var(--ax-tap);
+  }
+  #ax-confirm { padding: 10px; }
+  
+  .ax-ux-command, .ax-ux-activity { padding-top: max(10px, var(--ax-safe-top)); }
+  .ax-ux-filter-drawer { padding: 0; }
+  .ax-ux-filter-drawer .ax-ux-panel {width: 100%;;height: 100%;;max-height: calc(100dvh - var(--ax-safe-top) - var(--ax-safe-bottom));}
+
+  /* Player is full-content-width on phones; normal controls remain below the video. */
+
+  
+  
+
+  /* Fullscreen video and controls remain inside the safe area in either phone orientation. */
+
+  /* Reduce page-wide text and card overflow; deliberate rails retain inner scrolling. */
+  
+  #view-stage :where(p, li, label, .muted, .sub, .hint, .meta, small) { overflow-wrap: anywhere; }
+}
+
+
+
+
+/* Short phone landscape (including iPhone 13 mini at 812 × 375): compact chrome,
+   preserve 44px controls, and reserve only the space the video controls need. */
+@media (max-height: 450px) and (orientation: landscape) {
+  :root {--ax-mobile-gutter: 10px;}
+
+}
+
+
+
+/* ── All-screen responsive contract ─────────────────────────────────────────
+   These rules correct the legacy cascade at the source layer's final position.
+   Phone is the base; tablet/laptop/desktop progressively add columns and panes.
+*/
+
+body, #app, #ax-ui-scale-root, #view-stage, .view, .view > *,
+#perf-detail, #site-detail, #entity-detail, #vl, #vp, #vsite, #vs, #va,
+#vtransfers, #vtg, #vm, #ai-page { min-width: 0; }
+img, video, canvas { max-width: 100%; }
+button, a, input, select, textarea, summary, [role="button"], [role="tab"], [role="option"] { touch-action: manipulation; }
+:where(.pan,.ops-sec,.ops-metric,.ops-res-card,.v54-health-card,.v54-health-item,
+       .settings-v54-section,.settings-area-card,.ax-transfer-workflow-section,
+       .ax-transfer-page-notice,.automation-card,.automation-wizard,.ai-card,
+       .entity-edit-panel,.performer-social-panel,.studio-social-panel) { min-width: 0; max-width: 100%; }
+:where(.filename,.file-name,.file-path,.video-title,.vn,.pname,.studio-name,.channel-name,
+       .performer-name,.video-card-channel,.ax-transfer-page-context,.job-title,.job-name) {
+  min-width: 0; overflow-wrap: anywhere; text-overflow: ellipsis;
+}
+:where(.vc,.pcard,.performer-card,.settings-area-card,.ops-metric,.ops-res-card) { break-inside: avoid; }
+
+/* Phone default: 375px-first, one-column form surfaces, controlled card rails. */
+@media (max-width: 767px) {
+  #view-stage > .view:not(#vl) { padding-inline: var(--ax-space-3); }
+  #vp, #vsite, #vs, #va, #vtransfers { width: 100%; max-width: 100%; }
+  #vp #perf-toolbar, #vsite #site-toolbar, #va .ops-sec, #va .pan, #vs .pan,
+  #vtransfers .ax-transfer-page-grid, #vtransfers .ax-transfer-workflow-section { min-width: 0; }
+  
+  #perf-list > *, #site-list > *, #perf-detail, #site-detail, .entity-tab-panel { min-width: 0; max-width: 100%; }
+  
+  #vs .settings-v54-layout, #vs .settings-overview-grid, #vs .settings-status-grid,
+  #vs .settings-area-grid, #vs .entity-edit-layout, #vs .entity-edit-details-grid,
+  #va .v54-ops-health, #va .ops-summary-strip, #va .ops-resource-limit-grid,
+  #vtransfers .ax-transfer-page-grid, #vtransfers .automation-grid,
+  .automation-grid, .automation-fields, .automation-review-grid, .automation-wizard-layout,
+  .entity-edit-details-grid, .entity-edit-layout, .ai-page-layout {
+    display: grid; grid-template-columns: minmax(0,1fr); min-width: 0;
+  }
+  #vs .settings-v54-sidebar, #vs .settings-v54-nav, #vs .settings-v54-layout > aside { width: 100%; min-width: 0; }
+  #vs .settings-v54-actions {grid-template-columns: repeat(2,minmax(0,1fr));}
+  #vs .settings-v54-actions > *, #va .ops-resource-actions > * { min-width: 0; width: 100%; }
+  #va .ops-resource-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--ax-space-2); }
+  #vtransfers .ax-transfer-page-intro { display: block; }
+  #vtransfers .ax-transfer-page-context { margin-top: var(--ax-space-3); }
+  
+  .browser-compat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #view-stage :where(input,select,textarea) { font-size: 16px; }
+  :where(.btn,button,.icon-btn,.ax-round-close,.video-card-more-trigger,.entity-edit-icon,.card-edit-icon) {
+    min-width: var(--ax-tap); min-height: var(--ax-tap);
+  }
+
+  #view-stage :where(.library-head h1,.view h1,.page-title) { font-size: clamp(24px, 6.5vw, 28px); }
+  
+  .v55-data-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .v55-shelf-row { grid-auto-columns: minmax(155px, 190px); }
+}
+
+/* Large phones: more breathing room while preserving bounded card widths. */
+
+/* Tablet/iPad: wider rails, but keep two-pane forms stacked until laptop width. */
+@media (min-width: 768px) {
+  #view-stage > .view:not(#vl) { padding-inline: clamp(14px, 2vw, 28px); }
+  
+  #perf-detail, #site-detail, #entity-detail { max-width: 100%; min-width: 0; }
+  #vs .settings-v54-nav { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); }
+  
+}
+
+/* Laptop starts two-pane workspace layouts. */
+@media (min-width: 1024px) {
+  #view-stage > .view:not(#vl):not(#dtop) { max-width: min(100%, 1600px); margin-inline: auto; }
+  
+  #vs .settings-v54-nav { grid-template-columns: minmax(0,1fr); }
+  #vtransfers .ax-transfer-page-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+
+  .video-page-layout, .video-detail-layout, .ax-two-pane-layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(280px,380px); align-items: start; }
+}
+
+/* Desktop: sensible reading widths, media grids retain all available width. */
+@media (min-width: 1440px) {
+  #vs .settings-v54-layout > :not(.settings-v54-nav):not(.settings-v54-sidebar) { min-width: 0; }
+  #vs .settings-v54-main, #vtransfers .ax-transfer-form-shell, .entity-edit-layout { max-width: 1280px; }
+  #vp, #vsite, #vs, #va, #vtransfers { padding-inline: clamp(18px,1.5vw,32px); }
+}
+@media (min-width: 1920px) {
+  #view-stage > .view:not(#vl):not(#dtop) { max-width: min(100%, 1920px); }
+  #vl.library-page #vg, #vg, .entity-video-grid, #perf-video-grid { --ax-video-card-grid-gap: clamp(12px,.7vw,22px); }
+  #va .v54-ops-health, #va .ops-summary-strip { grid-template-columns: repeat(4,minmax(0,1fr)); }
+}
+@media (min-width: 2560px) {
+  #view-stage > .view:not(#vl):not(#dtop) { max-width: min(100%, 2200px); }
+  #vl.library-page #vg, #vg, .entity-video-grid, #perf-video-grid { --ax-video-card-track-max: 300px; }
+}
+@media (min-width: 3840px) {
+  #view-stage > .view:not(#vl):not(#dtop) { max-width: min(100%, 2400px); }
+  #va .v54-ops-health, #va .ops-summary-strip { grid-template-columns: repeat(5,minmax(0,1fr)); }
+}
+@media (min-width: 7680px) {
+  #view-stage > .view:not(#vl):not(#dtop) { max-width: min(100%, 2600px); }
+  #va .v54-ops-health, #va .ops-summary-strip { grid-template-columns: repeat(6,minmax(0,1fr)); }
+}
+
+/* Height/orientation cases from the shared breakpoint contract. */
+
+@media (max-height: 800px) {
+  #vs .settings-v54-banner, #vs .settings-v54-section, #va .ops-sec { scroll-margin-top: 70px; }
+}
+@media (orientation: portrait) and (min-width: 1024px) {
+  #view-stage > .view:not(#vl):not(#dtop) { max-width: min(100%, 1440px); }
+  #vs .settings-v54-layout, #vtransfers .ax-transfer-page-grid { grid-template-columns: minmax(0,1fr); }
+}
+@media (min-aspect-ratio: 21/9) {
+  #view-stage > .view:not(#vl):not(#dtop) { max-width: min(100%, 2200px); }
+  
+  .video-page-layout, .video-detail-layout, .ax-two-pane-layout { grid-template-columns: minmax(0,1fr) minmax(300px,420px); }
+}
+
+@media (pointer: coarse) {
+  :where(button, a.btn, .btn, [role="button"], [role="tab"], .ax-icon-btn, .performer-social-link,
+         .entity-detail-tab, .ax-side-item, .ax-ux-bottom-nav > button) { min-height: 44px; }
+  :where(input:not([type="checkbox"]):not([type="radio"]),select,textarea) { font-size: 16px; }
+  :where(.btn,button,[role="button"]) { touch-action: manipulation; }
+}
+

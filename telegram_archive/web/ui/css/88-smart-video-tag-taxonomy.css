@@ -1,0 +1,44 @@
+/* ============================================================================
+   FILE: css/88-smart-video-tag-taxonomy.css
+   AREA: General
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — show specific, identifying tags and derived multi-category labels consistently. */
+
+.video-category-chip {
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  max-width:100%!important;
+  min-height:20px!important;
+  padding:0 6px!important;
+  border:1px solid color-mix(in srgb, var(--accent, #aab1a4) 34%, transparent)!important;
+  border-radius:5px!important;
+  background:color-mix(in srgb, var(--accent, #aab1a4) 12%, transparent)!important;
+  color:var(--accent, var(--text2, #c3c6bd))!important;
+  font-size:10.5px!important;
+  font-weight:650!important;
+  line-height:1.1!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.video-studio-chip {
+  display:inline-flex!important;
+  align-items:center!important;
+  max-width:100%!important;
+  min-height:20px!important;
+  padding:0 6px!important;
+  border:1px solid rgba(185,193,174,.24)!important;
+  border-radius:5px!important;
+  background:rgba(185,193,174,.11)!important;
+  color:var(--text2, #c3c6bd)!important;
+  font-size:10.5px!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+.video-smart-more { flex:0 0 auto!important; }
+

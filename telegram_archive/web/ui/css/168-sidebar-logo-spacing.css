@@ -1,0 +1,12 @@
+/* ============================================================================
+   FILE: css/168-sidebar-logo-spacing.css
+   AREA: Shell and navigation
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Shorten the sidebar brand row so the logo and navigation sit nearer the top. */
+:root {
+  --ax-sidebar-brand-height: clamp(48px, calc(var(--rx-top, var(--ax2-top)) - 12px), 52px);
+}
+

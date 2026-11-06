@@ -1,0 +1,191 @@
+/* ============================================================================
+   FILE: css/36-playback-settings-controls.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Playback preference controls: align checkbox rows and make the next-item selector intentional.
+   Settings presentation only. No playback runtime, API handlers, or player geometry is touched. */
+
+#vs #settings-v55-experience .v55-data-grid {
+  align-items: stretch !important;
+  gap: 14px !important;
+}
+
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card {
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Each preference gets its own calm, full-width row; text and checkbox never run together. */
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card:first-child > label.fr {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 20px !important;
+  align-items: center !important;
+  column-gap: 14px !important;
+  width: 100% !important;
+  min-height: 38px !important;
+  box-sizing: border-box !important;
+  margin: 0 0 7px !important;
+  padding: 8px 10px !important;
+  border: 1px solid var(--ax-border-default, var(--border)) !important;
+  border-radius: 9px !important;
+  background: var(--ax-background-tertiary, var(--bg2)) !important;
+  color: var(--ax-text-primary, var(--text)) !important;
+  cursor: pointer !important;
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease !important;
+}
+
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card:first-child > label.fr:hover {
+  background: var(--ax-preset-selected, var(--bg3)) !important;
+  border-color: var(--ax-border-strong, var(--border2)) !important;
+}
+
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card:first-child > label.fr > span {
+  display: block !important;
+  min-width: 0 !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  color: var(--ax-text-primary, var(--text)) !important;
+}
+
+/* Purpose-built checkbox, themed through Archive X's semantic palette. */
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card:first-child > label.fr > input[type="checkbox"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  display: inline-grid !important;
+  place-content: center !important;
+  justify-self: end !important;
+  flex: none !important;
+  box-sizing: border-box !important;
+  width: 18px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 1.5px solid var(--ax-border-strong, var(--border2)) !important;
+  border-radius: 5px !important;
+  background: var(--ax-background-secondary, var(--bg1)) !important;
+  box-shadow: inset 0 1px 1px rgba(0,0,0,.06) !important;
+  cursor: pointer !important;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease !important;
+}
+
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card:first-child > label.fr > input[type="checkbox"]::after {
+  content: "" !important;
+  display: block !important;
+  width: 8px !important;
+  height: 4px !important;
+  border-left: 2px solid var(--ax-text-on-accent, #fff) !important;
+  border-bottom: 2px solid var(--ax-text-on-accent, #fff) !important;
+  transform: rotate(-45deg) translate(1px, -1px) !important;
+  opacity: 0 !important;
+}
+
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card:first-child > label.fr > input[type="checkbox"]:checked {
+  border-color: var(--ax-interactive-primary, var(--accent)) !important;
+  background: var(--ax-interactive-primary, var(--accent)) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ax-interactive-primary, var(--accent)) 13%, transparent) !important;
+}
+
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card:first-child > label.fr > input[type="checkbox"]:checked::after {
+  opacity: 1 !important;
+}
+
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card:first-child > label.fr > input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--ax-interactive-focus, var(--accent)) !important;
+  outline-offset: 3px !important;
+}
+
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card:first-child > label.fr:has(input[type="checkbox"]:checked) {
+  border-color: var(--ax-border-strong, var(--border2)) !important;
+}
+
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card:first-child > .muted:last-child {
+  margin-top: 3px !important;
+  padding: 10px 2px 0 !important;
+  border-top: 1px solid var(--ax-border-default, var(--border)) !important;
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+  color: var(--ax-text-secondary, var(--text2)) !important;
+}
+
+/* Next-item mode becomes a clear label + full-width, theme-aware select. */
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card:nth-child(2) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+}
+
+#vs #settings-v55-experience .v55-data-grid > .v55-data-card:nth-child(2) > label {
+  display: block !important;
+  margin: 1px 0 0 !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  color: var(--ax-text-secondary, var(--text2)) !important;
+}
+
+#vs #settings-v55-experience #v55-autonext-mode {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 42px !important;
+  box-sizing: border-box !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+  padding: 10px 38px 10px 12px !important;
+  border: 1px solid var(--ax-border-strong, var(--border2)) !important;
+  border-radius: 10px !important;
+  background-color: var(--ax-background-tertiary, var(--bg2)) !important;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ax-text-secondary, var(--text2)) 50%), linear-gradient(135deg, var(--ax-text-secondary, var(--text2)) 50%, transparent 50%) !important;
+  background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50% !important;
+  background-size: 5px 5px, 5px 5px !important;
+  background-repeat: no-repeat !important;
+  color: var(--ax-text-primary, var(--text)) !important;
+  font: inherit !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  cursor: pointer !important;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease !important;
+}
+
+#vs #settings-v55-experience #v55-autonext-mode:hover {
+  border-color: var(--ax-interactive-primary, var(--accent)) !important;
+}
+
+#vs #settings-v55-experience #v55-autonext-mode:focus-visible {
+  outline: 2px solid var(--ax-interactive-focus, var(--accent)) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ax-interactive-primary, var(--accent)) 13%, transparent) !important;
+}
+
+#vs #settings-v55-experience #v55-autonext-mode option {
+  background: var(--ax-background-secondary, var(--bg1)) !important;
+  color: var(--ax-text-primary, var(--text)) !important;
+}
+
+#vs #settings-v55-experience #v55-autonext-mode option:checked {
+  background: var(--ax-interactive-primary, var(--accent)) !important;
+  color: var(--ax-text-on-accent, var(--bg)) !important;
+}
+
+@media (max-width: 900px) {
+  #vs #settings-v55-experience .v55-data-grid > .v55-data-card:first-child > label.fr {
+    min-height: 40px !important;
+    padding: 9px 10px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #vs #settings-v55-experience .v55-data-card:first-child > label.fr,
+  #vs #settings-v55-experience .v55-data-card:first-child > label.fr > input[type="checkbox"],
+  #vs #settings-v55-experience #v55-autonext-mode {
+    transition: none !important;
+  }
+}

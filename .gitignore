@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+# Node / frontend
+node_modules/
+frontend/dist/
+# Rust / Tauri
+desktop/src-tauri/target/
+desktop/target/
+# Frozen backend build output
+desktop/backend/build/
+desktop/backend/dist/
+desktop/src-tauri/binaries/
+# Local data / tooling output
+graphify-out/
+shots/
+*.log

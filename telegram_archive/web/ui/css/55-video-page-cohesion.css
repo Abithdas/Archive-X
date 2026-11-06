@@ -1,0 +1,25 @@
+/* ============================================================================
+   FILE: css/55-video-page-cohesion.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X V29.4.204 — video page cohesion.
+   Keep the watch page as one theme-consistent surface; each details group is a
+   compact card, not a pale full-height panel. No player viewport geometry is changed. */
+
+
+
+/* Correct the fallback that introduced the unrelated cream color in the dark
+   theme. All recommendation and floating preview surfaces use semantic tokens. */
+
+
+.ax-hover-card-popover {
+  background: var(--ax-background-secondary, #282838) !important;
+  color: var(--ax-text-primary, #f4f4f8) !important;
+  border-color: var(--ax-border-default, rgba(255,255,255,.1)) !important;
+}
+.ax-hover-card-title { color: var(--ax-text-primary, #f4f4f8) !important; }
+.ax-hover-card-meta { color: var(--ax-text-secondary, #a6a6a6) !important; }
+

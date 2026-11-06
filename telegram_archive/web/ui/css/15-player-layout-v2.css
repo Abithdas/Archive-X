@@ -1,0 +1,77 @@
+/* ============================================================================
+   FILE: css/15-player-layout-v2.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+
+/* V28.9 player layout v2: video -> thumbnail carousel -> seek -> controls, no overlap */
+
+
+
+
+
+/* V29.2.8: fullscreen contains video, controls, and the canonical snapshot rail.
+   The video gets the remaining viewport without cropping; controls and snapshots stay in normal flow below it. */
+
+
+
+/* Archive X master-alignment refinement — Settings + Operations, UI-only. */
+.settings-area-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 8px}
+.settings-area-card{display:grid;;grid-template-columns:28px minmax(0,1fr) auto;;align-items:center;;gap:8px;;min-width:0;;padding:10px 11px;;border:1px solid #2d2d2d;;border-radius:12px;;text-align:left;;cursor:pointer;;box-shadow:0 6px 16px rgba(0,0,0,.13);;transition:border-color .14s,transform .14s,background .14s;}
+.settings-area-card:hover{transform:translateY(-1px);}
+.settings-area-card .settings-area-icon{display:grid;;place-items:center;;width:28px;;height:28px;;border-radius:8px;;border:1px solid rgba(50,144,255,.28);;font-weight:800;}
+
+.settings-area-card b{display:block;font-size:11px;line-height:1.2}.settings-area-card small{display:block;;font-size:10.5px;;margin-top:3px;;white-space:nowrap;;overflow:hidden;;text-overflow:ellipsis;}.settings-area-card em{font-style:normal;;font-size:10.5px;;white-space:nowrap;}
+
+#vs .settings-overview-grid>#settings-hardware-adaptive{grid-column:auto}
+#vs .settings-overview-grid>.pan{box-sizing:border-box;}
+
+#vs .settings-v54-main>.settings-area-grid + #settings-config-caption{display:block}
+
+#va .v54-health-card{min-height:0;height:100%;box-sizing:border-box}
+#va .ops-jobs-panel{min-height:68px;;box-sizing:border-box;}
+.ops-empty-state{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:1px dashed #3e3e3e;border-radius:10px;background:linear-gradient(180deg,rgba(12,25,39,.9),rgba(9,19,30,.9))}
+.ops-empty-icon{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:rgba(52,205,130,.11);border:1px solid rgba(52,205,130,.28);color:#4ddb97;font-size:12px;font-weight:800;flex:none}.ops-empty-state strong{display:block;font-size:11px;color:#e8e8e8}.ops-empty-state span{display:block;font-size:11px;color:#848484;margin-top:3px;line-height:1.35}
+.ops-module-intro{display:flex;;align-items:center;;justify-content:space-between;;gap:12px;;margin:-1px 0 7px;;border:1px solid #2c2c2c;;border-radius:10px;;background:#151515;}.ops-module-intro b{display:block;font-size:11px}.ops-module-intro span{display:block;color:#7d7d7d;font-size:10.5px;margin-top:2px}.ops-module-legend{display:flex;align-items:center;gap:5px;color:#959595;font-size:10.5px;white-space:nowrap}.ops-dot{width:6px;height:6px;border-radius:50%;background:#3fd08c;box-shadow:0 0 8px rgba(63,208,140,.35)}
+
+#va .automation-card{grid-column:1/-1!important}
+
+#va .ops-sec>h3{letter-spacing:.03em}
+#va .ops-jobs-panel{display:grid;;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));;gap:12px;;background:var(--bg1);;border:1px solid var(--border);;align-items:stretch;}
+#va .ops-jobs-panel:not(.has-jobs){display:flex;;min-height:68px;}
+#va .jc{min-width:0;padding:14px;border:1px solid var(--border);border-radius:12px;background:linear-gradient(180deg,var(--bg1),var(--bg2));box-shadow:0 4px 14px rgba(0,0,0,.12);cursor:pointer;transition:border-color .14s,background .14s,transform .14s}
+#va .jc:hover{border-color:#454545;background:var(--bg2);transform:translateY(-1px)}
+#va .jc:last-child{border-bottom:1px solid var(--border)}
+#va .job-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-width:0}
+#va .job-title-wrap{min-width:0;display:flex;flex-direction:column;gap:3px}
+#va .job-title{font-size:13px;line-height:1.25;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#va .job-type{font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+#va .job-badges{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex:none;flex-wrap:wrap}
+#va .job-badge{display:inline-flex;align-items:center;min-height:20px;padding:0 7px;border:1px solid var(--border);border-radius:999px;font-size:10.5px;font-weight:700;white-space:nowrap}
+#va .job-badge.status.running{color:var(--accent);border-color:rgba(181,177,177,.35);background:rgba(181,177,177,.08)}
+#va .job-badge.status.queued{color:var(--amber);border-color:rgba(245,177,67,.35);background:rgba(245,177,67,.08)}
+#va .job-badge.status.failed{color:var(--red);border-color:rgba(230,90,100,.35);background:rgba(230,90,100,.08)}
+#va .job-badge.status.completed{color:var(--green);border-color:rgba(45,186,110,.35);background:rgba(45,186,110,.08)}.job-badge.status.warning{color:var(--amber);border-color:rgba(245,177,67,.35);background:rgba(245,177,67,.08)}
+#va .job-badge.status.paused{color:var(--text2);background:var(--bg3)}
+#va .job-badge.watchdog.green{color:var(--green)}#va .job-badge.watchdog.orange{color:var(--amber)}#va .job-badge.watchdog.red{color:var(--red)}#va .job-badge.watchdog.neutral{color:var(--text3)}
+#va .jc-b{display:grid;grid-template-columns:54px minmax(0,1fr);align-items:center;gap:9px;margin-top:14px}
+#va .job-pct{font-size:11px;font-variant-numeric:tabular-nums;font-weight:700;text-align:left;white-space:nowrap}
+#va .jc-b .pt{height:7px;background:var(--progress-track);border-radius:999px;overflow:hidden}
+#va .job-counts{margin-top:8px;font-size:11px;color:var(--text2);font-variant-numeric:tabular-nums}
+#va .job-operation{display:flex;gap:7px;align-items:flex-start;margin-top:9px;padding:8px 9px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.018);min-width:0;font-size:11px;color:var(--text2)}
+#va .job-operation>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#va .job-meta-label{color:var(--text3);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;flex:none}
+#va .job-operation[data-job-key="operation"]>.job-meta-label{margin-left:0;margin-right:0;padding-left:10px;padding-right:10px}
+#va .job-operation[data-job-key="execution"]>.job-meta-label{padding-left:9px;padding-right:9px}
+#va .jc-t{margin-top:8px;font-size:10.5px;color:var(--text3)}
+#va .job-controls{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid var(--border)}
+#va .job-detail-hint{margin-top:9px;font-size:10.5px;color:var(--text3)}
+#va .job-resume-note{display:flex;flex-direction:column;gap:2px;margin-top:9px;padding:8px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);font-size:10.5px;color:var(--text2)}
+#va .job-resume-note b{color:var(--text)}
+@media(max-width:900px){#va .ops-jobs-panel{grid-template-columns:1fr}#va .job-title{white-space:normal}}
+@media(max-width:560px){#va .ops-jobs-panel{gap:8px;}#va .jc{padding:12px}.job-head{flex-direction:column}.job-badges{justify-content:flex-start!important}}
+@media(max-width:1250px){.settings-area-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#vs .settings-overview-grid>#settings-hardware-adaptive{grid-column:1/-1}}
+@media(max-width:900px){.settings-area-grid{grid-template-columns:1fr}#va .automation-card{grid-column:auto!important}}
+@media(max-width:650px){#va .ops-module-intro{flex-direction:column;}}

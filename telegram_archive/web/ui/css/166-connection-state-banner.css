@@ -1,0 +1,77 @@
+/* ============================================================================
+   FILE: css/166-connection-state-banner.css
+   AREA: General
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* A socket outage persists until recovery, unlike short-lived toast notices. */
+#ax2-connection-banner {
+  box-sizing: border-box !important;
+  position: fixed !important;
+  z-index: calc(var(--ax2-z-shell) - 1) !important;
+  inset: calc(var(--ax2-top) + var(--ax-safe-top, 0px)) 0 auto var(--ax2-side, 0px) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+  min-height: 42px !important;
+  padding: 7px 16px !important;
+  border: 0 !important;
+  border-bottom: 1px solid color-mix(in srgb,var(--ax2-bad) 35%,transparent) !important;
+  border-radius: 0 !important;
+  background: var(--ax2-bad-soft) !important;
+  color: var(--ax2-bad-fg) !important;
+  font: 500 12px/1.4 var(--ax2-font) !important;
+  box-shadow: 0 8px 20px rgba(0,0,0,.16) !important;
+  backdrop-filter: blur(12px) !important;
+}
+#ax2-connection-banner[hidden] { display: none !important; }
+html[data-theme-preset] body #app#app#app#app #view-stage {
+  margin-top: var(--ax-connection-banner-height, 0px) !important;
+}
+#ax2-connection-banner .ax2-connection-spin {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  color: var(--ax2-bad-fg) !important;
+}
+#ax2-connection-banner .ax2-connection-message {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+}
+#ax2-connection-banner button {
+  box-sizing: border-box !important;
+  flex: 0 0 auto !important;
+  min-width: 76px !important;
+  min-height: 32px !important;
+  padding: 0 10px !important;
+  border: 1px solid color-mix(in srgb,var(--ax2-bad) 35%,transparent) !important;
+  border-radius: 9px !important;
+  background: color-mix(in srgb,var(--ax2-bad-soft) 80%,transparent) !important;
+  color: var(--ax2-bad-fg) !important;
+  font: 600 11.5px/1.2 var(--ax2-font) !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+}
+#ax2-connection-banner button:hover:not(:disabled) {
+  border-color: color-mix(in srgb,var(--ax2-bad) 65%,transparent) !important;
+  filter: brightness(1.08);
+}
+#ax2-connection-banner button:disabled { opacity: .72 !important; cursor: wait !important; }
+#ax2-connection-banner .ax2-connection-close {
+  display: grid !important;
+  place-items: center !important;
+  width: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  padding: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  opacity: .82;
+}
+#ax2-connection-banner .ax2-connection-close .ax-icon { width: 15px !important; height: 15px !important; }

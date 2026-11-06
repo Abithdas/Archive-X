@@ -1,0 +1,426 @@
+/* ============================================================================
+   FILE: css/141-ax2-settings-ai-signin.css
+   AREA: Settings
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X — AX2 Step 7: Settings, AI Assistance, Sign-in and global overlays.
+   Presentation overrides only; colours and motion follow the active AX2 tokens. */
+
+/* Settings page heading and workspace */
+html[data-theme-preset] #app #vs.view {padding: 24px var(--ax2-pad) calc(76px + var(--ax-safe-bottom)) !important;;font-family: var(--ax2-font);;scroll-margin-top: calc(var(--ax2-top) + 16px);}
+html[data-theme-preset] #app #vs .settings-v54-layout {display: block !important;;width: 100%;;margin: 0;}
+html[data-theme-preset] #app #vs .settings-v54-main {width: 100%;;max-width: none;}
+html[data-theme-preset] #app #vs .settings-v54-banner.ax2-page-head {display: flex !important;;margin: 0 0 22px;;border: 0 !important;;border-radius: 0 !important;;background: transparent !important;;box-shadow: none !important;;min-width: 0;}
+html[data-theme-preset] #app #vs .settings-v54-banner .ax2-settings-eyebrow {
+  display: block; margin: 0 0 7px; color: var(--ax2-accent); font: 700 11px/1.25 var(--ax2-font);
+  letter-spacing: .12em; text-transform: uppercase;
+}
+html[data-theme-preset] #app #vs .settings-v54-banner .title {font: 800 clamp(25px,1.9vw,32px)/1.12 var(--ax2-font);}
+html[data-theme-preset] #app #vs .settings-v54-banner .sub {color: var(--ax2-text-2) !important;;font: 400 14px/1.5 var(--ax-font-body,Inter,system-ui,sans-serif);}
+
+html[data-theme-preset] #app #vs .settings-area-grid { display: none !important; }
+html[data-theme-preset] #app #vs .ax2-settings-workspace {display: grid;;grid-template-columns: 240px minmax(0,1fr);;align-items: start;;min-width: 0;}
+html[data-theme-preset] #app #vs .ax2-settings-nav { min-width: 0; position: sticky; top: calc(var(--ax2-top) + 24px); align-self: start; }
+html[data-theme-preset] #app #vs .ax2-settings-nav-list {min-width: 0;}
+html[data-theme-preset] #app #vs .ax2-settings-nav-item {width: 100%;;min-width: 0;;text-align: left;;cursor: pointer;;transition: background-color var(--ax2-d2) var(--ax2-ease), color var(--ax2-d2) var(--ax2-ease), border-color var(--ax2-d2) var(--ax2-ease), transform var(--ax2-d1) var(--ax2-ease);}
+
+html[data-theme-preset] #app #vs .ax2-settings-nav-copy {display: block;;flex: 1 1 auto;}
+
+html[data-theme-preset] #app #vs .ax2-settings-nav-chevron { margin-left: auto; color: var(--ax2-text-3); font-size: 18px; line-height: 1; }
+html[data-theme-preset] #app #vs .ax2-settings-nav-actions {grid-template-columns: 1fr;}
+html[data-theme-preset] #app #vs .ax2-settings-nav-actions .settings-v54-actions {padding: 0 !important;;border: 0 !important;}
+
+html[data-theme-preset] #app #vs .ax2-settings-content { display: grid; gap: 14px; min-width: 0; max-width: 880px; }
+html[data-theme-preset] #app #vs .ax2-settings-panel { min-width: 0; scroll-margin-top: calc(var(--ax2-top) + 20px); }
+html[data-theme-preset] #app #vs .ax2-settings-panel[hidden] { display: none !important; }
+html[data-theme-preset] #app #vs .ax2-settings-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 0 0 12px; }
+html[data-theme-preset] #app #vs .ax2-settings-panel-head h2 { margin: 0 0 5px; color: var(--ax2-text); font: 750 19px/1.2 var(--ax2-font); }
+html[data-theme-preset] #app #vs .ax2-settings-panel-head p { margin: 0; max-width: 72ch; color: var(--ax2-text-2); font: 400 12.5px/1.45 var(--ax2-font); }
+html[data-theme-preset] #app #vs .ax2-settings-eyebrow { color: var(--ax2-accent); font: 700 10px/1.2 var(--ax2-font); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 5px; }
+html[data-theme-preset] #app #vs .ax2-settings-count { color: var(--ax2-text-3); font: 700 12px/1 var(--ax2-font); white-space: nowrap; }
+html[data-theme-preset] #app #vs .ax2-settings-count i { color: var(--ax2-text-3); font-style: normal; }
+html[data-theme-preset] #app #vs .ax2-settings-panel-body { display: grid; gap: 12px; min-width: 0; }
+html[data-theme-preset] #app #vs .ax2-settings-status-card {gap: 12px;;color: var(--ax2-text);}
+html[data-theme-preset] #app #vs .ax2-settings-status-title {justify-content: space-between;}
+html[data-theme-preset] #app #vs .ax2-settings-status-pills {min-width: 0;}
+html[data-theme-preset] #app #vs .settings-v54-state {min-width: 0;}
+
+html[data-theme-preset] #app #vs .settings-v54-pill {justify-content: center;}
+html[data-theme-preset] #app #vs #settings-config-caption { color: var(--ax2-text-3) !important; font: 400 12px/1.5 var(--ax2-font) !important; margin: 0 !important; }
+html[data-theme-preset] #app #vs .ax2-settings-panel-body > .settings-v54-section,
+html[data-theme-preset] #app #vs .ax2-settings-panel-body > .pan,
+html[data-theme-preset] #app #vs .ax2-settings-panel-body > .as {
+  box-sizing: border-box; min-width: 0; margin: 0 !important; padding: 16px !important; border: 1px solid var(--ax2-line) !important;
+  border-radius: var(--ax2-r-card) !important; background: var(--ax2-surface) !important; box-shadow: none !important; color: var(--ax2-text);
+}
+
+html[data-theme-preset] #app #vs .settings-v54-section-head > span {font: 400 12px/1.35 var(--ax2-font);;text-align: right;}
+
+html[data-theme-preset] #app #vs .pan,
+html[data-theme-preset] #app #vs .v55-data-card,
+html[data-theme-preset] #app #vs .ax-appearance-card {border: 1px solid var(--ax2-line) !important;;border-radius: var(--ax2-r) !important;;background: var(--ax2-bg) !important;;box-shadow: none !important;}
+html[data-theme-preset] #app #vs .v55-data-grid {min-width: 0;}
+
+html[data-theme-preset] #app #vs .ax-appearance-section {display: grid;;gap: 10px;;padding: 0;;border: 0 !important;;background: transparent !important;}
+html[data-theme-preset] #app #vs .ax-appearance-heading {flex-wrap: wrap;}
+html[data-theme-preset] #app #vs .ax-appearance-heading h3 {font: 700 15px/1.25 var(--ax2-font);}
+html[data-theme-preset] #app #vs .ax-appearance-heading > span { margin-left: auto; color: var(--ax2-text-3); font: 400 12px/1.35 var(--ax2-font); }
+html[data-theme-preset] #app #vs .ax2-settings-theme-mode { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; padding: 3px; border: 1px solid var(--ax2-line); border-radius: var(--ax2-r-pill); background: var(--ax2-bg); }
+html[data-theme-preset] #app #vs .ax2-settings-theme-mode button { display: inline-flex; align-items: center; justify-content: center; min-width: 48px; min-height: 30px; padding: 5px 10px; border: 1px solid transparent; border-radius: var(--ax2-r-pill); background: transparent; color: var(--ax2-text-2); font: 600 11.5px/1.2 var(--ax2-font); }
+html[data-theme-preset] #app #vs .ax2-settings-theme-mode button.is-active { border-color: var(--ax2-line-2); background: var(--ax2-surface-2); color: var(--ax2-text); }
+
+html[data-theme-preset] #app #vs .ax-appearance-card-heading,
+html[data-theme-preset] #app #vs .ax-appearance-card-title {min-width: 0;;color: var(--ax2-text);}
+html[data-theme-preset] #app #vs .ax-appearance-card-heading b,
+html[data-theme-preset] #app #vs .ax-appearance-card-title b { font-size: 14px; font-weight: 700; }
+html[data-theme-preset] #app #vs .ax-ui-scale-help,
+html[data-theme-preset] #app #vs .ax-custom-theme-editor-status { color: var(--ax2-text-3); font-size: 12px; line-height: 1.5; }
+html[data-theme-preset] #app #vs kbd { padding: 2px 6px; border: 1px solid var(--ax2-line-2); border-radius: 6px; background: var(--ax2-surface-2); color: var(--ax2-text-2); font: 600 11px/1.4 var(--ax2-font); }
+html[data-theme-preset] #app #vs .ax-ui-scale-presets { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+html[data-theme-preset] #app #vs .ax-ui-scale-preset { min-width: 0; min-height: 72px; border: 1px solid var(--ax2-line-2); border-radius: 14px; background: var(--ax2-surface); color: var(--ax2-text-2); }
+html[data-theme-preset] #app #vs .ax-ui-scale-preset[aria-pressed="true"] { border-color: var(--ax2-accent); background: var(--ax2-accent-soft); color: var(--ax2-text); }
+html[data-theme-preset] #app #vs .ax-ui-scale-control { display: grid; gap: 10px; margin-top: 12px; }
+html[data-theme-preset] #app #vs .ax-ui-scale-label { display: flex; align-items: center; justify-content: space-between; color: var(--ax2-text-2); font-size: 12.5px; }
+html[data-theme-preset] #app #vs .ax-ui-scale-label strong { color: var(--ax2-text); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+html[data-theme-preset] #app #vs .ax-ui-scale-ticks { display: flex; justify-content: space-between; color: var(--ax2-text-3); font: 400 10px/1.2 var(--ax2-font); }
+html[data-theme-preset] #app #vs .ax-theme-presets {display: grid;}
+html[data-theme-preset] #app #vs .ax-theme-presets > * { min-width: 0; border-radius: 12px; border-color: var(--ax2-line-2); background: var(--ax2-surface); color: var(--ax2-text); }
+html[data-theme-preset] #app #vs .ax-theme-presets > *.active,
+html[data-theme-preset] #app #vs .ax-theme-presets > *[aria-pressed="true"] { border-color: var(--ax2-accent); background: var(--ax2-accent-soft); }
+html[data-theme-preset] #app #vs .ax-custom-theme-editor { display: grid; gap: 12px; }
+html[data-theme-preset] #app #vs .ax-custom-theme-editor[hidden] { display: none !important; }
+html[data-theme-preset] #app #vs .ax-custom-theme-editor-head,
+html[data-theme-preset] #app #vs .ax-custom-theme-base-row,
+html[data-theme-preset] #app #vs .ax-custom-theme-editor-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+html[data-theme-preset] #app #vs .ax-custom-theme-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+html[data-theme-preset] #app #vs .ax-custom-theme-fields label {display: grid;;gap: 5px;;min-width: 0;}
+html[data-theme-preset] #app #vs .storage-pick-row,
+html[data-theme-preset] #app #vs .backup-create-row {align-items: center;;flex-wrap: wrap;;min-width: 0;}
+html[data-theme-preset] #app #vs .storage-pick-row > input,
+html[data-theme-preset] #app #vs .backup-create-row > input,
+html[data-theme-preset] #app #vs .backup-create-row > select { flex: 1 1 180px; width: auto; min-width: 0; }
+html[data-theme-preset] #app #vs .backup-history > *,
+html[data-theme-preset] #app #vs #restore-preview > * { border-bottom: 1px solid var(--ax2-line); }
+html[data-theme-preset] #app #vs .settings-v54-inline-check,
+html[data-theme-preset] #app #vs .ax2-switch-row {justify-content: space-between;;min-width: 0;;min-height: 52px;;padding: 8px 0;;border-bottom: 1px solid var(--ax2-line);;font: 500 14.5px/1.35 var(--ax2-font);}
+html[data-theme-preset] #app #vs .settings-v54-inline-check:last-child,
+html[data-theme-preset] #app #vs .ax2-switch-row:last-child { border-bottom: 0; }
+
+html[data-theme-preset] #app #vs input.ax2-switch[type="checkbox"] {display: block;}
+html[data-theme-preset] #app #vs input.ax2-switch[type="checkbox"]::before {position: absolute;;top: 2px;;left: 2px;;width: 18px;;height: 18px;;border-radius: 50%;;background: var(--ax2-text-2);;box-shadow: 0 1px 2px var(--ax2-line-2);;transition: transform var(--ax2-d2) var(--ax2-ease), background-color var(--ax2-d2) var(--ax2-ease);}
+
+html[data-theme-preset] #app #vs input.ax2-switch[type="checkbox"]:checked::before { transform: translateX(18px); background: var(--ax2-on-accent); }
+
+html[data-theme-preset] #app #vs .fr { min-width: 0; }
+html[data-theme-preset] #app #vs .fr > label,
+html[data-theme-preset] #app #vs .fr > span:not(.muted) { color: var(--ax2-text-2); font: 500 12.5px/1.35 var(--ax2-font); }
+
+/* QR sign-in must keep a light surface in the dark theme: the generated SVG
+   is black with a transparent background, and needs a white scanner contrast. */
+html[data-theme-preset] #app #vs .ax-tg-qr-frame { border-radius: 16px; background: #fff !important; border: 1px solid var(--ax2-line); overflow: hidden; }
+html[data-theme-preset] #app #vs .ax-tg-qr-empty { min-height: 180px; background: linear-gradient(100deg,var(--ax2-bg),var(--ax2-surface-2),var(--ax2-bg)); background-size: 220% 100%; animation: ax2-settings-skeleton 1.5s linear infinite; }
+html[data-theme-preset] #app #vs .ax-tg-qr-steps { display: grid; gap: 9px; padding: 0; list-style: none; }
+html[data-theme-preset] #app #vs .ax-tg-qr-steps li { display: flex; align-items: center; gap: 10px; padding: 8px 0; color: var(--ax2-text-2); }
+html[data-theme-preset] #app #vs .ax-tg-qr-steps li > span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; flex: 0 0 24px; background: var(--ax2-accent-soft); color: var(--ax2-accent); font-weight: 700; }
+html[data-theme-preset] #app #vs .settings-v54-section .tstatus,
+html[data-theme-preset] #app #vs .settings-v54-section [role="status"] { color: var(--ax2-text-3); font-size: 12px; }
+html[data-theme-preset] #app #vs .settings-v54-section .tstatus.ok,
+html[data-theme-preset] #app #vs .settings-v54-section [data-status="ok"] { color: var(--ax2-ok-fg); }
+html[data-theme-preset] #app #vs .settings-v54-section .tstatus.error,
+html[data-theme-preset] #app #vs .settings-v54-section [data-status="error"] { color: var(--ax2-bad-fg); }
+html[data-theme-preset] #app #vs .settings-v54-section input:not([type="checkbox"]),
+html[data-theme-preset] #app #vs .settings-v54-section select,
+html[data-theme-preset] #app #vs .settings-v54-section textarea { min-width: 0; max-width: 100%; }
+html[data-theme-preset] #app #vs #settings-v55-storage .v55-data-card[style*="grid-column:span 2"] { grid-column: 1 / -1 !important; }
+html[data-theme-preset] #app #vs .ax2-settings-mobile-back { display: none; }
+html[data-theme-preset] #app #vs .ax2-settings-mobile-back[hidden] { display: none !important; }
+@keyframes ax2-settings-skeleton { to { background-position: -220% 0; } }
+
+/* AI Assistance: segmented top navigation, compact cards, and two-column assistant. */
+html[data-theme-preset] #vai.view.ai-page-view {
+  box-sizing: border-box; min-width: 0; max-width: none; width: 100%; padding: 24px var(--ax2-pad) calc(76px + var(--ax-safe-bottom)) !important; color: var(--ax2-text);
+}
+html[data-theme-preset] #vai > .ai-page-head.ax2-page-head {
+  display: flex !important; align-items: flex-end; justify-content: space-between; gap: 18px; margin: 0 0 20px !important; padding: 0; min-width: 0;
+}
+html[data-theme-preset] #vai .ai-page-kicker { display: block; margin: 0 0 7px; color: var(--ax2-accent); font: 700 11px/1.25 var(--ax2-font); letter-spacing: .12em; text-transform: uppercase; }
+html[data-theme-preset] #vai .ai-page-head h1 { margin: 0 0 5px; color: var(--ax2-text); font: 800 clamp(25px,1.9vw,32px)/1.12 var(--ax2-font); letter-spacing: -.03em; }
+html[data-theme-preset] #vai .ai-page-head p { margin: 0; max-width: 75ch; color: var(--ax2-text-2) !important; font: 400 14px/1.5 var(--ax-font-body,Inter,system-ui,sans-serif); }
+html[data-theme-preset] #vai .ai-page-status {display: inline-flex;;align-items: center;;gap: 8px;;min-width: 0;;max-width: 100%;;min-height: 30px;;padding: 6px 11px;;border: 1px solid var(--ax2-ok-soft);;border-radius: var(--ax2-r-pill);}
+html[data-theme-preset] #vai .ai-page-status > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px; min-width: 0; }
+html[data-theme-preset] #vai .ai-page-status strong { display: inline; color: inherit; font: 650 12px/1.2 var(--ax2-font); }
+html[data-theme-preset] #vai .ai-page-status small { display: inline; margin: 0; color: inherit; font: 500 11px/1.2 var(--ax2-font); opacity: .85; }
+html[data-theme-preset] #vai .ai-page-dot { width: 7px; height: 7px; background: var(--ax2-text-3); border-radius: 50%; flex: 0 0 7px; }
+html[data-theme-preset] #vai .ai-page-dot.ok { background: var(--ax2-ok); box-shadow: 0 0 0 3px var(--ax2-ok-soft); }
+html[data-theme-preset] #vai .ai-page-dot.ok::after { content: ""; display: block; width: 7px; height: 7px; border: 1px solid var(--ax2-ok); border-radius: 50%; animation: ax2-ai-pulse 1.8s var(--ax2-ease) infinite; }
+html[data-theme-preset] #vai .ai-page-dot.warn { background: var(--ax2-text-3); box-shadow: 0 0 0 3px var(--ax2-surface-2); }
+html[data-theme-preset] #vai .ai-page-dot.bad { background: var(--ax2-bad); box-shadow: 0 0 0 3px var(--ax2-bad-soft); }
+
+@keyframes ax2-ai-pulse { 0%,100% { transform: scale(.85); opacity: .45; } 55% { transform: scale(1.25); opacity: 0; } }
+html[data-theme-preset] #vai .ai-page-layout { display: flex !important; flex-direction: column; gap: 16px; min-width: 0; }
+html[data-theme-preset] #vai .ai-page-nav {display: flex !important;;overscroll-behavior-inline: contain;;scrollbar-width: none;}
+html[data-theme-preset] #vai .ai-page-nav::-webkit-scrollbar { display: none; }
+html[data-theme-preset] #vai .ai-page-nav-item {display: inline-flex !important;;min-width: 0;;padding: 8px 12px;;border: 1px solid transparent;;border-radius: 10px;;font: 600 12.5px/1.2 var(--ax2-font);;text-align: center;;transition: background-color var(--ax2-d2) var(--ax2-ease), color var(--ax2-d2) var(--ax2-ease), border-color var(--ax2-d2) var(--ax2-ease);}
+html[data-theme-preset] #vai .ai-page-nav-item b { color: inherit; font: inherit; }
+html[data-theme-preset] #vai .ai-page-nav-item small { display: none !important; }
+
+html[data-theme-preset] #vai .ai-page-main { min-width: 0; width: 100%; }
+html[data-theme-preset] #vai .ai-page-tab { display: none; min-width: 0; }
+html[data-theme-preset] #vai .ai-page-tab.on { display: block; animation: ax2-ai-panel-in var(--ax2-d3) var(--ax2-ease) both; }
+@keyframes ax2-ai-panel-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+html[data-theme-preset] #vai .ai-page-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(280px,.85fr); gap: 12px; align-items: stretch; }
+html[data-theme-preset] #vai .ai-model-grid { grid-template-columns: minmax(0,1.1fr) minmax(260px,.9fr); }
+html[data-theme-preset] #vai .ai-card {min-width: 0;;padding: 16px;;border: 1px solid var(--ax2-line);;border-radius: var(--ax2-r-card);;box-shadow: none;}
+html[data-theme-preset] #vai .ai-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 0 0 12px; border-bottom: 1px solid var(--ax2-line); }
+html[data-theme-preset] #vai .ai-card-head h2 { margin: 0; color: var(--ax2-text); font: 700 15px/1.25 var(--ax2-font); }
+html[data-theme-preset] #vai .ai-card-head p { margin: 4px 0 0; color: var(--ax2-text-3); font: 400 12px/1.45 var(--ax2-font); }
+html[data-theme-preset] #vai .ai-local-badge { display: inline-flex; align-items: center; gap: 5px; min-height: 24px; padding: 4px 8px; border: 1px solid var(--ax2-accent-soft); border-radius: var(--ax2-r-pill); background: var(--ax2-accent-soft); color: var(--ax2-accent); font: 650 10px/1.2 var(--ax2-font); letter-spacing: .04em; }
+html[data-theme-preset] #vai .ai-chat-card { min-height: 0; display: flex; flex-direction: column; }
+html[data-theme-preset] #vai .ai-page-history { min-height: 160px; max-height: 360px; flex: 1 1 auto; padding: 12px 0; display: flex; flex-direction: column; gap: 8px; }
+html[data-theme-preset] #vai .ai-page-empty { display: flex; align-items: center; justify-content: center; min-height: 80px; padding: 18px; border: 0; border-radius: 12px; background: transparent; color: var(--ax2-text-2); font: 400 12px/1.5 var(--ax2-font); text-align: center; }
+html[data-theme-preset] #vai .ai-page-msg { max-width: 85%; padding: 10px 12px; border: 1px solid var(--ax2-line); border-radius: 16px; background: var(--ax2-surface-2); color: var(--ax2-text); font: 400 13px/1.5 var(--ax2-font); }
+html[data-theme-preset] #vai .ai-page-msg.user { align-self: flex-end; border-color: var(--ax2-accent-soft); background: var(--ax2-accent-soft); }
+html[data-theme-preset] #vai .ai-page-msg.assistant { align-self: flex-start; background: var(--ax2-surface-2); }
+html[data-theme-preset] #vai .ai-page-msg-meta { color: var(--ax2-text-3); font-size: 11px; }
+html[data-theme-preset] #vai .ai-page-compose { padding-top: 12px; border-top: 1px solid var(--ax2-line); }
+html[data-theme-preset] #vai .ai-page-compose textarea { width: 100%; min-height: 84px; height: 84px; font-size: 14px; resize: vertical; }
+html[data-theme-preset] #vai .ai-compose-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+html[data-theme-preset] #vai .ai-compose-actions .muted {font: 400 12px/1.4 var(--ax2-font);}
+html[data-theme-preset] #vai .ai-quick-grid { display: grid; grid-template-columns: 1fr; gap: 0; margin-top: 8px; }
+html[data-theme-preset] #vai .ai-quick-grid > button {
+  display: grid; grid-template-columns: 30px minmax(0,1fr) 16px; align-items: center; gap: 10px; width: 100%; min-width: 0; min-height: 54px; padding: 8px 0;
+  border: 0; border-bottom: 1px solid var(--ax2-line); border-radius: 0; background: transparent; color: var(--ax2-text); text-align: left;
+}
+html[data-theme-preset] #vai .ai-quick-grid > button:last-child { border-bottom: 0; }
+html[data-theme-preset] #vai .ai-quick-grid > button:hover { background: var(--ax2-accent-soft); }
+html[data-theme-preset] #vai .ai-quick-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--ax2-surface-2); color: var(--ax2-accent); }
+html[data-theme-preset] #vai .ai-quick-icon .ax-icon { width: 16px; height: 16px; }
+html[data-theme-preset] #vai .ai-quick-copy { display: block; min-width: 0; }
+html[data-theme-preset] #vai .ai-quick-copy b { display: block; color: var(--ax2-text); font: 600 13px/1.25 var(--ax2-font); }
+html[data-theme-preset] #vai .ai-quick-copy small { display: block; margin-top: 3px; color: var(--ax2-text-3); font: 400 11px/1.35 var(--ax2-font); }
+html[data-theme-preset] #vai .ai-quick-chevron { color: var(--ax2-text-3); font-size: 18px; text-align: right; }
+html[data-theme-preset] #vai .ai-quick-grid-wide { grid-template-columns: 1fr; }
+html[data-theme-preset] #vai .ai-query-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+html[data-theme-preset] #vai .ai-query-row input { flex: 1 1 220px; min-width: 0; }
+html[data-theme-preset] #vai .ai-result-card { margin-top: 12px; min-height: 100px; }
+html[data-theme-preset] #vai .ai-analysis-result { padding-top: 12px; color: var(--ax2-text-2); font: 400 13px/1.55 var(--ax2-font); white-space: pre-wrap; overflow-wrap: anywhere; }
+html[data-theme-preset] #vai .ai-model-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 12px; }
+html[data-theme-preset] #vai .ai-model-fields label { display: grid; gap: 5px; min-width: 0; color: var(--ax2-text-2); font: 500 12px/1.35 var(--ax2-font); }
+html[data-theme-preset] #vai .ai-model-fields input { width: 100%; min-width: 0; font-size: 13px; }
+html[data-theme-preset] #vai .ai-model-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+html[data-theme-preset] #vai .ai-readiness-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-top: 12px; }
+html[data-theme-preset] #vai .ai-readiness-grid > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; padding: 10px 12px; border: 1px solid var(--ax2-line); border-radius: 10px; background: var(--ax2-bg); color: var(--ax2-text-2); font: 400 12px/1.3 var(--ax2-font); }
+html[data-theme-preset] #vai .ai-readiness-grid b { color: var(--ax2-text); font-weight: 650; text-align: right; }
+html[data-theme-preset] #vai .ai-model-note { margin-top: 12px; color: var(--ax2-text-3); font: 400 12px/1.5 var(--ax2-font); }
+html[data-theme-preset] #vai .ai-page-view .btn { font-size: 13px; }
+
+/* Sign-in and first-time setup use the same focused card on every viewport. */
+html[data-theme-preset] #lp.ax2-signin-page {
+  box-sizing: border-box; display: none; min-width: 0; width: 100%; min-height: 100vh; min-height: 100dvh;
+  align-items: center; justify-content: center; padding: 24px max(16px,env(safe-area-inset-left)) calc(24px + env(safe-area-inset-bottom));
+  background: var(--ax2-bg); color: var(--ax2-text); font-family: var(--ax2-font); overflow-x: hidden;
+}
+html[data-theme-preset] #lp.ax2-signin-page[style*="display: flex"],
+html[data-theme-preset] #lp.ax2-signin-page[style*="display:flex"] { display: flex !important; }
+html[data-theme-preset] #lp .ax2-signin-card { box-sizing: border-box; width: min(380px,100%); padding: 28px; border: 1px solid var(--ax2-line); border-radius: 20px; background: var(--ax2-surface); box-shadow: var(--ax2-shadow-pop); animation: ax2-signin-rise var(--ax2-d4) var(--ax2-ease-in) both; }
+html[data-theme-preset] #lp .ax2-signin-brand { display: grid; justify-items: center; margin-bottom: 22px; text-align: center; }
+html[data-theme-preset] #lp .ax2-signin-logo { display: block; width: 60px; height: 60px; margin: 0 0 8px; border-radius: 18px; object-fit: contain; }
+html[data-theme-preset] #lp .ax2-signin-title { color: var(--ax2-text); font: 800 26px/1.1 var(--ax2-font); letter-spacing: -.03em; }
+html[data-theme-preset] #lp .ax2-signin-subtitle { margin-top: 5px; color: var(--ax2-text-2); font: 400 13px/1.4 var(--ax2-font); }
+html[data-theme-preset] #lp .ax2-signin-form { display: grid; gap: 0; margin: 0; padding: 0; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+html[data-theme-preset] #lp .fr { display: grid; gap: 6px; margin: 0 0 14px; }
+html[data-theme-preset] #lp label { color: var(--ax2-text-2); font: 500 12.5px/1.3 var(--ax2-font); }
+html[data-theme-preset] #lp input:not([type="checkbox"]) { width: 100%; min-height: 44px; font-size: 14px; }
+html[data-theme-preset] #lp #login-submit,
+html[data-theme-preset] #lp #setup-panel > button { display: flex; width: 100%; min-height: 46px; height: 46px; margin-top: 2px; border-radius: 10px; font: 700 13px/1.2 var(--ax2-font); }
+html[data-theme-preset] #lp #lerr { margin-top: 10px !important; color: var(--ax2-bad) !important; font-size: 12px; line-height: 1.45; }
+html[data-theme-preset] #lp #lhint { margin-top: 10px !important; color: var(--ax2-text-3) !important; font-size: 12px !important; line-height: 1.45; }
+html[data-theme-preset] #lp #setup-panel { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--ax2-line); }
+html[data-theme-preset] #lp #setup-panel > .muted {margin: 0 0 12px !important;;font-size: 12px !important;;line-height: 1.5;}
+@keyframes ax2-signin-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Command palette and Notifications panel. Existing open/close classes and handlers remain the controller. */
+html[data-theme-preset] #app .ax2-overlay-root {
+  position: fixed !important; inset: 0 !important; z-index: var(--ax2-z-critical) !important; box-sizing: border-box; display: none !important;
+  padding: 15vh 16px 24px; background: var(--ax2-scrim) !important; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); overflow: hidden;
+}
+html[data-theme-preset] #app .ax2-overlay-root.open { display: flex !important; }
+html[data-theme-preset] #app #ux-command.ax2-overlay-root { align-items: flex-start; justify-content: center; }
+html[data-theme-preset] #app #ux-command .ax-ux-panel {max-width: 640px;}
+
+html[data-theme-preset] #app #ux-command #ux-command-input {width: 100%;;border: 0 !important;;background: transparent !important;;box-shadow: none !important;;font: 500 16px/1.3 var(--ax2-font);}
+html[data-theme-preset] #app #ux-command .ax-ux-command-head .btn {min-width: 44px;;padding-inline: 10px;}
+html[data-theme-preset] #app #ux-command .ax-ux-command-list {max-height: calc(70vh - 70px);}
+html[data-theme-preset] #app #ux-command .ax-ux-command-item {justify-content: space-between;;min-width: 0;}
+html[data-theme-preset] #app #ux-command .ax-ux-command-item b { font: 600 13px/1.3 var(--ax2-font); }
+html[data-theme-preset] #app #ux-command .ax-ux-command-item small {margin-top: 3px;;font: 400 11px/1.3 var(--ax2-font);}
+
+html[data-theme-preset] #app #ux-command .ax-ux-kbd {flex: 0 0 auto;;font: 600 10px/1.2 var(--ax2-font);}
+html[data-theme-preset] #app #ux-activity.ax2-overlay-root {align-items: stretch;}
+html[data-theme-preset] #app #ux-activity .ax-ux-panel {animation: ax2-activity-in var(--ax2-d5) var(--ax2-ease-in) both;}
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-head {justify-content: space-between;}
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-head b {font: 700 18px/1.2 var(--ax2-font);}
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-head .muted {font-size: 12px !important;}
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-body {max-height: none;}
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-row {min-width: 0;}
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-row > span:first-child {display: grid;;place-items: center;;background: var(--ax2-surface-2);;color: var(--ax2-accent);}
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-row b {font: 600 13px/1.35 var(--ax2-font);;overflow-wrap: anywhere;}
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-row small {margin-top: 4px;;font: 400 11px/1.35 var(--ax2-font);}
+
+html[data-theme-preset] #app #ux-activity .ax-ux-notification-group + .ax-ux-notification-group { margin-top: 10px; }
+html[data-theme-preset] #app #ux-activity .ax-ux-notification-group h3 { margin: 8px 0 6px; color: var(--ax2-text); font: 700 15px/1.3 var(--ax2-font); letter-spacing: 0; text-transform: none; }
+
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-row > span:first-child { width: 34px; height: 34px; border-radius: 11px; }
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-row.is-error > span:first-child { color: var(--ax2-bad); }
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-row.is-warning > span:first-child { color: var(--ax2-warn); }
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-row.is-info > span:first-child { color: var(--ax2-accent); }
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-row.is-success > span:first-child { color: var(--ax2-ok); }
+html[data-theme-preset] #app #ux-activity .ax-ux-activity-row.is-match > span:first-child { color: var(--ax2-violet); }
+html[data-theme-preset] #app #ux-activity .ax-ux-notification-empty { display: grid; justify-items: center; gap: 8px; padding: 48px 14px; color: var(--ax2-text-2); text-align: center; }
+html[data-theme-preset] #app #ux-activity .ax-ux-notification-empty > b { color: var(--ax2-text); font: 650 13px/1.35 var(--ax2-font); }
+html[data-theme-preset] #app #ux-activity .ax-ux-notification-empty > small { max-width: 230px; color: var(--ax2-text-3); font: 400 11px/1.45 var(--ax2-font); }
+html[data-theme-preset] #app #ux-activity .ax-ux-notifications-close { flex: 0 0 32px; width: 32px; min-width: 32px; height: 32px; min-height: 32px; padding: 0; }
+html[data-theme-preset] #app #ux-activity .ax-ux-notifications-close .ax-icon { width: 15px; height: 15px; }
+@keyframes ax2-activity-in { from { opacity: .5; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 420px) {
+
+  html[data-theme-preset] #app #ux-activity .ax-ux-activity-body { padding-inline: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme-preset] #app #ux-activity .ax-ux-panel { animation: none !important; }
+}
+
+/* The common Step 1 dialog family: keep each modal's existing width and handlers. */
+html[data-theme-preset] .mdl.open {align-items: center !important;;justify-content: center !important;;padding: 20px !important;;background: var(--ax2-scrim) !important;;-webkit-backdrop-filter: blur(10px);}
+html[data-theme-preset] .mdl.open > .mdl-box {box-sizing: border-box;;border: 1px solid var(--ax2-line-2) !important;;border-radius: var(--ax2-r-panel) !important;;background: var(--ax2-surface) !important;;box-shadow: var(--ax2-shadow-pop) !important;;max-height: calc(100dvh - 40px);;overflow-x: hidden;;overflow-y: auto;;overscroll-behavior: contain;;animation: ax2-dialog-in var(--ax2-d3) var(--ax2-ease-in) both;}
+html[data-theme-preset] .mdl.open .mdl-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--ax2-line); }
+html[data-theme-preset] .mdl.open .mdl-h > b { color: var(--ax2-text); font: 700 16px/1.3 var(--ax2-font); }
+html[data-theme-preset] .mdl.open input:not([type="checkbox"]),
+html[data-theme-preset] .mdl.open select,
+html[data-theme-preset] .mdl.open textarea { min-width: 0; max-width: 100%; font-size: 14px; }
+
+html[data-theme-preset] #ax-confirm #ax-confirm-ok { background: var(--ax2-bad-soft); color: var(--ax2-bad-fg); border-color: var(--ax2-bad-soft); }
+html[data-theme-preset] #pk .pk-list,
+html[data-theme-preset] #sk .pk-list,
+html[data-theme-preset] #vmr .pk-list,
+html[data-theme-preset] #psmap .psmap-list { border: 1px solid var(--ax2-line); border-radius: 12px; background: var(--ax2-bg); }
+html[data-theme-preset] #pk > input,
+html[data-theme-preset] #sk > input,
+html[data-theme-preset] #psmap .psmap-search,
+html[data-theme-preset] #vmr #vmr-site-q { width: 100%; min-height: 44px; }
+html[data-theme-preset] #psmap .psmap-columns,
+html[data-theme-preset] #vmr .vmr-columns,
+html[data-theme-preset] #vmr .vmr-panes,
+html[data-theme-preset] #vmr .vmr-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; min-width: 0; }
+html[data-theme-preset] #psmap .psmap-column,
+html[data-theme-preset] #vmr .vmr-pane { min-width: 0; }
+html[data-theme-preset] #pk .pk-cur,
+html[data-theme-preset] #sk .pk-cur { display: flex; flex-wrap: wrap; gap: 7px; }
+@keyframes ax2-dialog-in { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+@media (min-width: 1400px) {
+  html[data-theme-preset] #app #vs .ax2-settings-workspace {grid-template-columns: 240px minmax(0,1fr);}
+}
+@media (min-width: 600px) and (max-width: 999px) {
+  html[data-theme-preset] #app #vs .ax2-settings-workspace {grid-template-columns: 200px minmax(0,1fr);}
+  html[data-theme-preset] #app #vs .ax2-settings-nav-item {padding-inline: 7px;}
+  
+  html[data-theme-preset] #app #vs .ax2-settings-panel-head p { font-size: 12px; }
+}
+@media (max-width: 899px) {
+  html[data-theme-preset] #vai .ai-page-grid,
+  html[data-theme-preset] #vai .ai-model-grid { grid-template-columns: minmax(0,1fr); }
+  html[data-theme-preset] #vai .ai-chat-card { min-height: 0; }
+}
+@media (max-width: 599px) {
+  html[data-theme-preset] #app #vs.view { padding: 16px 0 calc(76px + var(--ax-safe-bottom)) !important; }
+  html[data-theme-preset] #app #vs .settings-v54-main { padding: 0 16px; }
+  html[data-theme-preset] #app #vs .settings-v54-banner.ax2-page-head {display: flex !important;}
+
+  html[data-theme-preset] #app #vs .ax2-settings-workspace {display: flex;;flex-direction: column;;min-width: 0;}
+  html[data-theme-preset] #app #vs .ax2-settings-nav { display: block; position: static; order: 2; width: 100%; }
+
+  html[data-theme-preset] #app #vs .ax2-settings-nav-icon {border-radius: 11px;}
+
+  html[data-theme-preset] #app #vs .ax2-settings-nav-copy small {margin-top: 3px;;color: var(--ax2-text-3);;font: 400 11.5px/1.3 var(--ax2-font);;white-space: nowrap;;overflow: hidden;;text-overflow: ellipsis;}
+  html[data-theme-preset] #app #vs .ax2-settings-nav-chevron { font-size: 21px; }
+
+  html[data-theme-preset] #app #vs .ax2-settings-nav-actions .settings-v54-actions .btn {padding-inline: 8px;}
+  html[data-theme-preset] #app #vs .ax2-settings-content { display: contents; }
+  html[data-theme-preset] #app #vs .ax2-settings-panel[data-settings-panel="overview"] { display: grid; order: 1; }
+  html[data-theme-preset] #app #vs .ax2-settings-panel:not([data-settings-panel="overview"]) { display: none; }
+  
+  html[data-theme-preset] #app #vs[data-settings-phone-page="home"] .ax2-settings-panel:not([data-settings-panel="overview"]) { display: none !important; }
+  
+  html[data-theme-preset] #app #vs[data-settings-phone-page]:not([data-settings-phone-page="home"]) .ax2-settings-panel[data-settings-panel] { display: none; }
+  html[data-theme-preset] #app #vs[data-settings-phone-page="overview"] .ax2-settings-panel[data-settings-panel="overview"],
+  html[data-theme-preset] #app #vs[data-settings-phone-page="telegram"] .ax2-settings-panel[data-settings-panel="telegram"],
+  html[data-theme-preset] #app #vs[data-settings-phone-page="metadata"] .ax2-settings-panel[data-settings-panel="metadata"],
+  html[data-theme-preset] #app #vs[data-settings-phone-page="experience"] .ax2-settings-panel[data-settings-panel="experience"],
+  html[data-theme-preset] #app #vs[data-settings-phone-page="appearance"] .ax2-settings-panel[data-settings-panel="appearance"],
+  html[data-theme-preset] #app #vs[data-settings-phone-page="storage"] .ax2-settings-panel[data-settings-panel="storage"],
+  html[data-theme-preset] #app #vs[data-settings-phone-page="security"] .ax2-settings-panel[data-settings-panel="security"],
+  html[data-theme-preset] #app #vs[data-settings-phone-page="system"] .ax2-settings-panel[data-settings-panel="system"] { display: grid !important; }
+  html[data-theme-preset] #app #vs .ax2-settings-mobile-back { display: flex; align-items: center; gap: 10px; order: 0; width: 100%; min-height: 44px; margin: 0 0 8px; padding: 0; border: 0; background: transparent; color: var(--ax2-text); text-align: left; }
+  html[data-theme-preset] #app #vs .ax2-settings-mobile-back button { display: inline-flex; align-items: center; justify-content: center; width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 0; border: 1px solid var(--ax2-line); border-radius: 11px; background: var(--ax2-surface); color: var(--ax2-text); font-size: 22px; }
+  html[data-theme-preset] #app #vs .ax2-settings-mobile-back strong { font: 700 16px/1.2 var(--ax2-font); }
+  html[data-theme-preset] #app #vs .ax2-settings-panel { order: 1; min-width: 0; }
+  html[data-theme-preset] #app #vs .ax2-settings-panel-head { display: none; }
+  html[data-theme-preset] #app #vs .ax2-settings-panel-body { gap: 10px; }
+  html[data-theme-preset] #app #vs .ax2-settings-panel-body > .settings-v54-section,
+  html[data-theme-preset] #app #vs .ax2-settings-panel-body > .pan,
+  html[data-theme-preset] #app #vs .ax2-settings-panel-body > .as,
+  html[data-theme-preset] #app #vs .ax2-settings-status-card { padding: 12px !important; }
+  html[data-theme-preset] #app #vs .settings-v54-section-head {flex-direction: column;}
+  html[data-theme-preset] #app #vs .settings-v54-section-head > span { text-align: left; }
+  
+  html[data-theme-preset] #app #vs .v55-data-card[style*="grid-column:span 2"] { grid-column: auto !important; }
+  
+  html[data-theme-preset] #app #vs .ax-appearance-heading > span { flex-basis: 100%; margin-left: 0; }
+  html[data-theme-preset] #app #vs .ax2-settings-theme-mode { margin-left: auto; }
+  html[data-theme-preset] #app #vs .ax-ui-scale-presets { gap: 6px; }
+  html[data-theme-preset] #app #vs .ax-ui-scale-preset { min-height: 64px; padding: 6px; }
+  
+  html[data-theme-preset] #app #vs .ax-custom-theme-fields { grid-template-columns: minmax(0,1fr); }
+
+  html[data-theme-preset] #vai.view.ai-page-view { padding: 16px 16px calc(76px + var(--ax-safe-bottom)) !important; }
+  html[data-theme-preset] #vai > .ai-page-head.ax2-page-head { display: flex !important; flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 15px !important; }
+  html[data-theme-preset] #vai .ai-page-head h1 { font-size: 26px; }
+  html[data-theme-preset] #vai .ai-page-head p { font-size: 13px; }
+  html[data-theme-preset] #vai .ai-page-status { max-width: 100%; }
+  
+  html[data-theme-preset] #vai .ai-page-nav-item { padding-inline: 10px; font-size: 12px; }
+  html[data-theme-preset] #vai .ai-card { padding: 12px; }
+  html[data-theme-preset] #vai .ai-page-history { min-height: 160px; max-height: 260px; }
+  html[data-theme-preset] #vai .ai-model-fields,
+  html[data-theme-preset] #vai .ai-readiness-grid { grid-template-columns: minmax(0,1fr); }
+  html[data-theme-preset] #vai .ai-quick-grid-wide { grid-template-columns: 1fr; }
+  html[data-theme-preset] #vai .ai-query-row { flex-direction: column; }
+  html[data-theme-preset] #vai .ai-query-row > * { width: 100%; }
+  html[data-theme-preset] #lp.ax2-signin-page { padding: max(16px,var(--ax-safe-top)) 16px calc(20px + var(--ax-safe-bottom)); align-items: center; }
+  html[data-theme-preset] #lp .ax2-signin-card { padding: 24px; }
+  html[data-theme-preset] #app .ax2-overlay-root { padding: 0; }
+
+  html[data-theme-preset] #app #ux-command .ax-ux-command-list { max-height: none; }
+  
+  html[data-theme-preset] #app #ux-activity .ax-ux-panel {animation: ax2-sheet-in var(--ax2-d5) var(--ax2-ease-in) both;}
+  html[data-theme-preset] .mdl.open { align-items: flex-end !important; padding: 0 !important; }
+  html[data-theme-preset] .mdl.open > .mdl-box { width: min(100%,640px); max-width: 100%; max-height: calc(92dvh - var(--ax-safe-top)); margin: auto 0 0; padding: 16px; border-radius: 24px 24px 0 0 !important; }
+  html[data-theme-preset] #perf-duplicate-audit.mdl.open > .mdl-box,
+  html[data-theme-preset] #channel-duplicate-audit.mdl.open > .mdl-box { width: 100% !important; max-width: 100% !important; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  html[data-theme-preset] #lp.ax2-signin-page { align-items: flex-start; overflow-y: auto; padding-top: max(14px,var(--ax-safe-top)); }
+  html[data-theme-preset] #lp .ax2-signin-card { margin-block: 0 14px; }
+  html[data-theme-preset] #vai .ai-page-head { align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme-preset] #app #vs *, html[data-theme-preset] #vai *, html[data-theme-preset] #lp *, html[data-theme-preset] #app .ax2-overlay-root *, html[data-theme-preset] .mdl * {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important;
+  }
+  html[data-theme-preset] #app #vs .ax-tg-qr-empty { animation: none !important; }
+}
+@keyframes ax2-sheet-in { from { opacity: .6; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }

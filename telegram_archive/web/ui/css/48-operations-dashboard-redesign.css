@@ -1,0 +1,217 @@
+/* ============================================================================
+   FILE: css/48-operations-dashboard-redesign.css
+   AREA: Operations and jobs
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X Operations dashboard v1.
+   Presentation-only layer. Existing IDs, commands, forms and job lifecycle hooks stay intact. */
+#va {--ax-ops-bg: var(--ax-background-primary, var(--bg));;--ax-ops-surface: var(--ax-background-secondary, var(--bg1));;--ax-ops-raised: var(--ax-background-tertiary, var(--bg2));;--ax-ops-elevated: var(--ax-background-elevated, var(--bg3));;--ax-ops-border: var(--ax-border-default, var(--border));;--ax-ops-border-strong: var(--ax-border-strong, var(--border2));;--ax-ops-text: var(--ax-text-primary, var(--text));;--ax-ops-muted: var(--ax-text-secondary, var(--text2));;--ax-ops-quiet: var(--ax-text-tertiary, var(--text3));;--ax-ops-accent: var(--ax-interactive-primary, var(--accent));;width: 100% !important;;max-width: none !important;}
+#va *, #va *::before, #va *::after { box-sizing: border-box; }
+#va .muted { color: var(--ax-ops-muted) !important; }
+
+/* Page identity: an Operations control room, not another Settings form. */
+#va .ax-ops-page-intro {display: flex !important;;align-items: center !important;;justify-content: space-between !important;;margin: 0 auto 18px !important;;max-width: 1720px !important;;width: 100% !important;}
+
+#va .ax-ops-eyebrow {display: block;;margin: 0 0 5px;;color: var(--ax-ops-accent);;font-weight: 800;;letter-spacing: .14em;}
+#va .ax-ops-title-block h1 {margin: 0 !important;;color: var(--ax-ops-text) !important;;font-weight: 780 !important;;letter-spacing: -.035em !important;}
+#va .ax-ops-title-block p {margin: 7px 0 0 !important;;color: var(--ax-ops-muted) !important;}
+#va .ax-ops-context {flex: 0 0 auto;;border: 1px solid var(--ax-ops-border);;background: var(--ax-ops-surface);}
+#va .ax-ops-context-dot {animation: pu 1.2s ease-in-out infinite;}
+#va .ax-ops-context-dot::after { content: none; }
+@media (prefers-reduced-motion: reduce) {
+  #va .ax-ops-context-dot { animation: none; }
+}
+#va .ax-ops-context strong {display: block;;font-weight: 750;}
+#va .ax-ops-context small {display: block;;color: var(--ax-ops-muted);}
+
+/* Job counters: equal, scannable KPI cards. */
+#va > .ops-summary-strip {display: grid !important;;grid-template-columns: repeat(5, minmax(0, 1fr)) !important;;width: 100% !important;;max-width: 1720px !important;;margin: 0 auto 16px !important;}
+#va .ops-metric {display: grid !important;;grid-template-rows: auto auto !important;;align-content: center !important;;align-items: center !important;;min-width: 0 !important;;border: 1px solid var(--ax-ops-border) !important;;background: var(--ax-ops-surface) !important;;box-shadow: 0 3px 10px rgba(0,0,0,.035) !important;;color: var(--ax-ops-text) !important;}
+#va .ops-metric-dot {grid-column: 1;;grid-row: 1 / span 2;;align-self: center;}
+#va .ops-metric strong {grid-column: 2;;grid-row: 1;}
+#va .ops-metric span:last-child {grid-column: 2;;grid-row: 2;;line-height: 1.3 !important;;color: var(--ax-ops-muted) !important;;white-space: normal;}
+#va .ops-metric:hover { border-color: var(--ax-ops-border-strong) !important; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.07) !important; }
+
+/* Health, attention and telemetry are a coherent top dashboard row. */
+#va .v54-ops-health {display: grid !important;;grid-template-columns: minmax(220px, 1.05fr) minmax(180px, .9fr) minmax(220px, 1fr) minmax(300px, 1.35fr) !important;;align-items: start !important;;width: 100% !important;;max-width: 1720px !important;;margin: 0 auto 16px !important;}
+#va .v54-health-card {min-width: 0 !important;;border: 1px solid var(--ax-ops-border) !important;;background: var(--ax-ops-surface) !important;;color: var(--ax-ops-text) !important;;box-shadow: 0 3px 12px rgba(0,0,0,.03) !important;}
+#va .v54-health-head {display: flex !important;;align-items: center !important;;justify-content: space-between !important;;margin: 0 0 11px !important;;border-bottom: 1px solid var(--ax-ops-border) !important;;color: var(--ax-ops-text) !important;;font-weight: 750 !important;}
+#va .v54-health-head .muted {font-weight: 500 !important;}
+
+#va .v54-health-item {min-width: 0 !important;;display: flex !important;;align-items: center !important;;justify-content: space-between !important;;border: 1px solid var(--ax-ops-border) !important;;background: var(--ax-ops-raised) !important;;color: var(--ax-ops-text) !important;}
+#va .v54-health-item .label { color: var(--ax-ops-muted) !important; min-width: 0; }
+#va .v54-health-item .value {font-weight: 750 !important;;text-align: right;;white-space: normal !important;;overflow-wrap: anywhere;}
+#va .v54-health-item .value[style*="font-size:11px"] { font-size: 11px !important; }
+#va #ops-library-health-card { grid-column: 1 / -1 !important; }
+
+#va .ops-health-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex-wrap: wrap; }
+
+#va .v54-attention {background: var(--ax-ops-raised) !important;;border-color: var(--ax-ops-border) !important;;color: var(--ax-ops-text) !important;}
+
+/* Resource Controller: the operational steering panel. */
+#va .ax-resource-dashboard {width: 100% !important;;max-width: 1720px !important;;margin: 0 auto 16px !important;;border: 1px solid var(--ax-ops-border) !important;;background: var(--ax-ops-surface) !important;;box-shadow: 0 3px 12px rgba(0,0,0,.03) !important;}
+#va .ax-resource-head {align-items: center !important;;border-bottom: 1px solid var(--ax-ops-border);}
+#va .ax-resource-head h3 {margin: 0 !important;;color: var(--ax-ops-text) !important;;font-weight: 760 !important;}
+#va .ax-resource-head span {color: var(--ax-ops-muted) !important;}
+#va .ax-resource-mode { flex: 0 0 auto; }
+#va .ax-resource-mode label {color: var(--ax-ops-muted) !important;}
+
+#va .ax-resource-card {border: 1px solid var(--ax-ops-border) !important;;background: var(--ax-ops-raised) !important;}
+#va .ax-resource-card b {color: var(--ax-ops-muted) !important;;font-weight: 700 !important;}
+#va .ax-resource-card strong {line-height: 1.2;;color: var(--ax-ops-text);}
+#va .ax-resource-card small {color: var(--ax-ops-muted) !important;;overflow-wrap: anywhere;}
+
+#va .ax-lane {border: 1px solid var(--ax-ops-border) !important;;background: var(--ax-ops-raised) !important;}
+#va .ax-lane > div:first-child {line-height: 1.35;;color: var(--ax-ops-muted) !important;}
+#va .ax-lane-bar {background: var(--ax-ops-elevated) !important;}
+#va .ax-resource-events {border-color: var(--ax-ops-border) !important;;color: var(--ax-ops-muted) !important;}
+#va .ax-resource-controls {border-color: var(--ax-ops-border) !important;;background: var(--ax-ops-raised) !important;}
+#va .ax-resource-controls-title {line-height: 1.45 !important;}
+#va .ax-resource-controls-title span { color: var(--ax-ops-muted) !important; }
+
+/* Filters and major sections. */
+#va .v54-ops-tools {display: flex !important;;align-items: center !important;;flex-wrap: wrap !important;;width: 100% !important;;max-width: 1720px !important;;margin: 0 auto 16px !important;;border: 1px solid var(--ax-ops-border) !important;;background: var(--ax-ops-surface) !important;}
+#va .v54-ops-tools > .muted { font-size: 11px !important; }
+#va .v54-ops-filter { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; }
+#va .v54-ops-filter .btn { min-height: 34px !important; padding: 7px 12px !important; border-radius: 9px !important; font-size: 11.5px !important; }
+#va .v54-ops-filter .btn.on { background: color-mix(in srgb, var(--ax-ops-accent) 15%, var(--ax-ops-raised)) !important; border-color: color-mix(in srgb, var(--ax-ops-accent) 42%, var(--ax-ops-border)) !important; color: var(--ax-ops-text) !important; }
+#va .ops-sec { width: 100% !important; max-width: 1720px !important; margin: 0 auto 17px !important; }
+#va .ops-sec > h3, #va .ops-sec > summary h3 {
+  margin: 0 0 11px !important;
+  color: var(--ax-ops-text) !important;
+  font-size: 17px !important;
+  font-weight: 760 !important;
+  line-height: 1.35 !important;
+  letter-spacing: -.02em !important;
+  text-transform: none !important;
+}
+#va #jobs-pan {padding: 7px 16px !important;;border-radius: 14px !important;}
+#va .ops-empty-state {min-height: 86px;}
+#va .ops-empty-state strong {display: block;;color: var(--ax-ops-text) !important;}
+#va .ops-empty-state span {display: block;;margin-top: 3px;;color: var(--ax-ops-muted) !important;}
+#va .ops-module-intro {
+  display: flex !important; align-items: center !important; justify-content: space-between !important;
+  gap: 14px !important; padding: 13px 16px !important; margin-bottom: 11px !important;
+  border: 1px solid var(--ax-ops-border) !important; border-radius: 12px !important;
+  background: var(--ax-ops-surface) !important;
+}
+#va .ops-module-intro b { display: block; color: var(--ax-ops-text) !important; font-size: 13px !important; }
+#va .ops-module-intro span { font-size: 11px !important; line-height: 1.45 !important; color: var(--ax-ops-muted) !important; }
+#va .ops-module-legend { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+
+#va .mc2 {
+  min-width: 0 !important; padding: 18px !important; border: 1px solid var(--ax-ops-border) !important;
+  border-radius: 15px !important; background: var(--ax-ops-surface) !important;
+  color: var(--ax-ops-text) !important; box-shadow: 0 4px 14px rgba(0,0,0,.035) !important;
+}
+#va .mc2 .mi { display: grid; place-items: center; width: 38px; height: 38px; margin: 0 0 12px !important; border-radius: 11px; background: color-mix(in srgb, var(--ax-ops-accent) 13%, var(--ax-ops-raised)); color: var(--ax-ops-accent) !important; font-size: 18px !important; }
+#va .mc2 .mi .ax-icon { width: 19px; height: 19px; }
+#va .mc2 .mn { margin: 0 0 6px !important; color: var(--ax-ops-text) !important; font-size: 16px !important; line-height: 1.35 !important; font-weight: 760 !important; }
+#va .mc2 .md { margin: 0 0 13px !important; color: var(--ax-ops-muted) !important; font-size: 12px !important; line-height: 1.55 !important; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+
+#va .mc2 .module-live-strip { font-size: 11px !important; line-height: 1.45 !important; }
+#va .mc2 label { color: var(--ax-ops-muted) !important; font-size: 11.5px !important; line-height: 1.4 !important; }
+#va .mc2 input:not([type=checkbox]):not([type=radio]):not([type=range]),
+#va .mc2 select, #va .mc2 textarea { min-height: 39px !important; border-radius: 9px !important; font-size: 12px !important; }
+#va .mc2 input[type=checkbox], #va .mc2 input[type=radio] { width: 15px !important; height: 15px !important; accent-color: var(--ax-ops-accent) !important; }
+#va .mc2 .btn { min-height: 35px !important; border-radius: 9px !important; font-size: 11.5px !important; font-weight: 650 !important; }
+#va .mc2 .btn.pri { min-height: 40px !important; }
+#va .mc2 .pan { padding: 13px !important; margin: 10px 0 !important; border-color: var(--ax-ops-border) !important; border-radius: 11px !important; background: var(--ax-ops-raised) !important; color: var(--ax-ops-text) !important; }
+#va .mc2 .pan input, #va .mc2 .pan select { min-width: 0; }
+#va .mc2 .pan [style*="font-size:10.5px"], #va .mc2 .pan [style*="font-size: 10.5px"], #va .mc2 .pan [style*="font-size:11px"], #va .mc2 .pan [style*="font-size: 11px"] { font-size: 11px !important; line-height: 1.45 !important; }
+#va .mc2 .pan [style*="font-size:11px"], #va .mc2 .pan [style*="font-size: 11px"] { font-size: 11.5px !important; }
+#va .automation-card {padding: 20px !important;;background: var(--ax-ops-surface) !important;;border: 1px solid var(--ax-ops-border) !important;;border-radius: 16px !important;;box-shadow: 0 4px 14px rgba(0,0,0,.035) !important;}
+#va .automation-head { align-items: flex-start !important; gap: 20px !important; padding-bottom: 17px !important; }
+#va .automation-head .mn { font-size: 18px !important; }
+#va .automation-head .md { max-width: 930px; display: block !important; overflow: visible !important; font-size: 12px !important; line-height: 1.55 !important; }
+#va .automation-state { padding: 8px 11px !important; border-color: var(--ax-ops-border) !important; border-radius: 10px !important; background: var(--ax-ops-raised) !important; font-size: 11.5px !important; }
+#va .automation-stepper { gap: 7px !important; margin: 15px 0 12px !important; padding: 9px !important; border-radius: 13px !important; border-color: var(--ax-ops-border) !important; background: var(--ax-ops-raised) !important; }
+#va .automation-step { min-width: 0; min-height: 38px !important; height: auto !important; padding: 8px 10px !important; border-radius: 9px !important; font-size: 11.5px !important; line-height: 1.35 !important; }
+#va .automation-step .n { flex: 0 0 auto; width: 20px !important; height: 20px !important; }
+#va .automation-step.on { background: color-mix(in srgb, var(--ax-ops-accent) 16%, var(--ax-ops-raised)) !important; border-color: color-mix(in srgb, var(--ax-ops-accent) 42%, var(--ax-ops-border)) !important; color: var(--ax-ops-text) !important; }
+#va .automation-step-progress { height: 4px !important; margin-bottom: 16px !important; }
+#va .automation-grid { gap: 12px !important; margin-top: 0 !important; }
+#va .automation-panel, #va .automation-review { padding: 16px !important; border-color: var(--ax-ops-border) !important; border-radius: 12px !important; background: var(--ax-ops-raised) !important; color: var(--ax-ops-text) !important; }
+#va .automation-panel-title { font-size: 11.5px !important; line-height: 1.4 !important; margin-bottom: 12px !important; color: var(--ax-ops-muted) !important; }
+#va .automation-fields { gap: 12px !important; }
+#va .automation-fields label, #va .checkline { font-size: 11.5px !important; line-height: 1.45 !important; color: var(--ax-ops-muted) !important; }
+#va .automation-fields input, #va .automation-fields select { min-height: 39px !important; border-radius: 9px !important; font-size: 12px !important; }
+#va .automation-wizard-nav { padding-top: 13px !important; margin-top: 14px !important; border-top: 1px solid var(--ax-ops-border) !important; }
+#va .automation-wizard-nav .right { gap: 8px !important; }
+#va .automation-actions { gap: 9px !important; margin-top: 14px !important; padding-top: 14px !important; border-color: var(--ax-ops-border) !important; }
+#va .automation-actions .btn { min-height: 37px !important; border-radius: 9px !important; font-size: 11.5px !important; }
+#va .automation-review { padding: 15px !important; }
+#va .automation-review-row { padding: 10px 0 !important; border-color: var(--ax-ops-border) !important; font-size: 12px !important; }
+
+/* Activity is a readable operator log, with filters kept together above it. */
+#va #log-sec {width: 100% !important;;max-width: 1720px !important;;margin: 0 auto !important;}
+#va #log-sec > summary { display: flex; align-items: center; gap: 12px; padding: 0 0 12px; margin-bottom: 12px; border-bottom: 1px solid var(--ax-ops-border); }
+#va #log-sec > summary h3 { margin: 0 !important; font-size: 17px !important; }
+#va #log-sec > summary .muted { font-size: 11px !important; }
+#va .logbar { display: flex !important; align-items: center !important; gap: 8px !important; flex-wrap: wrap !important; margin-bottom: 12px !important; }
+#va .logbar .seg { display: inline-flex; gap: 4px; flex-wrap: wrap; padding: 4px; border: 1px solid var(--ax-ops-border); border-radius: 10px; background: var(--ax-ops-raised); }
+#va .logbar .seg button { min-height: 31px !important; padding: 6px 10px !important; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--ax-ops-muted); font-size: 11px !important; cursor: pointer; }
+#va .logbar .seg button.on { background: var(--ax-ops-accent) !important; color: var(--ax-text-on-accent, var(--ax-ops-bg)) !important; }
+#va .logbar select, #va .logbar input { min-height: 36px !important; border-radius: 9px !important; font-size: 11.5px !important; }
+#va .log-search { min-width: 220px; max-width: 360px; }
+#va #log-sec .pan {border-radius: 11px !important;}
+#va #log-sec .el { max-height: 380px !important; overflow: auto !important; padding: 5px 12px !important; background: transparent !important; }
+#va #evts-log { font-family: var(--ax-font-mono, "ArchiveXMono", Consolas, monospace) !important; font-size: 11px !important; line-height: 1.55 !important; color: var(--ax-ops-muted) !important; }
+#va .ev { padding: 8px 0 !important; border-bottom-color: var(--ax-ops-border) !important; font-size: 11px !important; line-height: 1.55 !important; }
+#va .v54-job-detail { z-index: 420; }
+
+/* Standardize controls inside Operations without touching controls elsewhere. */
+#va .btn {font-weight: 650 !important;;line-height: 1.35 !important;}
+#va .btn.xs { min-height: 31px !important; padding: 6px 9px !important; font-size: 11px !important; }
+#va input:not([type=checkbox]):not([type=radio]):not([type=range]),
+#va select, #va textarea {border-color: var(--ax-ops-border-strong) !important;;background: var(--ax-ops-raised) !important;;color: var(--ax-ops-text) !important;;line-height: 1.4 !important;}
+#va input[type=checkbox], #va input[type=radio] {accent-color: var(--ax-ops-accent) !important;}
+#va :focus-visible { outline: 2px solid var(--ax-interactive-focus, var(--ax-ops-accent)) !important; outline-offset: 2px !important; }
+#va .ops-summary-strip, #va .v54-ops-health, #va .v54-ops-tools, #va .ops-sec, #va #log-sec, #va .ax-resource-dashboard { scroll-margin-top: 90px; }
+
+@media (max-width: 1280px) {
+  #va .v54-ops-health { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  #va .v54-ops-health #ops-library-health-card { grid-column: 1 / -1 !important; }
+  #va .ops-summary-strip { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  
+}
+@media (max-width: 760px) {
+  
+  #va .ax-ops-page-intro {align-items: flex-start !important;;flex-direction: column !important;}
+  
+  #va .ops-summary-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  #va .v54-ops-health { grid-template-columns: minmax(0, 1fr) !important; }
+  #va .v54-ops-health #ops-library-health-card { grid-column: auto !important; }
+  #va .ax-resource-summary { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  #va .ax-resource-lanes { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  #va .ax-resource-limit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
+  #va .automation-stepper { grid-template-columns: repeat(3, minmax(0,1fr)) !important; }
+  #va .automation-grid { grid-template-columns: minmax(0,1fr) !important; }
+  #va .automation-panel:last-child { grid-column: auto !important; }
+  #va .automation-fields { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+  #va .automation-fields .field-wide { grid-column: 1 / -1 !important; }
+  #va .logbar { align-items: stretch !important; }
+  #va .log-search { flex: 1 1 240px; max-width: none; }
+}
+@media (max-width: 520px) {
+  #va .ops-summary-strip {grid-template-columns: repeat(2, minmax(0,1fr)) !important;}
+
+  #va .ax-resource-summary, #va .ax-resource-lanes, #va .ax-resource-limit-grid { grid-template-columns: minmax(0,1fr) !important; }
+  #va .ax-resource-head { align-items: stretch !important; flex-direction: column !important; }
+  #va .ax-resource-mode { align-items: flex-start !important; flex-direction: column !important; }
+  #va .ax-resource-mode select { width: 100%; }
+  #va .automation-stepper { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+  #va .automation-fields { grid-template-columns: minmax(0,1fr) !important; }
+  #va .automation-fields .field-wide { grid-column: auto !important; }
+  #va .automation-actions .btn { flex: 1 1 140px; }
+  
+  #va #log-sec > summary { align-items: flex-start; flex-direction: column; }
+  #va .logbar .seg { width: 100%; }
+  #va .logbar .seg button { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #va .ops-metric, #va .mc2, #va .ax-resource-card { transition: none !important; transform: none !important; }
+}

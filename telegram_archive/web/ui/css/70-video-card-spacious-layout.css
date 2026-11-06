@@ -1,0 +1,46 @@
+/* ============================================================================
+   FILE: css/70-video-card-spacious-layout.css
+   AREA: Cards
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — Spacious library video cards.
+   Keep the full video workflow unchanged; this layer only relaxes card geometry,
+   typography, and spacing so performer/tag rows don't collide visually. */
+
+
+
+.entity-video-grid .video-card-entities,
+#perf-video-grid .video-card-entities {
+  flex:0 0 28px!important;
+  height:28px!important;
+  min-height:28px!important;
+  max-height:28px!important;
+  margin:0!important;
+  gap:6px!important;
+  overflow:hidden!important;
+}
+
+.entity-video-grid .video-performer-chip,
+#perf-video-grid .video-performer-chip {gap:6px!important;;font-size:11px!important;}
+
+.entity-video-grid .video-performer-name,
+#perf-video-grid .video-performer-name {line-height:1.3!important;}
+
+
+
+#vg .video-card-actions,
+.entity-video-grid .video-card-actions,
+#perf-video-grid .video-card-actions {
+  flex:0 0 24px!important;
+  min-height:24px!important;
+  margin:0!important;
+}
+
+@media(max-width:430px) {
+
+  .entity-video-grid .video-performer-chip,
+#perf-video-grid .video-performer-chip {gap:3px!important;;font-size:10.5px!important;}
+
+}

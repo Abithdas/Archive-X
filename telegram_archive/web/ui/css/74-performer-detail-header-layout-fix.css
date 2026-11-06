@@ -1,0 +1,67 @@
+/* ============================================================================
+   FILE: css/74-performer-detail-header-layout-fix.css
+   AREA: Shell and navigation
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — compact, deliberate performer-profile breadcrumb.
+   The old full-width-looking black gradient floated between the sticky app bar
+   and the profile cards. Make the breadcrumb a real surface on the same content
+   rail as the overview, social panel, tabs and tab contents. */
+#perf-detail {padding-top: 8px !important;}
+#perf-detail > .entity-detail-backbar {
+  position: sticky !important;
+  top: 70px !important;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 1440px) !important;
+  max-width: 1440px !important;
+  min-height: 44px;
+  box-sizing: border-box !important;
+  margin: 4px auto 12px !important;
+  padding: 5px 10px !important;
+  border: 1px solid var(--ax-ui-line, rgba(255,255,255,.12));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ax-background-secondary, #252725) 94%, transparent) !important;
+  box-shadow: 0 5px 18px rgba(0,0,0,.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+#perf-detail > .entity-detail-backbar .entity-detail-back {flex: 0 0 34px;;min-height: 34px;;margin: 0;;padding: 0;;display: inline-flex;;align-items: center;;justify-content: center;;border: 1px solid var(--ax-ui-line, rgba(255,255,255,.16)) !important;;background: var(--ax-background-tertiary, #343734) !important;;color: var(--ax-text-primary, #f3f4f1) !important;;box-shadow: none !important;}
+#perf-detail > .entity-detail-backbar .entity-detail-back:hover,
+#perf-detail > .entity-detail-backbar .entity-detail-back:focus-visible {
+  border-color: var(--ax-text-muted, #a2a5a0) !important;
+  background: var(--ax-background-secondary, #252725) !important;
+  outline-offset: 2px;
+}
+#perf-detail > .entity-detail-backbar .entity-back-label {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ax-text-primary, #f4f4f4);
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 1.3;
+}
+@media (max-width: 780px) {
+  #perf-detail {
+    padding-top: 6px !important;
+  }
+  #perf-detail > .entity-detail-backbar {
+    position: sticky !important;
+    top: 66px !important;
+    width: 100% !important;
+    margin: 2px auto 10px !important;
+    padding: 4px 8px !important;
+    border-radius: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #perf-detail > .entity-detail-backbar,
+  #perf-detail > .entity-detail-backbar .entity-detail-back {transition: none !important;}
+}

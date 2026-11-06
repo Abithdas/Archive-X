@@ -1,0 +1,49 @@
+/* ============================================================================
+   FILE: css/49-transfer-workspace.css
+   AREA: Transfers
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X — dedicated Transfer workspace. Scoped to #vtransfers so it does not alter playback or other pages. */
+#vtransfers.view{display:none!important;;margin:0;}
+#vtransfers.view.on{display:block!important}
+.ax-transfer-page-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:clamp(16px,2vw,24px);margin:0 0 14px;border:1px solid var(--ax-border-default,var(--border));border-radius:16px;background:var(--ax-background-secondary,var(--panel));box-shadow:0 8px 28px rgba(0,0,0,.08)}
+.ax-transfer-page-title{min-width:0}
+.ax-transfer-kicker{display:block;margin-bottom:5px;color:var(--ax-accent,var(--accent));font-size:11px;font-weight:750;letter-spacing:.13em;text-transform:uppercase}
+.ax-transfer-page-title h1{margin:0;color:var(--ax-text-primary,var(--text));font-size:clamp(22px,2vw,29px);line-height:1.16;font-weight:760;letter-spacing:-.025em}
+.ax-transfer-page-title p{margin:7px 0 0;max-width:760px;color:var(--ax-text-secondary,var(--text2));font-size:12px;line-height:1.55}
+.ax-transfer-page-context{display:flex;align-items:center;gap:10px;flex-shrink:0;padding:10px 12px;border:1px solid var(--ax-border-subtle,var(--border));border-radius:12px;background:var(--ax-background-primary,var(--bg1))}
+.ax-transfer-page-context>div{display:flex;flex-direction:column;gap:2px;min-width:145px}
+.ax-transfer-page-context strong{font-size:11px;color:var(--ax-text-primary,var(--text))}
+.ax-transfer-page-context small{font-size:10.5px;color:var(--ax-text-muted,var(--text3));line-height:1.35}
+.ax-transfer-live-dot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 4px color-mix(in srgb,#22c55e 15%,transparent)}
+.ax-transfer-page-notice{display:flex;align-items:center;gap:11px;margin:0 0 15px;padding:12px 15px;border:1px solid color-mix(in srgb,var(--ax-accent,var(--accent)) 24%,var(--ax-border-default,var(--border)));border-radius:12px;background:color-mix(in srgb,var(--ax-accent,var(--accent)) 7%,var(--ax-background-secondary,var(--panel)));color:var(--ax-text-primary,var(--text))}
+
+.ax-transfer-page-notice>span{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ax-transfer-page-notice strong{font-size:11px}
+.ax-transfer-page-notice small{font-size:11px;line-height:1.45;color:var(--ax-text-secondary,var(--text2))}
+.ax-transfer-module-stack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;min-width:0}
+/* Put Telegram Transfer and Metadata & Assets managers side by side on roomy desktop layouts. */
+@media(max-width:1100px){.ax-transfer-module-stack{grid-template-columns:minmax(0,1fr)}}
+.ax-transfer-workflow-section{min-width:0;padding:0;border:0;background:transparent}
+#vtransfers #ops-telegram-transfer,#vtransfers .automation-card{width:100%;;max-width:none;;margin:0;;box-sizing:border-box;}
+
+#vtransfers .automation-card{border:1px solid var(--ax-border-default,var(--border));;border-radius:15px;;background:var(--ax-background-secondary,var(--panel));;box-shadow:0 6px 22px rgba(0,0,0,.07);}
+#vtransfers .mc2 .mn{font-size:15px;line-height:1.3;color:var(--ax-text-primary,var(--text));letter-spacing:-.01em}
+#vtransfers .mc2 .md{max-width:1100px;font-size:11px;line-height:1.55;color:var(--ax-text-secondary,var(--text2));margin:6px 0 12px}
+#vtransfers .automation-head{justify-content:space-between;}
+#vtransfers .automation-head>div:first-child{min-width:0}
+
+#vtransfers .automation-stepper{grid-template-columns:repeat(6,minmax(0,1fr));}
+
+#vtransfers .automation-grid .field-wide{grid-column:1/-1}
+
+#vtransfers .automation-actions .btn.pri{min-width:145px}
+#vtransfers .tg-transfer-actions{justify-content:flex-start;}
+#vtransfers .tg-transfer-actions .btn{min-width:165px}
+#vtransfers #u-transfer-msg,#vtransfers #m-auto-msg{min-height:16px;}
+@media(max-width:1050px){.ax-transfer-page-intro{flex-direction:column}.ax-transfer-page-context{align-self:stretch;justify-content:flex-start}.ax-transfer-page-context>div{flex:1}}
+@media(max-width:760px){.ax-transfer-page-intro{padding:15px;border-radius:13px}.ax-transfer-page-context{flex-wrap:wrap}.ax-transfer-page-context>div{min-width:0}.ax-transfer-module-stack{gap:12px}.ax-transfer-page-notice{padding:10px 11px}#vtransfers .automation-stepper{grid-template-columns:repeat(3,minmax(0,1fr))}#vtransfers .automation-grid .field-wide{grid-column:auto}}
+@media(max-width:480px){#vtransfers .automation-stepper{grid-template-columns:repeat(2,minmax(0,1fr))}#vtransfers .automation-actions .btn{flex:1}#vtransfers .tg-transfer-actions .btn{width:100%;min-width:0}}
+

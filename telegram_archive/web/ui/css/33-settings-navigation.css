@@ -1,0 +1,73 @@
+/* ============================================================================
+   FILE: css/33-settings-navigation.css
+   AREA: Shell and navigation
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Category-based settings surface inspired by NoBuf. Scope is limited to #vs. */
+#vs .settings-v54-layout { display:block !important; min-width:0 !important; }
+#vs .settings-v54-main { display:flex !important; flex-direction:column !important; gap:0 !important; min-width:0 !important; }
+#vs .settings-v54-banner {align-items:center !important;}
+
+#vs .settings-v54-banner .sub {max-width:720px !important;}
+#vs .settings-v54-state {display:flex !important;;flex-wrap:wrap !important;;justify-content:flex-end !important;}
+#vs .settings-v54-pill {border-radius:999px !important;;white-space:nowrap !important;}
+#vs .ax-settings-workspace {display:grid !important;;align-items:start !important;;min-width:0 !important;}
+#vs .ax-settings-nav {display:flex !important;;flex-direction:column !important;;border:1px solid var(--ax-ui-line, var(--border)) !important;;min-width:0 !important;;position:sticky !important;;top:12px !important;}
+#vs .ax-settings-nav-item {width:100% !important;;display:flex !important;;align-items:center !important;;text-align:left !important;;border:1px solid transparent !important;;background:transparent !important;;cursor:pointer !important;;transition:background .15s ease,border-color .15s ease,color .15s ease !important;}
+
+#vs .ax-settings-nav-icon {flex:0 0 34px !important;;display:inline-flex !important;;align-items:center !important;;justify-content:center !important;;color:var(--ax-ui-accent,#88c0d0) !important;}
+
+#vs .ax-settings-nav-copy {flex:1 1 auto !important;;min-width:0 !important;;display:flex !important;;flex-direction:column !important;}
+#vs .ax-settings-nav-copy b {color:inherit !important;}
+#vs .ax-settings-nav-copy small {font-weight:450 !important;}
+#vs .ax-settings-nav-chevron {color:var(--ax-ui-subtle,var(--text3)) !important;;line-height:1 !important;;opacity:.6 !important;}
+#vs .ax-settings-nav-item.is-active .ax-settings-nav-chevron { color:var(--ax-ui-accent,#88c0d0) !important; opacity:1 !important; }
+#vs .ax-settings-content { min-width:0 !important; }
+#vs .ax-settings-panel {min-width:0 !important;;border:1px solid var(--ax-ui-line,var(--border)) !important;}
+#vs .ax-settings-panel[hidden] { display:none !important; }
+#vs .ax-settings-panel-head {display:flex !important;;justify-content:space-between !important;;align-items:flex-start !important;;padding:0 0 14px !important;;margin:0 0 14px !important;;border-bottom:1px solid var(--ax-ui-line,var(--border)) !important;}
+#vs .ax-settings-eyebrow {font-weight:760 !important;;color:var(--ax-ui-accent,#88c0d0) !important;}
+#vs .ax-settings-panel-head h2 {margin:0 !important;}
+#vs .ax-settings-panel-head p {margin:4px 0 0 !important;}
+#vs .ax-settings-count {flex:0 0 auto !important;;border:1px solid var(--ax-ui-line,var(--border)) !important;;background:var(--ax-ui-panel-soft,var(--bg2)) !important;;font-weight:750 !important;}
+#vs .ax-settings-count i { font-style:normal !important; font-weight:500 !important; color:var(--ax-ui-subtle,var(--text3)) !important; }
+#vs .ax-settings-panel-body {display:flex !important;;flex-direction:column !important;;min-width:0 !important;}
+#vs .ax-settings-panel-body > .settings-v54-section {margin:0 !important;;padding:0 !important;;border:0 !important;;border-radius:0 !important;;box-shadow:none !important;;min-width:0 !important;}
+#vs .ax-settings-panel-body > .settings-v54-section > .settings-v54-section-head { margin:0 0 10px !important; padding:0 0 8px !important; border-bottom:1px solid var(--ax-ui-line,var(--border)) !important; }
+#vs .ax-settings-panel-body .settings-v54-section-head h3 {font-weight:760 !important;}
+#vs .ax-settings-panel-body .settings-v54-section-head span { font-size:10.5px !important; }
+
+#vs .ax-settings-panel-body .settings-v54-actions {border-top:1px solid var(--ax-ui-line,var(--border)) !important;}
+#vs .ax-settings-panel-body #settings-v54-status .settings-v54-section-head { margin-bottom:9px !important; }
+#vs .ax-settings-panel-body .settings-status-grid { gap:8px !important; }
+#vs .ax-settings-panel-body .settings-status-item { padding:11px !important; border-radius:10px !important; }
+
+#vs .ax-settings-panel-body .ax-appearance-section:last-of-type { margin-bottom:0 !important; }
+
+#vs .ax-settings-panel-body .ax-theme-presets {grid-template-columns:repeat(4,minmax(0,1fr)) !important;}
+
+#vs .ax-settings-footnote {margin:0 !important;;border:1px dashed var(--ax-ui-line,var(--border)) !important;;border-radius:9px !important;}
+
+@media (max-width: 900px) {
+
+  #vs .settings-v54-banner { align-items:flex-start !important; flex-direction:column !important; }
+  #vs .settings-v54-state { justify-content:flex-start !important; }
+}
+@media (max-width: 520px) {
+  #vs .ax-settings-nav { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+  #vs .ax-settings-nav-item {justify-content:flex-start !important;}
+  #vs .ax-settings-nav-copy small { display:block !important; }
+  #vs .ax-settings-panel-body .ax-theme-presets { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+  #vs .ax-settings-panel-body .settings-v54-section-head {align-items:flex-start !important;;flex-direction:column !important;}
+}
+@media (prefers-reduced-motion: reduce) {
+  #vs .ax-settings-nav-item { transition:none !important; }
+}
+/* The category header already labels these panels; avoid echoing the same title twice. */
+#vs #settings-v54-telegram > .settings-v54-section-head,
+#vs #settings-v54-metadata > .settings-v54-section-head,
+#vs #settings-v54-security > .settings-v54-section-head,
+#vs #settings-v55-experience > .settings-v54-section-head,
+#vs #settings-v55-storage > .settings-v54-section-head { display:none !important; }

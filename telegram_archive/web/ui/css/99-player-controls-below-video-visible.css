@@ -1,0 +1,13 @@
+/* ============================================================================
+   FILE: css/99-player-controls-below-video-visible.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Preserve the below-video control strip's layout without overriding playback
+   visibility. Playback-idle visibility is handled by the player state rules. */
+
+
+
+

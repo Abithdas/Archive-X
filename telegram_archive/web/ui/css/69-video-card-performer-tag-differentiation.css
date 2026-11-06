@@ -1,0 +1,66 @@
+/* ============================================================================
+   FILE: css/69-video-card-performer-tag-differentiation.css
+   AREA: Cards
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — distinguish people from metadata tags on video cards.
+   People use a portrait-led capsule; tags use compact square hashtag chips. */
+.entity-video-grid .video-performer-chip,
+#perf-video-grid .video-performer-chip {display:inline-flex!important;;gap:5px!important;;padding:1px 8px 1px 3px!important;;border:1px solid rgba(220,230,204,.27)!important;;border-radius:999px!important;;background:rgba(215,225,198,.13)!important;;color:var(--ax-text-primary,var(--text,#f4f4f1))!important;;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)!important;;text-decoration:none!important;;transition:background-color .14s ease,border-color .14s ease,box-shadow .14s ease!important;}
+
+#vg .video-performer-chip:hover,
+.entity-video-grid .video-performer-chip:hover,
+#perf-video-grid .video-performer-chip:hover,
+#vg .video-performer-chip:focus-visible,
+.entity-video-grid .video-performer-chip:focus-visible,
+#perf-video-grid .video-performer-chip:focus-visible {
+  border-color:rgba(255,255,255,.88)!important;
+  background:rgba(225,235,211,.19)!important;
+  color:#fff!important;
+  box-shadow:0 0 0 1px rgba(255,255,255,.10)!important;
+  outline:none!important;
+}
+
+.entity-video-grid .video-performer-avatar-wrap,
+#perf-video-grid .video-performer-avatar-wrap {aspect-ratio:1 / 1!important;;background:var(--ax-background-tertiary,var(--bg3,#41443e))!important;}
+.entity-video-grid .video-performer-avatar,
+#perf-video-grid .video-performer-avatar {aspect-ratio:1 / 1!important;;background:transparent!important;}
+.entity-video-grid .video-performer-avatar-fallback,
+#perf-video-grid .video-performer-avatar-fallback {display:inline-flex;;align-items:center;;justify-content:center;;aspect-ratio:1 / 1!important;;background:var(--ax-background-tertiary,var(--bg3,#41443e))!important;;color:var(--ax-text-primary,var(--text,#f4f4f1))!important;;font-size:11px!important;;font-weight:750!important;}
+.entity-video-grid .video-performer-name,
+#perf-video-grid .video-performer-name {overflow:hidden!important;;text-overflow:ellipsis!important;;white-space:nowrap!important;;font-weight:550!important;}
+/* Tags remain visibly different: sharp-corner hashtag labels without portraits. */
+.entity-video-grid .video-tag-chip,
+#perf-video-grid .video-tag-chip {
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  height:20px!important;
+  min-height:20px!important;
+  padding:0 6px!important;
+  border:1px solid rgba(185,193,174,.20)!important;
+  border-radius:5px!important;
+  background:rgba(14,16,14,.28)!important;
+  color:var(--ax-text-muted,var(--text2,#b6b8b1))!important;
+  font-size:10.5px!important;
+  font-weight:500!important;
+  line-height:1!important;
+}
+#vg .video-tag-chip:hover,
+.entity-video-grid .video-tag-chip:hover,
+#perf-video-grid .video-tag-chip:hover,
+#vg .video-tag-chip:focus-visible,
+.entity-video-grid .video-tag-chip:focus-visible,
+#perf-video-grid .video-tag-chip:focus-visible {
+  border-color:rgba(255,255,255,.86)!important;
+  color:#fff!important;
+  background:rgba(255,255,255,.07)!important;
+  outline:none!important;
+}
+
+
+@media(prefers-reduced-motion:reduce) {
+  #vg .video-performer-chip,.entity-video-grid .video-performer-chip,#perf-video-grid .video-performer-chip { transition:none!important; }
+}

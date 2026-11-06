@@ -1,0 +1,163 @@
+<!-- ======================================================================
+     PARTIAL: html/app-shell.html
+     PURPOSE: Application shell: top bar, header and navigation.
+     Composed into the page by web/html.py. DOM order follows the include order.
+     KEY IDS: app, topbar, hdr
+     ====================================================================== -->
+<div id="app" style="display:none">
+
+<div id="topbar">
+<header id="hdr">
+  <span class="logo"><img class="brand-mark" src="/static/icons/archive-x.png" alt="Archive X"><span class="brand-text">Archive X</span></span>
+  <div class="sw ax-compact-global-search" role="search"><span class="si"><svg class="ax-icon" aria-hidden="true"><use href="#ax-search"></use></svg></span><input type="text" id="gs" placeholder="Search videos, performers, studios…" oninput="onSearch()" onkeydown="uxSearchKeydown(event)" autocomplete="off" aria-label="Search videos, performers, studios"><button type="button" class="ax-top-search-submit" onclick="document.getElementById('gs')?.focus(); onSearch();" aria-label="Search" title="Search"><svg class="ax-icon" aria-hidden="true"><use href="#ax-search"></use></svg></button><button class="btn sm ax2-command-kbd" type="button" onclick="uxOpenCommand()" aria-label="Open command palette" title="Command palette">Ctrl K</button></div>
+  <div class="hr">
+    <button id="global-activity-btn" class="btn sm" type="button" onclick="uxOpenActivity()" aria-label="Notifications" title="Notifications"><svg class="ax-icon" aria-hidden="true"><use href="#ax-clock"></use></svg><span class="ax2-activity-label">Notifications</span><span class="ax2-count-badge" data-ax2-activity-badge hidden>0</span></button>
+    <button type="button" id="ax2-theme-button" class="ax2-icon-button" onclick="axToggleThemeMode()" aria-label="Toggle light and dark theme" title="Toggle theme"><svg class="ax-icon ax2-theme-sun" aria-hidden="true"><use href="#ax-sun"></use></svg><svg class="ax-icon ax2-theme-moon" aria-hidden="true"><use href="#ax-moon"></use></svg></button>
+    <div id="perf-gender-filter" role="group" aria-label="Filter performers by gender"><span class="perf-gender-label">Gender</span><button type="button" class="perf-gender-btn on" data-gender="all" aria-pressed="true" onclick="setPerformerGenderFilter('all')">All</button><button type="button" class="perf-gender-btn" data-gender="female" aria-pressed="false" onclick="setPerformerGenderFilter('female')">Female</button><button type="button" class="perf-gender-btn" data-gender="male" aria-pressed="false" onclick="setPerformerGenderFilter('male')">Male</button></div>
+    <span class="ax2-tg-pill" data-ax2-tg-pill><div id="tgdot" class="off ax2-app-status-source" aria-hidden="true" title="Telegram status"></div><i class="ax2-tg-display-dot off" data-ax2-tg-dot aria-hidden="true"></i><svg class="ax-icon ax-brand-inline" aria-hidden="true"><use href="#ax-brand-telegram"></use></svg><span data-ax2-tg-text>Connecting…</span><span id="tglabel" class="muted ax2-app-status-source" aria-hidden="true">Connecting…</span></span>
+    <div class="ax2-avatar-wrap">
+      <button type="button" id="ax2-avatar-button" class="ax2-avatar-button" aria-label="Account menu" aria-haspopup="menu" aria-expanded="false" data-ax2-avatar-trigger><span data-ax2-avatar-initial>A</span><i class="ax2-avatar-status" data-ax2-avatar-status aria-hidden="true"></i></button>
+      <div id="ax2-avatar-menu" class="ax2-menu" role="menu" aria-label="Account menu" aria-hidden="true" hidden data-ax2-menu>
+        <div class="ax2-menu-user">Signed in as <b data-ax2-user-name>A</b></div>
+        <button type="button" class="ax2-menu-item" role="menuitem" onclick="ax2.closeMenu();sv('settings');setTimeout(function(){if(window.focusSettings)focusSettings('telegram')},0)"><svg class="ax-icon" aria-hidden="true"><use href="#ax-brand-telegram"></use></svg><span>Telegram</span><span class="sp"></span><span class="ax2-status-pill" data-ax2-tg-copy>Connecting…</span></button>
+        <button type="button" class="ax2-menu-item" role="switch" aria-checked="false" aria-label="Toggle theme" onclick="axToggleThemeMode()"><svg class="ax-icon" data-ax2-theme-menu-icon aria-hidden="true"><use href="#ax-moon"></use></svg><span>Dark theme</span><span class="sp"></span><span class="ax2-switch-track"><i></i></span></button>
+        <button type="button" class="ax2-menu-item" role="menuitem" onclick="ax2.closeMenu();sv('settings');setTimeout(function(){if(window.focusSettings)focusSettings('storage-backup')},0)"><svg class="ax-icon" aria-hidden="true"><use href="#ax-database"></use></svg><span>Storage</span><span class="sp"></span><span class="ax2-text-muted" data-ax2-storage-copy>— used</span></button>
+        <button type="button" class="ax2-menu-item" role="menuitem" onclick="ax2.closeMenu();uxOpenCommand()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-search"></use></svg><span>Command palette</span><span class="sp"></span><kbd class="ax2-kbd">Ctrl K</kbd></button>
+        <button type="button" class="ax2-menu-item" role="menuitem" onclick="ax2.closeMenu();sv('settings')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-gear"></use></svg><span>Settings</span></button>
+        <div class="ax2-menu-divider" role="separator"></div>
+        <div class="ax2-menu-account-actions"><button class="btn sm signout-btn" type="button" role="menuitem" onclick="doLogout()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-lock"></use></svg><span>Sign out</span></button><button class="btn sm exit-app-btn" id="exit-app-btn" type="button" onclick="exitArchiveX()" role="menuitem" title="Gracefully stop the Archive X server and background workers"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg><span>Exit app</span></button></div>
+      </div>
+    </div>
+  </div>
+</header>
+<div id="nav" aria-hidden="true">
+  <button class="tab on" id="tab-library" onclick="sv('library')">Videos</button><button class="tab" id="tab-performers" onclick="sv('performers')">Performers</button><button class="tab" id="tab-sites" onclick="sv('sites')">Studios</button><button class="tab" id="tab-admin" onclick="sv('admin')">Operations</button><button class="tab" id="tab-transfers" onclick="sv('transfers')">Transfers</button><button class="tab" id="tab-settings" onclick="sv('settings')">Settings</button><button class="tab entity-nav-map" id="entity-nav-map" type="button" onclick="openCurrentEntityMapping()">Mapping</button>
+</div>
+</div><!-- /topbar -->
+
+<aside id="ax-sidebar" aria-label="Archive X navigation">
+  <div class="ax2-sidebar-brand"><span class="ax2-brand-tile"><img src="/static/icons/archive-x.png" alt="" /></span><span class="ax2-sidebar-brand-text">Archive X</span></div>
+  <span class="ax2-side-indicator" aria-hidden="true"></span>
+  <div class="ax-sidebar-top"><button type="button" id="ax-sidebar-toggle" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar"><span aria-hidden="true">×</span></button></div>
+  <div class="ax-side-group-title">Library</div>
+  <button class="ax-side-item" data-side="photos" aria-label="Photos" title="Photos" onclick="sv('photos')"><span class="ax-side-icon"><svg class="ax-icon" aria-hidden="true"><use href="#ax-images"></use></svg></span><span>Photos</span></button>
+  <button class="ax-side-item" data-side="library" aria-label="Videos" title="Videos" onclick="sv('library')"><span class="ax-side-icon"><svg class="ax-icon" aria-hidden="true"><use href="#ax-library"></use></svg></span><span>Videos</span></button>
+  <button class="ax-side-item" data-side="performers" aria-label="Performers" title="Performers" onclick="sv('performers')"><span class="ax-side-icon"><svg class="ax-icon" aria-hidden="true"><use href="#ax-user"></use></svg></span><span>Performers</span></button>
+  <button class="ax-side-item" data-side="sites" aria-label="Studios" title="Studios" onclick="sv('sites')"><span class="ax-side-icon"><svg class="ax-icon" aria-hidden="true"><use href="#ax-studio"></use></svg></span><span>Studios</span></button>
+  <div class="ax-side-divider"></div>
+  <div class="ax-side-group-title">Work</div>
+  <button class="ax-side-item" data-side="admin" aria-label="Operations" title="Operations" onclick="sv('admin')"><span class="ax-side-icon"><svg class="ax-icon" aria-hidden="true"><use href="#ax-operations"></use></svg></span><span class="ax2-side-label">Operations</span><span class="ax2-nav-badge" data-ax2-ops-badge hidden>0</span></button>
+  <button class="ax-side-item" data-side="transfers" aria-label="Transfers" title="Transfers" onclick="sv('transfers')"><span class="ax-side-icon"><svg class="ax-icon" aria-hidden="true"><use href="#ax-transfer"></use></svg></span><span class="ax2-side-label">Transfers</span></button>
+  <div class="ax-side-divider"></div>
+  <div class="ax-side-group-title">System</div>
+  <button class="ax-side-item" data-side="settings" aria-label="Settings" title="Settings" onclick="sv('settings')"><span class="ax-side-icon"><svg class="ax-icon" aria-hidden="true"><use href="#ax-gear"></use></svg></span><span class="ax2-side-label">Settings</span></button>
+  <button class="ax-side-item" data-side="ai" aria-label="AI Assistance" title="AI Assistance" onclick="sv('ai')"><span class="ax-side-icon"><svg class="ax-icon" aria-hidden="true"><use href="#ax-sparkle"></use></svg></span><span class="ax2-side-label">AI Assistance</span></button>
+  <div class="ax-storage-card" id="ax-sidebar-storage-card" title="Archive X app storage summary">
+    <div class="ax-storage-head"><span>Storage</span><span id="ax-storage-pct">—</span></div>
+    <div class="ax-storage-bar" id="ax-storage-bar" role="progressbar" aria-label="Drive space used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="ax-storage-fill"></span></div>
+    <div id="ax-storage-label" class="ax-storage-summary muted" aria-live="polite">
+      <span id="ax-storage-data">App data size loading…</span>
+      <span id="ax-storage-free">Drive capacity loading…</span>
+    </div>
+  </div>
+  <div class="ax-sidebar-theme-wrap">
+    <button type="button" id="ax-sidebar-theme-toggle" class="ax-mode-switch" role="switch" aria-checked="false" aria-label="Switch to light mode" title="Switch to light mode" onclick="axToggleThemeMode()">
+      <span class="ax-mode-switch-track" aria-hidden="true"><span class="ax-mode-switch-thumb"></span><span class="ax-mode-switch-icon ax-mode-switch-sun"><svg class="ax-icon"><use href="#ax-sun"></use></svg></span><span class="ax-mode-switch-icon ax-mode-switch-moon"><svg class="ax-icon"><use href="#ax-moon"></use></svg></span></span>
+      <span class="ax-mode-switch-label">Light / Dark</span>
+    </button>
+  </div>
+</aside>
+
+  <div class="ax-ux-command ax2-overlay-root" id="ux-command" role="dialog" aria-modal="true" aria-label="Archive X command palette">
+    <div class="ax-ux-panel">
+      <div class="ax-ux-command-head"><svg class="ax-icon" aria-hidden="true"><use href="#ax-search"></use></svg><input id="ux-command-input" type="search" placeholder="Search commands…" oninput="uxFilterCommands()" onkeydown="uxCommandKeydown(event)" autocomplete="off"><button class="btn sm" type="button" onclick="uxCloseCommand()" aria-label="Close command palette">Esc</button></div>
+      <div class="ax-ux-command-list" id="ux-command-list"></div>
+    </div>
+  </div>
+  <div class="ax-ux-activity ax2-overlay-root" id="ux-activity" role="dialog" aria-modal="true" aria-label="Archive X notifications">
+    <div class="ax-ux-panel"><div class="ax-ux-activity-head"><div><b>Notifications</b><div class="muted" style="font-size:11px">Important updates from your library</div></div><button class="ax2-icon-button ax-ux-notifications-close" type="button" onclick="uxCloseActivity()" aria-label="Close notifications" title="Close notifications"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div><div class="ax-ux-activity-body" id="ux-activity-body"></div></div>
+  </div>
+  <section id="ux-filter-drawer" class="ax2-sheet ax2-library-filter-sheet" role="dialog" aria-modal="true" aria-label="Library filters" aria-hidden="true" hidden data-ax2-sheet>
+    <div class="ax2-sheet-handle" data-ax2-sheet-handle aria-hidden="true"><span></span></div>
+    <header class="ax2-sheet-head" data-ax2-sheet-head>
+      <h2>Filters</h2>
+      <div class="ax2-filter-head-actions"><button class="btn" type="button" onclick="uxResetFilters()">Reset</button><button type="button" class="ax2-icon-button" onclick="uxCloseFilters()" aria-label="Close filters"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    </header>
+    <div class="ax2-sheet-body ax2-library-filter-body">
+      <label class="ax2-filter-field"><span class="ax2-filter-label"><svg class="ax-icon" aria-hidden="true"><use href="#ax-studio"></use></svg>Studio</span><input list="site-filter-list" type="text" id="ux-f-studio" placeholder="Any studio…" autocomplete="off"></label>
+      <label class="ax2-filter-field"><span class="ax2-filter-label"><svg class="ax-icon" aria-hidden="true"><use href="#ax-user"></use></svg>Performer</span><input list="performer-list" type="text" id="ux-f-perf" placeholder="Any performer…" autocomplete="off"></label>
+      <label class="ax2-filter-field"><span class="ax2-filter-label"><svg class="ax-icon" aria-hidden="true"><use href="#ax-tag"></use></svg>Tag</span><input list="tag-list" type="text" id="ux-f-tag" placeholder="Any tag…" autocomplete="off"></label>
+      <div class="ax2-filter-field"><span class="ax2-filter-label"><svg class="ax-icon" aria-hidden="true"><use href="#ax-clock"></use></svg>Upload date</span><div class="ax2-filter-date-row"><input type="date" id="ux-f-d1" aria-label="Upload date from"><input type="date" id="ux-f-d2" aria-label="Upload date to"></div><div class="ax2-filter-chip-row" role="group" aria-label="Quick upload date range"><button type="button" class="ax2-filter-chip" data-ax2-date-range="7" aria-pressed="false" onclick="ax2SetDateRange(7,this)">7 days</button><button type="button" class="ax2-filter-chip" data-ax2-date-range="30" aria-pressed="false" onclick="ax2SetDateRange(30,this)">30 days</button><button type="button" class="ax2-filter-chip" data-ax2-date-range="365" aria-pressed="false" onclick="ax2SetDateRange(365,this)">1 year</button></div></div>
+      <div class="ax2-filter-field"><span class="ax2-filter-label"><svg class="ax-icon" aria-hidden="true"><use href="#ax-picture"></use></svg>Resolution</span><div class="ax2-filter-chip-row ax2-resolution-chips" role="group" aria-label="Resolution"><button type="button" class="ax2-filter-chip" data-ax2-resolution="" aria-pressed="false" onclick="ax2SetResolution('',this)">Any</button><button type="button" class="ax2-filter-chip" data-ax2-resolution="2160" aria-pressed="false" onclick="ax2SetResolution('2160',this)">4K</button><button type="button" class="ax2-filter-chip" data-ax2-resolution="1440" aria-pressed="false" onclick="ax2SetResolution('1440',this)">1440p</button><button type="button" class="ax2-filter-chip" data-ax2-resolution="1080" aria-pressed="false" onclick="ax2SetResolution('1080',this)">1080p</button><button type="button" class="ax2-filter-chip" data-ax2-resolution="720" aria-pressed="false" onclick="ax2SetResolution('720',this)">720p</button><button type="button" class="ax2-filter-chip" data-ax2-resolution="480" aria-pressed="false" onclick="ax2SetResolution('480',this)">&lt;720p</button></div><select id="ux-f-res" class="ax2-visually-hidden" tabindex="-1" aria-hidden="true"><option value="">Any resolution</option><option value="2160">4K</option><option value="1440">1440p</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">Below 720p</option></select></div>
+    </div>
+    <footer class="ax2-library-filter-footer"><button type="button" class="btn pri ax2-apply-filters" onclick="uxApplyFilters()">Apply filters</button></footer>
+  </section>
+  <section id="ax2-library-more-sheet" class="ax2-sheet ax2-library-more-sheet" role="dialog" aria-modal="true" aria-label="More library actions" aria-hidden="true" hidden data-ax2-sheet>
+    <div class="ax2-sheet-handle" data-ax2-sheet-handle aria-hidden="true"><span></span></div>
+    <header class="ax2-sheet-head" data-ax2-sheet-head><h2>More actions</h2><button type="button" class="ax2-icon-button" aria-label="Close more actions" onclick="ax2CloseLibraryMore()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></header>
+    <div class="ax2-sheet-body ax2-library-more-body">
+      <button type="button" class="ax2-library-action-row ax2-library-more-desktop-only" onclick="ax2RunLibraryAction(()=>playRandom('vlc'))"><svg class="ax-icon" aria-hidden="true"><use href="#ax-brand-vlc"></use></svg><span>Shuffle in VLC</span></button>
+      <button type="button" class="ax2-library-action-row ax2-library-more-desktop-only" onclick="ax2RunLibraryAction(()=>playRandom('mpc'))"><img src="/static/icons/mpc.png" alt="" aria-hidden="true" onerror="this.remove()"><span>Shuffle in MPC-HC</span></button>
+      <div class="ax2-menu-divider" role="separator"></div>
+      <button type="button" id="ax2-library-bulk-edit-action" class="ax2-library-action-row" onclick="ax2RunLibraryAction(()=>libraryBulkEdit())" title="Select several videos and edit them together"><svg class="ax-icon" aria-hidden="true"><use href="#ax-edit"></use></svg><span>Edit multiple videos</span></button>
+      <div class="ax2-menu-divider" role="separator"></div>
+      <button type="button" class="ax2-library-action-row" onclick="ax2RunLibraryAction(()=>chAll(1))"><svg class="ax-icon" aria-hidden="true"><use href="#ax-grid"></use></svg><span>Select all channels</span></button>
+      <button type="button" class="ax2-library-action-row" onclick="ax2RunLibraryAction(()=>chAll(0))"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg><span>Clear selection</span></button>
+      <button type="button" class="ax2-library-action-row ax2-library-more-desktop-only" onclick="ax2RunLibraryAction(()=>doRefreshChannels())"><svg class="ax-icon" aria-hidden="true"><use href="#ax-refresh"></use></svg><span>Refresh channel list</span></button>
+      <button type="button" id="index-btn" class="ax2-library-action-row" onclick="ax2RunLibraryAction(()=>rebuildSelectedIndexes())" title="Start or resume indexing for selected channels"><svg class="ax-icon" aria-hidden="true"><use href="#ax-database"></use></svg><span>Index / resume</span></button>
+      <button type="button" id="scan-btn" class="ax2-library-action-row" onclick="ax2RunLibraryAction(()=>loadLib(null,true))" title="Reload videos from selected channels"><svg class="ax-icon" aria-hidden="true"><use href="#ax-refresh"></use></svg><span>Reload selected</span></button>
+      <div class="ax2-menu-divider" role="separator"></div>
+      <div class="ax2-library-existing-actions" aria-label="Library action controls"></div>
+    </div>
+  </section>
+  <nav class="ax-ux-bottom-nav" aria-label="Mobile navigation">
+  <button data-ux-bottom="library" onclick="sv('library')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-library"></use></svg>Videos</button>
+   <button data-ux-bottom="photos" onclick="sv('photos')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-images"></use></svg>Photos</button>
+  <button data-ux-bottom="performers" onclick="sv('performers')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-user"></use></svg>Performers</button>
+  <button data-ux-bottom="sites" onclick="sv('sites')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-studio"></use></svg>Studios</button>
+  <button data-ux-bottom="transfers" onclick="sv('transfers')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-transfer"></use></svg>Transfers</button>
+  <button type="button" data-ux-bottom="more" class="ax2-bottom-more" aria-label="More navigation" aria-haspopup="dialog" onclick="ax2.openSheet(document.getElementById('ax2-more-layer'),this)"><svg class="ax-icon" aria-hidden="true"><use href="#ax-grid"></use></svg><span>More</span></button>
+  <button data-ux-bottom="admin" onclick="sv('admin')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-operations"></use></svg>Operations</button>
+  <button data-ux-bottom="settings" onclick="sv('settings')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-gear"></use></svg>Settings</button>
+  <button type="button" id="ax-mobile-theme-toggle" class="ax-mobile-theme-switch" role="switch" aria-checked="false" aria-label="Switch to light mode" title="Switch to light mode" onclick="axToggleThemeMode()"><span class="ax-mobile-mode-track" aria-hidden="true"><span class="ax-mobile-mode-thumb"></span><span class="ax-mobile-mode-icon ax-mode-switch-sun"><svg class="ax-icon"><use href="#ax-sun"></use></svg></span><span class="ax-mobile-mode-icon ax-mode-switch-moon"><svg class="ax-icon"><use href="#ax-moon"></use></svg></span></span><span class="ax-mobile-theme-label">Theme</span></button>
+</nav>
+<div id="ax2-layer-scrim" class="ax2-layer-scrim" hidden aria-hidden="true"></div>
+<section id="ax2-more-layer" class="ax2-sheet" role="dialog" aria-modal="true" aria-labelledby="ax2-more-title" aria-hidden="true" hidden data-ax2-sheet>
+  <div class="ax2-sheet-handle" data-ax2-sheet-handle aria-hidden="true"><span></span></div>
+  <header class="ax2-sheet-head" data-ax2-sheet-head><h2 id="ax2-more-title">More</h2><button type="button" class="ax2-icon-button" aria-label="Close More menu" onclick="ax2.closeSheet(document.getElementById('ax2-more-layer'))"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></header>
+  <div class="ax2-sheet-body">
+    <button type="button" class="ax2-menu-item ax2-more-row" onclick="ax2.closeSheet();sv('admin')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-operations"></use></svg><span><b>Operations</b><small data-ax2-ops-summary>0 running · 0 queued</small></span><svg class="ax-icon ax2-row-chevron" aria-hidden="true"><use href="#ax-chevron-right"></use></svg></button>
+    <button type="button" class="ax2-menu-item ax2-more-row" onclick="ax2.closeSheet();sv('settings')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-gear"></use></svg><span><b>Settings</b><small>Telegram, metadata, appearance, backup</small></span><svg class="ax-icon ax2-row-chevron" aria-hidden="true"><use href="#ax-chevron-right"></use></svg></button>
+    <button type="button" class="ax2-menu-item ax2-more-row" onclick="ax2.closeSheet();sv('ai')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-sparkle"></use></svg><span><b>AI Assistance</b><small>Local assistant and diagnostics</small></span><svg class="ax-icon ax2-row-chevron" aria-hidden="true"><use href="#ax-chevron-right"></use></svg></button>
+    <button type="button" class="ax2-menu-item ax2-more-row" onclick="ax2.closeSheet();uxOpenActivity()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-clock"></use></svg><span><b>Notifications</b><small>Important updates from your library</small></span><svg class="ax-icon ax2-row-chevron" aria-hidden="true"><use href="#ax-chevron-right"></use></svg></button>
+    <button type="button" class="ax2-menu-item ax2-more-row" onclick="ax2.closeSheet();uxOpenCommand()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-search"></use></svg><span><b>Command palette</b><small>Jump to any action</small></span><kbd class="ax2-kbd">Ctrl K</kbd></button>
+    <div class="ax2-storage-card"><div class="ax2-storage-head"><b>Storage</b><span data-ax2-storage-copy>— used</span></div><div class="ax2-storage-bar"><i data-ax2-storage-fill></i></div><div class="ax2-storage-data" data-ax2-storage-data>App data size loading… · Drive capacity loading…</div></div>
+  </div>
+</section>
+
+  <div id="mapbar" class="mapbar-shell" style="display:none">
+    <span class="map-ui-count" id="mapcount">0 selected</span>
+    <span class="muted map-ui-hint" style="font-size:11px">Pick videos, then choose what to change</span>
+    <div class="map-menu"><button class="btn xs map-ui-action" aria-haspopup="dialog" aria-expanded="false" aria-controls="map-menu-edit" onclick="toggleMapMenu('map-menu-edit')">Performer / Studio <svg class="ax-icon" aria-hidden="true"><use href="#ax-chevron-down"></use></svg></button><div id="map-menu-edit" class="map-menu-panel ax2-map-menu-popover" role="group" aria-label="Performer and studio actions" aria-hidden="true">
+      <button class="btn xs map-ui-action" onclick="mapSelected('performer');closeMapMenus()">Set Performer</button>
+      <button class="btn xs map-ui-action" onclick="mapSelected('site');closeMapMenus()">Set Studio</button>
+      <button class="btn xs map-ui-action" onclick="mapSelected('performer_site');closeMapMenus()">Set Performer + Studio</button>
+      <button class="btn xs map-ui-action" onclick="mapSelected('performer','unknown');closeMapMenus()">Clear Performer</button>
+      <button class="btn xs map-ui-action" onclick="mapSelected('site','unknown');closeMapMenus()">Clear Studio</button>
+    </div></div>
+    <div class="map-menu"><button class="btn xs map-ui-action" aria-haspopup="dialog" aria-expanded="false" aria-controls="map-menu-meta" onclick="toggleMapMenu('map-menu-meta')">Metadata <svg class="ax-icon" aria-hidden="true"><use href="#ax-chevron-down"></use></svg></button><div id="map-menu-meta" class="map-menu-panel ax2-map-menu-popover" role="group" aria-label="Metadata actions" aria-hidden="true">
+      <button class="btn xs map-ui-action" onclick="recheckSelected();closeMapMenus()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-refresh"></use></svg> Recheck Metadata</button>
+      <button class="btn xs map-ui-action" onclick="mapSelected('title');closeMapMenus()">Edit Title</button>
+      <button class="btn xs map-ui-action" onclick="mapSelected('all');closeMapMenus()">Apply All Metadata</button>
+    </div></div>
+    <div class="map-menu"><button class="btn xs map-ui-action" aria-haspopup="dialog" aria-expanded="false" aria-controls="map-menu-more" onclick="toggleMapMenu('map-menu-more')">More <svg class="ax-icon" aria-hidden="true"><use href="#ax-chevron-down"></use></svg></button><div id="map-menu-more" class="map-menu-panel ax2-map-menu-popover" role="group" aria-label="More bulk-edit actions" aria-hidden="true">
+      <button class="btn xs map-ui-danger" onclick="mapSelected('all','unknown');closeMapMenus()">Move All to Unknown</button>
+      <button class="btn xs map-ui-action" onclick="unlockSelected();closeMapMenus()">Unlock</button>
+    </div></div>
+    <button type="button" class="btn xs map-ui-primary" id="map-send-telegram" onclick="openBulkSendTG()" title="Send all selected videos to a Telegram channel"><svg class="ax-icon" aria-hidden="true"><use href="#ax-brand-telegram"></use></svg> Send to Telegram</button>
+    <span class="mapbar-spacer"></span>
+    <button class="btn xs map-ui-action" onclick="selectAllMapVisible()">Select all</button>
+    <button class="btn xs map-ui-action" onclick="clearMapSelection()">Deselect</button>
+    <button class="btn xs map-ui-primary" onclick="exitMappingMode()">Done</button>
+  </div>
+

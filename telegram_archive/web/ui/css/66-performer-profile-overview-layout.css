@@ -1,0 +1,148 @@
+/* ============================================================================
+   FILE: css/66-performer-profile-overview-layout.css
+   AREA: Performers and studios
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — Performer detail overview: identity, bio/details, social links. */
+#perf-detail.open { max-width:none!important; width:100%; box-sizing:border-box; }
+#perf-detail .performer-overview-grid {
+  width:min(100%, 1440px); margin:18px auto 14px; display:grid;
+  grid-template-columns:minmax(290px,.72fr) minmax(0,1.28fr); gap:14px; align-items:stretch;
+}
+#perf-detail .performer-identity-card,
+#perf-detail .performer-bio-card,
+#perf-detail .performer-social-panel {
+  min-width:0; box-sizing:border-box; border:1px solid var(--ax-ui-line,rgba(255,255,255,.12));
+  border-radius:18px; background:var(--ax-background-secondary,var(--bg1,#252725));
+  box-shadow:0 12px 30px rgba(0,0,0,.10);
+}
+#perf-detail .performer-identity-card {position:relative;;display:flex;;flex-direction:column;;align-items:center;;text-align:center;;padding:22px 22px 18px;;overflow:hidden;;background:radial-gradient(circle at 50% 28%,rgba(255,255,255,.055),transparent 45%),var(--ax-background-secondary,var(--bg1,#252725));}
+#perf-detail .performer-identity-heading { position:relative; width:100%; padding:0 28px; box-sizing:border-box; }
+#perf-detail .performer-identity-heading h2 { margin:0; color:var(--ax-text-primary,#f4f4f4); font-size:clamp(19px,1.65vw,26px); font-weight:760; letter-spacing:-.035em; line-height:1.2; overflow-wrap:anywhere; }
+#perf-detail .performer-identity-role { display:inline-flex; margin-top:5px; align-items:center; justify-content:center; gap:5px; color:var(--ax-accent,#dce3d1); font-size:11px; font-weight:750; letter-spacing:.10em; text-transform:uppercase; }
+#perf-detail .performer-identity-heading .entity-edit-icon { position:absolute; right:0; top:0; width:30px; height:30px; min-width:30px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:9px; }
+#perf-detail .performer-profile-avatar {aspect-ratio:1/1;;padding:8px;;border-radius:50%;;border:1px solid rgba(255,255,255,.17);;background:linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.035) 43%,rgba(255,255,255,.19));;box-shadow:0 0 0 7px rgba(255,255,255,.055),0 12px 30px rgba(0,0,0,.22);;overflow:hidden;}
+#perf-detail .performer-profile-avatar img { display:block; width:100%; height:100%; border-radius:50%; object-fit:cover; object-position:center 25%; background:var(--ax-background-tertiary,#323532); }
+#perf-detail .performer-identity-stats {display:flex;;align-items:center;;justify-content:center;;gap:18px;;flex-wrap:wrap;;width:100%;;color:var(--ax-text-primary,#f4f4f4);;font-size:12px;}
+#perf-detail .performer-identity-stats>span { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-width:0; }
+#perf-detail .performer-identity-stats .ax-icon { width:15px; height:15px; opacity:.82; }
+#perf-detail .performer-identity-stats strong { font-size:14px; font-weight:750; }
+#perf-detail .performer-identity-stats small { color:var(--ax-text-muted,#a2a5a0); font-size:11px; }
+#perf-detail .performer-identity-link-status { color:var(--ax-text-muted,#a2a5a0); font-size:11px; }
+#perf-detail .performer-identity-link-status i { width:6px; height:6px; flex:0 0 6px; border-radius:50%; background:#737971; }
+#perf-detail .performer-identity-link-status.is-linked i { background:#31c56b; box-shadow:0 0 0 3px rgba(49,197,107,.09); }
+#perf-detail .performer-identity-actions {display:flex;;width:100%;;gap:8px;;align-items:center;;justify-content:center;;flex-wrap:wrap;}
+#perf-detail .performer-identity-actions .btn { min-height:36px; border-radius:11px; padding:0 12px; }
+#perf-detail .performer-identity-actions .btn.pri { background:var(--ax-interactive-primary,#dce3d1)!important; color:#252725!important; border:1px solid rgba(255,255,255,.30)!important; }
+#perf-detail .performer-identity-actions .btn:not(.pri) {border:1px solid var(--ax-ui-line,rgba(255,255,255,.17));}
+#perf-detail .performer-identity-actions .performer-icon-action,
+#perf-detail .performer-identity-actions .entity-fav-btn.icon-only {
+  width:38px; min-width:38px; height:36px; min-height:36px; padding:0; display:inline-flex; align-items:center; justify-content:center; gap:0;
+  border-radius:11px; background:rgba(255,255,255,.045); border:1px solid var(--ax-ui-line,rgba(255,255,255,.2)); color:var(--ax-text-primary,#f3f4f1);
+}
+#perf-detail .performer-identity-actions .performer-icon-action .ax-icon,
+#perf-detail .performer-identity-actions .entity-fav-btn.icon-only .ax-icon { width:18px; height:18px; }
+#perf-detail .performer-identity-actions .performer-icon-action:hover,
+#perf-detail .performer-identity-actions .entity-fav-btn.icon-only:hover,
+#perf-detail .performer-identity-actions .performer-icon-action:focus-visible,
+#perf-detail .performer-identity-actions .entity-fav-btn.icon-only:focus-visible { border-color:#fff; color:#fff; background:rgba(255,255,255,.09); outline:none; }
+
+#perf-detail .performer-identity-actions .entity-fav-btn.icon-only.on .ax-icon { fill:currentColor; }
+#perf-detail .performer-bio-card { min-height:368px; padding:22px 24px 18px; display:flex; flex-direction:column; }
+#perf-detail .performer-profile-panel-head,
+#perf-detail .performer-social-panel-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+#perf-detail .performer-profile-panel-head h3,
+#perf-detail .performer-social-panel-head h3 { margin:0; font-size:15px; line-height:1.25; letter-spacing:-.015em; color:var(--ax-text-primary,#f4f4f4); }
+#perf-detail .performer-profile-panel-head p,
+#perf-detail .performer-social-panel-head p { margin:5px 0 0; color:var(--ax-text-muted,#a2a5a0); font-size:11px; line-height:1.45; }
+#perf-detail .performer-overview-status { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; flex:0 0 22px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); }
+#perf-detail .performer-overview-status i { display:block; width:7px; height:7px; border-radius:50%; background:#8d928a; }
+#perf-detail .performer-overview-status.is-linked i { background:#31c56b; box-shadow:0 0 0 4px rgba(49,197,107,.10); }
+#perf-detail .performer-overview-bio { margin-top:16px; padding:0 0 15px; border-bottom:1px solid var(--ax-ui-line,rgba(255,255,255,.10)); color:var(--ax-text-primary,#e6e9e4); font-size:12px; line-height:1.7; white-space:pre-line; overflow-wrap:anywhere; }
+#perf-detail .performer-overview-bio.is-empty { color:var(--ax-text-muted,#979b95); font-style:italic; }
+#perf-detail .performer-overview-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:24px; row-gap:0; margin-top:5px; }
+#perf-detail .performer-overview-detail { min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:10px 0 9px; border-bottom:1px solid rgba(255,255,255,.055); }
+#perf-detail .performer-overview-detail span { color:var(--ax-text-muted,#999d97); font-size:11px; }
+#perf-detail .performer-overview-detail strong { display:block; max-width:100%; color:var(--ax-text-primary,#f0f1ee); font-size:12px; font-weight:570; line-height:1.4; overflow-wrap:anywhere; }
+#perf-detail .performer-social-panel { width:min(100%,1440px); margin:0 auto 18px; padding:17px 20px 19px; }
+#perf-detail .performer-social-links { display:flex; gap:10px; align-items:center; flex-wrap:wrap; min-height:36px; margin-top:13px; }
+#perf-detail .performer-social-link { display:inline-flex; align-items:center; gap:8px; min-height:38px; padding:0 13px 0 7px; border:1px solid var(--ax-ui-line,rgba(255,255,255,.15)); border-radius:12px; background:rgba(255,255,255,.025); color:var(--ax-text-primary,#e7e9e5); text-decoration:none; font-size:11px; font-weight:650; transition:border-color .16s,background .16s,transform .16s; }
+#perf-detail .performer-social-link:hover,#perf-detail .performer-social-link:focus-visible { border-color:#fff; background:rgba(255,255,255,.075); color:#fff; transform:translateY(-1px); outline:none; }
+#perf-detail .performer-social-icon { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; flex:0 0 26px; border-radius:50%; background:rgba(255,255,255,.10); color:var(--ax-text-primary,#fff); font-size:12px; font-weight:800; }
+#perf-detail .performer-social-link .ax-icon { width:12px; height:12px; opacity:.56; margin-left:2px; }
+#perf-detail .performer-social-empty { color:var(--ax-text-muted,#999d97); font-size:11px; padding:6px 0; }
+
+#perf-detail .entity-tab-panel { width:min(100%,1440px); margin-left:auto; margin-right:auto; }
+@media(max-width:920px) {
+  #perf-detail .performer-overview-grid { grid-template-columns:minmax(0,1fr); width:100%; }
+
+  #perf-detail .performer-bio-card { min-height:0; }
+  #perf-detail .performer-social-panel,#perf-detail .entity-detail-tabs,#perf-detail .entity-tab-panel { width:100%; }
+}
+@media(max-width:560px) {
+  #perf-detail { padding:12px!important; }
+  #perf-detail .performer-overview-grid { gap:10px; margin:12px auto; }
+  #perf-detail .performer-identity-card { padding:18px 14px 15px; border-radius:15px; }
+  #perf-detail .performer-identity-heading h2 { font-size:21px; }
+  
+  #perf-detail .performer-bio-card { padding:17px 16px 14px; border-radius:15px; }
+  #perf-detail .performer-overview-details { column-gap:14px; }
+  #perf-detail .performer-overview-detail { padding:9px 0; }
+  #perf-detail .performer-social-panel { padding:15px; border-radius:15px; }
+  #perf-detail .performer-social-link { min-height:35px; padding-right:9px; font-size:11px; }
+  
+}
+@media(prefers-reduced-motion:reduce) { #perf-detail .performer-social-link { transition:none; } }
+
+/* V29.4.204 — Minimal portfolio-style navigation for performer profile tabs. */
+#perf-detail .entity-detail-tabs {
+  display:flex; align-items:stretch; gap:22px; flex-wrap:nowrap;
+  width:min(100%,1440px); margin:18px auto 14px; padding:0 4px;
+  background:transparent; border:0; border-bottom:1px solid var(--ax-ui-line,rgba(255,255,255,.14));
+  border-radius:0; box-shadow:none; overflow-x:auto; overflow-y:hidden;
+  scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.22) transparent;
+  position:sticky; top:72px; z-index:35;
+}
+#perf-detail .entity-detail-tabs::-webkit-scrollbar { height:3px; }
+#perf-detail .entity-detail-tabs::-webkit-scrollbar-thumb { background:rgba(255,255,255,.22); border-radius:99px; }
+#perf-detail .entity-detail-tab {
+  position:relative; flex:0 0 auto; display:inline-flex; align-items:baseline; gap:4px;
+  appearance:none; margin:0; padding:11px 3px 12px;
+  color:var(--ax-text-muted,#a2a5a0); background:transparent!important;
+  border:0!important; border-radius:0!important; box-shadow:none!important;
+  font-size:12px; font-weight:520; line-height:1.3; white-space:nowrap;
+  transition:color .16s ease;
+}
+#perf-detail .entity-detail-tab::after {
+  content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px;
+  background:transparent; transform:scaleX(.35); transform-origin:center;
+  transition:background .16s ease,transform .16s ease;
+}
+#perf-detail .entity-detail-tab:hover,
+#perf-detail .entity-detail-tab:focus-visible {
+  color:var(--ax-text-primary,#f5f5f2); background:transparent!important;
+  border-color:transparent!important; outline:none;
+}
+#perf-detail .entity-detail-tab.active {background:transparent!important;;border-color:transparent!important;;box-shadow:none!important;;font-weight:680;}
+#perf-detail .entity-detail-tab.active::after { background:var(--ax-interactive-primary,#dce3d1); transform:scaleX(1); }
+#perf-detail .entity-detail-tab .tab-count {
+  margin:0; padding:0; border-radius:0; background:transparent;
+  color:inherit; font-size:10.5px; line-height:1; opacity:.7; vertical-align:super;
+  position:relative; top:-.38em;
+}
+@media(max-width:560px) {
+  #perf-detail .entity-detail-tabs { gap:18px; margin-top:14px; padding:0 2px; top:6px; }
+  #perf-detail .entity-detail-tab { padding:10px 2px 11px; font-size:11px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  #perf-detail .entity-detail-tab,#perf-detail .entity-detail-tab::after { transition:none; }
+}
+
+/* V29.4.204 — show performer profiles as a standalone page, never below the directory.
+   The !important guards intentionally override directory refreshes which set inline display. */
+#vp.performer-detail-mode > #perf-toolbar,
+#vp.performer-detail-mode > #perf-list,
+#vp.performer-detail-mode > #perf-pg { display:none!important; }
+#vp.performer-detail-mode > #perf-detail {display:block!important;;width:100%;;max-width:none!important;}

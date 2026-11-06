@@ -1,0 +1,26 @@
+/* ============================================================================
+   FILE: css/106-library-readiness-ui-cleanup.css
+   AREA: Videos library
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* v29.4.252 — readiness sync and compact Library toolbar. */
+
+#vl.library-page #tb > select {min-width:115px !important;}
+#vl.library-page .library-secondary-actions { flex:1 1 800px; min-width:0; }
+#vl.library-page .library-secondary-action-items {
+  display:flex; flex-wrap:wrap; align-items:center; gap:7px; padding:0; margin:0;
+  border:0; background:transparent;
+}
+
+#vl.library-page .library-section-head > div > span { font-size:11px !important; }
+
+#vl.library-page #channel-cards > .channel-file-card .channel-card-subtitle { font-size:11px !important; }
+#vl.library-page #channel-cards > .channel-file-card .channel-card-known { display:none !important; }
+#vl.library-page #channel-cards > .channel-file-card .channel-card-footer { justify-content:flex-start !important; }
+
+@media(max-width:760px) {
+  
+  #vl.library-page .library-secondary-action-items { align-items:stretch; }
+}

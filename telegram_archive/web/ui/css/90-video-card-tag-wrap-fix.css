@@ -1,0 +1,45 @@
+/* ============================================================================
+   FILE: css/90-video-card-tag-wrap-fix.css
+   AREA: Cards
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — Keep video-card tags to a single tidy row.
+   Extra chips are clipped horizontally instead of wrapping underneath.
+   Presentation-only; card actions and playback handlers remain unchanged. */
+.entity-video-grid .video-card-tags,
+#perf-video-grid .video-card-tags {
+  display:flex!important;
+  flex:0 0 24px!important;
+  flex-wrap:nowrap!important;
+  align-content:center!important;
+  align-items:center!important;
+  height:24px!important;
+  min-height:24px!important;
+  max-height:24px!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  row-gap:0!important;
+  column-gap:4px!important;
+  margin-top:3px!important;
+  padding:0!important;
+  min-width:0!important;
+}
+#vg .video-category-chip,
+#vg .video-studio-chip,
+.entity-video-grid .video-tag-chip,
+.entity-video-grid .video-more-chip,
+.entity-video-grid .video-category-chip,
+.entity-video-grid .video-studio-chip,
+#perf-video-grid .video-tag-chip,
+#perf-video-grid .video-more-chip,
+#perf-video-grid .video-category-chip,
+#perf-video-grid .video-studio-chip {
+  flex:0 0 auto!important;
+  flex-shrink:0!important;
+  max-width:100%!important;
+  margin:0!important;
+}
+
+

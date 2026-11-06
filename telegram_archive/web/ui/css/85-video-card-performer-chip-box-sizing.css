@@ -1,0 +1,50 @@
+/* ============================================================================
+   FILE: css/85-video-card-performer-chip-box-sizing.css
+   AREA: Cards
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — keep performer capsule borders and portrait circles aligned.
+   The former chip used content-box sizing: 27px height + 4px vertical padding +
+   2px border produced a 33px visual box inside a 28px clipped performer row.
+   Border-box sizing makes the rendered capsule exactly match its declared height,
+   leaving a 21px inner height for the circular avatar wrapper. */
+.entity-video-grid .video-performer-chip,
+#perf-video-grid .video-performer-chip {
+  box-sizing: border-box !important;
+  height: 27px !important;
+  min-height: 27px !important;
+  max-height: 27px !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+  align-items: center !important;
+  vertical-align: middle !important;
+  overflow: hidden !important;
+}
+
+
+/* The compact breakpoint reduces chip height while preserving the 21px portrait. */
+@media (max-width: 430px) {
+  .entity-video-grid .video-performer-chip,
+#perf-video-grid .video-performer-chip {max-height: 25px !important;}
+}
+
+/* V29.4.204 — compact performer capsules to their actual content width.
+   Keep a 50% ceiling so two performers can still share a row, but short names
+   no longer stretch to half the card and leave a blank tail after the text. */
+.entity-video-grid .video-performer-chip,
+#perf-video-grid .video-performer-chip {
+  flex: 0 1 auto !important;
+  width: max-content !important;
+  max-width: calc(50% - 3px) !important;
+  min-width: 0 !important;
+}
+
+
+.entity-video-grid .video-performer-name,
+#perf-video-grid .video-performer-name {
+  flex: 0 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+}

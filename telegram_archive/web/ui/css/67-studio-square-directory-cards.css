@@ -1,0 +1,54 @@
+/* ============================================================================
+   FILE: css/67-studio-square-directory-cards.css
+   AREA: Cards
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — Square studio catalogue tiles inspired by the supplied playlist-card reference. */
+#site-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)) !important;
+  align-items: start !important;
+  gap: 14px !important;
+}
+
+
+
+
+
+
+
+
+@media (max-width: 700px) {
+  #site-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)) !important; gap: 10px !important; }
+
+}
+@media (max-width: 390px) {
+  #site-list { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+
+/* V29.4.204 — keep studio artwork and fallback marks precisely centered.
+   The legacy catalogue cascade also targets .pimg img with equal specificity;
+   the duplicated ID here intentionally wins after the legacy rules are appended. */
+
+/* The first failed <img> was sometimes left beside the fallback logo, which
+   made flex layout shift the logo toward the right. Hide that source image as
+   soon as the fallback node is present. */
+
+
+
+/* A legacy responsive rule shrinks any artwork-less .pimg to an 88px avatar.
+   Studio directory tiles must keep the full square stage even when they use
+   the Archive X fallback mark. */
+
+
+
+/* V29.4.204 — Studio footer and actions now match the performer tiles. */
+
+
+/* Artwork-less studio tiles use the same Archive X mark as the manually
+   assigned fallback artwork, with its glow softened behind the centered logo. */
+
+
+

@@ -1,0 +1,95 @@
+/* ============================================================================
+   FILE: css/119-video-card-fixed-track-layout.css
+   AREA: Cards
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X v29.4.264 — stable video-card tracks.
+   auto-fill reserves the same-width columns even when filtering leaves only one
+   or a few videos. Density presets change only the fixed track size and gap;
+   theme colors remain controlled by the shared theme tokens. */
+:root {
+  --ax-video-card-track-min: 190px;
+  --ax-video-card-track-max: 220px;
+  --ax-video-card-grid-gap: 10px;
+  --ax-video-card-info-height: 156px;
+  --ax-video-card-fixed-height: 282px;
+}
+html[data-grid-density="compact"] {
+  --ax-video-card-track-min: 165px;
+  --ax-video-card-track-max: 190px;
+  --ax-video-card-grid-gap: 8px;
+  --ax-video-card-fixed-height: 265px;
+}
+html[data-grid-density="default"] {
+  --ax-video-card-track-min: 190px;
+  --ax-video-card-track-max: 220px;
+  --ax-video-card-grid-gap: 10px;
+  --ax-video-card-fixed-height: 282px;
+}
+html[data-grid-density="spacious"] {
+  --ax-video-card-track-min: 205px;
+  --ax-video-card-track-max: 220px;
+  --ax-video-card-grid-gap: 17px;
+  --ax-video-card-fixed-height: 282px;
+}
+
+html[data-grid-density] #view-stage > .view#vl.library-page #vg,
+html[data-grid-density] #view-stage > #vl.library-page #vg,
+html[data-grid-density] #vl.library-page #vg,
+html[data-grid-density] #vg,
+html[data-grid-density] .entity-video-grid,
+html[data-grid-density] #perf-video-grid,
+html[data-grid-density] #perf-detail .entity-tab-panel .entity-video-grid,
+html[data-grid-density] #perf-detail .entity-tab-panel #perf-video-grid,
+#view-stage > .view#vl.library-page #vg,
+#view-stage > #vl.library-page #vg,
+#vl.library-page #vg,
+#vg,
+.entity-video-grid,
+#perf-video-grid,
+#perf-detail .entity-tab-panel .entity-video-grid,
+#perf-detail .entity-tab-panel #perf-video-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--ax-video-card-track-min)), var(--ax-video-card-track-max))) !important;
+  justify-content: start !important;
+  align-content: start !important;
+  justify-items: stretch !important;
+  align-items: stretch !important;
+  gap: var(--ax-video-card-grid-gap) !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+
+
+
+
+
+
+
+/* Narrow viewports may shrink a single track to the available content width,
+   but never distribute spare width between the remaining cards. */
+@media (max-width: 767px) {
+  html[data-grid-density] #view-stage > .view#vl.library-page #vg,
+  html[data-grid-density] #vl.library-page #vg,
+  html[data-grid-density] #vg,
+  html[data-grid-density] .entity-video-grid,
+  html[data-grid-density] #perf-video-grid,
+  html[data-grid-density] #perf-detail .entity-tab-panel .entity-video-grid,
+  html[data-grid-density] #perf-detail .entity-tab-panel #perf-video-grid,
+  #view-stage > .view#vl.library-page #vg,
+  #view-stage > #vl.library-page #vg,
+  #vl.library-page #vg,
+  #vg,
+  .entity-video-grid,
+  #perf-video-grid,
+  #perf-detail .entity-tab-panel .entity-video-grid,
+  #perf-detail .entity-tab-panel #perf-video-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: min(var(--ax-video-card-grid-gap), 9px) !important;
+  }
+}
+

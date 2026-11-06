@@ -1,0 +1,24 @@
+/* ============================================================================
+   FILE: css/128-operations-channel-spacing-and-fullscreen-controls.css
+   AREA: Operations and jobs
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X v29.4.288 — Operations spacing and non-obscuring fullscreen controls. */
+
+/* Match Channel Maintenance to the shared Operations content column and keep a
+   visible gap before the Resource Controller, including at non-100% zoom. */
+#va #ops-channel-maintenance {
+  display: block !important;
+  width: 100% !important;
+  max-width: 1720px !important;
+  margin: 0 auto 10px !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+}
+
+/* In fullscreen, reserve a real row for the player bar instead of overlaying
+   it on the bottom of the video. The video viewport flexes into the remaining
+   height, so controls don't cover media content. */
+

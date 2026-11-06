@@ -1,0 +1,187 @@
+/* ============================================================================
+   FILE: css/89-performer-related-cards-main-style-no-edit.css
+   AREA: Cards
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — Cards inside an entity profile mirror their directory tile style,
+   but stay navigation-only: editing remains available from the profile's own
+   main edit action, not repeated on every related entity card. */
+
+/* Similar-performer cards keep the main directory's full-bleed portrait,
+   bottom gradient, name and count pill. The match score is secondary metadata. */
+#perf-detail .related-performer-footer {
+  justify-content: flex-start !important;
+}
+#perf-detail .related-performer-count {
+  max-width: 100% !important;
+}
+#perf-detail .related-performer-card .entity-related-edit-icon,
+#perf-detail .related-studio-card .entity-related-edit-icon {
+  display: none !important;
+}
+
+/* Studio cards mirror the main Studio directory: blurred artwork fills the
+   whole square tile; the contained logo stays centered; title and video-count
+   pill sit over a bottom fade rather than in a separate opaque block. */
+#perf-detail .entity-studio-grid > .related-studio-card {
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 15px !important;
+  overflow: hidden !important;
+  isolation: isolate !important;
+  background: #151615 !important;
+}
+#perf-detail .related-studio-art {
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  aspect-ratio: auto !important;
+  border-radius: inherit !important;
+  overflow: hidden !important;
+  background: #151615 !important;
+  isolation: isolate !important;
+}
+#perf-detail .related-studio-art::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: -16px !important;
+  z-index: 0 !important;
+  background-image: var(--entity-bg, none) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  filter: blur(22px) saturate(.78) brightness(.42) !important;
+  transform: scale(1.08) !important;
+  opacity: .8 !important;
+}
+#perf-detail .related-studio-art::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  background: linear-gradient(180deg, rgba(8,9,9,.04) 25%, rgba(8,9,9,.1) 48%, rgba(8,9,9,.62) 74%, rgba(8,9,9,.94) 100%) !important;
+}
+#perf-detail .related-studio-art > img:not(.entity-fallback-logo) {
+  position: relative !important;
+  z-index: 2 !important;
+  display: block !important;
+  width: 82% !important;
+  height: 67% !important;
+  max-width: 82% !important;
+  max-height: 67% !important;
+  margin: 0 !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  transition: transform .28s ease !important;
+}
+#perf-detail .related-studio-card:hover .related-studio-art > img:not(.entity-fallback-logo) {
+  transform: scale(1.045) !important;
+}
+#perf-detail .related-studio-art > .entity-fallback {
+  position: relative !important;
+  z-index: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 82% !important;
+  height: 67% !important;
+  max-width: 82% !important;
+  max-height: 67% !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+#perf-detail .related-studio-art .entity-fallback-logo {
+  display: block !important;
+  width: min(64%, 128px) !important;
+  max-width: 64% !important;
+  max-height: 92% !important;
+  margin: auto !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+#perf-detail .related-studio-info {
+  position: absolute !important;
+  z-index: 3 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 34px 12px 11px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: linear-gradient(180deg, transparent 0%, rgba(10,11,10,.52) 25%, rgba(10,11,10,.88) 100%) !important;
+  pointer-events: none !important;
+}
+#perf-detail .related-studio-info .entity-studio-name {
+  display: -webkit-box !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  color: #f4f5f2 !important;
+  font-size: 13px !important;
+  font-weight: 760 !important;
+  line-height: 1.22 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: ellipsis !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  text-shadow: 0 1px 6px rgba(0,0,0,.34) !important;
+}
+#perf-detail .related-studio-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  margin-top: 4px !important;
+  pointer-events: none !important;
+}
+#perf-detail .related-studio-count {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 4px 8px !important;
+  border: 1px solid rgba(255,255,255,.17) !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.11) !important;
+  color: rgba(245,246,243,.9) !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+}
+@media (max-width: 700px) {
+  #perf-detail .related-studio-info { padding: 29px 9px 9px !important; }
+  #perf-detail .related-studio-info .entity-studio-name { font-size: 12px !important; }
+  #perf-detail .related-studio-count { font-size: 11px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #perf-detail .related-studio-card,
+  #perf-detail .related-studio-art > img,
+  #perf-detail .related-performer-card,
+  #perf-detail .related-performer-art > img { transition: none !important; }
+}

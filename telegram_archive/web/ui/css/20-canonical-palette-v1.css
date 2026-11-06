@@ -1,0 +1,44 @@
+/* ============================================================================
+   FILE: css/20-canonical-palette-v1.css
+   AREA: Theming
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+
+/* Archive X canonical visual palette — derived from the supplied palette reference.
+   Non-semantic UI color must stay within these palette families. Semantic status
+   colors (green/amber/red) remain reserved for status meaning only. */
+:root{
+  --ax-grey-hair-1:#858280;--ax-grey-hair-2:#B5B1B1;--ax-grey-hair-3:#CFCFC4;--ax-grey-hair-4:#696969;
+  --ax-everest-1:#C3C5C9;--ax-everest-2:#F5F7FF;--ax-everest-3:#DEEAF4;--ax-everest-4:#96A7B0;
+  --ax-atomic-1:#000000;--ax-atomic-2:#292929;--ax-atomic-3:#ABABA8;--ax-atomic-4:#676767;
+  --ax-pastel-1:#EBEBEB;--ax-pastel-2:#DBDCCA;--ax-pastel-3:#CECECD;--ax-pastel-4:#BFBFBF;
+  --ax-neutral-1:#B1B2B5;--ax-neutral-2:#929199;--ax-neutral-3:#ABA7AC;--ax-neutral-4:#BABABA;
+  --ax-palette-bg:var(--ax-background-primary);--ax-palette-surface:var(--ax-surface-primary);--ax-palette-surface-2:var(--ax-surface-secondary);
+  --ax-palette-border:var(--ax-border-default);--ax-palette-border-soft:var(--ax-border-subtle);--ax-palette-text:var(--ax-text-primary);
+  --ax-palette-text-2:var(--ax-text-secondary);--ax-palette-text-3:var(--ax-text-tertiary);--ax-palette-accent:var(--ax-interactive-primary);
+  --ax-palette-accent-2:var(--ax-interactive-active);--ax-palette-gradient:linear-gradient(135deg,var(--ax-surface-secondary) 0%,var(--ax-background-elevated) 52%,var(--ax-interactive-active) 100%);
+}
+html,body{background:var(--ax-palette-bg)!important;color:var(--ax-text-primary)!important}
+
+.btn.pri {background:var(--ax-interactive-primary)!important;border-color:var(--ax-interactive-primary)!important;color:var(--ax-text-on-accent)!important}
+@media (hover:hover) and (pointer:fine) {
+  .btn.pri:hover,
+  .detail-action.pri:hover {background:var(--ax-text-primary)!important;border-color:var(--ax-text-primary)!important;color:var(--ax-text-on-accent)!important}
+}
+
+
+input:focus,select:focus,textarea:focus{box-shadow:0 0 0 2px rgba(207,207,196,.16)!important;}
+.ax-orb-a{background:radial-gradient(circle,rgba(207,207,196,.16),rgba(207,207,196,0) 70%)!important}
+.ax-orb-b{background:radial-gradient(circle,rgba(181,177,177,.12),rgba(181,177,177,0) 70%)!important}
+.settings-area-card .settings-area-icon.blue,.settings-area-card .settings-area-icon.purple,.settings-area-card .settings-area-icon.cyan,.settings-area-card .settings-area-icon.violet{background:var(--ax-surface-secondary)!important;color:var(--ax-text-primary)!important}
+.progress-purple,.progress-cyan,.progress-pink,.progress-orange,.progress-yellow,.progress-neutral{background:var(--ax-interactive-active)!important}
+.pb.ind{background:var(--ax-interactive-active)!important}
+
+.entity-detail-tab:hover{color:var(--ax-text-primary)!important;background:var(--ax-palette-surface)!important;border-color:var(--ax-border-default)!important}
+.v54-ops-filter .btn.on,.v55-chip.on,.automation-step.on{border-color:var(--ax-interactive-active)!important;background:var(--ax-surface-secondary)!important;color:var(--ax-text-primary)!important}
+.v54-job-step.active .s{background:var(--ax-surface-secondary)!important;border-color:var(--ax-border-default)!important;color:var(--ax-text-primary)!important}
+.ai-fab{border-color:var(--ax-border-default)!important;background:var(--ax-palette-surface)!important;color:var(--ax-text-primary)!important}
+
+html[data-theme="light"] .card,html[data-theme="light"] .pan,html[data-theme="light"] .mc2,html[data-theme="light"] .settings-v54-section{background:var(--ax-surface-primary)!important}

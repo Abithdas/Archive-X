@@ -1,0 +1,277 @@
+/* ============================================================================
+   FILE: css/142-ax2-fixes.css
+   AREA: Design system and global polish
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X — Step 8 real-device fixes. Overrides only; no legacy rules or behavior removed. */
+
+/* One shared overlay order: scrims dim the whole shell, then the actual surface sits above it. */
+
+#view-stage, #mapbar { z-index: var(--ax2-z-page); }
+
+.ax2-sheet, .ax2-menu, #ux-filter-drawer, #ax2-library-more-sheet, #ax-prompt-sheet, .ax2-overlay-root { z-index: var(--ax2-z-dialog) !important; }
+.ax2-sheet { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important; }
+
+.mdl.open > .mdl-box {max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px) !important;}
+#ux-command, #ux-activity, #v54-job-detail, #video-move-dialog { display: none; }
+
+#ux-command .ax-ux-panel {z-index: var(--ax2-z-dialog);}
+
+#ux-activity .ax-ux-panel {z-index: var(--ax2-z-dialog);}
+
+#v54-job-detail .v54-job-panel {position: relative;;z-index: var(--ax2-z-dialog);;max-height: calc(100dvh - 32px);}
+#video-move-dialog { display: none; align-items: center; justify-content: center; }
+
+#video-move-dialog .video-move-panel {position: relative;;z-index: var(--ax2-z-dialog);;max-height: calc(100dvh - 32px) !important;;margin: auto !important;}
+#ax-resume-dialog { z-index: var(--ax2-z-critical) !important; }
+
+#toast {box-sizing: border-box;;color: var(--ax2-text);;font: 500 14px/1.45 var(--ax2-font);;overflow-wrap: anywhere;;opacity: 0;;transition: opacity var(--ax2-d3) var(--ax2-ease), transform var(--ax2-d3) var(--ax2-ease-in);}
+#toast.is-visible {opacity: 1;}
+
+body.ax2-layer-open .ax2-bottom-action-bar { transform: translateY(110%) !important; pointer-events: none !important; }
+
+/* Account menu rows, including Sign out and Exit app, on every size. */
+#ax2-avatar-menu { max-height: calc(100dvh - var(--ax2-top) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px) !important; overflow-y: auto !important; overscroll-behavior: contain; }
+#ax2-avatar-menu .ax2-menu-account-actions { display: grid !important; grid-template-columns: minmax(0,1fr) !important; gap: 2px !important; }
+#ax2-avatar-menu .ax2-menu-account-actions .signout-btn,
+#ax2-avatar-menu .ax2-menu-account-actions #exit-app-btn {
+  display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 12px !important;
+  width: 100% !important; min-width: 0 !important; min-height: 44px !important; height: 44px !important; padding: 0 10px !important;
+  border: 0 !important; border-radius: 11px !important; background: transparent !important; box-shadow: none !important;
+  color: var(--ax2-text) !important; font: 500 13px/1.2 var(--ax2-font) !important; text-align: left !important; text-transform: none !important;
+}
+#ax2-avatar-menu .ax2-menu-account-actions .signout-btn > .ax-icon,
+#ax2-avatar-menu .ax2-menu-account-actions #exit-app-btn > .ax-icon { width: 20px; height: 20px; color: var(--ax2-text-2); flex: 0 0 20px; }
+#ax2-avatar-menu .ax2-menu-account-actions #exit-app-btn,
+#ax2-avatar-menu .ax2-menu-account-actions #exit-app-btn > .ax-icon { color: var(--ax2-bad) !important; }
+#ax2-avatar-menu .ax2-menu-account-actions .signout-btn::before,
+#ax2-avatar-menu .ax2-menu-account-actions #exit-app-btn::before { content: none !important; display: none !important; }
+#ax2-avatar-menu .ax2-menu-item[data-ax2-telegram-state="setup"] .ax2-status-pill,
+#ax2-avatar-menu .ax2-status-pill[data-ax2-telegram-state="setup"] { background: var(--ax2-warn-soft); color: var(--ax2-warn); }
+#ax2-avatar-menu .ax2-menu-item[data-ax2-telegram-state="offline"] .ax2-status-pill,
+#ax2-avatar-menu .ax2-status-pill[data-ax2-telegram-state="offline"] { background: var(--ax2-bad-soft); color: var(--ax2-bad-fg); }
+
+/* Phone header order: logo · search · Activity · avatar. */
+@media (max-width: 599px), (max-height: 500px) and (orientation: landscape) {
+
+  
+
+  .mdl.open > .mdl-box {max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px) !important;}
+  
+  #ux-command .ax-ux-panel {max-width: none !important;}
+  #ux-activity {align-items: flex-end !important;}
+  #ux-activity .ax-ux-panel {padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;}
+  
+  #v54-job-detail .v54-job-panel {height: 100dvh;;max-height: 100dvh;;margin: 0 !important;}
+}
+
+
+/* Videos toolbar: keep the full set of primary controls visible at 375/812 px. */
+#tb.ax2-library-toolbar {display: flex !important;;flex-wrap: nowrap !important;;min-width: 0 !important;;max-width: 100% !important;;gap: 8px !important;;overflow: visible !important;;border: 0 !important;;border-radius: 0 !important;;box-shadow: none !important;;padding: 0 !important;}
+#tb.ax2-library-toolbar #fbtn { flex: 0 0 auto !important; width: auto !important; min-width: 0 !important; white-space: nowrap !important; }
+#tb.ax2-library-toolbar > .ax2-sort-pill { position: relative !important; display: flex !important; flex: 0 0 148px !important; align-items: center !important; justify-content: flex-start !important; gap: 7px !important; width: 148px !important; min-width: 0 !important; max-width: 148px !important; height: 40px !important; padding: 0 10px !important; overflow: hidden !important; white-space: nowrap !important; }
+#tb.ax2-library-toolbar > .ax2-sort-pill > [data-ax2-sort-label] { display: inline-block !important; min-width: 0 !important; flex: 1 1 auto !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+#tb.ax2-library-toolbar > .ax2-sort-pill::after { content: ""; flex: 0 0 6px; width: 6px; height: 6px; margin-left: auto; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); opacity: .75; }
+#tb.ax2-library-toolbar > .ax2-sort-pill > #tb-sort { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; min-height: 0 !important; opacity: 0 !important; cursor: pointer !important; padding: 0 !important; margin: 0 !important; border: 0 !important; }
+#tb.ax2-library-toolbar .ax2-toolbar-icon { flex: 0 0 40px !important; width: 40px !important; min-width: 40px !important; }
+.ax2-library-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 140px; padding: 24px 12px; text-align: center; color: var(--ax2-text-2); }
+.ax2-library-empty-state p { margin: 0; }
+
+#ax2-selected-channel-count[hidden] { display: none !important; }
+#channel-cards, .ax2-channel-scroll-frame, .ax2-channel-track { overflow-y: hidden !important; scrollbar-width: none; }
+.ax2-channel-scroll-frame { border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+#channel-cards { box-sizing: border-box; overflow-x: auto !important; max-height: none !important; }
+
+@media (max-width: 599px), (max-height: 500px) and (orientation: landscape) {
+  #tb.ax2-library-toolbar { gap: 5px !important; }
+  #tb.ax2-library-toolbar > .ax2-sort-pill {padding: 0 7px !important;}
+
+  #tb.ax2-library-toolbar #ax2-library-more-trigger .ax-icon use { /* keep the sprite; the reference shows the three-dot More action */ }
+  #ax2-selected-channel-count { max-width: 100%; }
+}
+
+/* At narrow widths, the performer merge tools occupy their own non-overlapping rows. */
+@media (max-width: 599px) {
+  #app #vp #perf-toolbar {min-width: 0 !important;;height: auto !important;;overflow: visible !important;}
+  #app #vp #perf-toolbar #perf-gender-filter {grid-column: 1 / -1 !important;;grid-row: 1 !important;;width: max-content;}
+  #app #vp #perf-toolbar #perf-sort-wrap {grid-column: 1 / -1 !important;;grid-row: 2 !important;}
+  
+  #app #vp #perf-toolbar #perf-merge-mode-btn { grid-column: 1 !important; grid-row: 3 !important; justify-self: start !important; max-width: 100% !important; }
+  #app #vp #perf-toolbar #perf-merge-commit-btn { grid-column: 2 !important; grid-row: 3 !important; justify-self: end !important; max-width: 100% !important; }
+  #app #vp #perf-toolbar #perf-merge-hint { grid-column: 1 / -1 !important; grid-row: 4 !important; }
+  #app #vp #perf-list { clear: both; }
+}
+
+/* Operations and Transfers: shrinkable maintenance form, scroll-snap step row, neutral module status. */
+#va #ops-channel-maintenance .ax-channel-maintenance-controls { display: flex !important; flex: 1 1 auto !important; align-items: center !important; gap: 8px !important; min-width: 0 !important; width: 100%; }
+#va #ops-channel-maintenance-channel { flex: 1 1 0 !important; min-width: 0 !important; width: 100% !important; max-width: 100% !important; }
+#va #ops-channel-maintenance-scan { flex: 0 0 auto !important; min-width: 0 !important; max-width: 100%; white-space: normal !important; }
+#vtransfers .automation-wizard-nav { max-width: 100%; min-width: 0; }
+#vtransfers .automation-wizard-nav .left,
+#vtransfers .automation-wizard-nav .steps,
+#vtransfers .automation-wizard-nav [data-wizard-steps] { min-width: 0; }
+#vtransfers .automation-wizard-nav .automation-wizard-steps,
+#vtransfers .automation-wizard-nav .wizard-steps,
+#vtransfers .automation-wizard-nav [data-wizard-steps] { display: flex !important; flex-wrap: nowrap !important; gap: 6px !important; max-width: 100% !important; overflow-x: auto !important; overflow-y: hidden !important; scroll-snap-type: x mandatory; scrollbar-width: none; }
+#vtransfers .automation-wizard-nav .automation-wizard-steps > *,
+#vtransfers .automation-wizard-nav .wizard-steps > *,
+#vtransfers .automation-wizard-nav [data-wizard-steps] > * { flex: 0 0 auto !important; scroll-snap-align: start; }
+#vtransfers .ax2-transfer-module-status{ display: inline-flex !important; align-items: center; justify-content: center; width: max-content; max-width: 100%; min-height: 24px; padding: 4px 8px; border: 1px solid var(--ax2-line); border-radius: var(--ax2-r-pill); background: var(--ax2-surface-2); color: var(--ax2-text-2); font: 600 11px/1.2 var(--ax2-font); }
+
+/* Settings: phone home is a connection-pills card then a grouped section list. */
+#vs[data-settings-phone-page="home"] .ax2-settings-workspace { display: flex !important; flex-direction: column !important; gap: 12px !important; }
+#vs[data-settings-phone-page="home"] .ax2-settings-content { display: contents !important; }
+#vs[data-settings-phone-page="home"] .ax2-settings-nav { display: block !important; order: 1 !important; position: static !important; width: 100% !important; }
+#vs[data-settings-phone-page="home"] .ax2-settings-panel[data-settings-panel="overview"] { display: grid !important; order: 0 !important; }
+#vs[data-settings-phone-page="home"] .ax2-settings-panel[data-settings-panel="overview"] > .ax2-settings-panel-head,
+#vs[data-settings-phone-page="home"] .ax2-settings-panel[data-settings-panel="overview"] #settings-v54-status,
+#vs[data-settings-phone-page="home"] .ax2-settings-panel[data-settings-panel="overview"] .ax2-settings-footnote { display: none !important; }
+#vs[data-settings-phone-page="home"] .ax2-settings-panel[data-settings-panel="overview"] .ax2-settings-status-card { display: block !important; margin: 0 !important; }
+#vs[data-settings-phone-page="home"] .ax2-settings-panel[data-settings-panel="overview"] .ax2-settings-status-pills { display: flex !important; flex-wrap: wrap; gap: 7px; }
+#vs[data-settings-phone-page="home"] .ax2-settings-nav-item[data-settings-category="overview"] { display: none !important; }
+#vs[data-settings-phone-page="home"] .ax2-settings-nav-list { padding: 3px 12px !important; border: 1px solid var(--ax2-line) !important; border-radius: var(--ax2-r-card) !important; background: var(--ax2-surface) !important; }
+#vs[data-settings-phone-page="home"] .ax2-settings-nav-item { min-height: 68px !important; gap: 11px !important; padding: 10px 0 !important; border: 0 !important; border-bottom: 1px solid var(--ax2-line) !important; border-radius: 0 !important; background: transparent !important; }
+#vs[data-settings-phone-page="home"] .ax2-settings-nav-item:last-child { border-bottom: 0 !important; }
+#vs:not([data-settings-phone-page="home"]) .ax2-settings-nav { display: none !important; }
+#vs:not([data-settings-phone-page="home"]) .ax2-settings-content { display: block !important; }
+#vs:not([data-settings-phone-page="home"]) .ax2-settings-mobile-back { position: sticky !important; top: calc(var(--ax2-top) + env(safe-area-inset-top, 0px)) !important; z-index: 20; background: var(--ax2-bg); padding-block: 2px !important; }
+#vs .ax2-diagnostic-summary { display: block; color: var(--ax2-text); font: 600 12.5px/1.4 var(--ax2-font); overflow-wrap: anywhere; }
+#vs .ax2-diagnostic-details { margin-top: 6px; color: var(--ax2-text-2); font: 400 12px/1.5 var(--ax2-font); }
+#vs .ax2-diagnostic-details > summary { cursor: pointer; color: var(--ax2-accent); min-height: 32px; display: flex; align-items: center; }
+#vs .ax2-diagnostic-details pre { max-width: 100%; margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; font: 400 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+#vs #settings-v54-status { display: grid !important; grid-template-columns: repeat(3,minmax(0,1fr)) !important; gap: 10px !important; }
+#vs #settings-v54-status .settings-status-item {overflow: hidden;}
+@media (max-width: 899px) { #vs #settings-v54-status { grid-template-columns: minmax(0,1fr) !important; } }
+
+/* AI page tabs: always one horizontal segmented row, including compact/phone layouts. */
+#vai .ai-page-nav {flex-direction: row !important;;align-items: center !important;;justify-content: flex-start !important;;flex-wrap: nowrap !important;;gap: 4px !important;;width: 100% !important;;min-width: 0 !important;;max-width: 100% !important;;padding: 4px !important;;border: 1px solid var(--ax2-line) !important;;border-radius: 12px !important;;background: var(--ax2-bg) !important;;overflow-x: auto !important;;overflow-y: hidden !important;}
+#vai .ai-page-nav-item {flex: 0 0 auto !important;;min-height: 36px !important;;align-items: center !important;;justify-content: center !important;;white-space: nowrap !important;}
+
+@media (max-width: 599px) { #vai .ai-page-nav {scroll-snap-type: x proximity;}  #vai .ai-page-nav-item { scroll-snap-align: center; } }
+
+/* File selection fields: avoid browser-native filename controls while preserving the real input/hook. */
+#entity-edit-image-file, input[type="file"].ax2-native-file-input {border: 0 !important;}
+label[for="entity-edit-image-file"] { display: inline-flex !important; align-items: center !important; justify-content: center !important; width: fit-content; min-height: 44px !important; margin-block: 5px !important; padding: 0 12px !important; border: 1px solid var(--ax2-line) !important; border-radius: 11px !important; background: var(--ax2-surface-2) !important; color: var(--ax2-text) !important; cursor: pointer !important; font: 600 12.5px/1.2 var(--ax2-font) !important; }
+.ax2-file-name {display: block;;margin: 4px 0 8px;}
+.channel-edit-photo-section { display: flex !important; align-items: center !important; gap: 14px !important; min-width: 0; }
+.channel-edit-photo-preview { position: relative !important; flex: 0 0 64px !important; width: 64px !important; height: 64px !important; min-width: 64px !important; min-height: 64px !important; overflow: hidden !important; border: 1px solid var(--ax2-line-2) !important; border-radius: 50% !important; background: var(--ax2-surface-2) !important; }
+.channel-edit-photo-preview img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.channel-edit-photo-preview #channel-edit-photo-initials { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ax2-text-2); font: 700 18px/1 var(--ax2-font); }
+.channel-edit-photo-controls { display: flex !important; flex: 1 1 auto !important; flex-direction: column !important; min-width: 0 !important; gap: 6px !important; }
+.channel-edit-photo-buttons { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; }
+@media (max-width: 599px) { .channel-edit-photo-section { align-items: flex-start !important; } }
+
+@media (prefers-reduced-motion: reduce) {
+  #toast,
+#ax2-layer-scrim,
+.mdl.open > .mdl-box,
+#ax2-avatar-menu,
+.ax2-sheet { transition: none !important; animation: none !important; }
+
+  #vai .ai-page-tab.on { animation: none !important; }
+}
+
+
+/* State-aware Telegram indicator colours and tooltips. */
+.ax2-tg-pill[data-ax2-telegram-state="connected"] { background: var(--ax2-ok-soft) !important; color: var(--ax2-ok-fg) !important; }
+.ax2-tg-pill[data-ax2-telegram-state="connecting"] { background: var(--ax2-surface-2) !important; color: var(--ax2-text-2) !important; }
+
+.ax2-tg-pill[data-ax2-telegram-state="offline"] { background: var(--ax2-bad-soft) !important; color: var(--ax2-bad-fg) !important; }
+.ax2-tg-pill #tgdot.ax2-tg-warn { background: var(--ax2-warn) !important; box-shadow: 0 0 0 3px var(--ax2-warn-soft); }
+.ax2-tg-pill #tgdot.ax2-tg-bad { background: var(--ax2-bad) !important; box-shadow: 0 0 0 3px var(--ax2-bad-soft); }
+
+.ax2-avatar-status.is-bad { background: var(--ax2-bad) !important; }
+.ax2-avatar-status.is-connected { animation: ax2-pulse 2.2s var(--ax2-ease) infinite; }
+
+/* Exact phone controls: visible Filters, compact sort, selection and three-dot More. */
+#tb.ax2-library-toolbar #ax2-library-more-trigger .ax2-more-dots { display: block; font: 800 20px/1 var(--ax2-font); letter-spacing: 1px; transform: translateY(-3px); }
+#tb.ax2-library-toolbar #ax2-library-more-trigger .ax-icon { display: none !important; }
+#tb.ax2-library-toolbar .ax2-sort-pill:focus-within { outline: 2px solid var(--ax2-accent-ring); outline-offset: 2px; }
+@media (max-width: 399px) {
+  #tb.ax2-library-toolbar > .ax2-sort-pill > [data-ax2-sort-label] { font-size: 0 !important; }
+  #tb.ax2-library-toolbar > .ax2-sort-pill > [data-ax2-sort-label]::after { content: "Newest"; font: 600 12px/1.2 var(--ax2-font); }
+}
+
+/* The stepper itself, rather than the Back/Next footer, is the horizontal snap row. */
+#vtransfers #automation-stepper {
+  display: flex !important; flex-wrap: nowrap !important; gap: 6px !important; min-width: 0 !important; max-width: 100% !important;
+  overflow-x: auto !important; overflow-y: hidden !important; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; scrollbar-width: none;
+}
+#vtransfers #automation-stepper::-webkit-scrollbar { display: none; }
+#vtransfers #automation-stepper > .automation-step { flex: 0 0 auto !important; min-width: max-content; scroll-snap-align: start; }
+
+/* Transfer module header aligns title and status on one row; all remaining content spans below. */
+#vtransfers #ops-telegram-transfer {min-width: 0 !important;}
+#vtransfers #ops-telegram-transfer > .mi { grid-column: 1 !important; grid-row: 1 / span 2 !important; }
+#vtransfers #ops-telegram-transfer > .mn { grid-column: 2 !important; grid-row: 1 !important; min-width: 0 !important; align-self: center !important; }
+
+#vtransfers #ops-telegram-transfer > .md { grid-column: 2 / 4 !important; grid-row: 2 !important; min-width: 0 !important; }
+#vtransfers #ops-telegram-transfer > :not(.mi):not(.mn):not(.mstat):not(.md) { grid-column: 1 / -1 !important; min-width: 0 !important; }
+@media (max-width: 599px) {  #vtransfers #ops-telegram-transfer > .mi { width: 36px !important; height: 36px !important; } }
+
+/* Sidebar identity survives compact widths and the large-screen zoom transform. */
+
+/* Final edge cases found during Step 8 validation. */
+#vl.library-page #rs:empty::before { display: none !important; content: none !important; }
+#vl.library-page #rs:not(:empty)::before { background: var(--ax2-accent) !important; }
+#ux-filter-drawer #ux-f-res, #ux-filter-drawer select#ux-f-res { display: none !important; visibility: hidden !important; }
+#entity-edit-image-file.ax2-native-file-input { display: block !important; }
+@media (max-width: 599px), (max-height: 500px) and (orientation: landscape) {
+  #tb.ax2-library-toolbar { padding-inline: 0 !important; }
+  #tb.ax2-library-toolbar > .ax2-sort-pill { flex: 0 0 148px !important; width: 148px !important; max-width: 148px !important; }
+  #tb.ax2-library-toolbar .ax2-desktop-library-action,
+  #tb.ax2-library-toolbar .library-player-shuffle-btn { display: none !important; }
+  #tb.ax2-library-toolbar #ax2-library-more-trigger { flex: 0 0 40px !important; width: 40px !important; min-width: 40px !important; }
+}
+@media (max-width: 399px) {
+  #tb.ax2-library-toolbar { gap: 5px !important; }
+  #tb.ax2-library-toolbar > .ax2-sort-pill { flex: 0 0 84px !important; width: 84px !important; max-width: 84px !important; padding-inline: 7px !important; }
+  #tb.ax2-library-toolbar > .ax2-sort-pill > [data-ax2-sort-label] { display: none !important; }
+  #tb.ax2-library-toolbar > .ax2-sort-pill::before { content: "Newest"; display: inline-block; flex: 1 1 auto; min-width: 0; font: 600 12px/1.2 var(--ax2-font); }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  #tb.ax2-library-toolbar > .ax2-sort-pill { flex-basis: 148px !important; width: 148px !important; max-width: 148px !important; }
+  #ux-filter-drawer .ax2-library-filter-footer { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important; }
+}
+
+/* Keep the entrance transform from legacy dialog rules from pushing bottom sheets below the safe area. */
+@media (max-width: 599px), (max-height: 500px) and (orientation: landscape) {
+  .mdl.open > .mdl-box {
+    transform: none !important;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px) !important;
+  }
+  /* Destructive confirmations are compact centered dialogs, not full-width bottom sheets. */
+  #ax-confirm.open {
+    align-items: center !important;
+    justify-content: center !important;
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)) !important;
+  }
+  #ax-confirm.open > .mdl-box {
+    width: min(420px, calc(100vw - 32px)) !important;
+    max-width: calc(100vw - 32px) !important;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px) !important;
+    margin: auto !important;
+    border-radius: 18px !important;
+    padding-bottom: 16px !important;
+  }
+}
+
+/* On short landscape screens, keep the channel editor's action row reachable while its fields scroll. */
+@media (max-height: 500px) and (orientation: landscape) {
+  #channel-edit-modal.mdl.open {
+    align-items: flex-start !important;
+    padding: 8px max(12px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)) !important;
+  }
+  #channel-edit-modal.mdl.open > .channel-edit-box {
+    box-sizing: border-box !important;
+    height: auto !important;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px) !important;
+    margin: auto !important;
+    overflow: auto !important;
+    transform: none !important;
+  }
+  
+}

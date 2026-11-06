@@ -1,0 +1,3318 @@
+/* ============================================================================
+   FILE: css/components/cards.css
+   AREA: Cards
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   SECTIONS (search for "SECTION:"):
+     - Legacy layer rules
+     - Canonical card rules
+     - Card hover, placeholders and scrubber
+   ============================================================================ */
+/* Archive X — Video, up-next, performer and channel cards.
+   Canonical stylesheet: every rule for this component lives here (generated from the
+   previous layered stylesheets, with overridden declarations removed). Edit here. */
+
+
+/* ----------------------------------------------------------------------
+   SECTION: Legacy layer rules
+   Rules moved here from numbered files. Original cascade order is preserved; 'moved from' comments record each origin.
+   ---------------------------------------------------------------------- */
+/* ======== legacy layer rules (moved verbatim, original cascade order) ======== */
+/* ---- moved from css/01-base.css ---- */
+#perf-list .performer-card .pname-row {display:flex;align-items:center;gap:6px;min-width:0}
+#perf-list .performer-card .card-edit-icon {width:24px;;height:24px;;min-width:24px;;border-radius:7px;;padding:0;;border:1px solid rgba(182,208,226,.28);;display:inline-flex;;align-items:center;;justify-content:center;;font-size:13px;;line-height:1;;cursor:pointer;;transition:background .12s,border-color .12s,transform .12s,color .12s;}
+#perf-list .performer-card .card-edit-icon:hover,
+#site-list .pcard .card-edit-icon:hover {transform:translateY(-1px);}
+#perf-list .performer-card .card-edit-icon:focus-visible,
+#site-list .pcard .card-edit-icon:focus-visible {outline:2px solid #cccccc;outline-offset:2px}
+.vt .ph {width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:26px;color:var(--text3)}
+.vm {display:flex;;justify-content:space-between;}
+.v55-shelf-row>.vc {scroll-snap-align:start}
+.vm {font-size:11px;;border-top:1px solid #262626;;padding-top:9px;;gap:7px;}
+.vm span:last-child {margin-left:auto}
+#site-list .pcard:hover {transform:none!important;box-shadow:none!important;border:0!important}
+#site-list .pimg .entity-fallback {position:relative!important;z-index:2!important;width:86%!important;height:78%!important;box-shadow:none!important}
+#perf-list .performer-card .pinfo {padding:12px 13px 14px !important;;min-height:62px;;box-sizing:border-box;;background:#131313 !important;}
+#perf-list .performer-card .pinfo .pname {
+  color:#fff !important;
+  font-size:14px !important;
+  font-weight:600 !important;
+  line-height:1.3 !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+#perf-list .performer-card .pinfo .pcount {
+  color:#898989 !important;
+  font-size:11px !important;
+  margin-top:5px !important;
+}
+#perf-list .performer-card .p-overlay .pcount {margin-top:4px;}
+.vc .vt.previewing .vc-preview-hint,
+.vc .vt.previewing .vc-preview-index,
+.vc .vt.previewing .vbadges {display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+.vc .vt>.vc-preview-deck>.vc-preview-canvas.active {opacity:1;z-index:3;transform:none}
+.vc .vt.previewing .vc-preview-canvas {opacity:0}
+.vc .vt.previewing .vc-preview-canvas.active {opacity:1}
+.vc .vt.previewing .vc-preview-deck>.vc-thumb-fallback {opacity:0;animation:none!important}
+@media (hover:hover) and (pointer:fine) {
+/* Zoom the poster while the card is hovered, but keep scrub frames steady under the pointer. */
+.vc:hover .vt>.vc-preview-deck {transform:scale(1.15)}
+.vc .vt:hover>.vc-preview-deck {transform:scale(1)!important;transition:none!important}
+}
+@media (prefers-reduced-motion: reduce) {
+.vc .vt>.vc-preview-deck,
+.vc .vt .vc-preview-canvas,
+.vc .vt .vc-thumb-fallback {transition:none!important;transform:none!important}
+}
+.vc .vc-preview-index {display:none!important}
+.vc .vc-preview-hint {position:absolute;left:7px;bottom:7px;z-index:3;padding:3px 6px;border-radius:5px;background:rgba(0,0,0,.64);color:#eaeaea;font-size:10.5px;display:none;pointer-events:none}
+.v55-shelf-row .vc {margin:0}
+.vc:hover {transform:translateY(-3px)!important;;box-shadow:0 16px 34px rgba(0,0,0,.34)!important;}
+.vm {color:#8d8d8d!important}
+.ax-shelf .vc {min-width:0}
+.pcard:hover {transform:translateY(-3px)!important;}
+.unx:hover {border-color:#818181!important;background:#1e1e1e!important}
+.unx .unx-art.previewing .vc-preview-canvas {opacity:0}
+.unx .unx-art.previewing.preview-layer-a .vc-preview-canvas.preview-a {opacity:1}
+.unx .unx-art.previewing.preview-layer-b .vc-preview-canvas.preview-b {opacity:1}
+.unx .unx-art.previewing>img {opacity:0}
+#perf-list .performer-card .pimg .entity-fallback,
+#site-list .pcard .pimg .entity-fallback {inset: 0;;display: flex;;align-items: center;;justify-content: center;;background: var(--bg3);}
+
+/* ---- moved from css/08-library-redesign-v1.css ---- */
+#vl.library-page #channel-cards>.pcard:hover {transform:translateY(-1px)!important;;background:#191f29!important;}
+#vl.library-page #channel-cards>.pcard .pimg {width:68px!important;height:68px!important;min-width:68px!important;border-radius:8px!important;margin:4px!important;background:#0b0e13!important}
+#vl.library-page #channel-cards>.pcard .pinfo {min-width:0!important;padding:8px 8px 8px 4px!important}
+#vl.library-page #channel-cards>.pcard .pname {font-size:11px!important;font-weight:600!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+#vl.library-page #channel-cards>.pcard .pcount {font-size:10.5px!important;color:#7f8997!important;margin-top:3px!important}
+#vl.library-page #channel-cards>.pcard .card-edit-icon {opacity:.7!important}
+#vl.library-page #vg>.vc:hover {background:#141b24!important;;transform:translateY(-2px)!important;}
+@media (min-width:2200px) {
+#vl.library-page #channel-cards>.pcard {flex-basis:250px!important}
+}
+@media (max-width:780px) {
+#vl.library-page #channel-cards>.pcard .pimg {width:60px!important;height:60px!important;min-width:60px!important}
+}
+@media (max-width:780px) and (orientation:landscape) {
+#vl.library-page #channel-cards>.pcard {flex-basis:165px!important;min-width:165px!important}
+}
+@media (prefers-reduced-motion:reduce) {
+#vl.library-page #vg>.vc,
+#vl.library-page #channel-cards>.pcard {transition:none!important}
+}
+
+/* ---- moved from css/90-video-card-tag-wrap-fix.css ---- */
+.entity-video-grid>.vc>.vi,
+#perf-video-grid>.vc>.vi {
+  height:auto!important;
+  min-height:178px!important;
+  max-height:none!important;
+  overflow:visible!important;
+}
+.entity-video-grid>.vc,
+#perf-video-grid>.vc {
+  height:auto!important;
+  overflow:visible!important;
+}
+
+/* ---- moved from css/17-final-neutral-layout-refinement.css ---- */
+.card-edit-icon:hover {color:var(--text)!important;background:var(--bg3)!important;border-color:var(--border2)!important}
+
+/* ---- moved from css/19-input-adaptive-layer.css ---- */
+html[data-ax-input="touch"] .vc:hover,
+html[data-ax-input="touch"] .pcard:hover,
+html[data-ax-input="touch"] .card-edit-icon:hover {
+  transform:none!important;
+}
+
+/* ---- moved from css/23-video-card-geometry-v1.css ---- */
+.entity-video-grid>.vc,
+#perf-video-grid>.vc {
+  width:100%!important;
+  min-width:0!important;
+  max-width:280px!important;
+}
+.entity-video-grid .vt,
+#perf-video-grid .vt {
+  aspect-ratio:16 / 9!important;
+  width:100%!important;
+  height:auto!important;
+}
+@media (max-width:760px) {
+.entity-video-grid>.vc,
+#perf-video-grid>.vc {max-width:none!important;}
+}
+.vc .vt.thumb-loaded::before,
+.vc .vt.thumb-loaded::after {opacity:0}
+.vc .vt>img.vc-thumb-fallback {position:relative;z-index:1}
+@media (prefers-reduced-motion:reduce) {
+.vc .vt::before,
+.vc .vt::after {transition:none}
+}
+.performer-merge-mode #perf-list .performer-card.merge-keeper {outline:3px solid var(--accent);outline-offset:2px}
+.performer-merge-mode #perf-list .performer-card.merge-selected {outline:3px solid var(--amber,#f0c66e);;outline-offset:2px;}
+#perf-list .performer-card.merge-keeper::after {content:"KEEP";position:absolute;top:10px;right:10px;z-index:8;padding:4px 8px;border-radius:999px;background:var(--accent);color:#111;font-size:11px;font-weight:800;letter-spacing:.04em;pointer-events:none}
+#perf-list .performer-card.merge-selected::after {content:"✓ SELECTED";position:absolute;top:10px;right:10px;z-index:8;padding:4px 8px;border-radius:999px;background:var(--amber,#f0c66e);color:#111;font-size:11px;font-weight:800;letter-spacing:.02em;pointer-events:none}
+
+/* ---- moved from css/26-responsive-v131.css ---- */
+#perf-list .pcard .pimg:has(.entity-fallback):not(:has(img:not([style*="none"]))),
+#site-list .pcard .pimg:has(.entity-fallback):not(:has(img:not([style*="none"]))) {
+  width:88px!important;height:88px!important;min-height:0!important;aspect-ratio:1/1!important;margin:14px auto 4px!important;
+  border-radius:18px!important;overflow:hidden;flex:0 0 auto;
+  background:linear-gradient(180deg,var(--bg3,#232323),var(--bg2,#161616))!important;border:1px solid var(--border,#2a2a2a)!important}
+#perf-list .pcard .pimg:has(.entity-fallback):not(:has(img:not([style*="none"]))) .entity-fallback,
+#site-list .pcard .pimg:has(.entity-fallback):not(:has(img:not([style*="none"]))) .entity-fallback {
+  width:100%!important;height:100%!important;font-size:34px!important;border-radius:18px!important;
+  display:flex!important;align-items:center!important;justify-content:center!important}
+
+/* ---- moved from css/28-appearance-themes.css ---- */
+html[data-theme-preset] #vl.library-page #vg>.vc:hover,
+html[data-theme-preset] #vl.library-page #channel-cards>.pcard:hover {
+  background:var(--ax-background-tertiary)!important;
+  border-color:var(--ax-border-strong)!important;
+}
+html[data-theme-preset] .ax-shelf .vc,
+html[data-theme-preset] .entity-video-grid>.vc,
+html[data-theme-preset] #perf-video-grid>.vc {
+  background:var(--ax-background-secondary)!important;
+  border-color:var(--ax-border-default)!important;
+}
+@media (min-width:761px) {
+html[data-grid-density="compact"] #vl.library-page #vg>.vc,
+html[data-grid-density="compact"] #vg>.vc { max-width:230px!important; }
+html[data-grid-density="spacious"] #vl.library-page #vg>.vc,
+html[data-grid-density="spacious"] #vg>.vc { max-width:320px!important; }
+html[data-grid-density="compact"] #vl.library-page #channel-cards>.pcard { flex-basis:190px!important; min-width:190px!important; height:66px!important; }
+html[data-grid-density="spacious"] #vl.library-page #channel-cards>.pcard { flex-basis:270px!important; min-width:245px!important; height:88px!important; }
+}
+
+/* ---- moved from css/29-frontend-layout-repair.css ---- */
+@media (min-width: 761px) {
+.entity-video-grid > .vc,
+#perf-video-grid > .vc {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+}
+
+/* ---- moved from css/30-nobuf-frontend-redesign.css ---- */
+#vl.library-page #channel-cards > .pcard:hover { border-color: var(--ax-ui-line-strong) !important; }
+
+/* ---- moved from css/41-watch-page-layout-and-seek-preview.css ---- */
+@media (min-width: 1101px) {
+#v55-related .unx {
+    display: flex !important;
+    min-width: 0 !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    padding: 6px !important;
+    border-radius: 10px !important;
+  }
+#v55-related .unx-art {
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 16 / 9 !important;
+  }
+#v55-related .unx .t {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    overflow: hidden !important;
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+#v55-related .unx .muted { display: none !important; }
+}
+
+/* ---- moved from css/65-performer-directory-reference-layout.css ---- */
+#perf-list .performer-card:hover {box-shadow:none!important;filter:none!important;transform:translateY(-3px)!important;}
+#perf-list .performer-card:focus-visible {
+  outline: 2px solid var(--ax-interactive-primary) !important;
+  outline-offset: 3px !important;
+}
+#perf-list .performer-card:hover .pimg img { transform: scale(1.035) !important; }
+#perf-list .performer-card .entity-fallback {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  color: rgba(255,255,255,.8) !important;
+  font-size: 42px !important;
+}
+#perf-list .performer-card .card-edit-icon {
+  position: absolute !important;
+  top: 12px !important;
+  right: 12px !important;
+  z-index: 5 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 30px !important;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  padding: 0 !important;
+  border: 1px solid rgba(255,255,255,.32) !important;
+  border-radius: 10px !important;
+  background: rgba(16,18,20,.48) !important;
+  color: #fff !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  opacity: .86 !important;
+}
+#perf-list .performer-card .card-edit-icon:hover,
+#perf-list .performer-card .card-edit-icon:focus-visible {
+  border-color: #fff !important;
+  background: #fff !important;
+  color: #151717 !important;
+  opacity: 1 !important;
+}
+#perf-list .performer-card .performer-tile-description { display: none !important; }
+#perf-list .performer-card .performer-tile-stat .ax-icon { display: none !important; }
+#perf-list .performer-card .performer-open-action:hover,
+#perf-list .performer-card .performer-open-action:focus-visible {
+  background: #fff !important;
+  border-color: #fff !important;
+  color: #0f1111 !important;
+  transform: translateY(-1px) !important;
+}
+#perf-list .performer-card .pinfo { display: none !important; }
+@media (max-width: 720px) {
+#perf-list .performer-card .card-edit-icon { top: 9px !important; right: 9px !important; width: 27px !important; height: 27px !important; min-width: 27px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+#perf-list .performer-card,
+#perf-list .performer-card .pimg img,
+#perf-list .performer-card .performer-open-action { transition: none !important; }
+}
+
+/* ---- moved from css/67-studio-square-directory-cards.css ---- */
+#site-list > .pcard:hover {
+  border-color: rgba(255,255,255,.72) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,.3) !important;
+  transform: translateY(-2px) !important;
+}
+#site-list > .pcard:focus-visible {
+  outline: 2px solid #fff !important;
+  outline-offset: 3px !important;
+}
+#site-list > .pcard:hover > .pimg img { transform: scale(1.045) !important; }
+#site-list > .pcard > .pimg .entity-fallback {
+  position: relative !important;
+  z-index: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 82% !important;
+  height: 67% !important;
+  max-width: 82% !important;
+  max-height: 67% !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+#site-list > .pcard .card-edit-icon:hover,
+#site-list > .pcard .card-edit-icon:focus-visible {
+  border-color: #fff !important;
+  background: rgba(245,246,243,.92) !important;
+  color: #181918 !important;
+  outline: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+#site-list > .pcard,
+#site-list > .pcard > .pimg img { transition: none !important; }
+}
+#site-list#site-list > .pcard > .pimg:has(> .entity-fallback) > img:not(.entity-fallback-logo) {
+  display: none !important;
+}
+#site-list#site-list > .pcard > .pimg > .entity-fallback {position: absolute !important;;z-index: 2 !important;;display: grid !important;;padding: 0 !important;;border: 0 !important;;border-radius: 0 !important;;background: transparent !important;;box-shadow: none !important;;transform: none !important;}
+#site-list#site-list > .pcard > .pimg > .entity-fallback .entity-fallback-logo {position: static !important;;display: block !important;;height: auto !important;}
+#site-list#site-list > .pcard > .pimg:has(> .entity-fallback) {position: absolute !important;;display: grid !important;;place-items: center !important;;border: 0 !important;;background: #151615 !important;}
+#site-list#site-list > .pcard > .pimg:has(> .entity-fallback) > .entity-fallback {
+  position: absolute !important;
+  inset: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+#site-list > .pcard .studio-tile-footer .card-edit-icon:hover,
+#site-list > .pcard .studio-tile-footer .card-edit-icon:focus-visible {
+  border-color: #fff !important;
+  background: #fff !important;
+  color: #0f1111 !important;
+  transform: translateY(-1px) !important;
+  outline: none !important;
+}
+#site-list#site-list > .pcard > .pimg:has(> .entity-fallback)::before {
+  background-image: url("/static/icons/archive-x.png") !important;
+}
+@media (prefers-reduced-motion: reduce) {
+#site-list > .pcard .studio-tile-footer .card-edit-icon { transition: none !important; }
+}
+
+/* ---- moved from css/68-video-card-reference-layout.css ---- */
+#vg>.vc:hover,
+.entity-video-grid>.vc:hover,
+#perf-video-grid>.vc:hover {transform:translateY(-2px)!important;}
+#vg>.vc>.vt>img.vc-thumb-fallback,
+.entity-video-grid>.vc>.vt>img.vc-thumb-fallback,
+#perf-video-grid>.vc>.vt>img.vc-thumb-fallback {position:relative!important;}
+.entity-video-grid .video-title-row .vn,
+#perf-video-grid .video-title-row .vn {display:-webkit-box!important;;-webkit-box-orient:vertical!important;;flex:1 1 auto!important;;min-width:0!important;;height:auto!important;;min-height:0!important;;margin:0!important;;padding:0!important;;overflow:hidden!important;;white-space:normal!important;;text-overflow:ellipsis!important;}
+#vg .vm,
+.entity-video-grid .vm,
+#perf-video-grid .vm {display:flex!important;;align-items:center!important;;justify-content:space-between!important;;width:100%!important;;gap:8px!important;;border-top:1px solid var(--ax-ui-line,rgba(255,255,255,.08))!important;;box-sizing:border-box!important;;line-height:1!important;;color:var(--ax-text-muted,var(--text2,#a1a39c))!important;}
+#vg .vm .video-card-size,
+.entity-video-grid .vm .video-card-size,
+#perf-video-grid .vm .video-card-size { margin:0!important; flex:0 1 auto!important; white-space:nowrap!important; }
+#vg .vm .card-matched,
+.entity-video-grid .vm .card-matched,
+#perf-video-grid .vm .card-matched {margin-left:auto!important;;height:17px!important;;flex:0 0 auto!important;}
+
+/* ---- moved from css/69-video-card-performer-tag-differentiation.css ---- */
+.entity-video-grid>.vc .video-performer-chip,
+#perf-video-grid>.vc .video-performer-chip {display:inline-flex!important;;gap:5px!important;;padding:1px 8px 1px 3px!important;;border:1px solid rgba(220,230,204,.27)!important;;border-radius:999px!important;;background:rgba(215,225,198,.13)!important;;color:var(--ax-text-primary,var(--text,#f4f4f1))!important;;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)!important;;text-decoration:none!important;;transition:background-color .14s ease,border-color .14s ease,box-shadow .14s ease!important;}
+#vl.library-page #vg>.vc .video-performer-chip:hover,
+#vg>.vc .video-performer-chip:hover,
+#vl.library-page #vg>.vc .video-performer-chip:focus-visible {
+  border-color:rgba(255,255,255,.88)!important;
+  background:rgba(225,235,211,.19)!important;
+  color:#fff!important;
+  box-shadow:0 0 0 1px rgba(255,255,255,.10)!important;
+  outline:none!important;
+}
+#vl.library-page #vg>.vc .video-tag-chip:hover {
+  border-color:rgba(255,255,255,.86)!important;
+  color:#fff!important;
+  background:rgba(255,255,255,.07)!important;
+  outline:none!important;
+}
+
+/* ---- moved from css/70-video-card-spacious-layout.css ---- */
+.entity-video-grid .video-title-row .vn,
+#perf-video-grid .video-title-row .vn {overflow-wrap:anywhere!important;}
+#vg .vm,
+.entity-video-grid .vm,
+#perf-video-grid .vm {
+  flex:0 0 25px!important;
+  height:25px!important;
+  min-height:25px!important;
+  max-height:25px!important;
+  margin-top:auto!important;
+  padding:7px 0 0!important;
+  font-size:11px!important;
+}
+#vg .vm .card-matched,
+.entity-video-grid .vm .card-matched,
+#perf-video-grid .vm .card-matched {
+  font-size:11px!important;
+}
+
+/* ---- moved from css/72-studio-artwork-zone-before-title.css ---- */
+#site-list#site-list > .pcard > .pimg:has(> .entity-fallback) {
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 31% !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  aspect-ratio: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+#site-list#site-list > .pcard > .pimg > .entity-fallback {
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  place-items: center !important;
+}
+#site-list#site-list > .pcard > .pimg > .entity-fallback .entity-fallback-logo {
+  width: min(64%, 128px) !important;
+  max-width: 64% !important;
+  max-height: 92% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  transform: translateY(5%) !important;
+  transform-origin: 50% 50% !important;
+  margin: auto !important;
+}
+@media (max-width: 700px) {
+#site-list#site-list > .pcard > .pimg:has(> .entity-fallback) {
+    border-radius: 12px !important;
+  }
+}
+
+/* ---- moved from css/78-global-video-card-hover-pop.css ---- */
+html .entity-video-grid > .vc,
+html #perf-video-grid > .vc,
+html .ax-shelf .vc,
+html .v55-shelf-row .vc {
+  position: relative !important;
+  z-index: 0 !important;
+  transform-origin: center center !important;
+  transition: transform 190ms cubic-bezier(.2,.75,.25,1),
+              box-shadow 190ms ease,
+              border-color 190ms ease,
+              filter 190ms ease !important;
+  will-change: transform;
+}
+html #v55-related .unx {
+  position: relative !important;
+  z-index: 0 !important;
+  transform-origin: center center !important;
+  transition: transform 190ms cubic-bezier(.2,.75,.25,1),
+              box-shadow 190ms ease,
+              border-color 190ms ease,
+              background-color 190ms ease,
+              filter 190ms ease !important;
+  will-change: transform;
+}
+@media (hover: hover) and (pointer: fine) {
+html #vl.library-page #vg > .vc:hover,
+html #vg > .vc:hover,
+html .entity-video-grid > .vc:hover,
+html #perf-video-grid > .vc:hover,
+html .ax-shelf .vc:hover,
+html .v55-shelf-row .vc:hover,
+html .vc:hover {
+    z-index: 40 !important;
+    transform: translateY(-4px) scale(1.035) !important;
+    border-color: var(--ax-ui-line-strong, var(--ax-interactive-primary, var(--border2, #777b73))) !important;
+    box-shadow: 0 16px 36px rgba(0,0,0,.30),
+                0 0 0 1px color-mix(in srgb, var(--ax-interactive-primary, var(--accent, #aeb1ab)) 16%, transparent) !important;
+    filter: saturate(1.025);
+  }
+html #v55-related .unx:hover {
+    z-index: 40 !important;
+    transform: translateY(-3px) scale(1.025) !important;
+    box-shadow: 0 12px 26px rgba(0,0,0,.24) !important;
+    filter: saturate(1.025);
+  }
+}
+html #vl.library-page #vg > .vc:focus-within,
+html #vg > .vc:focus-within,
+html .entity-video-grid > .vc:focus-within,
+html #perf-video-grid > .vc:focus-within,
+html .ax-shelf .vc:focus-within,
+html .v55-shelf-row .vc:focus-within,
+html .vc:focus-within,
+html #v55-related .unx:focus-within {
+  z-index: 40 !important;
+  transform: translateY(-3px) scale(1.02) !important;
+  box-shadow: 0 12px 26px rgba(0,0,0,.24) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+html #vl.library-page #vg > .vc,
+html #vg > .vc,
+html .entity-video-grid > .vc,
+html #perf-video-grid > .vc,
+html .ax-shelf .vc,
+html .v55-shelf-row .vc,
+html .vc,
+html #v55-related .unx {
+    transition: none !important;
+    will-change: auto !important;
+  }
+}
+
+/* ---- moved from css/85-video-card-performer-chip-box-sizing.css ---- */
+.entity-video-grid > .vc .video-performer-chip,
+#perf-video-grid > .vc .video-performer-chip {
+  box-sizing: border-box !important;
+  height: 27px !important;
+  min-height: 27px !important;
+  max-height: 27px !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+  align-items: center !important;
+  vertical-align: middle !important;
+  overflow: hidden !important;
+}
+.entity-video-grid > .vc .video-performer-chip,
+#perf-video-grid > .vc .video-performer-chip {
+  flex: 0 1 auto !important;
+  width: max-content !important;
+  max-width: calc(50% - 3px) !important;
+  min-width: 0 !important;
+}
+
+/* ---- moved from css/103-channel-video-file-cards.css ---- */
+#vl.library-page #channel-cards > .channel-file-card .pname {
+  flex:1 1 auto !important;
+  min-width:0 !important;
+  color:#f8f7fa !important;
+  font-size:12px !important;
+  font-weight:760 !important;
+  line-height:1.25 !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+
+/* ---- moved from css/104-channel-card-theme-cohesion.css ---- */
+html[data-grid-density] #vl.library-page #channel-cards > .pcard.channel-file-card .channel-card-cover {
+  box-sizing:border-box !important;
+  position:relative !important;
+  display:flex !important;
+  flex:0 0 112px !important;
+  height:112px !important;
+  min-height:112px !important;
+  max-height:112px !important;
+  width:100% !important;
+  overflow:hidden !important;
+}
+html[data-grid-density] #vl.library-page #channel-cards > .pcard.channel-file-card .channel-card-info {
+  box-sizing:border-box !important;
+  display:flex !important;
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  height:auto !important;
+  padding:12px 13px 11px !important;
+  background:linear-gradient(180deg,#2d2e28,#242520) !important;
+  color:#eeeeDF !important;
+}
+html[data-grid-density] #vl.library-page #channel-cards > .pcard.channel-file-card .pname { color:#f2f2e6 !important; }
+html[data-grid-density] #vl.library-page #channel-cards > .pcard.channel-file-card .channel-card-subtitle { color:#b6b7a6 !important; }
+html[data-grid-density] #vl.library-page #channel-cards > .pcard.channel-file-card .channel-card-known { color:#a0a18e !important; }
+html[data-grid-density] #vl.library-page #channel-cards > .pcard.channel-file-card .channel-card-edit {
+  background:#e7e8d8 !important;
+  color:#303129 !important;
+  border:1px solid rgba(44,45,37,.24) !important;
+  box-shadow:0 2px 7px rgba(0,0,0,.22) !important;
+}
+html[data-grid-density] #vl.library-page #channel-cards > .pcard.channel-file-card .channel-card-edit:hover {
+  background:#f5f5e9 !important; color:#1f201b !important; transform:translateY(-1px) !important;
+}
+@media (max-width:780px) {
+html[data-grid-density] #vl.library-page #channel-cards > .pcard.channel-file-card .channel-card-cover { flex-basis:106px !important; height:106px !important; min-height:106px !important; max-height:106px !important; }
+}
+@media (prefers-reduced-motion:reduce) {
+html[data-grid-density] #vl.library-page #channel-cards > .pcard.channel-file-card { transition:none !important; }
+}
+
+/* ---- moved from css/111-brown-video-card-layout.css ---- */
+.entity-video-grid > .vc,
+#perf-video-grid > .vc {
+  background:#272820 !important;
+  border:1px solid #4b4d40 !important;
+  border-radius:13px !important;
+  box-shadow:0 3px 12px rgba(0,0,0,.24) !important;
+  color:#e8e8de !important;
+  transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease !important;
+}
+#vl.library-page #vg > .vc:hover,
+#vg > .vc:hover,
+.entity-video-grid > .vc:hover,
+#perf-video-grid > .vc:hover {
+  border-color:#787b61 !important;
+  box-shadow:0 8px 21px rgba(0,0,0,.34) !important;
+}
+#vl.library-page #vg > .vc.playing,
+#vg > .vc.playing,
+.entity-video-grid > .vc.playing,
+#perf-video-grid > .vc.playing {
+  border-color:#a1a789 !important;
+  box-shadow:0 0 0 1px rgba(161,167,137,.16),0 7px 19px rgba(0,0,0,.3) !important;
+}
+.entity-video-grid > .vc > .vt,
+#perf-video-grid > .vc > .vt {
+  background:#10110d !important;
+}
+.entity-video-grid > .vc > .vi,
+#perf-video-grid > .vc > .vi {background:linear-gradient(180deg,#292a22 0%,#24251f 100%) !important;;color:#e8e8de !important;}
+.entity-video-grid .video-title-row .vn,
+#perf-video-grid .video-title-row .vn {
+  color:#f0f0e7 !important;
+  font-size:12px !important;
+  font-weight:750 !important;
+  line-height:1.32 !important;
+  max-height:29px !important;
+  -webkit-line-clamp:2 !important;
+}
+
+/* ---- moved from css/114-theme-engine-enhancements.css ---- */
+html[data-theme-preset] .vc:hover,
+html[data-theme-preset] .pcard:hover {
+  background:var(--ax-background-tertiary)!important;border-color:var(--ax-border-strong)!important;
+}
+
+/* ---- moved from css/116-app-wide-theme-density.css ---- */
+html[data-theme-preset] #app .entity-video-grid > .vc,
+html[data-theme-preset] #app #perf-video-grid > .vc {
+  background: var(--ax-background-secondary) !important;
+  border-color: var(--ax-border-default) !important;
+  color: var(--ax-text-primary) !important;
+  box-shadow: var(--ax-shadow-small, 0 3px 12px rgba(0,0,0,.12)) !important;
+}
+html[data-theme-preset] #app #vl.library-page #vg > .vc:hover,
+html[data-theme-preset] #app #vg > .vc:hover,
+html[data-theme-preset] #app .entity-video-grid > .vc:hover,
+html[data-theme-preset] #app #perf-video-grid > .vc:hover {
+  background: var(--ax-background-secondary) !important;
+  border-color: var(--ax-interactive-primary) !important;
+  box-shadow: var(--ax-shadow-medium, 0 8px 22px rgba(0,0,0,.2)) !important;
+}
+html[data-theme-preset] #app #vl.library-page #vg > .vc.playing,
+html[data-theme-preset] #app #vg > .vc.playing,
+html[data-theme-preset] #app .entity-video-grid > .vc.playing,
+html[data-theme-preset] #app #perf-video-grid > .vc.playing {
+  border-color: var(--ax-success) !important;
+}
+html[data-theme-preset] #app .entity-video-grid > .vc > .vi,
+html[data-theme-preset] #app #perf-video-grid > .vc > .vi {
+  background: var(--ax-background-secondary) !important;
+  color: var(--ax-text-primary) !important;
+}
+html[data-theme-preset] #app .entity-video-grid .vn,
+html[data-theme-preset] #app #perf-video-grid .vn {
+  color: var(--ax-text-primary) !important;
+}
+html[data-theme-preset] #app .card-edit-icon:hover {
+  background: var(--ax-interactive-primary) !important;
+  border-color: var(--ax-interactive-primary) !important;
+  color: var(--ax-text-on-accent) !important;
+}
+html[data-theme-preset] #app #perf-list .performer-card:hover {
+  border-color:var(--ax-border-default)!important;
+}
+html[data-theme-preset] #app #site-list > .pcard:not(.channel-profile-card):hover {
+  border-color: var(--ax-interactive-primary) !important;
+}
+html[data-theme-preset] #app .performer-card .pcount {
+  color: var(--ax-text-primary) !important;
+}
+html[data-theme-preset] #app .performer-card .muted,
+html[data-theme-preset] #app #site-list .pcard .muted {
+  color: var(--ax-text-secondary) !important;
+}
+
+/* ---- moved from css/119-video-card-fixed-track-layout.css ---- */
+html[data-grid-density] .entity-video-grid > .vc,
+html[data-grid-density] #perf-video-grid > .vc,
+html[data-grid-density] #perf-detail .entity-tab-panel .entity-video-grid > .vc,
+html[data-grid-density] #perf-detail .entity-tab-panel #perf-video-grid > .vc,
+.entity-video-grid > .vc,
+#perf-video-grid > .vc,
+#perf-detail .entity-tab-panel .entity-video-grid > .vc,
+#perf-detail .entity-tab-panel #perf-video-grid > .vc {
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-self: start !important;
+  justify-self: start !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: var(--ax-video-card-track-max) !important;
+  height: var(--ax-video-card-fixed-height) !important;
+  min-height: var(--ax-video-card-fixed-height) !important;
+  max-height: var(--ax-video-card-fixed-height) !important;
+  overflow: hidden !important;
+}
+html[data-grid-density] .entity-video-grid > .vc > .vt,
+html[data-grid-density] #perf-video-grid > .vc > .vt,
+.entity-video-grid > .vc > .vt,
+#perf-video-grid > .vc > .vt {
+  position: relative !important;
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: 16 / 9 !important;
+  overflow: hidden !important;
+}
+html[data-grid-density] #view-stage > .view#vl.library-page #vg > .vc > .vt > img.vc-thumb-fallback,
+html[data-grid-density] #vl.library-page #vg > .vc > .vt > img.vc-thumb-fallback,
+html[data-grid-density] #vg > .vc > .vt > img.vc-thumb-fallback,
+html[data-grid-density] .entity-video-grid > .vc > .vt > img.vc-thumb-fallback,
+html[data-grid-density] #perf-video-grid > .vc > .vt > img.vc-thumb-fallback,
+#view-stage > .view#vl.library-page #vg > .vc > .vt > img.vc-thumb-fallback,
+#view-stage > #vl.library-page #vg > .vc > .vt > img.vc-thumb-fallback,
+#vl.library-page #vg > .vc > .vt > img.vc-thumb-fallback,
+#vg > .vc > .vt > img.vc-thumb-fallback,
+.entity-video-grid > .vc > .vt > img.vc-thumb-fallback,
+#perf-video-grid > .vc > .vt > img.vc-thumb-fallback {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: 16 / 9 !important;
+  object-fit: cover !important;
+  object-position: center !important;
+}
+html[data-grid-density] .entity-video-grid > .vc > .vi,
+html[data-grid-density] #perf-video-grid > .vc > .vi,
+.entity-video-grid > .vc > .vi,
+#perf-video-grid > .vc > .vi,
+#perf-detail .entity-tab-panel .entity-video-grid > .vc > .vi,
+#perf-detail .entity-tab-panel #perf-video-grid > .vc > .vi {
+  display: flex !important;
+  flex: 0 0 var(--ax-video-card-info-height) !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 3px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: var(--ax-video-card-info-height) !important;
+  min-height: var(--ax-video-card-info-height) !important;
+  max-height: var(--ax-video-card-info-height) !important;
+  padding: 8px 9px 7px !important;
+  overflow: hidden !important;
+}
+@media (prefers-reduced-motion: reduce) {
+#vg > .vc,
+.entity-video-grid > .vc,
+#perf-video-grid > .vc {
+    transition: none !important;
+  }
+}
+
+/* ---- moved from css/130-cross-input-parity.css ---- */
+@media (hover: none) and (pointer: coarse) {
+.vc:hover,
+.pcard:hover {
+    transform: none !important;
+  }
+}
+
+/* ---- moved from css/132-responsive-system.css ---- */
+@media (max-width: 767px), (max-height: 450px) and (orientation: landscape) {
+#vg > .vc .video-card-properties {flex-wrap: wrap;}
+}
+@media (prefers-reduced-motion: reduce) {
+#vg > .vc,
+.entity-video-grid > .vc,
+#perf-video-grid > .vc,
+#perf-list .performer-card,
+.pcard { transition: none; }
+}
+
+/* ---- moved from css/133-design-system.css ---- */
+html .entity-video-grid>.vc,
+html #perf-video-grid>.vc,
+html .ax-shelf .vc,
+html .v55-shelf-row .vc {overflow:hidden;}
+html .vc .vt>img,
+html .vc .vt>.vc-thumb-fallback,
+html .vc .vt>canvas {border-radius:16px;transition:transform .22s ease,filter .22s ease}
+@media (hover:hover) and (pointer:fine) {
+html #vl.library-page #vg>.vc:hover .vt>img,
+html #vg>.vc:hover .vt>img,
+html .entity-video-grid>.vc:hover .vt>img,
+html #perf-video-grid>.vc:hover .vt>img {transform:scale(1.035);filter:saturate(1.04)}
+html .vc:hover .vt .ax-video-hover-play {opacity:1}
+html .vc:hover .vn {transition:color .2s ease;}
+}
+html .vc .video-card-properties {font-family:var(--ax-font-body)}
+@media (prefers-reduced-motion: reduce) {
+html .vc .vt>img,
+html .vc .vt>.vc-thumb-fallback,
+html .vc .vt>canvas,
+html .vc .vt .ax-video-hover-play,
+html .vc .vn {transition:none}
+}
+
+/* ---- moved from css/135-ax2-shell.css ---- */
+@media (hover:hover) and (pointer:fine) {
+html.ax2-view-motion .vc .vt>img,
+html.ax2-view-motion .vc .vt>canvas { transition: transform 600ms var(--ax2-ease-in); }
+html.ax2-view-motion .vc:hover .vt>img { transform: scale(1.05); }
+}
+
+/* ---- moved from css/136-ax2-videos.css ---- */
+#view-stage > .view#vl.library-page #vg > .vc.playing,
+#view-stage > #vl.library-page #vg > .vc.playing,
+#vl.library-page #vg > .vc.playing {border:2px solid var(--ax2-accent)!important;box-shadow:0 0 0 3px var(--ax2-accent-soft)!important}
+#view-stage > .view#vl.library-page #vg > .vc > .vt > img.vc-thumb-fallback,
+#view-stage > #vl.library-page #vg > .vc > .vt > img.vc-thumb-fallback,
+#vl.library-page #vg > .vc > .vt > img.vc-thumb-fallback {position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;aspect-ratio:16/9!important;object-fit:cover!important;object-position:center!important;border-radius:inherit!important;transition:transform 600ms var(--ax2-ease)!important}
+#vl.library-page #vg > .vc > .vt > .vc-preview-canvas {position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;opacity:0;pointer-events:none;z-index:2;border-radius:inherit;transition:opacity var(--ax2-d2) var(--ax2-ease)!important}
+#vl.library-page #vg > .vc > .vt > .vc-preview-canvas.active {opacity:1}
+#vl.library-page #vg > .vc > .vt .vbadges .badge[title^="Library preparation"] {left:8px!important;top:8px!important;right:auto!important;bottom:auto!important;max-width:calc(100% - 58px)!important;background:var(--ax2-warn-soft)!important;color:var(--ax2-warn-fg)!important;outline:1px solid color-mix(in srgb,var(--ax2-warn) 28%,transparent)}
+#vl.library-page #vg .video-title-row .vn:hover {color:var(--ax2-accent)!important}
+@media (hover:hover) and (pointer:fine) {
+#vl.library-page #vg > .vc:hover .ax-video-hover-play {opacity:1!important;transform:scale(1)!important}
+#vl.library-page #vg > .vc:hover .vn {color:var(--ax2-accent)!important}
+}
+@media (prefers-reduced-motion:reduce) {
+#vl.library-page #vg>.vc,
+#vl.library-page #vg>.vc .vt>img,
+#vl.library-page #vg>.vc .ax-video-hover-play {transition:none!important;animation:none!important}
+}
+
+/* ---- moved from css/138-ax2-performers-studios.css ---- */
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .pimg:has(.entity-fallback)::before { display: none !important; animation: none !important; }
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .pimg .entity-fallback {
+  box-sizing: border-box !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  color: var(--ax2-text-2) !important;
+  background: var(--ax2-surface-2) !important;
+  font: 700 20px/1 var(--ax2-font) !important;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .pimg .entity-fallback-logo { width: 42px; height: 42px; object-fit: contain; opacity: .78; }
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card:hover .pimg,
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card:focus-visible .pimg {
+  transform: translateY(-4px) !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card:hover .performer-open-action { opacity: 1 !important; }
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card.merge-selected,
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card.merge-keeper {
+  border-color: var(--ax2-accent) !important;
+  box-shadow: 0 0 0 2px var(--ax2-accent-soft) !important;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card.merge-selected::after {
+  content: "✓";
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--ax2-text);
+  border-radius: 50%;
+  background: var(--ax2-accent);
+  color: var(--ax2-on-accent);
+  font: 800 14px/1 var(--ax2-font);
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card.merge-keeper::before {
+  content: "Keep";
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  padding: 5px 8px;
+  border-radius: var(--ax2-r-pill);
+  background: var(--ax2-accent);
+  color: var(--ax2-on-accent);
+  font: 700 11px/1 var(--ax2-font);
+}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard:hover,
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard:focus-within {
+  transform: translateY(-2px) !important;
+  background: var(--ax2-surface-2) !important;
+  border-color: var(--ax2-line-2) !important;
+  box-shadow: none !important;
+}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard > .pimg .entity-fallback {box-sizing: border-box !important;;z-index: 2 !important;;align-items: center !important;;justify-content: center !important;;background: var(--ax2-accent-soft) !important;;color: var(--ax2-accent-fg) !important;;font: 700 13px/1 var(--ax2-font) !important;}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard > .pimg .entity-fallback-logo {opacity: .92;}
+@media (prefers-reduced-motion: reduce) {
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card,
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .pimg,
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .pimg > img,
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard,
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard > .pimg > img,
+#vp #perf-list.ax2-entity-grid-motion > .performer-card,
+#vsite #site-list.ax2-entity-grid-motion > .pcard[data-entity-id] { animation: none !important; transition: none !important; }
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .pimg::before { animation: none !important; }
+}
+
+/* ---- moved from css/142-ax2-page-parity.css ---- */
+@media (prefers-reduced-motion: reduce) {
+html[data-theme-preset] #app #view-stage > #vp #perf-list .performer-card,
+html[data-theme-preset] #app #view-stage > #vsite #site-list > .pcard { transition: none !important; animation: none !important; }
+}
+
+/* ---- moved from css/145-ax-final-parity.css ---- */
+html body #app #view-stage .entity-video-grid .vc.vc { background:var(--axf-surf) !important; border:1px solid var(--axf-line) !important; border-radius:16px !important; overflow:hidden !important; box-shadow:none !important; position:relative !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .vt { border-radius:0 !important; aspect-ratio:16/9 !important; position:relative !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .vbadges { position:absolute !important; left:7px !important; bottom:7px !important; top:auto !important; right:auto !important; display:flex !important; gap:5px !important; margin:0 !important; z-index:3 !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .vbadges .badge,
+html body #app #view-stage .entity-video-grid .vc.vc .video-duration-overlay {
+  background:rgba(0,0,0,.66) !important; border:0 !important; border-radius:7px !important; padding:1px 7px !important; font:600 11.5px/1.45 var(--ax2-font) !important; color:#fff !important; height:auto !important; min-height:0 !important; box-shadow:none !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; letter-spacing:0 !important; text-transform:none !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .video-duration-overlay { position:absolute !important; right:7px !important; bottom:7px !important; left:auto !important; top:auto !important; width:auto !important; max-width:none !important; z-index:3 !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .fav-btn { position:absolute !important; right:7px !important; top:7px !important; width:34px !important; height:34px !important; border-radius:50% !important; background:rgba(0,0,0,.42) !important; border:0 !important; color:#fff !important; display:grid !important; place-items:center !important; z-index:4 !important; box-shadow:none !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .fav-btn.on,
+html body #app #view-stage .entity-video-grid .vc.vc .fav-btn[aria-pressed="true"] { color:#fbbf24 !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .vi { padding:10px 12px 12px !important; background:none !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .vn { font:700 14px/1.3 var(--ax2-font) !important; color:var(--axf-tx) !important; display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; min-height:2.6em !important; white-space:normal !important; margin:0 !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .video-card-performers { display:flex !important; align-items:center !important; flex-wrap:nowrap !important; gap:0 !important; margin-top:8px !important; font-size:12.5px !important; min-width:0 !important; overflow:hidden !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .axf-perf-stack { display:inline-flex !important; align-items:center !important; flex:none !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .axf-perf-avatar { width:22px !important; height:22px !important; border-radius:50% !important; border:2px solid var(--axf-surf) !important; margin-right:-8px !important; flex:none !important; overflow:hidden !important; background:var(--axf-surf3) !important; display:inline-grid !important; place-items:center !important; cursor:pointer !important; position:relative !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .axf-perf-avatar:last-child { margin-right:0 !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .axf-perf-avatar .video-performer-avatar { width:100% !important; height:100% !important; object-fit:cover !important; border-radius:50% !important; margin:0 !important; border:0 !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .axf-perf-avatar .video-performer-avatar-fallback { width:100% !important; height:100% !important; align-items:center !important; justify-content:center !important; font:700 9px/1 var(--ax2-font) !important; color:var(--axf-tx) !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .axf-perf-label { background:none !important; border:0 !important; padding:0 !important; height:auto !important; display:inline-flex !important; align-items:center !important; gap:6px !important; min-width:0 !important; margin-left:8px !important; color:var(--axf-tx) !important; cursor:pointer !important; font:500 12.5px/1.3 var(--ax2-font) !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .axf-perf-label .video-performer-name { white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; min-width:0 !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .axf-perf-label .axf-perf-more { background:none !important; border:0 !important; padding:0 !important; height:auto !important; color:var(--axf-mut) !important; font-size:12px !important; flex:none !important; }
+@media (hover:hover) {
+html body #app #vl .vc .axf-perf-label:hover .video-performer-name,
+html body #app #view-stage .entity-video-grid .vc.vc .axf-perf-label:hover .video-performer-name { color:var(--axf-acc) !important; }
+}
+html body #app #view-stage .entity-video-grid .vc.vc .video-card-channel { display:flex !important; align-items:center !important; gap:5px !important; font-size:12px !important; color:var(--axf-mut) !important; margin-top:4px !important; white-space:nowrap !important; overflow:hidden !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .video-card-tags { display:flex !important; gap:5px !important; margin-top:8px !important; overflow:hidden !important; flex-wrap:nowrap !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .video-tag-chip { height:22px !important; display:inline-flex !important; align-items:center !important; font:500 11px/1 var(--ax2-font) !important; padding:0 8px !important; border-radius:99px !important; white-space:nowrap !important; flex:none !important; border:0 !important; }
+html body #app #view-stage .entity-video-grid .vc.vc input.map-select { left:8px !important; top:8px !important; }
+html body #app #view-stage .entity-video-grid .vc.vc .vbadges { width:auto !important; max-width:calc(100% - 80px) !important; background:none !important; padding:0 !important; border:0 !important; box-shadow:none !important; }
+html body #app #vl .vc.ax2-library-card .vbadges > [hidden],
+html body #app #view-stage .entity-video-grid .vc.vc .vbadges > [hidden] { display:none !important; }
+@media (hover:hover) {
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard:hover { background:var(--axf-surf2) !important; border-color:var(--axf-line2) !important; transform:translateY(-2px) !important; }
+}
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard:active { transform:scale(.98) !important; }
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard:hover .card-edit-icon,
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard:focus-within .card-edit-icon { opacity:1 !important; }
+html[data-theme-preset] body #app #view-stage .entity-video-grid .vc.vc .vt { aspect-ratio:16/9 !important; position:relative !important; }
+html[data-theme-preset] body #app #view-stage .entity-video-grid .vc.vc .video-duration-overlay { position:absolute !important; right:7px !important; bottom:7px !important; left:auto !important; top:auto !important; background:rgba(0,0,0,.66) !important; border-radius:7px !important; padding:1px 7px !important; font:600 11.5px/1.45 var(--ax2-font) !important; color:#fff !important; width:auto !important; }
+html[data-theme-preset] body #app #view-stage .entity-video-grid .vc.vc .video-title-row { display:flex !important; align-items:flex-start !important; gap:6px !important; }
+html[data-theme-preset] body #app #view-stage .entity-video-grid .vc.vc .video-title-row .vn { flex:1 1 auto !important; min-width:0 !important; }
+html[data-theme-preset] body #app #view-stage .entity-video-grid .vc.vc .video-card-more-trigger { width:28px !important; height:28px !important; min-width:28px !important; min-height:28px !important; border-radius:8px !important; padding:0 !important; background:transparent !important; border:0 !important; color:var(--axf-sub) !important; flex:none !important; }
+html[data-theme-preset] body #app #view-stage .entity-video-grid .vc.vc .video-card-properties { font:500 11.5px/1.3 var(--ax2-font) !important; color:var(--axf-mut) !important; margin-top:4px !important; display:flex !important; gap:4px !important; white-space:nowrap !important; overflow:hidden !important; }
+html[data-theme-preset] body #app #view-stage .entity-video-grid .vc.vc .video-tag-chip { background:var(--axf-surf2) !important; color:var(--axf-sub) !important; }
+html[data-theme-preset] body #app #view-stage :is(#axf-x,.entity-video-grid).entity-video-grid > .vc { width:auto !important; max-width:none !important; min-width:0 !important; margin:0 !important; justify-self:stretch !important; }
+
+/* ---- moved from css/146-reference-hover-video-page.css ---- */
+@media (hover: hover) and (pointer: fine) {
+html body #app #view-stage .entity-video-grid .vc.vc,
+html body #app #perf-video-grid > .vc,
+html body #app .ax-shelf .vc {
+    transition: transform 180ms cubic-bezier(.2,.75,.25,1),
+                box-shadow 180ms ease, border-color 180ms ease,
+                background-color 180ms ease !important;
+    transform-origin: center center !important;
+  }
+html body #app #vl .vc.ax2-library-card:hover,
+html body #app #view-stage .entity-video-grid .vc.vc:hover,
+html body #app #perf-video-grid > .vc:hover,
+html body #app .ax-shelf .vc:hover {
+    z-index: 45 !important;
+    transform: translateY(-3px) scale(1.018) !important;
+    border-color: var(--axf-line2, var(--ax-interactive-primary, #58d2df)) !important;
+    box-shadow: 0 12px 28px rgba(0,0,0,.28),
+                0 0 0 1px color-mix(in srgb, var(--axf-acc, #58d2df) 13%, transparent) !important;
+  }
+html body #app #view-stage .entity-video-grid .vc.vc .fav-btn {
+    transition: background-color 160ms ease, transform 160ms ease, color 160ms ease !important;
+  }
+html body #app #vl .vc.ax2-library-card:hover .fav-btn,
+html body #app #view-stage .entity-video-grid .vc.vc:hover .fav-btn {
+    background: rgba(12,16,23,.82) !important;
+    transform: scale(1.04);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+html body #app #vl .vc.ax2-library-card,
+html body #app #view-stage .entity-video-grid .vc.vc,
+html body #app #perf-video-grid > .vc,
+html body #app .ax-shelf .vc {
+    transition: none !important;
+  }
+}
+
+/* ---- moved from css/147-reference-ui-parity.css ---- */
+@media (hover: hover) and (pointer: fine) {
+#vl.library-page #vg > .vc:hover,
+#view-stage .entity-video-grid > .vc:hover,
+#perf-video-grid > .vc:hover,
+#view-stage .ax-shelf .vc:hover {
+    z-index: 45 !important;
+    transform: translateY(-4px) !important;
+    border-color: var(--ax2-line-2, rgba(255,255,255,.12)) !important;
+    box-shadow: 0 18px 36px -12px rgba(0,0,0,.55) !important;
+  }
+#vl.library-page #vg > .vc:hover .vt > img,
+#vl.library-page #vg > .vc:hover .vt > canvas,
+#vl.library-page #vg > .vc:hover .vt > .vc-preview-canvas,
+#view-stage .entity-video-grid > .vc:hover .vt > img,
+#view-stage .entity-video-grid > .vc:hover .vt > canvas {
+    transform: scale(1.05) !important;
+  }
+#view-stage .entity-video-grid > .vc .fav-btn {
+    transition: opacity 180ms cubic-bezier(.2,.8,.2,1), background-color 180ms,
+                color 180ms, transform 120ms !important;
+  }
+#vl.library-page #vg > .vc:hover .fav-btn,
+#view-stage .entity-video-grid > .vc:hover .fav-btn {
+    opacity: 1 !important;
+  }
+#view-stage .performer-card:hover,
+#view-stage .studio-card:hover {
+    transform: translateY(-2px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+#vl.library-page #vg > .vc,
+#vl.library-page #vg > .vc .vt > img,
+#vl.library-page #vg > .vc .vt > canvas,
+#view-stage .entity-video-grid > .vc {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ---- moved from css/148-reference-exact.css ---- */
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc:nth-child(11) {animation-delay:300ms!important}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc:nth-child(n/**/+12) {animation-delay:330ms!important}
+@media (hover:hover) and (pointer:fine) {
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc:hover {transform:translateY(-4px)!important;box-shadow:0 18px 36px -12px rgba(0,0,0,.55)!important;border-color:var(--rx-line2)!important}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc:hover>.vt>img,
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc:hover>.vt>canvas {transform:scale(1.05)!important}
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc.picked {outline:2px solid var(--rx-acc)!important;outline-offset:0!important}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt>img,
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt>canvas {position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;transition:transform 600ms var(--rx-e-enter)!important}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt>img {animation:rx-fadein 500ms var(--rx-e-std) both}
+html[data-theme-preset] body #app#app#app#app #vl #vg.ax2-quiet-refresh>.vc>.vt>img {animation:none!important}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt>canvas {transition:transform 600ms var(--rx-e-enter),opacity var(--ax-card-preview-transition,300ms) var(--ax-motion-ease, ease)!important}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .vbadges .badge[title^="Library preparation"] {left:7px!important;top:7px!important;bottom:auto!important;right:auto!important;background:rgba(120,92,24,.9)!important;color:var(--rx-t-warn)!important}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .video-duration-overlay:empty {display:none!important}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .fav-btn.rx-pop .ax-icon {animation:rx-pop 380ms var(--rx-e-enter)}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-card-tags:empty {display:none!important}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-tag-chip.ax2-tag-tone-sky,
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-tag-chip.ax2-tag-tone-blue {background:var(--rx-skybg)!important;color:var(--rx-t-sky)!important}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-tag-chip.ax2-tag-tone-ok,
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-tag-chip.ax2-tag-tone-green,
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-tag-chip.ax2-tag-tone-mint {background:var(--rx-okbg)!important;color:var(--rx-t-ok)!important}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-tag-chip.ax2-tag-tone-warn,
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-tag-chip.ax2-tag-tone-amber,
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-tag-chip.ax2-tag-tone-peach {background:var(--rx-warnbg)!important;color:var(--rx-t-warn)!important}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.rx-more3:hover {background:var(--rx-surf2)!important;color:var(--rx-tx)!important}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card:hover .performer-open-action,
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card:focus-within .performer-open-action {opacity:1}
+@media (hover:hover) and (pointer:fine) {
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card:hover .pimg {transform:translateY(-4px)!important;box-shadow:none!important;filter:none!important}
+}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list.rx-static>.performer-card,
+html[data-theme-preset] body #app#app#app#app #vsite #site-list.rx-static>.pcard {animation:none!important}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card:nth-child(n/**/+13) {animation:none}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card:nth-child(9) {animation-delay:240ms}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card:nth-child(10) {animation-delay:270ms}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card:nth-child(11) {animation-delay:300ms}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card:nth-child(12) {animation-delay:330ms}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard:hover .card-edit-icon,
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard:focus-within .card-edit-icon {opacity:1}
+@media (hover:hover) and (pointer:fine) {
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard:hover {transform:translateY(-3px)!important;border-color:var(--rx-line2)!important;background:var(--rx-surf2)!important}
+}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard:nth-child(5) {animation-delay:120ms}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard:nth-child(6) {animation-delay:150ms}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard:nth-child(7) {animation-delay:180ms}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard:nth-child(8) {animation-delay:210ms}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard:nth-child(9) {animation-delay:240ms}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard:nth-child(10) {animation-delay:270ms}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard:nth-child(11) {animation-delay:300ms}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard:nth-child(12) {animation-delay:330ms}
+
+/* ---- moved from css/149-ax-placeholder.css ---- */
+html[data-theme-preset] body #app#app .vc .vt.thumb-loaded::before,
+html[data-theme-preset] body #app#app .vc .vt.thumb-loaded::after {opacity:0}
+html[data-theme-preset] body #app#app#app #site-list .pcard .pimg .entity-fallback {position:absolute!important;inset:0!important;width:100%!important;height:100%!important;display:flex!important;align-items:center;justify-content:center;overflow:hidden}
+html[data-theme-preset] body #app#app#app #site-list .pcard .pimg .ax-ph-bg {position:absolute!important;inset:0!important;width:100%!important;height:100%!important;transform:none!important}
+html[data-theme-preset] body #app#app#app #site-list .pcard .pimg .entity-fallback-logo {position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;padding:5px!important;box-sizing:border-box!important;object-fit:contain!important;object-position:center!important;transform:none!important;max-width:none!important}
+html[data-theme-preset] body #app#app#app#app#app#app #site-list .pcard .pimg .entity-fallback-logo {inset:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important;object-fit:contain!important;padding:5px!important;box-sizing:border-box!important}
+html[data-theme-preset] body #app#app #vl.library-page #vg>.vc>.vt.previewing.preview-layer-a>.vc-preview-canvas.preview-a,
+html[data-theme-preset] body #app#app #vl.library-page #vg>.vc>.vt.previewing.preview-layer-b>.vc-preview-canvas.preview-b {opacity:1!important}
+
+/* ---- moved from css/153-ax-player-polish.css ---- */
+html[data-theme-preset] body #app#app #vl.library-page #vg>.vc>.vt>.vc-preview-deck>.vc-preview-canvas.active,
+html[data-theme-preset] body #app#app .vc .vt>.vc-preview-deck>.vc-preview-canvas.active {opacity:1!important;z-index:3!important;transform:none!important}
+@media (prefers-reduced-motion:reduce) {
+html[data-theme-preset] body #app#app .vc .vt>.vc-preview-deck {transform:none!important;transition:none!important}
+html[data-theme-preset] body #app#app .vc .vt>.vc-preview-deck>.vc-preview-canvas {transform:none!important;transition:none!important}
+}
+
+/* ---- moved from css/97-smooth-motion-system.css ---- */
+.studio-card {
+  transition: border-color var(--ax-motion-ui) var(--ax-motion-ease),
+              background-color var(--ax-motion-ui) var(--ax-motion-ease),
+              box-shadow var(--ax-motion-ui) var(--ax-motion-ease);
+}
+.vt.previewing .vc-preview-canvas,
+.unx-art.previewing .vc-preview-canvas {
+  will-change: opacity;
+}
+
+
+
+/* ----------------------------------------------------------------------
+   SECTION: Canonical card rules
+   Video, performer, studio and channel cards.
+   ---------------------------------------------------------------------- */
+/* ======== previous canonical rules ======== */
+
+
+#site-list .pcard .card-edit-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+.pimg {
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+}
+.vc {
+  contain: layout style paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 280px 300px;
+}
+.pcard {
+  contain: layout style paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 200px 280px;
+}
+/* Performer tiles also carry the generic .pcard class. Override its paint
+   containment so the lifted portrait can extend beyond the card's top edge. */
+.pcard.performer-card {
+  contain: layout style;
+  content-visibility: visible;
+  contain-intrinsic-size: none;
+}
+.unx {
+  contain: layout style paint;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
+}
+.unx img {
+  aspect-ratio: 16/9;
+  flex: none;
+}
+#perf-list .performer-card .pimg::before {
+  opacity: .5;
+  transform: scale(1.08);
+}
+#perf-list .performer-card .p-overlay {
+  -webkit-backdrop-filter: blur(12px) saturate(1.08);
+}
+.vc .vt>.vc-preview-deck {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  z-index: 1;
+  transform: scale(1);
+  transform-origin: center;
+  transition: transform 3s cubic-bezier(.25,1,.5,1);
+}
+.vc .vt>.vc-preview-deck>.vc-thumb-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 1;
+  z-index: 1;
+  transition: opacity 180ms ease;
+  will-change: opacity;
+}
+.vc .vt>.vc-preview-deck>.vc-preview-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.unx img {
+  background: #191919;
+}
+.unx .unx-art .vc-preview-canvas {
+  will-change: opacity;
+}
+.vc .vn,
+.performer-card .pname,
+.pcard .pname {
+  word-break: break-word;
+}
+#perf-list .performer-card .pimg {
+  min-height: 0;
+}
+@media (min-width: 1101px) {
+  #dnext .unx {
+    flex-direction: column;
+  }
+  #dnext .unx .muted {
+    display: none !important;
+  }
+}
+.ax-carousel-track > .unx {
+  align-self: flex-start;
+  box-sizing: border-box;
+}
+.ax-carousel-track .unx-art img {
+  display: block !important;
+}
+.ax-carousel-track .unx > div:not(.unx-art) {
+  min-width: 0 !important;
+}
+.ax-carousel-track .unx .muted {
+  display: block !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ax-carousel-track > .unx {
+  box-shadow: none;
+}
+#perf-list .performer-card .pimg::after {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  background: linear-gradient(180deg,
+    rgba(8,10,12,.02) 24%,
+    rgba(8,10,12,.03) 43%,
+    rgba(8,10,12,.24) 60%,
+    rgba(8,10,12,.72) 77%,
+    rgba(8,10,12,.94) 100%);
+}
+#perf-list .performer-card .p-overlay {
+  -webkit-backdrop-filter: none !important;
+}
+#perf-list .performer-card .p-overlay .pname {
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+#perf-list .performer-card .performer-tile-footer {
+  gap: 8px;
+}
+#perf-list .performer-card .performer-open-action {
+  flex: 0 0 22px;
+  cursor: pointer;
+}
+#perf-list .performer-card .performer-open-action .ax-icon {
+  display: block;
+  flex: 0 0 10px;
+}
+@media (max-width: 720px) {
+  #perf-list .performer-card .performer-open-action {
+    flex-basis: 22px;
+  }
+}
+@media (max-width: 370px) {
+  #perf-list .performer-card .performer-open-action {
+    gap: 4px;
+  }
+}
+#site-list > .pcard {
+  isolation: isolate;
+}
+#site-list > .pcard > .pimg {
+  isolation: isolate;
+}
+#site-list > .pcard > .pimg::before {
+  position: absolute !important;
+  inset: -16px !important;
+  z-index: 0 !important;
+  background-image: var(--entity-bg, none);
+  background-size: cover;
+  background-position: center;
+  transform: scale(1.08) !important;
+  opacity: .8 !important;
+}
+#site-list > .pcard > .pimg::after {
+  position: absolute !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+#site-list > .pcard > .pimg img {
+  box-shadow: none;
+}
+#site-list > .pcard > .pinfo {
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 0;
+  border-radius: 0;
+}
+#site-list > .pcard .pname-row {
+  position: static;
+  width: 100%;
+  min-width: 0;
+}
+#site-list > .pcard .pname {
+  text-shadow: 0 1px 6px rgba(0,0,0,.34);
+}
+#site-list#site-list > .pcard > .pimg > img:not(.entity-fallback-logo) {
+  min-width: 0;
+}
+#site-list > .pcard > .pinfo {
+  pointer-events: none;
+}
+#site-list > .pcard .pname {
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+#site-list > .pcard .studio-tile-footer {
+  pointer-events: auto;
+}
+#site-list > .pcard .pcount.studio-tile-stat {
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+#site-list > .pcard .studio-tile-footer .card-edit-icon {
+  z-index: auto;
+  flex: 0 0 22px;
+  justify-content: center;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none !important;
+  pointer-events: auto;
+  cursor: pointer;
+}
+#site-list > .pcard .studio-tile-footer .card-edit-icon .ax-icon {
+  display: block;
+  flex: 0 0 10px !important;
+}
+#vg .video-title-row {
+  min-width: 0;
+}
+#vg .video-card-entities {
+  width: 100%;
+  white-space: nowrap;
+}
+#vg .video-performer-chip {
+  text-align: left;
+}
+#vg .video-more-chip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#vg .video-performer-unknown {
+  font-size: 11px;
+  opacity: .7;
+}
+#vg .video-duration-overlay {
+  pointer-events: none;
+}
+#vl.library-page #vg>.vc .video-performer-chip {
+  text-decoration: none;
+  transition: background-color .14s ease,border-color .14s ease,box-shadow .14s ease !important;
+}
+#vg .video-performer-avatar-wrap {
+  aspect-ratio: 1 / 1;
+}
+#vg .video-performer-avatar {
+  aspect-ratio: 1 / 1;
+  background: transparent;
+}
+#vg .video-performer-avatar-fallback {
+  aspect-ratio: 1 / 1;
+  background: var(--ax-background-tertiary,var(--bg3,#41443e));
+}
+#vg .video-title-row .vn {
+  overflow-wrap: anywhere;
+}
+#site-list#site-list > .pcard > .pimg > img:not(.entity-fallback-logo) {
+  transform-origin: 50% 50%;
+}
+#site-list#site-list > .pcard > .pimg::after {
+  inset: 0 !important;
+  background: linear-gradient(180deg,
+    rgba(8,9,9,0) 0%,
+    rgba(8,9,9,0) 62%,
+    rgba(8,9,9,.12) 82%,
+    rgba(8,9,9,.42) 100%);
+}
+html #vl.library-page #vg > .vc {
+  z-index: 0 !important;
+  transform-origin: center center;
+  will-change: transform;
+}
+html #dnext .unx {
+  position: relative;
+  z-index: 0;
+  transform-origin: center center;
+  will-change: transform;
+}
+.vc .vt .vbadges {
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.vc .vt .vbadges .badge {
+  flex: 0 1 auto;
+  min-width: 0 !important;
+}
+.vc .vt .vbadges .badge:first-child {
+  flex: 0 0 auto;
+}
+#vl.library-page #vg .video-performer-avatar-wrap {
+  box-sizing: border-box;
+  max-width: 21px;
+  max-height: 21px;
+  clip-path: none;
+  line-height: 0;
+}
+#vl.library-page #vg .video-performer-avatar {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  max-width: 100%;
+  max-height: 100%;
+  padding: 0;
+  object-position: center 28%;
+  clip-path: none;
+}
+#vl.library-page #vg .video-performer-avatar-fallback {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  border: 0;
+  clip-path: none;
+  padding: 0;
+  margin: 0 !important;
+}
+#vl.library-page #vg > .vc .video-performer-chip {
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+#vl.library-page #vg > .vc .video-performer-chip {
+  width: max-content;
+}
+#vl.library-page #vg .video-performer-name {
+  flex: 0 1 auto;
+  width: auto;
+}
+#vl.library-page #channel-cards > .channel-file-card.selected::after {
+  content: none;
+}
+#vl.library-page #channel-cards > .channel-file-card.selected {
+  outline: none;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-kind {
+  max-width: 100%;
+  font-weight: 760;
+  line-height: 1.2;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-avatar {
+  isolation: isolate;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-initials {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-avatar img {
+  z-index: 1;
+  border: 0;
+  background: transparent;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-video-count svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-video-count strong {
+  font-weight: 760;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-linked i {
+  display: inline-block;
+  border-radius: 50%;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-linked.is-linked i {
+  background: #31c983;
+  box-shadow: 0 0 0 2px rgba(49,201,131,.11);
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-action {
+  border: 1px solid rgba(212,223,239,.22) !important;
+  cursor: pointer;
+  transition: background .14s ease,border-color .14s ease,transform .14s ease !important;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-action svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-edit .ax-icon {
+  stroke: currentColor;
+}
+.video-card-channel {
+  flex: 0 0 15px;
+  text-overflow: ellipsis;
+}
+#vl.library-page #vg .video-card-tags {
+  flex: 0 0 23px;
+}
+#vl.library-page #vg .video-more-chip {
+  align-items: center;
+  justify-content: center;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-kind {
+  margin-top: 4px;
+  font-size: 10.5px;
+}
+html[data-theme-preset] #app #vl.library-page #vg > .vc > .vi {
+  color: var(--ax-text-primary);
+}
+html[data-theme-preset] #app .video-card-entities {
+  color: var(--ax-text-secondary);
+}
+html[data-theme-preset] #app #vl.library-page #channel-cards > .channel-profile-card .channel-profile-video-count strong {
+  color: var(--ax-text-primary);
+}
+html[data-theme-preset] #app #vl.library-page #channel-cards > .channel-profile-card .channel-profile-kind,
+html[data-theme-preset] #app #vl.library-page #channel-cards > .channel-profile-card .channel-profile-stats {
+  color: var(--ax-text-secondary);
+}
+html[data-theme-preset] #app #vl.library-page #channel-cards > .channel-profile-card .channel-profile-action {
+  background: var(--ax-background-tertiary);
+  border-color: var(--ax-border-strong) !important;
+  color: var(--ax-text-primary);
+}
+html[data-theme-preset] #app #vl.library-page #channel-cards > .channel-profile-card .channel-profile-edit {
+  background: var(--ax-interactive-primary);
+  border-color: var(--ax-interactive-primary) !important;
+  color: var(--ax-text-on-accent);
+}
+html[data-theme-preset] #app #perf-list .performer-card,
+html[data-theme-preset] #app #site-list > .pcard:not(.channel-profile-card) {
+  color: var(--ax-text-primary);
+}
+html[data-grid-density] #view-stage > .view#vl.library-page #vg > .vc > .vt {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+html[data-grid-density] #view-stage > .view#vl.library-page #vg > .vc > .vi {
+  flex-direction: column;
+  align-items: stretch;
+  box-sizing: border-box;
+  width: 100%;
+  max-height: var(--ax-video-card-info-height);
+  overflow: hidden;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-video-count strong {
+  font-size: 10.5px;
+}
+#vl.library-page #channel-cards > .channel-profile-card .channel-profile-linked i {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 5px;
+}
+html body #app #vl.library-page #channel-cards > .channel-profile-card.channel-profile-card {
+  place-content: center stretch !important;
+  justify-items: center;
+  row-gap: 4px !important;
+  scroll-snap-align: start;
+}
+html body #app #vl.library-page #channel-cards > .channel-profile-card.channel-profile-card > .channel-profile-title {
+  grid-area: title;
+  align-self: center;
+  justify-self: stretch;
+}
+html body #app #vl.library-page #channel-cards > .channel-profile-card.channel-profile-card > .channel-profile-avatar {
+  grid-area: avatar;
+  inset: auto;
+  place-self: center;
+  align-self: center;
+  justify-self: center;
+  float: none;
+  max-width: 70px;
+  max-height: 70px;
+  box-sizing: border-box;
+  transform: none;
+}
+html body #app #vl.library-page #channel-cards > .channel-profile-card.channel-profile-card > .channel-profile-avatar img {
+  max-width: none;
+  max-height: none;
+  object-position: center;
+}
+html body #app #vl.library-page #channel-cards > .channel-profile-card.channel-profile-card > .channel-profile-stats {
+  grid-area: stats;
+  align-self: center;
+  justify-self: center;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+  height: 12px;
+  max-height: 12px;
+  margin: 0 auto;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 10.5px;
+  line-height: 10px;
+}
+html body #app #vl.library-page #channel-cards > .channel-profile-card.channel-profile-card > .channel-profile-stats .channel-profile-video-count,
+html body #app #vl.library-page #channel-cards > .channel-profile-card.channel-profile-card > .channel-profile-stats .channel-profile-linked {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  gap: 2px;
+  margin: 0;
+  white-space: nowrap;
+  font-size: 10.5px;
+  line-height: 10px;
+}
+html body #app #vl.library-page #channel-cards > .channel-profile-card.channel-profile-card > .channel-profile-stats .channel-profile-video-count svg {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+}
+html body #app #vl.library-page #channel-cards > .channel-profile-card.channel-profile-card > .channel-profile-actions {
+  grid-area: actions;
+  place-self: center;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 22px;
+  max-height: 22px;
+  margin: 0 auto;
+  padding: 0;
+}
+html body #app #vl.library-page #channel-cards > .channel-profile-card.channel-profile-card > .channel-profile-actions .channel-profile-action {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 22px;
+  width: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  height: 22px;
+  min-height: 22px !important;
+  max-height: 22px;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+}
+html body #app #vl.library-page #channel-cards > .channel-profile-card.channel-profile-card > .channel-profile-actions .channel-profile-action svg {
+  width: 11px;
+  height: 11px;
+}
+html[data-ax-input="touch"] .vc,
+html[data-ax-input="touch"] .pcard {
+  touch-action: manipulation;
+}
+@media (max-width: 767px), (max-height: 450px) and (orientation: landscape) {
+  #vg > .vc .video-performer-chip,
+  #vg > .vc .video-tag-chip,
+  #vg > .vc .video-more-chip {
+    overflow-wrap: anywhere;
+  }
+}
+html .vc .vt .ax-video-hover-play {
+  place-items: center;
+}
+html .vc .vt .ax-video-hover-play .ax-icon {
+  border-radius: var(--ax-radius-pill);
+}
+html .vc .video-card-tags {
+  font-family: var(--ax-font-body);
+}
+#vl.library-page #channel-cards.ax2-channel-track .channel-profile-avatar {
+  justify-content: center;
+}
+#vl.library-page #channel-cards.ax2-channel-track .channel-profile-avatar>img {
+  display: block;
+}
+#vl.library-page #channel-cards.ax2-channel-track .channel-profile-initials {
+  justify-content: center;
+}
+html[data-grid-density] #view-stage > .view#vl.library-page #vg > .vc {
+  box-sizing: border-box;
+  flex-direction: column;
+  align-self: stretch;
+  justify-self: stretch;
+  max-height: none !important;
+}
+#view-stage > .view#vl.library-page #vg > .vc > .vt {
+  box-sizing: border-box;
+  max-height: none;
+}
+#vl.library-page #vg > .vc > .vt .ax-video-hover-play {
+  position: absolute;
+  z-index: 5;
+  inset: 50% auto auto 50%;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb,#fff 28%,transparent);
+  border-radius: 50%;
+  background: rgba(0,0,0,.42);
+  color: #fff;
+  opacity: 0;
+  transform: scale(.92);
+  pointer-events: none;
+  transition: opacity var(--ax2-d2) var(--ax2-ease),transform var(--ax2-d3) var(--ax2-ease-in);
+}
+#vl.library-page #vg > .vc > .vt .ax-video-hover-play .ax-icon {
+  display: block;
+  width: 23px;
+  height: 23px;
+  color: #fff;
+  fill: currentColor;
+  stroke: none;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+#vl.library-page #vg > .vc > .vt .vbadges {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: auto;
+  max-width: none;
+  height: auto;
+  transform: none;
+  pointer-events: none;
+}
+#vl.library-page #vg > .vc > .vt .vbadges .badge {
+  align-items: center !important;
+  justify-content: center !important;
+  font: 600 11.5px/1.1 var(--ax2-font) !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#vl.library-page #vg > .vc > .vt .video-duration-overlay {
+  align-items: center;
+  justify-content: center;
+  max-width: 45%;
+  min-height: 20px;
+  font: 600 11.5px/1.1 var(--ax2-font) !important;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+#vl.library-page #vg > .vc > .vt .fav-btn {
+  justify-content: center;
+  min-height: 34px !important;
+  cursor: pointer;
+}
+#vl.library-page #vg > .vc > .vt .fav-btn.on {
+  animation: ax2-fav-pop var(--ax2-d3) var(--ax2-ease-in);
+}
+#view-stage > .view#vl.library-page #vg > .vc > .vi {
+  border-radius: 0 0 var(--ax2-r-card) var(--ax2-r-card);
+}
+#vl.library-page #vg .video-title-row {
+  align-items: flex-start;
+  gap: 6px;
+  flex: 0 0 auto;
+  max-height: none;
+}
+#vl.library-page #vg .video-title-row .vn {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  transition: color var(--ax2-d2) var(--ax2-ease);
+}
+#vl.library-page #vg .video-card-performers {
+  flex: 0 0 24px;
+  max-height: 24px;
+}
+#vl.library-page #vg .video-card-performers .video-performer-chip {
+  align-items: center;
+  gap: 5px;
+  max-width: calc(50% - 3px);
+  font: 500 12px/1.2 var(--ax2-font) !important;
+}
+#vl.library-page #vg .video-performer-avatar-wrap {
+  min-height: 22px;
+}
+#vl.library-page #vg .video-performer-avatar-wrap img {
+  display: block;
+  min-width: 22px;
+  min-height: 22px;
+}
+#vl.library-page #vg .video-performer-name {
+  font: 500 12px/1.2 var(--ax2-font);
+}
+#vl.library-page #vg .video-more-chip {
+  min-height: 20px;
+  font: 600 11px/1 var(--ax2-font) !important;
+  white-space: nowrap;
+}
+#vl.library-page #vg .video-card-channel {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: 16px;
+  font: 400 12px/1.2 var(--ax-font-body,"ArchiveXInter",Inter,system-ui,sans-serif) !important;
+}
+#vl.library-page #vg .video-card-channel-brand {
+  align-items: center;
+  justify-content: center;
+}
+#vl.library-page #vg .video-card-channel-label {
+  flex: 1 1 auto;
+}
+#vl.library-page #vg .video-card-tags {
+  min-width: 0;
+  max-width: 100%;
+  max-height: 22px;
+}
+#vl.library-page #vg .video-card-tags .video-tag-chip {
+  justify-content: center;
+  min-width: 0;
+  min-height: 22px;
+  max-height: 22px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+#vl.library-page #vg > .vc .map-select {
+  box-sizing: border-box;
+  min-width: 26px !important;
+  min-height: 26px;
+  appearance: none;
+  -webkit-appearance: none;
+  box-shadow: 0 3px 12px rgba(0,0,0,.24);
+  accent-color: var(--ax2-accent) !important;
+}
+#vl.library-page #vg > .vc .map-select:checked {
+  box-shadow: 0 0 0 3px var(--ax2-accent-soft);
+}
+#vl.library-page #vg > .vc .map-select:checked::after {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ax2-on-accent);
+  font: 800 16px/1 var(--ax2-font);
+}
+#do #dnext .ax-carousel-track > .unx {
+  display: grid;
+  grid-template-columns: 132px minmax(0,1fr);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ax2-text);
+  text-align: left;
+  scroll-snap-align: none;
+  cursor: pointer;
+  overflow: hidden;
+}
+#do #dnext .unx-art {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: 132px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--ax2-r-sm);
+  background: var(--ax2-surface-2);
+}
+#do #dnext .unx-art > img {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  object-fit: cover !important;
+  border-radius: 0;
+}
+#do #dnext .unx-art .vc-preview-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  border-radius: 0;
+}
+#do #dnext .unx-art > img {
+  z-index: 0;
+}
+#do #dnext .unx-art .vc-preview-canvas {
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+}
+#do #dnext .unx-art > img,
+#do #dnext .unx-art .vc-preview-canvas {
+  transition: transform var(--ax2-d2) var(--ax2-ease), opacity var(--ax2-d2) var(--ax2-ease);
+}
+#do #dnext .unx .t {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ax2-text);
+  font: 600 13px/1.32 var(--ax2-font);
+  overflow-wrap: anywhere;
+}
+#do #dnext .unx .muted {
+  min-width: 0;
+  margin-top: 4px !important;
+  color: var(--ax2-text-3) !important;
+  font: 400 12px/1.35 var(--ax2-font) !important;
+  white-space: nowrap;
+}
+#do #dnext .ax2-video-duration-badge {
+  position: absolute;
+  z-index: 3;
+  right: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 3px 6px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 6px;
+  background: rgba(0,0,0,.78);
+  color: #fff;
+  font: 600 11px/1.15 var(--ax2-font);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+@media (max-width: 1199px) {
+  #do #dnext .ax-carousel-track > .unx {
+    display: flex;
+    flex: 0 0 clamp(210px,34vw,250px);
+    flex-direction: column;
+    align-items: stretch;
+    width: auto;
+    min-width: 0;
+    max-width: 250px;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: visible;
+    scroll-snap-align: start;
+  }
+  #do #dnext .unx-art {
+    width: 100%;
+  }
+}
+@media (max-width: 599px) {
+  #do #dnext .ax-carousel-track > .unx {
+    flex-basis: min(66vw,230px);
+    max-width: 230px;
+  }
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card {
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  isolation: isolate;
+  cursor: pointer;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .pimg {
+  inset: auto !important;
+  z-index: 0 !important;
+  display: block !important;
+  flex: 0 0 auto;
+  padding: 0;
+  box-shadow: none;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .pimg::before {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  background: linear-gradient(110deg, var(--ax2-surface-2) 15%, var(--ax2-surface-3) 45%, var(--ax2-surface-2) 75%);
+  background-size: 240% 100%;
+  pointer-events: none !important;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .pimg:has(img.ax2-image-loaded)::before {
+  animation: none;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .pimg::after {
+  display: none !important;
+  content: none;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .pimg > img {
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  object-position: center top;
+  transition: opacity var(--ax2-d4) var(--ax2-ease);
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .pimg > img.ax2-image-loaded {
+  opacity: 1 !important;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .p-overlay {
+  box-sizing: border-box;
+  inset: auto;
+  z-index: 3;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+  border-radius: 0;
+  -webkit-backdrop-filter: none !important;
+  pointer-events: none;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .p-overlay .pname {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-height: 1.4em;
+  font: 600 14px/1.35 var(--ax2-font) !important;
+  letter-spacing: 0;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .performer-tile-footer {
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  pointer-events: none;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .performer-tile-stat {
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font: 400 12px/1.25 var(--ax2-font) !important;
+  white-space: nowrap;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .performer-tile-stat .performer-tile-stat-label {
+  font: inherit !important;
+}
+html[data-theme-preset] #app #view-stage #vp #perf-list .performer-card .performer-open-action {
+  box-sizing: border-box;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 30px !important;
+  box-shadow: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px) !important;
+  opacity: .88;
+  pointer-events: auto;
+}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard {
+  box-sizing: border-box;
+  flex-direction: row;
+  width: 100%;
+  cursor: pointer;
+}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard > .pimg {
+  box-sizing: border-box;
+  justify-content: center !important;
+  max-width: 48px !important;
+  box-shadow: none;
+}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard > .pimg::after {
+  content: none;
+}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard > .pimg > img {
+  display: block;
+  border: 0;
+  background: transparent;
+  mask-image: none;
+  -webkit-mask-image: none;
+  transition: opacity var(--ax2-d4) var(--ax2-ease);
+}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard > .pinfo {
+  box-sizing: border-box;
+  width: auto;
+  max-width: 100%;
+  box-shadow: none;
+}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard .pname-row {
+  align-items: center;
+  gap: 6px;
+}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard .pname {
+  min-width: 0;
+  max-width: 100%;
+}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard .studio-tile-footer {
+  min-width: 0;
+}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard .pcount {
+  display: block;
+  min-width: 0;
+}
+html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard .card-edit-icon {
+  box-sizing: border-box;
+}
+@media (max-width: 599px) {
+  html[data-theme-preset] #app #view-stage #vsite #site-list > .pcard > .pimg {
+    max-width: 42px !important;
+  }
+}
+html body #app #vl #channel-cards#channel-cards .ax2-channel-avatar .channel-profile-initials {
+  font: 700 18px/1 var(--ax2-font) !important;
+}
+html body #app #vl .vc.ax2-library-card .vbadges {
+  gap: 5px;
+  margin: 0;
+}
+html body #app #vl .vc.ax2-library-card .vbadges .badge {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none;
+}
+html body #app #vl .vc.ax2-library-card .video-duration-overlay {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none;
+  text-transform: none;
+}
+html body #app #vl .vc.ax2-library-card .video-duration-overlay {
+  width: auto;
+}
+html body #app #vl .vc.ax2-library-card .vn {
+  font: 700 14px/1.3 var(--ax2-font) !important;
+}
+html body #app #vl .vc .axf-perf-avatar {
+  place-items: center !important;
+  cursor: pointer;
+  position: relative;
+}
+html body #app #vl .vc .axf-perf-avatar .video-performer-avatar {
+  margin: 0;
+  border: 0;
+}
+html body #app #vl .vc .axf-perf-avatar .video-performer-avatar-fallback {
+  align-items: center !important;
+  justify-content: center !important;
+  font: 700 9px/1 var(--ax2-font) !important;
+  color: var(--axf-tx) !important;
+}
+html body #app #vl .vc .axf-perf-label {
+  cursor: pointer;
+}
+html body #app #vl .vc .axf-perf-label .video-performer-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+html body #app #vl .vc .axf-perf-label .axf-perf-more {
+  flex: none;
+}
+html body #app #vl .vc.ax2-library-card .video-tag-chip {
+  font: 500 11px/1 var(--ax2-font) !important;
+}
+html body #app #vl .vc.ax2-library-card .vbadges {
+  background: none;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard {
+  grid-template-columns: 48px minmax(0,1fr);
+  grid-template-rows: auto;
+}
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard::before,
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard::after {
+  display: none;
+}
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard .pimg {
+  position: relative !important;
+  inset: auto !important;
+  min-height: 0;
+  padding: 0;
+  filter: none !important;
+}
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard .pimg::after {
+  display: none !important;
+}
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard .pimg img {
+  filter: none;
+  transform: none;
+  border-radius: 0;
+  margin: 0;
+  opacity: 1 !important;
+}
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard .pname {
+  font: 600 14px/1.3 var(--ax2-font) !important;
+  text-align: left;
+}
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard .studio-tile-footer {
+  justify-content: flex-start;
+}
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard .studio-tile-stat {
+  font: 400 12px/1.3 var(--ax2-font) !important;
+  background: none;
+  border: 0;
+  height: auto;
+}
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard .card-edit-icon {
+  left: auto;
+  bottom: auto;
+  min-width: 28px;
+  min-height: 28px !important;
+  box-shadow: none !important;
+  opacity: 0 !important;
+}
+@media (hover:none) {
+  html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard .card-edit-icon {
+    opacity: .85 !important;
+  }
+}
+@media (max-width:599px) {
+  html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard {
+    grid-template-columns: minmax(0,1fr);
+  }
+}
+html[data-theme-preset] body #app #view-stage #vsite #site-list#site-list > .pcard .pcount.studio-tile-stat {
+  white-space: nowrap;
+  width: auto;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+html[data-theme-preset] body #app :is(#axf-x,.vc).vc .axf-perf-label .video-performer-name {
+  opacity: 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  html body #app #vl .vc.ax2-library-card {
+    transform-origin: center center;
+  }
+  html body #app #vl .vc.ax2-library-card .fav-btn {
+    transition: background-color 160ms ease, transform 160ms ease, color 160ms ease !important;
+  }
+}
+#vl.library-page #vg > .vc .video-performer-name,
+#vl.library-page #vg > .vc .video-card-channel-label {
+  font-family: "Outfit", system-ui, sans-serif;
+}
+#vl.library-page #vg > .vc .video-card-tags .video-tag-chip {
+  font-family: "Outfit", system-ui, sans-serif !important;
+}
+html[data-theme-preset] body #do #dnext .ax-carousel-track > .unx {
+  border-radius: 12px;
+  transition: transform 170ms ease, border-color 170ms ease, background-color 170ms ease;
+}
+html[data-theme-preset] body #app#app#app#app #vl #channel-cards .ax2-channel-avatar .channel-profile-initials {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  line-height: 1.45 !important;
+  color: var(--rx-tx);
+  letter-spacing: normal;
+}
+html[data-theme-preset] body #app#app#app#app #vl #channel-cards .channel-profile-actions,
+html[data-theme-preset] body #app#app#app#app #vl #channel-cards .channel-profile-kind,
+html[data-theme-preset] body #app#app#app#app #vl #channel-cards .channel-profile-stats {
+  display: none;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc {
+  position: relative !important;
+  display: block !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0;
+  background: var(--rx-surf);
+  border: 1px solid var(--rx-line);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: none;
+  color: var(--rx-tx) !important;
+  font-size: 15px !important;
+  line-height: 1.45 !important;
+  transition: transform var(--rx-d3) var(--rx-e-enter),box-shadow var(--rx-d3) var(--rx-e-std),border-color var(--rx-d2) var(--rx-e-std);
+  transform: none;
+  cursor: pointer;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc.map-picked {
+  outline: 2px solid var(--rx-acc);
+  outline-offset: 0;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  border-radius: 0;
+  background: var(--rx-surf2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .ax-video-hover-play {
+  display: none;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .vbadges {
+  display: contents;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .vbadges .badge {
+  position: absolute !important;
+  display: block !important;
+  min-height: 0;
+  background: rgba(0,0,0,.66) !important;
+  color: #fff !important;
+  border: 0;
+  border-radius: 7px;
+  padding: 1px 7px;
+  margin: 0 !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  line-height: 1.45 !important;
+  letter-spacing: normal;
+  box-shadow: none;
+  max-width: none !important;
+  z-index: 3 !important;
+  text-transform: none;
+  height: auto !important;
+  white-space: nowrap;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .vbadges .badge[style*="rgba(0,0,0,.65)"] {
+  left: 7px !important;
+  bottom: 7px;
+  top: auto !important;
+  right: auto !important;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .vbadges .badge[style*="rgba(26,50,96"] {
+  display: none !important;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .video-duration-overlay {
+  display: block;
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  left: auto;
+  top: auto;
+  background: rgba(0,0,0,.66);
+  color: #fff;
+  border-radius: 7px;
+  padding: 1px 7px;
+  margin: 0;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  line-height: 1.45 !important;
+  letter-spacing: normal;
+  z-index: 3;
+  border: 0;
+  box-shadow: none;
+  font-variant-numeric: normal !important;
+  min-width: 0;
+  height: auto;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .fav-btn {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  left: auto;
+  bottom: auto;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.42);
+  border: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  z-index: 7;
+  opacity: 1;
+  font-size: 15px;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .fav-btn .ax-icon {
+  width: 16px;
+  height: 16px;
+  color: inherit;
+  transition: color var(--rx-d2);
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .fav-btn.on {
+  color: var(--rx-warn);
+  border: 0;
+  background: rgba(0,0,0,.42);
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .map-select {
+  position: absolute !important;
+  left: 8px !important;
+  top: 8px !important;
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50%;
+  border: 2px solid #fff !important;
+  background: rgba(0,0,0,.3) !important;
+  margin: 0 !important;
+  z-index: 8 !important;
+  cursor: pointer;
+  transition: background-color var(--rx-d2),border-color var(--rx-d2),transform var(--rx-d2) var(--rx-e-enter) !important;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .map-select:checked {
+  background: var(--rx-acc) !important;
+  border-color: var(--rx-acc) !important;
+  transform: scale(1.08);
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vt .map-select:checked::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 5px;
+  width: 8px;
+  height: 5px;
+  border: 2.4px solid var(--rx-acctx);
+  border-top: 0;
+  border-right: 0;
+  transform: rotate(-45deg);
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi {
+  display: block;
+  padding: 10px 12px 12px;
+  margin: 0;
+  border: 0;
+  background: none;
+  gap: 0;
+  height: auto;
+  min-height: 0;
+  flex: none;
+}
+@media (max-width:599px) {
+  html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi {
+    padding: 9px 10px 11px;
+  }
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-title-row {
+  display: block;
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  height: auto;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .vn {
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  line-height: 1.3 !important;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.6em;
+  max-height: none;
+  padding: 0 26px 0 0;
+  margin: 0;
+  color: var(--rx-tx);
+  letter-spacing: normal;
+  white-space: normal;
+  text-overflow: clip;
+  height: auto;
+  position: relative;
+}
+@media (max-width:599px) {
+  html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .vn {
+    display:block!important;
+    font-size:12.5px!important;
+    line-height:1.25!important;
+    min-height:0!important;
+    height:1.25em!important;
+    max-height:1.25em!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    overflow-wrap:normal!important;
+    text-overflow:ellipsis!important;
+  }
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-card-performers {
+  display: flex;
+  align-items: center;
+  margin: 8px 0 0;
+  padding: 0;
+  font-size: 12.5px;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  gap: 0;
+  flex-wrap: nowrap;
+  overflow: visible;
+  line-height: 1.45;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .axf-perf-stack {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .axf-perf-avatar {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--rx-surf);
+  margin: 0 -8px 0 0;
+  flex: none;
+  padding: 0;
+  overflow: hidden;
+  background: var(--rx-surf3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .axf-perf-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  align-items: center;
+  justify-content: center;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .axf-perf-avatar .video-performer-avatar-fallback {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 50%;
+  object-fit: cover !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .axf-perf-label {
+  display: block;
+  margin: 0 0 0 14px;
+  padding: 0;
+  font-style: normal !important;
+  font-size: 12.5px !important;
+  line-height: 1.45 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  color: var(--rx-tx);
+  font-weight: 400 !important;
+  background: none;
+  border: 0;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  border-radius: 0;
+  box-shadow: none;
+  letter-spacing: normal;
+  flex: 0 1 auto;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .axf-perf-label .video-performer-name {
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: inherit;
+  display: inline;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .axf-perf-label .axf-perf-more {
+  display: inline;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  color: inherit;
+  height: auto;
+  line-height: 1.45 !important;
+  min-width: 0;
+  border-radius: 0;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-card-channel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px !important;
+  color: var(--rx-mut);
+  margin: 4px 0 0;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1.45 !important;
+  height: auto;
+  min-height: 0;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-card-channel-brand {
+  display: inline-flex;
+  width: 13px;
+  height: 13px;
+  flex: none;
+  color: #4fb3ea;
+  margin: 0;
+  padding: 0;
+  background: none;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-card-channel-brand .ax-icon {
+  width: 13px;
+  height: 13px;
+  color: #4fb3ea;
+  display: block;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-card-channel-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--rx-mut);
+  line-height: 1.45;
+  white-space: nowrap;
+  display: block;
+  min-width: 0;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-card-tags {
+  display: flex;
+  gap: 5px;
+  margin: 8px 0 0;
+  padding: 0;
+  overflow: hidden;
+  min-height: 0;
+  height: auto;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-card-tags .video-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 99px;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  line-height: 1.45 !important;
+  white-space: nowrap;
+  border: 0;
+  margin: 0;
+  flex: none;
+  max-width: none;
+  box-shadow: none;
+  letter-spacing: normal;
+  text-transform: none;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-card-tags .video-more-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 99px;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  line-height: 1.45 !important;
+  white-space: nowrap;
+  background: var(--rx-surf2);
+  color: var(--rx-sub);
+  border: 0;
+  margin: 0;
+  flex: none;
+  max-width: none;
+  box-shadow: none;
+  letter-spacing: normal;
+  text-transform: none;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-tag-chip.ax2-tag-tone-accent {
+  background: var(--rx-accbg);
+  color: var(--rx-t-acc);
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.vi .video-tag-chip.ax2-tag-tone-violet {
+  background: var(--rx-viobg);
+  color: var(--rx-t-vio);
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.rx-more3 {
+  position: absolute;
+  right: 8px;
+  top: calc(56.25% + 8px);
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--rx-sub);
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-size: 12px;
+  line-height: 1.45;
+  cursor: pointer;
+  z-index: 2;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  transition: background-color var(--rx-d2) var(--rx-e-std),color var(--rx-d2) var(--rx-e-std),border-color var(--rx-d2) var(--rx-e-std),box-shadow var(--rx-d2) var(--rx-e-std),transform var(--rx-d1) var(--rx-e-std),opacity var(--rx-d2) var(--rx-e-std) !important;
+}
+@media (max-height:500px) and (orientation:landscape) {
+  html[data-theme-preset] body #app#app#app#app #vl #channel-cards .ax2-channel-avatar .channel-profile-initials {
+    font-size: 11px !important;
+  }
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.rx-more3 {
+  gap: 3px;
+  grid-auto-flow: column;
+  place-content: center;
+}
+html[data-theme-preset] body #app#app#app#app #vl #vg>.vc>.rx-more3>i {
+  display: block;
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card {
+  position: relative;
+  display: block;
+  text-align: center;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+  aspect-ratio: auto;
+  transform: none;
+}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card .pimg {
+  aspect-ratio: 3/4;
+  height: auto !important;
+  width: 100% !important;
+  border-radius: 16px;
+  margin: 0 0 8px !important;
+  position: relative !important;
+  overflow: hidden;
+  border: 1px solid var(--rx-line);
+  background: var(--rx-surf2);
+  box-sizing: border-box;
+  transition: transform var(--rx-d3) var(--rx-e-enter),box-shadow var(--rx-d3) var(--rx-e-std),border-color var(--rx-d2);
+}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card .pimg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card .p-overlay {
+  position: static;
+  background: none;
+  padding: 0;
+  margin: 0;
+  height: auto;
+  min-height: 0;
+  display: block;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card .pname {
+  display: block;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  line-height: 1.45 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--rx-tx);
+  text-align: center;
+  margin: 0;
+  padding: 0;
+}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card .performer-tile-footer {
+  display: block;
+  margin: 0;
+  padding: 0;
+  position: static;
+}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card .performer-tile-stat {
+  display: block;
+  color: var(--rx-mut);
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  font-weight: 400 !important;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card .performer-tile-stat span {
+  display: inline;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: inherit;
+}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card .performer-tile-stat span+span {
+  margin-left: 3px;
+}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card .performer-open-action {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.42);
+  color: #fff;
+  border: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  margin: 0;
+  z-index: 2;
+  transition: opacity var(--rx-d2) var(--rx-e-std),transform var(--rx-d1) var(--rx-e-std) !important;
+  -webkit-backdrop-filter: blur(6px);
+}
+html[data-theme-preset] body #app#app#app#app #vp #perf-list>.performer-card .performer-open-action .ax-icon {
+  width: 15px;
+  height: 15px;
+}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--rx-surf);
+  border: 1px solid var(--rx-line);
+  min-width: 0;
+  box-shadow: none;
+  position: relative;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: auto;
+  overflow: hidden;
+  text-align: left;
+  transform: none;
+}
+@media (max-width:599px) {
+  html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+  }
+}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard .pimg {
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
+  border-radius: 13px;
+  flex: none;
+  margin: 0 !important;
+  aspect-ratio: auto;
+  overflow: hidden;
+  display: grid !important;
+  place-items: center !important;
+  border: 0;
+}
+@media (max-width:599px) {
+  html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard .pimg {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+  }
+}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard .pinfo {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0;
+  margin: 0;
+  display: block;
+  position: static;
+  background: none;
+}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard .pname-row {
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard .pname {
+  display: block;
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  line-height: 1.45 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--rx-tx);
+  margin: 0;
+  padding: 0;
+}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard .studio-tile-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  position: static;
+}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard .pcount {
+  color: var(--rx-mut);
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  font-weight: 400 !important;
+  margin: 0;
+  padding: 0;
+}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard .card-edit-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--rx-surf2) !important;
+  color: var(--rx-sub) !important;
+  border: 0 !important;
+  display: grid !important;
+  place-items: center;
+  padding: 0;
+  transition: opacity var(--rx-d2) var(--rx-e-std) !important;
+}
+html[data-theme-preset] body #app#app#app#app #vsite #site-list>.pcard .card-edit-icon .ax-icon {
+  width: 14px !important;
+  height: 14px !important;
+}
+html[data-theme-preset] body #app#app .vc .vt::before {
+  content: "";
+  position: absolute;
+  inset: -14%;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--ax-ph-img) center/cover no-repeat;
+  filter: blur(18px) brightness(.42) saturate(.9);
+  transform: none;
+}
+html[data-theme-preset] body #app#app .vc .vt::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  height: 100%;
+  aspect-ratio: 1/1;
+  transform: translate(-50%,-50%);
+  background: var(--ax-ph-img) center/contain no-repeat;
+  -webkit-mask-image: var(--ax-ph-fade);
+  mask-image: var(--ax-ph-fade);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+html[data-theme-preset] body #app#app#app#app#app #vsite #site-list>.pcard .pimg>img:not(.entity-fallback-logo):not(.ax-unknown-art) {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  padding: 2px;
+  box-sizing: border-box;
+}
+html[data-theme-preset] body #app#app#app #site-list .pcard .pimg>img:not([data-fallback-applied]) {
+  max-width: none;
+}
+html[data-theme-preset] body #app#app#app#app#app#app #site-list .pcard .pimg>img:not([data-fallback-applied]) {
+  inset: 0;
+  min-height: 0;
+  max-height: none;
+  aspect-ratio: auto;
+}
+html[data-theme-preset] body #app#app #vl.library-page #vg>.vc>.vt .vc-preview-canvas,
+html[data-theme-preset] body #app#app #do #dnext .unx-art .vc-preview-canvas {
+  background: transparent;
+}
+html[data-theme-preset] body #app#app #vl.library-page #vg>.vc>.vt>.vc-preview-deck>.vc-preview-canvas {
+  opacity: 0;
+  z-index: 2;
+  transform: none;
+  transition: opacity var(--ax-card-preview-transition,300ms) var(--ax-motion-ease, ease);
+  animation: none;
+}
+html[data-theme-preset] body #app#app#app#app#app #vp #perf-list>.performer-card {
+  transition: none !important;
+}
+html[data-theme-preset] body #app#app#app#app#app #vsite #site-list>.pcard {
+  transition: none;
+}
+html[data-theme-preset] body #app#app#app#app#app #vp #perf-list>.performer-card .pimg::before,
+html[data-theme-preset] body #app#app#app#app#app #vsite #site-list>.pcard .pimg::before {
+  content: none;
+  display: none !important;
+  filter: none !important;
+}
+html[data-theme-preset] body #app#app#app#app#app #vsite #site-list>.pcard .pimg {
+  background: var(--rx-surf2);
+}
+html[data-theme-preset] body #app#app#app#app#app #vp #perf-list>.performer-card .pimg>img,
+html[data-theme-preset] body #app#app#app#app#app #vsite #site-list>.pcard .pimg>img {
+  animation: ax-img-reveal 0s linear 1.2s forwards;
+}
+:is(.vc,.pcard,.entity-studio-card,.entity-related-card) [title] {
+  overflow-wrap: anywhere;
+}
+@media (min-width: 1200px) and (orientation: landscape) {
+  html[data-theme-preset]:not(.ax-visual-under-1200) body #app#app #do#do#do.open #dnext-rail#dnext-rail #dnext#dnext .ax-carousel-track > .unx {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+}
+.vt .vc-preview-canvas,
+.unx-art .vc-preview-canvas {
+  backface-visibility: hidden;
+  mix-blend-mode: soft-light;
+}
+@media (hover:hover) and (pointer:fine) {
+
+/* ----------------------------------------------------------------------
+   SECTION: Card hover, placeholders and scrubber
+   Hover behaviour, placeholders and the frame scrubber.
+   ---------------------------------------------------------------------- */
+  /* The card may zoom its poster, but the deck and individual frames stay fixed
+     as soon as the pointer enters the image. Snapshot layers blend softly while
+     opacity transitions keep the frame change smooth. */
+  html[data-theme-preset] body #app#app #vl.library-page #vg>.vc>.vt:hover>.vc-preview-deck,
+  html[data-theme-preset] body #app#app .vc .vt:hover>.vc-preview-deck {
+    transform: scale(1) !important;
+    transition: none !important;
+  }
+  html[data-theme-preset] body #app#app #vl.library-page #vg>.vc>.vt:hover>.vc-preview-deck>.vc-preview-canvas,
+  html[data-theme-preset] body #app#app #vl.library-page #vg>.vc>.vt:hover>.vc-preview-deck>.vc-preview-canvas.active,
+  html[data-theme-preset] body #app#app .vc .vt:hover>.vc-preview-deck>.vc-preview-canvas {
+    transform: none !important;
+    transition: opacity var(--ax-card-preview-transition,300ms) var(--ax-motion-ease, ease) !important;
+  }
+  html[data-theme-preset] body #app#app #vl.library-page #vg>.vc>.vt:hover>.vc-preview-deck>.vc-thumb-fallback,
+  html[data-theme-preset] body #app#app .vc .vt:hover>.vc-preview-deck>.vc-thumb-fallback {
+    transform: none !important;
+  }
+}
+html[data-ax-motion] body #app#app#app#app #view-stage #vl #vg > .vc,
+html[data-ax-motion] body #app#app#app#app #view-stage #vp #perf-list > .performer-card,
+html[data-ax-motion] body #app#app#app#app #view-stage #vsite #site-list > .pcard {
+  animation: none;
+}
+@media (pointer:coarse) {
+  html body #app#app#app#app#app#app .fav-btn::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+  html body #app#app#app#app#app#app .video-tag-chip,
+  html body #app#app#app#app#app#app .video-performer-chip,
+  html body #app#app#app#app#app#app .video-more-chip {
+    position: relative;
+  }
+  html body #app#app#app#app#app#app .video-tag-chip::after,
+  html body #app#app#app#app#app#app .video-performer-chip::after {
+    content: "";
+    position: absolute;
+    inset: -5px -3px;
+  }
+}
+#vg .video-card-tags {
+  align-content: center;
+  white-space: nowrap;
+}
+#vg .video-more-chip {
+  max-width: 100%;
+}
+#vg .vi {
+  min-width: 0;
+}
+.vc .vt::before,
+.vc .vt::after {
+  transition: opacity 180ms ease;
+}
+
+/* Saved playback feedback appears on card hover, not as a seek-preview popup. */
+.vc .vt > .ax-card-watch-progress {
+  position: absolute;
+  z-index: 8;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  background: color-mix(in srgb, var(--ax2-accent, currentColor) 24%, transparent);
+  transition: opacity 140ms ease;
+}
+.vc .vt > .ax-card-watch-progress .ax-card-watch-progress-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--ax2-accent, currentColor);
+  transition: width 180ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .vc:hover .vt > .ax-card-watch-progress[data-available="1"] {
+    opacity: 1;
+  }
+}
+.vc .vt > .ax-card-watch-progress[data-previewing="1"] {
+  opacity: 1;
+}
+.vc .vt > .ax-card-watch-progress[data-previewing="1"] .ax-card-watch-progress-fill {
+  transition: none;
+}
+.vc:focus-visible .vt > .ax-card-watch-progress[data-available="1"] {
+  opacity: 1;
+}
+
+/* Match the reference: lift only the clipped portrait frame; keep the card itself plain. */
+html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-list > .performer-card {
+  transform: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+  border-color: transparent !important;
+  transition: none !important;
+}
+html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-list > .performer-card .pimg {
+  transform: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transition: transform 600ms var(--rx-e-enter), box-shadow 600ms var(--rx-e-std) !important;
+}
+html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-list > .performer-card .pimg > img:not(.entity-fallback-logo) {
+  transform: none !important;
+  transition: transform 600ms var(--rx-e-enter) !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-list > .performer-card:hover .pimg,
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-list > .performer-card:focus-within .pimg {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 16px 30px -12px rgba(0, 0, 0, .6) !important;
+    border-color: transparent !important;
+  }
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-list > .performer-card:hover .pimg > img:not(.entity-fallback-logo),
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-list > .performer-card:focus-within .pimg > img:not(.entity-fallback-logo) {
+    transform: scale(1.05) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-list > .performer-card .pimg {
+    transition: none !important;
+  }
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-list > .performer-card:hover .pimg,
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-list > .performer-card:focus-within .pimg {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-list > .performer-card .pimg > img:not(.entity-fallback-logo) {
+    transition: none !important;
+  }
+}
+
+/* The shared placeholder fades at the edges for video thumbnails, but that
+   fade hides the bottom wordmark on small studio-directory tiles. */
+html[data-theme-preset] body #app#app#app#app #view-stage #vsite #site-list > .pcard > .pimg > .entity-fallback > .entity-fallback-logo {
+  position: absolute !important;
+  inset: auto !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: 115% !important;
+  height: 115% !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  transform: translate(-50%, -50%) !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  -webkit-mask-composite: source-over !important;
+  mask-composite: add !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+/* Match the video-card easing for studio-card lift and return. */
+html[data-theme-preset] body #app#app#app#app #view-stage #vsite #site-list > .pcard {
+  transition:
+    transform 600ms var(--rx-e-enter),
+    box-shadow 600ms var(--rx-e-std),
+    border-color 180ms var(--rx-e-std),
+    background-color 180ms var(--rx-e-std) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme-preset] body #app#app#app#app #view-stage #vsite #site-list > .pcard {
+    transition: none !important;
+  }
+}
+
+
+/* AX pro card scrubber: smooth 36-frame feedback on the existing bounded snapshot cache. */
+.vc .vt > .ax-card-watch-progress {
+  height: 3px;
+  overflow: visible;
+  z-index: 9;
+  border-radius: 0 0 2px 2px;
+  background: color-mix(in srgb, var(--ax2-text, #fff) 34%, transparent);
+  transform: translateZ(0);
+}
+.vc .vt > .ax-card-watch-progress .ax-card-watch-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  will-change: width;
+  transition: none !important;
+  background: var(--ax2-accent, #38bdf8);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--ax2-accent, #38bdf8) 58%, transparent);
+}

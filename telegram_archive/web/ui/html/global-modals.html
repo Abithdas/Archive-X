@@ -1,0 +1,313 @@
+<!-- ======================================================================
+     PARTIAL: html/global-modals.html
+     PURPOSE: Dialogs shared across views.
+     Composed into the page by web/html.py. DOM order follows the include order.
+     KEY IDS: channel-edit-modal, account-edit-modal, video-quick-edit, vq-summary, vq-match, vq-filename-hints, vq-performer-current, vq-performer-list, vq-studio-current, vq-studio-list
+     ====================================================================== -->
+<!-- LOGIN PAGE -->
+<div id="lp" class="ax2-signin-page" style="display:none">
+  <div class="ax2-signin-card">
+    <div class="ax2-signin-brand"><img class="ax2-signin-logo" src="/static/icons/archive-x.png" alt="Archive X">
+      <div class="ax2-signin-title">Archive X</div>
+      <div class="ax2-signin-subtitle">Sign in to continue</div></div>
+    <div class="pan ax2-signin-form">
+      <div class="fr"><label for="lu">Username</label><input type="text" id="lu" placeholder="Username" autocomplete="username" autofocus onkeydown="if(event.key==='Enter')($('setup-panel').style.display==='block'?$('lsetup-pw'):$('lp2')).focus()"></div>
+      <div class="fr"><label for="lp2">Password</label><input type="password" id="lp2" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button id="login-submit" class="btn pri" style="width:100%" onclick="doLogin()">Sign in</button>
+      <div id="setup-panel" style="display:none">
+        <div class="muted" style="margin:10px 0;font-size:12px">Create the administrator credentials for this Archive X installation. No default password is provided.</div>
+        <div class="fr"><label for="lsetup-pw">New password</label><input type="password" id="lsetup-pw" autocomplete="new-password" minlength="12"></div>
+        <div class="fr"><label for="lsetup-pw2">Confirm password</label><input type="password" id="lsetup-pw2" autocomplete="new-password" minlength="12" onkeydown="if(event.key==='Enter')completeSetup()"></div>
+        <button class="btn pri" style="width:100%" onclick="completeSetup()">Create administrator</button>
+      </div>
+      <div id="lerr" class="muted" style="margin-top:7px;color:var(--red)"></div>
+      <div id="lhint" class="muted" style="margin-top:9px;font-size:12px;display:none"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Channel editor: name and profile photo are edited together, then remote sync is separately confirmed. -->
+<div id="channel-edit-modal" class="mdl channel-edit-modal" aria-hidden="true" onclick="if(event.target===this)closeChannelEditModal()">
+  <div class="mdl-box channel-edit-box" role="dialog" aria-modal="true" aria-labelledby="channel-edit-heading">
+    <div class="mdl-h"><span class="ax-editor-heading-icon" aria-hidden="true"><svg class="ax-icon"><use href="#ax-edit"></use></svg></span><b id="channel-edit-heading">Edit Telegram channel</b><button class="btn xs" type="button" onclick="closeChannelEditModal()" aria-label="Close channel editor"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    <p class="muted channel-edit-intro">Edit the channel name and profile photo. Changes are saved locally first; sending them to Telegram requires a separate confirmation.</p>
+    <label class="channel-edit-name-field" for="channel-edit-title"><span>Channel name</span><input id="channel-edit-title" type="text" maxlength="255" autocomplete="off" placeholder="Enter channel name" onkeydown="if(event.key==='Enter'){event.preventDefault();saveChannelCardEdit()}"></label>
+    <section class="channel-edit-photo-section" aria-label="Channel profile photo">
+      <div class="channel-edit-photo-preview"><span id="channel-edit-photo-initials" aria-hidden="true">TG</span><img id="channel-edit-photo-preview" alt="Channel profile photo preview" loading="lazy"></div>
+      <div class="channel-edit-photo-controls"><strong>Profile photo</strong><span class="muted">PNG, JPEG, WebP or GIF · maximum 8 MiB</span><input id="channel-edit-photo-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onchange="channelEditPhotoChanged(this)"><div class="channel-edit-photo-buttons"><button id="channel-edit-choose-photo" class="btn sm" type="button" onclick="channelEditChoosePhoto()">Choose photo…</button><button id="channel-edit-reset-photo" class="btn sm" type="button" onclick="channelEditResetPhoto()">Use Telegram photo</button></div></div>
+    </section>
+    <div id="channel-edit-status" class="channel-edit-status muted" role="status" aria-live="polite">Choose the fields to update.</div>
+    <div class="settings-v54-actions channel-edit-actions"><button id="channel-edit-cancel" class="btn" type="button" onclick="closeChannelEditModal()">Cancel</button><button id="channel-edit-save" class="btn pri" type="button" onclick="saveChannelCardEdit()">Save changes</button></div>
+  </div>
+</div>
+
+<!-- Account profile editor: local display name and photo (never changes the real Telegram profile). -->
+<div id="account-edit-modal" class="mdl channel-edit-modal" aria-hidden="true" onclick="if(event.target===this)closeAccountProfileEdit()">
+  <div class="mdl-box channel-edit-box" role="dialog" aria-modal="true" aria-labelledby="account-edit-heading">
+    <div class="mdl-h"><span class="ax-editor-heading-icon" aria-hidden="true"><svg class="ax-icon"><use href="#ax-edit"></use></svg></span><b id="account-edit-heading">Edit profile</b><button class="btn xs" type="button" onclick="closeAccountProfileEdit()" aria-label="Close profile editor"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    <p class="muted channel-edit-intro">Choose the name and photo Archive X shows in the header and Settings. This only changes Archive X; your real Telegram profile is not touched.</p>
+    <label class="channel-edit-name-field" for="account-edit-name"><span>Display name</span><input id="account-edit-name" type="text" maxlength="64" autocomplete="off" placeholder="Your name" onkeydown="if(event.key==='Enter'){event.preventDefault();saveAccountProfileEdit()}"></label>
+    <section class="channel-edit-photo-section" aria-label="Profile photo">
+      <div class="channel-edit-photo-preview"><span id="account-edit-initials" aria-hidden="true">A</span><img id="account-edit-preview" alt="Profile photo preview"></div>
+      <div class="channel-edit-photo-controls"><strong>Profile photo</strong><span class="muted">PNG, JPEG, WebP or GIF · maximum 8 MiB</span><input id="account-edit-photo-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onchange="accountProfilePhotoChanged(this)"><div class="channel-edit-photo-buttons"><button id="account-edit-choose" class="btn sm" type="button" onclick="document.getElementById('account-edit-photo-input').click()">Choose photo…</button><button id="account-edit-reset" class="btn sm" type="button" onclick="accountProfileResetPhoto()">Use Telegram photo</button></div></div>
+    </section>
+    <div id="account-edit-status" class="channel-edit-status muted" role="status" aria-live="polite">Change the name, the photo, or both.</div>
+    <div class="settings-v54-actions channel-edit-actions"><button id="account-edit-cancel" class="btn" type="button" onclick="closeAccountProfileEdit()">Cancel</button><button id="account-edit-save" class="btn pri" type="button" onclick="saveAccountProfileEdit()">Save changes</button></div>
+  </div>
+</div>
+
+<!-- Channel shuffle asks for an external player before loading the playlist. -->
+<div id="channel-shuffle-player" class="mdl channel-shuffle-player-modal" aria-hidden="true" onclick="if(event.target===this)closeChannelShufflePlayerChoice()">
+  <div class="mdl-box channel-shuffle-player-box" role="dialog" aria-modal="true" aria-labelledby="channel-shuffle-title">
+    <div class="mdl-h"><span class="channel-shuffle-heading-icon" aria-hidden="true"><svg class="ax-icon"><use href="#ax-shuffle"></use></svg></span><b id="channel-shuffle-title">Shuffle channel videos</b><button class="btn xs" type="button" onclick="closeChannelShufflePlayerChoice()" aria-label="Close player chooser"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    <div id="channel-shuffle-copy" class="muted">Choose an external player for a randomized playlist from this channel. Archive X will stay on the current page.</div>
+    <div class="channel-shuffle-player-choices">
+      <button id="channel-shuffle-vlc" class="btn channel-shuffle-choice" type="button" onclick="startChannelShuffle('vlc')" aria-label="Shuffle this channel in VLC"><svg class="ax-icon channel-shuffle-choice-icon" aria-hidden="true"><use href="#ax-brand-vlc"></use></svg><strong>VLC</strong><span class="channel-shuffle-choice-hint">Open with VLC</span></button>
+      <button id="channel-shuffle-mpc" class="btn channel-shuffle-choice" type="button" onclick="startChannelShuffle('mpc')" aria-label="Shuffle this channel in MPC-HC"><img class="bi ax-mpc-brand-icon channel-shuffle-choice-icon" src="/static/icons/mpc.png" alt="" aria-hidden="true" onerror="this.remove()"><strong>MPC-HC</strong><span class="channel-shuffle-choice-hint">Open with MPC-HC</span></button>
+    </div>
+    <div id="channel-shuffle-status" class="channel-shuffle-status" role="status" aria-live="polite"></div>
+  </div>
+</div>
+
+<!-- LOGIN PAGE -->
+<div id="ax-confirm" class="mdl" aria-hidden="true" onclick="if(event.target===this)axConfirmClose(false)">
+  <div class="mdl-box" role="dialog" aria-modal="true" aria-labelledby="ax-confirm-title">
+    <div class="mdl-h"><div class="ax-confirm-heading justify-center items-center pt-[0px] pb-[0px] mt-[-2px] mb-[-2px]"><span id="ax-confirm-title-icon" class="ax-confirm-title-icon mt-[8px] mb-[8px]" aria-hidden="true" hidden><svg class="ax-icon"><use href="#ax-trash"></use></svg></span><b id="ax-confirm-title" class="text-left mt-[38px] mb-[38px]">Confirm action</b></div><button class="btn xs ml-[20px] mr-[20px]" type="button" onclick="axConfirmClose(false)" aria-label="Close confirmation"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    <div id="ax-confirm-media" class="ax-confirm-media" hidden>
+      <div id="ax-confirm-media-art" class="ax-confirm-media-art" aria-hidden="true"><svg class="ax-icon"><use href="#ax-play"></use></svg><img id="ax-confirm-media-thumb" alt="" decoding="async"></div>
+      <div class="ax-confirm-media-copy"><strong id="ax-confirm-media-title"></strong><span id="ax-confirm-media-meta"></span></div>
+    </div>
+    <div id="ax-confirm-message"></div>
+    <input id="ax-prompt-input" class="inp" type="text" autocomplete="off" style="display:none" onkeydown="if(event.key==='Enter'){event.preventDefault();axConfirmClose(true)}" aria-label="Dialog value">
+    <div class="settings-v54-actions"><button id="ax-confirm-cancel" class="btn" type="button" onclick="axConfirmClose(false)">Cancel</button><button id="ax-confirm-ok" class="btn danger" type="button" onclick="axConfirmClose(true)">Confirm</button></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PERFORMER PICKER ═══════════════════════ -->
+<div id="pk" class="mdl" onclick="if(event.target===this)pkClose()">
+  <div class="mdl-box">
+    <div class="mdl-h"><b id="pk-title">Performers on this video</b><button class="btn xs" aria-label="Close performer picker" title="Close performer picker" onclick="pkClose()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    <div id="pk-sugg"></div>
+    <div id="pk-cur" class="pk-cur"></div>
+    <input id="pk-q" type="text" placeholder="Type a name to search or add…" autocomplete="off" oninput="pkSearch()" onkeydown="pkKey(event)">
+    <div id="pk-list" class="pk-list"></div>
+    <div class="muted" style="font-size:11px">Pick an existing performer to link this video to them (no duplicates), or create a new one. ↑ ↓ and Enter work too.</div>
+  </div>
+</div>
+<!-- ═══════════════════════ SITE PICKER ═══════════════════════ -->
+<div id="sk" class="mdl" onclick="if(event.target===this)skClose()">
+  <div class="mdl-box">
+    <div class="mdl-h"><b id="sk-title">Select studio</b><button class="btn xs" aria-label="Close studio picker" title="Close studio picker" onclick="skClose()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    <div id="sk-cur" class="pk-cur"></div>
+    <input id="sk-q" type="text" placeholder="Type a studio name to search or add…" autocomplete="off" oninput="skSearch()" onkeydown="skKey(event)">
+    <div id="sk-list" class="pk-list"></div>
+    <div class="muted" style="font-size:11px">Pick an existing studio to link the selected video(s) to it (no duplicates), or create a new one. ↑ ↓ and Enter work too.</div>
+  </div>
+</div>
+<div id="psmap" class="mdl" onclick="if(event.target===this)psMapClose()">
+  <div class="mdl-box" id="psmap-box">
+    <div class="mdl-h"><div><b id="psmap-heading">Map performer + studio</b><div id="psmap-summary" class="psmap-summary"></div></div><button class="btn xs" aria-label="Close mapping" title="Close mapping" onclick="psMapClose()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    <div id="psmap-title-row" class="psmap-title-row" style="display:none"><label for="psmap-title">Title <span class="muted">(optional, applied to every selected video)</span></label><input id="psmap-title" class="inp" type="text" placeholder="Leave blank to keep each video's title" autocomplete="off" oninput="psMapRenderCurrent()"></div>
+    <div class="psmap-grid">
+      <section class="psmap-pane">
+        <h3>Performer</h3>
+        <div id="psmap-perf-cur" class="psmap-current"></div>
+        <input id="psmap-perf-q" class="psmap-search inp" type="text" placeholder="Search performer…" autocomplete="off" oninput="psMapSearch('performer')">
+        <div id="psmap-perf-list" class="psmap-list"></div>
+      </section>
+      <section class="psmap-pane">
+        <h3>Studio</h3>
+        <div id="psmap-studio-cur" class="psmap-current"></div>
+        <input id="psmap-studio-q" class="psmap-search inp" type="text" placeholder="Search studio…" autocomplete="off" oninput="psMapSearch('studio')">
+        <div id="psmap-studio-list" class="psmap-list"></div>
+      </section>
+    </div>
+    <div class="psmap-footer">
+      <div id="psmap-status" class="muted" style="font-size:11px">Choose both values, then save once.</div>
+      <div class="psmap-actions"><button class="btn" onclick="psMapClose()">Cancel</button><button id="psmap-save" class="btn pri" onclick="psMapSave()" disabled>Save performer + studio</button></div>
+    </div>
+  </div>
+</div>
+<!-- ═══════════════════════ VIDEO QUICK EDIT ═══════════════════════ -->
+<div id="video-quick-edit" class="mdl" onclick="if(event.target===this)closeVideoQuickEdit()">
+  <div class="mdl-box quick-edit-modal">
+    <div class="mdl-h"><div class="quick-edit-heading"><span class="quick-edit-title-icon" aria-hidden="true"><svg class="ax-icon"><use href="#ax-edit"></use></svg></span><div class="quick-edit-title-stack"><b>Edit video</b><div id="vq-summary" class="muted" style="font-size:11px"></div></div></div><button class="btn xs" onclick="closeVideoQuickEdit()" aria-label="Close video editor"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    <div class="quick-edit-body" style="display:grid;gap:10px">
+      <div class="quick-edit-pane quick-edit-title-pane">
+        <label class="muted" style="font-size:11px" for="vq-title">Title</label>
+        <div style="display:flex;gap:7px;align-items:center">
+          <input id="vq-title" class="inp" style="flex:1" placeholder="Video title" oninput="videoQuickEditChanged('title')">
+          <button type="button" class="btn sm" id="vq-lookup" onclick="quickEditLookup()" aria-label="Find video data" title="Find video data"><svg class="ax-icon" aria-hidden="true"><use href="#ax-search"></use></svg><span class="vq-lookup-text">Find video data</span></button>
+        </div>
+        <div id="vq-match" class="quick-edit-match" style="display:none"></div>
+        <div id="vq-filename-hints" class="quick-edit-match" style="display:none"></div>
+      </div>
+      <div class="quick-edit-grid">
+        <section class="quick-edit-pane">
+          <h3>Performer</h3>
+          <input id="vq-performer-q" class="inp" placeholder="Search performer…" oninput="quickEditSearch('performer')">
+          <div id="vq-performer-current" class="quick-edit-current"></div>
+          <div id="vq-performer-list" class="quick-edit-list"></div>
+        </section>
+        <section class="quick-edit-pane">
+          <h3>Studio</h3>
+          <input id="vq-studio-q" class="inp" placeholder="Search studio…" oninput="quickEditSearch('studio')">
+          <div id="vq-studio-current" class="quick-edit-current"></div>
+          <div id="vq-studio-list" class="quick-edit-list"></div>
+        </section>
+        <section class="quick-edit-pane">
+          <h3>Matched metadata</h3>
+          <div id="vq-meta-list" class="quick-edit-list"></div>
+          <div id="vq-status" class="muted" style="font-size:11px;margin-top:8px">Filename clues and provider candidates will appear here. Use Find video data to search.</div>
+        </section>
+      </div>
+      <div class="quick-edit-footer" style="display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #2c2c2c;padding-top:10px">
+        <span class="muted" style="font-size:11px;align-self:center">Saving also syncs the Telegram caption.</span>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn" onclick="closeVideoQuickEdit()">Cancel</button>
+          <button class="btn pri" id="vq-save" onclick="saveVideoQuickEdit()">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ═══════════════════════ VIDEO MAPPING / REPORT ═══════════════════════ -->
+<div id="vmr" class="mdl" onclick="if(event.target===this)vmrClose()">
+  <div class="mdl-box" style="max-width:620px">
+    <div class="mdl-h"><b id="vmr-title">Correct video metadata</b><button class="btn xs" aria-label="Close metadata editor" title="Close metadata editor" onclick="vmrClose()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    <div style="display:grid;gap:10px">
+      <div>
+        <label class="muted" style="font-size:11px">Video name / title</label>
+        <input id="vmr-name" class="inp" type="text" placeholder="Correct video title">
+      </div>
+      <div>
+        <label class="muted" style="font-size:11px">Studio</label>
+        <div id="vmr-site-cur" class="pk-cur"></div>
+        <input id="vmr-site-q" class="inp" type="text" placeholder="Search studio or enter a new studio name" autocomplete="off" oninput="vmrSiteSearch()" onkeydown="vmrSiteKey(event)">
+        <div id="vmr-site-list" class="pk-list" style="max-height:240px;overflow:auto"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn" onclick="vmrClose()">Cancel</button>
+        <button class="btn pri" onclick="vmrSave()">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ═══════════════════════ ENTITY EDITOR ═══════════════════════ -->
+<div id="entity-edit" class="mdl" role="dialog" aria-modal="true" aria-labelledby="entity-edit-title" aria-hidden="true">
+  <div class="mdl-box" id="entity-edit-box">
+    <div class="mdl-h">
+      <div class="entity-edit-heading">
+        <span class="entity-edit-heading-icon" aria-hidden="true"><svg class="ax-icon"><use href="#ax-images"></use></svg></span>
+        <span class="entity-edit-heading-copy"><b id="entity-edit-title">Profile picture</b><span id="entity-edit-subtitle" class="entity-edit-heading-subtitle"></span></span>
+      </div>
+      <button class="btn xs" type="button" onclick="closeEntityEditor()" aria-label="Close profile picture dialog"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button>
+    </div>
+    <form id="entity-edit-form" onsubmit="event.preventDefault(); return saveEntityEditor(event)">
+      <input type="hidden" id="entity-edit-kind"><input type="hidden" id="entity-edit-id">
+      <div id="entity-edit-scroll">
+        <section class="entity-edit-section">
+          <div class="entity-edit-section-title">Profile picture</div>
+          <div class="entity-edit-layout">
+            <div class="entity-edit-preview-col">
+              <div class="muted entity-edit-label">Selected preview</div>
+              <img id="entity-edit-preview" alt="Profile picture preview">
+              <div id="entity-edit-selection-state" class="entity-edit-selection-state">Current image</div>
+            </div>
+            <div class="entity-edit-controls">
+              <div id="entity-edit-api-block" class="entity-edit-panel">
+                <div class="entity-edit-subtitle">Provider images</div>
+                <div id="entity-edit-api-status" class="muted entity-edit-status">Loading provider images…</div>
+                <div id="entity-edit-api-candidates" aria-label="Alternative API profile images"></div>
+              </div>
+              <div class="entity-edit-panel entity-edit-manual-panel">
+                <div class="entity-edit-subtitle">Manual image</div>
+                <label class="muted entity-edit-label" for="entity-edit-image-url">Image URL</label>
+                <input id="entity-edit-image-url" class="inp" placeholder="https://…" oninput="_entityEditResetApi=false; _entityEditProviderImage=null; _entityEditPendingProviderImage=null;">
+                <div class="entity-edit-manual-actions">
+                  <label class="btn sm entity-edit-file-button" for="entity-edit-image-file"><svg class="ax-icon" aria-hidden="true"><use href="#ax-upload"></use></svg>Choose from this PC</label>
+                  <button type="button" class="btn sm entity-edit-reset-provider" id="entity-edit-reset-api" onclick="resetEntityImageToApi()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-refresh"></use></svg>Use provider image again</button>
+                </div>
+                <input id="entity-edit-image-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" onchange="previewEntityUpload(this)">
+              </div>
+            </div>
+          </div>
+        </section>
+        <details id="entity-edit-details" class="entity-edit-details">
+          <summary>Profile details</summary>
+          <div class="entity-edit-details-grid">
+            <div id="entity-edit-profile-wrap"><label class="muted entity-edit-label" for="entity-edit-profile">Profile URL</label><input id="entity-edit-profile" class="inp" placeholder="https://…"></div>
+            <div id="entity-edit-bio-wrap"><label class="muted entity-edit-label" for="entity-edit-bio">Biography</label><textarea id="entity-edit-bio" class="inp" placeholder="Optional biography"></textarea></div>
+            <div><label class="muted entity-edit-label" for="entity-edit-name">Name</label><input id="entity-edit-name" class="inp" required></div>
+          </div>
+        </details>
+      </div>
+      <div class="entity-edit-footer">
+        <div id="entity-edit-footer-status" class="muted entity-edit-footer-status"></div>
+        <div class="entity-edit-footer-actions">
+          <button type="button" class="btn" onclick="closeEntityEditor()">Cancel</button>
+          <button class="btn pri" id="entity-edit-save" type="submit">Save profile picture</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<!-- ═══════════════════════ SUGGESTED VIDEO PREVIEW ═══════════════════════ -->
+<div id="amr" class="mdl" onclick="if(event.target===this)amrClose()" role="dialog" aria-modal="true" aria-labelledby="amr-title">
+  <div class="mdl-box amr-box">
+    <div class="mdl-h"><b id="amr-title">Earlier automatic matches to review</b><button class="btn xs" onclick="amrClose()" aria-label="Close review" title="Close"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    <div class="muted amr-note">Before V29.4.132 a filename search was applied automatically when only a performer's name matched. These videos got that kind of match. <b>Keep</b> confirms it; <b>Undo</b> takes the title, performers and studio off the video and keeps the match as a suggestion. Nothing changes until you choose.</div>
+    <div class="amr-bulk"><label><input id="amr-select-all" type="checkbox" onchange="amrToggleFirst100(this.checked)"> Select first 100</label><span id="amr-selected-count" class="muted">0 selected</span><button class="btn sm" type="button" onclick="amrBulkAct('keep')">Keep selected</button><button class="btn sm pri" type="button" onclick="amrBulkAct('undo')">Undo selected</button></div>
+    <div id="amr-list" class="amr-list"><div class="muted">Loading…</div></div>
+  </div>
+</div>
+<div id="suggest-preview" class="mdl" onclick="if(event.target===this)closeSuggestPreview()">
+  <div class="mdl-box" id="suggest-preview-box">
+    <div class="mdl-h"><b id="suggest-preview-title">Suggested video</b><button class="btn xs" aria-label="Close suggestion preview" title="Close suggestion preview" onclick="closeSuggestPreview()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    <div id="suggest-preview-grid" aria-label="Video verification thumbnails">
+      <div class="sugg-preview-frame loading"><img id="suggest-preview-img-0" alt="Verification thumbnail 1"><span class="sugg-preview-loader ax-lds-roller md" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="tm">10%</span></div>
+      <div class="sugg-preview-frame loading"><img id="suggest-preview-img-1" alt="Verification thumbnail 2"><span class="sugg-preview-loader ax-lds-roller md" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="tm">35%</span></div>
+      <div class="sugg-preview-frame loading"><img id="suggest-preview-img-2" alt="Verification thumbnail 3"><span class="sugg-preview-loader ax-lds-roller md" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="tm">60%</span></div>
+      <div class="sugg-preview-frame loading"><img id="suggest-preview-img-3" alt="Verification thumbnail 4"><span class="sugg-preview-loader ax-lds-roller md" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="tm">85%</span></div>
+    </div>
+    <div id="suggest-preview-meta" class="sugg-preview-meta"></div>
+    <div id="suggest-preview-reason" class="muted" style="font-size:11px"></div>
+    <div id="suggest-preview-action-status" role="status" aria-live="polite" hidden></div>
+    <div class="suggest-preview-actions"><button type="button" class="btn" id="suggest-preview-reject">Reject</button><button type="button" class="btn pri" id="suggest-preview-confirm">Confirm Match</button></div>
+  </div>
+</div>
+<!-- ═══════════════════════ SEND TO TELEGRAM ═══════════════════════ -->
+<div id="sm" class="mdl" onclick="if(event.target===this)smClose()">
+  <div class="mdl-box">
+    <div class="mdl-h"><b class="ax-icon-btn"><svg class="ax-icon" aria-hidden="true"><use href="#ax-brand-telegram"></use></svg> <span id="sm-title-text">Send to Telegram</span></b><button class="btn xs" aria-label="Close Send to Telegram" title="Close Send to Telegram" onclick="smClose()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div>
+    <input id="sm-q" type="text" placeholder="Search channel…" oninput="smRender()">
+    <div id="sm-list" class="pk-list" style="max-height:30vh"></div>
+    <div id="sm-cap-label" class="muted" style="font-size:11px">Caption that will be sent (edit the template in Operations → Send to Telegram):</div>
+    <div id="sm-cap"></div>
+    <label class="muted" style="font-size:12px"><input id="sm-remember" type="checkbox" style="width:auto;margin-right:6px;vertical-align:middle">Always send to this channel (no more asking)</label>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" onclick="smClose()">Cancel</button><button class="btn pri" id="sm-send-btn" onclick="smSend()">Send</button></div>
+  </div>
+</div>
+<!-- ═══════════════════════ TELEGRAM MEDIA MANAGER CONSOLE ═══════════════════════ -->
+<div id="mm" class="mdl" onclick="if(event.target===this)mmClose()">
+  <div class="mdl-box mm-modal-box">
+    <div class="mdl-h"><b id="mm-title">Telegram Job Manager</b>
+      <div style="display:flex;gap:6px"><button class="btn xs danger" id="mm-stop" onclick="mmStop()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-stop"></use></svg> Stop</button><button class="btn xs" aria-label="Close media manager" title="Close media manager" onclick="mmClose()"><svg class="ax-icon" aria-hidden="true"><use href="#ax-close"></use></svg></button></div></div>
+    <div id="mm-job" class="muted" style="font-size:12px"></div>
+    <div id="mm-live-progress" class="job-live-box" style="display:none;margin:7px 0 0" aria-live="polite"></div>
+    <div id="mm-ui">
+      <div id="mm-panel" class="mm-panel">
+        <div class="mm-running"><span class="mm-spinner ax-lds-roller sm" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><div><div class="main">Starting Telegram job…</div><div class="sub">Choose Transfer, Duplicate, or Channel Cleanup from the Job Manager.</div></div></div>
+      </div>
+      <div id="mm-live" class="muted" style="display:none"></div>
+      <div id="mm-log-wrap"><div id="mm-log-title">CLI output</div><div id="mm-out-scroll-shell"><div id="mm-out-scroll"><pre id="mm-out"></pre></div><div id="mm-custom-scrollbar" aria-hidden="true"><div id="mm-custom-scrollthumb"></div></div></div></div>
+    </div>
+    <div id="mm-ask" style="display:none">
+      <span id="mm-prompt" style="display:none"></span>
+      <input id="mm-in" type="text" autocomplete="off" style="display:none" onkeydown="if(event.key==='Enter')mmSend()">
+      <button class="btn pri sm" id="mm-fallback-send" style="display:none" onclick="mmSend()">Send</button>
+    </div>
+  </div>
+</div>
+

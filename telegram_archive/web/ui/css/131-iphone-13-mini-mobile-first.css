@@ -1,0 +1,11 @@
+/* ============================================================================
+   FILE: css/131-iphone-13-mini-mobile-first.css
+   AREA: Responsive and input
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X v29.4.295 — legacy mobile override layer retired.
+   Its remaining responsive rules were consolidated into 132-responsive-system.css
+   and expressed against the shared breakpoint contract. Kept as an empty compatibility
+   file only because older tooling/reporting may refer to this historical filename. */

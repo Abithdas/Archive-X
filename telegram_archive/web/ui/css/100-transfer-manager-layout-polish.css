@@ -1,0 +1,196 @@
+/* ============================================================================
+   FILE: css/100-transfer-manager-layout-polish.css
+   AREA: Transfers
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X v29.4.239 — final pass for a clean, aligned Transfers workspace. */
+
+#vtransfers .ax-transfer-workflow-section {grid-column: 1 / -1 !important;;margin: 0 !important;}
+#vtransfers #ops-telegram-transfer,
+#vtransfers #ax-transfer-metadata-slot > .mc2 {display: grid !important;;grid-template-columns: minmax(0, 1fr) minmax(240px, 360px) !important;;grid-template-areas:
+    "title status"
+    "live live"
+    "description description"
+    "help help"
+    "source-control source-control"
+    "local local"
+    "telegram telegram"
+    "actions actions"
+    "message message" !important;;align-items: start !important;;align-content: start !important;;justify-items: stretch;;gap: 10px 16px !important;;padding: clamp(14px, 1.5vw, 22px) !important;;overflow-wrap: anywhere;}
+#vtransfers #ops-telegram-transfer > .mn,
+#vtransfers #ax-transfer-metadata-slot > .mc2 > .mn {
+  grid-area: title !important;
+  align-self: start !important;
+  justify-self: start !important;
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 2px 0 0 !important;
+  font-size: clamp(16px, 1.25vw, 19px) !important;
+  line-height: 1.3 !important;
+  letter-spacing: -.015em;
+  white-space: normal !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+}
+
+#vtransfers #ops-telegram-transfer > .module-live-strip,
+#vtransfers #ax-transfer-metadata-slot > .mc2 > .module-live-strip {
+  grid-area: live !important;
+  display: block;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#vtransfers #ms-TELEGRAM_TRANSFER-live > .job-live-box {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 11px 12px !important;
+  border: 1px solid color-mix(in srgb, var(--ax-accent, var(--accent)) 25%, var(--ax-border-subtle, var(--border)));
+  border-radius: 11px !important;
+  background: color-mix(in srgb, var(--ax-accent, var(--accent)) 4%, var(--ax-background-primary, var(--bg1))) !important;
+  box-sizing: border-box;
+}
+#vtransfers #ms-TELEGRAM_TRANSFER-live .job-live-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  min-width: 0;
+}
+#vtransfers #ms-TELEGRAM_TRANSFER-live .job-live-op {
+  flex: 1 1 260px;
+  min-width: 0;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+  font-size: 11px !important;
+}
+#vtransfers #ms-TELEGRAM_TRANSFER-live .job-live-meta {
+  margin-top: 2px !important;
+  font-size: 10.5px !important;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+#vtransfers #ms-TELEGRAM_TRANSFER-live .job-live-tracking {
+  color: var(--ax-text-muted, var(--text3));
+  overflow-wrap: anywhere;
+}
+#vtransfers #ops-telegram-transfer > .md,
+#vtransfers #ax-transfer-metadata-slot > .mc2 > .md {
+  grid-area: description !important;
+  max-width: none !important;
+  margin: 0 !important;
+  font-size: 11px !important;
+  line-height: 1.55 !important;
+}
+#vtransfers .ax-transfer-help {grid-area: help !important;}
+#vtransfers #ops-telegram-transfer > .ax-transfer-source-row {grid-area: source-control !important;;display: grid !important;;grid-template-columns: 82px minmax(190px, 265px) minmax(0, 1fr) !important;;align-items: center !important;;gap: 8px 12px !important;;width: 100%;;min-width: 0;;padding: 10px 12px !important;;margin: 0 !important;;box-sizing: border-box;}
+#vtransfers .ax-transfer-field-label { font-size: 11px !important; line-height: 1.4 !important; font-weight: 700 !important; }
+#vtransfers .ax-transfer-source-note { font-size: 11px !important; line-height: 1.45 !important; }
+#vtransfers #ops-telegram-transfer > #u-transfer-source { grid-area: auto !important; width: 100% !important; min-width: 0 !important; margin: 0 !important; }
+#vtransfers #ops-telegram-transfer > #u-transfer-local.ax-transfer-local-fields {
+  grid-area: local !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 12px !important;
+  width: 100%;
+  min-width: 0;
+  margin: 0 !important;
+}
+#vtransfers .ax-transfer-folder-field,
+#vtransfers .ax-transfer-destination-field,
+#vtransfers .ax-transfer-telegram-destination { display: grid; gap: 6px; min-width: 0; }
+#vtransfers .ax-transfer-folder-field > .ax-folder-pick-row {margin: 0 !important;}
+#vtransfers .ax-transfer-folder-field .ax-folder-pick-row input { width: 100%; min-width: 0; margin: 0 !important; }
+#vtransfers .ax-transfer-local-destination-row {grid-template-areas: "destination resolution" "subfolders subfolders" "delete-source delete-source" !important;}
+#vtransfers .ax-transfer-destination-field { grid-area: destination; }
+#vtransfers .ax-transfer-resolution-field { display: grid; gap: 6px; min-width: 0; }
+#vtransfers .ax-transfer-local-destination-row > .ax-transfer-resolution-field { grid-area: resolution; }
+#vtransfers .ax-transfer-resolution-field select { width: 100%; min-width: 0; margin: 0 !important; }
+#vtransfers .ax-transfer-resolution-hint { font-size: 11px !important; line-height: 1.35 !important; }
+#vtransfers .ax-transfer-advanced-grid > .ax-autonext-combobox.ax-app-select,
+#vtransfers .ax-transfer-resolution-field > .ax-autonext-combobox.ax-app-select {
+  display: flex !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  align-self: stretch;
+}
+#vtransfers .ax-transfer-advanced-grid > .ax-autonext-combobox.ax-app-select > .ax-autonext-trigger,
+#vtransfers .ax-transfer-resolution-field > .ax-autonext-combobox.ax-app-select > .ax-autonext-trigger {
+  display: flex !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+#vtransfers .ax-transfer-local-destination-row > .ax-transfer-checkbox-field[for="u-transfer-subfolders"] { grid-area: subfolders; }
+#vtransfers .ax-transfer-local-destination-row > .ax-transfer-checkbox-field[for="u-transfer-delete-source"] { grid-area: delete-source; justify-self: start; }
+#vtransfers #ops-telegram-transfer > #u-transfer-telegram {
+  grid-area: telegram !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-areas: "source" "channels" "destination" "advanced" !important;
+  gap: 10px !important;
+  min-width: 0;
+  width: 100%;
+  margin: 0 !important;
+}
+#vtransfers #u-transfer-telegram > label:nth-of-type(1) { grid-area: source !important; margin: 0 !important; }
+#vtransfers #u-transfer-telegram > .pan {grid-area: channels !important;}
+
+#vtransfers #u-transfer-telegram > .ax-transfer-telegram-destination { grid-area: destination !important; }
+#vtransfers .ax-transfer-advanced {grid-area: advanced !important;}
+#vtransfers .tg-transfer-actions {grid-area: actions !important;;flex-wrap: wrap;}
+#vtransfers .tg-transfer-actions #u-transfer-start {min-width: 190px;}
+#vtransfers #ops-telegram-transfer > #u-transfer-msg { grid-area: message !important; min-height: 0 !important; margin: 0 !important; overflow-wrap: anywhere; }
+#vtransfers #ax-transfer-metadata-slot > .mc2 > .ax-assets-channel-panel,
+#vtransfers #ax-transfer-metadata-slot > .mc2 > .ax-assets-processing-panel { align-self: stretch; min-width: 0; }
+#vtransfers .ax-transfer-automation-section {grid-column: 1 / -1 !important;}
+
+#vtransfers .ax-transfer-automation-section .automation-head {align-items: flex-start !important;}
+#vtransfers .ax-transfer-automation-section .automation-head .mn {word-break: normal !important;}
+@media (max-width: 720px) {
+  #vtransfers #ops-telegram-transfer,
+  #vtransfers #ax-transfer-metadata-slot > .mc2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas: "title" "status" "live" "description" "help" "source-control" "local" "telegram" "actions" "message" !important;
+    gap: 9px !important;
+    padding: 12px !important;
+  }
+  #vtransfers #ops-telegram-transfer > .mn,
+  #vtransfers #ax-transfer-metadata-slot > .mc2 > .mn { grid-area: title !important; }
+  
+  #vtransfers #ops-telegram-transfer > .ax-transfer-source-row { grid-template-columns: minmax(0, 1fr) !important; gap: 6px !important; }
+  #vtransfers .ax-transfer-local-destination-row {grid-template-areas: "destination" "resolution" "subfolders" "delete-source" !important;}
+  
+  #vtransfers .ax-transfer-folder-field > .ax-folder-pick-row input { grid-column: 1 / -1; }
+  #vtransfers .ax-transfer-checkbox-field { justify-self: start; white-space: normal; }
+  #vtransfers #ax-transfer-metadata-slot > .mc2 > .ax-assets-channel-panel,
+  #vtransfers #ax-transfer-metadata-slot > .mc2 > .ax-assets-processing-panel { grid-column: 1 !important; grid-row: auto !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #vtransfers .ax-transfer-module-stack,
+  #vtransfers #ops-telegram-transfer,
+  #vtransfers #ax-transfer-metadata-slot > .mc2 { transition: none !important; }
+}
+@media (min-width: 721px) and (max-width: 900px) {
+  #vtransfers #ax-transfer-metadata-slot > .mc2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas: "title" "status" "live" "description" "help" "channels" "processing" !important;
+  }
+  #vtransfers #ax-transfer-metadata-slot > .mc2 > .ax-assets-channel-panel,
+  #vtransfers #ax-transfer-metadata-slot > .mc2 > .ax-assets-processing-panel {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+  }
+}

@@ -1,0 +1,119 @@
+/* ============================================================================
+   FILE: css/75-loading-feedback-patterns.css
+   AREA: Motion and feedback
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204: consistent feedback patterns for loading, measurable progress,
+   content skeletons, and multi-step flows. Uses the active Archive X theme. */
+/* Shared eight-dot roller. Dots inherit currentColor so every loader follows
+   the active theme and the local status color. */
+.ax-lds-roller{--ax-roller-size:18px;position:relative;display:inline-block;width:var(--ax-roller-size);height:var(--ax-roller-size);flex:0 0 var(--ax-roller-size);color:inherit;vertical-align:middle}
+.ax-lds-roller.xs{--ax-roller-size:16px}
+.ax-lds-roller.sm{--ax-roller-size:18px}
+.ax-lds-roller.md{--ax-roller-size:24px}
+.ax-lds-roller.lg{--ax-roller-size:32px}
+
+.ax-lds-roller>i{position:absolute;inset:0;transform-origin:50% 50%;animation:ax-lds-roller 1.2s cubic-bezier(.5,0,.5,1) infinite}
+.ax-lds-roller>i:after{content:"";position:absolute;top:78.2843%;left:78.2843%;display:block;width:9%;aspect-ratio:1;border-radius:50%;background:currentColor;transform:translate(-50%,-50%)}
+.ax-lds-roller>i:nth-child(1){animation-delay:-.036s}
+.ax-lds-roller>i:nth-child(2){animation-delay:-.072s}
+.ax-lds-roller>i:nth-child(2):after{top:84.641%;left:70%}
+.ax-lds-roller>i:nth-child(3){animation-delay:-.108s}
+.ax-lds-roller>i:nth-child(3):after{top:88.637%;left:60.3528%}
+.ax-lds-roller>i:nth-child(4){animation-delay:-.144s}
+.ax-lds-roller>i:nth-child(4):after{top:90%;left:50%}
+.ax-lds-roller>i:nth-child(5){animation-delay:-.18s}
+.ax-lds-roller>i:nth-child(5):after{top:88.637%;left:39.6472%}
+.ax-lds-roller>i:nth-child(6){animation-delay:-.216s}
+.ax-lds-roller>i:nth-child(6):after{top:84.641%;left:30%}
+.ax-lds-roller>i:nth-child(7){animation-delay:-.252s}
+.ax-lds-roller>i:nth-child(7):after{top:78.2843%;left:21.7157%}
+.ax-lds-roller>i:nth-child(8){animation-delay:-.288s}
+.ax-lds-roller>i:nth-child(8):after{top:70%;left:15.359%}
+@keyframes ax-lds-roller{to{transform:rotate(360deg)}}
+.ax-fb-inline{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.ax-fb-busy-button{display:inline-flex!important;align-items:center;justify-content:center;gap:7px}
+.ax-fb-skeleton-grid{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,168px),1fr));gap:14px;width:100%}
+.ax-fb-skeleton-card{min-width:0;overflow:hidden;border:1px solid var(--border,var(--line,#333843));border-radius:14px;background:var(--panel,var(--bg1,#171a20));padding:0;box-shadow:0 5px 15px #0000000d}
+.ax-fb-skeleton-media{height:clamp(145px,18vw,220px);width:100%;background:var(--bg2,var(--surface,#252a33));position:relative;overflow:hidden}
+.ax-fb-skeleton-body{padding:12px;display:grid;gap:9px}
+.ax-fb-skeleton-line,.ax-fb-skeleton-pill{position:relative;display:block;overflow:hidden;background:color-mix(in srgb,var(--text3,#8992a1) 17%,var(--panel,var(--bg1,#171a20)));border-radius:6px}
+.ax-fb-skeleton-line{height:10px;width:78%}.ax-fb-skeleton-line.wide{width:92%}.ax-fb-skeleton-line.short{width:48%}.ax-fb-skeleton-pill{height:20px;width:66px;border-radius:999px}
+.ax-fb-skeleton-media:after,.ax-fb-skeleton-line:after,.ax-fb-skeleton-pill:after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--text,#fff) 10%,transparent),transparent);animation:ax-fb-shimmer 1.35s ease-in-out infinite}
+@keyframes ax-fb-shimmer{100%{transform:translateX(100%)}}
+.ax-fb-skeleton-card.video .ax-fb-skeleton-media{height:clamp(120px,13vw,176px)}
+.ax-fb-skeleton-card.channel .ax-fb-skeleton-media{height:clamp(120px,12vw,168px)}
+.ax-fb-progress-wrap{display:grid;gap:6px;min-width:0;padding:8px 10px;border:1px solid var(--border,var(--line,#333843));border-radius:10px;background:var(--panel,var(--bg1,#171a20));margin:5px 0 9px}
+.ax-fb-progress-head{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:11px;line-height:1.35}
+.ax-fb-progress-title{font-weight:650;min-width:0;overflow-wrap:anywhere}
+.ax-fb-progress-detail{color:var(--text3,#9299a5);font-size:11px}
+.ax-fb-progress-track{height:7px;border-radius:999px;background:color-mix(in srgb,var(--text3,#8992a1) 18%,var(--panel,var(--bg1,#171a20)));overflow:hidden;position:relative}
+.ax-fb-progress-fill{height:100%;;width:var(--ax-fb-progress,0%);;border-radius:inherit;;transition:width .34s cubic-bezier(.2,.75,.25,1),background-color .42s ease;}
+.ax-fb-progress-wrap.is-indeterminate .ax-fb-progress-fill{width:34%;animation:ax-fb-progress-indeterminate 1.4s ease-in-out infinite}
+.pt.ax-fb-indeterminate{position:relative;overflow:hidden}.pt.ax-fb-indeterminate .pb{position:absolute;top:0;bottom:0;width:34%!important;animation:ax-fb-progress-indeterminate 1.4s ease-in-out infinite}
+@keyframes ax-fb-progress-indeterminate{0%{transform:translateX(-115%)}100%{transform:translateX(315%)}}
+.ax-fb-steps{--ax-fb-step-count:3;display:grid;grid-template-columns:repeat(var(--ax-fb-step-count),minmax(0,1fr));gap:7px;margin:4px 0 15px;min-width:0}
+.ax-fb-steps-summary{grid-column:1/-1;display:flex;align-items:center;gap:6px;color:var(--text3,#9299a5);font-size:11px;margin-bottom:1px}
+.ax-fb-steps-summary strong{color:var(--text,#f2f4f8);font-weight:650}
+.ax-fb-step{position:relative;display:flex;align-items:center;gap:7px;min-width:0;color:var(--text3,#9299a5);font-size:11px;line-height:1.35}
+.ax-fb-step:not(:last-child):after{content:"";height:2px;position:absolute;left:26px;right:-7px;top:12px;background:var(--border,var(--line,#333843));z-index:0}
+.ax-fb-step.is-done:not(:last-child):after{background:var(--accent,#4f8cff)}
+.ax-fb-step-dot{width:24px;height:24px;display:grid;place-items:center;flex:0 0 24px;border-radius:50%;border:2px solid var(--border,var(--line,#333843));background:var(--panel,var(--bg1,#171a20));color:var(--text3,#9299a5);font-size:11px;font-weight:700;z-index:1}
+.ax-fb-step.is-current{color:var(--text,#f2f4f8);font-weight:650}
+.ax-fb-step.is-current .ax-fb-step-dot{background:var(--accent,#4f8cff);color:#fff;border-color:var(--accent,#4f8cff);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#4f8cff) 15%,transparent)}
+.ax-fb-step.is-done .ax-fb-step-dot{background:color-mix(in srgb,var(--accent,#4f8cff) 18%,var(--panel,var(--bg1,#171a20)));color:var(--accent,#4f8cff);border-color:var(--accent,#4f8cff)}
+.ax-fb-step-label{min-width:0;position:relative;z-index:1;background:var(--panel,var(--bg1,#171a20));padding-right:3px;overflow-wrap:anywhere}
+/* The existing Content Automation wizard has six real steps and a real progress
+   value. Make its selected/completed state read like a continuous process path. */
+#automation-stepper .automation-step{position:relative;transition:border-color .16s ease,background .16s ease,transform .16s ease}
+#automation-stepper .automation-step .n{flex:0 0 23px;width:23px;height:23px;display:inline-grid;place-items:center;border-radius:50%;border:1px solid var(--border,var(--line,#333843));font-weight:700;background:var(--panel,var(--bg1,#171a20))}
+#automation-stepper .automation-step.on .n{color:#fff;}
+
+/* Snapshot panels: keep existing text fallback, and add a visual spinner so the
+   wait state is apparent without relying on tiny copy alone. */
+.sugg-preview-frame .sugg-preview-loader{display:none;position:absolute;left:50%;top:calc(50% - 14px);z-index:2;transform:translate(-50%,-50%);color:var(--accent,#4f8cff);pointer-events:none}
+.sugg-preview-frame.loading .sugg-preview-loader{display:inline-block}
+.sugg-preview-frame.loading:after{padding-top:26px}
+#ax-library-load-feedback[hidden]{display:none!important}
+#ax-library-load-feedback{max-width:100%;margin:4px 0 8px}
+#channel-cards .ax-fb-skeleton-media{height:clamp(110px,11vw,155px)}
+@media(max-width:720px){.ax-fb-skeleton-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ax-fb-skeleton-media{height:155px}.ax-fb-steps{gap:3px}.ax-fb-step{gap:4px;font-size:10.5px}.ax-fb-step:not(:last-child):after{left:22px;right:-4px}.ax-fb-step-dot{width:20px;height:20px;flex-basis:20px}.ax-fb-step-label{padding-right:0}}
+@media(prefers-reduced-motion:reduce){.ax-lds-roller>i,.ax-fb-skeleton-media:after,.ax-fb-skeleton-line:after,.ax-fb-skeleton-pill:after,.ax-fb-progress-wrap.is-indeterminate .ax-fb-progress-fill,.pt.ax-fb-indeterminate .pb{animation:none!important}}
+
+/* Shared five-stop status scale: poor -> low -> fair -> progressing -> good.
+   These colors are deliberately consistent across themes and modules. */
+:root{--ax-status-poor:#dc2f50;--ax-status-low:#ff6f4e;--ax-status-fair:#ffc30e;--ax-status-good-mid:#239f8c;--ax-status-good:#31bf79;--ax-status-neutral:var(--text3,#9299a5)}
+.pb.ax-fb-status-progress{background:var(--ax-fb-status-color,var(--ax-status-fair))!important;transition:width .34s cubic-bezier(.2,.75,.25,1),background-color .42s ease!important}
+.ax-fb-progress-fill{background-color:var(--ax-fb-status-color,var(--accent,#4f8cff))}
+.ax-fb-steps .ax-fb-step:not(:last-child):after{transition:background-color .35s ease}
+.ax-fb-steps .ax-fb-step.is-done:not(:last-child):after{background:var(--ax-status-good)}
+.ax-fb-steps .ax-fb-step.is-current:not(:last-child):after{background:linear-gradient(90deg,var(--ax-fb-status-color,var(--ax-status-fair)),var(--border,var(--line,#333843)))}
+.ax-fb-steps .ax-fb-step.is-current .ax-fb-step-dot{background:var(--ax-fb-step-color,var(--ax-fb-status-color,var(--ax-status-fair)));border-color:var(--ax-fb-step-color,var(--ax-fb-status-color,var(--ax-status-fair)));color:#fff;transition:background-color .35s ease,border-color .35s ease,box-shadow .35s ease}
+.ax-fb-steps .ax-fb-step.is-done .ax-fb-step-dot{background:color-mix(in srgb,var(--ax-status-good) 18%,var(--panel,var(--bg1,#171a20)));border-color:var(--ax-status-good);color:var(--ax-status-good);transition:background-color .35s ease,border-color .35s ease,color .35s ease}
+#automation-step-progress{--ax-fb-status-color:var(--ax-status-fair)}
+.automation-step-progress>span{background-color:var(--ax-fb-status-color,var(--ax-status-fair))!important;transition:width .34s cubic-bezier(.2,.75,.25,1),background-color .42s ease!important}
+#automation-stepper .automation-step.on .n{background:var(--ax-fb-status-color,var(--ax-status-fair));border-color:var(--ax-fb-status-color,var(--ax-status-fair));transition:background-color .35s ease,border-color .35s ease}
+#automation-stepper .automation-step.done .n{background:color-mix(in srgb,var(--ax-status-good) 18%,var(--panel,var(--bg1,#171a20)));border-color:var(--ax-status-good);color:var(--ax-status-good)}
+.ax-status-indicator{--ax-status-indicator-color:var(--ax-status-neutral);color:var(--ax-status-indicator-color)!important;transition:color .3s ease,border-color .3s ease,background-color .3s ease}
+.ax-status-indicator[data-ax-status-tone="poor"]{--ax-status-indicator-color:var(--ax-status-poor)}
+.ax-status-indicator[data-ax-status-tone="low"]{--ax-status-indicator-color:var(--ax-status-low)}
+.ax-status-indicator[data-ax-status-tone="fair"]{--ax-status-indicator-color:var(--ax-status-fair)}
+.ax-status-indicator[data-ax-status-tone="goodMid"]{--ax-status-indicator-color:var(--ax-status-good-mid)}
+.ax-status-indicator[data-ax-status-tone="good"]{--ax-status-indicator-color:var(--ax-status-good)}
+.ax-status-indicator.job-badge.status,.ax-status-indicator.job-badge.watchdog,.ax-status-indicator.st{border-color:color-mix(in srgb,var(--ax-status-indicator-color) 48%,transparent)!important;background-color:color-mix(in srgb,var(--ax-status-indicator-color) 10%,transparent)!important}
+.jc-h .st.ax-status-indicator{font-size:11px;font-weight:650;padding:2px 7px;border:1px solid color-mix(in srgb,var(--ax-status-indicator-color) 48%,transparent);border-radius:999px}
+#va .job-badge.status.ax-status-indicator{color:var(--ax-status-indicator-color)!important;border-color:color-mix(in srgb,var(--ax-status-indicator-color) 48%,transparent)!important;background:color-mix(in srgb,var(--ax-status-indicator-color) 10%,transparent)!important}
+#va .job-badge.watchdog.ax-status-indicator{color:var(--ax-status-indicator-color)!important}
+.v54-ok{color:var(--ax-status-good)!important}.v54-warn{color:var(--ax-status-fair)!important}.v54-bad{color:var(--ax-status-poor)!important}
+.ev.WARN .lv{color:var(--ax-status-fair)!important}.ev.ERROR .lv{color:var(--ax-status-poor)!important}.ev.SUCCESS .lv{color:var(--ax-status-good)!important}
+.card-matched{color:var(--ax-status-good)!important}
+.live-pulse,.ax-live-dot{background-color:var(--ax-status-good-mid)!important}
+.job-step.ax-fb-percent-status{background:var(--ax-fb-status-color,var(--ax-status-fair));border-color:var(--ax-fb-status-color,var(--ax-status-fair));transition:background-color .35s ease,border-color .35s ease}
+.v54-job-step.done .s{background:color-mix(in srgb,var(--ax-status-good) 18%,var(--bg2));border-color:color-mix(in srgb,var(--ax-status-good) 60%,var(--border));color:var(--ax-status-good)}
+.v54-job-step.failed .s{background:color-mix(in srgb,var(--ax-status-poor) 18%,var(--bg2));border-color:color-mix(in srgb,var(--ax-status-poor) 60%,var(--border));color:var(--ax-status-poor)}
+@media(prefers-reduced-motion:reduce){.pb.ax-fb-status-progress,.ax-fb-progress-fill,.automation-step-progress>span,.ax-status-indicator{transition:none!important}}
+
+.v54-job-step.active .s{transition:background-color .35s ease,border-color .35s ease;}
+

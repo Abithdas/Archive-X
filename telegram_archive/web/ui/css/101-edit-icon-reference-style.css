@@ -1,0 +1,57 @@
+/* ============================================================================
+   FILE: css/101-edit-icon-reference-style.css
+   AREA: Design system and global polish
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* v29.4.241 — shared edit affordance: circular ivory button with a crisp pencil mark. */
+:is(.entity-edit-icon, .card-edit-icon, .video-edit-icon, .video-related-edit-icon, .entity-related-edit-icon, .performer-edit-action, .studio-edit-action) {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid rgba(255,255,255,.94) !important;
+  border-radius: 50% !important;
+  background: #f2f3ef !important;
+  color: #202323 !important;
+  box-shadow: 0 2px 7px rgba(0,0,0,.22) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  opacity: 1 !important;
+  text-decoration: none !important;
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease, transform .16s ease, box-shadow .16s ease !important;
+}
+:is(.entity-edit-icon, .card-edit-icon, .video-edit-icon, .video-related-edit-icon, .entity-related-edit-icon, .performer-edit-action, .studio-edit-action) .ax-icon {
+  display: block !important;
+  width: 12px !important;
+  height: 12px !important;
+  min-width: 12px !important;
+  min-height: 12px !important;
+  flex: 0 0 12px !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  stroke-width: 1.9 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+:is(.entity-edit-icon, .card-edit-icon, .video-edit-icon, .video-related-edit-icon, .entity-related-edit-icon, .performer-edit-action, .studio-edit-action):hover {
+  border-color: #fff !important;
+  background: #fff !important;
+  color: #111514 !important;
+  box-shadow: 0 3px 10px rgba(0,0,0,.27) !important;
+  transform: scale(1.045) !important;
+}
+:is(.entity-edit-icon, .card-edit-icon, .video-edit-icon, .video-related-edit-icon, .entity-related-edit-icon, .performer-edit-action, .studio-edit-action):focus-visible {
+  outline: 2px solid #f2f3ef !important;
+  outline-offset: 2px !important;
+}
+:is(.entity-edit-icon, .card-edit-icon, .video-edit-icon, .video-related-edit-icon, .entity-related-edit-icon, .performer-edit-action, .studio-edit-action):disabled {
+  opacity: .45 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.entity-edit-icon, .card-edit-icon, .video-edit-icon, .video-related-edit-icon, .entity-related-edit-icon, .performer-edit-action, .studio-edit-action) { transition: none !important; }
+}

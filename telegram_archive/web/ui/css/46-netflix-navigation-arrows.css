@@ -1,0 +1,25 @@
+/* ============================================================================
+   FILE: css/46-netflix-navigation-arrows.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — consistent Netflix-style navigation arrows.
+   Presentation-only: button targets/handlers stay unchanged. */
+
+/* Player-overlay navigation: center against the video viewport, not the outer
+   player shell or control bar. */
+
+
+
+
+
+/* YouTube-style recommendation arrows: circular dark controls centered on thumbnails. */
+
+
+
+
+
+
+

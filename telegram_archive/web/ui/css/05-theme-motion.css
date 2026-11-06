@@ -1,0 +1,14 @@
+/* ============================================================================
+   FILE: css/05-theme-motion.css
+   AREA: Theming
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+
+html{color-scheme:light dark;}
+html.ax-theme-transition,html.ax-theme-transition body,html.ax-theme-transition body *{transition-property:background-color,border-color,color,box-shadow,fill,stroke!important;transition-duration:.16s!important;transition-timing-function:ease-out!important}
+html[data-theme="light"] video {background:#111!important}
+
+
+@media(prefers-reduced-motion:reduce){html.ax-theme-transition,html.ax-theme-transition body,html.ax-theme-transition body *{transition-duration:.01ms!important}}

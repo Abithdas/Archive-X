@@ -1,0 +1,18 @@
+/* ============================================================================
+   FILE: css/60-live-seek-preview-module.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Live seek preview owns its bubble geometry, frame visibility and status overlay.
+   Player controls still own the timeline and committed seeking behavior. */
+
+
+
+
+
+
+
+
+

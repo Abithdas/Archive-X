@@ -1,0 +1,21 @@
+/* ============================================================================
+   FILE: css/129-player-scene-chapters.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X v29.4.289 — YouTube-style scene chapters on the player timeline. */
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,46 @@
+/* ============================================================================
+   FILE: css/121-transfer-workspace-full-width.css
+   AREA: Transfers
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X v29.4.268 — align transfer manager panels to the workspace edges.
+   Earlier layers capped the manager stack at 1580px and centered it, while the
+   page header, preparation notice, and shared-resource board use the full width. */
+#vtransfers .ax-transfer-module-stack {grid-template-columns:minmax(0, 1fr) !important;;width:100% !important;;max-width:none !important;;min-width:0 !important;;margin:0 !important;;padding:0 !important;;box-sizing:border-box !important;;align-items:stretch !important;;justify-items:stretch !important;;gap:14px !important;}
+#vtransfers .ax-transfer-module-stack > .ax-transfer-workflow-section,
+#vtransfers .ax-transfer-module-stack > .ax-transfer-automation-section,
+#vtransfers .ax-transfer-workflow-section > .mc2,
+#vtransfers .ax-transfer-workflow-section #ops-telegram-transfer,
+#vtransfers #ax-transfer-metadata-slot > .mc2,
+#vtransfers .ax-transfer-automation-section > .automation-card {
+  width:100% !important;
+  max-width:none !important;
+  min-width:0 !important;
+  margin-inline:0 !important;
+  box-sizing:border-box !important;
+  justify-self:stretch !important;
+}
+/* Keep the first status pills on the same row baseline as every subsequent pill. */
+#vtransfers #ax-transfer-resource-usage {
+  align-items:center !important;
+  justify-content:flex-start !important;
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+}
+#vtransfers #ax-transfer-resource-usage > .ax-transfer-resource-chip {
+  align-self:center !important;
+  vertical-align:middle !important;
+}
+@media (max-width:720px) {
+  #vtransfers .ax-transfer-module-stack { gap:10px !important; }
+  #vtransfers .ax-transfer-workflow-section > .mc2,
+  #vtransfers .ax-transfer-workflow-section #ops-telegram-transfer,
+  #vtransfers #ax-transfer-metadata-slot > .mc2,
+  #vtransfers .ax-transfer-automation-section > .automation-card {
+    width:100% !important;
+    max-width:none !important;
+  }
+}

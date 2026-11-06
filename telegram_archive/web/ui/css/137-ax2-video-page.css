@@ -1,0 +1,97 @@
+/* ============================================================================
+   FILE: css/137-ax2-video-page.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X — New Look, Step 3: Video Page and Player.
+   Presentation-only overrides. Existing playback and preview runtime stays intact. */
+:root { --ax2-video-next-width: 340px; }
+
+/* Keep the modal mounted so open/close motion can run in both directions. */
+
+/* In desktop/tablet layouts the global header and shell navigation remain above
+   this page. The content itself starts below their reserved top/side offsets. */
+
+
+
+
+
+
+/* Video frame and controls. No transition or animation is applied to #pv. */
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Title, technical metadata, and information cards. */
+
+
+
+
+
+
+
+
+
+
+
+/* Performer/studio chips retain their original click targets and navigation. */
+
+
+
+
+
+
+
+/* Action buttons, scene tags, markers and source keep all current handlers. */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Up next becomes a fixed, independently scrolling side card on wide screens.
+   On smaller screens it returns to document flow after the detail cards. */
+
+
+
+
+
+/* Wide screens: player/detail content and a sticky 340px Up next column. */
+
+/* Phone/rail: one column, horizontal snap rail, no duplicate global chrome. */
+
+
+
+/* iPhone landscape / compact landscape rail: video occupies the visible height,
+   toolbar overlays the top edge, controls overlay the bottom edge, details follow. */
+
+
+
+
+

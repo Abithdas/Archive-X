@@ -1,0 +1,107 @@
+<!-- ======================================================================
+     PARTIAL: html/views/video-detail.html
+     PURPOSE: Video watch and detail view.
+     Composed into the page by web/html.py. DOM order follows the include order.
+     KEY IDS: video-tab-details, v55-markers
+     ====================================================================== -->
+<!-- ═══════════════════════ DETAIL MODAL ═══════════════════════ -->
+<div id="do">
+  <div id="dm">
+    <aside id="dnav" aria-label="Archive X navigation">
+      <div class="dnav-brand"><span class="dnav-mark"><svg class="ax-icon" aria-hidden="true"><use href="#ax-play"></use></svg></span><span>Archive X</span><small>v2.0</small></div>
+      <button class="dnav-item on" onclick="closeDBtn(true);sv('library')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-home"></use></svg> <span>Videos</span></button>
+      <button class="dnav-item" onclick="closeDBtn(true);sv('performers')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-user"></use></svg> <span>Performers</span></button>
+      <button class="dnav-item" onclick="closeDBtn(true);sv('sites')">▦ <span>Studios</span></button>
+      <button class="dnav-item" onclick="closeDBtn(true);sv('admin')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-settings"></use></svg> <span>Operations</span></button>
+      <button class="dnav-item" onclick="closeDBtn(true);sv('transfers')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-download"></use></svg> <span>Transfers</span></button>
+      <button class="dnav-item" onclick="closeDBtn(true);sv('settings')"><svg class="ax-icon" aria-hidden="true"><use href="#ax-settings"></use></svg> <span>Settings</span></button>
+      <div class="dnav-section">LIBRARY</div>
+      <button class="dnav-item sub"><svg class="ax-icon" aria-hidden="true"><use href="#ax-download"></use></svg> <span>Downloads</span></button>
+      <button class="dnav-item sub">▱ <span>Trash</span></button>
+    </aside>
+    <div id="dmain">
+      <div id="dtopbar" role="navigation" aria-label="Video navigation">
+        <button type="button" class="universal-back-btn" onclick="universalBack()" aria-label="Go back" title="Go back"><svg class="ax-icon" aria-hidden="true"><use href="#ax-arrow-left"></use></svg></button>
+        <span id="dbar-t" class="muted universal-back-label"></span>
+        <div class="video-page-head-actions">
+          <button class="btn sm" type="button" onclick="openVideoTelegram()" title="Open this message in Telegram"><svg class="ax-icon" aria-hidden="true"><use href="#ax-brand-telegram"></use></svg> Telegram</button>
+        </div>
+      </div>
+      <div id="dtop" class="paused">
+        <div id="pvisual" aria-label="Video playback area">
+          <video id="pv" playsinline webkit-playsinline preload="auto"></video>
+          <div id="ptap"></div>
+          <canvas id="psbgrid" aria-label="36 video snapshots; click a snapshot to start from that time" title="Click a snapshot to play from its timestamp"></canvas>
+          <div id="pbright"></div>
+          <div id="pgesture"></div>
+          <div id="pspin" class="ax-lds-roller xl" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <button id="pbig" onclick="pToggle()" aria-label="Play or pause"><svg class="ax-icon fill" aria-hidden="true"><use href="#ax-play"></use></svg></button>
+          <button id="pnav-prev" onclick="prevV()" aria-label="Previous video" title="Previous video"><svg class="ax-icon" aria-hidden="true"><use href="#ax-arrow-left"></use></svg></button>
+          <button id="pnav-next" onclick="nextV()" aria-label="Next video" title="Next video"><svg class="ax-icon" aria-hidden="true"><use href="#ax-arrow-right"></use></svg></button>
+          <div id="ptoast"></div>
+          <div id="pmsg" role="alert" aria-live="assertive"></div>
+        </div>
+        <div id="pbar">
+          <div id="ptimes" aria-hidden="true"><span id="ptcur">0:00</span><span id="ptdur">–:––</span></div>
+          <div id="pseek"><div id="pprev" aria-hidden="true"><div class="pp-frame"><img id="pprevimg" alt="Live seek preview frame"></div><span id="pprevt">0:00</span></div><div class="trk"><div id="pchapter-segments" aria-hidden="true"></div><div id="pbuf"></div><div id="pplay"></div></div><div id="pknob"></div></div>
+          <div id="prow">
+            <button class="pnav" onclick="prevV()" title="Previous / restart (Shift+P)" aria-label="Previous"><svg class="ax-icon" aria-hidden="true"><use href="#ax-arrow-left"></use></svg></button>
+            <button id="pplaybtn" onclick="pToggle()" title="Play / pause (Space)"><svg class="ax-icon fill" aria-hidden="true"><use href="#ax-play"></use></svg></button>
+            <button class="pnav" onclick="nextV()" title="Next (N)" aria-label="Next"><svg class="ax-icon" aria-hidden="true"><use href="#ax-arrow-right"></use></svg></button>
+            <button id="pb10" onclick="pSkip(-30)" title="Back 30 seconds (J)" aria-label="Back 30 seconds" style="position:relative"><svg class="ax-icon" aria-hidden="true"><use href="#ax-rewind"></use></svg><span class="skip-seconds" aria-hidden="true" style="position:absolute;z-index:5;left:50%;top:49%;display:block;transform:translate(-50%,-43%);font-family:Arial,Helvetica,sans-serif;font-size:10.5px;font-weight:900;line-height:1;letter-spacing:-.3px;color:#fff;text-shadow:0 0 2px #000,0 1px 2px #000;white-space:nowrap;pointer-events:none">30</span></button>
+            <button id="pf10" onclick="pSkip(30)" title="Forward 30 seconds (L)" aria-label="Forward 30 seconds" style="position:relative"><svg class="ax-icon" aria-hidden="true"><use href="#ax-forward"></use></svg><span class="skip-seconds" aria-hidden="true" style="position:absolute;z-index:5;left:50%;top:49%;display:block;transform:translate(-50%,-43%);font-family:Arial,Helvetica,sans-serif;font-size:10.5px;font-weight:900;line-height:1;letter-spacing:-.3px;color:#fff;text-shadow:0 0 2px #000,0 1px 2px #000;white-space:nowrap;pointer-events:none">30</span></button>
+            <span id="ptime">0:00 / –:––</span>
+            <span id="ax-speed-badge" class="ax-speed-badge" hidden></span>
+            <span style="flex:1"></span>
+            <div id="pright" style="display:flex;align-items:center;gap:2px;margin-left:auto">
+              <button id="prate" onclick="pRate()" title="Speed" style="font-size:12px;width:44px">1×</button>
+              <button id="pmute" onclick="pMute()" title="Mute (M)" aria-label="Mute" class="piconbtn"><span class="speaker-icon" aria-hidden="true"><svg class="speaker-svg" viewBox="0 0 24 24" focusable="false"><path class="speaker-body" d="M3 9v6h4l5 4V5L7 9H3Z" fill="currentColor"/><path class="speaker-waves" d="M15.5 9a5 5 0 0 1 0 6M18 6.5a8.5 8.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="speaker-mute-slash" d="M4 4 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></span></button>
+              <input id="pvol" type="range" min="0" max="1" step="0.05" oninput="pVol(this.value)" aria-label="Volume">
+              <button onclick="pPip()" title="Picture in picture"><svg class="ax-icon" aria-hidden="true"><use href="#ax-picture"></use></svg></button>
+              <button id="pfull" onclick="pFull()" title="Full screen / match phone orientation (F)" aria-label="Full screen"><svg class="ax-icon" aria-hidden="true"><use href="#ax-expand"></use></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="dc">
+        <div class="video-detail-heading">
+          <div>
+            <div id="dtitle"></div><div id="dfname"></div>
+          </div>
+        </div>
+        <div id="dmeta"></div>
+        <div id="video-tab-details" class="video-tab-panel on">
+          <section class="video-info-block video-cast-block">
+            <div class="video-info-head"><div><div class="dsection">Performers &amp; Studio</div><div class="video-info-sub">People and studio linked to this video</div></div><button type="button" class="video-related-edit-icon" onclick="openCurrentVideoQuickEdit()" title="Edit video title, performers and studio" aria-label="Edit video title, performers and studio"><svg class="ax-icon" aria-hidden="true"><use href="#ax-edit"></use></svg></button></div>
+            <div id="dperfs"></div>
+          </section>
+          <section class="video-info-block video-tags-block">
+            <div class="dsection tag-head" id="dtag-head" onclick="toggleDetailTags()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetailTags()}">Scene tags</div>
+            <div id="dtags" class="tags-collapsed"></div>
+          </section>
+          <section class="video-info-block video-markers-block">
+            <div class="dsection tag-head marker-head" id="dmarker-head" onclick="toggleDetailMarkers()" role="button" tabindex="0" aria-expanded="true" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetailMarkers()}">Scene markers</div>
+            <div id="v55-markers" class="v55-marker-list marker-collapsible"><div class="video-empty-inline">No markers yet.</div></div>
+          </section>
+          <section class="video-info-block video-source-block">
+            <div class="dsection">Source</div>
+            <div id="dsource" class="video-source-value muted"></div>
+          </section>
+          <section class="video-info-block video-actions-block">
+            <div class="dsection">Actions</div>
+            <div class="video-info-sub">Common actions first; advanced operations remain available below.</div>
+            <div id="dact"></div>
+          </section>
+        </div>
+      </div>
+    </div>
+    <section id="dnext-rail" class="ax-recommendation-rail" aria-label="Up next videos">
+      <div class="ax2-video-upnext-heading"><div class="dsection ax-rail-heading">Up next</div><span id="dnext-source" aria-live="polite">Current queue</span></div>
+      <button class="ax-rail-arrow ax-rail-arrow-left" type="button" data-rail-target="dnext" data-rail-direction="-1" aria-label="Scroll Up next backward" title="Scroll left"><svg class="ax-rail-arrow-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14.5 5 7.5 12l7 7" /></svg></button>
+      <div id="dnext"></div>
+      <button class="ax-rail-arrow ax-rail-arrow-right" type="button" data-rail-target="dnext" data-rail-direction="1" aria-label="Scroll Up next forward" title="Scroll right"><svg class="ax-rail-arrow-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9.5 5 7 7-7 7" /></svg></button>
+    </section>
+  </div>
+</div>
+
+

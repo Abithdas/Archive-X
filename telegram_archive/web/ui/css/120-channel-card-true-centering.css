@@ -1,0 +1,43 @@
+/* ============================================================================
+   FILE: css/120-channel-card-true-centering.css
+   AREA: Cards
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X v29.4.267 — authoritative channel-card centering.
+   A final high-specificity layer corrects older profile-card rules that left
+   the avatar at the left edge even while the title was centered. */
+html body #app #vl.library-page #channel-cards {
+  display:flex !important;
+  flex-flow:row nowrap !important;
+  align-items:stretch !important;
+  justify-content:flex-start !important;
+  gap:8px !important;
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  height:auto !important;
+  min-height:0 !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  padding:5px 3px 8px !important;
+  margin:0 !important;
+  box-sizing:border-box !important;
+  scroll-snap-type:x proximity !important;
+  overscroll-behavior-x:contain !important;
+  scrollbar-width:thin !important;
+}
+
+html body #app #vl.library-page #channel-cards > .channel-profile-card.channel-profile-card > .channel-profile-initials {
+  display:none !important;
+}
+
+@media(max-width:520px) {
+  html body #app #vl.library-page #channel-cards { gap:7px !important;padding:4px 2px 7px !important; }
+  
+}
+@media(prefers-reduced-motion:reduce) {
+  html body #app #vl.library-page #channel-cards > .channel-profile-card,
+  html body #app #vl.library-page #channel-cards > .channel-profile-card .channel-profile-action { transition:none !important; }
+}

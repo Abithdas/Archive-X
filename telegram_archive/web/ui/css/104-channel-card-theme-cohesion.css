@@ -1,0 +1,37 @@
+/* ============================================================================
+   FILE: css/104-channel-card-theme-cohesion.css
+   AREA: Cards
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* v29.4.244 — final theme-cohesion overrides for the reference channel file cards.
+   The older appearance-density selectors target .pcard with higher specificity and
+   were shrinking the new cover/info cards to 70–88px. These rules intentionally run last. */
+html[data-grid-density] #vl.library-page #channel-cards {
+  display:flex !important;
+  align-items:stretch !important;
+  gap:14px !important;
+  min-height:238px !important;
+  height:auto !important;
+  max-height:none !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  padding:4px 3px 12px !important;
+  background:transparent !important;
+}
+
+
+
+
+
+
+
+
+@media (max-width:780px) {
+  html[data-grid-density] #vl.library-page #channel-cards { min-height:226px !important; gap:11px !important; }
+  
+  
+}
+
+

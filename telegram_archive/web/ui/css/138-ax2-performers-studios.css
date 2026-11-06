@@ -1,0 +1,499 @@
+/* ============================================================================
+   FILE: css/138-ax2-performers-studios.css
+   AREA: Performers and studios
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* AX2 Step 4 — Performers, Studios and Tag pages.
+   Keep catalogue data and its existing action hooks in the application runtime. */
+
+/* Reusable entity page headings match the Videos Library hierarchy. */
+html[data-theme-preset] #app #vp > .entity-ax2-page-head,
+html[data-theme-preset] #app #vsite > .entity-ax2-page-head {
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 20px;
+  padding: 0;
+  color: var(--ax2-text);
+}
+html[data-theme-preset] #app .entity-ax2-page-head .entity-page-kicker {
+  margin: 0 0 6px;
+  color: var(--ax2-accent);
+  font: 700 11px/1.2 var(--ax2-font);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+html[data-theme-preset] #app .entity-ax2-page-head h1 {
+  margin: 0;
+  color: var(--ax2-text);
+  font: 800 clamp(25px, 2vw, 32px)/1.12 var(--ax2-font);
+  letter-spacing: -.03em;
+}
+html[data-theme-preset] #app .entity-ax2-page-head p {
+  margin: 6px 0 0;
+  color: var(--ax2-text-2);
+  font: 400 14px/1.45 var(--ax-font-body, "ArchiveXInter", Inter, system-ui, sans-serif);
+}
+#vp.performer-detail-mode > #perf-page-heading,
+#vp:has(#perf-detail.open) > #perf-page-heading,
+#vsite:has(#site-detail.open) > #site-page-heading,
+#vsite:has(#site-detail.open) > #site-count {
+  display: none !important;
+}
+#vsite #site-count {
+  display: block;
+  min-width: 0;
+  margin: -8px 0 12px;
+  color: var(--ax2-text-2);
+  font: 400 13px/1.35 var(--ax2-font);
+}
+
+/* Performers toolbar: the gender filter, sort and merge controls stay live. */
+html[data-theme-preset] #app #vp #perf-toolbar {box-sizing: border-box !important;;justify-content: flex-start !important;;width: 100% !important;;border-radius: 0 !important;;box-shadow: none !important;;color: var(--ax2-text) !important;}
+html[data-theme-preset] #app #vp #perf-toolbar.performer-toolbar-pinned {z-index: calc(var(--ax2-z-page) + 99) !important;;border-radius: var(--ax2-r-panel) !important;;box-shadow: var(--ax2-shadow-hover) !important;;backdrop-filter: blur(14px) saturate(1.15) !important;;-webkit-backdrop-filter: blur(14px) saturate(1.15) !important;}
+html[data-theme-preset] #app #vp #perf-toolbar #perf-gender-filter {align-items: center !important;;min-width: 0 !important;}
+html[data-theme-preset] #app #vp #perf-toolbar #perf-gender-filter .perf-gender-label {
+  display: none !important;
+}
+html[data-theme-preset] #app #vp #perf-toolbar #perf-gender-filter .perf-gender-btn {box-sizing: border-box !important;;justify-content: center !important;;min-width: 0 !important;;font: 600 12px/1.1 var(--ax2-font) !important;}
+
+html[data-theme-preset] #app #vp #perf-toolbar #perf-sort-wrap {box-sizing: border-box !important;;align-items: center !important;;gap: 0 !important;;min-width: 0 !important;;color: var(--ax2-text-2) !important;;font: 500 12px/1.2 var(--ax2-font) !important;}
+html[data-theme-preset] #app #vp #perf-toolbar #perf-sort-wrap > span {
+  display: none !important;
+}
+html[data-theme-preset] #app #vp #perf-toolbar #perf-sort-wrap::before {
+  content: "↕";
+  position: absolute;
+  z-index: 1;
+  left: 11px;
+  color: var(--ax2-text-2);
+  font: 700 15px/1 var(--ax2-font);
+  pointer-events: none;
+}
+html[data-theme-preset] #app #vp #perf-toolbar #perf-sort-select {box-sizing: border-box !important;;max-width: min(220px, 100%) !important;;min-width: 0 !important;;font: 600 12.5px/1.2 var(--ax2-font) !important;}
+html[data-theme-preset] #app #vp #perf-toolbar #perf-merge-mode-btn,
+html[data-theme-preset] #app #vp #perf-toolbar #perf-merge-commit-btn {box-sizing: border-box !important;;display: inline-flex !important;;align-items: center !important;;justify-content: center !important;;gap: 7px !important;;font: 600 12.5px/1.2 var(--ax2-font) !important;;white-space: nowrap !important;}
+html[data-theme-preset] #app #vp #perf-toolbar #perf-merge-mode-btn::before {
+  content: "⧉";
+  display: inline-block;
+  color: var(--ax2-text-2);
+  font: 700 16px/1 var(--ax2-font);
+}
+
+html[data-theme-preset] #app #vp #perf-toolbar #perf-merge-mode-btn.pri::before { color: var(--ax2-on-accent); }
+html[data-theme-preset] #app #vp #perf-toolbar #perf-merge-commit-btn[style*="display: none"] { display: none !important; }
+html[data-theme-preset] #app #vp #perf-toolbar #perf-merge-commit-btn:disabled { opacity: .45 !important; cursor: not-allowed !important; }
+html[data-theme-preset] #app #vp #perf-toolbar #perf-merge-hint {
+  box-sizing: border-box;
+  flex: 1 1 100% !important;
+  min-width: 0;
+  max-width: none !important;
+  margin: 0;
+  color: var(--ax2-text-2) !important;
+  font: 400 12.5px/1.45 var(--ax2-font) !important;
+}
+
+/* Performer cards are portrait photos with centered labels beneath. */
+html[data-theme-preset] #app #view-stage #vp #perf-list {box-sizing: border-box !important;;align-items: start !important;;width: 100% !important;;min-width: 0 !important;;max-width: none !important;}
+
+
+
+
+
+
+
+
+
+
+
+
+/* Compact pagination reuses the Videos Library visual system. */
+html[data-theme-preset] #app #vp #perf-pg {box-sizing: border-box;;width: 100%;;min-width: 0;;padding: 0;;color: var(--ax2-text-2);}
+html[data-theme-preset] #app #vp #perf-pg .ax-pagination-bar {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ax2-line);
+  border-radius: var(--ax2-r-panel);
+  background: var(--ax2-surface);
+}
+html[data-theme-preset] #app #vp #perf-pg .ax-pagination-summary,
+html[data-theme-preset] #app #vp #perf-pg .ax-pagination-goto { color: var(--ax2-text-2); font: 500 12px/1.3 var(--ax2-font); }
+html[data-theme-preset] #app #vp #perf-pg .ax-pagination-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 5px; min-width: 0; }
+html[data-theme-preset] #app #vp #perf-pg .ax-page-number,
+html[data-theme-preset] #app #vp #perf-pg .ax-page-nav,
+html[data-theme-preset] #app #vp #perf-pg .ax-pagination-go-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+  height: 40px;
+  padding: 0 8px;
+  border: 1px solid var(--ax2-line);
+  border-radius: 11px;
+  background: var(--ax2-surface-2);
+  color: var(--ax2-text);
+  font: 600 13px/1 var(--ax2-font);
+  cursor: pointer;
+}
+html[data-theme-preset] #app #vp #perf-pg .ax-page-number.is-current { border-color: transparent; background: var(--ax2-accent); color: var(--ax2-on-accent); }
+html[data-theme-preset] #app #vp #perf-pg .ax-page-number:disabled,
+html[data-theme-preset] #app #vp #perf-pg .ax-page-nav:disabled { opacity: .4; cursor: not-allowed; }
+html[data-theme-preset] #app #vp #perf-pg .ax-pagination-divider { width: 1px; align-self: stretch; background: var(--ax2-line); }
+html[data-theme-preset] #app #vp #perf-pg .ax-pagination-input { width: 58px; min-width: 58px; min-height: 40px; padding: 0 8px; font-size: 14px; }
+
+/* Studios are compact horizontal cards on wide screens, stacked on phones. */
+html[data-theme-preset] #app #view-stage #vsite #site-list {box-sizing: border-box !important;;align-items: start !important;;width: 100% !important;;min-width: 0 !important;;max-width: none !important;}
+
+
+
+
+
+
+/* Shared detail hero, metadata pills, tabs, social links, tag heading and cards. */
+
+html[data-theme-preset] #app #vp #perf-detail .entity-detail-backbar,
+html[data-theme-preset] #app #vsite #site-detail .entity-detail-backbar {display: flex;;align-items: center;;gap: 10px;;min-width: 0;;margin: 0 0 16px;;padding: 0;;border: 0;}
+html[data-theme-preset] #app #vp #perf-detail .entity-detail-back,
+html[data-theme-preset] #app #vsite #site-detail .entity-detail-back {box-sizing: border-box;;display: inline-flex;;align-items: center;;justify-content: center;;flex: 0 0 40px;;min-height: 40px;;padding: 0;}
+html[data-theme-preset] #app #vp #perf-detail .entity-back-label,
+html[data-theme-preset] #app #vsite #site-detail .entity-back-label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ax2-text-2);
+  font: 500 13px/1.35 var(--ax2-font);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-overview-grid,
+html[data-theme-preset] #app #vsite #site-detail .performer-overview-grid {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  align-items: stretch;
+  gap: 16px;
+  width: 100%;
+  max-width: none;
+  margin: 0 0 16px;
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-identity-card,
+html[data-theme-preset] #app #vsite #site-detail .studio-identity-card,
+html[data-theme-preset] #app #vp #perf-detail .performer-bio-card,
+html[data-theme-preset] #app #vsite #site-detail .performer-bio-card,
+html[data-theme-preset] #app #vsite #site-detail .performer-social-panel {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--ax2-line);
+  border-radius: var(--ax2-r-panel);
+  background: var(--ax2-surface);
+  box-shadow: none;
+  color: var(--ax2-text);
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-identity-card,
+html[data-theme-preset] #app #vsite #site-detail .studio-identity-card {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  grid-template-areas: "portrait title" "portrait stats" "portrait actions";
+  align-content: center;
+  align-items: center;
+  gap: 10px 20px;
+  padding: 20px;
+  overflow: hidden;
+  text-align: left;
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-identity-heading,
+html[data-theme-preset] #app #vsite #site-detail .performer-identity-heading {
+  grid-area: title;
+  align-self: end;
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-identity-heading h2,
+html[data-theme-preset] #app #vsite #site-detail .performer-identity-heading h2 {
+  margin: 0;
+  color: var(--ax2-text);
+  font: 800 clamp(22px, 2vw, 32px)/1.12 var(--ax2-font);
+  letter-spacing: -.03em;
+  overflow-wrap: anywhere;
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-identity-role,
+html[data-theme-preset] #app #vsite #site-detail .performer-identity-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  color: var(--ax2-text-3);
+  font: 700 10px/1.2 var(--ax2-font);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-identity-portrait-zone {
+  grid-area: portrait;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-profile-avatar {
+  box-sizing: border-box;
+  width: 160px;
+  max-width: 100%;
+  aspect-ratio: 3 / 4;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--ax2-line-2);
+  border-radius: 20px;
+  background: var(--ax2-surface-2);
+  box-shadow: none;
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-profile-avatar > img.performer-profile-photo {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+html[data-theme-preset] #app #vsite #site-detail .studio-profile-logo-zone {grid-area: portrait;}
+html[data-theme-preset] #app #vsite #site-detail .studio-profile-logo {padding: 0 !important;}
+html[data-theme-preset] #app #vsite #site-detail .studio-profile-logo > img:not(.entity-fallback-logo) {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  padding: 5px !important;
+  object-fit: contain !important;
+  border-radius: inherit !important;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-identity-stats,
+html[data-theme-preset] #app #vsite #site-detail .performer-identity-stats {
+  grid-area: stats;
+  align-self: start;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 7px;
+  width: 100%;
+  margin: 0;
+  color: var(--ax2-text-2);
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-identity-stats > span,
+html[data-theme-preset] #app #vsite #site-detail .performer-identity-stats > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid var(--ax2-line);
+  border-radius: var(--ax2-r-pill);
+  background: var(--ax2-surface-2);
+  color: var(--ax2-text-2);
+  font: 500 12px/1.2 var(--ax2-font);
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-identity-stats strong,
+html[data-theme-preset] #app #vsite #site-detail .performer-identity-stats strong { color: var(--ax2-text); font: 700 13px/1 var(--ax2-font); }
+html[data-theme-preset] #app #vp #perf-detail .performer-identity-stats small,
+html[data-theme-preset] #app #vsite #site-detail .performer-identity-stats small { color: var(--ax2-text-3); font: 400 11px/1.2 var(--ax2-font); }
+html[data-theme-preset] #app #vp #perf-detail .performer-identity-actions,
+html[data-theme-preset] #app #vsite #site-detail .performer-identity-actions {
+  grid-area: actions;
+  align-self: start;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+}
+html[data-theme-preset] #app #vp #perf-detail .performer-bio-card,
+html[data-theme-preset] #app #vsite #site-detail .performer-bio-card { padding: 20px; }
+html[data-theme-preset] #app #vp #perf-detail .performer-profile-panel-head h3,
+html[data-theme-preset] #app #vsite #site-detail .performer-profile-panel-head h3,
+html[data-theme-preset] #app #vsite #site-detail .performer-social-panel-head h3 { color: var(--ax2-text); font: 700 15px/1.25 var(--ax2-font); }
+html[data-theme-preset] #app #vp #perf-detail .performer-profile-panel-head p,
+html[data-theme-preset] #app #vsite #site-detail .performer-profile-panel-head p,
+html[data-theme-preset] #app #vsite #site-detail .performer-social-panel-head p { color: var(--ax2-text-3); font: 400 12px/1.45 var(--ax2-font); }
+html[data-theme-preset] #app #vp #perf-detail .performer-overview-details,
+html[data-theme-preset] #app #vsite #site-detail .performer-overview-details,
+html[data-theme-preset] #app #vp #perf-detail .entity-info-grid,
+html[data-theme-preset] #app #vsite #site-detail .entity-info-grid { gap: 10px; }
+html[data-theme-preset] #app #vp #perf-detail .performer-overview-detail,
+html[data-theme-preset] #app #vsite #site-detail .performer-overview-detail,
+html[data-theme-preset] #app #vp #perf-detail .entity-info-card,
+html[data-theme-preset] #app #vsite #site-detail .entity-info-card {
+  border-color: var(--ax2-line);
+  border-radius: var(--ax2-r);
+  background: var(--ax2-surface-2);
+  color: var(--ax2-text);
+}
+html[data-theme-preset] #app #vsite #site-detail .performer-social-panel {
+  margin: 0 0 16px;
+  padding: 18px;
+}
+html[data-theme-preset] #app #vsite #site-detail .performer-social-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+html[data-theme-preset] #app #vsite #site-detail .performer-social-link {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid var(--ax2-line);
+  border-radius: 50%;
+  background: var(--ax2-surface-2);
+  color: var(--ax2-text-2);
+  text-decoration: none;
+}
+html[data-theme-preset] #app #vsite #site-detail .performer-social-link > span:not(.performer-social-icon),
+html[data-theme-preset] #app #vsite #site-detail .performer-social-link > .ax-icon { display: none; }
+html[data-theme-preset] #app #vsite #site-detail .performer-social-icon { display: inline-flex; align-items: center; justify-content: center; }
+html[data-theme-preset] #app #vsite #site-detail .performer-social-icon .ax-icon { width: 18px; height: 18px; }
+html[data-theme-preset] #app #vp #perf-detail .entity-detail-tabs,
+html[data-theme-preset] #app #vsite #site-detail .entity-detail-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  margin: 12px 0 16px;
+  padding: 4px;
+  overflow-x: auto;
+  border: 1px solid var(--ax2-line);
+  border-radius: 14px;
+  background: var(--ax2-surface);
+  scrollbar-width: none;
+}
+html[data-theme-preset] #app #vp #perf-detail .entity-detail-tabs::-webkit-scrollbar,
+html[data-theme-preset] #app #vsite #site-detail .entity-detail-tabs::-webkit-scrollbar { display: none; }
+html[data-theme-preset] #app #vp #perf-detail .entity-detail-tab,
+html[data-theme-preset] #app #vsite #site-detail .entity-detail-tab {position: relative;;display: inline-flex;;align-items: center;;justify-content: center;;gap: 6px;;min-width: max-content;;min-height: 36px;;padding: 0 13px;;font: 600 12.5px/1.2 var(--ax2-font);;white-space: nowrap;;cursor: pointer;;transition: color var(--ax2-d2) var(--ax2-ease), background-color var(--ax2-d2) var(--ax2-ease);}
+
+html[data-theme-preset] #app #vp #perf-detail .entity-detail-tab::after,
+html[data-theme-preset] #app #vsite #site-detail .entity-detail-tab::after { display: none; }
+html[data-theme-preset] #app #vp #perf-detail .entity-tab-panel,
+html[data-theme-preset] #app #vsite #site-detail .entity-tab-panel { min-width: 0; }
+html[data-theme-preset] #app #vsite #site-detail .entity-studio-grid > .related-studio-card,
+html[data-theme-preset] #app #vp #perf-detail .entity-studio-grid > .related-studio-card {
+  background: var(--ax2-surface);
+  border-color: var(--ax2-line);
+  border-radius: var(--ax2-r-card);
+}
+html[data-theme-preset] #app #vtg #tag-detail {box-sizing: border-box !important;;width: 100% !important;;max-width: none !important;;margin: 0 auto !important;;padding: 0 !important;}
+
+
+html[data-theme-preset] #app #vtg #tag-detail .tag-count { margin-top: 5px; color: var(--ax2-text-2); font: 400 12.5px/1.3 var(--ax2-font); }
+html[data-theme-preset] #app #vtg #tag-detail #tag-video-grid { min-width: 0; }
+
+@keyframes ax2-entity-skeleton { to { background-position: -220% 0; } }
+@keyframes ax2-entity-grid-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+#vp #perf-list.ax2-entity-grid-motion > :nth-child(2), #vsite #site-list.ax2-entity-grid-motion > :nth-child(2) { animation-delay: 24ms; }
+#vp #perf-list.ax2-entity-grid-motion > :nth-child(3), #vsite #site-list.ax2-entity-grid-motion > :nth-child(3) { animation-delay: 48ms; }
+#vp #perf-list.ax2-entity-grid-motion > :nth-child(4), #vsite #site-list.ax2-entity-grid-motion > :nth-child(4) { animation-delay: 72ms; }
+#vp #perf-list.ax2-entity-grid-motion > :nth-child(5), #vsite #site-list.ax2-entity-grid-motion > :nth-child(5) { animation-delay: 96ms; }
+#vp #perf-list.ax2-entity-grid-motion > :nth-child(6), #vsite #site-list.ax2-entity-grid-motion > :nth-child(6) { animation-delay: 120ms; }
+#vp #perf-list.ax2-entity-grid-motion > :nth-child(7), #vsite #site-list.ax2-entity-grid-motion > :nth-child(7) { animation-delay: 144ms; }
+#vp #perf-list.ax2-entity-grid-motion > :nth-child(8), #vsite #site-list.ax2-entity-grid-motion > :nth-child(8) { animation-delay: 168ms; }
+#vp #perf-list.ax2-entity-grid-motion > :nth-child(9), #vsite #site-list.ax2-entity-grid-motion > :nth-child(9) { animation-delay: 192ms; }
+#vp #perf-list.ax2-entity-grid-motion > :nth-child(10), #vsite #site-list.ax2-entity-grid-motion > :nth-child(10) { animation-delay: 216ms; }
+#vp #perf-list.ax2-entity-grid-motion > :nth-child(11), #vsite #site-list.ax2-entity-grid-motion > :nth-child(11) { animation-delay: 240ms; }
+#vp #perf-list.ax2-entity-grid-motion > :nth-child(n/**/+12), #vsite #site-list.ax2-entity-grid-motion > :nth-child(n/**/+12) { animation-delay: 264ms; }
+
+@media (max-width: 599px) {
+  html[data-theme-preset] #app #vp > .entity-ax2-page-head,
+  html[data-theme-preset] #app #vsite > .entity-ax2-page-head { gap: 10px; margin-bottom: 16px; }
+  html[data-theme-preset] #app .entity-ax2-page-head h1 { font-size: 26px; }
+  html[data-theme-preset] #app .entity-ax2-page-head p { font-size: 13.5px; }
+  html[data-theme-preset] #app #vp #perf-toolbar {grid-template-columns: minmax(0, auto) minmax(0, 1fr) !important;}
+  html[data-theme-preset] #app #vp #perf-toolbar #perf-gender-filter {max-width: 100%;}
+  
+  html[data-theme-preset] #app #vp #perf-toolbar #perf-sort-wrap {min-width: 0 !important;;width: 100% !important;}
+  html[data-theme-preset] #app #vp #perf-toolbar #perf-sort-select {max-width: none !important;;min-width: 0 !important;}
+
+  html[data-theme-preset] #app #vp #perf-detail .performer-overview-grid,
+  html[data-theme-preset] #app #vsite #site-detail .performer-overview-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
+  html[data-theme-preset] #app #vp #perf-detail .performer-identity-card,
+  html[data-theme-preset] #app #vsite #site-detail .studio-identity-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas: "title" "portrait" "stats" "actions";
+    justify-items: center;
+    gap: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  html[data-theme-preset] #app #vp #perf-detail .performer-identity-heading,
+  html[data-theme-preset] #app #vsite #site-detail .performer-identity-heading { text-align: center; }
+  html[data-theme-preset] #app #vp #perf-detail .performer-identity-portrait-zone { width: 160px; max-width: 100%; }
+  html[data-theme-preset] #app #vp #perf-detail .performer-profile-avatar { width: 160px; max-width: 100%; }
+  html[data-theme-preset] #app #vsite #site-detail .studio-profile-logo-zone,
+  html[data-theme-preset] #app #vsite #site-detail .studio-profile-logo {max-height: 96px !important;}
+  html[data-theme-preset] #app #vp #perf-detail .performer-identity-stats,
+  html[data-theme-preset] #app #vsite #site-detail .performer-identity-stats,
+  html[data-theme-preset] #app #vp #perf-detail .performer-identity-actions,
+  html[data-theme-preset] #app #vsite #site-detail .performer-identity-actions { justify-content: center; }
+  html[data-theme-preset] #app #vp #perf-detail .performer-bio-card,
+  html[data-theme-preset] #app #vsite #site-detail .performer-bio-card { padding: 16px; }
+  html[data-theme-preset] #app #vsite #site-detail .performer-social-panel { padding: 16px; }
+  html[data-theme-preset] #app #vp #perf-detail .entity-detail-tabs,
+  html[data-theme-preset] #app #vsite #site-detail .entity-detail-tabs { margin: 10px 0 14px; }
+  html[data-theme-preset] #app #vp #perf-detail .entity-detail-tab,
+  html[data-theme-preset] #app #vsite #site-detail .entity-detail-tab { min-height: 40px; padding: 0 11px; }
+  
+  html[data-theme-preset] #app #vp #perf-pg .ax-pagination-bar { gap: 8px; padding: 8px; }
+  html[data-theme-preset] #app #vp #perf-pg .ax-pagination-summary { display: none; }
+  html[data-theme-preset] #app #vp #perf-pg .ax-pagination-controls { width: 100%; justify-content: center; gap: 4px; }
+  html[data-theme-preset] #app #vp #perf-pg .ax-page-number,
+  html[data-theme-preset] #app #vp #perf-pg .ax-page-nav { min-width: 36px; width: 36px; min-height: 40px; height: 40px; padding: 0; }
+}
+
+
+@media (min-width: 600px) and (max-width: 999px), (max-height: 500px) and (orientation: landscape) {
+  html[data-theme-preset] #app #vp #perf-detail .performer-overview-grid,
+  html[data-theme-preset] #app #vsite #site-detail .performer-overview-grid { grid-template-columns: minmax(0,1fr); }
+  html[data-theme-preset] #app #vp #perf-detail .performer-identity-card,
+  html[data-theme-preset] #app #vsite #site-detail .studio-identity-card { max-width: 100%; }
+}
+
+@media (pointer: coarse) {
+  html[data-theme-preset] #app #vp #perf-toolbar button,
+  html[data-theme-preset] #app #vp #perf-toolbar select { min-height: 44px !important; }
+  html[data-theme-preset] #app #vp #perf-toolbar .perf-gender-btn { min-height: 44px !important; }
+}
+

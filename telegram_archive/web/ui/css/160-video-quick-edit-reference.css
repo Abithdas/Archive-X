@@ -1,0 +1,186 @@
+/* ============================================================================
+   FILE: css/160-video-quick-edit-reference.css
+   AREA: Design system and global polish
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.361 — Reference-aligned Video Quick Edit dialog. Presentation-only overrides. */
+#video-quick-edit.open > .quick-edit-modal {
+  box-sizing: border-box !important;
+  width: min(980px, calc(100vw - 48px)) !important;
+  max-width: 980px !important;
+  height: min(570px, calc(86dvh - 20px)) !important;
+  max-height: min(860px, calc(100dvh - 24px)) !important;
+  min-height: 0 !important;
+  padding: 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  gap: 10px !important;
+}
+#video-quick-edit.open > .quick-edit-modal > .mdl-h {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  gap: 12px !important;
+  margin: 0 !important;
+  padding: 0 0 12px !important;
+  border-bottom: 1px solid var(--ax2-line, var(--border)) !important;
+  background: transparent !important;
+}
+#video-quick-edit .quick-edit-heading {
+  display: grid !important;
+  grid-template-columns: 40px minmax(0,1fr) !important;
+  align-items: center !important;
+  gap: 0 10px !important;
+  min-width: 0 !important;
+}
+#video-quick-edit .quick-edit-title-icon {
+  grid-column: 1 !important;
+  grid-row: 1 / span 2 !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 12px !important;
+  background: var(--ax2-accent-soft, var(--accent-soft)) !important;
+  color: var(--ax2-accent, var(--accent)) !important;
+}
+#video-quick-edit .quick-edit-title-icon .ax-icon { width: 17px !important; height: 17px !important; }
+#video-quick-edit .quick-edit-title-stack { grid-column: 2 !important; grid-row: 1 / span 2 !important; display: flex !important; flex-direction: column !important; gap: 3px !important; min-width: 0 !important; }
+#video-quick-edit .quick-edit-title-stack > b { font: 750 17px/1.2 var(--ax2-font, var(--font, system-ui)) !important; color: var(--ax2-text, var(--text)) !important; }
+#video-quick-edit #vq-summary { max-width: 72ch !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; color: var(--ax2-text-3, var(--text2)) !important; }
+#video-quick-edit .quick-edit-body {
+  display: grid !important;
+  grid-template-rows: auto minmax(0,1fr) auto !important;
+  gap: 10px !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+#video-quick-edit .quick-edit-title-pane {
+  min-width: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 0 1px 2px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+#video-quick-edit .quick-edit-title-pane > label { display: block !important; margin: 0 0 5px !important; color: var(--ax2-text-3, var(--text2)) !important; }
+#video-quick-edit .quick-edit-title-pane > div[style*="display:flex"] { display: flex !important; align-items: center !important; gap: 7px !important; min-width: 0 !important; }
+#video-quick-edit #vq-title { flex: 1 1 auto !important; width: 100% !important; min-width: 0 !important; min-height: 34px !important; height: 34px !important; padding: 0 10px !important; font-size: 12px !important; border-radius: 8px !important; }
+#video-quick-edit #vq-lookup { display: inline-flex !important; flex: 0 0 auto !important; align-items: center !important; justify-content: center !important; gap: 5px !important; min-height: 32px !important; height: 32px !important; padding: 0 8px !important; white-space: nowrap !important; font-size: 11px !important; }
+#video-quick-edit #vq-lookup .ax-icon { width: 12px !important; height: 12px !important; }
+#video-quick-edit #vq-filename-hints { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 5px 0 0; margin: 0; border: 0; background: transparent; }
+#video-quick-edit .vq-clue-chip { display: inline-flex; align-items: center; min-width: 0; max-width: 100%; padding: 3px 7px; border: 1px solid var(--ax2-line, var(--border)); border-radius: 999px; background: var(--ax2-accent-soft, var(--bg2)); color: var(--ax2-accent, var(--accent)); font: 650 9px/1.2 var(--ax2-font, system-ui); overflow-wrap: anywhere; }
+#video-quick-edit .vq-clue-chip.unverified { color: var(--ax2-warn, #fbbf24); background: var(--ax2-warn-soft, transparent); }
+#video-quick-edit .vq-clue-chip.date { color: var(--ax2-text-2, var(--text2)); background: var(--ax2-surface-2, var(--bg2)); }
+#video-quick-edit #vq-match { padding: 7px 9px !important; margin-top: 5px !important; border-radius: 8px !important; background: var(--ax2-accent-soft, var(--bg2)) !important; color: var(--ax2-text-2, var(--text2)) !important; font-size: 11px !important; line-height: 1.4 !important; }
+#video-quick-edit .quick-edit-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3,minmax(0,1fr)) !important;
+  grid-template-rows: minmax(0,1fr) !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+#video-quick-edit .quick-edit-grid > .quick-edit-pane {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 10px !important;
+  border: 1px solid var(--ax2-line-2, var(--border)) !important;
+  border-radius: 12px !important;
+  background: var(--ax2-bg, var(--bg2)) !important;
+  overflow: hidden !important;
+}
+#video-quick-edit .quick-edit-grid > .quick-edit-pane h3 { flex: 0 0 auto !important; margin: 0 0 8px !important; font: 750 10px/1.25 var(--ax2-font, system-ui) !important; letter-spacing: .02em !important; color: var(--ax2-text, var(--text)) !important; }
+#video-quick-edit .quick-edit-grid > .quick-edit-pane input.inp { flex: 0 0 auto !important; box-sizing: border-box !important; width: 100% !important; min-width: 0 !important; min-height: 32px !important; height: 32px !important; padding: 0 9px !important; font-size: 11px !important; border-radius: 8px !important; }
+#video-quick-edit .quick-edit-current { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 4px !important; flex: 0 0 auto !important; min-width: 0 !important; padding: 5px 0 7px !important; }
+#video-quick-edit .quick-edit-current .pill { display: inline-flex !important; align-items: center !important; gap: 5px !important; max-width: 100% !important; padding: 3px 6px !important; font-size: 10.5px !important; line-height: 1.25 !important; border-radius: 999px !important; }
+#video-quick-edit .vq-performer-chip::before,
+#video-quick-edit #vq-studio-current .pill::before { content: ""; display: inline-block; flex: 0 0 10px; width: 10px; height: 10px; border-radius: 50%; background: linear-gradient(135deg,var(--ax2-accent, var(--accent)),var(--ax2-violet, #b8a4ff)); }
+#video-quick-edit .quick-edit-current .x { display: inline-grid !important; place-items: center !important; min-width: 16px !important; min-height: 16px !important; padding: 0 !important; border: 0 !important; background: transparent !important; color: var(--ax2-text-3, var(--text2)) !important; font-size: 13px !important; cursor: pointer !important; }
+#video-quick-edit .quick-edit-list { display: flex !important; flex: 1 1 0 !important; flex-direction: column !important; gap: 4px !important; min-height: 0 !important; max-height: none !important; padding: 0 2px 0 0 !important; overflow-x: hidden !important; overflow-y: auto !important; overscroll-behavior: contain !important; scrollbar-gutter: stable !important; }
+#video-quick-edit .quick-edit-item { display: grid !important; grid-template-columns: 24px minmax(0,1fr) auto !important; align-items: center !important; gap: 7px !important; width: 100% !important; min-width: 0 !important; min-height: 34px !important; padding: 5px 6px !important; border: 1px solid transparent !important; border-radius: 8px !important; background: transparent !important; color: var(--ax2-text, var(--text)) !important; text-align: left !important; }
+#video-quick-edit .quick-edit-item:hover,
+#video-quick-edit .quick-edit-item.selected { border-color: var(--ax2-line, var(--border)) !important; background: var(--ax2-accent-soft, var(--bg3)) !important; }
+#video-quick-edit .quick-edit-item.provider-candidate { border-left: 2px solid var(--ax2-accent, var(--accent)) !important; }
+#video-quick-edit .qei-avatar,
+#video-quick-edit .qei-avatar-fallback { display: inline-grid !important; place-items: center !important; width: 24px !important; height: 24px !important; border-radius: 50% !important; object-fit: cover !important; background: var(--ax2-surface-2, var(--bg3)) !important; color: var(--ax2-text-2, var(--text2)) !important; font-size: 10.5px !important; font-weight: 750 !important; }
+#video-quick-edit .qei-main { display: flex !important; flex-direction: column !important; gap: 2px !important; min-width: 0 !important; }
+#video-quick-edit .qei-name { display: block !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; overflow-wrap: anywhere !important; color: var(--ax2-text, var(--text)) !important; font-size: 11px !important; font-weight: 700 !important; line-height: 1.3 !important; }
+#video-quick-edit .qei-meta { display: block !important; min-width: 0 !important; color: var(--ax2-text-3, var(--text2)) !important; font-size: 10.5px !important; line-height: 1.3 !important; overflow-wrap: anywhere !important; }
+#video-quick-edit .qei-count { color: var(--ax2-text-3, var(--text2)) !important; font-size: 10.5px !important; font-variant-numeric: tabular-nums !important; }
+#video-quick-edit .qei-provider-mark,
+#video-quick-edit .qei-create-mark { flex: 0 0 auto !important; padding: 3px 5px !important; border-radius: 6px !important; border: 1px solid var(--ax2-line, var(--border)) !important; color: var(--ax2-accent, var(--accent)) !important; font-size: 10.5px !important; font-weight: 750 !important; white-space: nowrap !important; }
+#video-quick-edit .quick-edit-create { color: var(--ax2-accent, var(--accent)) !important; }
+#video-quick-edit .quick-edit-create .qei-name { color: var(--ax2-accent, var(--accent)) !important; }
+#video-quick-edit .quick-edit-empty { padding: 8px !important; border: 1px dashed var(--ax2-line-2, var(--border)) !important; border-radius: 8px !important; color: var(--ax2-text-3, var(--text2)) !important; font-size: 11px !important; line-height: 1.45 !important; }
+#video-quick-edit #vq-meta-list { flex: 1 1 0 !important; min-height: 0 !important; max-height: none !important; gap: 6px !important; }
+#video-quick-edit .vq-meta-candidate { display: grid !important; grid-template-columns: minmax(0,1fr) !important; gap: 6px !important; min-width: 0 !important; padding: 7px !important; border: 1px solid var(--ax2-line, var(--border)) !important; border-radius: 9px !important; background: var(--ax2-surface, var(--bg1)) !important; }
+#video-quick-edit .vq-meta-candidate-main { display: grid !important; grid-template-columns: 72px minmax(0,1fr) !important; grid-template-rows: auto auto !important; align-items: start !important; column-gap: 8px !important; row-gap: 4px !important; min-width: 0 !important; }
+#video-quick-edit .vq-meta-thumb { display: block !important; grid-column: 1 !important; grid-row: 1 / span 2 !important; width: 72px !important; height: 48px !important; object-fit: cover !important; border-radius: 6px !important; background: var(--ax2-surface-2, var(--bg2)) !important; }
+#video-quick-edit .vq-meta-candidate-main > .qei-main { grid-column: 2 !important; grid-row: 1 !important; min-width: 0 !important; }
+#video-quick-edit .vq-meta-candidate-main > .vq-meta-confidence { grid-column: 2 !important; grid-row: 2 !important; justify-self: start !important; max-width: 100% !important; white-space: normal !important; overflow-wrap: break-word !important; }
+#video-quick-edit .vq-meta-candidate-main .qei-name { font-size: 11px !important; line-height: 1.35 !important; overflow-wrap: break-word !important; word-break: normal !important; }
+#video-quick-edit .vq-meta-candidate-main .qei-meta,
+#video-quick-edit .vq-meta-cast { font-size: 10.5px !important; line-height: 1.4 !important; overflow-wrap: break-word !important; word-break: normal !important; }
+#video-quick-edit .vq-meta-thumb-empty { background: linear-gradient(135deg,var(--ax2-surface-2, var(--bg2)),var(--ax2-bg, var(--bg1))) !important; }
+#video-quick-edit .vq-meta-cast { display: block !important; min-width: 0 !important; overflow-wrap: anywhere !important; color: var(--ax2-text-3, var(--text2)) !important; font: 400 8.5px/1.35 var(--ax2-font, system-ui) !important; }
+#video-quick-edit .vq-meta-confidence { display: inline-flex !important; align-items: center !important; align-self: start !important; padding: 3px 4px !important; border-radius: 5px !important; font-size: 10.5px !important; font-weight: 800 !important; white-space: nowrap !important; }
+#video-quick-edit .vq-meta-confidence.good { color: var(--ax2-ok, #4ade80) !important; background: var(--ax2-ok-soft, transparent) !important; }
+#video-quick-edit .vq-meta-confidence.warn { color: var(--ax2-warn, #fbbf24) !important; background: var(--ax2-warn-soft, transparent) !important; }
+#video-quick-edit .vq-meta-confidence.bad { color: var(--ax2-bad, #f87171) !important; background: var(--ax2-bad-soft, transparent) !important; }
+#video-quick-edit .vq-meta-confidence.neutral { color: var(--ax2-text-3, var(--text2)) !important; background: var(--ax2-surface-2, var(--bg2)) !important; }
+#video-quick-edit .vq-meta-apply { width: 100% !important; min-height: 26px !important; height: 26px !important; font-size: 10.5px !important; }
+#video-quick-edit #vq-status { flex: 0 0 auto !important; max-height: 46px !important; overflow: auto !important; margin-top: 6px !important; padding: 6px 8px !important; border-radius: 7px !important; background: var(--ax2-surface-2, var(--bg2)) !important; color: var(--ax2-text-3, var(--text2)) !important; font-size: 10.5px !important; line-height: 1.4 !important; }
+#video-quick-edit .quick-edit-footer { display: flex !important; flex: 0 0 auto !important; align-items: center !important; justify-content: space-between !important; gap: 10px !important; min-width: 0 !important; margin: 0 !important; padding: 10px 0 0 !important; border-top: 1px solid var(--ax2-line, var(--border)) !important; background: var(--ax2-surface, var(--bg1)) !important; }
+#video-quick-edit .quick-edit-footer > span { max-width: 60% !important; font-size: 10.5px !important; line-height: 1.35 !important; }
+#video-quick-edit .quick-edit-footer > div { display: flex !important; flex: 0 0 auto !important; align-items: center !important; gap: 7px !important; }
+#video-quick-edit .quick-edit-footer button { min-height: 32px !important; height: 32px !important; padding: 0 12px !important; font-size: 11px !important; }
+@media (min-width:600px) and (max-width:899px) {
+  #video-quick-edit.open > .quick-edit-modal { width: min(760px,calc(100vw - 32px)) !important; height: auto !important; max-height: min(86dvh,860px) !important; }
+  #video-quick-edit .quick-edit-body { grid-template-rows: auto minmax(0,1fr) auto !important; }
+  #video-quick-edit .quick-edit-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; grid-template-rows: auto !important; overflow-y: auto !important; }
+  #video-quick-edit .quick-edit-grid > .quick-edit-pane { height: auto !important; min-height: 200px !important; }
+  #video-quick-edit .quick-edit-grid > .quick-edit-pane:last-child { grid-column: 1/-1 !important; min-height: 240px !important; }
+  #video-quick-edit #vq-meta-list { min-height: 160px !important; max-height: 300px !important; }
+}
+@media (max-width:599px) {
+  #video-quick-edit.open > .quick-edit-modal { width: 100% !important; height: min(92dvh,760px) !important; max-height: 92dvh !important; padding: 12px 14px calc(14px + env(safe-area-inset-bottom,0px)) !important; }
+  #video-quick-edit .quick-edit-heading { grid-template-columns: 34px minmax(0,1fr) !important; gap: 0 8px !important; }
+  #video-quick-edit .quick-edit-title-icon { width: 34px !important; height: 34px !important; }
+  #video-quick-edit .quick-edit-title-stack > b { font-size: 15px !important; }
+  #video-quick-edit #vq-summary { max-width: 56vw !important; font-size: 11px !important; }
+  #video-quick-edit #vq-title,
+  #video-quick-edit .quick-edit-grid > .quick-edit-pane input.inp { font-size: 16px !important; }
+  #video-quick-edit #vq-lookup { width: 34px !important; min-width: 34px !important; padding: 0 !important; font-size: 0 !important; }
+  #video-quick-edit #vq-lookup .vq-lookup-text { display: none !important; }
+  #video-quick-edit #vq-lookup .ax-icon { width: 15px !important; height: 15px !important; }
+  #video-quick-edit .quick-edit-body { grid-template-rows: auto minmax(0,1fr) auto !important; }
+  #video-quick-edit .quick-edit-grid { grid-template-columns: minmax(0,1fr) !important; grid-template-rows: none !important; grid-auto-rows: auto !important; overflow-y: auto !important; padding-right: 2px !important; }
+  #video-quick-edit .quick-edit-grid > .quick-edit-pane,
+  #video-quick-edit .quick-edit-grid > .quick-edit-pane:last-child { grid-column: auto !important; height: auto !important; min-height: 0 !important; padding: 10px !important; }
+  #video-quick-edit .quick-edit-grid .quick-edit-list { flex: 0 1 auto !important; min-height: 0 !important; max-height: 160px !important; }
+  #video-quick-edit #vq-meta-list { min-height: 110px !important; max-height: 240px !important; }
+  #video-quick-edit .quick-edit-footer { flex-wrap: wrap !important; gap: 8px !important; }
+  #video-quick-edit .quick-edit-footer > span { flex: 1 1 100% !important; max-width: 100% !important; }
+  #video-quick-edit .quick-edit-footer > div { display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)) !important; width: 100% !important; }
+  #video-quick-edit .quick-edit-footer > div button { width: 100% !important; min-width: 0 !important; }
+}
+@media (prefers-reduced-motion:reduce) {
+  #video-quick-edit .quick-edit-item { transition: none !important; }
+}

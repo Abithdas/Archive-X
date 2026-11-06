@@ -1,0 +1,25 @@
+/* ============================================================================
+   FILE: css/62-upnext-arrows-related-video-entities.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — Up next horizontal overflow + video-linked performers/studio.
+   Presentation only; playback, seek and preview modules are not changed. */
+
+/* Desktop shows exactly three equal cards in the viewport while keeping more
+   recommendations in a horizontal scrolling track for the arrows to navigate. */
+
+
+/* On tablet/mobile keep the familiar fixed-width horizontal carousel. */
+
+
+
+
+
+
+/* Keep both navigation affordances visible whenever the row has more items;
+   the unavailable direction is dimmed rather than disappearing completely. */
+
+

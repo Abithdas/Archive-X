@@ -1,0 +1,276 @@
+<!-- ======================================================================
+     PARTIAL: html/views/operations.html
+     PURPOSE: Operations view: jobs, maintenance and resources.
+     Composed into the page by web/html.py. DOM order follows the include order.
+     KEY IDS: v54-job-detail, v54-job-body, va, u-assets-scene-match-modal, u-assets-scene-match-review
+     ====================================================================== -->
+<!-- ═══════════════════════ ADMIN ═══════════════════════ -->
+<div id="v54-job-detail" class="v54-job-detail" aria-hidden="true"><div class="v54-job-panel"><div id="v54-job-body"></div></div></div>
+
+<div id="va" class="view">
+<header class="ax2-page-head ax-ops-page-intro" aria-labelledby="ax-ops-title">
+    <div class="ax-ops-title-block">
+      <span class="eyebrow ax-ops-eyebrow">CONTROL CENTER</span>
+      <h1 id="ax-ops-title">Operations</h1>
+      <p>Service health, resources, diagnostics and live jobs</p>
+    </div>
+    <div class="ax-ops-context"><span class="ax-ops-live-pill"><span class="ax-ops-context-dot" aria-hidden="true"></span>Live</span></div>
+  </header>
+<div class="ops-summary-strip ax2-ops-summary" id="ops-summary-strip">
+    <div class="ops-metric"><span class="ops-metric-dot running"></span><strong id="ops-running-count">0</strong><span>Running</span></div>
+    <div class="ops-metric"><span class="ops-metric-dot queued"></span><strong id="ops-queued-count">0</strong><span>Queued</span></div>
+    <div class="ops-metric"><span class="ops-metric-dot failed"></span><strong id="ops-failed-count">0</strong><span>Failed</span></div>
+    <div class="ops-metric"><span class="ops-metric-dot completed"></span><strong id="ops-completed-count">0</strong><span>Completed</span></div>
+    <div class="ops-metric"><span class="ops-metric-dot completed-with-errors"></span><strong id="ops-completed-with-errors-count">0</strong><span>Completed with errors</span></div>
+  </div>
+<div class="as ops-sec ax2-ops-active-jobs"><h3>Active jobs</h3>
+    <div class="pan ops-jobs-panel" id="jobs-pan">
+      <div class="ops-empty-state">
+        <div class="ops-empty-icon"><svg class="ax-icon" aria-hidden="true"><use href="#ax-check"></use></svg></div>
+        <div>
+          <strong>No active jobs</strong>
+          <span>Start work from Videos, Transfers, or the Metadata & Assets module. Running tasks appear here with live progress and controls.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+<div class="v54-ops-health ax2-ops-grid" id="ops-health-grid">
+<div class="v54-health-card">
+      <div class="v54-health-head"><span>System health</span><span id="ops-health-stamp" class="muted">waiting…</span></div>
+      <div class="v54-health-grid">
+        <div class="v54-health-item"><span class="label">Telegram</span><span id="ops-h-telegram" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Workers</span><span id="ops-h-workers" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Database</span><span id="ops-h-db" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Rate control</span><span id="ops-h-rate" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Playback</span><span id="ops-h-playback" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Automation</span><span id="ops-h-auto" class="value">—</span></div>
+      </div>
+    </div>
+<div class="v54-health-card">
+      <div class="v54-health-head"><span>Attention</span><span class="muted">operator action</span></div>
+      <div id="ops-attention" class="v54-attention-list"><div class="muted" style="font-size:11px">Nothing requires attention.</div></div>
+    </div>
+<div class="v54-health-card">
+      <div class="v54-health-head"><span>Transfer telemetry</span><span id="ops-h-throughput" class="v54-bandwidth">—</span></div>
+      <div class="v54-health-grid">
+        <div class="v54-health-item"><span class="label">Active ranges</span><span id="ops-h-ranges" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">RPC slots</span><span id="ops-h-rpc" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">FloodWait</span><span id="ops-h-flood" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Governor</span><span id="ops-h-governor" class="value">—</span></div>
+      </div>
+    </div>
+<div class="v54-health-card ax2-ops-diagnostics">
+      <div class="v54-health-head"><span>Diagnostics</span><span><button class="btn xs" type="button" onclick="exportHttpTelemetry()">Export HTTP window</button> <button class="btn xs" type="button" onclick="resetHttpTelemetry()">Reset HTTP window</button> <span id="ops-h-diag-age" class="muted">—</span></span></div>
+      <div class="v54-health-grid">
+        <div class="v54-health-item"><span class="label">Health</span><span id="ops-h-diag-health" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Events</span><span id="ops-h-diag-events" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Errors</span><span id="ops-h-diag-errors" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Incidents</span><span id="ops-h-diag-incidents" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Repeated events</span><span id="ops-h-diag-duplicates" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Watchdogs</span><span id="ops-h-diag-watchdogs" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Watchdog guardian</span><span id="ops-h-diag-guardian" class="value">—</span></div>
+        <div class="v54-health-item"><span class="label">Metadata &amp; Assets</span><span id="ops-h-diag-metadata" class="value" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span></div>
+        <div class="v54-health-item"><span class="label">Telegram Transfer</span><span id="ops-h-diag-transfer" class="value" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span></div>
+        <div class="v54-health-item"><span class="label">Content Automation</span><span id="ops-h-diag-automation" class="value" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span></div>
+        <div class="v54-health-item"><span class="label">Last issue</span><span id="ops-h-diag-last" class="value" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span></div>
+        <div class="v54-health-item"><span class="label">HTTP p95</span><span id="ops-h-diag-p95" class="value">—</span></div>
+      </div>
+    </div>
+</div>
+<section class="ax-library-maintenance ax-ops-maintenance-grid" id="ops-maintenance-tools" aria-label="Library maintenance" aria-labelledby="ops-maintenance-title">
+  <header class="ax-library-maintenance-head">
+    <div class="ax-library-maintenance-intro">
+      <span class="eyebrow">LIBRARY CARE</span>
+      <h2 id="ops-maintenance-title">Library Maintenance</h2>
+      <p>Check library health and review duplicates or unmatched records. Fix issues to keep your library organized and up to date.</p>
+    </div>
+    <div class="ax-library-maintenance-head-actions">
+      <div class="ax-library-maintenance-last-check" aria-live="polite">
+        <svg class="ax-icon" aria-hidden="true"><use href="#ax-clock"></use></svg>
+        <span>Last checked<strong id="ops-library-last-checked">Never</strong></span>
+      </div>
+      <button class="btn sm pri" id="ops-library-full-check" type="button" onclick="runLibraryHealth()" title="Check local previews, artwork caches and stale jobs">
+        <svg class="ax-icon" aria-hidden="true"><use href="#ax-refresh"></use></svg>
+        Run full check
+      </button>
+    </div>
+  </header>
+  <div class="ax-library-maintenance-columns">
+    <section class="ax-ops-maintenance-group ax-ops-maintenance-health" aria-labelledby="ops-maintenance-health-title">
+      <div class="ax-ops-maintenance-group-head">
+        <span class="ax-maintenance-group-icon" aria-hidden="true"><svg class="ax-icon"><use href="#ax-operations"></use></svg></span>
+        <div><h3 id="ops-maintenance-health-title">Health &amp; Previews</h3><p>Check library health and preview extracted items without re-scanning your entire library.</p></div>
+      </div>
+      <div class="ax-ops-maintenance-cards ax-ops-maintenance-health-cards">
+        <section class="v54-health-card ax-ops-maintenance-card" id="ops-library-health-card" aria-labelledby="ops-library-health-title">
+          <div class="ax-maintenance-card-head"><h4 id="ops-library-health-title">Library health</h4><span class="ax-maintenance-health-chip" id="ops-library-health-status" data-health="unchecked">Not checked</span></div>
+          <p class="ax-maintenance-health-overview" id="ops-library-health-overview">Run a check to review local previews, artwork caches and background jobs.</p>
+          <div class="ax-maintenance-stats" aria-label="Library totals">
+            <div class="ax-maintenance-stat"><svg class="ax-icon" aria-hidden="true"><use href="#ax-library"></use></svg><strong id="ops-library-count-videos" data-count-state="loading">—</strong><span>Videos</span></div>
+            <div class="ax-maintenance-stat"><svg class="ax-icon" aria-hidden="true"><use href="#ax-user"></use></svg><strong id="ops-library-count-performers" data-count-state="loading">—</strong><span>Performers</span></div>
+            <div class="ax-maintenance-stat"><svg class="ax-icon" aria-hidden="true"><use href="#ax-studio"></use></svg><strong id="ops-library-count-studios" data-count-state="loading">—</strong><span>Studios</span></div>
+          </div>
+          <div class="ops-health-actions ax2-ops-library-actions">
+            <button class="btn sm pri" type="button" onclick="sv('library')" title="Open the video library"><svg class="ax-icon" aria-hidden="true"><use href="#ax-library"></use></svg> Open library</button>
+            <button class="btn sm" type="button" onclick="repairLibraryArtwork()" title="Repair artwork bytes from matching local files">Repair artwork cache</button>
+          </div>
+          <details class="ax-maintenance-health-details">
+            <summary>View check details</summary>
+            <div id="ops-library-health-result" class="muted" role="status" aria-live="polite">Not checked. Scan for missing snapshots, empty artwork caches, and stale jobs.</div>
+          </details>
+          <div class="ax-maintenance-quick-preview">
+            <div><h4>Quick preview</h4><p>Open the video library to review videos and their stored previews.</p></div>
+            <button class="btn ax-maintenance-preview-button" type="button" onclick="sv('library')" aria-label="Open the video library" title="Open the video library"><svg class="ax-icon" aria-hidden="true"><use href="#ax-arrow-right"></use></svg></button>
+          </div>
+        </section>
+      </div>
+    </section>
+    <section class="ax-ops-maintenance-group ax-ops-maintenance-duplicates" aria-labelledby="ops-maintenance-duplicates-title">
+      <div class="ax-ops-maintenance-group-head">
+        <span class="ax-maintenance-group-icon" aria-hidden="true"><svg class="ax-icon"><use href="#ax-duplicate"></use></svg></span>
+        <div><h3 id="ops-maintenance-duplicates-title">Duplicates</h3><p>Review likely duplicate records and verify video copies before making changes.</p></div>
+      </div>
+      <div class="ax-ops-maintenance-cards">
+        <section class="v54-health-card ax-ops-maintenance-card ax-ops-catalogue-maintenance ax2-ops-catalogue" id="ops-catalogue-maintenance" aria-labelledby="ops-catalogue-maintenance-title">
+          <div class="ax-maintenance-card-head"><h4 id="ops-catalogue-maintenance-title">Duplicate performers</h4><span class="ax-maintenance-review-label">Manual review</span></div>
+          <div class="ax-ops-maintenance-row">
+            <div class="ax-ops-maintenance-copy"><strong>Find likely duplicate performer records.</strong><span>Compare names, aliases and artwork. Records are only merged after you review the evidence and confirm the cleanup.</span></div>
+            <button id="ops-perf-audit-btn" class="btn sm pri" type="button" onclick="openPerformerDuplicateAudit()" title="Scan the performer catalogue for likely duplicates">Open performer review <svg class="ax-icon" aria-hidden="true"><use href="#ax-arrow-right"></use></svg></button>
+          </div>
+        </section>
+        <section class="v54-health-card ax-ops-maintenance-card ax-ops-channel-maintenance ax2-ops-channel-maintenance" id="ops-channel-maintenance" aria-labelledby="ops-channel-maintenance-title">
+          <div class="ax-maintenance-card-head"><h4 id="ops-channel-maintenance-title">Duplicate video review</h4><span class="ax-maintenance-review-label">Manual review</span></div>
+          <div class="ax-ops-maintenance-copy"><strong>Find verified duplicate video posts.</strong><span>Choose a channel or all indexed videos. Cross-channel review is read-only; deleting a post remains a separate, confirmed action in the per-channel flow.</span></div>
+          <div class="ax-channel-maintenance-controls">
+            <label for="ops-channel-maintenance-channel">Channel to scan</label>
+            <select id="ops-channel-maintenance-channel" aria-label="Duplicate scan scope"><option value="">Loading channels…</option></select>
+            <button id="ops-channel-maintenance-scan" class="btn sm pri" type="button" onclick="openChannelDuplicateMaintenance()" title="Review verified duplicate video posts in the selected scope">Scan for duplicates <svg class="ax-icon" aria-hidden="true"><use href="#ax-arrow-right"></use></svg></button>
+          </div>
+        </section>
+      </div>
+    </section>
+    <section class="ax-ops-maintenance-group ax-ops-maintenance-metadata" aria-labelledby="ops-maintenance-metadata-title">
+      <div class="ax-ops-maintenance-group-head">
+        <span class="ax-maintenance-group-icon" aria-hidden="true"><svg class="ax-icon"><use href="#ax-refresh"></use></svg></span>
+        <div><h3 id="ops-maintenance-metadata-title">Metadata &amp; scene matches</h3><p>Review scene fingerprints and missing metadata, or request a re-scan from your provider.</p></div>
+      </div>
+      <div class="ax-ops-maintenance-cards ax-ops-maintenance-metadata-cards">
+        <section class="v54-health-card ax-ops-maintenance-card ax-ops-catalogue-maintenance ax2-ops-catalogue ax-ops-retry-unmatched ax-ops-scene-match-process" id="ops-retry-unmatched-card" aria-labelledby="ops-retry-unmatched-title">
+          <div class="ax-maintenance-card-head"><h4 id="ops-retry-unmatched-title">Scene Match Review &amp; Retry</h4><span class="ax-maintenance-review-label">On demand</span></div>
+          <div class="ax-ops-maintenance-copy"><strong>Review missing metadata or recheck unmatched videos.</strong><span>Open the review without starting a scan, or queue one manual provider recheck. Approving or rejecting candidates remains a separate action.</span></div>
+          <div class="ax-ops-scene-match-action-buttons">
+            <button class="btn sm" id="u-assets-open-scene-match-review" type="button" onclick="loadSceneMatchReview()" title="Open saved suggestions and missing metadata without rechecking">Open review</button>
+            <button class="btn sm pri" id="u-assets-retry-unmatched" type="button" onclick="retryUnmatchedSceneMatches()" title="Queue one manual recheck and open the scene-match review"><svg class="ax-icon" aria-hidden="true"><use href="#ax-refresh"></use></svg> Retry &amp; review</button>
+          </div>
+        </section>
+      </div>
+    </section>
+  </div>
+</section>
+<dialog id="u-assets-scene-match-modal" class="ax-scene-match-dialog" aria-labelledby="u-assets-scene-match-modal-title" onclick="if(event.target===this)closeSceneMatchReview()">
+  <section class="ax-scene-match-dialog-panel">
+    <header class="ax-scene-match-dialog-header">
+      <div><h2 id="u-assets-scene-match-modal-title">Scene Match Review</h2></div>
+      <div class="ax-scene-match-dialog-header-actions"><span id="u-assets-scene-match-count" class="muted" aria-live="polite">Pending candidates</span><button class="btn sm" type="button" onclick="closeSceneMatchReview()" aria-label="Close scene match review">Close</button></div>
+    </header>
+    <div class="ax-scene-match-review-tools">
+      <div class="ax-scene-match-approval">
+        <label class="muted" for="u-assets-match-approve-threshold">Bulk approve ≥</label>
+        <input id="u-assets-match-approve-threshold" type="number" min="0" max="100" step="1" value="95" aria-label="Scene match approval confidence threshold">
+        <span class="muted">%</span>
+        <button class="btn sm" id="u-assets-match-approve-above" type="button" onclick="approveSceneMatchesAbove()">Approve above</button>
+      </div>
+      <small class="muted ax-scene-match-approval-note" title="Bulk approval skips suggestions with unresolved cross-provider identity conflicts.">Unresolved conflicts are skipped</small>
+    </div>
+    <div class="ax-scene-match-catalog-filters">
+      <div class="ax-scene-match-catalog-filter-heading">
+        <b>Metadata list</b>
+        <small class="muted">Filters only this list</small>
+      </div>
+      <div class="ax-scene-match-catalog-filter-controls">
+        <label for="u-assets-scene-match-channel-filter">Channel
+          <select id="u-assets-scene-match-channel-filter" aria-label="Filter videos by channel" onchange="sceneMatchReviewFiltersChanged()">
+            <option value="">All channels</option>
+          </select>
+        </label>
+        <label for="u-assets-scene-match-field-filter">Missing field
+          <select id="u-assets-scene-match-field-filter" aria-label="Filter videos by missing field" onchange="sceneMatchReviewFiltersChanged()">
+            <option value="all">Any missing field</option>
+            <option value="performer">Performer</option>
+            <option value="studio">Studio</option>
+          </select>
+        </label>
+        <button id="u-assets-scene-match-clear-filters" class="btn sm" type="button" onclick="clearSceneMatchReviewFilters()" disabled>Clear filters</button>
+      </div>
+    </div>
+    <div id="u-assets-scene-match-review" class="ax-ops-scene-match-review-results" aria-live="polite"><div class="muted">Open the review to load pending candidates.</div></div>
+  </section>
+</dialog>
+<section class="ax-resource-dashboard" id="ops-resource-dashboard">
+    <div class="ax-resource-head">
+      <div><h3>Resource Controller</h3><span>Control how playback, background work, Telegram transfers and worker capacity share the machine.</span></div>
+      <div class="ax-resource-mode"><label>Mode</label><select id="ops-resource-mode" onchange="opsResourceModeChanged(this.value)">
+        <option value="automatic">Automatic</option><option value="playback">Playback Priority</option><option value="balanced">Balanced</option><option value="background">Background Priority</option><option value="manual">Manual</option>
+      </select></div>
+    </div>
+    <div class="ax-resource-summary">
+      <div class="ax-resource-card"><b>Playback</b><strong id="ops-res-playback"><span class="ax-sk ax-sk-inline" style="--w:9ch" role="status" aria-label="Loading"></span></strong><small id="ops-res-playback-sub"><span class="ax-sk ax-sk-inline" style="--w:17ch" role="status" aria-label="Loading"></span></small></div>
+      <div class="ax-resource-card"><b>Background</b><strong id="ops-res-background"><span class="ax-sk ax-sk-inline" style="--w:9ch" role="status" aria-label="Loading"></span></strong><small id="ops-res-background-sub"><span class="ax-sk ax-sk-inline" style="--w:17ch" role="status" aria-label="Loading"></span></small></div>
+      <div class="ax-resource-card"><b>Telegram Governor</b><strong id="ops-res-telegram"><span class="ax-sk ax-sk-inline" style="--w:9ch" role="status" aria-label="Loading"></span></strong><small id="ops-res-telegram-sub"><span class="ax-sk ax-sk-inline" style="--w:17ch" role="status" aria-label="Loading"></span></small><small id="ops-res-telegram-detail" class="muted">Resource telemetry will appear when Operations loads.</small></div>
+      <div class="ax-resource-card"><b>Job Manager</b><strong id="ops-res-jobs"><span class="ax-sk ax-sk-inline" style="--w:9ch" role="status" aria-label="Loading"></span></strong><small id="ops-res-jobs-sub"><span class="ax-sk ax-sk-inline" style="--w:17ch" role="status" aria-label="Loading"></span></small></div>
+    </div>
+    <div class="ax-resource-lanes" id="ops-resource-lanes"></div>
+    <div class="ax-resource-controls" id="ops-resource-controls" style="display:none">
+      <div class="ax-resource-controls-title"><b>Manual Resource Limits</b><span>Temporary changes can be allowed to expire automatically.</span></div>
+      <div id="ops-resource-mode-hint" class="ax-resource-mode-hint" role="status" style="display:none">Manual mode is not active yet. Review the limits, then choose “Save &amp; use Manual mode”.</div>
+      <div class="ax-resource-limit-grid">
+        <label>Metadata <input id="ops-limit-metadata" type="number" min="1" max="8" value="3"></label>
+        <label>Thumbnail <input id="ops-limit-thumbnail" type="number" min="1" max="8" value="1"></label>
+        <label>Preview <input id="ops-limit-preview" type="number" min="1" max="8" value="1"></label>
+        <label>Conversion <input id="ops-limit-conversion" type="number" min="1" max="8" value="2"></label>
+        <label>Upload <input id="ops-limit-upload" type="number" min="1" max="8" value="2"></label>
+      </div>
+      <label class="ax-resource-gate"><input id="ops-playback-gate" type="checkbox" checked> Pause transfer-heavy background work while video playback is active</label>
+      <div class="ax-resource-actions">
+        <select id="ops-resource-expiry"><option value="0">Until changed</option><option value="900">15 minutes</option><option value="1800">30 minutes</option><option value="3600">1 hour</option></select>
+        <button id="ops-resource-apply" class="btn xs pri" type="button" onclick="applyOpsResourceControls()">Save &amp; use Manual mode</button>
+        <button id="ops-resource-cancel" class="btn xs" type="button" onclick="cancelOpsResourceModeDraft()">Cancel changes</button>
+        <button class="btn xs" type="button" onclick="setOpsResourceMode('automatic')">Return to Automatic</button>
+        <button id="ops-resource-pause" class="btn xs" onclick="toggleOpsBackgroundPause()">Pause background controller</button>
+      </div>
+    </div>
+    <div class="ax-resource-events" id="ops-resource-decision">Decision: Automatic resource policy.</div>
+  </section>
+<details class="as ops-sec" id="log-sec" open>
+    <summary class="ax2-ops-log-summary">
+      <span class="ax2-ops-log-heading"><h3 style="display:inline">Recent activity</h3><span class="muted">Diagnostic timeline</span></span>
+      <span class="ax2-ops-log-summary-actions">
+        <button class="btn sm ax2-ops-downloads-toggle" id="ops-downloads-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="ops-downloads-menu" onclick="event.preventDefault();event.stopPropagation();ax2ToggleOpsDownloads(event)"><svg class="ax-icon" aria-hidden="true"><use href="#ax-download"></use></svg>Downloads<svg class="ax-icon ax2-ops-download-chevron" aria-hidden="true"><use href="#ax-chevron-down"></use></svg></button>
+      </span>
+    </summary>
+    <div class="ax2-ops-downloads-scrim" id="ops-downloads-scrim" hidden onclick="ax2CloseOpsDownloads()" aria-hidden="true"></div>
+    <div class="ax2-sheet ax2-ops-downloads-menu" id="ops-downloads-menu" role="menu" aria-label="Download diagnostics" hidden>
+      <div class="ax2-ops-download-row" role="none"><button class="btn sm" role="menuitem" onclick="downloadSupportArtifact('/api/log/download','telegram-archive-log.txt','Full log')" aria-label="Download full application log"><svg class="ax-icon" aria-hidden="true"><use href="#ax-download"></use></svg> Full log</button></div>
+<div class="ax2-ops-download-row" role="none"><button class="btn sm" role="menuitem" onclick="downloadSupportArtifact('/api/diagnostics/report','archive-x-diagnostic-report.json','Diagnostic JSON')" aria-label="Download diagnostic report" title="Includes application, playback, browser, Metadata & Assets job/checkpoint, resource timing and network telemetry"><svg class="ax-icon" aria-hidden="true"><use href="#ax-download"></use></svg> Diagnostic JSON</button></div>
+<div class="ax2-ops-download-row" role="none"><button class="btn sm" role="menuitem" onclick="downloadSupportArtifact('/api/diagnostics/report/html','archive-x-diagnostic-report.html','Human diagnostic report')" aria-label="Download human readable diagnostic report" title="Human-readable health, first failure, incident summary and correlated timeline"><svg class="ax-icon" aria-hidden="true"><use href="#ax-download"></use></svg> Human report</button></div>
+<div class="ax2-ops-download-row" role="none"><button class="btn sm" role="menuitem" onclick="downloadSupportArtifact('/api/diagnostics/playback','archive-x-playback-diagnostic.json','Playback diagnostic')" aria-label="Download fast playback diagnostic" title="Fast playback-only report with browser buffer state, scheduler state and recent range events"><svg class="ax-icon" aria-hidden="true"><use href="#ax-download"></use></svg> Playback diagnostic</button></div>
+    </div>
+    <div class="logbar">
+      <div class="seg" id="log-lv">
+        <button class="on" data-lv="" onclick="setLogLv(this)">All</button><button data-lv="INFO" onclick="setLogLv(this)">Info</button><button data-lv="WARN" onclick="setLogLv(this)">Warning</button><button data-lv="ERROR" onclick="setLogLv(this)">Error</button><button data-lv="SUCCESS" onclick="setLogLv(this)">Success</button>
+      </div>
+      <select id="log-mod" aria-label="Log source" onchange="renderEvts()" style="width:auto">
+        <option value="">All modules</option><option value="Telegram Transfer Manager">Telegram Transfer Manager</option><option value="Metadata &amp; Assets Manager">Metadata &amp; Assets Manager</option><option value="Content Automation">Content Automation</option><option value="Backup &amp; Restore">Backup &amp; Restore</option><option value="playback">Playback</option><option value="other">Other</option>
+      </select>
+      <select id="log-outcome" onchange="_logOutcome=this.value;renderEvts()" style="width:auto" aria-label="Filter diagnostic outcome"><option value="">All outcomes</option><option value="EXPECTED">Expected</option><option value="SUCCESS">Success</option><option value="TRANSIENT">Transient</option><option value="DEGRADED">Degraded</option><option value="FAILURE">Failure</option><option value="FATAL">Fatal</option></select>
+      <label class="ax2-ops-log-search"><svg class="ax-icon" aria-hidden="true"><use href="#ax-search"></use></svg><input id="log-search" class="log-search" type="search" placeholder="Search visible logs…" oninput="renderEvts()" aria-label="Search visible logs"></label>
+      
+      
+      
+      
+    </div>
+    <div class="pan" style="padding:0"><div class="el" id="evts-log" style="border:none;border-radius:10px"></div></div>
+  </details>
+</div><!-- /admin -->
+
+

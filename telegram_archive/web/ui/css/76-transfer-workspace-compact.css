@@ -1,0 +1,166 @@
+/* ============================================================================
+   FILE: css/76-transfer-workspace-compact.css
+   AREA: Transfers
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Archive X — compact Transfers workspace. Scoped to #vtransfers; all existing controls and handlers remain intact. */
+
+#vtransfers #ops-telegram-transfer > .mi,
+#vtransfers #ax-transfer-metadata-slot > .mc2 > .mi { display: none !important; }
+
+#vtransfers .ax-transfer-help {justify-self: start;;max-width: 100%;;font-size: 11px;;line-height: 1.4;}
+#vtransfers .ax-transfer-help summary { cursor: pointer; font-weight: 650; padding: 2px 0; }
+#vtransfers .ax-transfer-help p {max-width: 1100px;}
+#vtransfers #ops-telegram-transfer > label { grid-area: source-label; margin: 0 !important; align-self: center; }
+
+#vtransfers #ops-telegram-transfer > #u-transfer-local { grid-area: local; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 3px 12px; align-items: center; min-width: 0; }
+#vtransfers #u-transfer-local > label:nth-of-type(1),
+#vtransfers #u-transfer-local > .ax-folder-pick-row,
+#vtransfers #u-transfer-local > #u-transfer-folder-msg { grid-column: 1 / -1; }
+#vtransfers #u-transfer-local > label:nth-of-type(2) { grid-column: 1; grid-row: 5; margin: 0 !important; }
+#vtransfers #u-transfer-local > label:nth-of-type(3) { grid-column: 2; grid-row: 4; margin: 0 !important; }
+#vtransfers #u-transfer-local > #u-transfer-local-dst { grid-column: 2; grid-row: 5; width: 100%; margin: 0 !important; }
+#vtransfers #u-transfer-local > .ax-folder-pick-row {min-width: 0;;margin: 0 !important;}
+#vtransfers #u-transfer-local .ax-folder-pick-row input { flex: 1 1 auto; min-width: 0; }
+
+#vtransfers #u-transfer-telegram > label:nth-of-type(2) { grid-area: destination-label; align-self: center; margin: 0 !important; }
+#vtransfers #u-tg-destination { grid-area: destination-select; width: 100%; margin: 0 !important; }
+#vtransfers #u-transfer-telegram > .ax-tg-media-options { grid-area: media; gap: 6px 12px !important; }
+#vtransfers #u-transfer-telegram > label:nth-of-type(3) { grid-area: orientation-label; align-self: center; margin: 0 !important; }
+#vtransfers #u-tg-orientation { grid-area: orientation-select; width: 100%; margin: 0 !important; }
+#vtransfers #u-transfer-telegram > .ax-tg-duplicate-options { grid-area: checks; gap: 4px 12px !important; margin: 2px 0 !important; }
+#vtransfers #u-transfer-telegram > #u-tg-trash-wrap { grid-area: trash; margin: 0 !important; }
+#vtransfers #u-transfer-telegram > .muted[style*="font-size:10.5px"] { grid-area: note; font-size: 11px !important; line-height: 1.4 !important; }
+
+#vtransfers #ops-telegram-transfer input:not([type="checkbox"]),
+#vtransfers #ops-telegram-transfer select,
+#vtransfers #ax-transfer-metadata-slot input:not([type="checkbox"]),
+#vtransfers #ax-transfer-metadata-slot select {margin-bottom: 2px !important;}
+
+#vtransfers #u-transfer-local label,
+#vtransfers #u-transfer-telegram label { font-size: 11px !important; line-height: 1.35 !important; }
+
+/* Metadata manager: channel selection and processing sit side by side on desktop. */
+
+#vtransfers #ax-transfer-metadata-slot > .mc2 > .ax-assets-channel-panel {grid-column: 1;;grid-row: 5;;margin: 0 !important;;padding: 8px !important;}
+#vtransfers #ax-transfer-metadata-slot > .mc2 > .ax-assets-processing-panel {grid-column: 2;;grid-row: 5;;margin: 0 !important;;padding: 8px !important;}
+#vtransfers #ax-transfer-metadata-slot > .mc2 #u-assets-channel-list { max-height: 170px !important; padding: 3px !important; }
+#vtransfers #ax-transfer-metadata-slot #u-assets-channel-list > label { gap: 6px !important; padding: 4px 5px !important; font-size: 11px !important; line-height: 1.25 !important; }
+#vtransfers #ax-transfer-metadata-slot #u-assets-channel-list > label > span:last-child { white-space: nowrap; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-channel-panel .ax-section-title,
+#vtransfers #ax-transfer-metadata-slot .ax-assets-processing-panel .ax-section-title { margin-bottom: 5px !important; font-size: 11px !important; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-channel-panel > div[style*="display:flex"] { gap: 5px !important; margin-bottom: 5px !important; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-channel-panel #u-assets-channel-filter { min-width: 80px !important; }
+#vtransfers #ax-transfer-metadata-slot #u-assets-channel-summary { margin-top: 4px !important; font-size: 11px !important; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-processing-panel > div[style*="flex-direction:column"] { gap: 5px !important; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-processing-panel label { gap: 6px !important; font-size: 11px !important; line-height: 1.3 !important; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-processing-panel label > span { line-height: 1.3 !important; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-processing-panel label > span > span { font-size: 11px !important; line-height: 1.3 !important; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-processing-panel #u-assets-process-limit { min-width: 108px; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-processing-panel details { margin-top: 5px !important; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-processing-panel > div[style*="gap:6px;margin-top:9px"] { gap: 5px !important; margin-top: 6px !important; }
+#vtransfers #ax-transfer-metadata-slot #u-assets-process-msg { overflow-wrap: anywhere; }
+
+@media (max-width: 640px) {
+
+  #vtransfers #ops-telegram-transfer > #u-transfer-local { grid-template-columns: minmax(0,1fr); }
+  #vtransfers #u-transfer-local > label:nth-of-type(2),
+  #vtransfers #u-transfer-local > label:nth-of-type(3),
+  #vtransfers #u-transfer-local > #u-transfer-local-dst { grid-column: 1; grid-row: auto; }
+  #vtransfers #u-transfer-telegram { grid-template-columns: minmax(0,1fr); grid-template-areas: "source" "channels" "destination-label" "destination-select" "media" "orientation-label" "orientation-select" "checks" "trash" "note"; }
+  #vtransfers #u-transfer-telegram > .ax-tg-media-options,
+  #vtransfers #u-transfer-telegram > .ax-tg-duplicate-options { grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important; }
+}
+
+/* Metadata & Assets Manager — default-simple workflow with specialist controls tucked away. */
+
+#vtransfers #ax-transfer-metadata-slot > .mc2 > .ax-assets-guidance {
+  grid-area: help;
+  min-width: 0;
+  margin: -1px 0 2px;
+  color: var(--ax-text-secondary, var(--text2));
+  font-size: 11px;
+  line-height: 1.4;
+}
+#vtransfers #ax-transfer-metadata-slot .ax-assets-processing-intro {
+  margin: 0 0 10px;
+  color: var(--ax-text-secondary, var(--text2));
+  font-size: 11px;
+  line-height: 1.45;
+}
+#vtransfers #ax-transfer-metadata-slot .ax-assets-scope-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-width: 100%;
+  margin: 0;
+  color: var(--ax-text-secondary, var(--text2));
+  font-size: 11px;
+  font-weight: 650;
+}
+#vtransfers #ax-transfer-metadata-slot #u-assets-scope-preset { width: 100%; min-width: 0; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-default-stages {
+  margin-top: 8px;
+  color: var(--ax-text-muted, var(--text3));
+  font-size: 11px;
+  line-height: 1.45;
+}
+#vtransfers #ax-transfer-metadata-slot .ax-assets-main-action {
+  display: block;
+  width: 100%;
+  min-height: 36px !important;
+  margin-top: 10px;
+  font-size: 11px !important;
+  font-weight: 700;
+}
+#vtransfers #ax-transfer-metadata-slot .ax-assets-advanced-options,
+#vtransfers #ax-transfer-metadata-slot .ax-assets-more-actions {
+  margin-top: 10px !important;
+  padding-top: 8px;
+  border-top: 1px solid var(--ax-border-subtle, var(--line));
+}
+#vtransfers #ax-transfer-metadata-slot .ax-assets-advanced-options > summary,
+#vtransfers #ax-transfer-metadata-slot .ax-assets-more-actions > summary {
+  cursor: pointer;
+  color: var(--ax-text-secondary, var(--text2));
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 0;
+  user-select: none;
+}
+#vtransfers #ax-transfer-metadata-slot .ax-assets-advanced-inner {gap: 12px;;margin-top: 9px;}
+#vtransfers #ax-transfer-metadata-slot .ax-assets-option-title {
+  margin-bottom: 6px;
+  color: var(--ax-text-primary, var(--text));
+  font-size: 11px;
+  font-weight: 700;
+}
+#vtransfers #ax-transfer-metadata-slot .ax-assets-stage-list,
+#vtransfers #ax-transfer-metadata-slot .ax-assets-force-list { display: grid; gap: 7px; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-stage-list > label {display: flex;;align-items: flex-start;;gap: 7px;;margin: 0;}
+#vtransfers #ax-transfer-metadata-slot .ax-assets-stage-list input,
+#vtransfers #ax-transfer-metadata-slot .ax-assets-force-list input { width: auto; flex: 0 0 auto; margin: 2px 0 0; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-stage-list label > span { display: block; min-width: 0; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-stage-list small {
+  display: block;
+  margin-top: 2px;
+  color: var(--ax-text-muted, var(--text3));
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 400;
+}
+#vtransfers #ax-transfer-metadata-slot .ax-assets-force-list > label {display: flex;;align-items: center;;gap: 6px;;margin: 0;}
+#vtransfers #ax-transfer-metadata-slot .ax-assets-secondary-action { display: grid; justify-items: start; gap: 4px; margin-top: 9px; }
+#vtransfers #ax-transfer-metadata-slot .ax-assets-secondary-action small {
+  color: var(--ax-text-muted, var(--text3));
+  font-size: 11px;
+  line-height: 1.4;
+}
+#vtransfers #ax-transfer-metadata-slot .ax-assets-legacy-scope-controls { display: none !important; }
+@media (max-width: 900px) {
+  
+  #vtransfers #ax-transfer-metadata-slot > .mc2 > .ax-assets-channel-panel { grid-column: 1; grid-row: 6; }
+  #vtransfers #ax-transfer-metadata-slot > .mc2 > .ax-assets-processing-panel { grid-column: 1; grid-row: 7; }
+}

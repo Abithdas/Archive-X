@@ -1,0 +1,9 @@
+/* ============================================================================
+   FILE: css/81-sidebar-storage-summary.css
+   AREA: Shell and navigation
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Sidebar storage summary: show current app-data size and actual drive capacity. */
+

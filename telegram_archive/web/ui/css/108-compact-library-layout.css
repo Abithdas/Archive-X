@@ -1,0 +1,90 @@
+/* ============================================================================
+   FILE: css/108-compact-library-layout.css
+   AREA: Videos library
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* v29.4.252 — compact Library controls with inline actions and card-only channel selection. */
+#vl.library-page {
+  padding: 6px 0 30px !important;
+  max-width: none !important;
+}
+#vl.library-page .library-head {
+  align-items: flex-end !important;
+  padding: 2px 2px 9px !important;
+  margin-bottom: 0 !important;
+  gap: 12px !important;
+}
+#vl.library-page .library-head h1 {
+  font-size: clamp(21px, 1.45vw, 25px) !important;
+  line-height: 1.08 !important;
+}
+#vl.library-page .library-head p {
+  margin-top: 4px !important;
+  font-size: 11px !important;
+}
+#vl.library-page #tb {
+  position: sticky !important;
+  top: var(--ax-ui-header-height, 40px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  padding: 6px 8px !important;
+  margin: 0 0 7px !important;
+  min-height: 0 !important;
+  border-radius: 11px !important;
+}
+#vl.library-page #tb > select,
+#vl.library-page #tb > .btn {
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 9px !important;
+  border-radius: 8px !important;
+  font-size: 11px !important;
+  line-height: 1.1 !important;
+  flex: 0 0 auto !important;
+}
+#vl.library-page #tb #tb-res { width: 124px !important; min-width: 124px !important; }
+#vl.library-page #tb #tb-sort { width: 126px !important; min-width: 126px !important; }
+#vl.library-page #tb .library-secondary-actions {
+  display:flex !important; flex:1 1 800px !important; align-items:center !important; gap:7px !important;
+  min-width:0 !important; margin-left:2px !important;
+}
+#vl.library-page #tb .library-secondary-action-label {
+  flex:0 0 auto !important; color:var(--ax-ui-muted,#a4a8b4) !important; font-size:10.5px !important;
+  font-weight:700 !important; text-transform:uppercase !important; letter-spacing:.06em !important;
+}
+#vl.library-page #tb .library-secondary-action-items {
+  display:flex !important; flex:1 1 auto !important; flex-wrap:wrap !important; align-items:center !important;
+  gap:5px !important; padding:0 !important; margin:0 !important; min-width:0 !important;
+  border:0 !important; background:transparent !important;
+}
+#vl.library-page #tb .library-secondary-action-items .btn { height:30px !important; min-height:30px !important; font-size:11px !important; }
+#vl.library-page #tb .library-action-divider { flex:0 0 1px; align-self:stretch; min-height:22px; margin:3px 2px; background:var(--ax-ui-line,rgba(150,160,180,.24)); }
+
+#vl.library-page .library-channels {
+  margin-bottom: 8px !important;
+  padding: 10px !important;
+  border-radius: 12px !important;
+}
+#vl.library-page .library-section-head { margin-bottom: 7px !important; gap: 8px !important; }
+#vl.library-page .library-section-head h2 { font-size: 12px !important; }
+#vl.library-page .library-section-head span { font-size: 10.5px !important; }
+
+/* Prevent the video cards from expanding into oversized columns on wide screens. */
+
+#vl.library-page #rs { min-height: 28px !important; margin: 0 0 4px !important; font-size: 11px !important; }
+#vl.library-page #library-bg-pipeline:empty { display: none !important; }
+#vl.library-page #library-bg-pipeline:not(:empty) { min-height: 27px !important; margin: 6px 0 !important; padding: 5px 9px !important; font-size: 10.5px !important; }
+@media (max-width: 760px) {
+  #vl.library-page #tb > select { flex: 1 1 125px !important; width: auto !important; min-width: 0 !important; }
+  #vl.library-page #tb .library-secondary-actions { flex:1 1 100% !important; align-items:flex-start !important; }
+  #vl.library-page #tb .library-secondary-action-label { padding-top:8px !important; }
+
+}
+
+/* Selection is communicated by the card outline, not an overlaid checkmark. */
+

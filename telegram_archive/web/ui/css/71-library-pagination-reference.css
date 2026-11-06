@@ -1,0 +1,112 @@
+/* ============================================================================
+   FILE: css/71-library-pagination-reference.css
+   AREA: Videos library
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — reference-style library pagination.
+   Theme-aware styles only; paging state and click paths remain in 09-app.js. */
+#pg {
+  display:block!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+  padding:18px 0 0!important;
+  color:var(--text2)!important;
+  font-size:13px!important;
+}
+.ax-pagination-bar {
+  display:flex;
+  align-items:center;
+  gap:14px;
+  width:100%;
+  min-height:60px;
+  box-sizing:border-box;
+  padding:10px 14px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--bg1);
+  color:var(--text2);
+}
+.ax-pagination-summary,
+.ax-pagination-goto,
+.ax-pagination-controls {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+  white-space:nowrap;
+}
+.ax-pagination-summary { flex:0 0 auto; color:var(--text2); font-weight:500; font-variant-numeric:tabular-nums; }
+.ax-pagination-divider {
+  height:24px;
+  width:1px;
+  flex:0 0 1px;
+  background:var(--border);
+}
+.ax-pagination-goto { flex:0 0 auto; gap:7px; }
+.ax-pagination-goto label { color:var(--text2); }
+.ax-pagination-input {
+  appearance:textfield;
+  -moz-appearance:textfield;
+  width:58px;
+  min-width:58px;
+  height:34px;
+  box-sizing:border-box;
+  padding:0 6px;
+  border:1px solid var(--border2,var(--border));
+  border-radius:8px;
+  background:var(--bg);
+  color:var(--text);
+  text-align:center;
+  font:inherit;
+  font-variant-numeric:tabular-nums;
+  outline:none;
+}
+.ax-pagination-input::-webkit-inner-spin-button,
+.ax-pagination-input::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.ax-pagination-input:focus-visible,
+.ax-pagination-go-btn:focus-visible,
+.ax-page-nav:focus-visible,
+.ax-page-number:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.ax-pagination-go-btn,
+.ax-page-nav {display:inline-flex;;align-items:center;;justify-content:center;;flex:0 0 auto;;height:34px;;box-sizing:border-box;;padding:0 9px;;border:1px solid var(--border2,var(--border));;border-radius:8px;;background:var(--bg);;color:var(--text2);;font:inherit;;cursor:pointer;;transition:background .14s,border-color .14s,color .14s;}
+.ax-pagination-go-btn:hover,
+.ax-page-nav:not(:disabled):hover { border-color:var(--accent); color:var(--text); background:var(--bg2); }
+.ax-pagination-go-btn { min-width:40px; color:var(--text); }
+.ax-pagination-controls { gap:6px; margin-left:auto; justify-content:flex-end; }
+.ax-page-number-set-desktop { display:contents; }
+.ax-page-number-set-mobile { display:none; }
+.ax-page-nav { min-width:34px; font-size:20px; line-height:1; padding:0 6px; }
+.ax-page-nav:disabled { opacity:.4; cursor:default; }
+.ax-page-number {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:32px;
+  height:34px;
+  padding:0 6px;
+  border:1px solid transparent;
+  border-radius:8px;
+  background:transparent;
+  color:var(--text2);
+  font:inherit;
+  font-variant-numeric:tabular-nums;
+  cursor:pointer;
+}
+.ax-page-number:hover { border-color:var(--border); background:var(--bg2); color:var(--text); }
+.ax-page-number.is-current { background:var(--bg2); border-color:transparent; color:var(--text); font-weight:600; }
+.ax-pagination-ellipsis { min-width:18px; text-align:center; color:var(--text3,var(--text2)); }
+@media(max-width:1000px) {
+  .ax-pagination-bar { flex-wrap:wrap; gap:10px 14px; }
+  .ax-pagination-controls { margin-left:auto; }
+}
+@media (max-width: 767px), (max-height: 450px) and (orientation: landscape) {
+  .ax-pagination-bar { padding:10px; border-radius:12px; gap:10px; }
+  .ax-pagination-divider { display:none; }
+  .ax-pagination-summary { gap:7px; }
+  .ax-pagination-goto { margin-left:auto; }
+  .ax-pagination-controls { flex:1 1 100%; width:100%; justify-content:flex-start; flex-wrap:wrap; margin:0; gap:4px; }
+  .ax-page-nav, .ax-page-number, .ax-pagination-go-btn { min-width:44px; min-height:44px; height:44px; }
+  .ax-pagination-input { min-height:44px; height:44px; font-size:16px; }
+}

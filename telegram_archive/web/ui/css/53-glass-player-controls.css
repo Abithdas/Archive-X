@@ -1,0 +1,42 @@
+/* ============================================================================
+   FILE: css/53-glass-player-controls.css
+   AREA: Player and watch page
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* V29.4.204 — glass overlay playback controls.
+   Visual-only layer: preserve existing playback buttons, seek timeline,
+   previous/next handlers, buffering, and live-preview behavior. */
+
+/* The visual viewport defines the player height; the controls float over its
+   bottom edge rather than adding another black row below the video. */
+
+/* Match the existing player visibility state machine. Controls remain visible
+   when paused, hovered, focused, scrubbing, or explicitly shown by the runtime. */
+
+
+
+
+/* Previous is the outlined circle; Next is the solid theme-accent circle. */
+
+
+
+
+
+
+
+
+
+/* The large in-video previous/next controls use the same outlined/filled
+   circular visual language as the compact control-row buttons. */
+
+/* Both in-video navigation controls stay translucent so the frame remains
+   visible underneath. Hover/focus turns the circle white for clear feedback. */
+
+
+
+/* Fullscreen still uses the same bottom overlay; the video viewport expands
+   underneath it without adding a second bar below the image. */
+
+

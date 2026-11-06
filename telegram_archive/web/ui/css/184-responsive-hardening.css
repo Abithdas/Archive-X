@@ -1,0 +1,165 @@
+/* ============================================================================
+   FILE: css/184-responsive-hardening.css
+   AREA: Responsive and input
+   CASCADE: Loaded into /ui-assets/app.css in the order set by index.html,
+            the HTML partials and _LAYERS in web/html.py. Later rules win, so
+            moving this file or its rules can change how the UI looks.
+   ============================================================================ */
+/* Responsive hardening for the few remaining fixed-size layouts.
+   Keep these rules last so the existing theme and page-specific styles remain authoritative. */
+:root {
+  --ax-rsp-page-title: clamp(1.5rem, 1.25rem + .6vw, 1.875rem);
+  --ax-rsp-page-copy: clamp(.875rem, .82rem + .12vw, 1rem);
+  --ax-rsp-secondary-copy: clamp(.75rem, .72rem + .12vw, .875rem);
+}
+
+html[data-theme-preset] body #app#app #view-stage :is(
+  .ax2-page-head h1,
+  .library-head h1,
+  .ax-ops-title-block h1,
+  .ax-transfer-page-title h1,
+  .ai-page-head h1
+) {
+  font-size: var(--ax-rsp-page-title) !important;
+  line-height: 1.15;
+}
+
+html[data-theme-preset] body #app#app #view-stage :is(
+  .ax2-page-head p,
+  .library-head p,
+  .ax-ops-page-intro p,
+  .ax-transfer-page-intro p,
+  .ai-page-head p
+) {
+  font-size: var(--ax-rsp-page-copy) !important;
+  line-height: 1.5;
+}
+
+/* Let cards shrink to the available width instead of forcing a 300px grid track. */
+html[data-theme-preset] body #app#app #view-stage .mg {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18.75rem), 1fr)) !important;
+}
+
+/* The automation panels need two columns before their 3-column minimums exceed the shell. */
+@media (min-width: 701px) and (max-width: 1300px) {
+  html[data-theme-preset] body #app#app #view-stage .automation-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  html[data-theme-preset] body #app#app #view-stage .automation-grid > .automation-panel:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  html[data-theme-preset] body #app#app #view-stage .automation-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  html[data-theme-preset] body #app#app #view-stage .automation-grid > .automation-panel:last-child {
+    grid-column: auto;
+  }
+}
+
+/* Responsive job cards avoid the legacy 430px minimum below medium desktop widths. */
+html[data-theme-preset] body #app#app #view-stage #va .ops-jobs-panel {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26.875rem), 1fr)) !important;
+}
+
+/* Bring AI Assistance's fixed 8–11px reading text up to a comfortable, fluid size. */
+html[data-theme-preset] body #app#app #view-stage #vai :is(
+  .ai-page-head p,
+  .ai-card-head p,
+  .ai-page-empty,
+  .ai-page-msg,
+  .ai-analysis-result,
+  .ai-model-note
+) {
+  font-size: var(--ax-rsp-page-copy) !important;
+  line-height: 1.5;
+}
+
+html[data-theme-preset] body #app#app #view-stage #vai :is(
+  .ai-page-status small,
+  .ai-page-nav-item small,
+  .ai-page-msg-meta,
+  .ai-local-badge,
+  .ai-compose-actions .muted,
+  .ai-model-fields label,
+  .ai-quick-grid small,
+  .ai-readiness-grid > div
+) {
+  font-size: var(--ax-rsp-secondary-copy) !important;
+  line-height: 1.45;
+}
+
+html[data-theme-preset] body #app#app #view-stage #vai :is(
+  .ai-page-compose textarea,
+  .ai-model-fields input
+) {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 1rem !important;
+}
+
+html[data-theme-preset] body #app#app #view-stage #vai .ai-page-view .btn {
+  font-size: var(--ax-rsp-page-copy) !important;
+}
+
+@media (pointer: coarse) {
+  html[data-theme-preset] body #app#app #view-stage #vai .ai-page-view .btn {
+    min-height: 44px;
+  }
+}
+
+/* Touch-sized performer filters and pagination without changing desktop density. */
+@media (pointer: coarse) and (max-width: 1100px) {
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-sort-select {
+    height: 44px !important;
+    min-height: 44px !important;
+    font-size: 16px !important;
+    line-height: 1.2 !important;
+  }
+
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-gender-filter {
+    height: auto !important;
+    min-height: 52px !important;
+    align-items: center !important;
+  }
+
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp #perf-gender-filter .perf-gender-btn {
+    width: auto !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp .ax-pagination-controls {
+    flex-wrap: wrap !important;
+  }
+
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp .ax-pagination-controls :is(
+    .ax-page-nav,
+    .ax-page-number,
+    .ax-pagination-go-btn
+  ) {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp :is(
+    .ax-pagination-input,
+    .ax-pagination-size-select
+  ) {
+    height: 44px !important;
+    min-height: 44px !important;
+    font-size: 16px !important;
+  }
+
+  html[data-theme-preset] body #app#app#app#app #view-stage #vp .ax-pagination-size-select {
+    width: 72px !important;
+    min-width: 72px !important;
+  }
+}
