@@ -1,0 +1,50 @@
+import { useEffect, useRef, type ReactNode } from 'react'
+import { ApiError } from '@/api/client'
+import { cn } from '@/design/cn'
+
+export const CARD = 'rounded-[18px] border border-line bg-surface p-4 sm:p-5'
+export const FIELD = 'h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3 text-sm text-fg outline-none placeholder:text-faint focus:border-accent/60'
+export const detail = (e: unknown, fallback: string) => (e instanceof ApiError ? e.detail || fallback : fallback)
+
+export function Check({ checked, onChange, title, hint, disabled }: { checked: boolean; onChange: (v: boolean) => void; title: string; hint?: string; disabled?: boolean }) {
+  return (
+    <label className={cn('flex cursor-pointer items-start gap-3 rounded-xl p-2 hover:bg-fg/5', disabled && 'cursor-not-allowed opacity-50')}>
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="mt-1 size-4 shrink-0 accent-[var(--color-accent)]" />
+      <span className="min-w-0"><b className="block text-sm">{title}</b>{hint ? <small className="text-xs text-muted">{hint}</small> : null}</span>
+    </label>
+  )
+}
+
+export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <label className="grid gap-1.5 text-xs font-semibold text-muted">
+      {label}
+      {children}
+      {hint ? <span className="text-[11px] font-normal text-faint">{hint}</span> : null}
+    </label>
+  )
+}
+
+/** Numbered step pills with a progress bar; the active step scrolls into view on a phone. */
+export function Stepper({ steps, step, onStep, canGo }: { steps: readonly string[]; step: number; onStep: (i: number) => void; canGo: boolean }) {
+  const list = useRef<HTMLOListElement>(null)
+  useEffect(() => {
+    list.current?.querySelector<HTMLElement>('[aria-current=step]')?.scrollIntoView?.({ inline: 'center', block: 'nearest' })
+  }, [step])
+  const pct = Math.round(((step + 1) / steps.length) * 100)
+  return (
+    <>
+      <ol ref={list} className="my-4 flex max-w-full gap-2 overflow-x-auto [scrollbar-width:none]" aria-label="Steps">
+        {steps.map((s, i) => (
+          <li key={s}>
+            <button type="button" aria-current={i === step ? 'step' : undefined} onClick={() => (i <= step || canGo) && onStep(i)} className={cn('flex h-10 items-center gap-2 whitespace-nowrap rounded-full px-3 text-sm font-semibold', i === step ? 'bg-surface-3 text-fg' : 'text-muted')}>
+              <span className={cn('grid size-6 place-items-center rounded-full text-xs font-bold', i === step ? 'bg-accent text-accent-fg' : i < step ? 'bg-good/20 text-good' : 'bg-surface-3')}>{i + 1}</span>
+              {s}
+            </button>
+          </li>
+        ))}
+      </ol>
+      <div className="mb-4 h-1 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label="Workflow progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}><span className="block h-full bg-accent transition-[width]" style={{ width: `${pct}%` }} /></div>
+    </>
+  )
+}

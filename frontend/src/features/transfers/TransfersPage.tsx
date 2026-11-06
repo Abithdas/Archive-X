@@ -10,11 +10,11 @@ import { PageHead } from '@/design/PageHead'
 import { Segmented } from '@/design/Segmented'
 import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
+import { CARD, Check, Stepper, detail } from './parts'
+import { TransferWorkflow } from './TransferWorkflow'
 import { activeLaneCount, jobPath, laneChips, toLanes, type Lane } from './lanes'
 import { DEFAULT_OPTIONS, pendingBody, prerequisitePlan, processBody, selectedStages, stageLabels, expandStages, type Preflight, type RunOptions, type Stage } from './metadata'
 
-const CARD = 'rounded-[18px] border border-line bg-surface p-4 sm:p-5'
-const detail = (e: unknown, fallback: string) => (e instanceof ApiError ? e.detail || fallback : fallback)
 
 function LaneCard({ lane, busy, onAct }: { lane: Lane; busy: boolean; onAct: (l: Lane, a: Lane['actions'][number]) => void }) {
   const label = { pause: 'Pause', resume: 'Resume', cancel: 'Stop', recover: 'Recover & Resume' } as const
@@ -106,15 +106,6 @@ function LiveLanes() {
 }
 
 const STEPS = ['Channels', 'Processing Stages', 'Review', 'Run'] as const
-function Check({ checked, onChange, title, hint }: { checked: boolean; onChange: (v: boolean) => void; title: string; hint?: string }) {
-  return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-xl p-2 hover:bg-fg/5">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-1 size-4 accent-[var(--color-accent)]" />
-      <span><b className="block text-sm">{title}</b>{hint ? <small className="text-xs text-muted">{hint}</small> : null}</span>
-    </label>
-  )
-}
-
 function MetadataWorkflow() {
   const channels = useChannels()
   const qc = useQueryClient()
@@ -189,13 +180,7 @@ function MetadataWorkflow() {
     <section aria-label="Metadata and Assets Manager" className={CARD}>
       <div className="mb-1 flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent"><Icon name="database" /></span>
         <div><h2 className="text-lg font-extrabold">Metadata &amp; Assets Manager</h2><p className="text-sm text-muted">Select channels and run the recommended refresh. Use Advanced options only when you need a custom workflow.</p></div></div>
-      <ol className="my-4 flex max-w-full gap-2 overflow-x-auto [scrollbar-width:none]" aria-label="Steps">
-        {STEPS.map((s, i) => (
-          <li key={s}><button type="button" ref={(el) => { if (i === step) el?.scrollIntoView?.({ inline: 'center', block: 'nearest' }) }} aria-current={i === step ? 'step' : undefined} onClick={() => (i <= step || canNext) && setStep(i)} className={cn('flex h-10 items-center gap-2 whitespace-nowrap rounded-full px-3 text-sm font-semibold', i === step ? 'bg-surface-3 text-fg' : 'text-muted')}>
-            <span className={cn('grid size-6 place-items-center rounded-full text-xs font-bold', i === step ? 'bg-accent text-accent-fg' : i < step ? 'bg-good/20 text-good' : 'bg-surface-3')}>{i + 1}</span>{s}</button></li>
-        ))}
-      </ol>
-      <div className="mb-4 h-1 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label="Workflow progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={(step + 1) * 25}><span className="block h-full bg-accent transition-[width]" style={{ width: `${(step + 1) * 25}%` }} /></div>
+      <Stepper steps={STEPS} step={step} onStep={setStep} canGo={canNext} />
 
       {step === 0 ? (
         <div>
@@ -276,7 +261,7 @@ function ClassicCard({ icon, title, text, tag }: { icon: string; title: string; 
 
 type Tab = 'transfer' | 'metadata' | 'automation'
 export function TransfersPage() {
-  const [tab, setTab] = useState<Tab>('metadata')
+  const [tab, setTab] = useState<Tab>('transfer')
   const show = (t: Tab): string => (tab === t ? 'min-w-0' : 'hidden min-w-0 lg:block')
   return (
     <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
@@ -286,7 +271,7 @@ export function TransfersPage() {
       <LiveLanes />
       <div className="mb-4 lg:hidden"><Segmented<Tab> label="Workflow" value={tab} onChange={setTab} options={[{ value: 'transfer', label: 'Transfer' }, { value: 'metadata', label: 'Metadata' }, { value: 'automation', label: 'Automation' }]} /></div>
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-2">
-        <div className={show('transfer')}><ClassicCard icon="transfer" title="Telegram Transfer Manager" text="Use one workflow for local video uploads, image-document uploads, or Telegram-to-Telegram transfers." /></div>
+        <div className={show('transfer')}><TransferWorkflow /></div>
         <div className={show('metadata')}><MetadataWorkflow /></div>
       </div>
       <div className={cn('mt-4', show('automation'))}><ClassicCard icon="automation" title="Content Automation" tag="Classic" text="RSS → qBittorrent → validate → identify local media → reuse/build individual snapshots → Telegram." /></div>
