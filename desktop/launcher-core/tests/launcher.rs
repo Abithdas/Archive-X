@@ -70,7 +70,7 @@ mod fake {
             &dir,
             "env.sh",
             &format!(
-                r#"echo "$ARCHIVE_X_DESKTOP|${{#ARCHIVE_X_LAUNCH_SECRET}}|$ARCHIVE_X_PARENT_PID|$ARCHIVE_X_TOOLS_DIR|$ARCHIVE_X_DATA_DIR" > {}; echo "ARCHIVE_X_READY {{\"port\": 1, \"pid\": 1}}"; sleep 30"#,
+                r#"echo "$ARCHIVE_X_DESKTOP|${{#ARCHIVE_X_LAUNCH_SECRET}}|$ARCHIVE_X_PARENT_PID|$ARCHIVE_X_TOOLS_DIR|$ARCHIVE_X_DATA_DIR|$ARCHIVE_X_DESKTOP_LANDING" > {}; echo "ARCHIVE_X_READY {{\"port\": 1, \"pid\": 1}}"; sleep 30"#,
                 out.display()
             ),
         );
@@ -78,6 +78,7 @@ mod fake {
             exe,
             data_dir: Some("/tmp/axdata".into()),
             tools_dir: Some("/tmp/axtools".into()),
+            landing: Some("/app-next/".into()),
             ready_timeout: Some(Duration::from_secs(10)),
             ..Default::default()
         })
@@ -89,6 +90,7 @@ mod fake {
         assert_eq!(parts[2], std::process::id().to_string());
         assert_eq!(parts[3], "/tmp/axtools");
         assert_eq!(parts[4], "/tmp/axdata");
+        assert_eq!(parts[5], "/app-next/");
     }
 
     #[test]

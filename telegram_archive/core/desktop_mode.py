@@ -42,11 +42,24 @@ COOKIE = "ax_desktop"
 READY_PREFIX = "ARCHIVE_X_READY "
 # Reachable without the secret: liveness probe only (it reveals nothing but the version).
 _OPEN_PATHS = {"/health"}
-_HANDOFF_PAGE = (
-    '<!doctype html><meta charset="utf-8"><title>Archive X</title>'
-    '<meta http-equiv="refresh" content="0;url=/">'
-    '<style>html{background:#232833}</style><script>location.replace("/")</script>'
-)
+
+
+def landing() -> str:
+    """Path the desktop window opens after the session hand-off: "/" (classic UI) or "/app-next/" (React UI).
+    Set with ARCHIVE_X_DESKTOP_LANDING; anything that is not a plain absolute path falls back to "/"."""
+    value = os.getenv("ARCHIVE_X_DESKTOP_LANDING", "/").strip() or "/"
+    ok = value.startswith("/") and not value.startswith("//") and "\\" not in value and ":" not in value and len(value) < 200
+    return value if ok else "/"
+
+
+def _handoff_page() -> str:
+    import html as _html
+    target = landing()
+    return (
+        '<!doctype html><meta charset="utf-8"><title>Archive X</title>'
+        f'<meta http-equiv="refresh" content="0;url={_html.escape(target, quote=True)}">'
+        f'<style>html{{background:#232833}}</style><script>location.replace({json.dumps(target)})</script>'
+    )
 
 
 def enabled() -> bool:
@@ -154,7 +167,7 @@ def install(app, db, sessions) -> None:
         # Not a 302: the shell opens this URL from its own origin (tauri://localhost), so the WebView treats a
         # redirect chain as cross-site and withholds the SameSite=Strict cookies from the redirected request.
         # A page that navigates itself starts a fresh same-site navigation, and the cookies are sent.
-        response = HTMLResponse(_HANDOFF_PAGE, headers={"Cache-Control": "no-store"})
+        response = HTMLResponse(_handoff_page(), headers={"Cache-Control": "no-store"})
         set_session_cookie(response, request, sessions.create(username))
         response.set_cookie(COOKIE, _cookie_value(), path="/", httponly=True, samesite="strict",
                             secure=False, max_age=config.SESSION_TTL_SECONDS)

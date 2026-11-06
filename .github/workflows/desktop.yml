@@ -1,0 +1,64 @@
+name: Desktop app (Windows)
+
+# Builds the standalone installer: frontend -> frozen Python backend -> Tauri bundle (NSIS + MSI).
+# NOT YET RUN: written from the verified Linux build steps; the first Windows run will need fixes.
+# Required repository settings:
+#   vars.FFMPEG_URL / vars.FFMPEG_SHA256   pinned ffmpeg build (desktop/scripts/fetch-ffmpeg.sh checks the hash)
+#   secrets.TAURI_SIGNING_PRIVATE_KEY(+_PASSWORD)   updater signature key (phase D3)
+#   secrets.WINDOWS_CERT_PFX_BASE64 / WINDOWS_CERT_PASSWORD   Authenticode certificate (phase D3)
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["desktop-v*"]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: desktop }
+
+      - name: Build the React frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Freeze the backend
+        run: pwsh desktop/backend/build.ps1
+
+      - name: Test the frozen backend end to end
+        run: |
+          pip install websockets
+          python tools/tests/test_desktop_mode.py "$PWD\desktop\backend\dist\archive-x-backend\archive-x-backend.exe"
+
+      - name: Fetch pinned ffmpeg
+        shell: bash
+        env: { FFMPEG_URL: "${{ vars.FFMPEG_URL }}", FFMPEG_SHA256: "${{ vars.FFMPEG_SHA256 }}" }
+        run: bash desktop/scripts/fetch-ffmpeg.sh
+
+      - name: Launcher tests against the frozen backend
+        working-directory: desktop
+        env: { ARCHIVE_X_BACKEND_EXE: "${{ github.workspace }}\\desktop\\backend\\dist\\archive-x-backend\\archive-x-backend.exe" }
+        run: |
+          cargo test -p archive-x-launcher-core
+          cargo test -p archive-x-launcher-core --test launcher -- --ignored --nocapture
+
+      - name: Build the installers (NSIS + MSI)
+        working-directory: desktop
+        run: npx --yes @tauri-apps/cli@2 build --bundles nsis,msi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archive-x-windows
+          path: |
+            desktop/target/release/bundle/nsis/*.exe
+            desktop/target/release/bundle/msi/*.msi

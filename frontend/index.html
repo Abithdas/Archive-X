@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#232833" />
+    <title>Archive X</title>
+    <script>
+      // Apply the saved theme before first paint (same storage key family as the legacy UI).
+      try {
+        var m = localStorage.getItem('ax_theme_mode');
+        var dark = m ? m === 'dark' : true; // dark by default, like the classic UI
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

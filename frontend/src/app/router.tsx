@@ -1,0 +1,37 @@
+import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import { LibraryPage } from '@/features/library/LibraryPage'
+import { Shell } from './Shell'
+
+function ComingSoon({ title }: { title: string }) {
+  return (
+    <section className="mx-auto max-w-xl p-8 text-center">
+      <h1 className="text-2xl font-extrabold">{title}</h1>
+      <p className="mt-2 text-muted">This page has not been migrated yet. It is still available in the classic interface.</p>
+      <a className="mt-4 inline-block font-semibold text-accent underline" href="/">
+        Open classic interface
+      </a>
+    </section>
+  )
+}
+
+const root = createRootRoute({ component: Shell })
+const index = createRoute({ getParentRoute: () => root, path: '/', component: LibraryPage })
+const later = (path: string, title: string) => createRoute({ getParentRoute: () => root, path, component: () => <ComingSoon title={title} /> })
+
+const routeTree = root.addChildren([
+  index,
+  later('/performers', 'Performers'),
+  later('/studios', 'Studios'),
+  later('/operations', 'Operations'),
+  later('/transfers', 'Transfers'),
+  later('/settings', 'Settings'),
+])
+
+// The backend serves the app under /app-next, so the router needs that base path.
+export const router = createRouter({ routeTree, basepath: '/app-next', defaultPreload: 'intent' })
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router
+  }
+}

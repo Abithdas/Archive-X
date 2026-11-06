@@ -79,6 +79,8 @@ pub struct LaunchOptions {
     pub data_dir: Option<PathBuf>,
     pub tools_dir: Option<PathBuf>,
     pub ready_timeout: Option<Duration>,
+    /// Path to open after the session hand-off: "/" (classic UI, default) or "/app-next/" (React UI).
+    pub landing: Option<String>,
     /// Extra environment for tests or advanced setups.
     pub extra_env: Vec<(String, String)>,
 }
@@ -109,6 +111,9 @@ impl Backend {
         }
         if let Some(t) = &opts.tools_dir {
             cmd.env("ARCHIVE_X_TOOLS_DIR", t);
+        }
+        if let Some(l) = &opts.landing {
+            cmd.env("ARCHIVE_X_DESKTOP_LANDING", l);
         }
         for (k, v) in &opts.extra_env {
             cmd.env(k, v);

@@ -33,10 +33,10 @@ def check(name: str, ok: bool, detail: str = "") -> None:
         FAILS.append(name)
 
 
-def start_backend(cmd: list[str], data_dir: str, parent_pid: int, port: int = 0) -> tuple[subprocess.Popen, int, list[str]]:
+def start_backend(cmd: list[str], data_dir: str, parent_pid: int, port: int = 0, extra_env: dict | None = None) -> tuple[subprocess.Popen, int, list[str]]:
     env = dict(os.environ, ARCHIVE_X_DESKTOP="1", ARCHIVE_X_LAUNCH_SECRET=SECRET, ARCHIVE_X_DATA_DIR=data_dir,
                ARCHIVE_X_PARENT_PID=str(parent_pid), ARCHIVE_X_DESKTOP_PORT=str(port), PYTHONUNBUFFERED="1",
-               ARCHIVE_X_AUTO_OPEN_BROWSER="0")
+               ARCHIVE_X_AUTO_OPEN_BROWSER="0", **(extra_env or {}))
     proc = subprocess.Popen(cmd, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     lines: list[str] = []
     found: dict[str, int] = {}
@@ -98,6 +98,13 @@ def main() -> int:
         check("cookie session reaches the API (no web login needed)", r.status == 200, f"{r.status} {body[:80]!r}")
         r = request(port, "GET", "/", {"Cookie": jar}); html = r.read()
         check("UI page served with the session", r.status == 200 and b"<title>" in html, str(r.status))
+        r = request(port, "GET", "/app-next/", {"Cookie": jar}); html = r.read()
+        if r.status == 404:
+            print("  [SKIP] React app not built (run `npm run build` in frontend/ before freezing to include it)")
+        else:
+            check("React app served at /app-next/ with the session", r.status == 200 and b'id="root"' in html, str(r.status))
+        r = request(port, "GET", "/app-next/", {}); r.read()
+        check("React app also needs the secret/cookie", r.status == 403, str(r.status))
         r = request(port, "POST", "/login", {"Cookie": jar, "Content-Length": "0"}); r.read()
         check("login endpoint cannot be used to bypass (still guarded/validated)", r.status in (400, 403, 428, 401, 422), str(r.status))
 
@@ -135,6 +142,18 @@ def main() -> int:
     finally:
         if proc.poll() is None:
             proc.kill()
+
+    print("\nlanding page")
+    for value, expected in (("/app-next/", "/app-next/"), ("//evil.example/x", "/"), ("https://evil.example", "/"), ("/ok\\bad", "/")):
+        p3, port3, _ = start_backend(cmd, tempfile.mkdtemp(prefix="axdesktop_"), holder.pid, extra_env={"ARCHIVE_X_DESKTOP_LANDING": value})
+        try:
+            r = request(port3, "GET", f"/desktop/session?token={SECRET}"); page = r.read().decode()
+            check(f"landing {value!r} -> {expected!r}", f'location.replace({json.dumps(expected)})' in page, page[-120:])
+            request(port3, "POST", "/desktop/shutdown", {"X-Archive-X-Desktop": SECRET}).read()
+            p3.wait(timeout=45)
+        finally:
+            if p3.poll() is None:
+                p3.kill()
 
     print("\nparent-death watchdog")
     parent = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])

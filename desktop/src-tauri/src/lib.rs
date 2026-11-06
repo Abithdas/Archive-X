@@ -43,7 +43,9 @@ fn start_backend(app: tauri::AppHandle) {
         Err(e) => return fail(&app, e),
     };
     let data_dir = std::env::var("ARCHIVE_X_DATA_DIR").ok().map(PathBuf::from);
-    let backend = match Backend::spawn(&LaunchOptions { exe, data_dir, tools_dir, ..Default::default() }) {
+    // ARCHIVE_X_LANDING=/app-next/ opens the React UI; the default is still the classic UI until parity is reached.
+    let landing = std::env::var("ARCHIVE_X_LANDING").ok();
+    let backend = match Backend::spawn(&LaunchOptions { exe, data_dir, tools_dir, landing, ..Default::default() }) {
         Ok(b) => b,
         Err(e) => return fail(&app, e.to_string()),
     };

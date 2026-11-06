@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+/* Design tokens. Tailwind v4 turns every --color-* into utilities (bg-surface, text-muted, ...).
+   Values mirror the legacy "Nord" preset so both UIs look like one product during the migration. */
+@theme {
+  --color-bg: #232833;
+  --color-surface: #2d3341;
+  --color-surface-2: #343b4b;
+  --color-line: #3d4558;
+  --color-fg: #e8ecf4;
+  --color-muted: #9aa6bd;
+  --color-accent: #4f8cff;
+  --color-accent-fg: #ffffff;
+  --color-good: #4ade80;
+  --color-warn: #fbbf24;
+  --color-bad: #ff7b7b;
+  --font-sans: "Outfit", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius-card: 14px;
+  --ease-out-soft: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --animate-sk-sweep: sk-sweep 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  @keyframes sk-sweep { to { transform: translate3d(100%, 0, 0); } }
+}
+
+[data-theme="light"] {
+  --color-bg: #f4f6fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef0f4;
+  --color-line: #d6dbe6;
+  --color-fg: #1b2230;
+  --color-muted: #5b6577;
+  --color-accent: #2f6fe0;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Large displays: keep layout around 1600-2100 CSS px so text stays in proportion (same scale as the legacy UI). */
+@media (min-width: 1800px) { html { zoom: 1.15; } }
+@media (min-width: 2200px) { html { zoom: 1.3; } }
+@media (min-width: 2900px) { html { zoom: 1.6; } }
+@media (min-width: 3600px) { html { zoom: 1.9; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
