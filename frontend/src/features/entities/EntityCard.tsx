@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { Entity, EntityKind } from '@/api/types'
 import { Skeleton, SkeletonLine } from '@/design/Skeleton'
@@ -8,7 +9,7 @@ export function EntityCard({ kind, entity }: { kind: EntityKind; entity: Entity 
   const [broken, setBroken] = useState(false)
   const label = entity.video_count === 1 ? '1 video' : `${entity.video_count} videos`
   return (
-    <article aria-label={entity.name} className="overflow-hidden rounded-card border border-line bg-surface">
+    <article aria-label={entity.name} className="relative overflow-hidden rounded-card border border-line bg-surface transition-shadow focus-within:ring-2 focus-within:ring-accent hover:shadow-lg">
       <div className="relative aspect-[3/4] bg-surface-2">
         {broken ? (
           <div className="grid h-full place-items-center text-4xl font-extrabold text-muted" aria-hidden="true">
@@ -19,7 +20,9 @@ export function EntityCard({ kind, entity }: { kind: EntityKind; entity: Entity 
         )}
       </div>
       <div className="p-3 text-sm leading-snug">
-        <h3 className="truncate font-bold">{entity.name}</h3>
+        <h3 className="truncate font-bold">
+          {kind === 'performers' ? <Link to="/performers/$id" params={{ id: String(entity.id) }} className="outline-none after:absolute after:inset-0">{entity.name}</Link> : entity.name}
+        </h3>
         <p className="text-muted">{label}</p>
       </div>
     </article>

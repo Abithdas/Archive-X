@@ -1,7 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Entity } from '@/api/types'
+import { withRouter } from '@/test/withRouter'
 import { EntityDirectory } from './EntityDirectory'
 import { filterEntities, pageCount } from './filter'
 
@@ -15,8 +15,7 @@ describe('filterEntities', () => {
   it('pages', () => { expect(pageCount(0, 48)).toBe(1); expect(pageCount(49, 48)).toBe(2) })
 })
 
-const mount = (kind: 'performers' | 'studios') =>
-  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EntityDirectory kind={kind} /></QueryClientProvider>)
+const mount = (kind: 'performers' | 'studios') => withRouter(<EntityDirectory kind={kind} />)
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -24,11 +23,16 @@ describe('EntityDirectory', () => {
   it('shows a skeleton, then the cards, and filters by search', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(data), { status: 200 })))
     mount('performers')
-    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toBeInTheDocument()
     expect(await screen.findByRole('article', { name: 'Ava Stone' })).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Search performers'), { target: { value: 'adam' } })
     expect(screen.queryByRole('article', { name: 'Ava Stone' })).not.toBeInTheDocument()
     expect(screen.getByRole('article', { name: 'Adam Reed' })).toBeInTheDocument()
+  })
+  it('links performer cards to their profile', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(data), { status: 200 })))
+    mount('performers')
+    expect((await screen.findByRole('link', { name: 'Adam Reed' })).getAttribute('href')).toBe('/performers/2')
   })
   it('only offers the gender filter for performers', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })))

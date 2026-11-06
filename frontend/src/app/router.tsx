@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import { LibraryPage } from '@/features/library/LibraryPage'
 import { EntityDirectory } from '@/features/entities/EntityDirectory'
+import { PerformerPage } from '@/features/entities/PerformerPage'
 import { Shell } from './Shell'
 
 function ComingSoon({ title }: { title: string }) {
@@ -19,9 +20,19 @@ const root = createRootRoute({ component: Shell })
 const index = createRoute({ getParentRoute: () => root, path: '/', component: LibraryPage })
 const later = (path: string, title: string) => createRoute({ getParentRoute: () => root, path, component: () => <ComingSoon title={title} /> })
 
+const performer = createRoute({
+  getParentRoute: () => root,
+  path: '/performers/$id',
+  component: function PerformerRoute() {
+    const { id } = performer.useParams()
+    return <PerformerPage id={Number(id)} />
+  },
+})
+
 const routeTree = root.addChildren([
   index,
   createRoute({ getParentRoute: () => root, path: '/performers', component: () => <EntityDirectory kind="performers" /> }),
+  performer,
   createRoute({ getParentRoute: () => root, path: '/studios', component: () => <EntityDirectory kind="studios" /> }),
   later('/operations', 'Operations'),
   later('/transfers', 'Transfers'),

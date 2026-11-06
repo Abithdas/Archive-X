@@ -75,3 +75,17 @@ export interface Entity {
   gender?: string | null
 }
 export type EntityKind = 'performers' | 'studios'
+
+export interface PerformerProfile {
+  id: number
+  name: string
+  image: string | null
+  bio: string | null
+  profile: string | null
+  gender: string | null
+  favorite: boolean
+}
+export interface PerformerDetail {
+  performer: PerformerProfile
+  videos: Array<Omit<LibraryItem, '_cid' | 'media_id' | 'name'> & { source_channel: string; title: string | null; filename: string }>
+}
