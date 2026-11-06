@@ -62,3 +62,17 @@ export const useSuggestions = (enabled: boolean) =>
       return { studios, performers, tags }
     },
   })
+
+/** True when the page is served by the desktop shell's backend (there is no web login to sign out of). */
+export const useDesktopInfo = () =>
+  useQuery({
+    queryKey: ['desktop-info'] as const,
+    queryFn: async () => {
+      try {
+        return (await api<{ desktop: boolean }>('/desktop/info')).desktop === true
+      } catch {
+        return false
+      }
+    },
+    staleTime: Infinity,
+  })

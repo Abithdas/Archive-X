@@ -173,6 +173,12 @@ def install(app, db, sessions) -> None:
                             secure=False, max_age=config.SESSION_TTL_SECONDS)
         return response
 
+    @app.get("/desktop/info", include_in_schema=False)
+    async def desktop_info():
+        # Reachable only with the guard cookie/secret. Lets the web UI know it runs inside the desktop shell
+        # (no web login exists there, so it hides "Sign out").
+        return JSONResponse({"desktop": True, "version": config.APP_VERSION}, headers={"Cache-Control": "no-store"})
+
     @app.post("/desktop/shutdown", include_in_schema=False)
     async def desktop_shutdown(request: Request):
         if not secret_matches(request.headers.get("x-archive-x-desktop")):

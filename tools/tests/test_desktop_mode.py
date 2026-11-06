@@ -103,6 +103,10 @@ def main() -> int:
             print("  [SKIP] React app not built (run `npm run build` in frontend/ before freezing to include it)")
         else:
             check("React app served at /app-next/ with the session", r.status == 200 and b'id="root"' in html, str(r.status))
+        r = request(port, "GET", "/desktop/info"); r.read()
+        check("/desktop/info needs the secret/cookie", r.status == 403, str(r.status))
+        r = request(port, "GET", "/desktop/info", {"Cookie": jar}); info = json.loads(r.read() or b"{}")
+        check("/desktop/info tells the UI it runs in the desktop app", r.status == 200 and info.get("desktop") is True, f"{r.status} {info}")
         r = request(port, "GET", "/app-next/", {}); r.read()
         check("React app also needs the secret/cookie", r.status == 403, str(r.status))
         r = request(port, "POST", "/login", {"Cookie": jar, "Content-Length": "0"}); r.read()
