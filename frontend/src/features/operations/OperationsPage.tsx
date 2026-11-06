@@ -13,7 +13,7 @@ import { cn } from '@/design/cn'
 import { attention, diagnosticTiles, filterJobs, filterLog, healthTiles, jobCounts, laneRows, policyLine, resourceCards, telemetryTiles, type JobFilter, type LogLevel, type Tile, type Tone } from './ops'
 
 type Obj = Record<string, unknown>
-const CARD = 'rounded-[18px] border border-line bg-surface p-5'
+const CARD = 'rounded-[18px] border border-line bg-surface p-4 sm:p-5'
 const TONE: Record<Tone, string> = { ok: 'text-good', warn: 'text-warn', bad: 'text-bad', neutral: 'text-fg' }
 const stamp = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
 
