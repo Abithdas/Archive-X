@@ -16,6 +16,11 @@ def _names(name: str):
 
 def find_tool(name: str) -> str | None:
     candidates: list[Path] = []
+    # The desktop installer bundles ffmpeg/ffprobe and points ARCHIVE_X_TOOLS_DIR at them (checked first).
+    bundled = os.environ.get("ARCHIVE_X_TOOLS_DIR", "").strip()
+    if bundled:
+        for n in _names(name):
+            candidates.extend((Path(bundled) / n, Path(bundled) / "bin" / n))
     app = config.APP_DIR
     # Preferred application-local layouts.
     for base in (app / "tools" / "ffmpeg", app / "ffmpeg", app / "tools"):
