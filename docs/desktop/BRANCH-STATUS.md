@@ -47,3 +47,4 @@ See `desktop/README.md`. Short version: `desktop/backend/build.sh`, then
 from `desktop/` (needs the Tauri Linux prerequisites listed there).
 - React: Settings > Storage & Backup (cache policy autosave + usage, data-folder move, scheduled/manual backups, verify/delete, restore preview/stage; all destructive actions confirm first; 274 tests; verified in browser at 1440 and 390, no overflow).
 - Replit: hosted mode (ARCHIVE_X_HOSTED=1), scripts/replit-start.sh, .replit, docs/REPLIT.md, tools/tests/test_hosted_mode.py. Not yet run on Replit itself.
+- React: Settings > Metadata (ThePornDB/StashDB keys with Test, scan window, provider status rail; 290 tests; verified in browser at 1440 and 390, no overflow).

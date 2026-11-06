@@ -14,3 +14,5 @@ export const useTelegramSettings = () => useQuery(q('telegram', '/api/settings/t
 export const useCacheUsage = () => useQuery(q('cache-usage', '/api/settings/cache-usage', 60_000))
 export const useStorageInfo = () => useQuery(q('storage', '/api/settings/storage', 15_000))
 export const useBackupInfo = () => useQuery(q('backup', '/api/settings/backup', 15_000))
+export const useScanSchedule = () => useQuery(q('scan-schedule', '/api/settings/scan-schedule', 15_000))
+export const useProviderDashboard = () => useQuery(q('providers', '/api/settings/providers', 15_000))

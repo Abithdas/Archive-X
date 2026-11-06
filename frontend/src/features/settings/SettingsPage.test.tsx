@@ -46,7 +46,7 @@ describe('Settings', () => {
   })
   it('sections that are not migrated yet point to the classic interface', async () => {
     mount()
-    fireEvent.click(await screen.findByRole('button', { name: 'Metadata' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'System & network' }))
     expect(screen.getByText(/has not been migrated yet/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Open in classic interface/ })).toHaveAttribute('href', '/#settings')
   })
