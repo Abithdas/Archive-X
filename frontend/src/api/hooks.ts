@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { api, libraryUrl } from './client'
-import type { Channel, LibraryPage, LibraryQuery, Status } from './types'
+import type { Channel, Entity, EntityKind, LibraryPage, LibraryQuery, Status } from './types'
 
 export const queryKeys = {
   status: ['status'] as const,
@@ -23,3 +23,7 @@ export const useLibrary = (query: LibraryQuery) =>
     placeholderData: keepPreviousData,
     staleTime: 15_000,
   })
+
+/** Whole performer or studio catalogue (the API caps at 5000); paging, search and filters run client-side. */
+export const useEntities = (kind: EntityKind) =>
+  useQuery({ queryKey: ['entities', kind] as const, queryFn: () => api<Entity[]>(`/api/${kind}?limit=5000`), staleTime: 30_000 })

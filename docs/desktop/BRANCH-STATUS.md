@@ -1,5 +1,7 @@
 # Branch `archive-x-desktop-app`: what is done and what is not
 
+> Update: React Performers and Studios directory pages are done (search, gender filter, paging, skeletons, 38 unit tests, checked against the real backend). Detail pages, merge mode and the other sections are still to do.
+
 Executes the first parts of `Archive-X-MIGRATION-PLAN.md` as a separate line of work from `main`.
 
 ## Verified (run in this branch's environment: Linux, Python 3.13, Rust 1.97, Node 22)

@@ -65,3 +65,13 @@ export interface Status {
   version?: string
   [key: string]: unknown
 }
+
+/** Row of /api/performers and /api/studios (only the fields the directory uses). */
+export interface Entity {
+  id: number
+  name: string
+  video_count: number
+  image?: string | null
+  gender?: string | null
+}
+export type EntityKind = 'performers' | 'studios'
