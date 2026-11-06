@@ -13,6 +13,8 @@ import { NotificationsPanel, useNotices } from './NotificationsPanel'
 import { useSearch } from './search'
 import { toggleTheme } from './theme'
 import { useUi } from './ui'
+import { useAppearance, useAppearanceActions, useAppearanceSync } from '@/features/settings/useAppearance'
+import { scaleForKey } from '@/theme/themes'
 
 interface NavDef {
   to: string
@@ -155,11 +157,17 @@ function Header({ live }: { live: string }) {
 /** Shortcuts that work anywhere except while typing: Ctrl/Cmd+K palette, "/" search, "g" Videos. */
 function useGlobalKeys() {
   const navigate = useNavigate()
+  const { scale } = useAppearance()
+  const { setScale } = useAppearanceActions()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null
       const typing = !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      const z = typing ? null : scaleForKey(e, scale)
+      if (z !== null) {
+        e.preventDefault()
+        void setScale(z).catch(() => undefined)
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         const ui = useUi.getState()
         ui.setPalette(!ui.palette)
@@ -174,11 +182,12 @@ function useGlobalKeys() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [navigate])
+  }, [navigate, scale, setScale])
 }
 
 export function Shell(): ReactNode {
   const live = useLiveStatus(true)
+  useAppearanceSync()
   useGlobalKeys()
   const [rail, setRail] = useState(() => {
     try {

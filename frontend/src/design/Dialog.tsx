@@ -20,7 +20,7 @@ export function Dialog({ open, onClose, title, children, side = 'center', labell
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
       className={cn(
-        'fixed m-0 max-h-[calc(100dvh-24px)] w-[min(400px,calc(100vw-24px))] flex-col overflow-hidden rounded-[24px] border border-line-2 bg-surface p-4 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)] backdrop:bg-black/55 backdrop:backdrop-blur-sm open:flex',
+        'fixed m-0 max-h-[calc((100dvh-24px)/var(--ax-ui-zoom,1))] w-[min(400px,calc(100vw-24px))] flex-col overflow-hidden rounded-[24px] border border-line-2 bg-surface p-4 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)] backdrop:bg-black/55 backdrop:backdrop-blur-sm open:flex',
         side === 'right' ? 'left-auto right-3 top-3 sm:right-4 sm:top-[72px]' : 'inset-0 m-auto',
       )}
     >

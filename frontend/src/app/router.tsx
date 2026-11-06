@@ -5,23 +5,11 @@ import { PerformerPage } from '@/features/entities/PerformerPage'
 import { WatchPage } from '@/features/watch/WatchPage'
 import { OperationsPage } from '@/features/operations/OperationsPage'
 import { TransfersPage } from '@/features/transfers/TransfersPage'
+import { SettingsPage } from '@/features/settings/SettingsPage'
 import { Shell } from './Shell'
-
-function ComingSoon({ title }: { title: string }) {
-  return (
-    <section className="mx-auto max-w-xl p-8 text-center">
-      <h1 className="text-2xl font-extrabold">{title}</h1>
-      <p className="mt-2 text-muted">This page has not been migrated yet. It is still available in the classic interface.</p>
-      <a className="mt-4 inline-block font-semibold text-accent underline" href="/">
-        Open classic interface
-      </a>
-    </section>
-  )
-}
 
 const root = createRootRoute({ component: Shell })
 const index = createRoute({ getParentRoute: () => root, path: '/', component: LibraryPage })
-const later = (path: string, title: string) => createRoute({ getParentRoute: () => root, path, component: () => <ComingSoon title={title} /> })
 
 const performer = createRoute({
   getParentRoute: () => root,
@@ -49,7 +37,7 @@ const routeTree = root.addChildren([
   createRoute({ getParentRoute: () => root, path: '/studios', component: () => <EntityDirectory kind="studios" /> }),
   createRoute({ getParentRoute: () => root, path: '/operations', component: OperationsPage }),
   createRoute({ getParentRoute: () => root, path: '/transfers', component: TransfersPage }),
-  later('/settings', 'Settings'),
+  createRoute({ getParentRoute: () => root, path: '/settings', component: SettingsPage }),
 ])
 
 // The backend serves the app under /app-next, so the router needs that base path.

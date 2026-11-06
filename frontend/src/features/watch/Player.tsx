@@ -16,7 +16,7 @@ const BTN = 'grid size-9 place-items-center rounded-lg text-fg/90 hover:bg-fg/10
  * Native <video> with the classic player's control bar: seek, play, previous/next, ±30 s, speed, mute and volume,
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
-export function Player({ src, poster, durationHint, segments = [], preview, onPrev, onNext, onOpenVlc }: { src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
+export function Player({ src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, onPrev, onNext, onOpenVlc }: { autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const box = useRef<HTMLDivElement>(null)
   const [playing, setPlaying] = useState(false)
@@ -115,6 +115,7 @@ export function Player({ src, poster, durationHint, segments = [], preview, onPr
           poster={poster}
           playsInline
           preload="metadata"
+          autoPlay={autoPlay}
           onClick={onTap}
           loop={loop}
           onPlay={() => setPlaying(true)}
@@ -128,7 +129,7 @@ export function Player({ src, poster, durationHint, segments = [], preview, onPr
             const b = e.currentTarget.buffered
             setBuffered(b.length ? b.end(b.length - 1) : 0)
           }}
-          onEnded={() => onNext?.()}
+          onEnded={() => autoNext && onNext?.()}
           onError={() => { setFailed(true); setLoading(false) }}
           className="absolute inset-0 h-full w-full object-contain"
         />

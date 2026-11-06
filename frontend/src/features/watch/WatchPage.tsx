@@ -11,6 +11,8 @@ import { formatBytes } from '@/design/format'
 import { openExternal } from '@/features/library/CardMenu'
 import { formatDuration } from '@/features/library/format'
 import { useLibraryStore } from '@/features/library/store'
+import { experienceFrom } from '@/features/settings/logic'
+import { useExperienceSettings } from '@/features/settings/queries'
 import { Player } from './Player'
 import { normaliseChapters, toSegments } from './timeline'
 
@@ -68,6 +70,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const performers = useEntities('performers')
   const studios = useEntities('studios')
   const fav = useFavorite()
+  const exp = experienceFrom(useExperienceSettings().data)
   const [showTags, setShowTags] = useState(false)
   const item = video.data
   const items = queue.data?.items ?? []
@@ -76,7 +79,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const prev = index > 0 ? items[index - 1] : undefined
   const next = index >= 0 ? items[index + 1] : items.find((i) => item && !(i.id === item.id && i._cid === item._cid))
   const segments = useMemo(() => toSegments(normaliseChapters(markers.data, item?.duration ?? 0), item?.duration ?? 0), [markers.data, item?.duration])
-  const preview = manifest.data?.frames_ready && manifest.data.frame_times.length ? { times: manifest.data.frame_times, url: (n: number) => `/api/play/preview-frame/${encodeURIComponent(cid)}/${mid}/${n}` } : undefined
+  const preview = exp.live_seek_preview && manifest.data?.frames_ready && manifest.data.frame_times.length ? { times: manifest.data.frame_times, url: (n: number) => `/api/play/preview-frame/${encodeURIComponent(cid)}/${mid}/${n}` } : undefined
   const idOf = (list: Array<{ id: number; name: string }> | undefined, name: string) => list?.find((e) => e.name.toLowerCase() === name.toLowerCase())?.id
 
   if (video.isPending) return <Skel />
@@ -105,7 +108,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
           {tg ? <a href={tg} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold hover:bg-surface-2"><Icon name="brand-telegram" />Telegram</a> : null}
         </div>
 
-        <Player src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} />
+        <Player src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={exp.autoplay} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} />
 
         <header className="min-w-0">
           <h1 className="text-[clamp(22px,2.4vw,30px)] font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere]">{item.name}</h1>

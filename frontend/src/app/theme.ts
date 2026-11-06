@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { toggleThemeMode } from '@/features/settings/useAppearance'
 
 const current = () => (document.documentElement.dataset.theme === 'light' ? 'light' : 'dark')
 const subscribe = (cb: () => void) => {
@@ -8,12 +9,5 @@ const subscribe = (cb: () => void) => {
 }
 export const useTheme = () => useSyncExternalStore(subscribe, current, () => 'dark' as const)
 
-export function toggleTheme() {
-  const next = current() === 'light' ? 'dark' : 'light'
-  document.documentElement.dataset.theme = next
-  try {
-    localStorage.setItem('ax_theme_mode', next)
-  } catch {
-    /* private mode */
-  }
-}
+/** Flip light/dark within the current theme (also saved to the server). */
+export const toggleTheme = toggleThemeMode
