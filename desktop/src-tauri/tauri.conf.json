@@ -37,12 +37,17 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../backend/dist/archive-x-backend/**/*": "backend/",
-      "resources/ffmpeg/**/*": "ffmpeg/"
+      "../backend/dist/archive-x-backend": "backend",
+      "resources/ffmpeg": "ffmpeg"
     },
     "windows": {
-      "webviewInstallMode": { "type": "embedBootstrapper" },
-      "nsis": { "installMode": "currentUser", "displayLanguageSelector": false }
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      }
     }
   }
 }
