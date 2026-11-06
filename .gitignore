@@ -16,3 +16,4 @@ desktop/src-tauri/binaries/
 graphify-out/
 shots/
 *.log
+.archive-x-data/

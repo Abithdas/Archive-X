@@ -1,0 +1,14 @@
+modules = ["python-3.11", "nodejs-20"]
+run = "bash scripts/replit-start.sh"
+
+[nix]
+channel = "stable-24_05"
+packages = ["ffmpeg", "libGL", "glib"]
+
+[deployment]
+run = ["bash", "scripts/replit-start.sh"]
+deploymentTarget = "vm"
+
+[[ports]]
+localPort = 8443
+externalPort = 80

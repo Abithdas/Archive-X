@@ -46,3 +46,4 @@ See `desktop/README.md`. Short version: `desktop/backend/build.sh`, then
 `ARCHIVE_X_BACKEND_EXE=$PWD/desktop/backend/dist/archive-x-backend/archive-x-backend ARCHIVE_X_LANDING=/app-next/ cargo run -p archive-x-desktop`
 from `desktop/` (needs the Tauri Linux prerequisites listed there).
 - React: Settings > Storage & Backup (cache policy autosave + usage, data-folder move, scheduled/manual backups, verify/delete, restore preview/stage; all destructive actions confirm first; 274 tests; verified in browser at 1440 and 390, no overflow).
+- Replit: hosted mode (ARCHIVE_X_HOSTED=1), scripts/replit-start.sh, .replit, docs/REPLIT.md, tools/tests/test_hosted_mode.py. Not yet run on Replit itself.

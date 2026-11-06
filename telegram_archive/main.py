@@ -10,7 +10,7 @@ import time
 
 from . import config
 from .app import create_app
-from .core.auth import ensure_web_credentials
+from .core.auth import SETUP_COMPLETE_FLAG, SETUP_REQUIRED_FLAG, ensure_web_credentials, is_setup_required, set_web_login
 from .core.certs import ensure_certificate
 from .core.database import Database
 from .core.runtime_cleanup import cleanup_runtime_artifacts
@@ -177,10 +177,51 @@ def _run_desktop_server(app):
     asyncio.run(_serve())
 
 
+def _hosted() -> bool:
+    """Managed hosting (e.g. Replit): a platform proxy terminates TLS and forwards plain HTTP."""
+    return os.getenv("ARCHIVE_X_HOSTED", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _seed_hosted_admin(db) -> None:
+    """Hosted mode has no "PC running Archive X" for first-run setup, and a public URL must not let the first
+    visitor claim the admin account. The login comes from secrets instead; refuse to start without them."""
+    if not is_setup_required(db):
+        return
+    user = (os.getenv("ARCHIVE_X_ADMIN_USERNAME") or "admin").strip()
+    password = os.getenv("ARCHIVE_X_ADMIN_PASSWORD") or ""
+    if len(password) < 12:
+        raise SystemExit("Hosted mode: set the ARCHIVE_X_ADMIN_PASSWORD secret (at least 12 characters) "
+                         "and optionally ARCHIVE_X_ADMIN_USERNAME, then run again.")
+    set_web_login(db, user, password)
+    db.set_setting(SETUP_COMPLETE_FLAG, config.now_iso())
+    db.set_setting(SETUP_REQUIRED_FLAG, "")
+    db.log("Hosted mode: administrator login created from secrets")
+
+
+def _run_hosted_server(app):
+    import uvicorn
+
+    port = int(os.getenv("PORT") or config.PORT)
+    app.state.embedded_session_cookies = True   # preview is embedded cross-site: SameSite=None; Secure; Partitioned
+
+    async def _serve():
+        loop = asyncio.get_running_loop()
+        server = uvicorn.Server(uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info",
+                                               proxy_headers=True, forwarded_allow_ips="*"))
+        app.state.request_shutdown = lambda: loop.call_soon_threadsafe(setattr, server, "should_exit", True)
+        print(f"  Hosted mode: plain HTTP on 0.0.0.0:{port} behind the platform's HTTPS proxy", flush=True)
+        await server.serve()
+
+    asyncio.run(_serve())
+
+
 def _run_web_server(app, certfile, keyfile):
     """Run HTTPS over TCP plus HTTP/3 over QUIC on the same port when enabled."""
     if desktop_mode.enabled():
         _run_desktop_server(app)
+        return
+    if _hosted():
+        _run_hosted_server(app)
         return
     mode = str(config.HTTP3_MODE or "auto").lower()
     available, reason = _http3_capability()
@@ -324,6 +365,9 @@ def main():
         if desktop:
             desktop_mode.prepare_credentials(db)   # local mode: no web login, no LAN certificate
             certfile = keyfile = None
+        elif _hosted():
+            certfile = keyfile = None                  # TLS is the platform proxy's job
+            _seed_hosted_admin(db)
         else:
             certfile, keyfile = ensure_certificate()
     with _phase("dependency check"):
@@ -332,7 +376,7 @@ def main():
         else:
             print_startup()
             print(f"  Process model: {startup_message()}")
-    if config.AUTO_OPEN_BROWSER and not desktop:
+    if config.AUTO_OPEN_BROWSER and not desktop and not _hosted():
         threading.Thread(target=_open_browser_when_ready, name="archive-x-browser-open", daemon=True).start()
 
     with _phase("application setup"):
