@@ -42,7 +42,7 @@ jobs:
 
       - name: Fetch pinned ffmpeg
         shell: bash
-        env: { FFMPEG_URL: "${{ vars.FFMPEG_URL }}", FFMPEG_SHA256: "${{ vars.FFMPEG_SHA256 }}" }
+        env: { FFMPEG_URL: "${{ vars.FFMPEG_URL }}", FFMPEG_SHA256: "${{ vars.FFMPEG_SHA256 }}", FFMPEG_FROM_BTBN: "1" }
         run: bash desktop/scripts/fetch-ffmpeg.sh
 
       - name: Launcher tests against the frozen backend
