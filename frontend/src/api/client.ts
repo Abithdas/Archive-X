@@ -49,7 +49,7 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   return (await response.json()) as T
 }
 
-export function libraryUrl(query: { channels: string[]; page: number; per: number; sort: string; q?: string; favorites?: boolean }): string {
+export function libraryUrl(query: { channels: string[]; page: number; per: number; sort: string; q?: string; favorites?: boolean; resolution?: string }): string {
   const params = new URLSearchParams({
     page: String(query.page),
     per: String(query.per),
@@ -58,6 +58,7 @@ export function libraryUrl(query: { channels: string[]; page: number; per: numbe
     q: query.q ?? '',
     favorites: query.favorites ? '1' : '0',
   })
+  if (query.resolution) params.set('resolution', query.resolution)
   return `/api/library?${params.toString()}`
 }
 

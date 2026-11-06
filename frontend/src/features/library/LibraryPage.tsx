@@ -8,7 +8,10 @@ import { SkeletonGroup } from '@/design/Skeleton'
 import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
 import { cn } from '@/design/cn'
+import { useSearch } from '@/app/search'
+import { Toolbar } from './Toolbar'
 import { VideoCard, VideoCardSkeleton } from './VideoCard'
+import { useDebounced } from './useDebounced'
 import { useLibraryStore } from './store'
 
 const PER = 24
@@ -31,9 +34,10 @@ function ChannelChip({ label, count, on, disabled, onClick, children }: { label:
 }
 
 export function LibraryPage() {
-  const { channels: selected, page, toggle, selectAll, clear, setPage } = useLibraryStore()
+  const { channels: selected, page, sort, favorites, resolution, toggle, selectAll, clear, setPage } = useLibraryStore()
+  const search = useDebounced(useSearch((s) => s.q).trim(), 300)
   const channels = useChannels()
-  const query: LibraryQuery = useMemo(() => ({ channels: selected, page, per: PER, sort: 'date_desc' }), [selected, page])
+  const query: LibraryQuery = useMemo(() => ({ channels: selected, page, per: PER, sort, favorites, resolution, q: search }), [selected, page, sort, favorites, resolution, search])
   const library = useLibrary(query)
   const allIds = (channels.data ?? []).map((c) => c.telegram_id)
   const pages = library.data ? Math.max(1, Math.ceil(library.data.total / PER)) : 1
@@ -41,6 +45,8 @@ export function LibraryPage() {
   return (
     <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead title="Videos" blurb="Browse and manage your video library" />
+
+      <Toolbar />
 
       <div className="mb-3 flex gap-3.5 overflow-x-auto pb-2" role="group" aria-label="Channels">
         <ChannelChip label="All" count={channels.data?.reduce((n, c) => n + c.video_count, 0)} on={selected.length === allIds.length && allIds.length > 0} disabled={!allIds.length} onClick={() => selectAll(allIds)}>
@@ -101,7 +107,7 @@ export function LibraryPage() {
               ))}
             </AnimatePresence>
           </div>
-          {library.data.items.length === 0 ? <p className="py-12 text-center text-muted">No videos match.</p> : null}
+          {library.data.items.length === 0 ? <p className="py-12 text-center text-muted">No videos match these filters.</p> : null}
           {pages > 1 ? (
             <nav className="mt-6 flex items-center justify-center gap-3" aria-label="Pages">
               <Button onClick={() => setPage(page - 1)} disabled={page === 0}>

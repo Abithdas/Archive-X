@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { ResolutionKey, SortKey } from '@/api/types'
 
 const KEY = 'ax_next_library_channels'
 
@@ -15,6 +16,13 @@ function load(): string[] {
 interface LibraryState {
   channels: string[]
   page: number
+  sort: SortKey
+  favorites: boolean
+  resolution: ResolutionKey
+  setSort: (s: SortKey) => void
+  setFavorites: (v: boolean) => void
+  setResolution: (r: ResolutionKey) => void
+  resetFilters: () => void
   toggle: (id: string) => void
   selectAll: (ids: string[]) => void
   clear: () => void
@@ -32,6 +40,13 @@ const persist = (channels: string[]) => {
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   channels: load(),
   page: 0,
+  sort: 'date_desc',
+  favorites: false,
+  resolution: '',
+  setSort: (sort) => set({ sort, page: 0 }),
+  setFavorites: (favorites) => set({ favorites, page: 0 }),
+  setResolution: (resolution) => set({ resolution, page: 0 }),
+  resetFilters: () => set({ favorites: false, resolution: '', sort: 'date_desc', page: 0 }),
   toggle: (id) => {
     const cur = get().channels
     const next = cur.includes(id) ? cur.filter((c) => c !== id) : [...cur, id]

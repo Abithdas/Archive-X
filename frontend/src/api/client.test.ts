@@ -7,6 +7,10 @@ const respond = (status: number, body: unknown, ok = status < 400) =>
 afterEach(() => vi.restoreAllMocks())
 
 describe('api()', () => {
+  it('adds the resolution filter only when set', () => {
+    expect(libraryUrl({ channels: ['1'], page: 0, per: 24, sort: 'date_desc', resolution: '1080' })).toContain('resolution=1080')
+    expect(libraryUrl({ channels: ['1'], page: 0, per: 24, sort: 'date_desc', resolution: '' })).not.toContain('resolution')
+  })
   it('returns parsed JSON and sends the cookie session', async () => {
     const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ ok: 1 }), { status: 200 }))
     await expect(api('/api/status')).resolves.toEqual({ ok: 1 })

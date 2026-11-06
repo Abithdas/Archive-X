@@ -28,3 +28,17 @@ describe('library store', () => {
     expect(useLibraryStore.getState().channels).toEqual([])
   })
 })
+
+describe('library filters', () => {
+  it('changing a filter returns to the first page, and reset restores the defaults', () => {
+    const s = useLibraryStore.getState()
+    s.setPage(3)
+    s.setSort('size_desc')
+    expect(useLibraryStore.getState().page).toBe(0)
+    useLibraryStore.getState().setFavorites(true)
+    useLibraryStore.getState().setResolution('1080')
+    useLibraryStore.getState().resetFilters()
+    const r = useLibraryStore.getState()
+    expect([r.sort, r.favorites, r.resolution]).toEqual(['date_desc', false, ''])
+  })
+})
