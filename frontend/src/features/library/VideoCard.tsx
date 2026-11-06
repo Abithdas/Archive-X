@@ -4,6 +4,7 @@ import type { LibraryItem } from '@/api/types'
 import { Icon } from '@/design/Icon'
 import { Skeleton, SkeletonLine } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
+import { CardMenu } from './CardMenu'
 import { formatDuration } from './format'
 
 /** Card metrics live in one place so the skeleton below can never drift from the real card (values from the classic UI). */
@@ -84,17 +85,7 @@ export function VideoCard({ item }: { item: LibraryItem }) {
           </ul>
         ) : null}
       </div>
-      <button
-        type="button"
-        aria-label="More actions"
-        className="absolute right-[6px] top-[calc((100cqw-2px)*0.5625+10px)] grid h-9 w-7 place-items-center rounded-lg text-muted hover:bg-fg/5 hover:text-fg"
-      >
-        <span className="flex gap-[3px]" aria-hidden="true">
-          <i className="size-1 rounded-full bg-current" />
-          <i className="size-1 rounded-full bg-current" />
-          <i className="size-1 rounded-full bg-current" />
-        </span>
-      </button>
+      <CardMenu item={item} className="absolute right-[6px] top-[calc((100cqw-2px)*0.5625+10px)]" />
     </article>
   )
 }

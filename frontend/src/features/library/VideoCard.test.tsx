@@ -1,9 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { fireEvent, render as rtlRender, screen } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { describe, expect, it } from 'vitest'
 import { SkeletonGroup } from '@/design/Skeleton'
 import type { LibraryItem } from '@/api/types'
 import { VideoCard, VideoCardSkeleton } from './VideoCard'
 
+const render = (ui: ReactElement) => rtlRender(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>)
 const item = (over: Partial<LibraryItem> = {}): LibraryItem => ({
   id: 1001, _cid: '-1001', media_id: 1, name: 'A medium length title', filename: 'f.mp4', size: 1, duration: 3725, width: 1920, height: 1080,
   resolution_category: '1080p', thumbnail_id: 1001, favorite: 0, upload_date: null, channel_title: 'Main Archive',

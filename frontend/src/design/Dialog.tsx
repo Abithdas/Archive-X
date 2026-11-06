@@ -30,7 +30,7 @@ export function Dialog({ open, onClose, title, children, side = 'center', labell
           <Icon name="close" className="size-4" />
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
       {footer ? <div className="shrink-0 pt-3">{footer}</div> : null}
     </dialog>
   )
