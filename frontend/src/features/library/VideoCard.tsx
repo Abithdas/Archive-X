@@ -1,5 +1,7 @@
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { thumbUrl } from '@/api/client'
+import { useFavorite } from '@/api/hooks'
 import type { LibraryItem } from '@/api/types'
 import { Icon } from '@/design/Icon'
 import { Skeleton, SkeletonLine } from '@/design/Skeleton'
@@ -18,6 +20,7 @@ const initials = (name: string) => name.trim().charAt(0).toUpperCase()
 
 export function VideoCard({ item }: { item: LibraryItem }) {
   const [imgOk, setImgOk] = useState(true)
+  const fav = useFavorite()
   const duration = formatDuration(item.duration)
   const people = item.performers
   const place = [item.studio, item.channel_title].filter(Boolean).join(' · ')
@@ -40,14 +43,18 @@ export function VideoCard({ item }: { item: LibraryItem }) {
           type="button"
           aria-label={item.favorite ? 'Remove from favourites' : 'Add to favourites'}
           aria-pressed={Boolean(item.favorite)}
-          className="absolute right-2 top-2 grid size-[34px] place-items-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
+          disabled={fav.isPending}
+          onClick={() => fav.mutate({ mediaId: item.media_id, favorite: !item.favorite })}
+          className={cn('absolute right-2 top-2 z-10 grid size-[34px] place-items-center rounded-full bg-black/40 backdrop-blur-sm transition-colors hover:bg-black/60', item.favorite ? 'text-warn' : 'text-white')}
         >
-          <Icon name="star" className="size-4" />
+          <Icon name="star" className={cn("size-4", Boolean(item.favorite) && "drop-shadow")} />
         </button>
       </div>
       <div className={BODY}>
         <div className="pr-[34px]">
-          <h3 className="line-clamp-2 text-sm font-bold leading-[18px] [overflow-wrap:anywhere]">{item.name}</h3>
+          <h3 className="line-clamp-2 text-sm font-bold leading-[18px] [overflow-wrap:anywhere]">
+            <Link to="/watch/$cid/$mid" params={{ cid: item._cid, mid: String(item.id) }} className="outline-none after:absolute after:inset-0 after:z-0 focus-visible:after:ring-2 focus-visible:after:ring-accent">{item.name}</Link>
+          </h3>
         </div>
         <div className="mt-2 flex h-[22px] items-center gap-1.5 text-[12.5px] text-fg">
           {people.length ? (
@@ -85,7 +92,7 @@ export function VideoCard({ item }: { item: LibraryItem }) {
           </ul>
         ) : null}
       </div>
-      <CardMenu item={item} className="absolute right-[6px] top-[calc((100cqw-2px)*0.5625+10px)]" />
+      <CardMenu item={item} className="absolute right-[6px] top-[calc((100cqw-2px)*0.5625+10px)] z-10" />
     </article>
   )
 }

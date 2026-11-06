@@ -564,6 +564,7 @@ def register_settings_routes(
         date_from = q.get("date_from", "")
         date_to = q.get("date_to", "")
         fav_only = q.get("favorites", "") == "1"
+        message_id = q.get("message_id", "").strip()  # one video by its Telegram message id (watch-page deep links)
 
         with db.reading() as _rdb:
             where, params = ["1=1"], []
@@ -617,6 +618,8 @@ def register_settings_routes(
             if date_to:
                 where.append(f"({effective_date} IS NULL OR {effective_date} <= ?)"); params.append(date_to+"T99")
             if fav_only:  where.append("m.favorite = 1")
+            if message_id.lstrip("-").isdigit():
+                where.append("m.source_message_id = ?"); params.append(int(message_id))
 
             # Relationship sorts are correlated against indexed link tables and
             # evaluated while paging media IDs; they do not fan out a 9k-video

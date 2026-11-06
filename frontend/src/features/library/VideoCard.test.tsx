@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render as rtlRender, screen } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { describe, expect, it } from 'vitest'
+import { withRouter } from '@/test/withRouter'
 import { SkeletonGroup } from '@/design/Skeleton'
 import type { LibraryItem } from '@/api/types'
 import { VideoCard, VideoCardSkeleton } from './VideoCard'
@@ -14,26 +15,27 @@ const item = (over: Partial<LibraryItem> = {}): LibraryItem => ({
 })
 
 describe('VideoCard', () => {
-  it('shows title, performers, studio and channel, duration and resolution', () => {
-    render(<VideoCard item={item()} />)
-    expect(screen.getByRole('article', { name: 'A medium length title' })).toBeInTheDocument()
+  it('shows title, performers, studio and channel, duration and resolution', async () => {
+    withRouter(<VideoCard item={item()} />)
+    expect(await screen.findByRole('article', { name: 'A medium length title' })).toBeInTheDocument()
     expect(screen.getByText('Ava Stone')).toBeInTheDocument()
     expect(screen.getByText('Northlight · Main Archive')).toBeInTheDocument()
     expect(screen.getByText('1:02:05')).toBeInTheDocument()
     expect(screen.getByText('1080p')).toBeInTheDocument()
   })
-  it('limits tags to two plus a count', () => {
-    render(<VideoCard item={item()} />)
-    expect(screen.getByText('+3')).toBeInTheDocument()
+  it('limits tags to two plus a count', async () => {
+    withRouter(<VideoCard item={item()} />)
+    expect(await screen.findByText('+3')).toBeInTheDocument()
     expect(screen.queryByText('e')).not.toBeInTheDocument()
   })
-  it('falls back for missing performers and clamps long titles to two lines', () => {
-    render(<VideoCard item={item({ performers: [], name: 'x '.repeat(200) })} />)
-    expect(screen.getByText('Unknown performer')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 3 }).className).toContain('line-clamp-2')
+  it('falls back for missing performers and clamps long titles to two lines', async () => {
+    withRouter(<VideoCard item={item({ performers: [], name: 'x '.repeat(200) })} />)
+    expect(await screen.findByText('Unknown performer')).toBeInTheDocument()
+    expect((await screen.findByRole('heading', { level: 3 })).className).toContain('line-clamp-2')
   })
-  it('drops a broken thumbnail instead of showing a broken image', () => {
-    const { container } = render(<VideoCard item={item()} />)
+  it('drops a broken thumbnail instead of showing a broken image', async () => {
+    const { container } = withRouter(<VideoCard item={item()} />)
+    await screen.findByRole('article')
     const img = container.querySelector('img')!
     expect(img.getAttribute('src')).toBe('/api/thumb/-1001/1001?r=f3')
     fireEvent.error(img)
@@ -42,8 +44,9 @@ describe('VideoCard', () => {
 })
 
 describe('VideoCardSkeleton', () => {
-  it('uses the same card shell and thumbnail aspect as the real card (cannot drift)', () => {
-    const real = render(<VideoCard item={item()} />).container.firstElementChild!
+  it('uses the same card shell and thumbnail aspect as the real card (cannot drift)', async () => {
+    withRouter(<VideoCard item={item()} />)
+    const real = (await screen.findByRole('article'))
     const sk = render(<VideoCardSkeleton />).container.firstElementChild!
     for (const cls of ['rounded-card', 'border-line', 'bg-surface']) {
       expect(real.className).toContain(cls)

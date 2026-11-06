@@ -29,6 +29,7 @@ export interface LibraryItem {
   width: number | null
   height: number | null
   resolution_category: string | null
+  codec?: string | null
   thumbnail_id: number
   favorite: 0 | 1
   upload_date: string | null
@@ -95,5 +96,5 @@ export interface PerformerProfile {
 }
 export interface PerformerDetail {
   performer: PerformerProfile
-  videos: Array<Omit<LibraryItem, '_cid' | 'media_id' | 'name'> & { source_channel: string; title: string | null; filename: string }>
+  videos: Array<Omit<LibraryItem, '_cid' | 'name'> & { source_channel: string; title: string | null; filename: string }>
 }

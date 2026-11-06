@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 import { LibraryPage } from '@/features/library/LibraryPage'
 import { EntityDirectory } from '@/features/entities/EntityDirectory'
 import { PerformerPage } from '@/features/entities/PerformerPage'
+import { WatchPage } from '@/features/watch/WatchPage'
 import { Shell } from './Shell'
 
 function ComingSoon({ title }: { title: string }) {
@@ -29,10 +30,20 @@ const performer = createRoute({
   },
 })
 
+const watch = createRoute({
+  getParentRoute: () => root,
+  path: '/watch/$cid/$mid',
+  component: function WatchRoute() {
+    const { cid, mid } = watch.useParams()
+    return <WatchPage key={`${cid}:${mid}`} cid={cid} mid={Number(mid)} />
+  },
+})
+
 const routeTree = root.addChildren([
   index,
   createRoute({ getParentRoute: () => root, path: '/performers', component: () => <EntityDirectory kind="performers" /> }),
   performer,
+  watch,
   createRoute({ getParentRoute: () => root, path: '/studios', component: () => <EntityDirectory kind="studios" /> }),
   later('/operations', 'Operations'),
   later('/transfers', 'Transfers'),

@@ -1,5 +1,5 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { api, libraryUrl } from './client'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ApiError, api, libraryUrl } from './client'
 import type { Channel, Entity, EntityKind, LibraryItem, LibraryPage, PerformerDetail, LibraryQuery, Status } from './types'
 
 export const queryKeys = {
@@ -34,7 +34,7 @@ export const usePerformer = (id: number) =>
     queryFn: () => api<PerformerDetail>(`/api/performers/${id}/videos`),
     select: (d) => ({
       performer: d.performer,
-      videos: d.videos.map((v): LibraryItem => ({ ...v, _cid: v.source_channel, media_id: v.id, name: v.title || v.filename })),
+      videos: d.videos.map((v): LibraryItem => ({ ...v, _cid: v.source_channel, name: v.title || v.filename })),
     }),
     staleTime: 15_000,
   })
@@ -75,4 +75,53 @@ export const useDesktopInfo = () =>
       }
     },
     staleTime: Infinity,
+  })
+
+/** One video by channel and Telegram message id (deep links and reloads have no list to look it up in). */
+export const useVideo = (cid: string, mid: number) =>
+  useQuery({
+    queryKey: ['video', cid, mid] as const,
+    queryFn: async () => {
+      const r = await api<LibraryPage>(`/api/library?${new URLSearchParams({ page: '0', per: '1', channels: cid, sort: 'date_desc', message_id: String(mid) })}`)
+      const hit = r.items.find((i) => i.id === mid && i._cid === cid)
+      if (!hit) throw new ApiError(404, 'Video not found')
+      return hit
+    },
+    staleTime: 15_000,
+    retry: (n, e) => !(e instanceof ApiError && e.status === 404) && n < 2,
+  })
+
+/** Favourite on/off for one library row, then refresh whatever lists show it. */
+export function useFavorite() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { mediaId: number; favorite: boolean }) => api('/api/library/bulk-favorite', { method: 'POST', json: { media_ids: [v.mediaId], favorite: v.favorite } }),
+    onSuccess: () => {
+      for (const k of ['library', 'video', 'performer']) void qc.invalidateQueries({ queryKey: [k] })
+    },
+  })
+}
+
+export interface MarkerRow { position: number; title: string; note?: string }
+/** Scene markers (chapters) of one library row. */
+export const useMarkers = (mediaId: number | undefined) =>
+  useQuery({
+    queryKey: ['markers', mediaId] as const,
+    enabled: !!mediaId,
+    queryFn: async () => {
+      const r = await api<MarkerRow[] | { markers?: MarkerRow[] }>(`/api/media/${mediaId}/markers`)
+      return Array.isArray(r) ? r : (r.markers ?? [])
+    },
+    staleTime: 60_000,
+    retry: false,
+  })
+
+export interface PreviewManifest { ready: boolean; frames_ready?: boolean; frame_times: number[] }
+/** The 36 sampled frame times, and whether their JPEGs are cached (only then can the timeline show previews). */
+export const usePreviewManifest = (cid: string, mid: number) =>
+  useQuery({
+    queryKey: ['preview-manifest', cid, mid] as const,
+    queryFn: () => api<PreviewManifest>(`/api/play/preview-manifest/${encodeURIComponent(cid)}/${mid}`),
+    staleTime: 60_000,
+    retry: false,
   })

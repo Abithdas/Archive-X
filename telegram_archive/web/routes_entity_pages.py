@@ -163,6 +163,7 @@ def register_entity_page_routes(
             d["studios"]=[x for x in (d.get("studios") or "").split(",") if x]
             d["studio"]=d["studios"][0] if d["studios"] else ""
             d["tags"]=[x for x in (d.get("tags") or "").split(",") if x]
+            d["media_id"]=d.get("id")   # SQLite row id, needed for favourites and other row-level actions
             d["_cid"]=d.get("source_channel")
             d["id"]=d.get("source_message_id")
             d["name"]=d.get("filename") or d.get("title") or f"video {d['id']}"
@@ -795,6 +796,7 @@ def register_entity_page_routes(
             d["studios"]=[x for x in (d.get("studios") or "").split(",") if x]
             d["studio"]=d["studios"][0] if d["studios"] else ""
             d["tags"]=[x for x in (d.get("tags") or "").split(",") if x]
+            d["media_id"]=d.get("id")   # SQLite row id, needed for favourites and other row-level actions
             d["_cid"]=d.get("source_channel")
             d["id"]=d.get("source_message_id")
             d["name"]=d.get("title") or d.get("filename") or f"video {d['id']}"
