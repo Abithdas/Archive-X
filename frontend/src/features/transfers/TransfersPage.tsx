@@ -11,6 +11,7 @@ import { Segmented } from '@/design/Segmented'
 import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
 import { CARD, Check, Stepper, detail } from './parts'
+import { AutomationWorkflow } from './AutomationWorkflow'
 import { TransferWorkflow } from './TransferWorkflow'
 import { activeLaneCount, jobPath, laneChips, toLanes, type Lane } from './lanes'
 import { DEFAULT_OPTIONS, pendingBody, prerequisitePlan, processBody, selectedStages, stageLabels, expandStages, type Preflight, type RunOptions, type Stage } from './metadata'
@@ -249,16 +250,6 @@ function MetadataWorkflow() {
   )
 }
 
-function ClassicCard({ icon, title, text, tag }: { icon: string; title: string; text: string; tag?: string }) {
-  return (
-    <section aria-label={title} className={CARD}>
-      <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent"><Icon name={icon} /></span>
-        <div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><h2 className="text-lg font-extrabold">{title}</h2>{tag ? <span className="rounded-full bg-surface-3 px-3 py-1 text-xs text-muted">{tag}</span> : null}</div><p className="mt-1 text-sm text-muted">{text}</p>
-          <a href="/#transfers" className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5">Open in classic interface<Icon name="external" className="size-4" /></a></div></div>
-    </section>
-  )
-}
-
 type Tab = 'transfer' | 'metadata' | 'automation'
 export function TransfersPage() {
   const [tab, setTab] = useState<Tab>('transfer')
@@ -274,7 +265,7 @@ export function TransfersPage() {
         <div className={show('transfer')}><TransferWorkflow /></div>
         <div className={show('metadata')}><MetadataWorkflow /></div>
       </div>
-      <div className={cn('mt-4', show('automation'))}><ClassicCard icon="automation" title="Content Automation" tag="Classic" text="RSS → qBittorrent → validate → identify local media → reuse/build individual snapshots → Telegram." /></div>
+      <div className={cn('mt-4', show('automation'))}><AutomationWorkflow /></div>
     </section>
   )
 }

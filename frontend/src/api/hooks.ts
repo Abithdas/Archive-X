@@ -138,3 +138,7 @@ export interface LanesPayload { governor?: Record<string, unknown>; resources?: 
 /** Live transfer lanes (governor slots, resources, lane jobs); polled while the Transfers page is open. */
 export const useLanes = () =>
   useQuery({ queryKey: ['lanes'] as const, queryFn: () => api<LanesPayload>('/api/telegram-transfer/lanes'), refetchInterval: 2_500, staleTime: 2_000, retry: false })
+
+/** Saved Content Automation settings (secrets are never returned, only whether they are saved). */
+export const useAutomationConfig = () =>
+  useQuery({ queryKey: ['automation-config'] as const, queryFn: () => api<Record<string, unknown>>('/api/operations/automation/config'), staleTime: 30_000, retry: false })
