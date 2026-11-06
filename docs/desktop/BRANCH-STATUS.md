@@ -1,5 +1,6 @@
 # Branch `archive-x-desktop-app`: what is done and what is not
 
+> Update: the React UI now uses the classic UI's exact tokens (dark and light), the Outfit font and icon sprite served by the backend, the grouped sidebar with storage card, the top bar (search, Ctrl K, Telegram pill, theme, avatar), round channel chips and the classic video and performer cards. Checked side by side against the classic app.
 > Update: React Performers and Studios directory pages and the performer profile page are done (search, gender filter, paging, skeletons, 38 unit tests, checked against the real backend). Studio detail page, performer editing, merge mode and the other sections are still to do.
 
 Executes the first parts of `Archive-X-MIGRATION-PLAN.md` as a separate line of work from `main`.

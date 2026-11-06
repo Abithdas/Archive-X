@@ -2,34 +2,57 @@
 
 /* Design tokens. Tailwind v4 turns every --color-* into utilities (bg-surface, text-muted, ...).
    Values mirror the legacy "Nord" preset so both UIs look like one product during the migration. */
+/* Outfit is served by the backend at /static/fonts (same files as the classic UI), so both UIs share one look. */
+@font-face { font-family: "Outfit"; src: url("/static/fonts/outfit-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Outfit"; src: url("/static/fonts/outfit-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Outfit"; src: url("/static/fonts/outfit-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Outfit"; src: url("/static/fonts/outfit-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Outfit"; src: url("/static/fonts/outfit-800.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+
+/* Design tokens: the exact values of the classic UI's default (dark) and light themes (--ax2-*), so a page that has
+   been migrated cannot be told apart from one that has not. Tailwind v4 turns each --color-* into utilities. */
 @theme {
   --color-bg: #232833;
-  --color-surface: #2d3341;
-  --color-surface-2: #343b4b;
-  --color-line: #3d4558;
-  --color-fg: #e8ecf4;
-  --color-muted: #9aa6bd;
-  --color-accent: #4f8cff;
-  --color-accent-fg: #ffffff;
-  --color-good: #4ade80;
-  --color-warn: #fbbf24;
-  --color-bad: #ff7b7b;
+  --color-surface: #2b313d;
+  --color-surface-2: #353c4a;
+  --color-surface-3: #414a5b;
+  --color-line: rgb(255 255 255 / 0.07);
+  --color-line-2: rgb(255 255 255 / 0.12);
+  --color-fg: #eceff4;
+  --color-muted: #9aa4b6;
+  --color-faint: #717c90;
+  --color-accent: #5fd3e0;
+  --color-accent-fg: #062a2e;
+  --color-good: #2dba6e;
+  --color-warn: #e8a838;
+  --color-bad: #e25555;
   --font-sans: "Outfit", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --radius-card: 14px;
-  --ease-out-soft: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --radius-card: 16px;
+  --radius-panel: 18px;
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-sk-sweep: sk-sweep 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   @keyframes sk-sweep { to { transform: translate3d(100%, 0, 0); } }
 }
 
 [data-theme="light"] {
-  --color-bg: #f4f6fa;
+  --color-bg: #eceff4;
   --color-surface: #ffffff;
-  --color-surface-2: #eef0f4;
-  --color-line: #d6dbe6;
-  --color-fg: #1b2230;
-  --color-muted: #5b6577;
-  --color-accent: #2f6fe0;
+  --color-surface-2: #e5e9f0;
+  --color-surface-3: #d8dee9;
+  --color-line: rgb(46 52 64 / 0.07);
+  --color-line-2: rgb(46 52 64 / 0.12);
+  --color-fg: #2e3440;
+  --color-muted: #4c566a;
+  --color-faint: #7b8797;
+  --color-accent: #527ba5;
+  --color-accent-fg: #ffffff;
+  --color-good: #207a4a;
+  --color-warn: #8a5a00;
+  --color-bad: #a83333;
 }
+
+/* Icons come from the backend's sprite (/static/icons/ax-icons.svg), the same glyphs as the classic UI. */
+@layer components { .ax-icon { width: 20px; height: 20px; fill: currentColor; flex: none; } }
 
 html, body, #root { height: 100%; }
 body {

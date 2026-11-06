@@ -2,21 +2,24 @@ import { useEffect, useMemo, useState } from 'react'
 import { useEntities } from '@/api/hooks'
 import type { EntityKind } from '@/api/types'
 import { Button } from '@/design/Button'
+import { PageHead } from '@/design/PageHead'
+import { Segmented } from '@/design/Segmented'
+import { useSearch } from '@/app/search'
 import { SkeletonGroup } from '@/design/Skeleton'
 import { EntityCard, EntityCardSkeleton } from './EntityCard'
 import { filterEntities, pageCount, type GenderFilter } from './filter'
 
 const PER = 48
-const GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8'
+const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-[18px] sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]'
 const COPY = {
-  performers: { eyebrow: 'Library', title: 'Performers', blurb: 'Everyone in your archive', empty: 'No performers yet.' },
+  performers: { eyebrow: 'Library', title: 'Performers', blurb: 'Everyone linked to your videos', empty: 'No performers yet.' },
   studios: { eyebrow: 'Library', title: 'Studios', blurb: 'Studios and sites in your archive', empty: 'No studios yet.' },
 } as const
 
 export function EntityDirectory({ kind }: { kind: EntityKind }) {
   const copy = COPY[kind]
   const entities = useEntities(kind)
-  const [query, setQuery] = useState('')
+  const query = useSearch((s) => s.q)
   const [gender, setGender] = useState<GenderFilter>('all')
   const [page, setPage] = useState(1)
   const rows = useMemo(() => filterEntities(entities.data ?? [], query, kind === 'performers' ? gender : 'all'), [entities.data, query, gender, kind])
@@ -26,30 +29,16 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
   const visible = rows.slice((current - 1) * PER, current * PER)
 
   return (
-    <section className="mx-auto w-full max-w-[1800px] p-4 sm:p-6">
-      <header className="mb-4">
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">{copy.eyebrow}</p>
-        <h1 className="text-3xl font-extrabold tracking-tight">{copy.title}</h1>
-        <p className="text-sm text-muted">{copy.blurb}</p>
-      </header>
-
-      <div className="sticky top-0 z-10 -mx-4 mb-4 flex flex-wrap items-center gap-2 bg-bg/90 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={`Search ${copy.title.toLowerCase()}`}
-          aria-label={`Search ${copy.title.toLowerCase()}`}
-          className="h-10 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 text-sm sm:max-w-sm"
-        />
+    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+      <PageHead title={copy.title} blurb={copy.blurb} />
+      <div className="mb-5 flex flex-wrap items-center gap-2.5">
         {kind === 'performers' ? (
-          <div role="group" aria-label="Gender" className="flex gap-1">
-            {(['all', 'female', 'male'] as const).map((g) => (
-              <Button key={g} variant={gender === g ? 'primary' : 'outline'} aria-pressed={gender === g} onClick={() => setGender(g)}>
-                {g === 'all' ? 'All' : g === 'female' ? 'Female' : 'Male'}
-              </Button>
-            ))}
-          </div>
+          <Segmented
+            label="Gender"
+            value={gender}
+            onChange={setGender}
+            options={[{ value: 'all', label: 'All' }, { value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }]}
+          />
         ) : null}
         {entities.data ? <span className="ml-auto text-sm text-muted">{rows.length} {copy.title.toLowerCase()}</span> : null}
       </div>

@@ -16,7 +16,7 @@ export function PerformerPage({ id }: { id: number }) {
 
   if (q.isPending)
     return (
-      <section className="mx-auto w-full max-w-[1800px] p-4 sm:p-6">
+      <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
         <SkeletonGroup label="Loading performer" className="grid gap-6">
           <div className="flex gap-5 text-sm leading-snug">
             <Skeleton className="aspect-[3/4] w-32 rounded-card sm:w-44" />
@@ -45,7 +45,7 @@ export function PerformerPage({ id }: { id: number }) {
   const bio = (p.bio ?? '').trim()
   const long = bio.length > BIO_LIMIT
   return (
-    <section className="mx-auto w-full max-w-[1800px] p-4 sm:p-6">
+    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <nav aria-label="Breadcrumb" className="mb-4 text-sm text-muted">
         <Link to="/performers" className="font-semibold text-accent hover:underline">Performers</Link> <span aria-hidden="true">/</span> {p.name}
       </nav>

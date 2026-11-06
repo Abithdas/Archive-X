@@ -19,9 +19,9 @@ describe('VideoCard', () => {
     expect(screen.getByText('1:02:05')).toBeInTheDocument()
     expect(screen.getByText('1080p')).toBeInTheDocument()
   })
-  it('limits tags to three plus a count', () => {
+  it('limits tags to two plus a count', () => {
     render(<VideoCard item={item()} />)
-    expect(screen.getByText('+2')).toBeInTheDocument()
+    expect(screen.getByText('+3')).toBeInTheDocument()
     expect(screen.queryByText('e')).not.toBeInTheDocument()
   })
   it('falls back for missing performers and clamps long titles to two lines', () => {

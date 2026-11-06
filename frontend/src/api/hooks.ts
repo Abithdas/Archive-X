@@ -38,3 +38,14 @@ export const usePerformer = (id: number) =>
     }),
     staleTime: 15_000,
   })
+
+export interface StorageSummary {
+  files: number
+  bytes: number
+  disk?: { total: number; free: number; used: number }
+}
+export const useStorage = () =>
+  useQuery({ queryKey: ['storage'] as const, queryFn: () => api<StorageSummary>('/api/settings/storage'), staleTime: 60_000, retry: false })
+
+export const useProfile = () =>
+  useQuery({ queryKey: ['profile'] as const, queryFn: () => api<{ name: string; username: string }>('/api/account/profile'), staleTime: 300_000, retry: false })

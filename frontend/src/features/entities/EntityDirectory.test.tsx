@@ -1,6 +1,7 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { act, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Entity } from '@/api/types'
+import { useSearch } from '@/app/search'
 import { withRouter } from '@/test/withRouter'
 import { EntityDirectory } from './EntityDirectory'
 import { filterEntities, pageCount } from './filter'
@@ -17,7 +18,7 @@ describe('filterEntities', () => {
 
 const mount = (kind: 'performers' | 'studios') => withRouter(<EntityDirectory kind={kind} />)
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); useSearch.getState().set('') })
 
 describe('EntityDirectory', () => {
   it('shows a skeleton, then the cards, and filters by search', async () => {
@@ -25,7 +26,7 @@ describe('EntityDirectory', () => {
     mount('performers')
     expect(await screen.findByRole('status')).toBeInTheDocument()
     expect(await screen.findByRole('article', { name: 'Ava Stone' })).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Search performers'), { target: { value: 'adam' } })
+    act(() => useSearch.getState().set('adam'))
     expect(screen.queryByRole('article', { name: 'Ava Stone' })).not.toBeInTheDocument()
     expect(screen.getByRole('article', { name: 'Adam Reed' })).toBeInTheDocument()
   })
