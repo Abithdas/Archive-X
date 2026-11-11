@@ -10,6 +10,7 @@ import { PageHead } from '@/design/PageHead'
 import { Segmented } from '@/design/Segmented'
 import { Skeleton, SkeletonGroup } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
+import { JobControls } from './JobControls'
 import { attention, diagnosticTiles, filterJobs, filterLog, healthTiles, jobCounts, laneRows, policyLine, resourceCards, telemetryTiles, type JobFilter, type LogLevel, type Tile, type Tone } from './ops'
 
 type Obj = Record<string, unknown>
@@ -62,6 +63,7 @@ function JobRow({ j }: { j: Obj }) {
         <span className={cn('block h-full rounded-full bg-accent', !total && 'w-1/3 animate-pulse')} style={total ? { width: `${pct}%` } : undefined} />
       </div>
       <p className="mt-1 text-[11px] text-faint">{total ? `${pct}% · ${done.toLocaleString()} / ${total.toLocaleString()}` : 'progress not yet measurable'}</p>
+      <JobControls j={j} />
     </li>
   )
 }
