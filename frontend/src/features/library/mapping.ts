@@ -6,11 +6,12 @@ export interface PickedStudio { name: string; id: number | null }
 
 export const NO_STUDIOS_HINT = 'Type a studio name to search.'
 
-/** Search hits, plus a "create new" row unless the typed name already matches one exactly (case-insensitive). */
-export function studioChoices(hits: readonly StudioHit[], query: string): StudioChoice[] {
+/** Search hits (the single-video dialog waits for text; bulk pickers list at once), plus a "create new" row unless the typed name already matches one exactly (case-insensitive). */
+export function studioChoices(hits: readonly StudioHit[], query: string, opts: { listWhenEmpty?: boolean } = {}): StudioChoice[] {
   const q = query.trim()
-  if (!q) return []
+  if (!q && !opts.listWhenEmpty) return []
   const out: StudioChoice[] = hits.map((h) => ({ name: h.name, id: h.id, count: h.video_count ?? 0, create: false, image: h.image ?? null }))
+  if (!q) return out   // the bulk pickers list studios before anything is typed; "create" only makes sense once there is a name
   if (!hits.some((h) => String(h.name ?? '').toLowerCase() === q.toLowerCase())) out.push({ name: q, id: null, count: 0, create: true })
   return out
 }

@@ -6,6 +6,10 @@ describe('studio search choices', () => {
   it('is empty until something is typed', () => {
     expect(studioChoices(hits, '  ')).toEqual([])
   })
+  it('can list studios before anything is typed (bulk pickers), without a create row', () => {
+    expect(studioChoices(hits, '', { listWhenEmpty: true }).map((c) => [c.name, c.create])).toEqual([['Northlight', false], ['North Star', false]])
+    expect(studioChoices(hits, '  ', { listWhenEmpty: true }).some((c) => c.create)).toBe(false)
+  })
   it('adds a create row unless the name matches exactly, ignoring case', () => {
     expect(studioChoices(hits, 'north').map((c) => c.create)).toEqual([false, false, true])
     expect(studioChoices(hits, 'NORTHLIGHT').some((c) => c.create)).toBe(false)

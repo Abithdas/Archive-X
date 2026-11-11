@@ -6,7 +6,9 @@ import type { LibraryItem } from '@/api/types'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
+import { BulkMapDialog } from './BulkMapDialog'
 import { BulkSend } from './BulkSend'
+import type { MapMode } from './bulkmap'
 import { NONE_PICKED, UNLOCKED, bulkBody, countLabel, recheckMessage, titleProblem, unknownConfirm, unknownOk, unlockBody, updatedMessage, type BulkField } from './bulk'
 import { pickedList, useSelection } from './selection'
 
@@ -47,7 +49,10 @@ export function SelectionBar({ visible }: { visible: readonly LibraryItem[] }) {
   const [titleMsg, setTitleMsg] = useState('')
   const [busy, setBusy] = useState(false)
   const [sending, setSending] = useState(false)
+  const [mapMode, setMapMode] = useState<MapMode | null>(null)
 
+  const first = visible.find((v) => list.some((p) => p.channel_id === v._cid && p.message_id === v.id))
+  const prefill = { performer: first?.performers[0], studio: first?.studio || undefined }
   const refresh = () => { void qc.invalidateQueries({ queryKey: ['library'] }); void qc.invalidateQueries({ queryKey: ['entities'] }); void qc.invalidateQueries({ queryKey: ['channels'] }) }
   const need = (fn: () => void) => () => (list.length ? fn() : void toast(NONE_PICKED))
   const detail = (e: unknown, fallback: string) => (e instanceof ApiError ? e.detail || fallback : fallback)
@@ -89,12 +94,16 @@ export function SelectionBar({ visible }: { visible: readonly LibraryItem[] }) {
         <div className="order-2 flex w-full min-w-0 items-center gap-2 overflow-x-auto md:order-1 md:w-auto md:overflow-visible">
           <span className="hidden text-[11px] text-muted lg:inline">Pick videos, then choose what to change</span>
           <BarMenu label="Performer / Studio" disabled={busy}>{(close) => (<>
+            <button type="button" role="menuitem" className={ITEM} onClick={() => { close(); need(() => setMapMode('performer'))() }}>Set Performer</button>
+            <button type="button" role="menuitem" className={ITEM} onClick={() => { close(); need(() => setMapMode('site'))() }}>Set Studio</button>
+            <button type="button" role="menuitem" className={ITEM} onClick={() => { close(); need(() => setMapMode('both'))() }}>Set Performer + Studio</button>
             <button type="button" role="menuitem" className={ITEM} onClick={() => { close(); need(() => setAsk({ kind: 'unknown', field: 'performer' }))() }}>Clear Performer</button>
             <button type="button" role="menuitem" className={ITEM} onClick={() => { close(); need(() => setAsk({ kind: 'unknown', field: 'site' }))() }}>Clear Studio</button>
           </>)}</BarMenu>
           <BarMenu label="Metadata" disabled={busy}>{(close) => (<>
             <button type="button" role="menuitem" className={ITEM} onClick={() => { close(); need(() => void recheck())() }}><Icon name="refresh" className="size-4 text-muted" />Recheck Metadata</button>
             <button type="button" role="menuitem" className={ITEM} onClick={() => { close(); need(() => { setTitleMsg(''); setAsk({ kind: 'title' }) })() }}>Edit Title</button>
+            <button type="button" role="menuitem" className={ITEM} onClick={() => { close(); need(() => setMapMode('all'))() }}>Apply All Metadata</button>
           </>)}</BarMenu>
           <BarMenu label="More" disabled={busy}>{(close) => (<>
             <button type="button" role="menuitem" className={cn(ITEM, 'text-bad')} onClick={() => { close(); need(() => setAsk({ kind: 'unknown', field: 'all' }))() }}>Move All to Unknown</button>
@@ -128,6 +137,7 @@ export function SelectionBar({ visible }: { visible: readonly LibraryItem[] }) {
           </div>
         </Dialog>
       ) : null}
+      {mapMode ? <BulkMapDialog mode={mapMode} picked={list} prefill={prefill} onDone={(applied) => { setMapMode(null); if (applied) clear() }} /> : null}
       {sending ? <BulkSend picked={list} onDone={() => setSending(false)} /> : null}
     </>
   )
