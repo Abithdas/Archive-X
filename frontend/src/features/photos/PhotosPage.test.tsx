@@ -25,6 +25,7 @@ const mount = (over: (u: string, i?: RequestInit) => Response | undefined = () =
     const o = over(url, init); if (o) return o
     if (url === '/api/source-channels') return json(CH)
     if (url === '/api/photos/channels') return json(PH)
+    if (url.startsWith('/api/photos/faces/groups')) return json({ ok: true, groups: [], analysis: { total_photos: 0 } })
     if (url.startsWith('/api/photos?')) return json({ ok: true, items, total: items.length, page: 0, per: 48 })
     if (url.endsWith('/delete')) return json({ ok: true })
     return json({})
@@ -51,7 +52,7 @@ describe('PhotosPage', () => {
     await pickMain()
     expect(await screen.findByRole('article', { name: 'IMG_1.jpg' })).toBeInTheDocument()
     expect(photoCalls(calls)[0]!.url).toBe('/api/photos?page=0&per=48&channels=-1001&q=&sort=date_desc')
-    expect(screen.getByText('3 images')).toBeInTheDocument()
+    expect(screen.getByText('3 images · 1 channel')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Sort photos'), { target: { value: 'size_desc' } })
     await waitFor(() => expect(photoCalls(calls).at(-1)!.url).toContain('sort=size_desc'))
     fireEvent.click(screen.getByRole('button', { name: /^All/ }))

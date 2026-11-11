@@ -11,6 +11,8 @@ import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
 import { ChannelChip } from '@/features/library/ChannelChip'
 import { useDebounced } from '@/features/library/useDebounced'
+import { FaceGroups, useFaceGroups } from './FaceGroups'
+import { DIFFERENT_NEEDS_GROUP, differentBody, differentCopy, filterLabel } from './faces'
 import { PhotoCard } from './PhotoCard'
 import { PhotoViewer } from './PhotoViewer'
 import { EMPTY_INDEX, LOAD_FAILED, NO_CHANNELS_SAVED, NO_SCANNED, SELECT_PROMPT, SORTS, allSelected, channelAvatar, channelSummary, channelTitle, deleteBody, deleteCopy, deleteDone, deletePath, deleteStatus, emptyText, initials, photoName, photosUrl, pruneSelection, scanTitle, selectedLabel, sortLabel, summaryText, toggleAll, toggleId, type Photo, type PhotoChannel, type PhotoPage, type PhotoSort } from './photos'
@@ -26,7 +28,7 @@ function Avatar({ channel }: { channel: PhotoChannel }) {
 }
 
 export function PhotosPage() {
-  const { selected, sort, favoritesOnly, favorites, setSelected, setSort, setFavoritesOnly, toggleFavorite } = usePhotoStore()
+  const { selected, sort, favoritesOnly, favorites, tab, face, setTab, setFace, setSelected, setSort, setFavoritesOnly, toggleFavorite } = usePhotoStore()
   const search = useDebounced(useSearch((s) => s.q).trim(), 300)
   const channels = usePhotoChannels()
   const qc = useQueryClient()
@@ -36,17 +38,19 @@ export function PhotosPage() {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const sentinel = useRef<HTMLDivElement>(null)
+  const faces = useFaceGroups(selected, true)
+  const [different, setDifferent] = useState<Photo | null>(null)
 
   // A channel that is no longer scanned cannot stay selected.
   useEffect(() => { if (channels.data) { const keep = pruneSelection(selected, list); if (keep.length !== selected.length) setSelected(keep) } }, [channels.data]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const favIds = useMemo(() => favorites, [favorites])
   const q = useInfiniteQuery({
-    queryKey: ['photos', selected, search, sort, favoritesOnly, favoritesOnly ? [...favIds].sort() : null] as const,
-    enabled: selected.length > 0,
+    queryKey: ['photos', selected, search, sort, favoritesOnly, favoritesOnly ? [...favIds].sort() : null, face] as const,
+    enabled: selected.length > 0 && tab === 'library',
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
-      const r = await api<PhotoPage>(photosUrl({ channels: selected, q: search, sort, favorites: favoritesOnly, favoriteIds: favIds, page: pageParam }))
+      const r = await api<PhotoPage>(photosUrl({ channels: selected, q: search, sort, favorites: favoritesOnly, favoriteIds: favIds, page: pageParam, face }))
       if (!r || r.ok !== true) throw new ApiError(0, r?.detail || LOAD_FAILED)
       return r
     },
@@ -78,6 +82,21 @@ export function PhotosPage() {
     } catch (e) { const m = reason(e, 'Photo deletion failed. The library entry was retained.'); setAsk(null); setNote(m); toast.error(m) } finally { setBusy(false) }
   }
 
+  const separate = async () => {
+    const p = different
+    if (!p || !face) return
+    const body = differentBody(p.id, face, faces.data?.groups ?? [])
+    setDifferent(null)
+    if (!body) return void setNote(DIFFERENT_NEEDS_GROUP)
+    setBusy(true); setNote(`Separating ${photoName(p)} from the current face group…`)
+    try {
+      const r = await api<{ ok?: boolean; detail?: string; message?: string }>('/api/photos/faces/different-person', { method: 'POST', json: body })
+      if (!r || r.ok !== true) throw new ApiError(0, r?.detail || 'Could not separate this photo from the face group.')
+      const m = r.message || 'Moved the face detection(s) into new unassigned group(s).'
+      setNote(m); toast(m)
+      await Promise.all([qc.invalidateQueries({ queryKey: ['photos'] }), qc.invalidateQueries({ queryKey: ['face-groups'] })])
+    } catch (e) { const m = reason(e, 'Could not separate this photo from the face group.'); setNote(m); toast.error(m) } finally { setBusy(false) }
+  }
   const refresh = async () => { await Promise.all([qc.invalidateQueries({ queryKey: ['photo-channels'] }), qc.invalidateQueries({ queryKey: ['photos'] })]); toast('Photo library refreshed') }
   const empty = emptyText(search, favoritesOnly)
   const status = channels.isError ? reason(channels.error, 'Photo scan status is unavailable.')
@@ -114,7 +133,19 @@ export function PhotosPage() {
         </div>
       </section>
 
-      <div className="mb-3 flex items-baseline gap-3"><h2 className="text-lg font-bold">Photos</h2><span className="text-xs text-muted">{summaryText(total)}</span></div>
+      <div role="tablist" aria-label="Photo library sections" className="mb-4 flex gap-1.5 border-b border-line">
+        {([['library', 'Photo Library', total], ['faces', 'Image Analysis', faces.data?.groups?.length ?? 0]] as const).map(([v, label, n]) => (
+          <button key={v} type="button" role="tab" id={`photos-tab-${v}`} aria-selected={tab === v} tabIndex={tab === v ? 0 : -1} onClick={() => setTab(v)}
+            onKeyDown={(e) => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Home' || e.key === 'End') { e.preventDefault(); const next = e.key === 'Home' ? 'library' : e.key === 'End' ? 'faces' : v === 'library' ? 'faces' : 'library'; setTab(next); document.getElementById(`photos-tab-${next}`)?.focus() } }}
+            className={cn('-mb-px h-11 border-b-2 px-4 text-sm font-bold', tab === v ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg')}>
+            {label} <span className="ml-1 text-xs font-semibold text-faint">{Number(n).toLocaleString()}</span>
+          </button>
+        ))}
+      </div>
+      {tab === 'faces' ? <FaceGroups onView={() => undefined} /> : null}
+      {tab === 'library' ? <>
+      <div className="mb-3 flex flex-wrap items-center gap-3"><h2 className="text-lg font-bold">Photos</h2><span className="text-xs text-muted">{summaryText(total)}{selected.length ? ` · ${selected.length.toLocaleString()} channel${selected.length === 1 ? '' : 's'}` : ''}</span>
+        {face ? <span className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">{filterLabel(face)}<button type="button" onClick={() => setFace(null)} className="rounded-full border border-accent/40 px-2 py-0.5 hover:bg-accent/10">Clear group filter</button></span> : null}</div>
       {!selected.length ? null : q.isPending ? (
         <div role="status" aria-label="Loading photos" className="columns-2 gap-2 sm:columns-3 sm:gap-3 lg:columns-4 xl:columns-6">{[236, 318, 188, 272, 214, 344, 198, 286].map((h, i) => <Skeleton key={i} style={{ height: h }} className="mb-2 break-inside-avoid rounded-xl sm:mb-3" />)}</div>
       ) : q.isError ? (
@@ -123,13 +154,15 @@ export function PhotosPage() {
         <div className="rounded-card border border-dashed border-line py-12 text-center"><p className="font-semibold">{empty.title}</p><p className="mt-1 text-sm text-muted">{empty.body}</p></div>
       ) : (
         <div className="columns-2 gap-2 sm:columns-3 sm:gap-3 lg:columns-4 xl:columns-6" aria-label="Photos in selected channels">
-          {items.map((p, i) => <PhotoCard key={`${p.channel_id}:${p.message_id}`} photo={p} favorite={favorites.has(String(p.id))} onOpen={() => setViewer(i)} onRemove={(remote) => setAsk({ photo: p, remote })} />)}
+          {items.map((p, i) => <PhotoCard key={`${p.channel_id}:${p.message_id}`} photo={p} favorite={favorites.has(String(p.id))} onOpen={() => setViewer(i)} onRemove={(remote) => setAsk({ photo: p, remote })} onDifferent={face ? () => setDifferent(p) : undefined} />)}
         </div>
       )}
       <div ref={sentinel} aria-hidden="true" className="h-8" hidden={!hasNextPage}>{isFetchingNextPage ? <span className="mx-auto block size-5 animate-spin rounded-full border-2 border-line border-t-accent" /> : null}</div>
       {hasNextPage ? <div className="text-center"><button type="button" onClick={more} disabled={isFetchingNextPage} className="h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold">Load more</button></div> : null}
 
+      </> : null}
       {viewer !== null && items[viewer] ? <PhotoViewer items={items} index={viewer} total={total} favorites={favorites} onIndex={setViewer} onClose={() => setViewer(null)} onFavorite={toggleFavorite} onNeedMore={more} /> : null}
+      {different ? <Confirm title="Different person?" text={differentCopy} ok="Separate photo" danger busy={busy} onCancel={() => setDifferent(null)} onOk={() => void separate()} /> : null}
       {ask ? (() => { const c = deleteCopy(ask.remote, photoName(ask.photo), ask.photo.channel_title || 'this channel'); return <Confirm title={c.title} text={c.text} ok={c.ok} danger busy={busy} onCancel={() => setAsk(null)} onOk={() => void remove()} /> })() : null}
     </section>
   )
