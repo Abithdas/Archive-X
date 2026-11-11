@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { queryKeys } from '@/api/hooks'
@@ -13,15 +13,14 @@ const BTN = 'inline-flex h-8 items-center gap-1.5 rounded-lg border border-line-
 const reason = (e: unknown, fallback: string) => (e instanceof ApiError && e.detail ? e.detail : fallback)
 const inFlight = new Set<string>()   // one control request per job at a time
 
-/** Pause / resume / recover, stop and refresh for one job, or just "Stop playback" for a playback session. */
-export function JobControls({ j }: { j: Obj }) {
+/** The behaviour behind the job buttons: pause / resume / recover, stop (with its pre-check and confirmation), refresh and stop playback. `onFinished` runs after an action that was actually carried out. */
+export function useJobActions(j: Obj, onFinished?: () => void) {
   const qc = useQueryClient()
   const [ask, setAsk] = useState<null | { kind: 'stop'; st: string } | { kind: 'playback' }>(null)
   const [busy, setBusy] = useState(false)
   const c = controlsFor(j)
   const id = idOf(j)
   const refetch = () => Promise.all([qc.invalidateQueries({ queryKey: queryKeys.status }), qc.invalidateQueries({ queryKey: ['lanes'] })])
-  if (!c) return null
 
   /** Runs one request for this job, never two at once, and refreshes the page data afterwards. */
   const run = async (fn: () => Promise<void>) => {
@@ -36,6 +35,7 @@ export function JobControls({ j }: { j: Obj }) {
       const r = await post(primaryPath(p))
       if (r?.ok === false) return void toast(r.detail || errorFor(p))
       toast(doneMessage(p, r ?? {}))
+      onFinished?.()
     } catch (e) { toast(reason(e, errorFor(p))) }
   })
   /** Stop first reads the job again: it may have finished since the list was drawn. */
@@ -52,6 +52,7 @@ export function JobControls({ j }: { j: Obj }) {
       const r = await post('/cancel')
       if (r?.ok === false) return void toast(r.detail || STOP_ERROR)
       toast(stopDone(r ?? {}))
+      onFinished?.()
     } catch (e) { toast(reason(e, STOP_ERROR)) }
   }) }
   const refresh = () => run(async () => {
@@ -61,14 +62,28 @@ export function JobControls({ j }: { j: Obj }) {
     try {
       const r = await api<{ stopping?: boolean; detail?: string }>('/api/play/stop', { method: 'POST' })
       toast(r?.detail ? r.detail : playbackDone(r ?? {}))
+      onFinished?.()
     } catch (e) { toast(reason(e, PLAYBACK_UNKNOWN)) }
   }) }
 
+  const dialogs: ReactNode = (
+    <>
+      {ask?.kind === 'stop' ? (() => { const s = stopConfirm(ask.st); return <Confirm title={s.title} text={s.text} ok={s.ok} danger onCancel={() => setAsk(null)} onOk={confirmedStop} /> })() : null}
+      {ask?.kind === 'playback' ? <Confirm title={playbackConfirm.title} text={playbackConfirm.text} ok={playbackConfirm.ok} danger onCancel={() => setAsk(null)} onOk={confirmedPlayback} /> : null}
+    </>
+  )
+  return { c, busy, primary, stop, refresh, askPlayback: () => setAsk({ kind: 'playback' }), refetch, dialogs }
+}
+
+/** Pause / resume / recover, stop and refresh for one job, or just "Stop playback" for a playback session. */
+export function JobControls({ j }: { j: Obj }) {
+  const { c, busy, primary, stop, refresh, askPlayback, refetch, dialogs } = useJobActions(j)
+  if (!c) return null
   return (
     <div className="mt-2.5 flex flex-wrap gap-1.5" role="group" aria-label={`Controls for ${String(j.name || j.type || 'job')}`}>
       {c.kind === 'playback' ? (
         <>
-          <button type="button" disabled={busy} onClick={() => setAsk({ kind: 'playback' })} className={cn(BTN, 'text-bad')}><Icon name="stop" className="size-3.5" />Stop playback</button>
+          <button type="button" disabled={busy} onClick={askPlayback} className={cn(BTN, 'text-bad')}><Icon name="stop" className="size-3.5" />Stop playback</button>
           <button type="button" disabled={busy} onClick={() => void refetch()} className={BTN}><Icon name="refresh" className="size-3.5" />Refresh</button>
         </>
       ) : (
@@ -78,8 +93,7 @@ export function JobControls({ j }: { j: Obj }) {
           <button type="button" disabled={busy} onClick={() => void refresh()} className={BTN}><Icon name="refresh" className="size-3.5" />Refresh</button>
         </>
       )}
-      {ask?.kind === 'stop' ? (() => { const s = stopConfirm(ask.st); return <Confirm title={s.title} text={s.text} ok={s.ok} danger onCancel={() => setAsk(null)} onOk={confirmedStop} /> })() : null}
-      {ask?.kind === 'playback' ? <Confirm title={playbackConfirm.title} text={playbackConfirm.text} ok={playbackConfirm.ok} danger onCancel={() => setAsk(null)} onOk={confirmedPlayback} /> : null}
+      {dialogs}
     </div>
   )
 }

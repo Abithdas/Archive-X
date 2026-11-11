@@ -11,6 +11,8 @@ import { Segmented } from '@/design/Segmented'
 import { Skeleton, SkeletonGroup } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
 import { JobControls } from './JobControls'
+import { JobDetails } from './JobDetails'
+import { idOf } from './jobs'
 import { attention, diagnosticTiles, filterJobs, filterLog, healthTiles, jobCounts, laneRows, policyLine, resourceCards, telemetryTiles, type JobFilter, type LogLevel, type Tile, type Tone } from './ops'
 
 type Obj = Record<string, unknown>
@@ -52,10 +54,13 @@ function JobRow({ j }: { j: Obj }) {
   const done = Number(j.completed) || 0
   const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0
   const st = String(j.status ?? '').toUpperCase()
+  const [open, setOpen] = useState(false)
+  const id = idOf(j)
+  const detailed = Boolean(id) && String(j.type ?? '') !== 'PLAYBACK'   // a playback session has no job record
   return (
-    <li className="rounded-xl bg-bg p-3.5">
+    <li onClick={(e) => { if (detailed && !(e.target as HTMLElement).closest('button,a,dialog,[role=group]')) setOpen(true) }} className={cn('rounded-xl bg-bg p-3.5', detailed && 'cursor-pointer hover:bg-fg/[0.03]')}>
       <div className="flex items-center justify-between gap-3">
-        <span className="min-w-0 truncate font-bold">{String(j.name || j.type || 'Task')}</span>
+        {detailed ? <button type="button" onClick={() => setOpen(true)} title="Open for pipeline, worker, timing and error details" aria-label={`Details for ${String(j.name || j.type || 'task')}`} className="min-w-0 truncate text-left font-bold hover:underline">{String(j.name || j.type || 'Task')}</button> : <span className="min-w-0 truncate font-bold">{String(j.name || j.type || 'Task')}</span>}
         <span className={cn('shrink-0 rounded-full bg-surface-3 px-2.5 py-0.5 text-[11px] font-bold', TONE[statusTone(st)])}>{st.replace(/_/g, ' ')}</span>
       </div>
       <p className="mt-0.5 truncate text-xs text-muted">{String(j.operation || '')}</p>
@@ -64,6 +69,7 @@ function JobRow({ j }: { j: Obj }) {
       </div>
       <p className="mt-1 text-[11px] text-faint">{total ? `${pct}% · ${done.toLocaleString()} / ${total.toLocaleString()}` : 'progress not yet measurable'}</p>
       <JobControls j={j} />
+      {open ? <JobDetails id={id} onClose={() => setOpen(false)} /> : null}
     </li>
   )
 }
