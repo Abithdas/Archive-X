@@ -17,6 +17,7 @@ async function readDetail(response: Response): Promise<string> {
   try {
     const body = (await response.clone().json()) as { detail?: unknown }
     if (typeof body.detail === 'string') return body.detail
+    return ''   // valid JSON with no readable detail (e.g. `{}`): say nothing rather than show raw JSON
   } catch {
     /* not JSON */
   }

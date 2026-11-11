@@ -15,6 +15,7 @@ import { experienceFrom } from '@/features/settings/logic'
 import { useExperienceSettings } from '@/features/settings/queries'
 import { gridReady, gridTimes } from './grid'
 import { MarkersSection } from './MarkersSection'
+import { QuickEditDialog } from './QuickEditDialog'
 import { Player } from './Player'
 import { useResume } from './useResume'
 import { frameIndexFor, normaliseChapters, toSegments } from './timeline'
@@ -76,6 +77,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const expQuery = useExperienceSettings()
   const exp = experienceFrom(expQuery.data)
   const [showTags, setShowTags] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [seekRequest, setSeekRequest] = useState<{ t: number; n: number } | undefined>()
   const item = video.data
   const items = queue.data?.items ?? []
@@ -131,6 +133,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
           <div className="aspect-video w-full rounded-[18px] border border-line bg-black" aria-hidden="true" />
         )}
         {resume.dialog}
+        {editing ? <QuickEditDialog key={`${item.id}:${item._cid}`} item={item} onDone={() => setEditing(false)} /> : null}
 
         <header className="min-w-0">
           <h1 className="text-[clamp(22px,2.4vw,30px)] font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere]">{item.name}</h1>
@@ -145,8 +148,10 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
         </header>
 
         <section className={CARD} aria-label="Performers and studio">
-          <h2 className="text-base font-bold">Performers &amp; Studio</h2>
-          <p className="mb-3 text-xs text-faint">People and studio linked to this video</p>
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div><h2 className="text-base font-bold">Performers &amp; Studio</h2><p className="text-xs text-faint">People and studio linked to this video</p></div>
+            <button type="button" onClick={() => setEditing(true)} title="Edit video title, performers and studio" aria-label="Edit video title, performers and studio" className="grid size-9 shrink-0 place-items-center rounded-xl border border-line-2 text-muted hover:bg-fg/5 hover:text-fg"><Icon name="edit" className="size-4" /></button>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <p className="mb-2 text-xs font-semibold text-faint">Performers</p>
