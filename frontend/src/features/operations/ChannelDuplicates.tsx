@@ -14,7 +14,7 @@ const BTN = 'inline-flex h-9 items-center gap-2 rounded-xl border border-line-2 
 const reason = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.detail : e instanceof Error && e.message ? e.message : fb)
 
 /** Four cached frames for one copy; they load only once the card scrolls into view. */
-function Frames({ cid, mid, title }: { cid: string; mid: number; title: string }) {
+export function Frames({ cid, mid, title }: { cid: string; mid: number; title: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const [seen, setSeen] = useState(typeof IntersectionObserver !== 'function')
   useEffect(() => {

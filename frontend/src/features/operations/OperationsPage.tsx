@@ -14,6 +14,7 @@ import { JobDetails } from './JobDetails'
 import { PerformerAudit } from './PerformerAudit'
 import { AutoMatchReview, useAutoMatches } from './AutoMatchReview'
 import { LibraryHealth } from './LibraryHealth'
+import { SceneMatchCard } from './SceneMatchCard'
 import { ChannelDuplicateCard } from './ChannelDuplicates'
 import { ResourceControls } from './ResourceControls'
 import { idOf } from './jobs'
@@ -252,7 +253,7 @@ export function OperationsPage() {
           </div>
           <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
             <h4 className="text-lg font-extrabold">Metadata &amp; scene matches</h4>
-            <MaintenanceLink title="Scene Match Review & Retry" text="Review missing metadata or recheck unmatched videos. Approving or rejecting candidates stays a separate action." label="Open review" />
+            <SceneMatchCard />
           </div>
         </div>
       </section>
