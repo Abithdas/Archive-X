@@ -72,6 +72,15 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
+/* Native drop-down lists: the open list is drawn by the browser, so give it the theme's own colours (it follows the
+   active theme and custom themes because everything reads the same variables). */
+@layer base {
+  select, option, optgroup { background-color: var(--color-surface); color: var(--color-fg); font-family: inherit; }
+  option:checked, option:hover { background-color: var(--color-accent); color: var(--color-accent-fg, #fff); }
+  option:disabled { color: var(--color-muted); }
+  select { accent-color: var(--color-accent); }
+}
+
 /* Large displays: keep layout around 1600-2100 CSS px so text stays in proportion (same scale as the legacy UI). */
 @media (min-width: 1800px) { html { zoom: 1.15; } }
 @media (min-width: 2200px) { html { zoom: 1.3; } }
