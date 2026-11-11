@@ -46,3 +46,16 @@ describe('ActiveFilters', () => {
     expect(screen.getByText(/Tag: pov/)).toBeInTheDocument()
   })
 })
+
+describe('Toolbar shuffle', () => {
+  it('has VLC and MPC-HC shuffle buttons that report the player', async () => {
+    const { Toolbar } = await import('./Toolbar')
+    const { withRouter } = await import('@/test/withRouter')
+    const { fireEvent, screen } = await import('@testing-library/react')
+    const seen: string[] = []
+    withRouter(<Toolbar onRefresh={() => {}} refreshing={false} onShuffle={(p) => seen.push(p)} shuffling={false} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Shuffle in VLC' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Shuffle in MPC-HC' }))
+    expect(seen).toEqual(['vlc', 'mpc'])
+  })
+})

@@ -4,6 +4,7 @@ import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { FiltersDrawer } from './FiltersDrawer'
 import { MoreActions } from './MoreActions'
+import type { Player } from './shuffle'
 import { useLibraryStore } from './store'
 
 export const SORTS: { value: SortKey; label: string }[] = [
@@ -17,10 +18,13 @@ export const SORTS: { value: SortKey; label: string }[] = [
   { value: 'tag_asc', label: 'Tag A–Z' },
 ]
 
-const PILL = 'inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-3.5 text-sm font-semibold transition-colors hover:bg-surface-2'
+const PILL_BASE = 'h-10 items-center gap-2 rounded-xl border border-line bg-surface px-3.5 text-sm font-semibold transition-colors hover:bg-surface-2'
+const PILL = `inline-flex ${PILL_BASE}`
+/** Shuffle pills: shown from tablet width up. They must not carry `inline-flex` themselves or it would beat `hidden`. */
+const SHUFFLE = `hidden bg-accent/15 text-accent hover:bg-accent/25 md:inline-flex ${PILL_BASE}`
 
 /** Filters, sort, refresh and the ⋯ menu: the classic Videos toolbar controls that are wired to the API so far. */
-export function Toolbar({ onRefresh, refreshing }: { onRefresh: () => void; refreshing: boolean }) {
+export function Toolbar({ onRefresh, refreshing, onShuffle, shuffling }: { onRefresh: () => void; refreshing: boolean; onShuffle: (player: Player) => void; shuffling: boolean }) {
   const sort = useLibraryStore((s) => s.sort)
   const setSort = useLibraryStore((s) => s.setSort)
   const filters = useLibraryStore((s) => s.filters)
@@ -47,11 +51,17 @@ export function Toolbar({ onRefresh, refreshing }: { onRefresh: () => void; refr
       <button type="button" className={cn(PILL, 'w-10 justify-center px-0')} onClick={onRefresh} aria-label="Refresh channel list" title="Refresh channel list from Telegram" disabled={refreshing}>
         <Icon name="refresh" className={cn(refreshing && 'animate-spin')} />
       </button>
+      <button type="button" className={SHUFFLE} onClick={() => onShuffle('vlc')} disabled={shuffling} aria-label="Shuffle in VLC" title="Shuffle the list in VLC">
+        <Icon name="brand-vlc" className="size-4" />VLC<Icon name="shuffle" className="size-4" />
+      </button>
+      <button type="button" className={SHUFFLE} onClick={() => onShuffle('mpc')} disabled={shuffling} aria-label="Shuffle in MPC-HC" title="Shuffle the list in MPC-HC">
+        MPC-HC<Icon name="shuffle" className="size-4" />
+      </button>
       <button type="button" className={cn(PILL, 'w-10 justify-center px-0')} onClick={() => setMoreOpen(true)} aria-haspopup="dialog" aria-label="More library actions" title="More actions">
         <span aria-hidden="true" className="text-base leading-none tracking-widest">•••</span>
       </button>
       <FiltersDrawer open={filtersOpen} onClose={() => setFiltersOpen(false)} />
-      <MoreActions open={moreOpen} onClose={() => setMoreOpen(false)} />
+      <MoreActions open={moreOpen} onClose={() => setMoreOpen(false)} onShuffle={onShuffle} />
     </div>
   )
 }

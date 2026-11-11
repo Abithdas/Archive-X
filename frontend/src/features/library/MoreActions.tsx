@@ -5,6 +5,7 @@ import { Icon } from '@/design/Icon'
 import { toast } from 'sonner'
 import { ENTER_HINT, PICK_CHANNEL_FIRST } from './bulk'
 import { useSelection } from './selection'
+import type { Player } from './shuffle'
 import { useLibraryStore } from './store'
 
 function Row({ icon, label, onClick, disabled }: { icon: string; label: string; onClick: () => void; disabled?: boolean }) {
@@ -17,7 +18,7 @@ function Row({ icon, label, onClick, disabled }: { icon: string; label: string; 
 }
 
 /** "More actions": the classic ⋯ menu entries that work without the bulk-edit mode. */
-export function MoreActions({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function MoreActions({ open, onClose, onShuffle }: { open: boolean; onClose: () => void; onShuffle: (player: Player) => void }) {
   const channels = useChannels()
   const qc = useQueryClient()
   const { selectAll, clear, channels: selected } = useLibraryStore()
@@ -37,6 +38,10 @@ export function MoreActions({ open, onClose }: { open: boolean; onClose: () => v
           if (!selected.length) { onClose(); return void toast(PICK_CHANNEL_FIRST) }
           sel.enter(); done(ENTER_HINT)
         }} />
+        <div className="grid gap-0.5 md:hidden">   {/* the toolbar has these as buttons from tablet width up */}
+          <Row icon="brand-vlc" label="Shuffle in VLC" onClick={() => { onClose(); onShuffle('vlc') }} />
+          <Row icon="shuffle" label="Shuffle in MPC-HC" onClick={() => { onClose(); onShuffle('mpc') }} />
+        </div>
         <Row icon="refresh" label="Reload selected" onClick={() => { void qc.invalidateQueries({ queryKey: ['library'] }); void qc.invalidateQueries({ queryKey: ['channels'] }); done('Reloading the library') }} />
       </div>
     </Dialog>

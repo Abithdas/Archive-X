@@ -14,7 +14,10 @@ import { useSearch } from '@/app/search'
 import { ActiveFilters } from './ActiveFilters'
 import { Pagination } from './Pagination'
 import { Toolbar } from './Toolbar'
+import { collectLibrary } from './collect'
 import { SelectionBar } from './SelectionBar'
+import { NO_LIBRARY_VIDEOS, collecting, type Player } from './shuffle'
+import { useShuffle } from './useShuffle'
 import { useSelection } from './selection'
 import { VideoCard, VideoCardSkeleton } from './VideoCard'
 import { useDebounced } from './useDebounced'
@@ -58,6 +61,15 @@ export function LibraryPage() {
       setRefreshing(false)
     }
   }
+  const shuffle = useShuffle()
+  const shuffleAll = (player: Player) => shuffle.run(player, async () => {
+    if (!selected.length) return []
+    const id = toast.loading(collecting(0))
+    try {
+      const { page: _p, per: _n, ...rest } = query
+      return await collectLibrary(rest, (n) => toast.loading(collecting(n), { id }))
+    } finally { toast.dismiss(id) }
+  }, NO_LIBRARY_VIDEOS)
   const query: LibraryQuery = useMemo(() => ({ channels: selected, page, per, sort, favorites, q: search, ...filters }), [selected, page, per, sort, favorites, filters, search])
   const library = useLibrary(query)
   const allIds = (channels.data ?? []).map((c) => c.telegram_id)
@@ -67,7 +79,7 @@ export function LibraryPage() {
     <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead title="Videos" blurb="Browse and manage your video library" />
 
-      <Toolbar onRefresh={() => void refresh()} refreshing={refreshing} />
+      <Toolbar onRefresh={() => void refresh()} refreshing={refreshing} onShuffle={(pl) => void shuffleAll(pl)} shuffling={shuffle.busy} />
 
       <div className="mb-3 flex gap-3.5 overflow-x-auto pb-2" role="group" aria-label="Channels">
         <ChannelChip label="All" count={channels.data?.reduce((n, c) => n + c.video_count, 0)} on={selected.length === allIds.length && allIds.length > 0} disabled={!allIds.length} onClick={() => selectAll(allIds)}>

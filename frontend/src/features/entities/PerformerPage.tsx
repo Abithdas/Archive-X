@@ -4,7 +4,10 @@ import { usePerformer } from '@/api/hooks'
 import { ApiError } from '@/api/client'
 import { Button } from '@/design/Button'
 import { Skeleton, SkeletonGroup, SkeletonLine } from '@/design/Skeleton'
+import { NO_PERFORMER_VIDEOS } from '@/features/library/shuffle'
+import { useShuffle } from '@/features/library/useShuffle'
 import { VideoCard, VideoCardSkeleton } from '@/features/library/VideoCard'
+import { Icon } from '@/design/Icon'
 
 const GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
 const BIO_LIMIT = 280
@@ -13,6 +16,7 @@ export function PerformerPage({ id }: { id: number }) {
   const q = usePerformer(id)
   const [open, setOpen] = useState(false)
   const [imgOk, setImgOk] = useState(true)
+  const shuffle = useShuffle()
 
   if (q.isPending)
     return (
@@ -63,6 +67,11 @@ export function PerformerPage({ id }: { id: number }) {
             {p.gender ? <span className="rounded-full bg-surface-2 px-2.5 py-1 capitalize">{p.gender}</span> : null}
             <span className="rounded-full bg-surface-2 px-2.5 py-1">{videos.length === 1 ? '1 video' : `${videos.length} videos`}</span>
             {p.favorite ? <span className="rounded-full bg-accent/20 px-2.5 py-1 text-accent">Favourite</span> : null}
+          </div>
+          <div className="mt-3">
+            <button type="button" disabled={shuffle.busy} onClick={() => void shuffle.run('mpc', () => videos, NO_PERFORMER_VIDEOS)} aria-label="Shuffle in MPC-HC" title="Play a random video of this performer in MPC-HC" className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60">
+              <Icon name="shuffle" className="size-4" />Shuffle in MPC-HC
+            </button>
           </div>
           {p.profile ? <p className="mt-3 text-sm text-muted">{p.profile}</p> : null}
           {bio ? (
