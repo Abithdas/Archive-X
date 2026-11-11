@@ -9,13 +9,19 @@ const PLACEHOLDER = '/static/icons/ax-placeholder.png'
 /** Portrait box shared by the card and its skeleton: 3:4, 16px radius, same as the classic UI. */
 const PORTRAIT = 'relative aspect-[3/4] w-full overflow-hidden [contain:paint] rounded-card border border-transparent bg-surface-3'
 
-export function EntityCard({ kind, entity }: { kind: EntityKind; entity: Entity }) {
+export interface MergePick { keeper: boolean; selected: boolean; onPick: () => void }
+
+export function EntityCard({ kind, entity, merge }: { kind: EntityKind; entity: Entity; merge?: MergePick }) {
   const [broken, setBroken] = useState(false)
   const label = entity.video_count === 1 ? '1 video' : `${entity.video_count} videos`
   const src = broken ? PLACEHOLDER : imageUrl(kind, entity)
   return (
     <article aria-label={entity.name} className="group relative grid gap-2.5 text-center">
-      <div className={PORTRAIT}>
+      {merge ? (
+        <button type="button" onClick={merge.onPick} aria-pressed={merge.keeper || merge.selected} aria-label={`${merge.keeper ? 'Keeper: ' : merge.selected ? 'Duplicate: ' : 'Choose '}${entity.name}`} className="absolute inset-0 z-10 rounded-card outline-none focus-visible:ring-2 focus-visible:ring-accent" />
+      ) : null}
+      <div className={`${PORTRAIT} ${merge?.keeper ? 'border-good ring-2 ring-good/60' : merge?.selected ? 'border-warn ring-2 ring-warn/60' : ''}`}>
+        {merge && (merge.keeper || merge.selected) ? <span className={`absolute left-2 top-2 z-20 rounded-md px-2 py-0.5 text-[11px] font-bold text-black ${merge.keeper ? 'bg-good' : 'bg-warn'}`}>{merge.keeper ? 'Keep' : 'Merge'}</span> : null}
         {broken ? <img src={PLACEHOLDER} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-60 blur-xl" /> : null}
         <img
           src={src}
@@ -28,7 +34,7 @@ export function EntityCard({ kind, entity }: { kind: EntityKind; entity: Entity 
       </div>
       <div className="px-1 leading-snug">
         <h3 className="truncate text-sm font-semibold">
-          {kind === 'performers' ? (
+          {kind === 'performers' && !merge ? (
             <Link to="/performers/$id" params={{ id: String(entity.id) }} className="outline-none after:absolute after:inset-0 after:rounded-card focus-visible:after:ring-2 focus-visible:after:ring-accent">
               {entity.name}
             </Link>
