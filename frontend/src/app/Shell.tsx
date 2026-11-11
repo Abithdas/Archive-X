@@ -36,7 +36,7 @@ const GROUPS: { title: string; items: NavDef[] }[] = [
   ] },
   { title: 'System', items: [
     { to: '/settings', label: 'Settings', icon: 'gear' },
-    { to: '/ai', label: 'AI Assistance', icon: 'sparkle', legacy: '/#ai' },
+    { to: '/ai', label: 'AI Assistance', icon: 'sparkle' },
   ] },
 ]
 const PHONE_NAV = ['/photos', '/', '/performers', '/studios', '/transfers']
