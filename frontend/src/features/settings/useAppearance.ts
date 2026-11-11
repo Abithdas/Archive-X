@@ -2,7 +2,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 import { api } from '@/api/client'
 import { useExperienceSettings } from './queries'
-import { SCALE_KEY, applyScale, applyTheme, densityFor, normalizeMode, normalizePreset, normalizeScale, storedScale, storedTheme } from '@/theme/themes'
+import type { CustomTheme } from '@/theme/custom'
+import { SCALE_KEY, applyCustom, applyScale, applyTheme, densityFor, normalizeMode, normalizePreset, normalizeScale, storedScale, storedTheme } from '@/theme/themes'
 
 const listeners = new Set<() => void>()
 let snapshot = { ...storedTheme(), scale: storedScale() }
@@ -28,13 +29,19 @@ export function useAppearanceActions() {
     emit()
     await persist({ theme_preset: r.preset, theme_mode: r.mode }).finally(done)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  /** Use a saved custom theme: applied at once, remembered here, and saved to the server as the "custom" preset. */
+  const setCustom = useCallback(async (theme: CustomTheme, mode: string) => {
+    const r = applyCustom(theme, mode)
+    emit()
+    await persist({ theme_preset: r.preset, theme_mode: r.mode }).finally(done)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const setScale = useCallback(async (value: number) => {
     const scale = applyScale(value)
     emit()
     await persist({ ui_scale: scale, grid_density: densityFor(scale) }).finally(done)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const previewScale = useCallback((value: number) => { applyScale(value); emit() }, [])
-  return { setTheme, setScale, previewScale }
+  return { setTheme, setCustom, setScale, previewScale }
 }
 
 /** On start the saved server choice wins (so the PC and the browser agree), like the classic loader. Runs once per session. */
@@ -45,7 +52,7 @@ export function useAppearanceSync() {
     const d = exp.data
     if (!d || done.current) return
     done.current = true
-    if (d.theme_preset || d.theme_mode) applyTheme(normalizePreset(d.theme_preset), normalizeMode(d.theme_mode))
+    if (d.theme_preset || d.theme_mode) applyTheme(d.theme_preset === 'custom' ? 'custom' : normalizePreset(d.theme_preset), normalizeMode(d.theme_mode))
     if (d.ui_scale != null) applyScale(normalizeScale(d.ui_scale))
     emit()
   }, [exp.data])

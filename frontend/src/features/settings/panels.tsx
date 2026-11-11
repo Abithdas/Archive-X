@@ -11,6 +11,7 @@ import { formatBytes } from '@/design/format'
 import { THEMES, SCALE_MAX, SCALE_MIN, SCALE_PRESETS, type Mode } from '@/theme/themes'
 import { AUTONEXT_MODES, experienceFrom, pills, statusRows, type Experience, type PanelId } from './logic'
 import { useAuthStatus, useExperienceSettings, useIconsStatus, useMetadataSettings, usePreflight, useWebLogin } from './queries'
+import { CustomThemes } from './CustomThemes'
 import { useAppearance, useAppearanceActions } from './useAppearance'
 
 const BOX = 'rounded-[18px] border border-line bg-surface p-5'
@@ -157,8 +158,9 @@ export function AppearancePanel() {
           })}
         </ul>
         <p className="mt-3 text-xs text-muted" role="status">{status}</p>
-        <p className="mt-1 text-xs text-faint">Each theme includes light and dark variants. Custom themes are still created in the <a href="/#settings" className="text-accent underline">classic interface</a>.</p>
+        <p className="mt-1 text-xs text-faint">Each theme includes light and dark variants.</p>
       </section>
+      <CustomThemes onStatus={setStatus} />
     </div>
   )
 }

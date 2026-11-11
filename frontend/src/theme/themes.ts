@@ -1,4 +1,5 @@
 import { THEMES, type Mode, type Palette, type ThemeFamily } from './palettes'
+import { ACTIVE_KEY, customTokens, findTheme, activeId, toRgb, type CustomPalette, type CustomTheme } from './custom'
 
 export { THEMES, type Mode, type Palette, type ThemeFamily }
 export const DEFAULT_PRESET = 'nord'
@@ -25,12 +26,43 @@ export function tokens(p: Palette): Record<string, string> {
 const read = (key: string): string | null => { try { return localStorage.getItem(key) } catch { return null } }
 const write = (key: string, value: string) => { try { localStorage.setItem(key, value) } catch { /* private mode */ } }
 
+const store = (): Storage | null => { try { return window.localStorage } catch { return null } }
+export const CUSTOM = 'custom'
+/** The custom theme chosen in this browser, if one is active and still stored. */
+export const activeCustom = (): CustomTheme | null => { const s = store(); const id = activeId(s); return id ? findTheme(s, id) : null }
+
 export function storedTheme(): { preset: string; mode: Mode } {
-  return { preset: normalizePreset(read(PRESET_KEY)), mode: normalizeMode(read(MODE_KEY)) }
+  const preset = read(PRESET_KEY) === CUSTOM && activeCustom() ? CUSTOM : normalizePreset(read(PRESET_KEY))
+  return { preset, mode: normalizeMode(read(MODE_KEY)) }
+}
+
+function setTokens(vars: Record<string, string>, m: Mode, preset: string, root: HTMLElement) {
+  for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v)
+  root.dataset.theme = m
+  root.dataset.themeMode = m
+  root.dataset.themePreset = preset
+  root.style.colorScheme = m
+}
+/** Show a custom palette without remembering it (the editor's live preview). Status colours come from the Nord variant of the same mode. */
+export function previewPalette(p: CustomPalette, mode: unknown, root: HTMLElement = document.documentElement) {
+  const m = normalizeMode(mode)
+  const base = THEMES[0]![m]
+  setTokens(customTokens(p, { ok: base.ok, warn: base.warn, bad: base.bad }), m, CUSTOM, root)
+}
+/** Apply and remember a custom theme (the same keys the classic UI reads). */
+export function applyCustom(theme: CustomTheme, mode: unknown, root: HTMLElement = document.documentElement) {
+  const m = normalizeMode(mode)
+  previewPalette(theme.palettes[m], m, root)
+  write(ACTIVE_KEY, theme.id)
+  write(PRESET_KEY, CUSTOM)
+  write(MODE_KEY, m)
+  return { preset: CUSTOM, mode: m }
 }
 
 /** Apply a theme to the page and remember it (the same localStorage keys the classic UI uses). */
 export function applyTheme(preset: unknown, mode: unknown, root: HTMLElement = document.documentElement) {
+  if (preset === CUSTOM) { const c = activeCustom(); if (c) return applyCustom(c, mode, root) }
+  try { window.localStorage.removeItem(ACTIVE_KEY) } catch { /* private mode */ }
   const id = normalizePreset(preset)
   const m = normalizeMode(mode)
   const fam = familyOf(id)
@@ -77,4 +109,15 @@ export function scaleForKey(e: { key: string; code?: string; ctrlKey: boolean; a
   if (e.key === '-' || e.code === 'NumpadSubtract') return normalizeScale(current - 10)
   if (e.key === '0' || e.code === 'Numpad0') return 100
   return null
+}
+
+/** The colours currently on screen as an editable custom palette: a custom theme's own, or the built-in theme's mapped onto the eight fields. */
+export function currentPalette(preset: string, mode: Mode): CustomPalette {
+  if (preset === CUSTOM) { const c = activeCustom(); if (c) return { ...c.palettes[mode] } }
+  const p = familyOf(preset)[mode]
+  const rgb = toRgb(p.text)
+  return {
+    bg: p.bg, surface: p.surface, primary: p.accent, secondary: p.text2, text: p.text, subtext: p.text2,
+    border: rgb ? `rgba(${rgb.join(', ')}, 0.10)` : 'rgba(255, 255, 255, 0.10)', hover: mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(23, 34, 28, 0.06)',
+  }
 }
