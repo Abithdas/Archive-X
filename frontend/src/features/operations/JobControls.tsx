@@ -1,5 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
+import { TransferConsole } from './TransferConsole'
+import { hasConsole } from './console'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { queryKeys } from '@/api/hooks'
@@ -78,6 +80,7 @@ export function useJobActions(j: Obj, onFinished?: () => void) {
 /** Pause / resume / recover, stop and refresh for one job, or just "Stop playback" for a playback session. */
 export function JobControls({ j }: { j: Obj }) {
   const { c, busy, primary, stop, refresh, askPlayback, refetch, dialogs } = useJobActions(j)
+  const [console_, setConsole] = useState(false)
   if (!c) return null
   return (
     <div className="mt-2.5 flex flex-wrap gap-1.5" role="group" aria-label={`Controls for ${String(j.name || j.type || 'job')}`}>
@@ -91,8 +94,10 @@ export function JobControls({ j }: { j: Obj }) {
           <button type="button" disabled={busy} onClick={() => void primary(c.primary)} className={cn(BTN, (c.primary === 'recover' || c.primary === 'retry-recovery') && 'border-accent bg-accent text-accent-fg hover:bg-accent')}><Icon name={c.primary === 'pause' ? 'pause' : 'play'} className="size-3.5" />{primaryLabel(c.primary)}</button>
           <button type="button" disabled={busy} onClick={() => void stop()} className={cn(BTN, 'text-bad')}><Icon name="stop" className="size-3.5" />Stop</button>
           <button type="button" disabled={busy} onClick={() => void refresh()} className={BTN}><Icon name="refresh" className="size-3.5" />Refresh</button>
+          {hasConsole(j) ? <button type="button" onClick={() => setConsole(true)} className={BTN}>Open console</button> : null}
         </>
       )}
+      {console_ ? <TransferConsole onClose={() => setConsole(false)} /> : null}
       {dialogs}
     </div>
   )
