@@ -93,6 +93,7 @@ export interface PerformerProfile {
   profile: string | null
   gender: string | null
   favorite: boolean
+  provider_ids?: unknown
 }
 export interface PerformerDetail {
   performer: PerformerProfile

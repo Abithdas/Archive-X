@@ -104,7 +104,7 @@ export function StudioPage({ id }: { id: number }) {
         ))}
       </div>
 
-      {tab === 'similar' ? <SimilarPanel items={similarStudios(videos, site.name, studios.data ?? [])} /> : tab === 'suggestions' ? <SuggestionsPanel studioId={site.id} name={site.name} /> : tab === 'videos' ? (
+      {tab === 'similar' ? <SimilarPanel items={similarStudios(videos, site.name, studios.data ?? [])} /> : tab === 'suggestions' ? <SuggestionsPanel kind="studio" entityId={site.id} name={site.name} /> : tab === 'videos' ? (
         videos.length ? <div className={GRID} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div> : <p role="tabpanel" aria-label="Videos" className="rounded-card border border-dashed border-line py-12 text-center text-muted">No videos are linked to this studio yet.</p>
       ) : linked.length ? (
         <ul role="tabpanel" aria-label="Performers" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4">

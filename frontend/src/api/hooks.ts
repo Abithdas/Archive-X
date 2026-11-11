@@ -178,5 +178,14 @@ const entityGet = <T,>(key: string, id: number, tail: string, fallback: T) =>
 export const useStudioMetadata = (id: number) => useQuery(entityGet<import('@/features/entities/studioextras').Metadata>('studio-meta', id, 'metadata', { providers: [] }))
 export const useStudioFamily = (id: number) => useQuery(entityGet<{ related?: import('@/features/entities/studioextras').Related[] }>('studio-family', id, 'family', { related: [] }))
 export const useStudioCareer = (id: number) => useQuery(entityGet<{ career_counts?: Array<{ provider?: string; count?: number }> }>('studio-career', id, 'career-counts', { career_counts: [] }))
-export const useStudioSuggested = (id: number) =>
-  useQuery({ queryKey: ['studio-suggested', id] as const, queryFn: async () => { const r = await api<unknown>(`/api/studios/${id}/suggested`).catch(() => []); return Array.isArray(r) ? (r as import('@/features/entities/studioextras').Suggested[]) : [] }, staleTime: 0, retry: false })
+export const useSuggested = (kind: 'studio' | 'performer', id: number) =>
+  useQuery({ queryKey: [`${kind}-suggested`, id] as const, queryFn: async () => { const r = await api<unknown>(`/api/${kind === 'studio' ? 'studios' : 'performers'}/${id}/suggested`).catch(() => []); return Array.isArray(r) ? (r as import('@/features/entities/studioextras').Suggested[]) : [] }, staleTime: 0, retry: false })
+export const useStudioSuggested = (id: number) => useSuggested('studio', id)
+
+const perfGet = <T,>(key: string, id: number, tail: string, fallback: T) =>
+  ({ queryKey: [key, id] as const, queryFn: () => api<T>(`/api/performers/${id}/${tail}`).catch(() => fallback), staleTime: 60_000, retry: false })
+/** Provider metadata, career scene counts and similar performers for one performer (a failure just leaves them empty). */
+export const usePerformerMetadata = (id: number) => useQuery(perfGet<import('@/features/entities/studioextras').Metadata>('performer-meta', id, 'metadata', { providers: [] }))
+export const usePerformerCareer = (id: number) => useQuery(perfGet<{ career_counts?: Array<{ provider?: string; count?: number }> }>('performer-career', id, 'career-counts', { career_counts: [] }))
+export const usePerformerSimilar = (id: number, enabled: boolean) =>
+  useQuery({ queryKey: ['performer-similar', id] as const, enabled, queryFn: () => api<{ items?: Array<{ id: number; name: string; video_count?: number; image?: string | null }>; reason?: string }>(`/api/performers/${id}/similar?limit=40`), staleTime: 60_000, retry: false })

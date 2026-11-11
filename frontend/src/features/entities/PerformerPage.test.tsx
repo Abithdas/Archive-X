@@ -1,4 +1,4 @@
-import { screen, fireEvent } from '@testing-library/react'
+import { screen, fireEvent, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PerformerPage } from './PerformerPage'
 import { withRouter } from '@/test/withRouter'
@@ -38,5 +38,50 @@ describe('PerformerPage', () => {
     withRouter(<PerformerPage id={9} />)
     expect(await screen.findByText('Performer not found.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
+  })
+})
+
+describe('PerformerPage extras', () => {
+  const j = (b: unknown) => new Response(JSON.stringify(b), { status: 200 })
+  const SUG: Array<Record<string, unknown>> = []
+  const mountExtras = (provider = true) => {
+    const calls: Array<{ url: string; method: string; body?: unknown }> = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : undefined })
+      if (url === '/api/performers/2/videos') return j({ performer: { id: 2, name: 'Mia Rivera', image: null, bio: '', profile: 'Born 1995', gender: 'female', favorite: false, provider_ids: provider ? '{"stashdb":"x"}' : '{}' }, videos: [{ ...video, studios: ['Northlight'] }] })
+      if (url === '/api/performers/2/metadata') return j({ providers: provider ? [{ provider: 'stashdb', normalized: JSON.stringify({ details: { country: 'US', birth_date: '1995-06-15', instagram: 'https://instagram.com/mia', bio: 'Provider bio.' } }) }] : [] })
+      if (url === '/api/performers/2/career-counts') return j({ career_counts: [{ provider: 'StashDB', count: 55 }] })
+      if (url === '/api/performers/2/suggested') return j(SUG.slice())
+      if (url === '/api/performers/2/similar?limit=40') return j({ items: [{ id: 9, name: 'Zoe Ray', video_count: 4 }] })
+      if (url === '/api/studios?limit=5000') return j([{ id: 7, name: 'Northlight', video_count: 1 }])
+      if (url.startsWith('/api/suggestions/') && init?.method === 'POST') { SUG.length = 0; return j({ ok: true }) }
+      return j({ ok: true })
+    }))
+    withRouter(<PerformerPage id={2} />)
+    return calls
+  }
+  it('shows provider facts, pills, a provider biography and social links', async () => {
+    mountExtras()
+    expect(await screen.findByText('Provider bio.')).toBeInTheDocument()
+    const card = screen.getByRole('region', { name: 'Performer details' })
+    expect(within(card).getByText('US')).toBeInTheDocument(); expect(within(card).getByText(/1995-06-15 \(\d+\)/)).toBeInTheDocument(); expect(within(card).getByText('55')).toBeInTheDocument()
+    expect(screen.getByText('Metadata linked')).toBeInTheDocument(); expect(screen.getByText('StashDB')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Open Instagram' })).toHaveAttribute('href', 'https://instagram.com/mia')
+    expect(screen.getByText('Performer')).toBeInTheDocument()
+  })
+  it('lists her studios and similar performers on their tabs', async () => {
+    mountExtras()
+    fireEvent.click(await screen.findByRole('tab', { name: /Studios/ }))
+    expect(await screen.findByRole('link', { name: /Northlight/ })).toHaveAttribute('href', '/studios/7')
+    fireEvent.click(screen.getByRole('tab', { name: /Similar Performers/ }))
+    expect(await screen.findByRole('link', { name: /Zoe Ray/ })).toHaveAttribute('href', '/performers/9')
+  })
+  it('links a suggested video to this performer', async () => {
+    SUG.splice(0, SUG.length, { suggestion_id: 31, channel_id: '-100', message_id: 5, title: 'Maybe Mia' })
+    const calls = mountExtras()
+    fireEvent.click(await screen.findByRole('tab', { name: /Suggestions/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Yes, link performer/ }))
+    await vi.waitFor(() => expect(calls.find((c) => c.url === '/api/suggestions/31/confirm-entity')?.body).toEqual({ entity_type: 'performer', entity_id: 2 }))
+    expect(await screen.findByText('No pending suggestions')).toBeInTheDocument()
   })
 })

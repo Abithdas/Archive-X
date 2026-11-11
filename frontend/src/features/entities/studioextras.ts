@@ -142,16 +142,22 @@ export function similarStudios<T extends { name: string }>(videos: ReadonlyArray
 export const SIMILAR_EMPTY = 'No similar studios are available from the current catalogue relationships.'
 
 export interface Suggested { suggestion_id: number; channel_id: string | number; message_id: number; title?: string; filename?: string; duration?: number; size?: number }
-export const suggestionToolbar = (name: string) => `Does each video belong to ${name}? Confirming links this studio and hides other studio suggestions for the video. Performer links are separate; use Edit Video or Scene Match Review for full scene identification.`
+export type Kind = 'studio' | 'performer'
+export const suggestionToolbar = (name: string, kind: Kind = 'studio') => kind === 'studio'
+  ? `Does each video belong to ${name}? Confirming links this studio and hides other studio suggestions for the video. Performer links are separate; use Edit Video or Scene Match Review for full scene identification.`
+  : `Does each video belong to ${name}? Confirming links this performer and hides other performer suggestions for the video. Studio links are separate; use Edit Video or Scene Match Review for full scene identification.`
 export const suggestionQuestion = (name: string) => `Does this video belong to ${name}?`
 export const suggestionTitle = (s: Suggested) => String(s.title || s.filename || `video ${s.message_id}`)
 export const pending = (n: number) => `${n} pending`
 export const SUGGEST_EMPTY = { title: 'No pending suggestions', body: 'Run Metadata & Suggestion Scan from Operations to create new suggestions.' }
-export const confirmBody = (studioId: number) => ({ entity_type: 'studio', entity_id: studioId })
+export const confirmBody = (id: number, kind: Kind = 'studio') => ({ entity_type: kind, entity_id: id })
 export const confirmPath = (sid: number) => `/api/suggestions/${sid}/confirm-entity`
 export const rejectPath = (sid: number) => `/api/suggestions/${sid}/reject-entity`
-export const LINKED = 'Studio linked to video.'
-export const REJECTED = 'Not linked to this studio. Kept available for full scene review.'
+export const yesLabel = (kind: Kind) => (kind === 'studio' ? 'Yes, link studio' : 'Yes, link performer')
+export const linkedText = (kind: Kind) => (kind === 'studio' ? 'Studio linked to video.' : 'Performer linked to video.')
+export const rejectedText = (kind: Kind) => (kind === 'studio' ? 'Not linked to this studio. Kept available for full scene review.' : 'Not linked to this performer. Kept available for full scene review.')
+export const LINKED = linkedText('studio')
+export const REJECTED = rejectedText('studio')
 export const failedConfirm = (why: string) => `Could not confirm: ${why}`
 export const failedReject = (why: string) => `Could not reject: ${why}`
 export const succeeded = (r: { ok?: boolean; _ok?: boolean } | null | undefined) => !!r && r._ok !== false && r.ok !== false
