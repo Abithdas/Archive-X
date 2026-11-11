@@ -1,8 +1,8 @@
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, thumbUrl } from '@/api/client'
-import { useEntities, useFavorite, useLibrary, useMarkers, usePreviewManifest, useVideo } from '@/api/hooks'
+import { useEntities, useFavorite, useLibrary, useMarkers, usePlayInfo, usePreviewManifest, useVideo } from '@/api/hooks'
 import type { LibraryItem } from '@/api/types'
 import { Icon } from '@/design/Icon'
 import { Skeleton, SkeletonGroup, SkeletonLine } from '@/design/Skeleton'
@@ -71,6 +71,11 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const queue = useLibrary({ channels: channels.length ? channels : [cid], page: 0, per: 24, sort })
   const markers = useMarkers(video.data?.media_id)
   const manifest = usePreviewManifest(cid, mid)
+  const playInfo = usePlayInfo(cid, mid)
+  // Playback waits for the codec facts, but never longer than 2.5 s (a slow Telegram must not stall the player).
+  const [infoCapped, setInfoCapped] = useState(false)
+  useEffect(() => { setInfoCapped(false); const t = setTimeout(() => setInfoCapped(true), 2500); return () => clearTimeout(t) }, [cid, mid])
+  const infoWait = playInfo.isPending && !infoCapped
   const performers = useEntities('performers')
   const studios = useEntities('studios')
   const fav = useFavorite()
@@ -128,7 +133,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
         </div>
 
         {resume.ready ? (
-          <Player src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay} startAt={resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} />
+          <Player info={playInfo.data} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay} startAt={resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} />
         ) : (
           <div className="aspect-video w-full rounded-[18px] border border-line bg-black" aria-hidden="true" />
         )}

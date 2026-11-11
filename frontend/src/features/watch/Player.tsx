@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { SMART_FAILED, TRYING, initialMode, loadSmartStream, shouldFallBack, type Mode, type PlayInfo, type SmartApi } from './smartstream'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { formatDuration } from '@/features/library/format'
@@ -17,7 +18,7 @@ const BTN = 'grid size-9 place-items-center rounded-lg text-fg/90 hover:bg-fg/10
  * Native <video> with the classic player's control bar: seek, play, previous/next, ±30 s, speed, mute and volume,
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
-export function Player({ src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc }: { seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
+export function Player({ info, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc }: { info?: PlayInfo | null; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
   const pendingStart = useRef<number | null>(null)
@@ -34,6 +35,26 @@ export function Player({ src, poster, durationHint, segments = [], preview, auto
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  // Smart playback: files the browser may not play directly go through the client-side engine (loaded only when needed).
+  const [smart, setSmart] = useState<SmartApi | null | undefined>(undefined)   // undefined: not loaded yet, null: unavailable
+  const [mode, setMode] = useState<Mode>('direct')
+  const [failText, setFailText] = useState('')
+  const triedSmart = useRef(false)
+  const [committed, setCommitted] = useState(false)   // the source was handed to the video: late codec info must not switch it mid-play
+  useEffect(() => {
+    if (!info || info.direct_likely) return
+    let live = true
+    void loadSmartStream().then((api) => { if (live) setSmart(api) })
+    return () => { live = false }
+  }, [info])
+  const needsSmart = !!info && !info.direct_likely
+  const ready = !infoPending && (!needsSmart || smart !== undefined)
+  useEffect(() => { triedSmart.current = false; setCommitted(false); setMode('direct'); setFailText('') }, [src])
+  useEffect(() => {
+    if (!ready || committed) return
+    setCommitted(true)
+    setMode(initialMode(info, smart))
+  }, [ready, committed, info, smart, src])
   const [loop, setLoop] = useState(false)
   const [hint, setHint] = useState('')
   const tap = useRef<{ t: number; x: number } | null>(null)
@@ -92,9 +113,25 @@ export function Player({ src, poster, durationHint, segments = [], preview, auto
 
   useEffect(() => {
     setFailed(false)
+    setFailText('')
     setLoading(true)
     setTime(0)
   }, [src, attempt])
+
+  // The smart pipeline owns the video element's source while it runs.
+  useEffect(() => {
+    if (!committed || mode !== 'mse' || !smart || !info) return
+    const v = video.current
+    if (!v) return
+    const startTime = pendingStart.current ?? (startAt > 0 && !startApplied.current ? startAt : 0)
+    if (startTime > 0) pendingStart.current = startTime
+    const pipeline = smart.start(v, src, info, {
+      startTime,
+      onError: (msg) => { console.warn('[SmartStream] error:', msg); setFailText(SMART_FAILED); setFailed(true); setLoading(false) },
+    })
+    if (!pipeline) { triedSmart.current = true; setMode('direct'); return }
+    return () => { try { pipeline.destroy() } catch { /* already gone */ } }
+  }, [committed, mode, smart, info, src, attempt]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -129,9 +166,9 @@ export function Player({ src, poster, durationHint, segments = [], preview, auto
     <div ref={box} className="overflow-hidden rounded-[18px] border border-line bg-surface">
       <div className="relative aspect-video w-full bg-black">
         <video
-          key={attempt}
+          key={`${attempt}-${mode}`}
           ref={video}
-          src={src}
+          src={committed && mode === 'direct' ? src : undefined}
           poster={poster}
           playsInline
           preload="metadata"
@@ -157,7 +194,17 @@ export function Player({ src, poster, durationHint, segments = [], preview, auto
             setBuffered(b.length ? b.end(b.length - 1) : 0)
           }}
           onEnded={() => { onEnd?.(); if (autoNext) onNext?.() }}
-          onError={() => { setFailed(true); setLoading(false) }}
+          onError={(e) => {
+            const v = e.currentTarget
+            if (shouldFallBack(mode, triedSmart.current, v.error?.code, info, smart)) {
+              triedSmart.current = true
+              if (v.currentTime > 0.5) pendingStart.current = v.currentTime
+              flash(TRYING); setLoading(true); setMode('mse')
+              return
+            }
+            if (mode === 'mse') setFailText(SMART_FAILED)
+            setFailed(true); setLoading(false)
+          }}
           className="absolute inset-0 h-full w-full object-contain"
         />
         {snapshots && !started && !failed ? <SnapshotGrid data={snapshots} onPick={pickTime} /> : null}
@@ -171,7 +218,7 @@ export function Player({ src, poster, durationHint, segments = [], preview, auto
         {failed ? (
           <div role="alert" className="absolute inset-0 grid content-center justify-items-center gap-3 bg-black/85 p-5 text-center">
             <span className="grid size-12 place-items-center rounded-full bg-bad/20 text-xl font-bold text-bad">!</span>
-            <p className="max-w-lg text-lg font-bold leading-snug">This video could not be played from the original stream (the browser cannot decode this file, or Telegram is not connected).</p>
+            <p className="max-w-lg text-lg font-bold leading-snug">{failText || 'This video could not be played from the original stream (the browser cannot decode this file, or Telegram is not connected).'}</p>
             <p className="max-w-lg text-xs text-muted">Automatic conversion is off. You can retry the original stream or open it in VLC.</p>
             <div className="flex flex-wrap justify-center gap-2">
               <button type="button" onClick={() => setAttempt(attempt + 1)} className="h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Retry original</button>

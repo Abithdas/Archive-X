@@ -189,3 +189,12 @@ export const usePerformerMetadata = (id: number) => useQuery(perfGet<import('@/f
 export const usePerformerCareer = (id: number) => useQuery(perfGet<{ career_counts?: Array<{ provider?: string; count?: number }> }>('performer-career', id, 'career-counts', { career_counts: [] }))
 export const usePerformerSimilar = (id: number, enabled: boolean) =>
   useQuery({ queryKey: ['performer-similar', id] as const, enabled, queryFn: () => api<{ items?: Array<{ id: number; name: string; video_count?: number; image?: string | null }>; reason?: string }>(`/api/performers/${id}/similar?limit=40`), staleTime: 60_000, retry: false })
+
+/** Codec and container facts for one video (the smart-playback decision); fails quietly when Telegram is not connected. */
+export const usePlayInfo = (cid: string, mid: number) =>
+  useQuery({
+    queryKey: ['play-info', cid, mid] as const,
+    queryFn: () => api<import('@/features/watch/smartstream').PlayInfo>(`/api/play/info/${encodeURIComponent(cid)}/${mid}?wait=2`),
+    staleTime: 60_000,
+    retry: false,
+  })
