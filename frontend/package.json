@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Archive X React UI (served by the backend at /app-next and bundled into the desktop app)",
+  "description": "Archive X React UI (served by the backend at / and bundled into the desktop app)",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

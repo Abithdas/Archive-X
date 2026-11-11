@@ -97,17 +97,19 @@ def main() -> int:
         r = request(port, "GET", "/api/status", {"Cookie": jar}); body = r.read()
         check("cookie session reaches the API (no web login needed)", r.status == 200, f"{r.status} {body[:80]!r}")
         r = request(port, "GET", "/", {"Cookie": jar}); html = r.read()
-        check("UI page served with the session", r.status == 200 and b"<title>" in html, str(r.status))
-        r = request(port, "GET", "/app-next/", {"Cookie": jar}); html = r.read()
         if r.status == 404:
             print("  [SKIP] React app not built (run `npm run build` in frontend/ before freezing to include it)")
         else:
-            check("React app served at /app-next/ with the session", r.status == 200 and b'id="root"' in html, str(r.status))
+            check("React app served at / with the session", r.status == 200 and b'id="root"' in html, str(r.status))
+        r = request(port, "GET", "/app-next/x", {"Cookie": jar, }); r.read()
+        check("old /app-next/ links redirect to /", r.status in (301, 302, 307, 308), str(r.status))
+        r = request(port, "GET", "/api/no-such-endpoint", {"Cookie": jar}); r.read()
+        check("unknown API paths are 404, not the app shell", r.status == 404, str(r.status))
         r = request(port, "GET", "/desktop/info"); r.read()
         check("/desktop/info needs the secret/cookie", r.status == 403, str(r.status))
         r = request(port, "GET", "/desktop/info", {"Cookie": jar}); info = json.loads(r.read() or b"{}")
         check("/desktop/info tells the UI it runs in the desktop app", r.status == 200 and info.get("desktop") is True, f"{r.status} {info}")
-        r = request(port, "GET", "/app-next/", {}); r.read()
+        r = request(port, "GET", "/", {}); r.read()
         check("React app also needs the secret/cookie", r.status == 403, str(r.status))
         r = request(port, "POST", "/login", {"Cookie": jar, "Content-Length": "0"}); r.read()
         check("login endpoint cannot be used to bypass (still guarded/validated)", r.status in (400, 403, 428, 401, 422), str(r.status))
@@ -148,7 +150,7 @@ def main() -> int:
             proc.kill()
 
     print("\nlanding page")
-    for value, expected in (("/app-next/", "/app-next/"), ("//evil.example/x", "/"), ("https://evil.example", "/"), ("/ok\\bad", "/")):
+    for value, expected in (("/ai", "/ai"), ("//evil.example/x", "/"), ("https://evil.example", "/"), ("/ok\\bad", "/")):
         p3, port3, _ = start_backend(cmd, tempfile.mkdtemp(prefix="axdesktop_"), holder.pid, extra_env={"ARCHIVE_X_DESKTOP_LANDING": value})
         try:
             r = request(port3, "GET", f"/desktop/session?token={SECRET}"); page = r.read().decode()

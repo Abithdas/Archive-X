@@ -18,7 +18,7 @@ describe('ai', () => {
     expect(configBody({ ...configFrom(null), context: 10 }).context).toBe(1024); expect(configBody({ ...configFrom(null), context: Number.NaN }).context).toBe(4096)
   })
   it('builds prompts and labels', () => {
-    expect(libraryPrompt('cats')).toMatch(/^Search the published Archive X library for: cats\. /); expect(chatBody('hi', '/app-next/ai')).toEqual({ message: 'hi', page: '/app-next/ai', selected: null })
+    expect(libraryPrompt('cats')).toMatch(/^Search the published Archive X library for: cats\. /); expect(chatBody('hi', '/ai')).toEqual({ message: 'hi', page: '/ai', selected: null })
     expect(QUICK).toHaveLength(4); expect(TABS.map((t) => t.value)).toEqual(['assistant', 'library', 'diagnostics', 'jobs', 'recommendations', 'models'])
     expect(testPassed(120, 'ok')).toBe('Model test passed in 120 ms: ok'); expect(messageTime({ role: 'user', created_at: 'x' })).toBe('You · x'); expect(messageTime({ role: 'assistant' })).toBe('Archive X Local AI · ')
   })

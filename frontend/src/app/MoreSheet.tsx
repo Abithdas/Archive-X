@@ -19,7 +19,7 @@ export function MoreSheet() {
       <div className="grid gap-0.5">
         <Link to="/operations" onClick={done} className={ROW}><Icon name="operations" className="text-muted" />Operations{running ? <span className="ml-auto rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent">{running} running</span> : null}</Link>
         <Link to="/settings" onClick={done} className={ROW}><Icon name="gear" className="text-muted" />Settings</Link>
-        <a href="/#ai" className={ROW}><Icon name="sparkle" className="text-muted" />AI Assistance</a>
+        <Link to="/ai" onClick={done} className={ROW}><Icon name="sparkle" className="text-muted" />AI Assistance</Link>
         <button type="button" className={ROW} onClick={() => { done(); setNotifications(true) }}><Icon name="clock" className="text-muted" />Notifications{notices ? <span className="ml-auto rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent">{notices}</span> : null}</button>
         <button type="button" className={ROW} onClick={() => { done(); setPalette(true) }}><Icon name="search" className="text-muted" />Command palette</button>
       </div>

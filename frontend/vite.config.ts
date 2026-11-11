@@ -3,12 +3,12 @@ import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
-// The backend serves this app under /app-next (telegram_archive/web/routes_frontend.py).
+// The backend serves this app at the site root (telegram_archive/web/routes_frontend.py).
 // In dev, API and WebSocket calls are proxied to a running backend (HTTPS, self-signed certificate).
 const backend = process.env.ARCHIVE_X_BACKEND ?? 'https://127.0.0.1:8443'
 
 export default defineConfig({
-  base: '/app-next/',
+  base: '/',
   plugins: [react(), tailwindcss()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {

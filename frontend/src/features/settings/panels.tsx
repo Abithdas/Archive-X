@@ -164,14 +164,3 @@ export function AppearancePanel() {
     </div>
   )
 }
-
-export function ClassicPanel({ title, blurb }: { title: string; blurb: string }) {
-  return (
-    <section aria-label={title} className={BOX}>
-      <h3 className="text-xl font-extrabold">{title}</h3>
-      <p className="mb-4 mt-1 text-sm text-muted">{blurb}</p>
-      <p className="mb-3 text-sm text-muted">This section has not been migrated yet. It works as before in the classic interface.</p>
-      <a href="/#settings" className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5">Open in classic interface<Icon name="external" className="size-4" /></a>
-    </section>
-  )
-}

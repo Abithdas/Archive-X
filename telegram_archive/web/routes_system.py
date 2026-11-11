@@ -28,7 +28,6 @@ from ..core.auth import (
 from ..core.session_cookie import set_session_cookie
 from ..operations import automation as content_automation
 from ..telegram.service import TELETHON_AVAILABLE
-from .html import page_response
 
 
 def register_system_routes(
@@ -67,50 +66,6 @@ def register_system_routes(
             hit = next((str(d / fname) for d in ICON_DIRS if (d / fname).is_file()), "")
             found[label] = hit
         return {"icons": found, "folder": str(config.ICON_DIR)}
-    @router.get("/ui-assets/{asset_path:path}")
-    async def ui_asset(asset_path: str, request: Request):
-        """Serve the CSS bundle and fingerprinted source CSS/JS assets."""
-        from fastapi.responses import Response
-        from pathlib import Path as _Path
-        from ..web.html import UI_DIR as _UI_DIR
-
-        if asset_path == "app.css":
-            from ..web.html import CSS_BUNDLE_BYTES, CSS_BUNDLE_SHA256
-            etag = f'"axcss-{CSS_BUNDLE_SHA256[:24]}"'
-            headers = {
-                "Cache-Control": "public, max-age=31536000, immutable",
-                "ETag": etag,
-                "X-Content-Type-Options": "nosniff",
-            }
-            inm = request.headers.get("if-none-match", "")
-            if etag in [value.strip() for value in inm.split(",")]:
-                return Response(status_code=304, headers=headers)
-            return Response(
-                CSS_BUNDLE_BYTES,
-                media_type="text/css; charset=utf-8",
-                headers=headers,
-            )
-
-        relative = _Path(asset_path)
-        if relative.is_absolute() or ".." in relative.parts or "\\" in asset_path:
-            raise HTTPException(404)
-        if not relative.parts or relative.parts[0] not in {"css", "js"}:
-            raise HTTPException(404)
-        suffix = relative.suffix.lower()
-        media_types = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8"}
-        if suffix not in media_types:
-            raise HTTPException(404)
-        root = _UI_DIR.resolve()
-        path = (root / relative).resolve()
-        if root not in path.parents or not path.is_file():
-            raise HTTPException(404)
-        data = await asyncio.to_thread(path.read_bytes)
-        return Response(
-            data,
-            media_type=media_types[suffix],
-            headers={"Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff"},
-        )
-
     ICON_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
                   ".webp": "image/webp", ".svg": "image/svg+xml"}
 
@@ -413,11 +368,6 @@ def register_system_routes(
     # SUBSECTION: Login and session
     # Login, setup, logout and exit.
     # ------------------------------------------------------------------
-    @router.get("/login", response_class=HTMLResponse)
-    async def login_page(request: Request):
-        """GET /login: Login page."""
-        return page_response(request)
-
     @router.post("/api/auth/setup")
     async def setup_auth(request: Request):
         """Public one-time administrator credential provisioning."""
@@ -547,13 +497,6 @@ def register_system_routes(
     # SUBSECTION: App shell and status
     # Index page, status and bootstrap.
     # ------------------------------------------------------------------
-    @router.get("/", response_class=HTMLResponse)
-    async def index(request: Request):
-        """GET /: Index."""
-        if not sessions.get(request.cookies.get(config.SESSION_COOKIE)):
-            return RedirectResponse("/login", status_code=302)
-        return page_response(request)
-
     @router.get("/api/status")
     async def status(request: Request):
         """GET /api/status: Status."""

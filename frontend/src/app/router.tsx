@@ -55,8 +55,8 @@ const routeTree = root.addChildren([
   createRoute({ getParentRoute: () => root, path: '/settings', component: SettingsPage }),
 ])
 
-// The backend serves the app under /app-next, so the router needs that base path.
-export const router = createRouter({ routeTree, basepath: '/app-next', defaultPreload: 'intent' })
+// The backend serves the app at the site root.
+export const router = createRouter({ routeTree, defaultPreload: 'intent' })
 
 declare module '@tanstack/react-router' {
   interface Register {

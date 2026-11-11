@@ -11,7 +11,7 @@ import { StoragePanel } from './StoragePanel'
 import { TelegramPanel } from './TelegramPanel'
 import { MetadataPanel } from './MetadataPanel'
 import { SystemPanel } from './SystemPanel'
-import { AppearancePanel, ClassicPanel, ExperiencePanel, OverviewPanel } from './panels'
+import { AppearancePanel, ExperiencePanel, OverviewPanel } from './panels'
 
 const KEY = 'ax_next_settings_panel'
 const read = (): PanelId => { try { const v = localStorage.getItem(KEY); return isPanel(v) ? v : 'overview' } catch { return 'overview' } }
@@ -32,7 +32,6 @@ export function SettingsPage() {
       setValidating(false)
     }
   }
-  const current = PANELS.find((p) => p.id === panel)!
   const index = PANELS.findIndex((p) => p.id === panel)
   return (
     <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
@@ -52,7 +51,7 @@ export function SettingsPage() {
           <button type="button" onClick={() => { void qc.invalidateQueries({ queryKey: ['settings'] }); void qc.invalidateQueries({ queryKey: ['storage'] }); toast('Status refreshed') }} className="h-11 rounded-xl border border-line bg-surface text-sm font-bold hover:bg-surface-2">Refresh status</button>
         </nav>
         <div className="min-w-0" aria-live="polite">
-          {panel === 'overview' ? <OverviewPanel go={go} /> : panel === 'experience' ? <ExperiencePanel /> : panel === 'appearance' ? <AppearancePanel /> : panel === 'telegram' ? <TelegramPanel /> : panel === 'security' ? <SecurityPanel /> : panel === 'storage' ? <StoragePanel /> : panel === 'metadata' ? <MetadataPanel /> : panel === 'system' ? <SystemPanel /> : <ClassicPanel title={current.title} blurb={current.blurb} />}
+          {panel === 'overview' ? <OverviewPanel go={go} /> : panel === 'experience' ? <ExperiencePanel /> : panel === 'appearance' ? <AppearancePanel /> : panel === 'telegram' ? <TelegramPanel /> : panel === 'security' ? <SecurityPanel /> : panel === 'storage' ? <StoragePanel /> : panel === 'metadata' ? <MetadataPanel /> : panel === 'system' ? <SystemPanel /> : null}
           <p className="mt-2 text-right text-xs text-faint">{String(index + 1).padStart(2, '0')} / {String(PANELS.length).padStart(2, '0')}</p>
         </div>
       </div>

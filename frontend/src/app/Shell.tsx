@@ -20,8 +20,6 @@ interface NavDef {
   to: string
   label: string
   icon: string
-  /** Classic-UI-only pages link out until they are migrated. */
-  legacy?: string
 }
 const GROUPS: { title: string; items: NavDef[] }[] = [
   { title: 'Library', items: [
@@ -53,12 +51,6 @@ function SideItem({ n, rail }: { n: NavDef; rail: boolean }) {
       <span className={cn(rail && 'sr-only')}>{n.label}</span>
     </>
   )
-  if (n.legacy)
-    return (
-      <a href={n.legacy} className={cn(SIDE_ITEM, layout)} title={`${n.label} (classic interface)`}>
-        {body}
-      </a>
-    )
   return (
     <Link to={n.to} activeOptions={{ exact: n.to === '/' }} className={cn(SIDE_ITEM, layout)} title={rail ? n.label : undefined} activeProps={{ className: SIDE_ACTIVE }}>
       {body}
@@ -108,7 +100,7 @@ const ICON_BTN = 'grid size-10 place-items-center rounded-xl text-muted hover:bg
 function Header({ live }: { live: string }) {
   const { q, set } = useSearch()
   const focusTick = useUi((s) => s.focusSearch)
-  const path = useRouterState({ select: (s) => s.location.pathname.replace(/^\/app-next/, '') || '/' })
+  const path = useRouterState({ select: (s) => s.location.pathname })
   const input = useRef<HTMLInputElement>(null)
   const notices = useNotices().length
   const placeholder = path.startsWith('/performers') ? 'Search performer…' : path.startsWith('/studios') ? 'Search studio…' : 'Search videos, performers, studios…'
@@ -238,12 +230,7 @@ export function Shell(): ReactNode {
       </div>
       <nav className="flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Main">
         {phone.map((n) =>
-          n.legacy ? (
-            <a key={n.to} href={n.legacy} className="flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[10.5px] font-semibold text-muted">
-              <Icon name={n.icon} />
-              <span className="truncate">{n.label}</span>
-            </a>
-          ) : (
+          (
             <Link key={n.to} to={n.to} activeOptions={{ exact: n.to === '/' }} className="flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[10.5px] font-semibold text-muted" activeProps={{ className: '!text-accent' }}>
               <Icon name={n.icon} />
               <span className="truncate">{n.label}</span>

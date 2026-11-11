@@ -45,7 +45,7 @@ _OPEN_PATHS = {"/health"}
 
 
 def landing() -> str:
-    """Path the desktop window opens after the session hand-off: "/" (classic UI) or "/app-next/" (React UI).
+    """Path the desktop window opens after the session hand-off: "/" by default.
     Set with ARCHIVE_X_DESKTOP_LANDING; anything that is not a plain absolute path falls back to "/"."""
     value = os.getenv("ARCHIVE_X_DESKTOP_LANDING", "/").strip() or "/"
     ok = value.startswith("/") and not value.startswith("//") and "\\" not in value and ":" not in value and len(value) < 200
