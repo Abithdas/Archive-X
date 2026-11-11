@@ -1,0 +1,137 @@
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { ApiError, api } from '@/api/client'
+import { usePhotoChannels } from '@/api/hooks'
+import { useSearch } from '@/app/search'
+import { Confirm } from '@/design/Confirm'
+import { Icon } from '@/design/Icon'
+import { PageHead } from '@/design/PageHead'
+import { Skeleton } from '@/design/Skeleton'
+import { cn } from '@/design/cn'
+import { ChannelChip } from '@/features/library/ChannelChip'
+import { useDebounced } from '@/features/library/useDebounced'
+import { PhotoCard } from './PhotoCard'
+import { PhotoViewer } from './PhotoViewer'
+import { EMPTY_INDEX, LOAD_FAILED, NO_CHANNELS_SAVED, NO_SCANNED, SELECT_PROMPT, SORTS, allSelected, channelAvatar, channelSummary, channelTitle, deleteBody, deleteCopy, deleteDone, deletePath, deleteStatus, emptyText, initials, photoName, photosUrl, pruneSelection, scanTitle, selectedLabel, sortLabel, summaryText, toggleAll, toggleId, type Photo, type PhotoChannel, type PhotoPage, type PhotoSort } from './photos'
+import { usePhotoStore } from './store'
+
+const PILL = 'inline-flex h-10 items-center gap-2 rounded-full border border-line-2 bg-surface px-4 text-sm font-semibold hover:bg-fg/5'
+const reason = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.detail : e instanceof Error && e.message ? e.message : fb)
+
+function Avatar({ channel }: { channel: PhotoChannel }) {
+  const [ok, setOk] = useState(true)
+  const t = channelTitle(channel)
+  return ok ? <img src={channelAvatar(channel)} alt="" loading="lazy" onError={() => setOk(false)} className="size-full rounded-full object-cover" /> : <span aria-hidden="true">{initials(t)}</span>
+}
+
+export function PhotosPage() {
+  const { selected, sort, favoritesOnly, favorites, setSelected, setSort, setFavoritesOnly, toggleFavorite } = usePhotoStore()
+  const search = useDebounced(useSearch((s) => s.q).trim(), 300)
+  const channels = usePhotoChannels()
+  const qc = useQueryClient()
+  const list = channels.data?.channels ?? []
+  const [viewer, setViewer] = useState<number | null>(null)
+  const [ask, setAsk] = useState<null | { photo: Photo; remote: boolean }>(null)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
+  const sentinel = useRef<HTMLDivElement>(null)
+
+  // A channel that is no longer scanned cannot stay selected.
+  useEffect(() => { if (channels.data) { const keep = pruneSelection(selected, list); if (keep.length !== selected.length) setSelected(keep) } }, [channels.data]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const favIds = useMemo(() => favorites, [favorites])
+  const q = useInfiniteQuery({
+    queryKey: ['photos', selected, search, sort, favoritesOnly, favoritesOnly ? [...favIds].sort() : null] as const,
+    enabled: selected.length > 0,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const r = await api<PhotoPage>(photosUrl({ channels: selected, q: search, sort, favorites: favoritesOnly, favoriteIds: favIds, page: pageParam }))
+      if (!r || r.ok !== true) throw new ApiError(0, r?.detail || LOAD_FAILED)
+      return r
+    },
+    getNextPageParam: (last, all) => (all.reduce((n, p) => n + p.items.length, 0) < last.total && last.items.length ? all.length : undefined),
+    staleTime: 15_000,
+  })
+  const items = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data])
+  const total = q.data?.pages[0]?.total ?? 0
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = q
+  const more = () => { if (hasNextPage && !isFetchingNextPage) void fetchNextPage() }
+
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el || typeof IntersectionObserver !== 'function') return
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) more() }, { rootMargin: '900px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  })
+
+  const remove = async () => {
+    if (!ask) return
+    const { photo, remote } = ask
+    setBusy(true); setNote(deleteStatus(remote, photoName(photo)))
+    try {
+      const r = await api<{ ok?: boolean; detail?: string; message?: string; cache_cleanup_warning?: string }>(deletePath(photo), { method: 'POST', json: deleteBody(remote) })
+      if (!r || r.ok !== true) throw new ApiError(0, r?.detail || 'Photo deletion failed.')
+      setAsk(null); setNote(deleteDone(remote, r)); toast(deleteDone(remote, r))
+      await Promise.all([qc.invalidateQueries({ queryKey: ['photos'] }), qc.invalidateQueries({ queryKey: ['photo-channels'] })])
+    } catch (e) { const m = reason(e, 'Photo deletion failed. The library entry was retained.'); setAsk(null); setNote(m); toast.error(m) } finally { setBusy(false) }
+  }
+
+  const refresh = async () => { await Promise.all([qc.invalidateQueries({ queryKey: ['photo-channels'] }), qc.invalidateQueries({ queryKey: ['photos'] })]); toast('Photo library refreshed') }
+  const empty = emptyText(search, favoritesOnly)
+  const status = channels.isError ? reason(channels.error, 'Photo scan status is unavailable.')
+    : note || (channels.data && !list.length ? (channels.data.savedCount ? NO_SCANNED : NO_CHANNELS_SAVED) : !selected.length ? SELECT_PROMPT : q.isSuccess && !total ? EMPTY_INDEX : '')
+
+  return (
+    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+      <PageHead title="Photos" blurb="Browse and organize images discovered in your Telegram channels." />
+
+      <div className="mb-4 flex flex-wrap items-center gap-2.5" aria-label="Photo library tools" role="group">
+        <label className={cn(PILL, 'relative min-w-[154px] cursor-pointer pr-9')}>
+          <Icon name="sort" />
+          <span>{sortLabel(sort)}</span>
+          <Icon name="chevron-down" className="absolute right-3 size-4 text-muted" />
+          <select value={sort} onChange={(e) => setSort(e.target.value as PhotoSort)} aria-label="Sort photos" className="absolute inset-0 cursor-pointer opacity-0">
+            {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </label>
+        <button type="button" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(!favoritesOnly)} title="Show only photos starred in this browser" className={cn(PILL, favoritesOnly && 'border-warn text-warn')}>
+          <span aria-hidden="true">{favoritesOnly ? '★' : '☆'}</span>{favoritesOnly ? 'Showing favourites' : 'Favourites'}
+        </button>
+        <button type="button" onClick={() => void refresh()} aria-label="Refresh photo library" title="Refresh channels and the indexed photo library" className={cn(PILL, 'w-10 justify-center px-0')}><Icon name="refresh" /></button>
+      </div>
+
+      <section aria-label="Photo channels" className="mb-4">
+        <div className="mb-2 flex flex-wrap items-end justify-between gap-2"><div><h2 className="text-lg font-bold">Channels</h2><p className="text-xs text-muted">Select one or more channels to browse their images</p></div><span className="text-xs font-semibold text-muted">{channels.isPending ? 'Loading channels…' : channelSummary(list.length)}</span></div>
+        <div className="flex gap-3.5 overflow-x-auto pb-2" role="group" aria-label="Channels">
+          <ChannelChip label="All" count={list.reduce((n, c) => n + Number(c.photo_count || 0), 0)} on={allSelected(list, selected)} disabled={!list.length} onClick={() => setSelected(toggleAll(list, selected))}><Icon name="grid" className="size-5" /></ChannelChip>
+          {list.map((c) => { const id = String(c.telegram_id); return <ChannelChip key={id} label={channelTitle(c)} count={Number(c.photo_count || 0)} on={selected.includes(id)} onClick={() => setSelected(toggleId(selected, id))}><span title={scanTitle(c)} className="grid size-full place-items-center overflow-hidden rounded-full"><Avatar channel={c} /></span></ChannelChip> })}
+        </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          {selected.length ? <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent">{selectedLabel(selected.length)}</span> : null}
+          <span role="status" aria-live="polite" className="text-xs text-muted">{status}</span>
+        </div>
+      </section>
+
+      <div className="mb-3 flex items-baseline gap-3"><h2 className="text-lg font-bold">Photos</h2><span className="text-xs text-muted">{summaryText(total)}</span></div>
+      {!selected.length ? null : q.isPending ? (
+        <div role="status" aria-label="Loading photos" className="columns-2 gap-2 sm:columns-3 sm:gap-3 lg:columns-4 xl:columns-6">{[236, 318, 188, 272, 214, 344, 198, 286].map((h, i) => <Skeleton key={i} style={{ height: h }} className="mb-2 break-inside-avoid rounded-xl sm:mb-3" />)}</div>
+      ) : q.isError ? (
+        <div role="alert" className="rounded-card border border-bad/40 p-6"><p className="font-semibold">Photo library could not be loaded.</p><p className="mt-1 text-sm text-muted">{reason(q.error, 'Check the Operations log and try again.')}</p><button type="button" onClick={() => void q.refetch()} className="mt-3 h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Retry</button></div>
+      ) : !items.length ? (
+        <div className="rounded-card border border-dashed border-line py-12 text-center"><p className="font-semibold">{empty.title}</p><p className="mt-1 text-sm text-muted">{empty.body}</p></div>
+      ) : (
+        <div className="columns-2 gap-2 sm:columns-3 sm:gap-3 lg:columns-4 xl:columns-6" aria-label="Photos in selected channels">
+          {items.map((p, i) => <PhotoCard key={`${p.channel_id}:${p.message_id}`} photo={p} favorite={favorites.has(String(p.id))} onOpen={() => setViewer(i)} onRemove={(remote) => setAsk({ photo: p, remote })} />)}
+        </div>
+      )}
+      <div ref={sentinel} aria-hidden="true" className="h-8" hidden={!hasNextPage}>{isFetchingNextPage ? <span className="mx-auto block size-5 animate-spin rounded-full border-2 border-line border-t-accent" /> : null}</div>
+      {hasNextPage ? <div className="text-center"><button type="button" onClick={more} disabled={isFetchingNextPage} className="h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold">Load more</button></div> : null}
+
+      {viewer !== null && items[viewer] ? <PhotoViewer items={items} index={viewer} total={total} favorites={favorites} onIndex={setViewer} onClose={() => setViewer(null)} onFavorite={toggleFavorite} onNeedMore={more} /> : null}
+      {ask ? (() => { const c = deleteCopy(ask.remote, photoName(ask.photo), ask.photo.channel_title || 'this channel'); return <Confirm title={c.title} text={c.text} ok={c.ok} danger busy={busy} onCancel={() => setAsk(null)} onOk={() => void remove()} /> })() : null}
+    </section>
+  )
+}
+

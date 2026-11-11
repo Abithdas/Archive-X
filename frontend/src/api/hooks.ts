@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api, libraryUrl } from './client'
 import type { Channel, Entity, EntityKind, LibraryItem, LibraryPage, PerformerDetail, LibraryQuery, Status } from './types'
+import { scannedChannels } from '@/features/photos/photos'
 
 export const queryKeys = {
   status: ['status'] as const,
@@ -156,3 +157,17 @@ export const useLanes = () =>
 /** Saved Content Automation settings (secrets are never returned, only whether they are saved). */
 export const useAutomationConfig = () =>
   useQuery({ queryKey: ['automation-config'] as const, queryFn: () => api<Record<string, unknown>>('/api/operations/automation/config'), staleTime: 30_000, retry: false })
+
+/** Scanned photo channels: the saved channel list merged with each channel's photo-scan state. */
+export const usePhotoChannels = () =>
+  useQuery({
+    queryKey: ['photo-channels'] as const,
+    queryFn: async () => {
+      const [saved, photo] = await Promise.all([
+        api<import('@/features/photos/photos').PhotoChannel[]>('/api/source-channels').catch(() => []),
+        api<import('@/features/photos/photos').PhotoChannel[]>('/api/photos/channels'),
+      ])
+      return { savedCount: Array.isArray(saved) ? saved.length : 0, channels: scannedChannels(Array.isArray(saved) ? saved : [], photo) }
+    },
+    staleTime: 30_000,
+  })
