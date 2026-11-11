@@ -13,6 +13,7 @@ import { ChannelChip } from '@/features/library/ChannelChip'
 import { useDebounced } from '@/features/library/useDebounced'
 import { FaceGroups, useFaceGroups } from './FaceGroups'
 import { DIFFERENT_NEEDS_GROUP, differentBody, differentCopy, filterLabel } from './faces'
+import { ChannelEditor } from '@/features/channels/ChannelEditor'
 import { PhotoCard } from './PhotoCard'
 import { PhotoViewer } from './PhotoViewer'
 import { EMPTY_INDEX, LOAD_FAILED, NO_CHANNELS_SAVED, NO_SCANNED, SELECT_PROMPT, SORTS, allSelected, channelAvatar, channelSummary, channelTitle, deleteBody, deleteCopy, deleteDone, deletePath, deleteStatus, emptyText, initials, photoName, photosUrl, pruneSelection, scanTitle, selectedLabel, sortLabel, summaryText, toggleAll, toggleId, type Photo, type PhotoChannel, type PhotoPage, type PhotoSort } from './photos'
@@ -37,6 +38,7 @@ export function PhotosPage() {
   const [ask, setAsk] = useState<null | { photo: Photo; remote: boolean }>(null)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
+  const [editChannel, setEditChannel] = useState<string | null>(null)
   const sentinel = useRef<HTMLDivElement>(null)
   const faces = useFaceGroups(selected, true)
   const [different, setDifferent] = useState<Photo | null>(null)
@@ -129,6 +131,8 @@ export function PhotosPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           {selected.length ? <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent">{selectedLabel(selected.length)}</span> : null}
+          <button type="button" disabled={selected.length !== 1} onClick={() => setEditChannel(selected[0] ?? null)} title={selected.length === 1 ? 'Edit this channel' : 'Select one channel'} aria-label="Edit selected channel" className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50"><Icon name="edit" className="size-3.5" />Edit</button>
+          {editChannel ? <ChannelEditor id={editChannel} onClose={() => setEditChannel(null)} /> : null}
           <span role="status" aria-live="polite" className="text-xs text-muted">{status}</span>
         </div>
       </section>

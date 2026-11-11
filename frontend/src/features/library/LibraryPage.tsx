@@ -12,6 +12,7 @@ import { PageHead } from '@/design/PageHead'
 import { cn } from '@/design/cn'
 import { useSearch } from '@/app/search'
 import { ActiveFilters } from './ActiveFilters'
+import { ChannelEditor } from '@/features/channels/ChannelEditor'
 import { ChannelChip, initialsOf } from './ChannelChip'
 import { Pagination } from './Pagination'
 import { Toolbar } from './Toolbar'
@@ -34,6 +35,7 @@ export function LibraryPage() {
   const channels = useChannels()
   const qc = useQueryClient()
   const [refreshing, setRefreshing] = useState(false)
+  const [editChannel, setEditChannel] = useState<string | null>(null)
   const refresh = async () => {
     setRefreshing(true)
     try {
@@ -84,6 +86,8 @@ export function LibraryPage() {
         <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent">
           {selected.length} channel{selected.length === 1 ? '' : 's'} selected
         </span>
+        <button type="button" disabled={selected.length !== 1} onClick={() => setEditChannel(selected[0] ?? null)} title={selected.length === 1 ? 'Edit this channel' : 'Select one channel'} aria-label="Edit selected channel" className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50"><Icon name="edit" className="size-3.5" />Edit</button>
+        {editChannel ? <ChannelEditor id={editChannel} onClose={() => setEditChannel(null)} /> : null}
       </div>
 
       {!selected.length ? (
