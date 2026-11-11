@@ -131,8 +131,9 @@ export const useMarkers = (mediaId: number | undefined) =>
 
 export interface PreviewManifest { ready: boolean; frames_ready?: boolean; frame_times: number[]; frame_count?: number; sprite_ready?: boolean; frame_width?: number; frame_height?: number; revision?: string; updated_at?: string | number | null }
 /** The 36 sampled frame times, and whether their JPEGs are cached (only then can the timeline show previews). */
-export const usePreviewManifest = (cid: string, mid: number) =>
+export const usePreviewManifest = (cid: string, mid: number, enabled = true) =>
   useQuery({
+    enabled,
     queryKey: ['preview-manifest', cid, mid] as const,
     queryFn: () => api<PreviewManifest>(`/api/play/preview-manifest/${encodeURIComponent(cid)}/${mid}`),
     staleTime: 60_000,

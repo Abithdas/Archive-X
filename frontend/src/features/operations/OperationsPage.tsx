@@ -13,6 +13,7 @@ import { cn } from '@/design/cn'
 import { JobControls } from './JobControls'
 import { JobDetails } from './JobDetails'
 import { PerformerAudit } from './PerformerAudit'
+import { ChannelDuplicateCard } from './ChannelDuplicates'
 import { ResourceControls } from './ResourceControls'
 import { idOf } from './jobs'
 import { attention, diagnosticTiles, filterJobs, filterLog, healthTiles, jobCounts, laneRows, policyLine, resourceCards, telemetryTiles, type JobFilter, type LogLevel, type Tile, type Tone } from './ops'
@@ -252,7 +253,7 @@ export function OperationsPage() {
           <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
             <h4 className="text-lg font-extrabold">Duplicates</h4>
             <MaintenanceLink title="Duplicate performers" text="Compare names, aliases and artwork, then review the evidence before merging." label="Open performer review" onOpen={() => setAudit(true)} />
-            <MaintenanceLink title="Duplicate video review" text="Choose a channel and scan for verified duplicate video posts." label="Open duplicate scan" />
+            <ChannelDuplicateCard />
           </div>
           <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
             <h4 className="text-lg font-extrabold">Metadata &amp; scene matches</h4>
