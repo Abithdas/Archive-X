@@ -1,5 +1,13 @@
 # Branch `archive-x-desktop-app`: what is done and what is not
 
+## Current state (latest summary; older lines below are a history and some "not yet" notes in them are superseded)
+
+Every page of the classic UI now has a React version at `/app-next/`: Videos (cards, filters, bulk select, shuffle, menu actions), Watch (player, resume, snapshots, markers, quick edit, client-side smart playback), Performers and Studios (directories, detail pages with Details, social links, Similar, Suggestions, editors, merge), Photos (grid, viewer, Image Analysis, reference review), Operations (jobs, details, controls, performer audit, duplicate video review, Open console, resource controller), Transfers, Settings (all eight sections including custom themes and the country-code picker), AI Assistance, search, notifications, command palette.
+
+Known gaps, all small: Photos channel Edit button (no React channel editor yet) and filmstrip tick sounds; the four-frame suggestion preview dialog on Studio/Performer Suggestions; MPEG-TS/H.264/H.265 smart playback and real Telegram/provider/model behaviour are not testable in the sandbox (stubbed or untested, noted in the lines below); the Windows `.exe` can only come from running the GitHub Actions workflow `desktop.yml`, which has never been run (expect fixes on its first run).
+
+Checks at this commit: `npx tsc --noEmit` clean, 865 frontend tests pass, `npm run build` clean, `tools/tests/test_desktop_mode.py` and `test_hosted_mode.py` pass.
+
 > Update: the React UI now uses the classic UI's exact tokens (dark and light), the Outfit font and icon sprite served by the backend, the grouped sidebar with storage card, the top bar (search, Ctrl K, Telegram pill, theme, avatar), round channel chips and the classic video and performer cards. Checked side by side against the classic app.
 > Update: Videos toolbar done (Filters with resolution, sort with 8 options, favourites-only, header search with debounce), tested against the real backend. Still to do on the toolbar: studio/performer/tag/date filters, VLC/MPC-HC shuffle, bulk edit.
 > Update: Videos filters now match the classic drawer (studio, performer, tag with suggestions, upload-date range, Reset, Apply), active-filter chips, Favourites chip, refresh channels, ⋯ menu (select all, clear, reload), numbered pagination with page input and page size. Drawer matches the classic sheet including quick date ranges (7 days, 30 days, 1 year) and resolution chips (Any, 4K, 1440p, 1080p, 720p, <720p), scrolling body with a fixed Apply button. Still missing: VLC/MPC-HC shuffle, card ⋯ menu (move, send, mapping, delete), bulk edit, notifications panel, account menu, command palette, sidebar collapse, phone More sheet.
