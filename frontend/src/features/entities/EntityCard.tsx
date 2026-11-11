@@ -1,7 +1,9 @@
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { Entity, EntityKind } from '@/api/types'
+import { Icon } from '@/design/Icon'
 import { Skeleton, SkeletonLine } from '@/design/Skeleton'
+import { EntityEditor } from './EntityEditor'
 
 const imageUrl = (kind: EntityKind, e: Entity) => `/api/${kind}/${e.id}/image?v=${encodeURIComponent(e.image ?? '')}`
 const PLACEHOLDER = '/static/icons/ax-placeholder.png'
@@ -13,6 +15,7 @@ export interface MergePick { keeper: boolean; selected: boolean; onPick: () => v
 
 export function EntityCard({ kind, entity, merge }: { kind: EntityKind; entity: Entity; merge?: MergePick }) {
   const [broken, setBroken] = useState(false)
+  const [editing, setEditing] = useState(false)
   const label = entity.video_count === 1 ? '1 video' : `${entity.video_count} videos`
   const src = broken ? PLACEHOLDER : imageUrl(kind, entity)
   return (
@@ -32,6 +35,12 @@ export function EntityCard({ kind, entity, merge }: { kind: EntityKind; entity: 
           className={broken ? 'absolute inset-0 h-full w-full object-contain p-6' : 'absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]'}
         />
       </div>
+      {!merge ? (
+        <button type="button" onClick={() => setEditing(true)} title={`Edit ${entity.name}`} aria-label={`Edit ${entity.name}`} className="absolute right-2 top-2 z-20 grid size-9 place-items-center rounded-full bg-black/55 text-white opacity-100 backdrop-blur-sm hover:bg-black/75 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+          <Icon name="edit" className="size-4" />
+        </button>
+      ) : null}
+      {editing ? <EntityEditor kind={kind} id={entity.id} onDone={() => setEditing(false)} /> : null}
       <div className="px-1 leading-snug">
         <h3 className="truncate text-sm font-semibold">
           {kind === 'performers' && !merge ? (

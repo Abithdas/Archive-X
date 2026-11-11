@@ -4,6 +4,7 @@ import { usePerformer } from '@/api/hooks'
 import { ApiError } from '@/api/client'
 import { Button } from '@/design/Button'
 import { Skeleton, SkeletonGroup, SkeletonLine } from '@/design/Skeleton'
+import { EntityEditor } from './EntityEditor'
 import { NO_PERFORMER_VIDEOS } from '@/features/library/shuffle'
 import { useShuffle } from '@/features/library/useShuffle'
 import { VideoCard, VideoCardSkeleton } from '@/features/library/VideoCard'
@@ -17,6 +18,7 @@ export function PerformerPage({ id }: { id: number }) {
   const [open, setOpen] = useState(false)
   const [imgOk, setImgOk] = useState(true)
   const shuffle = useShuffle()
+  const [editing, setEditing] = useState(false)
 
   if (q.isPending)
     return (
@@ -68,7 +70,8 @@ export function PerformerPage({ id }: { id: number }) {
             <span className="rounded-full bg-surface-2 px-2.5 py-1">{videos.length === 1 ? '1 video' : `${videos.length} videos`}</span>
             {p.favorite ? <span className="rounded-full bg-accent/20 px-2.5 py-1 text-accent">Favourite</span> : null}
           </div>
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => setEditing(true)} title="Edit performer details" aria-label="Edit performer details" className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5"><Icon name="edit" className="size-4" />Edit profile</button>
             <button type="button" disabled={shuffle.busy} onClick={() => void shuffle.run('mpc', () => videos, NO_PERFORMER_VIDEOS)} aria-label="Shuffle in MPC-HC" title="Play a random video of this performer in MPC-HC" className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60">
               <Icon name="shuffle" className="size-4" />Shuffle in MPC-HC
             </button>
@@ -86,6 +89,7 @@ export function PerformerPage({ id }: { id: number }) {
           ) : null}
         </div>
       </header>
+      {editing ? <EntityEditor kind="performers" id={p.id} onDone={() => setEditing(false)} /> : null}
       {videos.length ? (
         <div className={GRID}>{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div>
       ) : (
