@@ -13,6 +13,7 @@ import { cn } from '@/design/cn'
 import { JobControls } from './JobControls'
 import { JobDetails } from './JobDetails'
 import { PerformerAudit } from './PerformerAudit'
+import { AutoMatchReview, useAutoMatches } from './AutoMatchReview'
 import { ChannelDuplicateCard } from './ChannelDuplicates'
 import { ResourceControls } from './ResourceControls'
 import { idOf } from './jobs'
@@ -144,6 +145,8 @@ export function OperationsPage() {
   const [tab, setTab] = useState<JobFilter>('all')
   const [confirmReset, setConfirmReset] = useState(false)
   const [audit, setAudit] = useState(false)
+  const [review, setReview] = useState(false)
+  const autoMatches = useAutoMatches()
   const st: Obj = (status.data ?? {}) as Obj
   const jobs = (Array.isArray(st.jobs) ? st.jobs : []) as Obj[]
   const counts = jobCounts(jobs)
@@ -215,10 +218,10 @@ export function OperationsPage() {
         <Card title="System health" aside={`Updated ${updated}`}><TileGrid tiles={healthTiles(st)} /></Card>
         <Card title="Attention" aside="operator action">
           <ul className="grid gap-2">
-            {attention(st).map((x) => (
+            {attention(st, autoMatches.data?.count ?? autoMatches.data?.items?.length ?? 0).map((x) => (
               <li key={x.key} className="flex items-start gap-3 rounded-xl bg-bg p-3 text-sm">
                 <span className={cn('mt-0.5 grid size-8 shrink-0 place-items-center rounded-full', x.tone === 'bad' ? 'bg-bad/15 text-bad' : x.tone === 'warn' ? 'bg-warn/15 text-warn' : 'bg-good/15 text-good')}><Icon name={x.tone === 'ok' ? 'check' : 'alert'} className="size-4" /></span>
-                <span className="self-center">{x.text}</span>
+                {x.action ? <button type="button" onClick={() => setReview(true)} className="self-center text-left font-semibold text-accent underline-offset-2 hover:underline">{x.text}</button> : <span className="self-center">{x.text}</span>}
               </li>
             ))}
           </ul>
@@ -295,6 +298,7 @@ export function OperationsPage() {
       <ActivityLog events={Array.isArray(st.events) ? st.events : []} />
 
       {audit ? <PerformerAudit onClose={() => setAudit(false)} /> : null}
+      {review ? <AutoMatchReview onClose={() => setReview(false)} /> : null}
       {confirmReset ? (
         <Dialog open onClose={() => setConfirmReset(false)} title="Reset HTTP telemetry">
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4">

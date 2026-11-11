@@ -1,3 +1,4 @@
+import { attentionText } from './automatch'
 /** Operations page logic, ported from the classic UI (renderOpsSummary, renderOpsHealth, refreshDiagnosticsStrip,
  *  renderOpsResourceDashboard, renderEvts). Pure functions over the status / diagnostics / resources payloads. */
 type Obj = Record<string, unknown>
@@ -70,8 +71,8 @@ export function healthTiles(st: Obj): Tile[] {
   ]
 }
 
-export interface Attention { key: string; text: string; tone: 'bad' | 'warn' | 'ok' }
-export function attention(st: Obj): Attention[] {
+export interface Attention { key: string; text: string; tone: 'bad' | 'warn' | 'ok'; action?: 'auto-match' }
+export function attention(st: Obj, autoMatches = 0): Attention[] {
   const out: Attention[] = []
   const gov = o(st.governor)
   const rt = o(o(st.content_automation).runtime)
@@ -81,6 +82,7 @@ export function attention(st: Obj): Attention[] {
   if (failed > 0) out.push({ key: 'failed-jobs', tone: 'bad', text: `${failed.toLocaleString()} failed job${failed === 1 ? '' : 's'} require review.` })
   if (flood > 0) out.push({ key: 'flood-wait', tone: 'warn', text: s(gov.download_flood_wait_message) || `Telegram FloodWait active for about ${Math.ceil(flood)}s. Download concurrency is reduced.` })
   if (rt.restart_pending) out.push({ key: 'automation-restart', tone: 'warn', text: 'Content Automation has an interrupted task waiting for an operator decision.' })
+  if (autoMatches > 0) out.push({ key: 'automatic-matches-review', tone: 'warn', text: attentionText(autoMatches), action: 'auto-match' })
   if (!out.length) out.push({ key: 'all-clear', tone: 'ok', text: 'No immediate operator action required.' })
   return out.slice(0, 5)
 }
