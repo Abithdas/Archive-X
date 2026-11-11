@@ -5,6 +5,9 @@ import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { Segmented } from '@/design/Segmented'
 import { cn } from '@/design/cn'
+import { useProfile } from '@/api/hooks'
+import { displayName } from '@/features/profile/profile'
+import { AccountAvatar, ProfileEditor } from '@/features/profile/ProfileEditor'
 import { CountryPhone } from './CountryPhone'
 import { DEFAULT_COUNTRY, NEED_PHONE, composePhone, splitSaved, type Country } from './countries'
 import { useAuthStatus, useTelegramSettings } from './queries'
@@ -32,6 +35,8 @@ const Label = ({ children }: { children: ReactNode }) => <span className="text-[
 /** Telegram: account, API credentials, proxy and sign-in (QR or phone), as in the classic Settings. */
 export function TelegramPanel() {
   const settings = useTelegramSettings()
+  const profile = useProfile()
+  const [editProfile, setEditProfile] = useState(false)
   const auth = useAuthStatus()
   const qc = useQueryClient()
   const s = (settings.data ?? {}) as Obj
@@ -178,8 +183,10 @@ export function TelegramPanel() {
   return (
     <div className="grid gap-4">
       <Card title="Account" pill={<Pill tone={connected ? 'ok' : 'warn'}>{connected ? 'Connected' : 'Not connected'}</Pill>}>
-        <div className="flex items-center gap-4"><span className="grid size-12 place-items-center rounded-full bg-surface-3 text-lg font-bold">{connected ? 'T' : 'A'}</span>
-          <div><b className="block text-lg">Telegram account</b><small className="text-sm text-muted">{accountLine({ connected, configured: s.configured })}</small></div></div>
+        <div className="flex flex-wrap items-center gap-4"><AccountAvatar className="size-12 text-lg" />
+          <div className="min-w-0 flex-1"><b className="block text-lg">{displayName(profile.data) || 'Telegram account'}</b><small className="text-sm text-muted">{accountLine({ connected, configured: s.configured })}</small></div>
+          <button type="button" onClick={() => setEditProfile(true)} className={cn(BTN, 'inline-flex items-center gap-2')}><Icon name="edit" className="size-4" />Edit</button></div>
+        {editProfile ? <ProfileEditor onClose={() => setEditProfile(false)} /> : null}
       </Card>
 
       <Card title="API credentials" pill={<Pill tone={st.tone === 'ok' ? 'ok' : 'muted'}>{s.api_verified ? 'Verified' : s.configured ? 'Saved' : 'Not verified'}</Pill>}>

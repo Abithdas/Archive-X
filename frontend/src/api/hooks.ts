@@ -62,7 +62,7 @@ export const useStudio = (id: number) =>
   })
 
 export const useProfile = () =>
-  useQuery({ queryKey: ['profile'] as const, queryFn: () => api<{ name: string; username: string }>('/api/account/profile'), staleTime: 300_000, retry: false })
+  useQuery({ queryKey: ['profile'] as const, queryFn: () => api<import('@/features/profile/profile').Profile>('/api/account/profile'), staleTime: 300_000, retry: false })
 
 /** Names for the filter drawer's type-ahead (studios, performers, tags), fetched once and cached. */
 export const useSuggestions = (enabled: boolean) =>

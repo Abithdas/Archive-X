@@ -4,6 +4,8 @@ import { useId, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { SESSION_LOST_EVENT, api, ApiError } from '@/api/client'
 import { useDesktopInfo, useProfile, useStatus, useStorage } from '@/api/hooks'
+import { displayName } from '@/features/profile/profile'
+import { AccountAvatar, ProfileEditor } from '@/features/profile/ProfileEditor'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
@@ -24,7 +26,8 @@ export function AccountMenu({ live }: { live: string }) {
   const storage = useStorage()
   const desktop = useDesktopInfo()
   const theme = useTheme()
-  const name = (profile.data?.name || profile.data?.username || 'A').trim() || 'A'
+  const name = displayName(profile.data) || 'A'
+  const [editing, setEditing] = useState(false)
   const tg = Boolean(status.data?.telegram_connected ?? status.data?.telegram?.connected)
   const d = storage.data?.disk
   const pct = d?.total ? Math.round(((d.used || d.total - d.free) / d.total) * 100) : null
@@ -55,11 +58,14 @@ export function AccountMenu({ live }: { live: string }) {
   return (
     <>
       <button type="button" popoverTarget={id} aria-label="Account menu" aria-haspopup="menu" className="relative grid size-10 place-items-center rounded-full bg-surface-3 text-[15px] font-bold" title={`Live updates: ${live}`}>
-        {name.charAt(0).toUpperCase()}
+        <AccountAvatar className="size-10 text-[15px]" />
         <i className={cn('absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-bg', live === 'live' ? 'bg-good' : live === 'connecting' ? 'bg-warn' : 'bg-bad')} role="status" aria-label={live === 'live' ? 'Live' : live === 'connecting' ? 'Connecting' : 'Offline, retrying'} />
       </button>
       <div ref={pop} id={id} popover="auto" role="menu" aria-label="Account menu" className="fixed right-4 top-[60px] left-auto bottom-auto m-0 w-[280px] rounded-[18px] border border-line-2 bg-surface p-2 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
         <div className="px-3 pb-1.5 pt-2 text-xs text-muted">Signed in as <b className="text-fg">{name}</b></div>
+        <button type="button" role="menuitem" className={ROW} onClick={() => { close(); setEditing(true) }}>
+          <Icon name="edit" className="text-muted" />Edit profile
+        </button>
         <Link to="/settings" role="menuitem" onClick={close} className={ROW}>
           <Icon name="send" className="text-muted" />Telegram
           <span className={cn('ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold', tg ? 'bg-good/15 text-good' : 'bg-warn/15 text-warn')}>{tg ? 'Connected' : 'Setup needed'}</span>
@@ -91,6 +97,7 @@ export function AccountMenu({ live }: { live: string }) {
           <Icon name="close" />Exit app
         </button>
       </div>
+      {editing ? <ProfileEditor onClose={() => setEditing(false)} /> : null}
       {exit ? (
         <Dialog open onClose={() => exit !== 'stopping' && setExit(null)} title={exit === 'ask' ? 'Exit Archive X?' : exit === 'stopping' ? 'Archive X is shutting down' : 'Could not stop Archive X'}>
           {exit === 'ask' ? (
