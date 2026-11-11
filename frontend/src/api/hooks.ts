@@ -47,6 +47,19 @@ export interface StorageSummary {
 export const useStorage = () =>
   useQuery({ queryKey: ['storage'] as const, queryFn: () => api<StorageSummary>('/api/settings/storage'), staleTime: 60_000, retry: false })
 
+export interface StudioDetail { site: import('@/features/entities/studio').Site; videos: Array<Omit<LibraryItem, '_cid' | 'name'> & { source_channel: string; title: string | null; filename: string }>; site_url?: string }
+/** One studio and every video linked to it. */
+export const useStudio = (id: number) =>
+  useQuery({
+    queryKey: ['studio', id] as const,
+    queryFn: () => api<StudioDetail>(`/api/studios/${id}/videos`),
+    select: (d) => ({
+      site: { ...d.site, site_url: d.site.site_url ?? d.site_url ?? null },
+      videos: d.videos.map((v): LibraryItem => ({ ...v, _cid: v.source_channel, name: v.title || v.filename })),
+    }),
+    staleTime: 15_000,
+  })
+
 export const useProfile = () =>
   useQuery({ queryKey: ['profile'] as const, queryFn: () => api<{ name: string; username: string }>('/api/account/profile'), staleTime: 300_000, retry: false })
 

@@ -43,8 +43,8 @@ export function EntityCard({ kind, entity, merge }: { kind: EntityKind; entity: 
       {editing ? <EntityEditor kind={kind} id={entity.id} onDone={() => setEditing(false)} /> : null}
       <div className="px-1 leading-snug">
         <h3 className="truncate text-sm font-semibold">
-          {kind === 'performers' && !merge ? (
-            <Link to="/performers/$id" params={{ id: String(entity.id) }} className="outline-none after:absolute after:inset-0 after:rounded-card focus-visible:after:ring-2 focus-visible:after:ring-accent">
+          {!merge ? (
+            <Link to={kind === 'performers' ? '/performers/$id' : '/studios/$id'} params={{ id: String(entity.id) }} className="outline-none after:absolute after:inset-0 after:rounded-card focus-visible:after:ring-2 focus-visible:after:ring-accent">
               {entity.name}
             </Link>
           ) : (

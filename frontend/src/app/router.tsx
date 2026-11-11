@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 import { LibraryPage } from '@/features/library/LibraryPage'
 import { EntityDirectory } from '@/features/entities/EntityDirectory'
+import { StudioPage } from '@/features/entities/StudioPage'
 import { PerformerPage } from '@/features/entities/PerformerPage'
 import { WatchPage } from '@/features/watch/WatchPage'
 import { OperationsPage } from '@/features/operations/OperationsPage'
@@ -20,6 +21,15 @@ const performer = createRoute({
   },
 })
 
+const studio = createRoute({
+  getParentRoute: () => root,
+  path: '/studios/$id',
+  component: function StudioRoute() {
+    const { id } = studio.useParams()
+    return <StudioPage id={Number(id)} />
+  },
+})
+
 const watch = createRoute({
   getParentRoute: () => root,
   path: '/watch/$cid/$mid',
@@ -33,6 +43,7 @@ const routeTree = root.addChildren([
   index,
   createRoute({ getParentRoute: () => root, path: '/performers', component: () => <EntityDirectory kind="performers" /> }),
   performer,
+  studio,
   watch,
   createRoute({ getParentRoute: () => root, path: '/studios', component: () => <EntityDirectory kind="studios" /> }),
   createRoute({ getParentRoute: () => root, path: '/operations', component: OperationsPage }),
