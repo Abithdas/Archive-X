@@ -13,25 +13,25 @@ import { responsive } from '@/design/responsive'
 
 export function SocialPanel({ links, loading, label = 'Website and social links' }: { links: SocialLink[]; loading: boolean; label?: string }) {
   return (
-    <div aria-label={label} className="mt-3 flex flex-wrap gap-2">
+    <div aria-label={label} className="mt-[9px] flex min-h-9 flex-wrap items-center gap-2">
       {links.length ? links.map((l) => (
-        <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${l.label}`} title={l.label} className="inline-flex h-9 items-center gap-2 rounded-full border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5">
-          <Icon name={brandIcon(l.href)} className="size-4" /><span>{l.label}</span><Icon name="external" className="size-3.5 text-muted" />
+        <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${l.label}`} title={l.label} className="grid size-9 place-items-center rounded-full border border-line bg-surface-2 text-muted hover:bg-fg/5 hover:text-fg">
+          <Icon name={brandIcon(l.href)} className="size-[18px]" />
         </a>
-      )) : <span className="text-xs text-muted">{loading ? 'Checking saved profile links…' : 'No website or social links saved.'}</span>}
+      )) : <span className="py-1.5 text-[11.5px] leading-[1.4] text-faint">{loading ? 'Checking saved profile links…' : 'No website or social links saved.'}</span>}
     </div>
   )
 }
 
 export function DetailsCard({ rows, related, label = 'Studio details' }: { rows: Array<[string, string]>; related: Array<Related & { id: number; name: string }>; label?: string }) {
   return (
-    <section aria-label={label} className="mb-6 rounded-card border border-line bg-surface p-4">
-      <div className="mb-3 flex items-baseline justify-between gap-3"><h2 className="text-lg font-bold">Details</h2><span className="text-xs text-muted">From saved profile &amp; providers</span></div>
-      <dl className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
-        {rows.map(([k, v]) => <div key={k} className="min-w-0 text-left"><dt className="text-xs text-muted">{k}</dt><dd className="text-sm font-semibold [overflow-wrap:anywhere]">{v}</dd></div>)}
+    <section aria-label={label} className="mb-4 rounded-[18px] border border-line bg-surface p-3.5">
+      <div className="flex items-baseline justify-between gap-3"><h2 className="text-sm font-bold tracking-[-0.01em]">Details</h2><span className="text-[11px] text-faint">From saved profile &amp; providers</span></div>
+      <dl className="mt-[9px] grid grid-cols-2 gap-1.5 sm:grid-cols-[repeat(auto-fit,minmax(min(140px,100%),1fr))] sm:gap-2">
+        {rows.map(([k, v]) => <div key={k} className="flex min-h-[54px] min-w-0 flex-col items-start gap-1 rounded-[10px] border border-line bg-bg px-2.5 py-[9px] text-left"><dt className="text-[10.5px] font-medium leading-[1.3] text-faint">{k}</dt><dd className="text-xs font-semibold leading-[1.35] [overflow-wrap:anywhere]">{v}</dd></div>)}
         {related.length ? (
-          <div className="min-w-0 text-left sm:col-span-2 lg:col-span-3"><dt className="text-xs text-muted">Related studios</dt>
-            <dd className="mt-1 flex flex-wrap gap-2">{related.map((r) => <Link key={r.id} to="/studios/$id" params={{ id: String(r.id) }} title={r.relation || 'Related studio'} className="rounded-xl border border-line-2 px-3 py-1.5 text-sm font-semibold hover:bg-fg/5">{r.name}<small className="ml-1.5 text-xs font-normal text-muted">{r.relation || 'Related'}</small></Link>)}</dd></div>
+          <div className="col-span-full min-w-0 text-left"><dt className="text-[10.5px] font-medium text-faint">Related studios</dt>
+            <dd className="mt-1 flex flex-wrap gap-2">{related.map((r) => <Link key={r.id} to="/studios/$id" params={{ id: String(r.id) }} title={r.relation || 'Related studio'} className="rounded-[10px] border border-line px-3 py-1.5 text-xs font-semibold hover:bg-fg/5">{r.name}<small className="ml-1.5 text-[11px] font-normal text-muted">{r.relation || 'Related'}</small></Link>)}</dd></div>
         ) : null}
       </dl>
     </section>

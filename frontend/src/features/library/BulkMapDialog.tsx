@@ -87,7 +87,7 @@ export function BulkMapDialog({ mode, picked, prefill, onDone }: { mode: MapMode
   const studios = useStudioRows(sq)
   const combined = mode === 'both' || mode === 'all'
 
-  const refresh = () => { void qc.invalidateQueries({ queryKey: ['library'] }); void qc.invalidateQueries({ queryKey: ['entities'] }); void qc.invalidateQueries({ queryKey: ['channels'] }) }
+  const refresh = () => { void qc.invalidateQueries({ queryKey: ['library'] }); void qc.invalidateQueries({ queryKey: ['entities'] }); void qc.invalidateQueries({ queryKey: ['channels'] }); void qc.invalidateQueries({ queryKey: ['performer'] }); void qc.invalidateQueries({ queryKey: ['studio'] }) }
   const detail = (e: unknown, fb: string) => (e instanceof ApiError ? e.detail || fb : fb)
 
   const applyOne = async (kind: 'performer' | 'site', i: number) => {

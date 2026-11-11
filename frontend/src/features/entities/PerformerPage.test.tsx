@@ -1,5 +1,7 @@
 import { screen, fireEvent, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { readCrop } from './portrait'
+import { useSelection } from '@/features/library/selection'
 import { PerformerPage } from './PerformerPage'
 import { withRouter } from '@/test/withRouter'
 
@@ -83,5 +85,45 @@ describe('PerformerPage extras', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Yes, link performer/ }))
     await vi.waitFor(() => expect(calls.find((c) => c.url === '/api/suggestions/31/confirm-entity')?.body).toEqual({ entity_type: 'performer', entity_id: 2 }))
     expect(await screen.findByText('No pending suggestions')).toBeInTheDocument()
+  })
+})
+
+describe('PerformerPage profile card', () => {
+  beforeAll(() => {
+    HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
+    HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') }
+  })
+  const open = async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(detail('bio')), { status: 200 })))
+    withRouter(<PerformerPage id={2} />)
+    await screen.findByRole('heading', { level: 1, name: 'Mia Rivera' })
+  }
+  it('has a back button and a Performers › name trail', async () => {
+    await open()
+    const nav = screen.getByRole('navigation', { name: 'Breadcrumb' })
+    expect(within(nav).getByRole('button', { name: 'Go back' })).toBeInTheDocument()
+    expect(nav).toHaveTextContent('Performers › Mia Rivera')
+  })
+  it('Adjust framing opens the portrait dialog and saves the framing for this performer', async () => {
+    localStorage.clear()
+    await open()
+    expect(screen.getByText('Adjust framing')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Adjust portrait framing for Mia Rivera' }))
+    fireEvent.change(await screen.findByRole('slider', { name: 'Portrait zoom' }), { target: { value: '1.8' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save framing' }))
+    expect(readCrop(2).zoom).toBe(1.8)
+    expect(readCrop(3).zoom).toBe(1)
+  })
+  it('Edit multiple videos turns on selection with a count, and a second click turns it off', async () => {
+    useSelection.getState().exit()
+    await open()
+    expect(screen.getByText('Videos linked to this performer')).toBeInTheDocument()
+    const btn = screen.getByRole('button', { name: 'Edit multiple videos' })
+    expect(btn).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(btn)
+    expect(screen.getByRole('button', { name: /Selecting · 0/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('toolbar', { name: 'Edit multiple videos' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Selecting · 0/ }))
+    expect(screen.queryByRole('toolbar', { name: 'Edit multiple videos' })).not.toBeInTheDocument()
   })
 })

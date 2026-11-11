@@ -5,6 +5,7 @@ import { ApiError, api } from '@/api/client'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { favLabel, favText } from './studio'
+import { ACTION } from './EntityHero'
 
 /** Star toggle for a performer or studio; shows the server's answer, not a guess. */
 export function FavoriteButton({ kind, id, initial }: { kind: 'performer' | 'studio'; id: number; initial: boolean }) {
@@ -22,7 +23,7 @@ export function FavoriteButton({ kind, id, initial }: { kind: 'performer' | 'stu
   }
   return (
     <button type="button" disabled={busy} aria-pressed={on} aria-label={favLabel(on)} title={favLabel(on)} onClick={() => void toggle()}
-      className={cn('inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold hover:bg-fg/5 disabled:opacity-60', on ? 'border-warn text-warn' : 'border-line-2')}>
+      className={cn(ACTION, on && 'border-warn text-warn')}>
       <Icon name="star" className={cn('size-4', on && 'drop-shadow')} />{favText(on)}
     </button>
   )

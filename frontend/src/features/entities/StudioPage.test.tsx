@@ -67,7 +67,7 @@ describe('StudioPage', () => {
 
   it('toggles the favourite using the server answer', async () => {
     const calls = mount()
-    const header = await screen.findByRole('banner', { name: 'Studio profile' })
+    const header = await screen.findByRole('region', { name: 'Studio profile' })
     const btn = within(header).getByRole('button', { name: 'Add to favourites' })
     fireEvent.click(btn)
     await waitFor(() => expect(calls.some((c) => c.url === '/api/entities/studio/3/favorite' && c.method === 'POST')).toBe(true))
@@ -132,5 +132,21 @@ describe('StudioPage', () => {
     SUGGESTED.length = 0
     mount(); fireEvent.click(await screen.findByRole('tab', { name: /Suggestions/ }))
     expect(await screen.findByText('No pending suggestions')).toBeInTheDocument()
+  })
+})
+
+describe('StudioPage profile card', () => {
+  it('has a back button and a Studios › name trail', async () => {
+    mount()
+    const nav = await screen.findByRole('navigation', { name: 'Breadcrumb' })
+    expect(within(nav).getByRole('button', { name: 'Go back' })).toBeInTheDocument()
+    expect(nav).toHaveTextContent('Studios › Northlight')
+  })
+  it('offers Edit multiple videos above the video grid', async () => {
+    mount()
+    expect(await screen.findByText('Videos linked to this studio')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit multiple videos' }))
+    expect(screen.getByRole('toolbar', { name: 'Edit multiple videos' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Selecting · 0/ }))
   })
 })

@@ -53,7 +53,7 @@ export function SelectionBar({ visible }: { visible: readonly LibraryItem[] }) {
 
   const first = visible.find((v) => list.some((p) => p.channel_id === v._cid && p.message_id === v.id))
   const prefill = { performer: first?.performers[0], studio: first?.studio || undefined }
-  const refresh = () => { void qc.invalidateQueries({ queryKey: ['library'] }); void qc.invalidateQueries({ queryKey: ['entities'] }); void qc.invalidateQueries({ queryKey: ['channels'] }) }
+  const refresh = () => { void qc.invalidateQueries({ queryKey: ['library'] }); void qc.invalidateQueries({ queryKey: ['entities'] }); void qc.invalidateQueries({ queryKey: ['channels'] }); void qc.invalidateQueries({ queryKey: ['performer'] }); void qc.invalidateQueries({ queryKey: ['studio'] }) }
   const need = (fn: () => void) => () => (list.length ? fn() : void toast(NONE_PICKED))
   const detail = (e: unknown, fallback: string) => (e instanceof ApiError ? e.detail || fallback : fallback)
 

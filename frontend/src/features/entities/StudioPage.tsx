@@ -10,16 +10,15 @@ import { NO_STUDIO_VIDEOS } from '@/features/library/shuffle'
 import { useShuffle } from '@/features/library/useShuffle'
 import { VideoCard, VideoCardSkeleton } from '@/features/library/VideoCard'
 import { EntityEditor } from './EntityEditor'
+import { ACTION, ACTION_PRIMARY, Actions, BackBar, Bio, EditingBar, Eyebrow, EntityTabs, HeroCard, MEDIA_FRAME, Pill, Pills, Title, VideosHead, providerTone } from './EntityHero'
 import { DetailsCard, SimilarPanel, SocialPanel, SuggestionsPanel } from './StudioExtras'
 import { detailRows, providerBio, relatedList, similarStudios, socialLinks } from './studioextras'
 import { FavoriteButton } from './FavoriteButton'
-import { NOT_FOUND, TABS, bioShown, bioText, imagePath, initial, linkedPerformers, metadataStatus, plural, providerPills, BIO_LIMIT, type Tab } from './studio'
+import { NOT_FOUND, TABS, bioText, imagePath, initial, linkedPerformers, metadataStatus, plural, providerPills, BIO_LIMIT, type Tab } from './studio'
 import { responsive } from '@/design/responsive'
 
 const GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
 const WRAP = 'mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10'
-const PILL = 'rounded-full bg-surface-2 px-2.5 py-1'
-const PILL_TONE = { violet: 'bg-[#a78bfa]/15 text-[#c4b5fd]', accent: 'bg-accent/15 text-accent', plain: 'bg-surface-3 text-muted' } as const
 
 export function StudioPage({ id }: { id: number }) {
   const q = useStudio(id)
@@ -30,7 +29,6 @@ export function StudioPage({ id }: { id: number }) {
   const career = useStudioCareer(id)
   const suggested = useStudioSuggested(id)
   const [tab, setTab] = useState<Tab>('videos')
-  const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [logoOk, setLogoOk] = useState(true)
   const shuffle = useShuffle()
@@ -66,47 +64,36 @@ export function StudioPage({ id }: { id: number }) {
   const idOf = (name: string) => performers.data?.find((p) => p.name.toLowerCase() === name.toLowerCase())?.id
   return (
     <section className={WRAP}>
-      <nav aria-label="Breadcrumb" className="mb-4 text-sm text-muted"><Link to="/studios" className="font-semibold text-accent hover:underline">Studios</Link> <span aria-hidden="true">/</span> {site.name}</nav>
-      <header className="mb-6 flex gap-5" aria-label="Studio profile">
-        <div className="grid size-28 shrink-0 place-items-center overflow-hidden rounded-card border border-line bg-surface-2 sm:size-40">
-          {logoOk ? <img {...responsive(imagePath(site.id, site.image), '(max-width: 639px) 112px, 160px', [320, 480, 640])} alt="" onError={() => setLogoOk(false)} className="size-full object-contain p-2" /> : <span className="text-5xl font-extrabold text-muted" aria-hidden="true">{initial(site.name)}</span>}
+      <BackBar to="/studios" section="Studios" name={site.name} />
+      <HeroCard label="Studio profile" media={
+        <div className={cn(MEDIA_FRAME, 'grid place-items-center')}>
+          {logoOk ? <img {...responsive(imagePath(site.id, site.image), '(max-width: 639px) 150px, 200px', [320, 480, 640])} alt="" onError={() => setLogoOk(false)} className="size-full object-contain p-3.5" /> : <span className="text-5xl font-extrabold text-muted" aria-hidden="true">{initial(site.name)}</span>}
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-faint">Studio</p>
-          <h1 className="text-3xl font-extrabold tracking-tight [overflow-wrap:anywhere]">{site.name}</h1>
-          <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
-            <span className={PILL}>{plural(videos.length, 'video')}</span>
-            <span className={PILL}>{plural(linked.length, 'performer')}</span>
-            <span className={cn(PILL, metadataStatus(site) === 'Metadata linked' && 'bg-good/15 text-good')}>{metadataStatus(site)}</span>
-            {pills.map((p) => <span key={p.label} className={cn('rounded-full px-2.5 py-1', PILL_TONE[p.tone])}>{p.label}</span>)}
-          </div>
-          {bio ? (
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed">
-              {bioShown(bio, open)}{' '}
-              {bio.length > BIO_LIMIT ? <button type="button" className="font-semibold text-accent" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? 'Show less' : 'Read more'}</button> : null}
-            </p>
-          ) : null}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" disabled={shuffle.busy} onClick={() => void shuffle.run('mpc', () => videos, NO_STUDIO_VIDEOS)} aria-label="Shuffle in MPC-HC" title="Play a random video from this studio in MPC-HC" className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60"><Icon name="shuffle" className="size-4" />Shuffle in MPC-HC</button>
-            <FavoriteButton kind="studio" id={site.id} initial={Boolean(site.favorite)} />
-            <button type="button" onClick={() => setEditing(true)} title="Edit studio details" aria-label="Edit studio details" className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5"><Icon name="edit" className="size-4" />Edit studio</button>
-          </div>
-          <SocialPanel links={socialLinks(site, meta.data)} loading={meta.isPending} />
-        </div>
-      </header>
+      }>
+        <Eyebrow>Studio</Eyebrow>
+        <Title>{site.name}</Title>
+        <Pills>
+          <Pill>{plural(videos.length, 'video')}</Pill>
+          <Pill>{plural(linked.length, 'performer')}</Pill>
+          <Pill tone={metadataStatus(site) === 'Metadata linked' ? 'linked' : 'local'}>{metadataStatus(site)}</Pill>
+          {pills.map((p) => <Pill key={p.label} tone={providerTone(p.tone)}>{p.label}</Pill>)}
+        </Pills>
+        <Bio text={bio} limit={BIO_LIMIT} />
+        <Actions>
+          <button type="button" disabled={shuffle.busy} onClick={() => void shuffle.run('mpc', () => videos, NO_STUDIO_VIDEOS)} aria-label="Shuffle in MPC-HC" title="Play a random video from this studio in MPC-HC" className={ACTION_PRIMARY}><Icon name="shuffle" className="size-4" />Shuffle in MPC-HC</button>
+          <FavoriteButton kind="studio" id={site.id} initial={Boolean(site.favorite)} />
+          <button type="button" onClick={() => setEditing(true)} title="Edit studio details" aria-label="Edit studio details" className={ACTION}><Icon name="edit" className="size-4" />Edit studio</button>
+        </Actions>
+        <SocialPanel links={socialLinks(site, meta.data)} loading={meta.isPending} />
+      </HeroCard>
 
       <DetailsCard rows={detailRows(site, metadata, videos.length, linked.length)} related={relatedList(family.data?.related)} />
 
-      <div role="tablist" aria-label="Studio details" className="mb-4 flex gap-1 overflow-x-auto border-b border-line">
-        {TABS.map((t) => (
-          <button key={t.value} type="button" role="tab" aria-selected={tab === t.value} onClick={() => setTab(t.value)} className={cn('-mb-px h-11 shrink-0 whitespace-nowrap border-b-2 px-3 text-sm font-bold sm:px-4', tab === t.value ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg')}>
-            {t.label}{t.value === 'videos' || t.value === 'performers' || (t.value === 'suggestions' && suggested.data?.length) ? <span className="ml-1 text-xs font-semibold text-faint">{t.value === 'videos' ? videos.length : t.value === 'performers' ? linked.length : suggested.data?.length}</span> : null}
-          </button>
-        ))}
-      </div>
+      <EntityTabs label="Studio details" value={tab} onChange={setTab}
+        tabs={TABS.map((t) => ({ value: t.value, label: t.label, count: t.value === 'videos' ? videos.length : t.value === 'performers' ? linked.length : t.value === 'suggestions' ? (suggested.data?.length ?? 0) : 0 }))} />
 
       {tab === 'similar' ? <SimilarPanel items={similarStudios(videos, site.name, studios.data ?? [])} /> : tab === 'suggestions' ? <SuggestionsPanel kind="studio" entityId={site.id} name={site.name} /> : tab === 'videos' ? (
-        videos.length ? <div className={GRID} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div> : <p role="tabpanel" aria-label="Videos" className="rounded-card border border-dashed border-line py-12 text-center text-muted">No videos are linked to this studio yet.</p>
+        videos.length ? <><VideosHead kind="studio" videos={videos} /><div className={GRID} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div><EditingBar videos={videos} /></> : <p role="tabpanel" aria-label="Videos" className="rounded-card border border-dashed border-line py-12 text-center text-muted">No videos are linked to this studio yet.</p>
       ) : linked.length ? (
         <ul role="tabpanel" aria-label="Performers" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4">
           {linked.map((p) => {

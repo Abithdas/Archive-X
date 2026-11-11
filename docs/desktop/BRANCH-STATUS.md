@@ -93,3 +93,5 @@ from `desktop/` (needs the Tauri Linux prerequisites listed there).
 > Update: classic UI removed (`telegram_archive/web/ui/`, `web/html.py`, `/ui-assets`); React is served at `/` with an SPA fallback registered last that 404s reserved backend paths (`/api`, `/stream`, `/static`, `/ws`, `/desktop`).
 
 > Update: `frontend/dist` is now committed so `python run.py` works from the source zip without Node. After changing anything in `frontend/`, run `npm run build` and commit the new `dist`.
+
+> Update: performer and studio profile pages now match the classic look (back bar, one hero card, pills with metadata dot and provider colours, detail tiles, tab underline and count chips, "Videos linked to this …" with Edit multiple videos). New: performer "Adjust framing" (pan and zoom, saved per performer in this browser under the classic storage key), which the earlier parity audit had missed.
