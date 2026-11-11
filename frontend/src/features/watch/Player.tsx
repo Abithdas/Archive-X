@@ -16,8 +16,10 @@ const BTN = 'grid size-9 place-items-center rounded-lg text-fg/90 hover:bg-fg/10
  * Native <video> with the classic player's control bar: seek, play, previous/next, ±30 s, speed, mute and volume,
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
-export function Player({ src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, onPrev, onNext, onOpenVlc }: { autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
+export function Player({ src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc }: { startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
+  const startApplied = useRef(false)
+  useEffect(() => { startApplied.current = false }, [src])   // a new video may have its own start position
   const box = useRef<HTMLDivElement>(null)
   const [playing, setPlaying] = useState(false)
   const [time, setTime] = useState(0)
@@ -118,18 +120,24 @@ export function Player({ src, poster, durationHint, segments = [], preview, auto
           autoPlay={autoPlay}
           onClick={onTap}
           loop={loop}
-          onPlay={() => setPlaying(true)}
+          onPlay={() => { setPlaying(true); onPlayed?.() }}
           onPause={() => setPlaying(false)}
           onWaiting={() => setLoading(true)}
           onPlaying={() => setLoading(false)}
           onCanPlay={() => setLoading(false)}
-          onLoadedMetadata={(e) => setDur(e.currentTarget.duration || durationHint || 0)}
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget
+            setDur(v.duration || durationHint || 0)
+            // Start where the viewer chose to resume, once per video (a retry keeps the position it reached).
+            if (startAt > 0 && !startApplied.current) { startApplied.current = true; v.currentTime = clampTime(startAt, v.duration || durationHint || 0) }
+          }}
           onTimeUpdate={(e) => {
             setTime(e.currentTarget.currentTime)
+            onTime?.(e.currentTarget.currentTime, e.currentTarget.duration || durationHint || 0)
             const b = e.currentTarget.buffered
             setBuffered(b.length ? b.end(b.length - 1) : 0)
           }}
-          onEnded={() => autoNext && onNext?.()}
+          onEnded={() => { onEnd?.(); if (autoNext) onNext?.() }}
           onError={() => { setFailed(true); setLoading(false) }}
           className="absolute inset-0 h-full w-full object-contain"
         />

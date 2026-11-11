@@ -14,7 +14,8 @@ import { useLibraryStore } from '@/features/library/store'
 import { experienceFrom } from '@/features/settings/logic'
 import { useExperienceSettings } from '@/features/settings/queries'
 import { Player } from './Player'
-import { normaliseChapters, toSegments } from './timeline'
+import { useResume } from './useResume'
+import { frameIndexFor, normaliseChapters, toSegments } from './timeline'
 
 const CARD = 'rounded-[18px] border border-line bg-surface p-4'
 const CHIP = 'inline-flex h-7 items-center rounded-full bg-surface-3 px-3 text-xs font-semibold text-muted'
@@ -70,7 +71,8 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const performers = useEntities('performers')
   const studios = useEntities('studios')
   const fav = useFavorite()
-  const exp = experienceFrom(useExperienceSettings().data)
+  const expQuery = useExperienceSettings()
+  const exp = experienceFrom(expQuery.data)
   const [showTags, setShowTags] = useState(false)
   const item = video.data
   const items = queue.data?.items ?? []
@@ -80,6 +82,8 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const next = index >= 0 ? items[index + 1] : items.find((i) => item && !(i.id === item.id && i._cid === item._cid))
   const segments = useMemo(() => toSegments(normaliseChapters(markers.data, item?.duration ?? 0), item?.duration ?? 0), [markers.data, item?.duration])
   const preview = exp.live_seek_preview && manifest.data?.frames_ready && manifest.data.frame_times.length ? { times: manifest.data.frame_times, url: (n: number) => `/api/play/preview-frame/${encodeURIComponent(cid)}/${mid}/${n}` } : undefined
+  const frameFor = manifest.data?.frames_ready && manifest.data.frame_times.length ? (t: number) => `/api/play/preview-frame/${encodeURIComponent(cid)}/${mid}/${frameIndexFor(manifest.data!.frame_times, t)}` : undefined
+  const resume = useResume({ cid, mid, name: item?.name ?? '', duration: item?.duration ?? 0, enabled: exp.resume_prompt, settled: Boolean(item) && !expQuery.isPending, autoplay: exp.autoplay, frameFor })
   const idOf = (list: Array<{ id: number; name: string }> | undefined, name: string) => list?.find((e) => e.name.toLowerCase() === name.toLowerCase())?.id
 
   if (video.isPending) return <Skel />
@@ -108,7 +112,12 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
           {tg ? <a href={tg} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold hover:bg-surface-2"><Icon name="brand-telegram" />Telegram</a> : null}
         </div>
 
-        <Player src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={exp.autoplay} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} />
+        {resume.ready ? (
+          <Player src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay} startAt={resume.startAt} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} />
+        ) : (
+          <div className="aspect-video w-full rounded-[18px] border border-line bg-black" aria-hidden="true" />
+        )}
+        {resume.dialog}
 
         <header className="min-w-0">
           <h1 className="text-[clamp(22px,2.4vw,30px)] font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere]">{item.name}</h1>

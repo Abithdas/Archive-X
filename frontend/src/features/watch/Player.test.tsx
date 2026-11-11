@@ -4,6 +4,47 @@ import { Player, nextRate } from './Player'
 import { Timeline } from './Timeline'
 import { telegramLink } from './WatchPage'
 
+describe('Player resume hooks', () => {
+  const metadata = (video: HTMLVideoElement, duration: number) => {
+    Object.defineProperty(video, 'duration', { value: duration, configurable: true })
+    fireEvent.loadedMetadata(video)
+  }
+  it('starts at the chosen position once the video knows its length, and not again after a retry', () => {
+    const { container } = render(<Player src="/stream/-1/1" durationHint={600} startAt={300} onOpenVlc={() => {}} />)
+    const v = container.querySelector('video')!
+    metadata(v, 600)
+    expect(v.currentTime).toBe(300)
+    v.currentTime = 450
+    metadata(v, 600)   // e.g. a second loadedmetadata after a stall: must not jump back
+    expect(v.currentTime).toBe(450)
+  })
+  it('never starts past the end', () => {
+    const { container } = render(<Player src="/stream/-1/1" startAt={9999} onOpenVlc={() => {}} />)
+    const v = container.querySelector('video')!
+    metadata(v, 600)
+    expect(v.currentTime).toBeLessThanOrEqual(600)
+  })
+  it('reports time, play and the end', () => {
+    const onTime = vi.fn(), onPlayed = vi.fn(), onEnd = vi.fn()
+    const { container } = render(<Player src="/stream/-1/1" durationHint={600} onTime={onTime} onPlayed={onPlayed} onEnd={onEnd} onOpenVlc={() => {}} />)
+    const v = container.querySelector('video')!
+    v.currentTime = 42
+    fireEvent.timeUpdate(v)
+    expect(onTime).toHaveBeenCalledWith(42, 600)
+    fireEvent.play(v)
+    expect(onPlayed).toHaveBeenCalledTimes(1)
+    fireEvent.ended(v)
+    expect(onEnd).toHaveBeenCalledTimes(1)
+  })
+  it('does not start at 0 seconds specially', () => {
+    const { container } = render(<Player src="/stream/-1/1" durationHint={600} onOpenVlc={() => {}} />)
+    const v = container.querySelector('video')!
+    v.currentTime = 12
+    metadata(v, 600)
+    expect(v.currentTime).toBe(12)
+  })
+})
+
 describe('Player', () => {
   it('shows each time once (no duplicate "0:00 / 2:00" copy)', () => {
     render(<Player src="/stream/-1/1" durationHint={120} onOpenVlc={() => {}} />)
