@@ -44,11 +44,13 @@ describe('Settings', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Experience' }))
     expect(localStorage.getItem('ax_next_settings_panel')).toBe('experience')
   })
-  it('sections that are not migrated yet point to the classic interface', async () => {
+  it('every section renders its own panel (none falls back to the classic page)', async () => {
     mount()
-    fireEvent.click(await screen.findByRole('button', { name: 'System & network' }))
-    expect(screen.getByText(/has not been migrated yet/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Open in classic interface/ })).toHaveAttribute('href', '/#settings')
+    for (const name of ['Telegram', 'Metadata', 'Experience', 'Appearance', 'Storage & Backup', 'Security', 'System & network']) {
+      fireEvent.click(await screen.findByRole('button', { name }))
+      await waitFor(() => expect(screen.queryByText(/has not been migrated yet/)).not.toBeInTheDocument())
+    }
+    expect(await screen.findByRole('region', { name: 'Browser compatibility' })).toBeInTheDocument()
   })
   it('Validate configuration reports all four checks in one message', async () => {
     mount((url) => (url === '/api/settings/telegram' ? json({ configured: false }) : undefined))

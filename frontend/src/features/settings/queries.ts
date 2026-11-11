@@ -16,3 +16,4 @@ export const useStorageInfo = () => useQuery(q('storage', '/api/settings/storage
 export const useBackupInfo = () => useQuery(q('backup', '/api/settings/backup', 15_000))
 export const useScanSchedule = () => useQuery(q('scan-schedule', '/api/settings/scan-schedule', 15_000))
 export const useProviderDashboard = () => useQuery(q('providers', '/api/settings/providers', 15_000))
+export const useHardware = () => useQuery(q('hardware', '/api/system/hardware', 60_000))
