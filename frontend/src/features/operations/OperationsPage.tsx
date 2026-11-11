@@ -13,6 +13,7 @@ import { cn } from '@/design/cn'
 import { JobControls } from './JobControls'
 import { JobDetails } from './JobDetails'
 import { PerformerAudit } from './PerformerAudit'
+import { ResourceControls } from './ResourceControls'
 import { idOf } from './jobs'
 import { attention, diagnosticTiles, filterJobs, filterLog, healthTiles, jobCounts, laneRows, policyLine, resourceCards, telemetryTiles, type JobFilter, type LogLevel, type Tile, type Tone } from './ops'
 
@@ -285,6 +286,7 @@ export function OperationsPage() {
               ))}
             </ul>
             <p className="mt-3 text-xs text-faint">{policyLine(resources, st, updated)}</p>
+            <ResourceControls resources={resources} />
           </>
         )}
       </Card>
