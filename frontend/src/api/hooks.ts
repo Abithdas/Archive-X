@@ -171,3 +171,12 @@ export const usePhotoChannels = () =>
     },
     staleTime: 30_000,
   })
+
+const entityGet = <T,>(key: string, id: number, tail: string, fallback: T) =>
+  ({ queryKey: [key, id] as const, queryFn: () => api<T>(`/api/studios/${id}/${tail}`).catch(() => fallback), staleTime: 60_000, retry: false })
+/** Provider metadata, related studios, career scene counts and pending video suggestions for one studio (a failure just leaves them empty). */
+export const useStudioMetadata = (id: number) => useQuery(entityGet<import('@/features/entities/studioextras').Metadata>('studio-meta', id, 'metadata', { providers: [] }))
+export const useStudioFamily = (id: number) => useQuery(entityGet<{ related?: import('@/features/entities/studioextras').Related[] }>('studio-family', id, 'family', { related: [] }))
+export const useStudioCareer = (id: number) => useQuery(entityGet<{ career_counts?: Array<{ provider?: string; count?: number }> }>('studio-career', id, 'career-counts', { career_counts: [] }))
+export const useStudioSuggested = (id: number) =>
+  useQuery({ queryKey: ['studio-suggested', id] as const, queryFn: async () => { const r = await api<unknown>(`/api/studios/${id}/suggested`).catch(() => []); return Array.isArray(r) ? (r as import('@/features/entities/studioextras').Suggested[]) : [] }, staleTime: 0, retry: false })

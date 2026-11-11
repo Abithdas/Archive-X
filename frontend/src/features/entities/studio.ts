@@ -48,8 +48,8 @@ export const siteLink = (site: Site) => { const u = String(site.site_url || site
 export const initial = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
 export const imagePath = (id: number, image: string | null | undefined) => `/api/studios/${id}/image?v=${encodeURIComponent(String(image ?? ''))}`
 
-export type Tab = 'videos' | 'performers'
-export const TABS: ReadonlyArray<{ value: Tab; label: string }> = [{ value: 'videos', label: 'Videos' }, { value: 'performers', label: 'Performers' }]
+export type Tab = 'videos' | 'performers' | 'similar' | 'suggestions'
+export const TABS: ReadonlyArray<{ value: Tab; label: string }> = [{ value: 'videos', label: 'Videos' }, { value: 'performers', label: 'Performers' }, { value: 'similar', label: 'Similar Studios' }, { value: 'suggestions', label: 'Suggestions' }]
 export const favLabel = (on: boolean) => (on ? 'Remove from favourites' : 'Add to favourites')
 export const favText = (on: boolean) => (on ? 'Favourite' : 'Add to favourites')
 export const NOT_FOUND = 'Studio not found.'

@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { useEntities, useStudio } from '@/api/hooks'
+import { useEntities, useStudio, useStudioCareer, useStudioFamily, useStudioMetadata, useStudioSuggested } from '@/api/hooks'
 import { ApiError } from '@/api/client'
 import { Button } from '@/design/Button'
 import { Icon } from '@/design/Icon'
@@ -10,8 +10,10 @@ import { NO_STUDIO_VIDEOS } from '@/features/library/shuffle'
 import { useShuffle } from '@/features/library/useShuffle'
 import { VideoCard, VideoCardSkeleton } from '@/features/library/VideoCard'
 import { EntityEditor } from './EntityEditor'
+import { DetailsCard, SimilarPanel, SocialPanel, SuggestionsPanel } from './StudioExtras'
+import { detailRows, providerBio, relatedList, similarStudios, socialLinks } from './studioextras'
 import { FavoriteButton } from './FavoriteButton'
-import { NOT_FOUND, TABS, bioShown, bioText, imagePath, initial, linkedPerformers, metadataStatus, plural, providerPills, siteLink, BIO_LIMIT, type Tab } from './studio'
+import { NOT_FOUND, TABS, bioShown, bioText, imagePath, initial, linkedPerformers, metadataStatus, plural, providerPills, BIO_LIMIT, type Tab } from './studio'
 
 const GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
 const WRAP = 'mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10'
@@ -21,6 +23,11 @@ const PILL_TONE = { violet: 'bg-[#a78bfa]/15 text-[#c4b5fd]', accent: 'bg-accent
 export function StudioPage({ id }: { id: number }) {
   const q = useStudio(id)
   const performers = useEntities('performers')
+  const studios = useEntities('studios')
+  const meta = useStudioMetadata(id)
+  const family = useStudioFamily(id)
+  const career = useStudioCareer(id)
+  const suggested = useStudioSuggested(id)
   const [tab, setTab] = useState<Tab>('videos')
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -52,9 +59,9 @@ export function StudioPage({ id }: { id: number }) {
 
   const { site, videos } = q.data
   const linked = linkedPerformers(videos)
-  const bio = bioText(site)
+  const metadata = { ...(meta.data ?? { providers: [] }), career_counts: career.data?.career_counts ?? [] }
+  const bio = bioText(site) || providerBio(meta.data)
   const pills = providerPills(site.provider_ids)
-  const url = siteLink(site)
   const idOf = (name: string) => performers.data?.find((p) => p.name.toLowerCase() === name.toLowerCase())?.id
   return (
     <section className={WRAP}>
@@ -82,20 +89,22 @@ export function StudioPage({ id }: { id: number }) {
             <button type="button" disabled={shuffle.busy} onClick={() => void shuffle.run('mpc', () => videos, NO_STUDIO_VIDEOS)} aria-label="Shuffle in MPC-HC" title="Play a random video from this studio in MPC-HC" className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60"><Icon name="shuffle" className="size-4" />Shuffle in MPC-HC</button>
             <FavoriteButton kind="studio" id={site.id} initial={Boolean(site.favorite)} />
             <button type="button" onClick={() => setEditing(true)} title="Edit studio details" aria-label="Edit studio details" className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5"><Icon name="edit" className="size-4" />Edit studio</button>
-            {url ? <a href={url} target="_blank" rel="noreferrer noopener" className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5"><Icon name="external" className="size-4" />Website</a> : null}
           </div>
+          <SocialPanel links={socialLinks(site, meta.data)} loading={meta.isPending} />
         </div>
       </header>
 
-      <div role="tablist" aria-label="Studio details" className="mb-4 flex gap-1.5 border-b border-line">
+      <DetailsCard rows={detailRows(site, metadata, videos.length, linked.length)} related={relatedList(family.data?.related)} />
+
+      <div role="tablist" aria-label="Studio details" className="mb-4 flex gap-1 overflow-x-auto border-b border-line">
         {TABS.map((t) => (
-          <button key={t.value} type="button" role="tab" aria-selected={tab === t.value} onClick={() => setTab(t.value)} className={cn('-mb-px h-11 border-b-2 px-4 text-sm font-bold', tab === t.value ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg')}>
-            {t.label} <span className="ml-1 text-xs font-semibold text-faint">{t.value === 'videos' ? videos.length : linked.length}</span>
+          <button key={t.value} type="button" role="tab" aria-selected={tab === t.value} onClick={() => setTab(t.value)} className={cn('-mb-px h-11 shrink-0 whitespace-nowrap border-b-2 px-3 text-sm font-bold sm:px-4', tab === t.value ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg')}>
+            {t.label}{t.value === 'videos' || t.value === 'performers' || (t.value === 'suggestions' && suggested.data?.length) ? <span className="ml-1 text-xs font-semibold text-faint">{t.value === 'videos' ? videos.length : t.value === 'performers' ? linked.length : suggested.data?.length}</span> : null}
           </button>
         ))}
       </div>
 
-      {tab === 'videos' ? (
+      {tab === 'similar' ? <SimilarPanel items={similarStudios(videos, site.name, studios.data ?? [])} /> : tab === 'suggestions' ? <SuggestionsPanel studioId={site.id} name={site.name} /> : tab === 'videos' ? (
         videos.length ? <div className={GRID} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div> : <p role="tabpanel" aria-label="Videos" className="rounded-card border border-dashed border-line py-12 text-center text-muted">No videos are linked to this studio yet.</p>
       ) : linked.length ? (
         <ul role="tabpanel" aria-label="Performers" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4">

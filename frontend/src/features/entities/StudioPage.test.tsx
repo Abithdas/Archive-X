@@ -10,13 +10,22 @@ beforeAll(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-const vid = (id: number, performers: string[]) => ({ id, source_channel: '-100', title: `Scene ${id}`, filename: `f${id}.mp4`, size: 1, duration: 60, width: 1920, height: 1080, resolution_category: '1080p', thumbnail_id: id, favorite: 0, upload_date: null, channel_title: 'Main', performers, studios: [], tags: [], studio: 'Northlight' })
-const detail = (site: Record<string, unknown> = {}, videos = [vid(1, ['Mia']), vid(2, ['Mia', 'Zed'])]) => ({ site: { id: 3, name: 'Northlight', image: null, bio: '', provider_ids: {}, favorite: false, ...site }, videos, site_url: 'https://north.example' })
+const vid = (id: number, performers: string[], studios = ['Northlight']) => ({ id, source_channel: '-100', title: `Scene ${id}`, filename: `f${id}.mp4`, size: 1, duration: 60, width: 1920, height: 1080, resolution_category: '1080p', thumbnail_id: id, favorite: 0, upload_date: null, channel_title: 'Main', performers, tags: [], studio: 'Northlight', studios })
+const json = (b: unknown, code = 200) => new Response(JSON.stringify(b), { status: code })
+const META = { providers: [{ provider: 'stashdb', normalized: JSON.stringify({ details: { country: 'US', founded_year: 1999, instagram: 'https://instagram.com/north' } }) }] }
+const SUGGESTED: Array<Record<string, unknown>> = [{ suggestion_id: 11, channel_id: '-1001', message_id: 77, title: 'Maybe North', duration: 125, size: 5242880 }]
+const detail = (site: Record<string, unknown> = {}, videos = [vid(1, ['Mia'], ['Northlight', 'Aurora']), vid(2, ['Mia', 'Zed'])]) => ({ site: { id: 3, name: 'Northlight', image: null, bio: '', provider_ids: {}, favorite: false, ...site }, videos, site_url: 'https://north.example' })
 type Call = { url: string; method: string }
 const mount = (body: unknown = detail(), code = 200) => {
   const calls: Call[] = []
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     calls.push({ url, method: init?.method ?? 'GET' })
+    if (url === '/api/studios/3/metadata') return json(META)
+    if (url === '/api/studios/3/family') return json({ related: [{ id: 9, name: 'Sub Label', relation: 'Child' }] })
+    if (url === '/api/studios/3/career-counts') return json({ career_counts: [{ provider: 'StashDB', count: 120 }] })
+    if (url === '/api/studios/3/suggested') return json(SUGGESTED.slice())
+    if (url.startsWith('/api/suggestions/') && init?.method === 'POST') { SUGGESTED.length = 0; return json({ ok: true }) }
+    if (url === '/api/studios?limit=5000') return json([{ id: 3, name: 'Northlight' }, { id: 5, name: 'Aurora' }])
     if (url === '/api/entities/studio/3/favorite') return new Response('{"ok":true,"favorite":true}', { status: 200 })
     if (url.startsWith('/api/performers?')) return new Response('[{"id":8,"name":"Mia","video_count":2}]', { status: 200 })
     if (init?.method === 'POST') return new Response('{"ok":true,"player":"MPC-HC","count":2}', { status: 200 })
@@ -32,9 +41,9 @@ describe('StudioPage', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Northlight' })).toBeInTheDocument()
     expect(screen.getAllByText('2 videos').length).toBeGreaterThan(0)
     expect(screen.getByText('2 performers')).toBeInTheDocument()
-    expect(screen.getByText('Local profile')).toBeInTheDocument()
+    expect(screen.getAllByText('Local profile').length).toBeGreaterThan(0)
     expect(screen.getByRole('article', { name: 'Scene 1' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Website/ })).toHaveAttribute('href', 'https://north.example')
+    expect(screen.getByRole('link', { name: 'Open Official website' })).toHaveAttribute('href', 'https://north.example/')
   })
 
   it('collapses a long bio and shows provider pills', async () => {
@@ -81,5 +90,47 @@ describe('StudioPage', () => {
     mount({ detail: 'Not found' }, 404)
     expect(await screen.findByText('Studio not found.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
+  })
+
+  it('shows Details with provider facts, career counts, related studios and links', async () => {
+    mount()
+    const card = await screen.findByRole('region', { name: 'Studio details' })
+    expect(await within(card).findByText('US')).toBeInTheDocument()
+    expect(within(card).getByText('1999')).toBeInTheDocument()
+    expect(within(card).getByText('Scenes listed by StashDB')).toBeInTheDocument(); expect(within(card).getByText('120')).toBeInTheDocument()
+    expect(within(card).getByText('STASHDB')).toBeInTheDocument()
+    expect(within(card).getByRole('link', { name: /Sub Label/ })).toHaveAttribute('href', '/studios/9')
+    const social = screen.getByLabelText('Website and social links')
+    await waitFor(() => expect(within(social).getByRole('link', { name: 'Open Instagram' })).toHaveAttribute('href', 'https://instagram.com/north'))
+    expect(within(social).getByRole('link', { name: 'Open Official website' })).toBeInTheDocument()
+  })
+
+  it('lists similar studios from shared videos, linking to their pages', async () => {
+    mount()
+    fireEvent.click(await screen.findByRole('tab', { name: /Similar Studios/ }))
+    const panel = await screen.findByRole('tabpanel', { name: 'Similar Studios' })
+    const link = await within(panel).findByRole('link', { name: /Aurora/ })
+    expect(link).toHaveAttribute('href', '/studios/5'); expect(link).toHaveTextContent('1 shared video')
+    expect(within(panel).queryByRole('link', { name: /Northlight/ })).not.toBeInTheDocument()
+  })
+
+  it('links or dismisses a suggested video, only when asked', async () => {
+    SUGGESTED.splice(0, SUGGESTED.length, { suggestion_id: 11, channel_id: '-1001', message_id: 77, title: 'Maybe North', duration: 125, size: 5242880 })
+    const calls = mount()
+    const tab = await screen.findByRole('tab', { name: /Suggestions/ })
+    await waitFor(() => expect(tab).toHaveTextContent('1'))
+    fireEvent.click(tab)
+    const panel = await screen.findByRole('tabpanel', { name: 'Suggestions' })
+    expect(await within(panel).findByText('1 pending')).toBeInTheDocument(); expect(within(panel).getByText('2:05 · 5 MB')).toBeInTheDocument(); expect(within(panel).getByText('Does this video belong to Northlight?')).toBeInTheDocument()
+    expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0)
+    fireEvent.click(within(panel).getByRole('button', { name: /Yes, link studio/ }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/suggestions/11/confirm-entity')).toMatchObject({ method: 'POST' }))
+    expect(await screen.findByText('No pending suggestions')).toBeInTheDocument()
+  })
+
+  it('says plainly when nothing is suggested', async () => {
+    SUGGESTED.length = 0
+    mount(); fireEvent.click(await screen.findByRole('tab', { name: /Suggestions/ }))
+    expect(await screen.findByText('No pending suggestions')).toBeInTheDocument()
   })
 })
