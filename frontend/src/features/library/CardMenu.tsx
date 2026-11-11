@@ -6,6 +6,7 @@ import type { LibraryItem } from '@/api/types'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
+import { MappingDialog } from './MappingDialog'
 import { MoveVideo } from './MoveVideo'
 import { SendToTelegram } from './SendToTelegram'
 
@@ -37,6 +38,7 @@ export function CardMenu({ item, className }: { item: LibraryItem; className?: s
   const qc = useQueryClient()
   const [sending, setSending] = useState(false)
   const [moving, setMoving] = useState(false)
+  const [mapping, setMapping] = useState(false)
 
   const place = () => {
     const el = pop.current
@@ -96,6 +98,9 @@ export function CardMenu({ item, className }: { item: LibraryItem; className?: s
         <button type="button" role="menuitem" className={OPTION} onClick={() => { close(); setSending(true) }}>
           <Icon name="brand-telegram" className="text-muted" />Send to Telegram
         </button>
+        <button type="button" role="menuitem" className={OPTION} onClick={() => { close(); setMapping(true) }}>
+          <Icon name="edit" className="text-muted" />Mapping / report
+        </button>
         <button type="button" role="menuitem" className={OPTION} onClick={() => void play('vlc')}>
           <Icon name="brand-vlc" className="text-muted" />Open in VLC
         </button>
@@ -107,6 +112,7 @@ export function CardMenu({ item, className }: { item: LibraryItem; className?: s
           <Icon name="trash" />Delete
         </button>
       </div>
+      {mapping ? <MappingDialog item={item} onDone={() => setMapping(false)} /> : null}
       {moving ? <MoveVideo item={item} onDone={() => setMoving(false)} /> : null}
       {sending ? <SendToTelegram item={item} onDone={() => setSending(false)} /> : null}
       {confirm ? (
