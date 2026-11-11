@@ -66,3 +66,25 @@ export function parseCaption(html: string): CaptionNode[] {
   if (last < html.length) top().push(decode(html.slice(last)))
   return root
 }
+
+// ── bulk send (the selected videos, one job) ──
+export interface BulkVideo { channel_id: string; message_id: number }
+export type DuplicateAction = 'resend' | 'skip'
+export const bulkJobId = (now: number, n: number) => `bulk-${now.toString(36)}-${n.toString(36)}`
+export const bulkSendBody = (videos: BulkVideo[], target: string, remember: boolean, jobId: string, duplicateAction?: DuplicateAction) =>
+  ({ videos, target, remember, job_id: jobId, ...(duplicateAction ? { duplicate_action: duplicateAction } : {}) })
+export const bulkTitle = (n: number) => `Send ${n} selected video${n === 1 ? '' : 's'} to Telegram`
+export const bulkSendLabel = (n: number) => `Send ${n} video${n === 1 ? '' : 's'}`
+export const bulkStarted = (n: number, dest: string) => `Sending ${n} selected video${n === 1 ? '' : 's'} to ${dest}. This may take a while…`
+export const bulkProgress = (dest: string, done: number, total: number, title: string) => `Sending to ${dest} · ${done}/${total} complete${title ? ` · ${title}` : ''}`
+export const duplicatesPrompt = (n: number, dest: string) => `${n} of the selected videos ${n === 1 ? 'has' : 'have'} already been sent to ${dest}. Send those again too, or skip them and send the rest?`
+
+export interface BulkResult { ok?: boolean; sent?: number; skipped?: number; failed?: number; already_sent?: boolean; duplicate_videos?: unknown[]; results?: Array<{ status?: string; message_id?: number; error?: string }> }
+export const hasDuplicates = (r: BulkResult) => Boolean(r.already_sent && Array.isArray(r.duplicate_videos) && r.duplicate_videos.length)
+export function bulkSummary(r: BulkResult, nameOf: (messageId: number) => string): { text: string; failed: boolean } {
+  const sent = Number(r.sent || 0), skipped = Number(r.skipped || 0), failed = Number(r.failed || 0)
+  let text = `Telegram send complete: ${sent} sent, ${skipped} skipped, ${failed} failed.`
+  const first = (r.results ?? []).find((x) => x.status === 'failed')
+  if (first) text += ` First failure: ${nameOf(Number(first.message_id))} — ${String(first.error || 'send failed')}.`
+  return { text, failed: failed > 0 }
+}

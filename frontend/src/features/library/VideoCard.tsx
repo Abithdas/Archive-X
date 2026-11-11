@@ -8,6 +8,7 @@ import { Skeleton, SkeletonLine } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
 import { CardMenu } from './CardMenu'
 import { formatDuration } from './format'
+import { pickKey, useSelection } from './selection'
 
 /** Card metrics live in one place so the skeleton below can never drift from the real card (values from the classic UI). */
 const CARD = '@container relative overflow-hidden rounded-card border border-line bg-surface'
@@ -24,8 +25,18 @@ export function VideoCard({ item }: { item: LibraryItem }) {
   const duration = formatDuration(item.duration)
   const people = item.performers
   const place = [item.studio, item.channel_title].filter(Boolean).join(' · ')
+  const selecting = useSelection((s) => s.active)
+  const picked = useSelection((s) => Boolean(s.picked[pickKey(item._cid, item.id)]))
+  const toggle = useSelection((s) => s.toggle)
+  // In select mode a click on the card picks it instead of opening it; the favourite and ⋯ buttons keep working.
+  const pick = (e: React.MouseEvent) => {
+    if (!selecting || (e.target as HTMLElement).closest('button,input')) return
+    e.preventDefault()
+    e.stopPropagation()
+    toggle(item._cid, item.id)
+  }
   return (
-    <article className={cn(CARD, 'transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-12px_rgb(0_0_0/0.55)]')} aria-label={item.name}>
+    <article onClickCapture={pick} data-picked={selecting ? picked : undefined} className={cn(CARD, 'transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-12px_rgb(0_0_0/0.55)]', selecting && 'cursor-pointer', picked && 'border-accent ring-2 ring-accent/60')} aria-label={item.name}>
       <div className={THUMB}>
         {imgOk ? (
           <img
@@ -36,6 +47,9 @@ export function VideoCard({ item }: { item: LibraryItem }) {
             onError={() => setImgOk(false)}
             className="absolute inset-0 h-full w-full object-cover"
           />
+        ) : null}
+        {selecting ? (
+          <input type="checkbox" checked={picked} onChange={() => toggle(item._cid, item.id)} aria-label={`Select ${item.name}`} className="absolute left-2 top-2 z-10 size-5 cursor-pointer accent-[var(--color-accent)]" />
         ) : null}
         {item.resolution_category ? <span className={cn(BADGE, 'bottom-2 left-2')}>{item.resolution_category}</span> : null}
         {duration ? <span className={cn(BADGE, 'bottom-2 right-2')}>{duration}</span> : null}

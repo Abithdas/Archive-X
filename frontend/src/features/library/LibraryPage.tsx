@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { useChannels, useLibrary } from '@/api/hooks'
@@ -14,6 +14,8 @@ import { useSearch } from '@/app/search'
 import { ActiveFilters } from './ActiveFilters'
 import { Pagination } from './Pagination'
 import { Toolbar } from './Toolbar'
+import { SelectionBar } from './SelectionBar'
+import { useSelection } from './selection'
 import { VideoCard, VideoCardSkeleton } from './VideoCard'
 import { useDebounced } from './useDebounced'
 import { useLibraryStore } from './store'
@@ -38,6 +40,8 @@ function ChannelChip({ label, count, on, disabled, onClick, children, tone }: { 
 
 export function LibraryPage() {
   const { channels: selected, page, sort, favorites, filters, per, toggle, selectAll, setPage, setPer, setFavorites, resetFilters } = useLibraryStore()
+  const selecting = useSelection((st) => st.active)
+  useEffect(() => () => useSelection.getState().exit(), [])   // leaving the page ends select mode
   const search = useDebounced(useSearch((s) => s.q).trim(), 300)
   const channels = useChannels()
   const qc = useQueryClient()
@@ -129,6 +133,7 @@ export function LibraryPage() {
               <Button variant="primary" onClick={resetFilters}>Reset filters</Button>
             </div>
           ) : null}
+          {selecting ? <SelectionBar visible={library.data.items} /> : null}
           {library.data.total > 0 ? <Pagination page={page} pages={pages} per={per} onPage={setPage} onPer={setPer} /> : null}
         </>
       )}

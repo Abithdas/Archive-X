@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render as rtlRender, screen } from '@testing-library/react'
 import type { ReactElement } from 'react'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { useSelection } from './selection'
 import { withRouter } from '@/test/withRouter'
 import { SkeletonGroup } from '@/design/Skeleton'
 import type { LibraryItem } from '@/api/types'
@@ -70,5 +71,40 @@ describe('VideoCardSkeleton', () => {
     const block = container.querySelector('.after\\:animate-sk-sweep')!
     expect(block.className).toContain('motion-reduce:after:hidden')
     expect(block.className).toContain('after:-translate-x-full')
+  })
+})
+
+describe('VideoCard in select mode', () => {
+  beforeEach(() => useSelection.getState().exit())
+  it('has no checkbox outside select mode', async () => {
+    withRouter(<VideoCard item={item()} />)
+    await screen.findByRole('article')
+    expect(screen.queryByRole('checkbox')).toBeNull()
+  })
+  it('the checkbox picks exactly once per click (no double toggle)', async () => {
+    useSelection.getState().enter()
+    withRouter(<VideoCard item={item()} />)
+    const box = await screen.findByRole('checkbox', { name: 'Select A medium length title' })
+    fireEvent.click(box)
+    expect(Object.keys(useSelection.getState().picked)).toEqual(['-1001:1001'])
+    expect(box).toBeChecked()
+    fireEvent.click(box)
+    expect(useSelection.getState().picked).toEqual({})
+  })
+  it('clicking the card picks it instead of opening it', async () => {
+    useSelection.getState().enter()
+    withRouter(<VideoCard item={item()} />)
+    const link = await screen.findByRole('link', { name: 'A medium length title' })
+    fireEvent.click(link)
+    expect(Object.keys(useSelection.getState().picked)).toEqual(['-1001:1001'])
+    expect(screen.getByRole('article')).toHaveAttribute('data-picked', 'true')
+    fireEvent.click(link)
+    expect(useSelection.getState().picked).toEqual({})
+  })
+  it('the favourite button does not pick the card', async () => {
+    useSelection.getState().enter()
+    withRouter(<VideoCard item={item()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add to favourites' }))
+    expect(useSelection.getState().picked).toEqual({})
   })
 })

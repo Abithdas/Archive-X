@@ -6,16 +6,8 @@ import type { Channel, LibraryItem } from '@/api/types'
 import { queryKeys, useChannels } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
-import { cn } from '@/design/cn'
-import { channelMatches, parseCaption, type CaptionNode, channelName, directTarget, isAlreadySent, isDisplayName, noChannelMessage, sendBody, sentMessage, type SendSettings } from './send'
-
-function CaptionText({ nodes }: { nodes: CaptionNode[] }) {
-  return <>{nodes.map((n, i) => {
-    if (typeof n === 'string') return n
-    const kids = <CaptionText nodes={n.children} />
-    return n.tag === 'b' ? <b key={i}>{kids}</b> : n.tag === 'i' ? <i key={i}>{kids}</i> : n.tag === 'u' ? <u key={i}>{kids}</u> : n.tag === 's' ? <s key={i}>{kids}</s> : n.tag === 'code' ? <code key={i} className="rounded bg-surface-2 px-1">{kids}</code> : <pre key={i} className="whitespace-pre-wrap">{kids}</pre>
-  })}</>
-}
+import { ChannelPicker, SINGLE_CAPTION_LABEL } from './ChannelPicker'
+import { channelName, directTarget, isAlreadySent, isDisplayName, noChannelMessage, sendBody, sentMessage, type SendSettings } from './send'
 
 type Mode = { kind: 'resolving' } | { kind: 'closed' } | { kind: 'pick' } | { kind: 'again'; target: string }
 
@@ -81,29 +73,12 @@ export function SendToTelegram({ item, onDone }: { item: Pick<LibraryItem, '_cid
     return () => { live = false }
   }, [mode.kind, item._cid, item.id])
 
-  const shown = channelMatches(list, q)
   return (
     <>
       {mode.kind === 'pick' ? (
         <Dialog open onClose={() => !busy && setMode({ kind: 'closed' })} title="Send to Telegram">
           <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search channel…" aria-label="Search channel" className="h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5 text-[15px] outline-none placeholder:text-faint focus:border-accent/60" />
-            <div role="listbox" aria-label="Destination channel" className="max-h-[30vh] overflow-y-auto rounded-xl border border-line">
-              {shown.length ? shown.map((c) => {
-                const on = String(c.telegram_id) === target
-                return (
-                  <button key={c.telegram_id} type="button" role="option" aria-selected={on} onClick={() => setTarget(String(c.telegram_id))} className={cn('flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-fg/5', on && 'bg-accent/15 font-bold')}>
-                    <span className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-2 text-xs text-muted" aria-hidden="true">#</span>
-                    <span className="min-w-0 truncate">{isDisplayName(c.title) ? c.title : channelName(list, c.telegram_id)}</span>
-                  </button>
-                )
-              }) : <p className="p-3 text-sm text-muted">No channels.</p>}
-            </div>
-            <div>
-              <p className="mb-1 text-[11px] text-muted">Caption that will be sent (edit the template in Operations → Send to Telegram):</p>
-              <p className="max-h-32 min-h-9 overflow-y-auto whitespace-pre-line rounded-xl bg-bg p-3 text-sm [overflow-wrap:anywhere]" aria-label="Caption preview">{caption === null ? 'Loading…' : caption ? <CaptionText nodes={parseCaption(caption)} /> : <span className="text-muted">(no caption)</span>}</p>
-            </div>
-            <label className="flex items-center gap-2 text-xs text-muted"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="size-4" />Always send to this channel (no more asking)</label>
+            <ChannelPicker channels={list} q={q} onQ={setQ} target={target} onTarget={setTarget} caption={caption} captionLabel={SINGLE_CAPTION_LABEL} remember={remember} onRemember={setRemember} />
             <div className="flex flex-wrap justify-end gap-2">
               <button type="button" disabled={busy} onClick={() => setMode({ kind: 'closed' })} className="h-11 rounded-xl border border-line-2 px-4 text-sm font-semibold">Cancel</button>
               <button type="button" disabled={busy} onClick={() => (target ? void send(target, remember, false) : toast(noChannelMessage))} className="flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-sm font-bold text-accent-fg disabled:opacity-60"><Icon name="brand-telegram" className="size-4" />Send</button>

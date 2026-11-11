@@ -3,6 +3,8 @@ import { useChannels } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { toast } from 'sonner'
+import { ENTER_HINT, PICK_CHANNEL_FIRST } from './bulk'
+import { useSelection } from './selection'
 import { useLibraryStore } from './store'
 
 function Row({ icon, label, onClick, disabled }: { icon: string; label: string; onClick: () => void; disabled?: boolean }) {
@@ -19,6 +21,7 @@ export function MoreActions({ open, onClose }: { open: boolean; onClose: () => v
   const channels = useChannels()
   const qc = useQueryClient()
   const { selectAll, clear, channels: selected } = useLibraryStore()
+  const selecting = useSelection((st) => st.active)
   const done = (msg: string) => {
     toast(msg)
     onClose()
@@ -28,6 +31,12 @@ export function MoreActions({ open, onClose }: { open: boolean; onClose: () => v
       <div className="grid gap-0.5 border-t border-line pt-2">
         <Row icon="grid" label="Select all channels" disabled={!channels.data?.length} onClick={() => { selectAll((channels.data ?? []).map((c) => c.telegram_id)); done('All channels selected') }} />
         <Row icon="close" label="Clear selection" disabled={!selected.length} onClick={() => { clear(); done('Selection cleared') }} />
+        <Row icon="edit" label={selecting ? 'Finish editing multiple videos' : 'Edit multiple videos'} onClick={() => {
+          const sel = useSelection.getState()
+          if (sel.active) { sel.exit(); return done('Selection mode ended') }
+          if (!selected.length) { onClose(); return void toast(PICK_CHANNEL_FIRST) }
+          sel.enter(); done(ENTER_HINT)
+        }} />
         <Row icon="refresh" label="Reload selected" onClick={() => { void qc.invalidateQueries({ queryKey: ['library'] }); void qc.invalidateQueries({ queryKey: ['channels'] }); done('Reloading the library') }} />
       </div>
     </Dialog>
