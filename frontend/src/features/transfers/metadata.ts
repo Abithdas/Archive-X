@@ -11,9 +11,11 @@ export interface RunOptions {
   scope: 'all' | '25' | '50' | '100' | '250'
   forceMetadata: boolean
   forceEntity: boolean
+  imageScan: boolean
+  photoReconcile: boolean
   fullInventory: boolean
 }
-export const DEFAULT_OPTIONS: RunOptions = { inventory: true, entities: true, snapshots: true, scope: 'all', forceMetadata: false, forceEntity: false, fullInventory: false }
+export const DEFAULT_OPTIONS: RunOptions = { inventory: true, entities: true, snapshots: true, scope: 'all', forceMetadata: false, forceEntity: false, fullInventory: false, imageScan: false, photoReconcile: false }
 
 /** The three visible stage switches → concrete stage ids (entity data always runs as one pipeline). */
 export function selectedStages(o: RunOptions, forPending = false): Stage[] {
@@ -50,3 +52,19 @@ export function prerequisitePlan(pf: Preflight, chosen: Stage[]) {
   for (const item of pf.missing_by_channel ?? []) for (const st of item.missing ?? []) (autoAdded[st] ??= []).push(String(item.channel_id))
   return { required, labels: stageLabels(required), affected: (pf.missing_by_channel ?? []).map((x) => String(x.channel_id)), stages: expandStages([...required, ...chosen]), autoAdded }
 }
+
+/** Image scan (read-only history scan for photos) and reconciliation of images deleted on Telegram: separate jobs from the video stages. */
+export type PhotoMode = 'both' | 'scan' | 'reconcile'
+export const photoMode = (o: Pick<RunOptions, 'imageScan' | 'photoReconcile'>): PhotoMode | null => (o.imageScan && o.photoReconcile ? 'both' : o.imageScan ? 'scan' : o.photoReconcile ? 'reconcile' : null)
+/** One job covers "both": the scan finishes first, then reconciliation checks the newly indexed message IDs (no race between two jobs). */
+export const photoRequest = (mode: PhotoMode, channels: readonly string[]) => mode === 'scan'
+  ? { url: '/api/photos/scan', body: { channel_ids: [...channels] } }
+  : { url: '/api/photos/reconcile', body: mode === 'both' ? { channel_ids: [...channels], also_scan: true } : { channel_ids: [...channels] } }
+export const photoFailure = (mode: PhotoMode, why: string) => `${mode === 'both' ? 'Image scan + reconciliation' : mode === 'scan' ? 'Image scan' : 'Photo reconciliation'} could not be queued: ${why || 'unknown error'}`
+export function photoLaunch(mode: PhotoMode, id: unknown, channels: number): string {
+  const n = `${channels} selected channel${channels === 1 ? '' : 's'}`
+  return mode === 'both' ? `Image scan followed by deleted-image reconciliation queued as job ${id} for ${n}.`
+    : mode === 'scan' ? `Image scan queued as job ${id} for ${n}; it scans full Telegram history without modifying messages.`
+    : `Deleted Telegram image reconciliation queued as job ${id}; it checks already-indexed message IDs only and does not rescan channel history.`
+}
+export const joinLaunch = (meta: string, photo: string) => [meta, photo].filter(Boolean).join('. ')

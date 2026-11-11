@@ -14,7 +14,7 @@ import { CARD, Check, Stepper, detail } from './parts'
 import { AutomationWorkflow } from './AutomationWorkflow'
 import { TransferWorkflow } from './TransferWorkflow'
 import { activeLaneCount, jobPath, laneChips, toLanes, type Lane } from './lanes'
-import { DEFAULT_OPTIONS, pendingBody, prerequisitePlan, processBody, selectedStages, stageLabels, expandStages, type Preflight, type RunOptions, type Stage } from './metadata'
+import { DEFAULT_OPTIONS, joinLaunch, pendingBody, photoFailure, photoLaunch, photoMode, photoRequest, prerequisitePlan, processBody, selectedStages, stageLabels, expandStages, type Preflight, type RunOptions, type Stage } from './metadata'
 
 
 function LaneCard({ lane, busy, onAct }: { lane: Lane; busy: boolean; onAct: (l: Lane, a: Lane['actions'][number]) => void }) {
@@ -122,27 +122,45 @@ function MetadataWorkflow() {
   const set = <K extends keyof RunOptions>(k: K, v: RunOptions[K]) => setO({ ...o, [k]: v })
   const stages = selectedStages(o)
   const needChannels = !picked.length
-  const needStages = !stages.length
+  const needStages = !stages.length && !photoMode(o)
 
   const canNext = step === 0 ? !needChannels : step === 1 ? !needStages : true
   const refreshAll = () => { void qc.invalidateQueries({ queryKey: ['lanes'] }); void qc.invalidateQueries({ queryKey: ['status'] }) }
 
+  /** Queues the image scan / reconciliation job (if chosen) and returns its launch sentence; a failure stops the run with the classic wording. */
+  const launchPhotos = async (): Promise<string> => {
+    const mode = photoMode(o)
+    if (!mode) return ''
+    const req = photoRequest(mode, picked)
+    const r = await api<{ ok?: boolean; id?: unknown; detail?: string }>(req.url, { method: 'POST', json: req.body }).catch((e) => { throw new ApiError(0, photoFailure(mode, e instanceof ApiError ? e.detail : e instanceof Error ? e.message : '')) })
+    if (!r || r.ok === false || !r.id) throw new ApiError(0, photoFailure(mode, r?.detail ?? ''))
+    return photoLaunch(mode, r.id, picked.length)
+  }
   const run = async () => {
     if (needChannels) return void setMsg('Select at least one channel.')
     if (needStages) return void setMsg('Select at least one processing stage.')
     setBusy('run')
     setMsg('')
     try {
+      let metaText = ''
+      const finish = async () => {
+        let photoText = ''
+        try { photoText = await launchPhotos() } catch (e) { const t = joinLaunch(metaText, detail(e, 'Could not queue the image job')); setMsg(t); toast.error(t); refreshAll(); return }
+        const all = joinLaunch(metaText, photoText)
+        if (photoText) { setMsg(all); toast(all) }
+        refreshAll()
+      }
+      if (!stages.length) { await finish(); return }
       const pf = await api<Preflight>('/api/metadata-assets/preflight', { method: 'POST', json: { channel_ids: picked, stages } })
       if (!pf.ok) throw new ApiError(0, `Could not validate prerequisites: ${pf.detail || 'unknown error'}`)
       const start = async (runStages: Stage[], autoAdded: Record<string, string[]>) => {
         const r = await api<{ ok?: boolean; detail?: string; already_running?: boolean; message?: string; id?: string }>('/api/metadata-assets/process-channel', { method: 'POST', json: processBody(picked, runStages, o, autoAdded) })
         if (!r.ok) throw new ApiError(0, `Could not start Metadata & Assets: ${r.detail || 'unknown error'}`)
-        const text = r.already_running ? r.message || 'A Metadata & Assets job is already running.' : `Metadata & Assets queued${r.id ? ` as job ${r.id}` : ''}: ${stageLabels(runStages).join(' → ')}${o.fullInventory ? ' → older-message + uploaded-caption reconciliation' : ''}`
-        setMsg(text)
-        toast(text)
+        metaText = r.already_running ? r.message || 'A Metadata & Assets job is already running.' : `Metadata & Assets queued${r.id ? ` as job ${r.id}` : ''}: ${stageLabels(runStages).join(' → ')}${o.fullInventory ? ' → older-message + uploaded-caption reconciliation' : ''}`
+        setMsg(metaText)
+        toast(metaText)
         if (!r.already_running) setO((x) => ({ ...x, forceEntity: false }))
-        refreshAll()
+        await finish()
       }
       if (pf.ready === false) {
         const plan = prerequisitePlan(pf, stages)
@@ -205,18 +223,19 @@ function MetadataWorkflow() {
           <div className="rounded-xl border border-line p-2"><p className="px-2 pb-1 pt-1 text-xs font-bold text-muted">Processing stages</p>
             <Check checked={o.inventory} onChange={(v) => set('inventory', v)} title="Inventory" hint="Collect filenames and Telegram media information." />
             <Check checked={o.entities} onChange={(v) => set('entities', v)} title="Metadata & Entity Data" hint="Match video metadata, then collect linked performer details, artwork, and studio/site data in one pipeline." />
-            <Check checked={o.snapshots} onChange={(v) => set('snapshots', v)} title="Snapshots" hint="Generate or repair the 36-frame playback snapshots." /></div>
+            <Check checked={o.snapshots} onChange={(v) => set('snapshots', v)} title="Snapshots" hint="Generate or repair the 36-frame playback snapshots." />
+            <Check checked={o.imageScan} onChange={(v) => set('imageScan', v)} title="Image scan" hint="Scan the selected Telegram channels' full message history for photos and image documents. This is read-only and runs independently of the video scope limit." />
+            <Check checked={o.photoReconcile} onChange={(v) => set('photoReconcile', v)} title="Reconcile deleted Telegram images" hint="Check indexed image message IDs and remove local entries, cached files, thumbnails, and face-analysis records only when Telegram confirms the message is missing or no longer contains an image. This does not rescan channel history." /></div>
           <div className="rounded-xl border border-line p-2"><p className="px-2 pb-1 pt-1 text-xs font-bold text-muted">Recheck options</p>
             <Check checked={o.forceMetadata} onChange={(v) => set('forceMetadata', v)} title="Force metadata recheck" />
             <Check checked={o.forceEntity} onChange={(v) => set('forceEntity', v)} title="Force performer/studio recheck for this run" />
             <Check checked={o.fullInventory} onChange={(v) => set('fullInventory', v)} title="Reconcile" hint="Checks older Telegram history and reconciles captions of delivered posts. No media re-upload." /></div>
-          <p className="text-xs text-faint">Image scan and deleted-image reconciliation are still in the classic interface.</p>
         </div>
       ) : step === 2 ? (
         <div>
           <h3 className="mb-2 text-[15px] font-bold">3 · Review</h3>
           <dl className="grid gap-1.5 rounded-xl bg-bg p-3 text-sm">
-            {[['Channels', picked.map((id) => channels.data?.find((c) => c.telegram_id === id)?.title ?? id).join(', ') || '—'], ['Scope', o.scope === 'all' ? 'Entire channel' : `First ${o.scope} videos`], ['Stages', stageLabels(stages).join(' → ') || '—'], ['Force metadata recheck', o.forceMetadata ? 'Yes' : 'No'], ['Force performer/studio recheck', o.forceEntity ? 'Yes' : 'No'], ['Reconcile older history', o.fullInventory ? 'Yes' : 'No']].map(([k, v]) => (
+            {[['Channels', picked.map((id) => channels.data?.find((c) => c.telegram_id === id)?.title ?? id).join(', ') || '—'], ['Scope', o.scope === 'all' ? 'Entire channel' : `First ${o.scope} videos`], ['Stages', [...stageLabels(stages), ...(o.imageScan ? ['Image scan'] : []), ...(o.photoReconcile ? ['Reconcile deleted Telegram images'] : [])].join(' → ') || '—'], ['Force metadata recheck', o.forceMetadata ? 'Yes' : 'No'], ['Force performer/studio recheck', o.forceEntity ? 'Yes' : 'No'], ['Reconcile older history', o.fullInventory ? 'Yes' : 'No']].map(([k, v]) => (
               <div key={k} className="grid grid-cols-[minmax(0,160px)_minmax(0,1fr)] gap-3"><dt className="text-muted">{k}</dt><dd className="font-semibold [overflow-wrap:anywhere]">{v}</dd></div>
             ))}
           </dl>
