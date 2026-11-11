@@ -49,3 +49,4 @@ from `desktop/` (needs the Tauri Linux prerequisites listed there).
 - Replit: hosted mode (ARCHIVE_X_HOSTED=1), scripts/replit-start.sh, .replit, docs/REPLIT.md, tools/tests/test_hosted_mode.py. Not yet run on Replit itself.
 - React: Settings > Metadata (ThePornDB/StashDB keys with Test, scan window, provider status rail; 290 tests; verified in browser at 1440 and 390, no overflow).
 - React: Settings > System & network (browser compatibility, detected hardware, on-demand speed test). All eight Settings panels are now React; 304 tests; verified in browser at 1440 and 390, no overflow. Speed test could not complete in the sandbox (no internet).
+- React: Library card > Send to Telegram (direct send when 'always send here' is saved, channel picker with caption preview, duplicate re-send confirmation, safe caption markup renderer; 321 tests; verified in browser at 1440 and 390 against the real backend, Telegram itself unreachable in sandbox).
