@@ -12,6 +12,7 @@ import { Skeleton, SkeletonGroup } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
 import { JobControls } from './JobControls'
 import { JobDetails } from './JobDetails'
+import { PerformerAudit } from './PerformerAudit'
 import { idOf } from './jobs'
 import { attention, diagnosticTiles, filterJobs, filterLog, healthTiles, jobCounts, laneRows, policyLine, resourceCards, telemetryTiles, type JobFilter, type LogLevel, type Tile, type Tone } from './ops'
 
@@ -121,12 +122,12 @@ function ActivityLog({ events }: { events: unknown[] }) {
   )
 }
 
-function MaintenanceLink({ title, text, label }: { title: string; text: string; label: string }) {
+ function MaintenanceLink({ title, text, label, onOpen }: { title: string; text: string; label: string; onOpen?: () => void }) {
   return (
     <div className="rounded-xl border border-line bg-bg p-4">
       <h5 className="text-[15px] font-bold">{title}</h5>
       <p className="mb-3 mt-1 text-xs leading-relaxed text-muted">{text}</p>
-      <a href="/#admin" className="inline-flex h-9 items-center gap-2 rounded-xl border border-line-2 px-3 text-[13px] font-semibold hover:bg-fg/5">{label}<Icon name="external" className="size-3.5" /></a>
+      {onOpen ? <button type="button" onClick={onOpen} className="inline-flex h-9 items-center gap-2 rounded-xl border border-line-2 px-3 text-[13px] font-semibold hover:bg-fg/5">{label}</button> : <a href="/#admin" className="inline-flex h-9 items-center gap-2 rounded-xl border border-line-2 px-3 text-[13px] font-semibold hover:bg-fg/5">{label}<Icon name="external" className="size-3.5" /></a>}
     </div>
   )
 }
@@ -140,6 +141,7 @@ export function OperationsPage() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<JobFilter>('all')
   const [confirmReset, setConfirmReset] = useState(false)
+  const [audit, setAudit] = useState(false)
   const st: Obj = (status.data ?? {}) as Obj
   const jobs = (Array.isArray(st.jobs) ? st.jobs : []) as Obj[]
   const counts = jobCounts(jobs)
@@ -248,7 +250,7 @@ export function OperationsPage() {
           </div>
           <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
             <h4 className="text-lg font-extrabold">Duplicates</h4>
-            <MaintenanceLink title="Duplicate performers" text="Compare names, aliases and artwork, then review the evidence before merging." label="Open performer review" />
+            <MaintenanceLink title="Duplicate performers" text="Compare names, aliases and artwork, then review the evidence before merging." label="Open performer review" onOpen={() => setAudit(true)} />
             <MaintenanceLink title="Duplicate video review" text="Choose a channel and scan for verified duplicate video posts." label="Open duplicate scan" />
           </div>
           <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
@@ -289,6 +291,7 @@ export function OperationsPage() {
 
       <ActivityLog events={Array.isArray(st.events) ? st.events : []} />
 
+      {audit ? <PerformerAudit onClose={() => setAudit(false)} /> : null}
       {confirmReset ? (
         <Dialog open onClose={() => setConfirmReset(false)} title="Reset HTTP telemetry">
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
