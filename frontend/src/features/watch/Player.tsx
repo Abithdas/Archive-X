@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { formatDuration } from '@/features/library/format'
+import { SnapshotGrid, type SnapshotData } from './SnapshotGrid'
 import { Timeline, type PreviewInfo } from './Timeline'
 import type { Segment } from './timeline'
 
@@ -16,10 +17,12 @@ const BTN = 'grid size-9 place-items-center rounded-lg text-fg/90 hover:bg-fg/10
  * Native <video> with the classic player's control bar: seek, play, previous/next, ±30 s, speed, mute and volume,
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
-export function Player({ src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc }: { startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
+export function Player({ src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc }: { snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
-  useEffect(() => { startApplied.current = false }, [src])   // a new video may have its own start position
+  const pendingStart = useRef<number | null>(null)
+  const [started, setStarted] = useState(false)
+  useEffect(() => { startApplied.current = false; pendingStart.current = null; setStarted(false) }, [src])   // a new video may have its own start position
   const box = useRef<HTMLDivElement>(null)
   const [playing, setPlaying] = useState(false)
   const [time, setTime] = useState(0)
@@ -47,6 +50,14 @@ export function Player({ src, poster, durationHint, segments = [], preview, auto
     if (v.paused) void v.play().catch(() => setFailed(true))
     else v.pause()
   }, [])
+  /** A snapshot tile was chosen: play from that moment (now if the video knows its length, otherwise as soon as it does). */
+  const pickTime = (t: number) => {
+    const v = video.current
+    if (!v) return
+    if (v.readyState >= 1) v.currentTime = clampTime(t, v.duration || dur)
+    else pendingStart.current = t
+    void v.play().catch(() => setFailed(true))
+  }
   const flash = (text: string) => {
     setHint(text)
     clearTimeout(hintTimer.current)
@@ -120,7 +131,7 @@ export function Player({ src, poster, durationHint, segments = [], preview, auto
           autoPlay={autoPlay}
           onClick={onTap}
           loop={loop}
-          onPlay={() => { setPlaying(true); onPlayed?.() }}
+          onPlay={() => { setPlaying(true); setStarted(true); onPlayed?.() }}
           onPause={() => setPlaying(false)}
           onWaiting={() => setLoading(true)}
           onPlaying={() => setLoading(false)}
@@ -129,7 +140,8 @@ export function Player({ src, poster, durationHint, segments = [], preview, auto
             const v = e.currentTarget
             setDur(v.duration || durationHint || 0)
             // Start where the viewer chose to resume, once per video (a retry keeps the position it reached).
-            if (startAt > 0 && !startApplied.current) { startApplied.current = true; v.currentTime = clampTime(startAt, v.duration || durationHint || 0) }
+            if (pendingStart.current !== null) { v.currentTime = clampTime(pendingStart.current, v.duration || durationHint || 0); pendingStart.current = null; startApplied.current = true }
+            else if (startAt > 0 && !startApplied.current) { startApplied.current = true; v.currentTime = clampTime(startAt, v.duration || durationHint || 0) }
           }}
           onTimeUpdate={(e) => {
             setTime(e.currentTarget.currentTime)
@@ -141,9 +153,10 @@ export function Player({ src, poster, durationHint, segments = [], preview, auto
           onError={() => { setFailed(true); setLoading(false) }}
           className="absolute inset-0 h-full w-full object-contain"
         />
+        {snapshots && !started && !failed ? <SnapshotGrid data={snapshots} onPick={pickTime} /> : null}
         {hint ? <div role="status" className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/65 px-4 py-2 text-sm font-bold text-white">{hint}</div> : null}
         {loading && !failed ? <div role="status" aria-label="Loading video" className="absolute inset-0 grid place-items-center"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-accent" /></div> : null}
-        {!playing && !failed && !loading ? (
+        {!playing && !failed && !loading && !(snapshots && !started) ? (
           <button type="button" onClick={toggle} aria-label="Play" className="absolute left-1/2 top-1/2 grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/65">
             <Icon name="play" className="size-7" />
           </button>

@@ -116,7 +116,7 @@ export const useMarkers = (mediaId: number | undefined) =>
     retry: false,
   })
 
-export interface PreviewManifest { ready: boolean; frames_ready?: boolean; frame_times: number[] }
+export interface PreviewManifest { ready: boolean; frames_ready?: boolean; frame_times: number[]; frame_count?: number; sprite_ready?: boolean; frame_width?: number; frame_height?: number; revision?: string; updated_at?: string | number | null }
 /** The 36 sampled frame times, and whether their JPEGs are cached (only then can the timeline show previews). */
 export const usePreviewManifest = (cid: string, mid: number) =>
   useQuery({

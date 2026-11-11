@@ -13,6 +13,7 @@ import { formatDuration } from '@/features/library/format'
 import { useLibraryStore } from '@/features/library/store'
 import { experienceFrom } from '@/features/settings/logic'
 import { useExperienceSettings } from '@/features/settings/queries'
+import { gridReady, gridTimes } from './grid'
 import { Player } from './Player'
 import { useResume } from './useResume'
 import { frameIndexFor, normaliseChapters, toSegments } from './timeline'
@@ -83,6 +84,16 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const segments = useMemo(() => toSegments(normaliseChapters(markers.data, item?.duration ?? 0), item?.duration ?? 0), [markers.data, item?.duration])
   const preview = exp.live_seek_preview && manifest.data?.frames_ready && manifest.data.frame_times.length ? { times: manifest.data.frame_times, url: (n: number) => `/api/play/preview-frame/${encodeURIComponent(cid)}/${mid}/${n}` } : undefined
   const frameFor = manifest.data?.frames_ready && manifest.data.frame_times.length ? (t: number) => `/api/play/preview-frame/${encodeURIComponent(cid)}/${mid}/${frameIndexFor(manifest.data!.frame_times, t)}` : undefined
+  const snapshots = useMemo(() => {
+    const m = manifest.data
+    if (!gridReady(m)) return undefined
+    return {
+      times: gridTimes(m, item?.duration ?? 0),
+      spriteUrl: m!.sprite_ready ? `/api/play/preview-grid/${encodeURIComponent(cid)}/${mid}` : null,
+      frameUrl: (i: number) => `/api/play/preview-frame/${encodeURIComponent(cid)}/${mid}/${i}`,
+      aspect: Number(m!.frame_width || 320) / Math.max(1, Number(m!.frame_height || 180)),
+    }
+  }, [manifest.data, item?.duration, cid, mid])
   const resume = useResume({ cid, mid, name: item?.name ?? '', duration: item?.duration ?? 0, enabled: exp.resume_prompt, settled: Boolean(item) && !expQuery.isPending, autoplay: exp.autoplay, frameFor })
   const idOf = (list: Array<{ id: number; name: string }> | undefined, name: string) => list?.find((e) => e.name.toLowerCase() === name.toLowerCase())?.id
 
@@ -113,7 +124,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
         </div>
 
         {resume.ready ? (
-          <Player src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay} startAt={resume.startAt} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} />
+          <Player src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay} startAt={resume.startAt} snapshots={snapshots} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} />
         ) : (
           <div className="aspect-video w-full rounded-[18px] border border-line bg-black" aria-hidden="true" />
         )}
