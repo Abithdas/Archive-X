@@ -70,3 +70,32 @@ export function EntityCardSkeleton() {
     </div>
   )
 }
+
+/** Studio directory tile: a small logo beside the name and video count (the classic studio list). */
+export function StudioTile({ entity }: { entity: Entity }) {
+  const [broken, setBroken] = useState(false)
+  const label = entity.video_count === 1 ? '1 video' : `${entity.video_count} videos`
+  const src = `/api/studios/${entity.id}/image?v=${encodeURIComponent(entity.image ?? '')}`
+  return (
+    <article aria-label={entity.name} className="group relative flex min-h-[92px] items-center gap-3 overflow-hidden rounded-2xl border border-line bg-surface p-3.5 transition-colors hover:bg-surface-2">
+      <span className="grid size-[69px] shrink-0 place-items-center overflow-hidden rounded-xl bg-bg/60">
+        <img {...(broken ? { src: PLACEHOLDER } : responsive(src, '69px', [160, 240]))} alt="" loading="lazy" decoding="async" onError={() => !broken && setBroken(true)} className="size-full object-contain" />
+      </span>
+      <div className="min-w-0 px-0.5 py-2 leading-snug">
+        <h3 className="truncate text-[15px] font-bold">
+          <Link to="/studios/$id" params={{ id: String(entity.id) }} className="outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-accent">{entity.name}</Link>
+        </h3>
+        <p className="text-[13px] text-muted">{label}</p>
+      </div>
+    </article>
+  )
+}
+
+export function StudioTileSkeleton() {
+  return (
+    <div className="flex min-h-[92px] items-center gap-3 rounded-2xl border border-line bg-surface p-3.5">
+      <Skeleton className="size-[69px] shrink-0 rounded-xl" />
+      <div className="min-w-0 flex-1 text-[15px]"><SkeletonLine width="70%" /><div className="text-[13px]"><SkeletonLine width="35%" /></div></div>
+    </div>
+  )
+}

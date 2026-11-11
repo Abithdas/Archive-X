@@ -18,7 +18,7 @@ const mount = (extra: Handler = () => undefined) => {
     calls.push({ url, body: init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined })
     const x = extra(url, init)
     if (x) return x
-    if (url === '/api/channels') return json(channels)
+    if (url === '/api/source-channels') return json(channels)
     if (url.startsWith('/api/settings/folder-preference')) return json({ ok: true, path: '' })
     return json({})
   }))

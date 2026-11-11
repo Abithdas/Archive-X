@@ -5,11 +5,11 @@ import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { useSuggested } from '@/api/hooks'
 import { Icon } from '@/design/Icon'
+import { SuggestionPreview } from './SuggestionPreview'
+import { PosterGrid, StudioPoster } from './PosterCard'
 import { cn } from '@/design/cn'
 import { formatBytes, formatDuration } from '@/features/library/format'
-import { imagePath, initial, plural } from './studio'
 import { SIMILAR_EMPTY, SUGGEST_EMPTY, brandIcon, confirmBody, confirmPath, failedConfirm, failedReject, linkedText, pending, rejectPath, rejectedText, succeeded, suggestionQuestion, suggestionTitle, suggestionToolbar, yesLabel, type Kind, type Related, type SocialLink, type Suggested } from './studioextras'
-import { responsive } from '@/design/responsive'
 
 export function SocialPanel({ links, loading, label = 'Website and social links' }: { links: SocialLink[]; loading: boolean; label?: string }) {
   return (
@@ -40,32 +40,17 @@ export function DetailsCard({ rows, related, label = 'Studio details' }: { rows:
 
 export function SimilarPanel({ items }: { items: Array<{ id: number; name: string; image?: string | null; count: number }> }) {
   if (!items.length) return <p role="tabpanel" aria-label="Similar Studios" className="rounded-card border border-dashed border-line py-12 text-center text-muted">{SIMILAR_EMPTY}</p>
-  return (
-    <ul role="tabpanel" aria-label="Similar Studios" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4">
-      {items.map((s) => <li key={s.id} className="text-center"><SimilarCard s={s} /></li>)}
-    </ul>
-  )
-}
-function SimilarCard({ s }: { s: { id: number; name: string; image?: string | null; count: number } }) {
-  const [ok, setOk] = useState(true)
-  return (
-    <Link to="/studios/$id" params={{ id: String(s.id) }} className="block rounded-card outline-none focus-visible:ring-2 focus-visible:ring-accent">
-      <span className="grid aspect-square w-full place-items-center overflow-hidden rounded-card border border-line bg-surface-2">
-        {ok ? <img {...responsive(imagePath(s.id, s.image), '(max-width: 639px) 46vw, 220px', [240, 320, 480, 640])} alt="" loading="lazy" className="size-full object-contain p-2" onError={() => setOk(false)} /> : <span className="text-4xl font-extrabold text-muted" aria-hidden="true">{initial(s.name)}</span>}
-      </span>
-      <span className="mt-2 block truncate text-sm font-semibold">{s.name}</span><span className="text-xs text-muted">{plural(s.count, 'shared video')}</span>
-    </Link>
-  )
+  return <PosterGrid label="Similar Studios">{items.map((s) => <StudioPoster key={s.id} id={s.id} name={s.name} image={s.image} count={s.count} />)}</PosterGrid>
 }
 
-function SuggestionCard({ s, name, kind, busy, onConfirm, onReject }: { s: Suggested; name: string; kind: Kind; busy: boolean; onConfirm: () => void; onReject: () => void }) {
+function SuggestionCard({ s, name, kind, busy, onConfirm, onReject, onPreview }: { s: Suggested; name: string; kind: Kind; busy: boolean; onConfirm: () => void; onReject: () => void; onPreview: () => void }) {
   const [thumb, setThumb] = useState(true)
   const meta = [s.duration ? formatDuration(s.duration) : '', s.size ? formatBytes(s.size) : ''].filter(Boolean).join(' · ')
   return (
     <article aria-label={suggestionTitle(s)} className="overflow-hidden rounded-card border border-line bg-surface">
-      <div className="relative aspect-video bg-surface-3">
+      <button type="button" onClick={onPreview} aria-label={`Check frames: ${suggestionTitle(s)}`} title="Check four frames of this video" className="relative block aspect-video w-full cursor-pointer bg-surface-3 outline-none focus-visible:ring-2 focus-visible:ring-accent">
         {thumb ? <img src={`/api/thumb/${encodeURIComponent(String(s.channel_id))}/${s.message_id}?r=f3`} alt="" loading="lazy" decoding="async" className="size-full object-cover" onError={() => setThumb(false)} /> : <span className="grid size-full place-items-center text-muted"><Icon name="play" className="size-8" /></span>}
-      </div>
+      </button>
       <div className="grid gap-1.5 p-3 text-left">
         <b className="line-clamp-2 text-sm [overflow-wrap:anywhere]">{suggestionTitle(s)}</b>
         {meta ? <span className="text-xs text-muted">{meta}</span> : null}
@@ -84,6 +69,7 @@ export function SuggestionsPanel({ kind = 'studio', entityId: studioId, name }: 
   const q = useSuggested(kind, studioId)
   const qc = useQueryClient()
   const [busy, setBusy] = useState<Set<number>>(new Set())
+  const [previewId, setPreviewId] = useState<number | null>(null)
   const act = async (s: Suggested, act_: 'confirm' | 'reject') => {
     if (busy.has(s.suggestion_id)) return
     setBusy((b) => new Set(b).add(s.suggestion_id))
@@ -96,12 +82,14 @@ export function SuggestionsPanel({ kind = 'studio', entityId: studioId, name }: 
     } catch (e) { toast.error(fail(e instanceof ApiError && e.detail ? e.detail : e instanceof Error ? e.message : String(e))) } finally { setBusy((b) => { const n = new Set(b); n.delete(s.suggestion_id); return n }) }
   }
   const list = q.data ?? []
+  const shown = list.find((x) => x.suggestion_id === previewId) ?? null
   if (q.isPending) return <p role="tabpanel" aria-label="Suggestions" className="py-8 text-center text-sm text-muted">Loading suggestions…</p>
   if (!list.length) return <div role="tabpanel" aria-label="Suggestions" className="rounded-card border border-dashed border-line py-12 text-center"><b>{SUGGEST_EMPTY.title}</b><p className="mt-1 text-sm text-muted">{SUGGEST_EMPTY.body}</p></div>
   return (
     <div role="tabpanel" aria-label="Suggestions" className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0 max-w-3xl text-left"><b>Suggested Videos</b><p className="mt-1 text-xs text-muted">{suggestionToolbar(name, kind)}</p></div><span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold">{pending(list.length)}</span></div>
-      <div className={cn('grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4')}>{list.map((s) => <SuggestionCard key={s.suggestion_id} s={s} name={name} kind={kind} busy={busy.has(s.suggestion_id)} onConfirm={() => void act(s, 'confirm')} onReject={() => void act(s, 'reject')} />)}</div>
+      <div className={cn('grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4')}>{list.map((s) => <SuggestionCard key={s.suggestion_id} s={s} name={name} kind={kind} busy={busy.has(s.suggestion_id)} onConfirm={() => void act(s, 'confirm')} onReject={() => void act(s, 'reject')} onPreview={() => setPreviewId(s.suggestion_id)} />)}</div>
+      {shown ? <SuggestionPreview s={shown} name={name} kind={kind} busy={busy.has(shown.suggestion_id)} onConfirm={() => void act(shown, 'confirm')} onReject={() => void act(shown, 'reject')} onClose={() => setPreviewId(null)} /> : null}
     </div>
   )
 }

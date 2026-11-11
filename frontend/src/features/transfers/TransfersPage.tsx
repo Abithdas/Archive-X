@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
-import { useChannels, useLanes } from '@/api/hooks'
+import { useSourceChannels, useLanes } from '@/api/hooks'
 import type { Channel } from '@/api/types'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
@@ -39,7 +39,7 @@ function LaneCard({ lane, busy, onAct }: { lane: Lane; busy: boolean; onAct: (l:
 
 function LiveLanes() {
   const lanes = useLanes()
-  const channels = useChannels()
+  const channels = useSourceChannels()
   const qc = useQueryClient()
   const [busy, setBusy] = useState('')
   const [stop, setStop] = useState<Lane | null>(null)
@@ -108,7 +108,7 @@ function LiveLanes() {
 
 const STEPS = ['Channels', 'Processing Stages', 'Review', 'Run'] as const
 function MetadataWorkflow() {
-  const channels = useChannels()
+  const channels = useSourceChannels()
   const qc = useQueryClient()
   const [step, setStep] = useState(0)
   const [q, setQ] = useState('')

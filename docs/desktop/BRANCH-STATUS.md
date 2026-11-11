@@ -95,3 +95,5 @@ from `desktop/` (needs the Tauri Linux prerequisites listed there).
 > Update: `frontend/dist` is now committed so `python run.py` works from the source zip without Node. After changing anything in `frontend/`, run `npm run build` and commit the new `dist`.
 
 > Update: performer and studio profile pages now match the classic look (back bar, one hero card, pills with metadata dot and provider colours, detail tiles, tab underline and count chips, "Videos linked to this …" with Edit multiple videos). New: performer "Adjust framing" (pan and zoom, saved per performer in this browser under the classic storage key), which the earlier parity audit had missed.
+
+> Update: related tabs restyled as classic posters (similar performers with match chip, similar studios, performer Studios and studio Performers); Studios directory tiles with the classic pager; suggestion rows open a four-frame verification dialog; Telegram job pickers (Metadata & Assets, Transfer, Automation) list every saved channel, not just library channels; suggestions and similar performers are limited to videos that are in the library.

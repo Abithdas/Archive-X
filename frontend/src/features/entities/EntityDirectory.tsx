@@ -10,12 +10,14 @@ import { PageHead } from '@/design/PageHead'
 import { Segmented } from '@/design/Segmented'
 import { useSearch } from '@/app/search'
 import { SkeletonGroup } from '@/design/Skeleton'
-import { EntityCard, EntityCardSkeleton } from './EntityCard'
+import { EntityCard, EntityCardSkeleton, StudioTile, StudioTileSkeleton } from './EntityCard'
+import { Pagination } from '@/features/library/Pagination'
 import { filterEntities, pageCount, type GenderFilter } from './filter'
 import { FAILED, IDLE, NEED_SELECTION, SORTS, canCommit, commitLabel, confirmation, duplicatesOf, hint, mergeBody, modeLabel, pick, sortBy, successMessage, toggleMode, type MergeState, type SortKey } from './merge'
 
-const PER = 48
 const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-[18px] sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]'
+const STUDIO_GRID = 'grid grid-cols-1 gap-[18px] sm:grid-cols-[repeat(auto-fill,minmax(260px,1fr))]'
+const DEFAULT_PER = 12
 const COPY = {
   performers: { eyebrow: 'Library', title: 'Performers', blurb: 'Everyone linked to your videos', empty: 'No performers yet.' },
   studios: { eyebrow: 'Library', title: 'Studios', blurb: 'Studios and sites in your archive', empty: 'No studios yet.' },
@@ -27,16 +29,17 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
   const query = useSearch((s) => s.q)
   const [gender, setGender] = useState<GenderFilter>('all')
   const [page, setPage] = useState(1)
+  const [per, setPer] = useState(DEFAULT_PER)
   const [sort, setSort] = useState<SortKey>('default')
   const [merge, setMerge] = useState<MergeState>(IDLE)
   const [asking, setAsking] = useState(false)
   const qc = useQueryClient()
   const rows = useMemo(() => sortBy(filterEntities(entities.data ?? [], query, kind === 'performers' ? gender : 'all'), sort), [entities.data, query, gender, kind, sort])
-  const pages = pageCount(rows.length, PER)
+  const pages = pageCount(rows.length, per)
   const current = Math.min(page, pages)
   useEffect(() => setPage(1), [query, gender, kind])
   useEffect(() => setMerge(IDLE), [kind])   // merge mode belongs to the performers list
-  const visible = rows.slice((current - 1) * PER, current * PER)
+  const visible = rows.slice((current - 1) * per, current * per)
   const all = entities.data ?? []
   const merging = kind === 'performers' && merge.active
   const say = (m: string) => m && toast(m)
@@ -88,8 +91,8 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
       </div>
 
       {entities.isPending ? (
-        <SkeletonGroup label={`Loading ${copy.title.toLowerCase()}`} className={GRID}>
-          {Array.from({ length: 16 }, (_, i) => <EntityCardSkeleton key={i} />)}
+        <SkeletonGroup label={`Loading ${copy.title.toLowerCase()}`} className={kind === 'studios' ? STUDIO_GRID : GRID}>
+          {Array.from({ length: 12 }, (_, i) => kind === 'studios' ? <StudioTileSkeleton key={i} /> : <EntityCardSkeleton key={i} />)}
         </SkeletonGroup>
       ) : entities.isError ? (
         <div role="alert" className="grid place-items-center gap-3 rounded-card border border-line py-16 text-center">
@@ -102,14 +105,10 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
         </p>
       ) : (
         <>
-          <div className={GRID}>{visible.map((e) => <EntityCard key={e.id} kind={kind} entity={e} merge={merging ? { keeper: merge.keepId === e.id, selected: merge.mergeIds.includes(e.id), onPick: () => pickCard(e.id) } : undefined} />)}</div>
-          {pages > 1 ? (
-            <nav aria-label="Pages" className="mt-6 flex items-center justify-center gap-2">
-              <Button variant="outline" disabled={current <= 1} onClick={() => setPage(current - 1)}>Previous</Button>
-              <span className="text-sm text-muted">Page {current} of {pages}</span>
-              <Button variant="outline" disabled={current >= pages} onClick={() => setPage(current + 1)}>Next</Button>
-            </nav>
-          ) : null}
+          {kind === 'studios'
+            ? <div className={STUDIO_GRID}>{visible.map((e) => <StudioTile key={e.id} entity={e} />)}</div>
+            : <div className={GRID}>{visible.map((e) => <EntityCard key={e.id} kind={kind} entity={e} merge={merging ? { keeper: merge.keepId === e.id, selected: merge.mergeIds.includes(e.id), onPick: () => pickCard(e.id) } : undefined} />)}</div>}
+          <Pagination page={current - 1} pages={pages} per={per} onPage={(n) => setPage(n + 1)} onPer={(n) => { setPer(n); setPage(1) }} />
         </>
       )}
       {asking && keep ? (() => { const c = confirmation(keep, ids, all); return <Confirm title={c.title} text={c.text} ok={c.ok} danger onCancel={() => setAsking(false)} onOk={() => void commit()} /> })() : null}

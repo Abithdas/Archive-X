@@ -10,6 +10,7 @@ import { NO_STUDIO_VIDEOS } from '@/features/library/shuffle'
 import { useShuffle } from '@/features/library/useShuffle'
 import { VideoCard, VideoCardSkeleton } from '@/features/library/VideoCard'
 import { EntityEditor } from './EntityEditor'
+import { NamedPoster, PerformerPoster, PosterGrid } from './PosterCard'
 import { ACTION, ACTION_PRIMARY, Actions, BackBar, Bio, EditingBar, Eyebrow, EntityTabs, HeroCard, MEDIA_FRAME, Pill, Pills, Title, VideosHead, providerTone } from './EntityHero'
 import { DetailsCard, SimilarPanel, SocialPanel, SuggestionsPanel } from './StudioExtras'
 import { detailRows, providerBio, relatedList, similarStudios, socialLinks } from './studioextras'
@@ -95,21 +96,7 @@ export function StudioPage({ id }: { id: number }) {
       {tab === 'similar' ? <SimilarPanel items={similarStudios(videos, site.name, studios.data ?? [])} /> : tab === 'suggestions' ? <SuggestionsPanel kind="studio" entityId={site.id} name={site.name} /> : tab === 'videos' ? (
         videos.length ? <><VideosHead kind="studio" videos={videos} /><div className={GRID} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div><EditingBar videos={videos} /></> : <p role="tabpanel" aria-label="Videos" className="rounded-card border border-dashed border-line py-12 text-center text-muted">No videos are linked to this studio yet.</p>
       ) : linked.length ? (
-        <ul role="tabpanel" aria-label="Performers" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4">
-          {linked.map((p) => {
-            const pid = idOf(p.name)
-            const inner = (
-              <>
-                <span className="relative block aspect-[3/4] w-full overflow-hidden rounded-card border border-line bg-surface-3">
-                  {pid ? <img {...responsive(`/api/performers/${pid}/image`, '(max-width: 639px) 46vw, 220px')} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /> : <span className="absolute inset-0 grid place-items-center text-4xl font-extrabold text-muted" aria-hidden="true">{initial(p.name)}</span>}
-                </span>
-                <span className="mt-2 block truncate text-sm font-semibold">{p.name}</span>
-                <span className="text-xs text-muted">{plural(p.count, 'video')}</span>
-              </>
-            )
-            return <li key={p.name} className="text-center">{pid ? <Link to="/performers/$id" params={{ id: String(pid) }} className="block rounded-card outline-none focus-visible:ring-2 focus-visible:ring-accent">{inner}</Link> : <div>{inner}</div>}</li>
-          })}
-        </ul>
+        <PosterGrid label="Performers">{linked.map((p) => { const pid = idOf(p.name); return pid ? <PerformerPoster key={p.name} id={pid} name={p.name} count={p.count} /> : <NamedPoster key={p.name} name={p.name} count={p.count} /> })}</PosterGrid>
       ) : <p role="tabpanel" aria-label="Performers" className="rounded-card border border-dashed border-line py-12 text-center text-muted">No performers are linked to this studio&apos;s videos yet.</p>}
 
       {editing ? <EntityEditor kind="studios" id={site.id} onDone={() => setEditing(false)} /> : null}

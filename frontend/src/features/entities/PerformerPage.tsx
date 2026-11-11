@@ -16,9 +16,10 @@ import { cn } from '@/design/cn'
 import { FavoriteButton } from './FavoriteButton'
 import { DetailsCard, SocialPanel, SuggestionsPanel } from './StudioExtras'
 import { PTABS, detailRows, isUnknownLocal, metadataLinked, similarEmpty, studioCount, studiosFor, STUDIOS_EMPTY, type PTab } from './performerextras'
-import { providerPills, plural } from './studio'
+import { providerPills } from './studio'
 import { providerBio, socialLinks } from './studioextras'
-import { Link as RLink } from '@tanstack/react-router'
+import { PerformerPoster, PosterGrid, StudioPoster } from './PosterCard'
+import type { SimilarFields } from './similarity'
 import { responsive } from '@/design/responsive'
 
 const GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
@@ -118,7 +119,7 @@ export function PerformerPage({ id }: { id: number }) {
         videos.length ? <><VideosHead kind="performer" videos={videos} /><div className={GRID} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div><EditingBar videos={videos} /></> : <p role="tabpanel" aria-label="Videos" className="rounded-card border border-dashed border-line py-16 text-center text-muted">No videos for this performer yet.</p>
       ) : tab === 'studios' ? (
         (() => { const items = studiosFor(videos, studios.data ?? []); return items.length ? (
-          <ul role="tabpanel" aria-label="Studios" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4">{items.map((s) => <li key={s.id} className="text-center"><RLink to="/studios/$id" params={{ id: String(s.id) }} className="block rounded-card outline-none focus-visible:ring-2 focus-visible:ring-accent"><span className="grid aspect-square w-full place-items-center overflow-hidden rounded-card border border-line bg-surface-2"><img {...responsive(`/api/studios/${s.id}/image`, '(max-width: 639px) 46vw, 220px', [240, 320, 480, 640])} alt="" loading="lazy" className="size-full object-contain p-2" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /></span><span className="mt-2 block truncate text-sm font-semibold">{s.name}</span><span className="text-xs text-muted">{plural(s.count, 'video')}</span></RLink></li>)}</ul>
+          <PosterGrid label="Studios">{items.map((s) => <StudioPoster key={s.id} id={s.id} name={s.name} image={s.image} count={s.count} />)}</PosterGrid>
         ) : <p role="tabpanel" aria-label="Studios" className="rounded-card border border-dashed border-line py-12 text-center text-muted">{STUDIOS_EMPTY}</p> })()
       ) : tab === 'similar' ? (
         similar.isPending ? <p role="tabpanel" aria-label="Similar Performers" className="py-8 text-center text-sm text-muted">Finding similar performers…</p>
@@ -129,10 +130,6 @@ export function PerformerPage({ id }: { id: number }) {
   )
 }
 
-function PerformerGrid({ items }: { items: Array<{ id: number; name: string; video_count?: number }> }) {
-  return (
-    <ul role="tabpanel" aria-label="Similar Performers" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4">
-      {items.map((x) => <li key={x.id} className="text-center"><RLink to="/performers/$id" params={{ id: String(x.id) }} className="block rounded-card outline-none focus-visible:ring-2 focus-visible:ring-accent"><span className="relative block aspect-[3/4] w-full overflow-hidden rounded-card border border-line bg-surface-3"><img {...responsive(`/api/performers/${x.id}/image`, '(max-width: 639px) 46vw, 220px')} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /></span><span className="mt-2 block truncate text-sm font-semibold">{x.name}</span><span className="text-xs text-muted">{plural(Number(x.video_count || 0), 'video')}</span></RLink></li>)}
-    </ul>
-  )
+function PerformerGrid({ items }: { items: Array<{ id: number; name: string; video_count?: number; image?: string | null } & SimilarFields> }) {
+  return <PosterGrid label="Similar Performers">{items.map((x) => <PerformerPoster key={x.id} id={x.id} name={x.name} image={x.image} count={x.video_count ?? 0} similar={x} />)}</PosterGrid>
 }

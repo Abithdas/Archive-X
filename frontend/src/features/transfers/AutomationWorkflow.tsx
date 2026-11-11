@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
-import { useAutomationConfig, useChannels, useStatus } from '@/api/hooks'
+import { useAutomationConfig, useSourceChannels, useStatus } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
@@ -33,7 +33,7 @@ function ActiveCard({ x, onSkip }: { x: QueueItem; onSkip: (x: QueueItem) => voi
 /** Content Automation: RSS → qBittorrent → verify → Telegram, as the classic six-step flow with a live queue. */
 export function AutomationWorkflow() {
   const cfg = useAutomationConfig()
-  const channels = useChannels()
+  const channels = useSourceChannels()
   const status = useStatus()
   const qc = useQueryClient()
   const [step, setStep] = useState(0)

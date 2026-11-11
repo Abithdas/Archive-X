@@ -15,6 +15,10 @@ export const useStatus = () =>
 export const useChannels = () =>
   useQuery({ queryKey: queryKeys.channels, queryFn: () => api<Channel[]>('/api/channels'), staleTime: 30_000 })
 
+/** Every Telegram channel saved locally (the inventory), not only the ones published to the library. Used where a job picks Telegram channels. */
+export const useSourceChannels = () =>
+  useQuery({ queryKey: ['source-channels'] as const, queryFn: () => api<Channel[]>('/api/source-channels'), staleTime: 30_000 })
+
 /** Library page; keeps the previous page on screen while the next one loads (no flash), skeleton on first load. */
 export const useLibrary = (query: LibraryQuery) =>
   useQuery({
@@ -188,7 +192,7 @@ const perfGet = <T,>(key: string, id: number, tail: string, fallback: T) =>
 export const usePerformerMetadata = (id: number) => useQuery(perfGet<import('@/features/entities/studioextras').Metadata>('performer-meta', id, 'metadata', { providers: [] }))
 export const usePerformerCareer = (id: number) => useQuery(perfGet<{ career_counts?: Array<{ provider?: string; count?: number }> }>('performer-career', id, 'career-counts', { career_counts: [] }))
 export const usePerformerSimilar = (id: number, enabled: boolean) =>
-  useQuery({ queryKey: ['performer-similar', id] as const, enabled, queryFn: () => api<{ items?: Array<{ id: number; name: string; video_count?: number; image?: string | null }>; reason?: string }>(`/api/performers/${id}/similar?limit=40`), staleTime: 60_000, retry: false })
+  useQuery({ queryKey: ['performer-similar', id] as const, enabled, queryFn: () => api<{ items?: Array<{ id: number; name: string; video_count?: number; image?: string | null } & import('@/features/entities/similarity').SimilarFields>; reason?: string }>(`/api/performers/${id}/similar?limit=40`), staleTime: 60_000, retry: false })
 
 /** Codec and container facts for one video (the smart-playback decision); fails quietly when Telegram is not connected. */
 export const usePlayInfo = (cid: string, mid: number) =>

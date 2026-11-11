@@ -19,7 +19,7 @@ const mount = (cfg: Record<string, unknown> = SAVED, ca: Record<string, unknown>
     calls.push({ url, body: init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined })
     const x = extra(url, init)
     if (x) return x
-    if (url === '/api/channels') return json(channels)
+    if (url === '/api/source-channels') return json(channels)
     if (url === '/api/operations/automation/config' && !init?.method) return json(cfg)
     if (url === '/api/status') return json({ content_automation: ca })
     return json({ ok: true })

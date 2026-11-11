@@ -19,7 +19,7 @@ const mount = (extra: Handler = () => undefined, jobs: unknown[] = []) => {
     const x = await extra(url, init)
     if (x) return x
     if (url === '/api/telegram-transfer/lanes') return json({ governor: { transfer_active: 1, transfer_capacity: 3 }, resources: { background_active: 0, background_capacity: 2, media_workers: 2 }, jobs })
-    if (url === '/api/channels') return json(channels)
+    if (url === '/api/source-channels') return json(channels)
     return json({})
   }))
   withRouter(<TransfersPage />)

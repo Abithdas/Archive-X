@@ -815,7 +815,7 @@ def register_media_routes(
         for r in rows:
             def _read_media():
                 with db.reading() as rdb:
-                    row = rdb.execute("SELECT id, source_channel, source_message_id, filename, title, duration, size FROM media WHERE id=?", (r["video_id"],)).fetchone()
+                    row = rdb.execute("SELECT id, source_channel, source_message_id, filename, title, duration, size FROM archive_x_library_media WHERE id=?", (r["video_id"],)).fetchone()
                     return dict(row) if row else None
             media = await asyncio.to_thread(_read_media)
             if not media:
@@ -840,7 +840,7 @@ def register_media_routes(
         for r in rows:
             def _read_media():
                 with db.reading() as rdb:
-                    row = rdb.execute("SELECT id, source_channel, source_message_id, filename, title, duration, size FROM media WHERE id=?", (r["video_id"],)).fetchone()
+                    row = rdb.execute("SELECT id, source_channel, source_message_id, filename, title, duration, size FROM archive_x_library_media WHERE id=?", (r["video_id"],)).fetchone()
                     return dict(row) if row else None
             media = await asyncio.to_thread(_read_media)
             if not media:

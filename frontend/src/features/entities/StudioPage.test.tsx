@@ -110,7 +110,7 @@ describe('StudioPage', () => {
     fireEvent.click(await screen.findByRole('tab', { name: /Similar Studios/ }))
     const panel = await screen.findByRole('tabpanel', { name: 'Similar Studios' })
     const link = await within(panel).findByRole('link', { name: /Aurora/ })
-    expect(link).toHaveAttribute('href', '/studios/5'); expect(link).toHaveTextContent('1 shared video')
+    expect(link).toHaveAttribute('href', '/studios/5'); expect(link).toHaveTextContent('1 video')
     expect(within(panel).queryByRole('link', { name: /Northlight/ })).not.toBeInTheDocument()
   })
 
@@ -148,5 +148,25 @@ describe('StudioPage profile card', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit multiple videos' }))
     expect(screen.getByRole('toolbar', { name: 'Edit multiple videos' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Selecting · 0/ }))
+  })
+})
+
+describe('StudioPage suggestion preview', () => {
+  it('shows four verification frames, then links from the dialog', async () => {
+    SUGGESTED.length = 0
+    SUGGESTED.push({ suggestion_id: 11, channel_id: '-1001', message_id: 77, title: 'Maybe North', duration: 125, size: 5242880 })
+    const calls = mount()
+    fireEvent.click(await screen.findByRole('tab', { name: /Suggestions/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Check frames: Maybe North' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Maybe North' })
+    const imgs = within(dialog).getAllByRole('img')
+    expect(imgs.map((i) => i.getAttribute('src'))).toEqual([3, 12, 21, 30].map((n) => `/api/play/preview-frame/-1001/77/${n}?v=8`))
+    expect(within(dialog).getByText('Does this video belong to Northlight? Confirming links only this studio. Use Edit Video or Scene Match Review for full scene identification.')).toBeInTheDocument()
+    // a snapshot that will not load is replaced by a live frame at the matching time
+    fireEvent.error(imgs[1]!)
+    await waitFor(() => expect(within(dialog).getAllByRole('img')[1]!.getAttribute('src')).toBe('/api/play/preview/-1001/77?t=43.750&w=480&pv=17'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Yes, link studio' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/suggestions/11/confirm-entity')).toMatchObject({ method: 'POST' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Maybe North' })).not.toBeInTheDocument())
   })
 })

@@ -1,4 +1,4 @@
-import { act, screen } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Entity } from '@/api/types'
 import { useSearch } from '@/app/search'
@@ -45,5 +45,28 @@ describe('EntityDirectory', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{"detail":"boom"}', { status: 500 })))
     mount('performers')
     expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument()
+  })
+})
+
+describe('studio directory', () => {
+  const studios = Array.from({ length: 13 }, (_, i) => e(i + 1, `Studio ${String(i + 1).padStart(2, '0')}`, 20 - i))
+  it('lists studios as tiles with a link and a video count', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(studios), { status: 200 })))
+    mount('studios')
+    const tile = await screen.findByRole('article', { name: 'Studio 01' })
+    expect(within(tile).getByRole('link', { name: 'Studio 01' })).toHaveAttribute('href', '/studios/1')
+    expect(within(tile).getByText('20 videos')).toBeInTheDocument()
+  })
+  it('pages 12 at a time, with the page box and the items-per-page choice', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(studios), { status: 200 })))
+    mount('studios')
+    await screen.findByRole('article', { name: 'Studio 01' })
+    expect(screen.getAllByRole('article')).toHaveLength(12)
+    expect(screen.queryByRole('article', { name: 'Studio 13' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(await screen.findByRole('article', { name: 'Studio 13' })).toBeInTheDocument()
+    expect(screen.getAllByRole('article')).toHaveLength(1)
+    fireEvent.change(screen.getByLabelText('Items per page'), { target: { value: '24' } })
+    expect(await screen.findAllByRole('article')).toHaveLength(13)
   })
 })

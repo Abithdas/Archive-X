@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
-import { useChannels } from '@/api/hooks'
+import { useSourceChannels } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { Segmented } from '@/design/Segmented'
@@ -25,7 +25,7 @@ function Select({ value, onChange, options, label }: { value: string; onChange: 
 
 /** Telegram Transfer Manager: Local → Telegram uploads (videos or images) and Telegram → Telegram transfers, as a four-step flow. */
 export function TransferWorkflow() {
-  const channels = useChannels()
+  const channels = useSourceChannels()
   const qc = useQueryClient()
   const [source, setSource] = useState<Source>('local')
   const [local, setLocal] = useState<LocalOptions>(DEFAULT_LOCAL)

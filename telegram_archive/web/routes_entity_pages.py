@@ -69,7 +69,7 @@ def register_entity_page_routes(
                 "UNION SELECT performer_id, video_id FROM local_video_performers WHERE video_id IN (SELECT id FROM archive_x_library_media)) combined "
                 "ON combined.performer_id=p.id "
                 "WHERE p.id<>? AND (lower(trim(COALESCE(p.gender,''))) IN (?,?,?,?) OR trim(COALESCE(p.gender,''))='') "
-                "GROUP BY p.id ORDER BY video_count DESC,p.name",
+                "GROUP BY p.id HAVING video_count > 0 ORDER BY video_count DESC,p.name",
                 (int(performer_id), *gender_aliases),
             ).fetchall()
 
