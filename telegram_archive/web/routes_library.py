@@ -939,6 +939,7 @@ def register_library_routes(
         from ..engines.photo_cache import (
             cache_telegram_message, record_photo_cache, resolve_database_cache_path,
             photo_original_path, photo_thumbnail_path, inspect_cached_file,
+            render_jpeg_derivative, THUMBNAIL_BOX, THUMBNAIL_QUALITY,
         )
 
         with db.reading() as rdb:
@@ -997,22 +998,7 @@ def register_library_routes(
         if thumb.is_file() and thumb.stat().st_size > 512:
             return thumb
         try:
-            with Image.open(original) as source:
-                image = ImageOps.exif_transpose(source)
-                image.seek(0)
-                image.thumbnail((480, 360), Image.Resampling.LANCZOS)
-                if image.mode not in ("RGB", "L"):
-                    background = Image.new("RGB", image.size, (28, 32, 40))
-                    if "A" in image.getbands():
-                        background.paste(image, mask=image.getchannel("A"))
-                    else:
-                        background.paste(image.convert("RGB"))
-                    image = background
-                elif image.mode != "RGB":
-                    image = image.convert("RGB")
-                temp_thumb = thumb.with_name(thumb.stem + ".part.jpg")
-                image.save(temp_thumb, format="JPEG", quality=84, optimize=True)
-            temp_thumb.replace(thumb)
+            await asyncio.to_thread(render_jpeg_derivative, original, thumb, THUMBNAIL_BOX, THUMBNAIL_QUALITY)
         except Exception:
             # Unsupported but cached image formats still remain available as
             # their original, even if a JPEG thumbnail can't be built.
@@ -1058,30 +1044,9 @@ def register_library_routes(
             pass
 
         def _build_preview() -> Path:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            fd, temp_name = _tempfile.mkstemp(prefix=target.stem + ".", suffix=".part.jpg", dir=str(target.parent))
-            _os.close(fd)
-            temp = __import__("pathlib").Path(temp_name)
-            try:
-                with _Image.open(original) as source:
-                    image = _ImageOps.exif_transpose(source)
-                    image.seek(0)
-                    image.thumbnail((1440, 1440), _Image.Resampling.LANCZOS)
-                    if image.mode not in ("RGB", "L"):
-                        background = _Image.new("RGB", image.size, (16, 19, 25))
-                        if "A" in image.getbands(): background.paste(image, mask=image.getchannel("A"))
-                        else: background.paste(image.convert("RGB"))
-                        image = background
-                    elif image.mode != "RGB":
-                        image = image.convert("RGB")
-                    image.save(temp, format="JPEG", quality=88, optimize=True, progressive=True)
-                if temp.stat().st_size <= 512:
-                    raise RuntimeError("Generated photo preview is empty")
-                _os.replace(temp, target)
-                return target
-            finally:
-                try: temp.unlink(missing_ok=True)
-                except OSError: pass
+            from ..engines.photo_cache import render_jpeg_derivative as _render, PREVIEW_BOX as _box, PREVIEW_QUALITY as _q
+            _render(original, target, _box, _q, (16, 19, 25))
+            return target
 
         try:
             preview = await asyncio.to_thread(_build_preview)
@@ -1190,9 +1155,9 @@ def register_library_routes(
         # Gather only app-managed paths. A stale/malformed DB path must never be
         # allowed to unlink an arbitrary file outside Archive X's user-data area.
         from ..engines.photo_cache import (
-            resolve_database_cache_path, photo_original_path, photo_thumbnail_path, photo_preview_path,
+            resolve_database_cache_path, photo_original_path, photo_thumbnail_path, photo_preview_path, legacy_photo_thumbnail_path,
         )
-        cache_paths = {photo_original_path(channel_id, message_id), photo_thumbnail_path(channel_id, message_id), photo_preview_path(channel_id, message_id)}
+        cache_paths = {photo_original_path(channel_id, message_id), photo_thumbnail_path(channel_id, message_id), legacy_photo_thumbnail_path(channel_id, message_id), photo_preview_path(channel_id, message_id)}
         saved_path = resolve_database_cache_path(str(photo["local_path"] or ""))
         if saved_path is not None:
             cache_paths.add(saved_path)

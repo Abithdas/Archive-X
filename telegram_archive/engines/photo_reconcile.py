@@ -55,7 +55,7 @@ def _indexed_items(db, channel_ids: list[str]) -> list[dict[str, Any]]:
 
 def _remove_photo_index_row(db, channel_id: str, message_id: int) -> tuple[bool, set[Path]]:
     """Remove a confirmed-stale item transactionally, returning app-owned paths."""
-    from .photo_cache import resolve_database_cache_path, photo_original_path, photo_thumbnail_path, photo_preview_path
+    from .photo_cache import resolve_database_cache_path, photo_original_path, photo_thumbnail_path, photo_preview_path, legacy_photo_thumbnail_path
 
     with db.reading() as conn:
         row = conn.execute(
@@ -65,7 +65,7 @@ def _remove_photo_index_row(db, channel_id: str, message_id: int) -> tuple[bool,
     if not row:
         return False, set()
     photo_id = int(row["id"])
-    cache_paths = {photo_original_path(channel_id, message_id), photo_thumbnail_path(channel_id, message_id), photo_preview_path(channel_id, message_id)}
+    cache_paths = {photo_original_path(channel_id, message_id), photo_thumbnail_path(channel_id, message_id), legacy_photo_thumbnail_path(channel_id, message_id), photo_preview_path(channel_id, message_id)}
     stored_path = resolve_database_cache_path(str(row["local_path"] or ""))
     if stored_path is not None:
         cache_paths.add(stored_path)

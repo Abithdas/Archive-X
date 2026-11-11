@@ -26,8 +26,58 @@ def photo_original_path(channel_id: str, message_id: int) -> Path:
     return Path(config.CACHE_DIR) / "photo_library" / "originals" / f"{photo_key(channel_id, message_id)}.bin"
 
 
+# The Photos grid is width-driven (masonry columns up to ~280 CSS px, so ~560 px on a 2x screen) and portrait photos are tall,
+# so the thumbnail box is limited by width first. Photos smaller than the box are never enlarged.
+THUMBNAIL_BOX = (640, 960)
+PREVIEW_BOX = (1440, 1440)
+THUMBNAIL_QUALITY = 84
+PREVIEW_QUALITY = 88
+
+
 def photo_thumbnail_path(channel_id: str, message_id: int) -> Path:
+    # ".w640" marks the current thumbnail size; older 480x360 thumbnails (plain ".jpg") are regenerated from the original on demand.
+    return Path(config.CACHE_DIR) / "photo_library" / "thumbnails" / f"{photo_key(channel_id, message_id)}.w640.jpg"
+
+
+def legacy_photo_thumbnail_path(channel_id: str, message_id: int) -> Path:
     return Path(config.CACHE_DIR) / "photo_library" / "thumbnails" / f"{photo_key(channel_id, message_id)}.jpg"
+
+
+def render_jpeg_derivative(source_path: Path, target: Path, box: tuple[int, int], quality: int, background: tuple[int, int, int] = (28, 32, 40)) -> None:
+    """Write a reduced JPEG of the original (never of another derivative), atomically.
+
+    Transparent images are reduced in premultiplied-alpha space and only then flattened, so invisible colour data in
+    transparent pixels cannot leak into a dark or coloured fringe along the edges."""
+    import os
+    import tempfile
+    from PIL import Image, ImageOps
+
+    with Image.open(source_path) as source:
+        image = ImageOps.exif_transpose(source)
+        image.seek(0)
+        has_alpha = "A" in image.getbands() or image.mode in ("P", "LA", "PA") and "transparency" in image.info
+        if has_alpha:
+            rgba = image.convert("RGBA")
+            premultiplied = rgba.convert("RGBa")
+            premultiplied.thumbnail(box, Image.Resampling.LANCZOS)
+            reduced = premultiplied.convert("RGBA")
+            flat = Image.new("RGB", reduced.size, background)
+            flat.paste(reduced, mask=reduced.getchannel("A"))
+            image = flat
+        else:
+            image = image.convert("RGB") if image.mode != "RGB" else image
+            image.thumbnail(box, Image.Resampling.LANCZOS)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        fd, temp_name = tempfile.mkstemp(prefix=target.stem + ".", suffix=".part.jpg", dir=str(target.parent))
+        os.close(fd)
+        temp = Path(temp_name)
+        try:
+            image.save(temp, format="JPEG", quality=quality, optimize=True, progressive=True)
+            if temp.stat().st_size <= 512:
+                raise RuntimeError("Generated image is empty")
+            os.replace(temp, target)
+        finally:
+            temp.unlink(missing_ok=True)
 
 
 def photo_preview_path(channel_id: str, message_id: int) -> Path:
