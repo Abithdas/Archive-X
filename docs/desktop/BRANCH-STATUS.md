@@ -91,3 +91,5 @@ from `desktop/` (needs the Tauri Linux prerequisites listed there).
 - Transfers → Metadata & Assets: image scan and deleted-image reconciliation options (`/api/photos/scan`, `/api/photos/reconcile`), tested; last classic-only feature now in React.
 
 > Update: classic UI removed (`telegram_archive/web/ui/`, `web/html.py`, `/ui-assets`); React is served at `/` with an SPA fallback registered last that 404s reserved backend paths (`/api`, `/stream`, `/static`, `/ws`, `/desktop`).
+
+> Update: `frontend/dist` is now committed so `python run.py` works from the source zip without Node. After changing anything in `frontend/`, run `npm run build` and commit the new `dist`.
