@@ -9,6 +9,7 @@ import { cn } from '@/design/cn'
 import { formatBytes, formatDuration } from '@/features/library/format'
 import { imagePath, initial, plural } from './studio'
 import { SIMILAR_EMPTY, SUGGEST_EMPTY, brandIcon, confirmBody, confirmPath, failedConfirm, failedReject, linkedText, pending, rejectPath, rejectedText, succeeded, suggestionQuestion, suggestionTitle, suggestionToolbar, yesLabel, type Kind, type Related, type SocialLink, type Suggested } from './studioextras'
+import { responsive } from '@/design/responsive'
 
 export function SocialPanel({ links, loading, label = 'Website and social links' }: { links: SocialLink[]; loading: boolean; label?: string }) {
   return (
@@ -50,7 +51,7 @@ function SimilarCard({ s }: { s: { id: number; name: string; image?: string | nu
   return (
     <Link to="/studios/$id" params={{ id: String(s.id) }} className="block rounded-card outline-none focus-visible:ring-2 focus-visible:ring-accent">
       <span className="grid aspect-square w-full place-items-center overflow-hidden rounded-card border border-line bg-surface-2">
-        {ok ? <img src={imagePath(s.id, s.image)} alt="" loading="lazy" className="size-full object-contain p-2" onError={() => setOk(false)} /> : <span className="text-4xl font-extrabold text-muted" aria-hidden="true">{initial(s.name)}</span>}
+        {ok ? <img {...responsive(imagePath(s.id, s.image), '(max-width: 639px) 46vw, 220px', [240, 320, 480, 640])} alt="" loading="lazy" className="size-full object-contain p-2" onError={() => setOk(false)} /> : <span className="text-4xl font-extrabold text-muted" aria-hidden="true">{initial(s.name)}</span>}
       </span>
       <span className="mt-2 block truncate text-sm font-semibold">{s.name}</span><span className="text-xs text-muted">{plural(s.count, 'shared video')}</span>
     </Link>

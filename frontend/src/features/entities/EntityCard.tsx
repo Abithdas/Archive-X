@@ -4,6 +4,7 @@ import type { Entity, EntityKind } from '@/api/types'
 import { Icon } from '@/design/Icon'
 import { Skeleton, SkeletonLine } from '@/design/Skeleton'
 import { EntityEditor } from './EntityEditor'
+import { responsive } from '@/design/responsive'
 
 const imageUrl = (kind: EntityKind, e: Entity) => `/api/${kind}/${e.id}/image?v=${encodeURIComponent(e.image ?? '')}`
 const PLACEHOLDER = '/static/icons/ax-placeholder.png'
@@ -17,7 +18,7 @@ export function EntityCard({ kind, entity, merge }: { kind: EntityKind; entity: 
   const [broken, setBroken] = useState(false)
   const [editing, setEditing] = useState(false)
   const label = entity.video_count === 1 ? '1 video' : `${entity.video_count} videos`
-  const src = broken ? PLACEHOLDER : imageUrl(kind, entity)
+  const img = broken ? { src: PLACEHOLDER } : responsive(imageUrl(kind, entity), '(max-width: 639px) 46vw, 260px')
   return (
     <article aria-label={entity.name} className="group relative grid gap-2.5 text-center">
       {merge ? (
@@ -27,7 +28,7 @@ export function EntityCard({ kind, entity, merge }: { kind: EntityKind; entity: 
         {merge && (merge.keeper || merge.selected) ? <span className={`absolute left-2 top-2 z-20 rounded-md px-2 py-0.5 text-[11px] font-bold text-black ${merge.keeper ? 'bg-good' : 'bg-warn'}`}>{merge.keeper ? 'Keep' : 'Merge'}</span> : null}
         {broken ? <img src={PLACEHOLDER} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-60 blur-xl" /> : null}
         <img
-          src={src}
+          {...img}
           alt=""
           loading="lazy"
           decoding="async"

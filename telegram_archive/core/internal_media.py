@@ -876,7 +876,7 @@ def _make_snapshot_frames_ffmpeg_direct(input_path: str | Path, output_dir: str 
         command = [
             ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-threads", "1",
             "-i", str(source), "-map", "0:V:0", "-an", "-sn", "-dn",
-            "-vf", f"setpts=PTS-STARTPTS,fps={fps:.12g},scale={cell_width}:-2:flags=fast_bilinear,format=rgb24",
+            "-vf", f"setpts=PTS-STARTPTS,fps={fps:.12g},scale={cell_width}:-2:flags=lanczos,format=rgb24",
             "-frames:v", str(count), "-c:v", "png", "-pix_fmt", "rgb24",
             "-start_number", "1", "-y", str(png_dir / "frame_%02d.png"),
         ]
@@ -963,7 +963,7 @@ def _make_snapshot_frames_ffmpeg_direct(input_path: str | Path, output_dir: str 
                     ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin",
                     "-threads", "1", *seek_args, "-map", "0:V:0",
                     "-frames:v", "1", "-an", "-sn", "-dn",
-                    "-vf", f"scale={cell_width}:-2:flags=fast_bilinear",
+                    "-vf", f"scale={cell_width}:-2:flags=lanczos",
                     # Windows FFmpeg builds can fail to initialize MJPEG
                     # (encoder error -22). PNG image2pipe is more portable;
                     # Pillow converts that single frame to our cached JPEG.

@@ -8,6 +8,7 @@ import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { formatBytes } from '@/design/format'
 import { moveBody, moveConfirmText, moveMeta, moveResultMessage, optionLabel, resolveDestinations, type MoveResult } from './move'
+import { withWidth } from '@/design/responsive'
 
 /**
  * "Move / delete source": copy one video to another Telegram channel, let the server verify the copy,
@@ -48,7 +49,7 @@ export function MoveVideo({ item, onDone }: { item: LibraryItem; onDone: () => v
       <Dialog open onClose={() => !busy && onDone()} title="Move video">
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <div className="flex gap-3 rounded-xl border border-line bg-bg p-2.5">
-            <img src={thumbUrl(item._cid, item.thumbnail_id)} alt="" className="h-14 w-24 shrink-0 rounded-lg bg-surface-2 object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
+            <img src={withWidth(thumbUrl(item._cid, item.thumbnail_id), 240)} alt="" className="h-14 w-24 shrink-0 rounded-lg bg-surface-2 object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
             <div className="min-w-0 text-sm">
               <p className="line-clamp-2 font-bold [overflow-wrap:anywhere]">{item.name}</p>
               <p className="truncate text-muted">{moveMeta(sourceTitle, Number(item.size) || 0, formatBytes)}</p>

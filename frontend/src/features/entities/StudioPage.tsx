@@ -14,6 +14,7 @@ import { DetailsCard, SimilarPanel, SocialPanel, SuggestionsPanel } from './Stud
 import { detailRows, providerBio, relatedList, similarStudios, socialLinks } from './studioextras'
 import { FavoriteButton } from './FavoriteButton'
 import { NOT_FOUND, TABS, bioShown, bioText, imagePath, initial, linkedPerformers, metadataStatus, plural, providerPills, BIO_LIMIT, type Tab } from './studio'
+import { responsive } from '@/design/responsive'
 
 const GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
 const WRAP = 'mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10'
@@ -68,7 +69,7 @@ export function StudioPage({ id }: { id: number }) {
       <nav aria-label="Breadcrumb" className="mb-4 text-sm text-muted"><Link to="/studios" className="font-semibold text-accent hover:underline">Studios</Link> <span aria-hidden="true">/</span> {site.name}</nav>
       <header className="mb-6 flex gap-5" aria-label="Studio profile">
         <div className="grid size-28 shrink-0 place-items-center overflow-hidden rounded-card border border-line bg-surface-2 sm:size-40">
-          {logoOk ? <img src={imagePath(site.id, site.image)} alt="" onError={() => setLogoOk(false)} className="size-full object-contain p-2" /> : <span className="text-5xl font-extrabold text-muted" aria-hidden="true">{initial(site.name)}</span>}
+          {logoOk ? <img {...responsive(imagePath(site.id, site.image), '(max-width: 639px) 112px, 160px', [320, 480, 640])} alt="" onError={() => setLogoOk(false)} className="size-full object-contain p-2" /> : <span className="text-5xl font-extrabold text-muted" aria-hidden="true">{initial(site.name)}</span>}
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-bold uppercase tracking-wide text-faint">Studio</p>
@@ -113,7 +114,7 @@ export function StudioPage({ id }: { id: number }) {
             const inner = (
               <>
                 <span className="relative block aspect-[3/4] w-full overflow-hidden rounded-card border border-line bg-surface-3">
-                  {pid ? <img src={`/api/performers/${pid}/image`} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /> : <span className="absolute inset-0 grid place-items-center text-4xl font-extrabold text-muted" aria-hidden="true">{initial(p.name)}</span>}
+                  {pid ? <img {...responsive(`/api/performers/${pid}/image`, '(max-width: 639px) 46vw, 220px')} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /> : <span className="absolute inset-0 grid place-items-center text-4xl font-extrabold text-muted" aria-hidden="true">{initial(p.name)}</span>}
                 </span>
                 <span className="mt-2 block truncate text-sm font-semibold">{p.name}</span>
                 <span className="text-xs text-muted">{plural(p.count, 'video')}</span>

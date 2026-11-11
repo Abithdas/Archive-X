@@ -41,7 +41,7 @@ export function scannedChannels(saved: readonly PhotoChannel[], photo: readonly 
 export const channelAvatar = (c: PhotoChannel) => {
   const id = encodeURIComponent(String(c.telegram_id))
   const v = encodeURIComponent(String(c.updated_at || '0'))
-  return String(c.image || '').startsWith('manual-upload:') ? `/api/channels/${id}/image?v=${v}` : `/api/channels/${id}/telegram-photo?v=${v}`
+  return String(c.image || '').startsWith('manual-upload:') ? `/api/channels/${id}/image?v=${v}&w=160` : `/api/channels/${id}/telegram-photo?v=${v}`
 }
 export const scanTitle = (c: PhotoChannel) => `${c.photo_last_scan_at ? `Last completed image scan ${new Date(c.photo_last_scan_at).toLocaleString()}` : 'Image scan complete'} · ${Number(c.photo_count || 0).toLocaleString()} photos`
 export const channelSummary = (n: number) => `${n.toLocaleString()} scanned channels`

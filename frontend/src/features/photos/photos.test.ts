@@ -14,7 +14,7 @@ describe('channels', () => {
   it('names, initials, avatars', () => {
     expect(channelTitle({ telegram_id: 1, title: 'Channel -5' })).toBe('Unknown channel'); expect(channelTitle({ telegram_id: 1, title: ' Real ' })).toBe('Real')
     expect(initials('Main Archive')).toBe('MA'); expect(initials('')).toBe('TG'); expect(initials('Zed')).toBe('Z')
-    expect(channelAvatar({ telegram_id: '-1', updated_at: 'x y' })).toBe('/api/channels/-1/telegram-photo?v=x%20y'); expect(channelAvatar({ telegram_id: '-1', image: 'manual-upload:a' })).toBe('/api/channels/-1/image?v=0')
+    expect(channelAvatar({ telegram_id: '-1', updated_at: 'x y' })).toBe('/api/channels/-1/telegram-photo?v=x%20y'); expect(channelAvatar({ telegram_id: '-1', image: 'manual-upload:a' })).toBe('/api/channels/-1/image?v=0&w=160')
   })
   it('selects, toggles all and prunes', () => {
     const ch = [{ telegram_id: 'a' }, { telegram_id: 'b' }]

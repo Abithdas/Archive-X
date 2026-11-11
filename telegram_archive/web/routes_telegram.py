@@ -412,8 +412,10 @@ def register_telegram_routes(
                 with Image.open(io.BytesIO(blob)) as img:
                     if img.width <= 0 or img.height <= 0 or img.width * img.height > 40_000_000:
                         raise ValueError("Image dimensions exceed the 40-megapixel safety limit")
+                    from PIL import Image as _Img, ImageOps as _Ops
+                    img = _Ops.exif_transpose(img)   # honour the camera's rotation before the EXIF data is dropped
                     img = img.convert("RGBA") if img.mode in ("P", "LA", "RGBA") else img.convert("RGB")
-                    img.thumbnail((512, 512))
+                    img.thumbnail((512, 512), _Img.Resampling.LANCZOS)
                     out = io.BytesIO()
                     if img.mode == "RGBA":
                         img.save(out, "PNG", optimize=True); mime = "image/png"
@@ -474,7 +476,9 @@ def register_telegram_routes(
         row = await asyncio.to_thread(_read_image)
         if not row or not row[0].startswith("manual-upload:") or not row[2]:
             raise HTTPException(404, "Local channel artwork not found")
-        return Response(content=row[2], media_type=row[1],
+        from ..core.image_derivatives import derive, requested_width
+        data, mime = await asyncio.to_thread(derive, row[2], row[1], requested_width(request.query_params.get("w")))
+        return Response(content=data, media_type=mime,
                         headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"})
 
     # Apply a local channel edit, including an image.

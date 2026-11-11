@@ -553,7 +553,9 @@ def register_entity_page_routes(
             except Exception:
                 result = None
         if result:
-            return Response(result[0], media_type=result[1], headers={"Cache-Control":"public,max-age=86400"})
+            from ..core.image_derivatives import derive, requested_width
+            data, mime = await asyncio.to_thread(derive, result[0], result[1], requested_width(request.query_params.get("w")))
+            return Response(data, media_type=mime, headers={"Cache-Control":"public,max-age=86400"})
         raise HTTPException(404, "Performer image is not cached locally")
 
     @router.post("/api/studios/image-sync")
@@ -638,7 +640,9 @@ def register_entity_page_routes(
             # Studio artwork is mutable: a selected image can keep the same URL
             # while its local bytes are refreshed. Revalidate instead of letting
             # browsers keep yesterday's image after an edit or sync.
-            return Response(result[0], media_type=result[1], headers={"Cache-Control":"private,no-cache,must-revalidate"})
+            from ..core.image_derivatives import derive, requested_width
+            data, mime = await asyncio.to_thread(derive, result[0], result[1], requested_width(request.query_params.get("w")))
+            return Response(data, media_type=mime, headers={"Cache-Control":"private,no-cache,must-revalidate"})
         raise HTTPException(404, "Studio image is not cached locally")
 
     _studio_backfill_state = {"last": 0.0, "runs": 0, "changed": 0}

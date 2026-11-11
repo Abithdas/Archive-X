@@ -764,6 +764,9 @@ def register_tags_logs_routes(
         require_auth(request)
         from fastapi.responses import Response
         data, pending, mime = await _thumb_bytes(channel_id, message_id)
+        if not pending:
+            from ..core.image_derivatives import derive, requested_width
+            data, mime = await asyncio.to_thread(derive, data, mime, requested_width(request.query_params.get("w")))
         headers = dict(THUMB_HEADERS)
         if pending:
             headers["X-Thumbnail-Status"] = "pending"

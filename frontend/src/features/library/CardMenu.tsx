@@ -9,6 +9,7 @@ import { cn } from '@/design/cn'
 import { MappingDialog } from './MappingDialog'
 import { MoveVideo } from './MoveVideo'
 import { SendToTelegram } from './SendToTelegram'
+import { withWidth } from '@/design/responsive'
 
 type Player = 'vlc' | 'mpc'
 const MSG = (e: unknown, fallback: string) => (e instanceof ApiError ? e.detail || fallback : fallback)
@@ -119,7 +120,7 @@ export function CardMenu({ item, className }: { item: LibraryItem; className?: s
       <Dialog open onClose={() => !busy && setConfirm(false)} title="Delete this video from Telegram?">
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <div className="flex gap-3 rounded-xl border border-line bg-bg p-2.5">
-            <img src={thumbUrl(item._cid, item.thumbnail_id)} alt="" className="h-14 w-24 shrink-0 rounded-lg bg-surface-2 object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
+            <img src={withWidth(thumbUrl(item._cid, item.thumbnail_id), 240)} alt="" className="h-14 w-24 shrink-0 rounded-lg bg-surface-2 object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
             <div className="min-w-0 text-sm">
               <p className="line-clamp-2 font-bold [overflow-wrap:anywhere]">{item.name}</p>
               <p className="truncate text-muted">{item.channel_title ?? 'Channel'} · Telegram message {item.id}</p>

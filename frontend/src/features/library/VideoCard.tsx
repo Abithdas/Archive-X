@@ -9,6 +9,7 @@ import { cn } from '@/design/cn'
 import { CardMenu } from './CardMenu'
 import { formatDuration } from './format'
 import { pickKey, useSelection } from './selection'
+import { responsive } from '@/design/responsive'
 
 /** Card metrics live in one place so the skeleton below can never drift from the real card (values from the classic UI). */
 const CARD = '@container relative overflow-hidden rounded-card border border-line bg-surface'
@@ -40,7 +41,7 @@ export function VideoCard({ item }: { item: LibraryItem }) {
       <div className={THUMB}>
         {imgOk ? (
           <img
-            src={thumbUrl(item._cid, item.thumbnail_id)}
+            {...responsive(thumbUrl(item._cid, item.thumbnail_id), '(max-width: 519px) calc(100vw - 32px), (max-width: 899px) 46vw, (max-width: 1199px) 30vw, (max-width: 1699px) 23vw, 18vw', [320, 480, 640], 640)}
             alt=""
             loading="lazy"
             decoding="async"

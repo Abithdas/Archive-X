@@ -717,9 +717,9 @@ def _decode_gop_image(index, annexb, target_rank, tw, th):
             if chosen is None:
                 raise RuntimeError("PyAV produced no decoded frame")
             try:
-                return chosen.reformat(width=tw, height=th, format="rgb24").to_image()
+                return chosen.reformat(width=tw, height=th, format="rgb24", interpolation="LANCZOS").to_image()
             except Exception:
-                return chosen.to_image().resize((tw, th), Image.Resampling.BILINEAR)
+                return chosen.to_image().resize((tw, th), Image.Resampling.LANCZOS)
         finally:
             if container is not None:
                 try:
@@ -741,7 +741,7 @@ def _decode_gop_image(index, annexb, target_rank, tw, th):
     # select() makes FFmpeg decode only until the requested frame is reached;
     # the input is an in-memory elementary stream, so no Telegram HTTP seeks
     # can be triggered by this operation.
-    vf = f"select=eq(n\\,{rank}),scale={int(tw)}:{int(th)}:flags=fast_bilinear"
+    vf = f"select=eq(n\\,{rank}),scale={int(tw)}:{int(th)}:flags=lanczos"
     cmd = [
         ffmpeg, "-hide_banner", "-loglevel", "error",
         "-f", raw_format, "-i", "pipe:0",
@@ -1382,9 +1382,9 @@ def _decode_one_target(container, stream, target, tw, th):
         raise RuntimeError("No frame decoded near target")
     actual = float(last.pts * time_base) if last.pts is not None else float(target)
     try:
-        img = last.reformat(width=tw, height=th, format="rgb24").to_image()
+        img = last.reformat(width=tw, height=th, format="rgb24", interpolation="LANCZOS").to_image()
     except Exception:
-        img = last.to_image().resize((tw, th), Image.Resampling.BILINEAR)
+        img = last.to_image().resize((tw, th), Image.Resampling.LANCZOS)
     return img, actual
 
 
@@ -1587,7 +1587,7 @@ def _ffmpeg_snapshot_frames_file(source, display_name, output_path, frames_dir=N
             cmd = [
                 ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin",
                 "-f", "mpegts", "-i", stream_url, "-an", "-sn",
-                "-vf", f"fps=fps={sample_rate:.12g},scale={int(tw)}:{int(th)}:flags=fast_bilinear,format=yuvj420p",
+                "-vf", f"fps=fps={sample_rate:.12g},scale={int(tw)}:{int(th)}:flags=lanczos,format=yuvj420p",
                 "-frames:v", str(COUNT), "-q:v", str(ffmpeg_q), "-start_number", "1",
                 "-y", sequence_pattern,
             ]
@@ -1713,7 +1713,7 @@ def _ffmpeg_capture_exact_target_file(ffmpeg, http_url, target, tw, th, output_p
         # instead of letting FFmpeg add the container start_time again.
         cmd.extend(["-seek_timestamp", "1"])
     cmd.extend(["-ss", f"{target:.3f}", "-i", http_url, "-an", "-sn", "-frames:v", "1", "-vf",
-           f"scale={int(tw)}:{int(th)}:flags=fast_bilinear,format=yuvj420p", "-q:v", str(qscale or ("2" if int(quality) >= 94 else "3" if int(quality) >= 90 else "5")), "-y", str(output_path)])
+           f"scale={int(tw)}:{int(th)}:flags=lanczos,format=yuvj420p", "-q:v", str(qscale or ("2" if int(quality) >= 94 else "3" if int(quality) >= 90 else "5")), "-y", str(output_path)])
     proc = _run_snapshot_ffmpeg(cmd, timeout=45, control=control)
     if proc.returncode != 0:
         err = proc.stderr.decode("utf-8", "replace").strip()
@@ -1738,7 +1738,7 @@ def _ffmpeg_capture_target_file(ffmpeg, http_url, target, tw, th, output_path, *
         "-skip_frame", "nokey",
         "-probesize", "1M", "-analyzeduration", "500000",
         "-i", http_url, "-an", "-sn", "-frames:v", "1",
-        "-vf", f"scale={int(tw)}:{int(th)}:flags=fast_bilinear",
+        "-vf", f"scale={int(tw)}:{int(th)}:flags=lanczos",
         "-q:v", str(qscale or ("2" if int(quality) >= 94 else "3" if int(quality) >= 90 else "5")), "-y", str(output_path),
     ]
     try:

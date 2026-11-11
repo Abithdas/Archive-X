@@ -3,6 +3,7 @@ import { ApiError, api } from '@/api/client'
 import { Dialog } from '@/design/Dialog'
 import { cn } from '@/design/cn'
 import { FOCUS_HINT, NO_PROVIDER, REVIEW_CHOOSE, REVIEW_LOADING, REVIEW_NOTE, REVIEW_PAGE, REVIEW_SEARCH_HINT, REVIEW_TITLE, candidateLabel, candidatesUrl, groupLabel, loadedText, lookupFailed, providerName, reviewMeta, reviewSubtitle, saveLabel, type Candidate, type Candidates, type FaceGroup } from './faces'
+import { withWidth } from '@/design/responsive'
 
 export interface Pick { id: number; name: string }
 const BTN = 'h-9 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
@@ -72,7 +73,7 @@ export function ReferenceReview({ group, picked, onPick, onSave, onClose }: { gr
             <div role="listbox" aria-label="Performers to compare" className="grid max-h-44 overflow-y-auto rounded-xl border border-line bg-surface p-1">
               {found.length ? found.map((p) => (
                 <button key={p.id} type="button" role="option" aria-selected={picked?.id === p.id} onClick={() => { onPick({ id: p.id, name: p.name }); setText(p.name); setFound(null) }} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-fg/5">
-                  <img src={p.image_url || `/api/performers/${p.id}/image`} alt="" loading="lazy" className="size-7 rounded-full bg-surface-2 object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /><span className="flex-1 truncate">{p.name}</span>
+                  <img src={withWidth(p.image_url || `/api/performers/${p.id}/image`, 160)} alt="" loading="lazy" className="size-7 rounded-full bg-surface-2 object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /><span className="flex-1 truncate">{p.name}</span>
                 </button>
               )) : <div className="px-2 py-1.5 text-xs text-muted">No local performer matches.</div>}
             </div>

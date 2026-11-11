@@ -19,6 +19,7 @@ import { QuickEditDialog } from './QuickEditDialog'
 import { Player } from './Player'
 import { useResume } from './useResume'
 import { frameIndexFor, normaliseChapters, toSegments } from './timeline'
+import { withWidth } from '@/design/responsive'
 
 const CARD = 'rounded-[18px] border border-line bg-surface p-4'
 const CHIP = 'inline-flex h-7 items-center rounded-full bg-surface-3 px-3 text-xs font-semibold text-muted'
@@ -50,7 +51,7 @@ function UpNext({ items, current }: { items: LibraryItem[]; current: LibraryItem
           <li key={`${i._cid}:${i.id}`}>
             <Link to="/watch/$cid/$mid" params={{ cid: i._cid, mid: String(i.id) }} className="flex gap-3 rounded-xl p-1 hover:bg-fg/5">
               <span className="relative aspect-video w-[124px] shrink-0 overflow-hidden rounded-lg bg-surface-2">
-                <img src={thumbUrl(i._cid, i.thumbnail_id)} alt="" loading="lazy" className="h-full w-full object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
+                <img src={withWidth(thumbUrl(i._cid, i.thumbnail_id), 320)} alt="" loading="lazy" className="h-full w-full object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
                 {i.duration ? <span className="absolute bottom-1 right-1 rounded-md bg-black/65 px-1.5 text-[11px] font-semibold text-white">{formatDuration(i.duration)}</span> : null}
               </span>
               <span className="line-clamp-3 min-w-0 self-center text-[13px] font-semibold leading-snug [overflow-wrap:anywhere]">{i.name}</span>
@@ -166,7 +167,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
                   const inner = (
                     <>
                       <span className="size-9 shrink-0 overflow-hidden rounded-full bg-surface-3">
-                        {id ? <img src={`/api/performers/${id}/image`} alt="" className="size-full object-cover" onError={(e) => (e.currentTarget.src = '/static/icons/ax-placeholder.png')} /> : <img src="/static/icons/ax-placeholder.png" alt="" className="size-full object-cover" />}
+                        {id ? <img src={withWidth(`/api/performers/${id}/image`, 240)} alt="" className="size-full object-cover" onError={(e) => (e.currentTarget.src = '/static/icons/ax-placeholder.png')} /> : <img src="/static/icons/ax-placeholder.png" alt="" className="size-full object-cover" />}
                       </span>
                       <span className="min-w-0 text-left"><span className="block truncate text-sm font-bold">{n}</span><span className="text-xs text-faint">Performer</span></span>
                     </>
@@ -181,7 +182,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
               {studio ? (
                 <div className="flex items-center gap-3 rounded-xl border border-line bg-bg p-2">
                   <span className="size-9 shrink-0 overflow-hidden rounded-lg bg-surface-3">
-                    <img src={idOf(studios.data, studio) ? `/api/studios/${idOf(studios.data, studio)}/image` : '/static/icons/ax-placeholder.png'} alt="" className="size-full object-cover" onError={(e) => (e.currentTarget.src = '/static/icons/ax-placeholder.png')} />
+                    <img src={idOf(studios.data, studio) ? withWidth(`/api/studios/${idOf(studios.data, studio)}/image`, 240) : '/static/icons/ax-placeholder.png'} alt="" className="size-full object-cover" onError={(e) => (e.currentTarget.src = '/static/icons/ax-placeholder.png')} />
                   </span>
                   <span className="min-w-0"><span className="block truncate text-sm font-bold">{studio}</span><span className="text-xs uppercase text-faint">Studio</span></span>
                 </div>

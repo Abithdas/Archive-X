@@ -8,6 +8,7 @@ import { cn } from '@/design/cn'
 import { EMPTY_BODY, EMPTY_TITLE, INTRO, LOAD_FAILED, MERGE_NEEDS_TWO, NEEDS_PERFORMER, CLEARED, REJECTED, analysisStatus, analyzeBody, analyzeCopy, assignBody, assignedStatus, assignedText, confirmedText, countsLine, firstDetection, groupLabel, isAssigned, jobDone, jobEndText, jobStatusText, mergeBody, mergeCopy, mergedText, photosLabel, rejectBody, scoreText, splitCopy, splitText, suggestionBody, suggestionReason, suggestionsFor, UNANALYZED, viewFilter, type FaceGroup, type FaceGroupsResult, type Source, type Suggestion, type Tone } from './faces'
 import { ReferenceReview } from './ReferenceReview'
 import { usePhotoStore } from './store'
+import { withWidth } from '@/design/responsive'
 
 const BTN = 'h-9 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
 const PRIMARY = 'h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg disabled:opacity-50'
@@ -60,7 +61,7 @@ function PerformerSearch({ group, picked, onPick }: { group: FaceGroup; picked: 
         <div role="listbox" aria-label={`Performers for ${groupLabel(group)}`} className="mt-1 grid max-h-48 overflow-y-auto rounded-xl border border-line bg-surface p-1">
           {list.length ? list.map((p) => (
             <button key={p.id} type="button" role="option" aria-selected={picked?.id === p.id} onClick={() => { onPick({ id: p.id, name: p.name }); setText(p.name); setList(null) }} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-fg/5">
-              <img src={p.image_url || `/api/performers/${p.id}/image`} alt="" loading="lazy" className="size-7 rounded-full bg-surface-2 object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /><span className="flex-1 truncate">{p.name}</span><small className="text-[11px] text-faint">Local performer</small>
+              <img src={withWidth(p.image_url || `/api/performers/${p.id}/image`, 160)} alt="" loading="lazy" className="size-7 rounded-full bg-surface-2 object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /><span className="flex-1 truncate">{p.name}</span><small className="text-[11px] text-faint">Local performer</small>
             </button>
           )) : <div className="px-2 py-1.5 text-xs text-muted">{err || 'No local performer matches.'}</div>}
         </div>
