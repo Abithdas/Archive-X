@@ -17,7 +17,7 @@ const BTN = 'grid size-9 place-items-center rounded-lg text-fg/90 hover:bg-fg/10
  * Native <video> with the classic player's control bar: seek, play, previous/next, ±30 s, speed, mute and volume,
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
-export function Player({ src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc }: { snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
+export function Player({ src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc }: { seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
   const pendingStart = useRef<number | null>(null)
@@ -58,6 +58,13 @@ export function Player({ src, poster, durationHint, segments = [], preview, auto
     else pendingStart.current = t
     void v.play().catch(() => setFailed(true))
   }
+  /** A seek asked for from outside the player (a scene-marker chip): seek now, or as soon as the video knows its length. Does not start playback. */
+  useEffect(() => {
+    const v = video.current
+    if (!seekRequest || !v) return
+    if (v.readyState >= 1) v.currentTime = clampTime(seekRequest.t, v.duration || dur)
+    else pendingStart.current = seekRequest.t
+  }, [seekRequest]) // eslint-disable-line react-hooks/exhaustive-deps
   const flash = (text: string) => {
     setHint(text)
     clearTimeout(hintTimer.current)

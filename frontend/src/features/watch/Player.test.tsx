@@ -4,6 +4,33 @@ import { Player, nextRate } from './Player'
 import { Timeline } from './Timeline'
 import { telegramLink } from './WatchPage'
 
+describe('Player seek requests (scene-marker chips)', () => {
+  it('seeks without starting playback, and seeks again on every new request', () => {
+    const { container, rerender } = render(<Player src="/stream/-1/1" durationHint={600} onOpenVlc={() => {}} />)
+    const v = container.querySelector('video')!
+    const play = vi.fn(() => Promise.resolve()); v.play = play as never
+    Object.defineProperty(v, 'duration', { value: 600, configurable: true })
+    Object.defineProperty(v, 'readyState', { value: 1, configurable: true })
+    rerender(<Player src="/stream/-1/1" durationHint={600} seekRequest={{ t: 120, n: 1 }} onOpenVlc={() => {}} />)
+    expect(v.currentTime).toBe(120)
+    rerender(<Player src="/stream/-1/1" durationHint={600} seekRequest={{ t: 120, n: 2 }} onOpenVlc={() => {}} />)   // same time again after scrubbing away
+    v.currentTime = 300
+    rerender(<Player src="/stream/-1/1" durationHint={600} seekRequest={{ t: 120, n: 3 }} onOpenVlc={() => {}} />)
+    expect(v.currentTime).toBe(120)
+    expect(play).not.toHaveBeenCalled()
+  })
+  it('waits for the video to know its length', () => {
+    const { container, rerender } = render(<Player src="/stream/-1/1" durationHint={600} onOpenVlc={() => {}} />)
+    const v = container.querySelector('video')!
+    Object.defineProperty(v, 'readyState', { value: 0, configurable: true })
+    rerender(<Player src="/stream/-1/1" durationHint={600} seekRequest={{ t: 200, n: 1 }} onOpenVlc={() => {}} />)
+    expect(v.currentTime).toBe(0)
+    Object.defineProperty(v, 'duration', { value: 600, configurable: true })
+    fireEvent.loadedMetadata(v)
+    expect(v.currentTime).toBe(200)
+  })
+})
+
 describe('Player resume hooks', () => {
   const metadata = (video: HTMLVideoElement, duration: number) => {
     Object.defineProperty(video, 'duration', { value: duration, configurable: true })

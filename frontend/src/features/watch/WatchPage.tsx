@@ -14,6 +14,7 @@ import { useLibraryStore } from '@/features/library/store'
 import { experienceFrom } from '@/features/settings/logic'
 import { useExperienceSettings } from '@/features/settings/queries'
 import { gridReady, gridTimes } from './grid'
+import { MarkersSection } from './MarkersSection'
 import { Player } from './Player'
 import { useResume } from './useResume'
 import { frameIndexFor, normaliseChapters, toSegments } from './timeline'
@@ -75,6 +76,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const expQuery = useExperienceSettings()
   const exp = experienceFrom(expQuery.data)
   const [showTags, setShowTags] = useState(false)
+  const [seekRequest, setSeekRequest] = useState<{ t: number; n: number } | undefined>()
   const item = video.data
   const items = queue.data?.items ?? []
   const index = item ? items.findIndex((i) => i.id === item.id && i._cid === item._cid) : -1
@@ -124,7 +126,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
         </div>
 
         {resume.ready ? (
-          <Player src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay} startAt={resume.startAt} snapshots={snapshots} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} />
+          <Player src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay} startAt={resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} />
         ) : (
           <div className="aspect-video w-full rounded-[18px] border border-line bg-black" aria-hidden="true" />
         )}
@@ -185,6 +187,8 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
             {item.tags.length > 12 ? <button type="button" onClick={() => setShowTags(!showTags)} aria-expanded={showTags} className="mt-2 text-xs font-semibold text-muted hover:text-fg">{showTags ? 'Show fewer' : `Show all ${item.tags.length}`}</button> : null}
           </section>
         ) : null}
+
+        <MarkersSection mediaId={item.media_id} onSeek={(t) => setSeekRequest((r) => ({ t, n: (r?.n ?? 0) + 1 }))} />
 
         <section className={CARD} aria-label="Source">
           <h2 className="mb-1 text-base font-bold">Source</h2>
