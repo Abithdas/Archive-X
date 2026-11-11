@@ -5,8 +5,10 @@ import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { Segmented } from '@/design/Segmented'
 import { cn } from '@/design/cn'
+import { CountryPhone } from './CountryPhone'
+import { DEFAULT_COUNTRY, NEED_PHONE, composePhone, splitSaved, type Country } from './countries'
 import { useAuthStatus, useTelegramSettings } from './queries'
-import { PORT_HINT, PROXY_TYPES, accountLine, apiStatus, codeSent, credentialsReady, normalizePhone, proxyFields, proxyForm, proxyPayload, proxyPlaceholders, proxyStatus, qrView, verifyOutcome, type ProxyForm, type ProxyType, type QrView } from './telegram'
+import { PORT_HINT, PROXY_TYPES, accountLine, apiStatus, codeSent, credentialsReady, proxyFields, proxyForm, proxyPayload, proxyPlaceholders, proxyStatus, qrView, verifyOutcome, type ProxyForm, type ProxyType, type QrView } from './telegram'
 
 type Obj = Record<string, unknown>
 const BOX = 'rounded-[18px] border border-line bg-surface p-5'
@@ -111,7 +113,11 @@ export function TelegramPanel() {
   const [qr, setQr] = useState<QrView | null>(null)
   const [qrActive, setQrActive] = useState(false)
   const [loginMsg, setLoginMsg] = useState('')
-  const [phone, setPhone] = useState('')
+  const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY)
+  const [local, setLocal] = useState('')
+  const phoneLoaded = useRef(false)
+  useEffect(() => { if (settings.data && !phoneLoaded.current) { phoneLoaded.current = true; const sp = splitSaved(String(s.phone ?? '')); setCountry(sp.country); setLocal(sp.local) } }, [settings.data, s.phone])
+  const fullPhone = () => composePhone(local, country).full
   const [code, setCode] = useState('')
   const [codeAsked, setCodeAsked] = useState(false)
   const [pw, setPw] = useState('')
@@ -142,18 +148,18 @@ export function TelegramPanel() {
   }
   const qrCancel = async () => { setQrActive(false); try { await post('/api/telegram/qr-login/cancel') } catch { /* ignore */ } setQr({ kind: 'idle', message: 'Generate a short-lived code using the button below.', show: false, tone: 'info' }); setLoginMsg('QR login cancelled.') }
   const sendCode = async () => {
-    const n = normalizePhone(phone)
-    if (n.error) return void setLoginMsg(n.error)
+    const full = fullPhone()
+    if (!full) return void setLoginMsg(NEED_PHONE)
     setBusy('code'); setLoginMsg('Sending code…')
     try {
-      const r = await post<Obj>('/api/telegram/send_code', { phone: n.phone })
+      const r = await post<Obj>('/api/telegram/send_code', { phone: full })
       if (codeSent(r)) { setCodeAsked(true); setLoginMsg('Code sent — check Telegram.') } else setLoginMsg(`Error: ${String(r.detail ?? r.error ?? 'Could not send code')}`)
     } catch (e) { setLoginMsg(`Error: ${err(e, 'Could not send code')}`) } finally { setBusy('') }
   }
   const verify = async () => {
     setBusy('verify'); setLoginMsg('Verifying…')
     try {
-      const o = verifyOutcome(await post<Obj>('/api/telegram/verify_code', { phone: normalizePhone(phone).phone, code: code.trim() }))
+      const o = verifyOutcome(await post<Obj>('/api/telegram/verify_code', { phone: fullPhone(), code: code.trim() }))
       if (o.kind === 'done') done()
       else if (o.kind === 'password') { setNeedPassword('phone'); setLoginMsg('Two-factor password required.') }
       else setLoginMsg(`Error: ${o.message}`)
@@ -257,7 +263,7 @@ export function TelegramPanel() {
               ) : (
                 <div className="mt-4 grid max-w-md gap-3">
                   <h4 className="text-lg font-extrabold">Log in with phone number</h4>
-                  <label className="grid gap-1.5"><Label>Phone number</Label><input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 415 555 0123" aria-label="Phone number" className={INPUT} /></label>
+                  <div className="grid gap-1.5"><Label>Phone number</Label><CountryPhone country={country} local={local} onChange={(c, l) => { setCountry(c); setLocal(l) }} inputClass={INPUT} /></div>
                   <div><button type="button" disabled={!!busy} onClick={() => void sendCode()} className={PRIMARY}>{busy === 'code' ? 'Sending…' : 'Continue'}</button></div>
                   {codeAsked ? (
                     <label className="grid gap-1.5"><Label>Telegram login code</Label><span className="flex gap-2"><input value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void verify()} inputMode="numeric" autoComplete="one-time-code" placeholder="Enter the code" aria-label="Telegram login code" className={INPUT} /><button type="button" disabled={!!busy || !code.trim()} onClick={() => void verify()} className={PRIMARY}>Verify</button></span></label>

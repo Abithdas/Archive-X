@@ -162,13 +162,33 @@ describe('Sign in by QR code', () => {
 
 describe('Sign in by phone', () => {
   const toPhone = async () => { await ready(); fireEvent.click(screen.getByRole('button', { name: 'Phone Number' })) }
-  it('rejects a number without a country code before sending anything', async () => {
+  it('asks for a number before sending anything', async () => {
     const calls = mount()
     await toPhone()
-    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '4155550123' } })
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    expect(await screen.findByText(/international format/)).toBeInTheDocument()
+    expect(await screen.findByText('Enter your phone number.')).toBeInTheDocument()
     expect(posted(calls, '/api/telegram/send_code')).toHaveLength(0)
+  })
+  it('adds the selected country code, searchable, to a national number', async () => {
+    const calls = mount(SETTINGS, (url) => (url === '/api/telegram/send_code' ? json({ ok: true }) : undefined))
+    await toPhone()
+    expect(screen.getByRole('button', { name: 'Country code India +91' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '98765 43210' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    await waitFor(() => expect(posted(calls, '/api/telegram/send_code')[0]!.body).toEqual({ phone: '+919876543210' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Country code India +91' }))
+    fireEvent.change(screen.getByLabelText('Search country'), { target: { value: 'germ' } })
+    expect(within(screen.getByRole('listbox', { name: 'Country calling codes' })).getAllByRole('option')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('option', { name: /Germany/ }))
+    expect(screen.getByRole('button', { name: 'Country code Germany +49' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    await waitFor(() => expect(posted(calls, '/api/telegram/send_code')[1]!.body).toEqual({ phone: '+499876543210' }))
+  })
+  it('splits a pasted international number onto its own country', async () => {
+    mount(); await toPhone()
+    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+44 20 7946 0958' } })
+    expect(screen.getByRole('button', { name: 'Country code United Kingdom +44' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Phone number')).toHaveValue('2079460958')
   })
   it('sends the cleaned number, then the code, and finishes', async () => {
     const calls = mount(SETTINGS, (url) => (url === '/api/telegram/send_code' ? json({ ok: true }) : url === '/api/telegram/verify_code' ? json({ ok: true }) : undefined))
