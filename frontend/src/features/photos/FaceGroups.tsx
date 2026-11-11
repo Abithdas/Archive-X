@@ -6,6 +6,7 @@ import { Icon } from '@/design/Icon'
 import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
 import { EMPTY_BODY, EMPTY_TITLE, INTRO, LOAD_FAILED, MERGE_NEEDS_TWO, NEEDS_PERFORMER, CLEARED, REJECTED, analysisStatus, analyzeBody, analyzeCopy, assignBody, assignedStatus, assignedText, confirmedText, countsLine, firstDetection, groupLabel, isAssigned, jobDone, jobEndText, jobStatusText, mergeBody, mergeCopy, mergedText, photosLabel, rejectBody, scoreText, splitCopy, splitText, suggestionBody, suggestionReason, suggestionsFor, UNANALYZED, viewFilter, type FaceGroup, type FaceGroupsResult, type Source, type Suggestion, type Tone } from './faces'
+import { ReferenceReview } from './ReferenceReview'
 import { usePhotoStore } from './store'
 
 const BTN = 'h-9 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
@@ -14,7 +15,7 @@ const reason = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? 
 type Pick = { id: number; name: string }
 type Ask = null | { title: string; text: string; ok: string; run: () => Promise<void> }
 
-function Suggestions({ group, source, items, onConfirm, onReject }: { group: FaceGroup; source: Source; items: Suggestion[]; onConfirm: (s: Suggestion, src: Source) => void; onReject: (s: Suggestion, src: Source) => void }) {
+function Suggestions({ group, source, items, onCompare, onConfirm, onReject }: { group: FaceGroup; source: Source; items: Suggestion[]; onCompare: (s: Suggestion) => void; onConfirm: (s: Suggestion, src: Source) => void; onReject: (s: Suggestion, src: Source) => void }) {
   if (!items.length) return null
   const title = source === 'metadata' ? 'Suggestions from source text' : 'Suggestions from your previous confirmations'
   const note = source === 'metadata' ? 'Based on exact filename, caption, or channel-title text matches.' : 'Ranked by similarity to face groups you previously assigned. These are candidates, not automatic assignments.'
@@ -25,6 +26,7 @@ function Suggestions({ group, source, items, onConfirm, onReject }: { group: Fac
         <div key={`${source}:${s.id}`} className="flex flex-wrap items-center gap-2">
           <img src={s.image_url ?? ''} alt="" loading="lazy" className="size-9 rounded-full bg-surface-2 object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
           <span className="min-w-0 flex-1 text-left"><b className="block truncate text-sm">{s.name || 'Unknown performer'}</b><small className="block text-[11px] text-muted">{suggestionReason(s, source)}</small>{scoreText(s) ? <small className="block text-[11px] text-faint">{scoreText(s)}</small> : null}</span>
+          <button type="button" className={cn(BTN, 'h-8 px-2.5 text-xs')} onClick={() => onCompare(s)} aria-label={`Compare ${s.name} with ${groupLabel(group)}`}>Compare</button>
           <button type="button" className={cn(PRIMARY, 'h-8 px-2.5 text-xs')} onClick={() => onConfirm(s, source)} aria-label={`Confirm ${s.name} for ${groupLabel(group)}`}>Confirm</button>
           <button type="button" className={cn(BTN, 'h-8 px-2.5 text-xs')} onClick={() => onReject(s, source)} aria-label={`Not ${s.name} for ${groupLabel(group)}`}>Not this</button>
         </div>
@@ -39,6 +41,7 @@ function PerformerSearch({ group, picked, onPick }: { group: FaceGroup; picked: 
   const [err, setErr] = useState('')
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
+  useEffect(() => { if (picked) { setText(picked.name); setList(null) } }, [picked])
   const type = (v: string) => {
     setText(v); if (picked && v !== picked.name) onPick(null)
     clearTimeout(timer.current)
@@ -68,10 +71,12 @@ function PerformerSearch({ group, picked, onPick }: { group: FaceGroup; picked: 
 
 function Card({ group, checked, onCheck, busy, onView, onAssign, onClear, onSplit, onConfirm, onReject }: {
   group: FaceGroup; checked: boolean; onCheck: () => void; busy: boolean; onView: () => void
-  onAssign: (p: Pick | null) => void; onClear: () => void; onSplit: (detection: number) => void; onConfirm: (s: Suggestion, src: Source) => void; onReject: (s: Suggestion, src: Source) => void
+  onAssign: (p: Pick | null) => Promise<boolean> | void; onClear: () => void; onSplit: (detection: number) => void; onConfirm: (s: Suggestion, src: Source) => void; onReject: (s: Suggestion, src: Source) => void
 }) {
   const [picked, setPicked] = useState<Pick | null>(group.performer_id ? { id: Number(group.performer_id), name: group.performer_name ?? '' } : null)
   const [cover, setCover] = useState(true)
+  const [reviewing, setReviewing] = useState(false)
+  const compare = (s: Suggestion) => { setPicked({ id: s.id, name: s.name ?? '' }); setReviewing(true) }
   const sug = suggestionsFor(group)
   const label = groupLabel(group)
   const det = firstDetection(group)
@@ -87,15 +92,17 @@ function Card({ group, checked, onCheck, busy, onView, onAssign, onClear, onSpli
         <div className="min-w-0"><h3 className="truncate text-base font-bold">{label}</h3><p className="text-xs text-muted">{countsLine(group)}</p></div>
       </div>
       <span className={cn('w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold', isAssigned(group) ? 'bg-good/15 text-good' : 'bg-warn/15 text-warn')}>{assignedText(group)}</span>
-      <Suggestions group={group} source="confirmed_assignment" items={sug.confirmed} onConfirm={onConfirm} onReject={onReject} />
-      <Suggestions group={group} source="metadata" items={sug.metadata} onConfirm={onConfirm} onReject={onReject} />
+      <Suggestions group={group} source="confirmed_assignment" items={sug.confirmed} onCompare={compare} onConfirm={onConfirm} onReject={onReject} />
+      <Suggestions group={group} source="metadata" items={sug.metadata} onCompare={compare} onConfirm={onConfirm} onReject={onReject} />
       <PerformerSearch group={group} picked={picked} onPick={setPicked} />
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={busy} className={PRIMARY} onClick={() => onAssign(picked)} aria-label={`Save assignment for ${label}`}>Save assignment</button>
+        <button type="button" className={BTN} onClick={() => setReviewing(true)} title="Open an unblurred side-by-side review; choose a performer here if one is not selected" aria-label={`Review profile/provider images for ${label}`}>Review profile/provider images</button>
+        <button type="button" disabled={busy} className={PRIMARY} onClick={() => void onAssign(picked)} aria-label={`Save assignment for ${label}`}>Save assignment</button>
         <button type="button" disabled={busy} className={BTN} onClick={() => { setPicked(null); onClear() }} aria-label={`Clear assignment for ${label}`}>Clear</button>
         <button type="button" className={BTN} onClick={onView} aria-label={`View photos in ${label}`}>View photos</button>
         {det ? <button type="button" disabled={busy} className={BTN} onClick={() => onSplit(det)} title="Move one face detection to a new cluster" aria-label={`Separate one face from ${label}`}>Separate one face</button> : null}
       </div>
+      {reviewing ? <ReferenceReview group={group} picked={picked} onPick={setPicked} onSave={async () => (picked ? Boolean(await onAssign(picked)) : false)} onClose={() => setReviewing(false)} /> : null}
     </article>
   )
 }
@@ -178,15 +185,15 @@ export function FaceGroups({ onView }: { onView: () => void }) {
     } catch (e) { say(reason(e, 'Could not split face detection.'), 'error') } finally { setBusy(false) }
   } })
 
-  const post = async (g: FaceGroup, body: object, okText: string, failText: string) => {
+  const post = async (g: FaceGroup, body: object, okText: string, failText: string): Promise<boolean> => {
     setBusy(true)
     try {
       const r = await api<{ ok?: boolean; detail?: string }>(`/api/photos/faces/groups/${g.id}/assign`, { method: 'POST', json: body })
       if (!r || r.ok !== true) throw new ApiError(0, r?.detail || failText)
-      say(okText, 'success'); await changed()
-    } catch (e) { say(reason(e, failText), 'error') } finally { setBusy(false) }
+      say(okText, 'success'); await changed(); return true
+    } catch (e) { say(reason(e, failText), 'error'); return false } finally { setBusy(false) }
   }
-  const assign = (g: FaceGroup, p: Pick | null) => (p ? void post(g, assignBody(g, p.id), assignedStatus(p.name), 'Could not save performer assignment.') : say(NEEDS_PERFORMER, 'error'))
+  const assign = async (g: FaceGroup, p: Pick | null) => { if (!p) { say(NEEDS_PERFORMER, 'error'); return false } return post(g, assignBody(g, p.id), assignedStatus(p.name), 'Could not save performer assignment.') }
   const clear = (g: FaceGroup) => void post(g, assignBody(g, null), CLEARED, 'Could not clear performer assignment.')
   const confirmSuggestion = (g: FaceGroup, s: Suggestion, src: Source) => void post(g, suggestionBody(g, s, src, s.basis ?? ''), confirmedText(s.name ?? ''), 'Could not confirm this suggestion.')
   const reject = async (g: FaceGroup, s: Suggestion, src: Source) => {

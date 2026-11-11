@@ -86,3 +86,29 @@ export function differentBody(photoId: number, f: FaceFilter, groups: readonly F
   return photoId && ids.length ? { photo_id: photoId, group_ids: ids } : null
 }
 export const DIFFERENT_NEEDS_GROUP = 'Open a face-group gallery first, then use Different person on the incorrect photo.'
+
+/** Side-by-side review of a face group against a performer's saved profile and provider images. */
+export interface Candidate { url?: string; provider?: string; width?: number; height?: number }
+export interface Candidates { ok?: boolean; detail?: string; candidates?: Candidate[]; has_more?: boolean }
+export const REVIEW_PAGE = 10
+export const REVIEW_TITLE = 'Review performer images'
+export const REVIEW_NOTE = 'Card suggestions come from exact source-text matches or face groups you previously confirmed. Profile and provider images are shown for your own review; no new assignment is saved without your confirmation.'
+export const REVIEW_CHOOSE = 'Choose a performer to display its saved profile and provider image options next to this face group.'
+export const REVIEW_SEARCH_HINT = 'Search for a performer above. Candidate suggestions on the group card, when available, are based on caption, filename, or channel text only.'
+export const REVIEW_LOADING = 'Loading saved/provider images…'
+export const FOCUS_HINT = 'Select a provider image to inspect it larger.'
+export const reviewSubtitle = (name: string | null) => (name ? `Compare the selected face group with ${name}'s saved profile and provider images.` : REVIEW_CHOOSE)
+export const reviewMeta = (g: FaceGroup) => `${Number(g.photo_count || 0).toLocaleString()} photos · ${Number(g.face_count || 0).toLocaleString()} face detections · anonymous cluster`
+export const saveLabel = (name: string | null) => `Map group to ${name || 'selected performer'}`
+export const candidatesUrl = (performerId: number, offset: number) => `/api/performers/${performerId}/image-candidates?limit=${REVIEW_PAGE}&offset=${offset}`
+export const providerName = (c: Candidate) => String(c.provider || 'Provider').replace(/[^a-z0-9 _-]/gi, '')
+export const candidateLabel = (c: Candidate) => `${providerName(c)}${c.width && c.height ? ` · ${Number(c.width)}×${Number(c.height)}` : ''}`
+export const loadedText = (list: readonly Candidate[]) => {
+  if (!list.length) return 'No provider reference images available for this performer.'
+  const counts = new Map<string, number>()
+  for (const c of list) counts.set(String(c.provider || 'Provider'), (counts.get(String(c.provider || 'Provider')) ?? 0) + 1)
+  const summary = [...counts].map(([k, v]) => `${k}: ${v}`).join(' · ')
+  return `${list.length} provider reference image(s) loaded${summary ? ` · ${summary}` : ''}. Choose one to inspect, then assign the group manually.`
+}
+export const NO_PROVIDER = 'No provider images were returned. The saved profile image is still available on the left.'
+export const lookupFailed = (m: string) => `Provider image lookup unavailable: ${m}. You can still compare with the saved profile picture and assign manually.`

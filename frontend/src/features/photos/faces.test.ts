@@ -44,3 +44,16 @@ describe('face groups', () => {
     expect(differentBody(0, f, [g()])).toBeNull(); expect(differentBody(7, { performerId: null, groupIds: [], groupId: null, label: '' }, [])).toBeNull()
   })
 })
+
+import { candidateLabel, candidatesUrl, loadedText, providerName, reviewSubtitle, saveLabel } from './faces'
+describe('reference review', () => {
+  it('words the dialog', () => {
+    expect(reviewSubtitle('Ava')).toBe("Compare the selected face group with Ava's saved profile and provider images."); expect(reviewSubtitle(null)).toMatch(/Choose a performer/)
+    expect(saveLabel('Ava')).toBe('Map group to Ava'); expect(saveLabel(null)).toBe('Map group to selected performer')
+    expect(candidatesUrl(4, 10)).toBe('/api/performers/4/image-candidates?limit=10&offset=10')
+    expect(providerName({ provider: 'Stash<DB>' })).toBe('StashDB'); expect(providerName({})).toBe('Provider')
+    expect(candidateLabel({ provider: 'StashDB', width: 400, height: 600 })).toBe('StashDB · 400×600'); expect(candidateLabel({ provider: 'X' })).toBe('X')
+    expect(loadedText([])).toBe('No provider reference images available for this performer.')
+    expect(loadedText([{ provider: 'A' }, { provider: 'A' }, { provider: 'B' }])).toBe('3 provider reference image(s) loaded · A: 2 · B: 1. Choose one to inspect, then assign the group manually.')
+  })
+})
