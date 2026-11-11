@@ -1,9 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
-import { useDiagnostics, useEntities, useResources, useStatus } from '@/api/hooks'
+import { useDiagnostics, useResources, useStatus } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
@@ -14,6 +13,7 @@ import { JobControls } from './JobControls'
 import { JobDetails } from './JobDetails'
 import { PerformerAudit } from './PerformerAudit'
 import { AutoMatchReview, useAutoMatches } from './AutoMatchReview'
+import { LibraryHealth } from './LibraryHealth'
 import { ChannelDuplicateCard } from './ChannelDuplicates'
 import { ResourceControls } from './ResourceControls'
 import { idOf } from './jobs'
@@ -139,8 +139,6 @@ export function OperationsPage() {
   const status = useStatus()
   const diag = useDiagnostics()
   const res = useResources()
-  const performers = useEntities('performers')
-  const studios = useEntities('studios')
   const qc = useQueryClient()
   const [tab, setTab] = useState<JobFilter>('all')
   const [confirmReset, setConfirmReset] = useState(false)
@@ -245,13 +243,7 @@ export function OperationsPage() {
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
             <h4 className="text-lg font-extrabold">Health &amp; Previews</h4>
-            <div className="grid grid-cols-3 gap-2 rounded-xl border border-line bg-bg p-3 text-center" aria-label="Library counts">
-              {[['Videos', Number(o2(st.stats).media) || 0], ['Performers', performers.data?.length], ['Studios', studios.data?.length]].map(([l, v]) => (
-                <div key={String(l)}><strong className="block text-xl font-extrabold tabular-nums">{v ?? '—'}</strong><span className="text-xs text-muted">{l}</span></div>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2"><Link to="/" className="inline-flex h-9 items-center gap-2 rounded-xl bg-accent px-3 text-[13px] font-bold text-accent-fg"><Icon name="library" className="size-4" />Open library</Link></div>
-            <MaintenanceLink title="Full check and artwork repair" text="Run a library health check, view its details, or repair the artwork cache." label="Open in classic interface" />
+            <LibraryHealth />
           </div>
           <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
             <h4 className="text-lg font-extrabold">Duplicates</h4>
