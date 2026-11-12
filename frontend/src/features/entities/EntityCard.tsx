@@ -29,6 +29,7 @@ export function EntityCard({ kind, entity, merge }: { kind: EntityKind; entity: 
         <button type="button" onClick={merge.onPick} aria-pressed={merge.keeper || merge.selected} aria-label={`${merge.keeper ? 'Keeper: ' : merge.selected ? 'Duplicate: ' : 'Choose '}${entity.name}`} className="absolute inset-0 z-10 rounded-[23px] outline-none focus-visible:ring-2 focus-visible:ring-accent" />
       ) : null}
       <div className={`${POSTER} ${SHAPE[kind]} ${ring}`}>
+        {!merge ? <Link to={kind === 'performers' ? '/performers/$id' : '/studios/$id'} params={{ id: String(entity.id) }} aria-label={entity.name} className="absolute inset-0 z-10 outline-none focus-visible:ring-2 focus-visible:ring-accent" /> : null}
         {merge && (merge.keeper || merge.selected) ? <span className={`absolute left-2 top-2 z-20 rounded-md px-2 py-0.5 text-[11px] font-bold text-black ${merge.keeper ? 'bg-good' : 'bg-warn'}`}>{merge.keeper ? 'Keep' : 'Merge'}</span> : null}
         {broken ? <img src={PLACEHOLDER} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-60 blur-xl" /> : null}
         <img
@@ -40,15 +41,7 @@ export function EntityCard({ kind, entity, merge }: { kind: EntityKind; entity: 
           className={broken ? 'absolute inset-0 h-full w-full object-contain p-6' : studio ? 'absolute left-[9%] top-[16.5%] h-[67%] w-[82%] object-contain' : 'absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]'}
         />
         <div className={`absolute inset-x-0 bottom-0 grid gap-[3px] px-[13px] pb-3 pt-12 ${studio ? 'bg-[linear-gradient(rgb(0_0_0/0),rgb(10_11_10/0.52)_25%,rgb(10_11_10/0.88))]' : 'bg-[linear-gradient(rgb(0_0_0/0)_0%,rgb(13_15_17/0.34)_18%,rgb(13_15_17/0.88)_62%,rgb(13_15_17/0.97)_100%)]'}`}>
-          <h3 className="truncate text-sm font-bold text-white" title={entity.name}>
-            {!merge ? (
-              <Link to={kind === 'performers' ? '/performers/$id' : '/studios/$id'} params={{ id: String(entity.id) }} className="outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-accent">
-                {entity.name}
-              </Link>
-            ) : (
-              entity.name
-            )}
-          </h3>
+          <h3 className="truncate text-sm font-bold text-white" title={entity.name}>{entity.name}</h3>
           <p className="mt-[3px] inline-flex w-fit items-center rounded-full border border-white/[0.16] bg-white/[0.094] px-2 py-[3px] text-[11px] font-semibold leading-[13px] text-white/90">{label}</p>
         </div>
       </div>
