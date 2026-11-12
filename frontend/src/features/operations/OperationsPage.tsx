@@ -136,10 +136,10 @@ function ActivityLog({ events }: { events: unknown[] }) {
 
  function MaintenanceLink({ title, text, label, onOpen }: { title: string; text: string; label: string; onOpen?: () => void }) {
   return (
-    <div className="rounded-xl border border-line bg-bg p-4">
+    <div className="flex flex-col rounded-xl border border-line bg-bg p-4">
       <h5 className="text-[15px] font-bold">{title}</h5>
       <p className="mb-3 mt-1 text-xs leading-relaxed text-muted">{text}</p>
-      {onOpen ? <button type="button" onClick={onOpen} className="inline-flex h-9 items-center gap-2 rounded-xl border border-line-2 px-3 text-[13px] font-semibold hover:bg-fg/5">{label}</button> : <a href="/#admin" className="inline-flex h-9 items-center gap-2 rounded-xl border border-line-2 px-3 text-[13px] font-semibold hover:bg-fg/5">{label}<Icon name="external" className="size-3.5" /></a>}
+      {onOpen ? <button type="button" onClick={onOpen} className="mt-auto inline-flex h-9 w-fit items-center gap-2 rounded-xl border border-line-2 px-3 text-[13px] font-semibold hover:bg-fg/5">{label}</button> : <a href="/#admin" className="inline-flex h-9 items-center gap-2 rounded-xl border border-line-2 px-3 text-[13px] font-semibold hover:bg-fg/5">{label}<Icon name="external" className="size-3.5" /></a>}
     </div>
   )
 }
@@ -250,17 +250,17 @@ export function OperationsPage() {
         <h2 className="text-2xl font-extrabold tracking-tight">Library Maintenance</h2>
         <p className="mb-4 mt-1 max-w-3xl text-[15px] text-muted">Check library health and review duplicates or unmatched records. Fix issues to keep your library organized and up to date.</p>
         <div className="grid gap-4 lg:grid-cols-3">
-          <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
-            <h4 className="text-lg font-extrabold">Health &amp; Previews</h4>
+          <div className="flex flex-col gap-3 rounded-2xl border border-line p-4 [&>*:not(h4)]:flex-1">
+            <h4 className="text-lg font-extrabold lg:min-h-[3.4rem] xl:min-h-0">Health &amp; Previews</h4>
             <LibraryHealth />
           </div>
-          <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
-            <h4 className="text-lg font-extrabold">Duplicates</h4>
+          <div className="flex flex-col gap-3 rounded-2xl border border-line p-4 [&>*:not(h4)]:flex-1">
+            <h4 className="text-lg font-extrabold lg:min-h-[3.4rem] xl:min-h-0">Duplicates</h4>
             <MaintenanceLink title="Duplicate performers" text="Compare names, aliases and artwork, then review the evidence before merging." label="Open performer review" onOpen={() => setAudit(true)} />
             <ChannelDuplicateCard />
           </div>
-          <div className="grid content-start gap-3 rounded-2xl border border-line p-4">
-            <h4 className="text-lg font-extrabold">Metadata &amp; scene matches</h4>
+          <div className="flex flex-col gap-3 rounded-2xl border border-line p-4 [&>*:not(h4)]:flex-1">
+            <h4 className="text-lg font-extrabold lg:min-h-[3.4rem] xl:min-h-0">Metadata &amp; scene matches</h4>
             <SceneMatchCard />
           </div>
         </div>

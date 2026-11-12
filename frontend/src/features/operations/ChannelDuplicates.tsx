@@ -180,10 +180,10 @@ export function ChannelDuplicateCard() {
   const options = scopeOptions(saved)
   const go = () => { if (!scope) return void toast(CHOOSE_SCOPE); setOpen(scope) }
   return (
-    <div className="rounded-xl border border-line bg-bg p-4">
+    <div className="flex flex-col rounded-xl border border-line bg-bg p-4">
       <h5 className="text-[15px] font-bold">Duplicate video review</h5>
       <p className="mb-3 mt-1 text-xs leading-relaxed text-muted">Choose a channel or all indexed videos to scan for verified duplicate video posts. Nothing is changed until you select copies and confirm.</p>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="mt-auto flex flex-wrap items-center gap-2">
         <label htmlFor="dup-scope" className="text-xs font-semibold text-muted">Channel to scan</label>
         <select id="dup-scope" aria-label="Duplicate scan scope" value={scope} disabled={q.isPending} onChange={(e) => setScope(e.target.value)} className="h-9 min-w-0 max-w-full rounded-xl border border-line-2 bg-surface px-2 text-sm">
           {q.isPending ? <option value="">Loading channels…</option> : q.isError ? <option value="">Channel list unavailable — retry</option> : options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

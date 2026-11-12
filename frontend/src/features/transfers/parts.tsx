@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { ApiError } from '@/api/client'
 import { cn } from '@/design/cn'
 
-export const CARD = 'rounded-[18px] border border-line bg-surface p-4 sm:p-5'
+export const CARD = 'flex flex-col rounded-[18px] border border-line bg-surface p-4 sm:p-5'
 export const FIELD = 'h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3 text-sm text-fg outline-none placeholder:text-faint focus:border-accent/60'
 export const detail = (e: unknown, fallback: string) => (e instanceof ApiError ? e.detail || fallback : fallback)
 
@@ -48,3 +48,6 @@ export function Stepper({ steps, step, onStep, canGo }: { steps: readonly string
     </>
   )
 }
+
+/** "12 videos" for a channel row; a channel that has not been scanned yet counts as 0 rather than showing "undefined". */
+export const videosHint = (n: unknown): string => { const v = Number(n); const c = Number.isFinite(v) && v > 0 ? v : 0; return `${c.toLocaleString()} video${c === 1 ? '' : 's'}` }

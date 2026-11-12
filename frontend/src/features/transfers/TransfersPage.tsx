@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
-import { useSourceChannels, useLanes } from '@/api/hooks'
+import { useChannels, useSourceChannels, useLanes } from '@/api/hooks'
 import type { Channel } from '@/api/types'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
@@ -10,7 +10,7 @@ import { PageHead } from '@/design/PageHead'
 import { Segmented } from '@/design/Segmented'
 import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
-import { CARD, Check, Stepper, detail } from './parts'
+import { CARD, Check, Stepper, detail, videosHint } from './parts'
 import { AutomationWorkflow } from './AutomationWorkflow'
 import { TransferWorkflow } from './TransferWorkflow'
 import { activeLaneCount, jobPath, laneChips, toLanes, type Lane } from './lanes'
@@ -109,6 +109,9 @@ function LiveLanes() {
 const STEPS = ['Channels', 'Processing Stages', 'Review', 'Run'] as const
 function MetadataWorkflow() {
   const channels = useSourceChannels()
+  const library = useChannels()
+  // a saved channel has no video count of its own; the library's count is used when the channel is published
+  const libraryCount = useMemo(() => new Map((Array.isArray(library.data) ? library.data : []).map((c) => [c.telegram_id, c.video_count])), [library.data])
   const qc = useQueryClient()
   const [step, setStep] = useState(0)
   const [q, setQ] = useState('')
@@ -209,7 +212,7 @@ function MetadataWorkflow() {
             <button type="button" onClick={() => setPicked((channels.data ?? []).map((c) => c.telegram_id))} className="h-10 rounded-xl border border-line-2 px-3 text-xs font-bold">Select all</button>
             <button type="button" onClick={() => setPicked([])} className="h-10 rounded-xl border border-line-2 px-3 text-xs font-bold">Clear</button></div>
           <div role="group" aria-label="Metadata and Assets channels" className="max-h-56 overflow-auto rounded-xl border border-line bg-bg p-1">
-            {channels.isPending ? <p className="p-3 text-sm text-muted">Loading channels…</p> : list.length ? list.map((c) => <Check key={c.telegram_id} checked={picked.includes(c.telegram_id)} onChange={() => toggle(c.telegram_id)} title={c.title} hint={`${c.video_count} videos`} />) : <p className="p-3 text-sm text-muted">No channels match.</p>}
+            {channels.isPending ? <p className="p-3 text-sm text-muted">Loading channels…</p> : list.length ? list.map((c) => <Check key={c.telegram_id} checked={picked.includes(c.telegram_id)} onChange={() => toggle(c.telegram_id)} title={c.title} hint={videosHint(libraryCount.get(c.telegram_id) ?? c.video_count)} />) : <p className="p-3 text-sm text-muted">No channels match.</p>}
           </div>
           <p className="mt-2 text-xs text-muted" aria-live="polite">Selected: {picked.length} channel{picked.length === 1 ? '' : 's'}</p>
         </div>
@@ -251,7 +254,7 @@ function MetadataWorkflow() {
           <p className="min-h-5 text-xs text-muted" aria-live="polite">{msg}</p>
         </div>
       )}
-      <div className="mt-5 flex justify-between gap-2">
+      <div className="mt-auto flex justify-between gap-2 pt-5">
         <button type="button" disabled={step === 0} onClick={() => setStep(step - 1)} className="h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold disabled:opacity-40">Back</button>
         {step < 3 ? <button type="button" disabled={!canNext} onClick={() => setStep(step + 1)} className="h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-50">{['Next: Processing Stages →', 'Next: Review →', 'Next: Run →'][step]}</button> : <span />}
       </div>
@@ -272,7 +275,7 @@ function MetadataWorkflow() {
 type Tab = 'transfer' | 'metadata' | 'automation'
 export function TransfersPage() {
   const [tab, setTab] = useState<Tab>('transfer')
-  const show = (t: Tab): string => (tab === t ? 'min-w-0' : 'hidden min-w-0 lg:block')
+  const show = (t: Tab): string => (tab === t ? 'flex min-w-0 flex-col [&>section]:flex-1' : 'hidden min-w-0 flex-col lg:flex [&>section]:flex-1')
   return (
     <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead eyebrow="Transfer Workspace" title="Transfers" blurb="Upload local videos or images, move Telegram media and run release automation.">
@@ -280,7 +283,7 @@ export function TransfersPage() {
       </PageHead>
       <LiveLanes />
       <div className="mb-4 lg:hidden"><Segmented<Tab> label="Workflow" value={tab} onChange={setTab} options={[{ value: 'transfer', label: 'Transfer' }, { value: 'metadata', label: 'Metadata' }, { value: 'automation', label: 'Automation' }]} /></div>
-      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-stretch gap-4 lg:grid-cols-2">
         <div className={show('transfer')}><TransferWorkflow /></div>
         <div className={show('metadata')}><MetadataWorkflow /></div>
       </div>

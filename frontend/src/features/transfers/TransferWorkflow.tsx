@@ -1,12 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
-import { useSourceChannels } from '@/api/hooks'
+import { useChannels, useSourceChannels } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { Segmented } from '@/design/Segmented'
-import { CARD, Check, FIELD, Field, Stepper, detail } from './parts'
+import { CARD, Check, FIELD, Field, Stepper, detail, videosHint } from './parts'
 import {
   DEFAULT_LOCAL, DEFAULT_TELEGRAM, ORIENTATIONS, RESOLUTIONS, localPayload, planPhotoScan, resolveAsk, startMessage, telegramPayload, validateLocal, validateTelegram,
   type LocalOptions, type PhotoPlan, type PhotoScan, type Source, type TelegramOptions,
@@ -26,6 +26,8 @@ function Select({ value, onChange, options, label }: { value: string; onChange: 
 /** Telegram Transfer Manager: Local → Telegram uploads (videos or images) and Telegram → Telegram transfers, as a four-step flow. */
 export function TransferWorkflow() {
   const channels = useSourceChannels()
+  const library = useChannels()
+  const libraryCount = useMemo(() => new Map((Array.isArray(library.data) ? library.data : []).map((c) => [c.telegram_id, c.video_count])), [library.data])
   const qc = useQueryClient()
   const [source, setSource] = useState<Source>('local')
   const [local, setLocal] = useState<LocalOptions>(DEFAULT_LOCAL)
@@ -167,7 +169,7 @@ export function TransferWorkflow() {
                   <button type="button" onClick={() => setT('channels', chans.map((c) => c.telegram_id))} className="h-11 rounded-xl border border-line-2 px-3 text-xs font-bold">All</button>
                   <button type="button" onClick={() => setT('channels', [])} className="h-11 rounded-xl border border-line-2 px-3 text-xs font-bold">Clear</button></div>
                 <div role="group" aria-label="Source channels" className="max-h-44 overflow-auto rounded-xl border border-line bg-bg p-1">
-                  {channels.isPending ? <p className="p-3 text-sm text-muted">Loading channels…</p> : visible.length ? visible.map((c) => <Check key={c.telegram_id} checked={tg.channels.includes(c.telegram_id)} onChange={() => toggle(c.telegram_id)} title={c.title} hint={`${c.video_count} videos`} />) : <p className="p-3 text-sm text-muted">No channels match.</p>}
+                  {channels.isPending ? <p className="p-3 text-sm text-muted">Loading channels…</p> : visible.length ? visible.map((c) => <Check key={c.telegram_id} checked={tg.channels.includes(c.telegram_id)} onChange={() => toggle(c.telegram_id)} title={c.title} hint={videosHint(libraryCount.get(c.telegram_id) ?? c.video_count)} />) : <p className="p-3 text-sm text-muted">No channels match.</p>}
                 </div>
                 <p className="mt-2 text-xs text-muted" aria-live="polite">Selected: {tg.channels.length} channel{tg.channels.length === 1 ? '' : 's'}</p>
               </div>
@@ -234,7 +236,7 @@ export function TransferWorkflow() {
           <p className="min-h-5 text-xs text-muted" aria-live="polite">{msg}</p>
         </div>
       )}
-      <div className="mt-5 flex justify-between gap-2">
+      <div className="mt-auto flex justify-between gap-2 pt-5">
         <button type="button" disabled={step === 0} onClick={() => setStep(step - 1)} className="h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold disabled:opacity-40">Back</button>
         {step < 3 ? <button type="button" disabled={!canNext} onClick={() => setStep(step + 1)} className="h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-50">{['Next: Options & Checks →', 'Next: Review →', 'Next: Run →'][step]}</button> : <span />}
       </div>

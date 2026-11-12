@@ -42,7 +42,7 @@ export function LibraryHealth() {
     } catch (e) { setDetail(repairFailedText(e instanceof ApiError && e.detail ? e.detail : e instanceof Error ? e.message : String(e))) }
   }
   return (
-    <section aria-label="Library health" className="grid gap-3 rounded-xl border border-line bg-bg p-4">
+    <section aria-label="Library health" className="flex flex-col gap-3 rounded-xl border border-line bg-bg p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h5 className="text-[15px] font-bold">Library health</h5>
         <span data-health={state} className={cn('rounded-full px-2.5 py-0.5 text-[11px] font-bold', state === 'healthy' ? 'bg-good/15 text-good' : state === 'review' || state === 'error' ? 'bg-warn/15 text-warn' : 'bg-surface-3 text-muted')}>{chipText(state, report ?? undefined)}</span>
@@ -57,7 +57,7 @@ export function LibraryHealth() {
         <Link to="/" className={BTN}><Icon name="library" className="size-4" />Open library</Link>
         <span className="ml-auto text-xs text-muted">Last checked <strong className="text-fg">{last}</strong></span>
       </div>
-      <details className="text-xs"><summary className="cursor-pointer font-semibold">View check details</summary><div role="status" aria-live="polite" className="mt-2 whitespace-pre-wrap text-muted">{detail}</div></details>
+      <details className="mt-auto text-xs"><summary className="cursor-pointer font-semibold">View check details</summary><div role="status" aria-live="polite" className="mt-2 whitespace-pre-wrap text-muted">{detail}</div></details>
     </section>
   )
 }
