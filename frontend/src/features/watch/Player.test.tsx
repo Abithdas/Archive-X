@@ -257,3 +257,29 @@ describe('Timeline live seek preview', () => {
     expect(seeks).toEqual([40])
   })
 })
+
+describe('Player frame shape and full screen', () => {
+  it('takes the video\'s own aspect ratio instead of a fixed 16:9 frame', () => {
+    const { container } = render(<Player src="/stream/-1/1" durationHint={60} onOpenVlc={() => {}} />)
+    const v = container.querySelector('video')!
+    Object.defineProperty(v, 'duration', { value: 60, configurable: true })
+    Object.defineProperty(v, 'videoWidth', { value: 1080, configurable: true }); Object.defineProperty(v, 'videoHeight', { value: 1920, configurable: true })
+    fireEvent.loadedMetadata(v)
+    expect((v.parentElement as HTMLElement).style.aspectRatio).toMatch(/^0\.5/)
+    Object.defineProperty(v, 'videoWidth', { value: 1920, configurable: true }); Object.defineProperty(v, 'videoHeight', { value: 800, configurable: true })
+    fireEvent.loadedMetadata(v)
+    expect(Number((v.parentElement as HTMLElement).style.aspectRatio)).toBeCloseTo(2.4, 1)
+  })
+  it('fills the screen in full screen and puts the controls over the picture', () => {
+    const { container } = render(<Player src="/stream/-1/1" durationHint={60} onOpenVlc={() => {}} />)
+    const box = container.firstElementChild as HTMLElement
+    Object.defineProperty(document, 'fullscreenElement', { value: box, configurable: true })
+    fireEvent(document, new Event('fullscreenchange'))
+    expect(box.className).toContain('h-full')
+    expect((container.querySelector('video')!.parentElement as HTMLElement).className).toContain('inset-0')
+    expect(box.querySelector('[class*="bottom-0"]')).not.toBeNull()
+    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
+    fireEvent(document, new Event('fullscreenchange'))
+    expect(box.className).not.toContain('h-full')
+  })
+})

@@ -62,6 +62,11 @@ export function Player({ media, info, infoPending = false, src, poster, duration
   const [loop, setLoop] = useState(false)
   const [hint, setHint] = useState('')
   const [res, setRes] = useState('')
+  const [ratio, setRatio] = useState(16 / 9)   // the video's own shape, so the frame fits it instead of leaving black bars
+  const [isFs, setIsFs] = useState(false)
+  const [idle, setIdle] = useState(false)
+  const overBar = useRef(false)
+  const idleTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const altAudio = useRef<HTMLAudioElement>(null)
   const tracks = useTracks(media, video, time, playing)
   useAltAudio(video, altAudio, tracks.altUrl, muted, volume, rate)
@@ -117,6 +122,19 @@ export function Player({ media, info, infoPending = false, src, poster, duration
     tapTimer.current = setTimeout(() => { tap.current = null; toggle() }, 280)
   }
   const full = () => (document.fullscreenElement ? void document.exitFullscreen() : void box.current?.requestFullscreen?.())
+  useEffect(() => {
+    const change = () => { const on = document.fullscreenElement === box.current; setIsFs(on); setIdle(false) }
+    document.addEventListener('fullscreenchange', change)
+    return () => document.removeEventListener('fullscreenchange', change)
+  }, [])
+  // Full screen: controls fade out after a moment without movement (like YouTube), and come back on any movement or key.
+  const wake = useCallback(() => {
+    setIdle(false)
+    clearTimeout(idleTimer.current)
+    idleTimer.current = setTimeout(() => { if (!overBar.current) setIdle(true) }, 2800)
+  }, [])
+  useEffect(() => { if (isFs) wake(); return () => clearTimeout(idleTimer.current) }, [isFs, wake])
+  const hideBar = isFs && idle && playing
   const pip = () => void (document.pictureInPictureElement ? document.exitPictureInPicture() : video.current?.requestPictureInPicture?.())?.catch(() => {})
 
   useEffect(() => {
@@ -172,8 +190,10 @@ export function Player({ media, info, infoPending = false, src, poster, duration
 
   const buffer = dur > 0 ? Math.min(100, Math.round((buffered / dur) * 100)) : 0
   return (
-    <div ref={box} className="grid gap-4 sm:gap-5">
-      <div className="relative aspect-video w-full overflow-hidden rounded-[18px] bg-[#111215] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]">
+    <div ref={box} onPointerMove={isFs ? wake : undefined} onKeyDown={isFs ? wake : undefined} onTouchStart={isFs ? wake : undefined}
+      style={isFs ? undefined : { width: `min(100%, max(360px, calc((100dvh - 210px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${ratio.toFixed(4)})))` }}
+      className={cn(isFs ? 'relative h-full w-full bg-black' : 'mx-auto grid gap-4 sm:gap-5', hideBar && 'cursor-none [&_video]:cursor-none')}>
+      <div style={isFs ? undefined : { aspectRatio: ratio }} className={cn('relative w-full overflow-hidden bg-[#111215]', isFs ? 'absolute inset-0 h-full' : 'rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
         <video
           key={`${attempt}-${mode}`}
           ref={video}
@@ -192,7 +212,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
           onLoadedMetadata={(e) => {
             const v = e.currentTarget
             setDur(v.duration || durationHint || 0)
-            if (v.videoWidth) setRes(`${v.videoWidth} × ${v.videoHeight}`)
+            if (v.videoWidth) { setRes(`${v.videoWidth} × ${v.videoHeight}`); setRatio(Math.min(2.4, Math.max(0.5, v.videoWidth / v.videoHeight))) }
             // Start where the viewer chose to resume, once per video (a retry keeps the position it reached).
             if (pendingStart.current !== null) { v.currentTime = clampTime(pendingStart.current, v.duration || durationHint || 0); pendingStart.current = null; startApplied.current = true }
             else if (startAt > 0 && !startApplied.current) { startApplied.current = true; v.currentTime = clampTime(startAt, v.duration || durationHint || 0) }
@@ -241,7 +261,8 @@ export function Player({ media, info, infoPending = false, src, poster, duration
           </div>
         ) : null}
       </div>
-      <div className="grid gap-3">
+      <div onPointerEnter={() => { overBar.current = true; setIdle(false) }} onPointerLeave={() => { overBar.current = false }}
+        className={cn('grid gap-3', isFs && 'absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-4 pb-3 pt-14 text-white transition-opacity duration-300 sm:px-8', hideBar && 'pointer-events-none opacity-0')}>
         <div>
           <div className="mb-1 flex items-center justify-between px-0.5 text-[13px] font-semibold tracking-tight tabular-nums" aria-hidden="true"><span>{clock(time)}</span><span className="font-medium text-muted">{dur ? clock(dur) : '–:––'}</span></div>
           <Timeline time={time} duration={dur} buffered={buffered} segments={segments} preview={preview} onSeek={seek} />
