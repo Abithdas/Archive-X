@@ -27,7 +27,7 @@ Neither should be installed as a dependency. We copy ideas and write our own sma
 11. **People page**: a "finding people" progress card with the stages (download pictures, read faces, group, match) instead of the plain job line. (ai-task-list, ai-loader ideas)
 
 ### Phase 3: polish and rules
-12. **Motion tokens**: one file with durations (120 / 200 / 320 ms) and easings, a single spring for popovers, and `useReducedMotion` everywhere, so nothing is ad hoc.
+12. **Motion tokens**: `design/motion.tsx` already has durations (120 / 200 / 320 ms), one easing and reduced-motion handling. Extend it with a single popover spring and a shared fade-through and list-item preset, and move the CSS-only animations (card entrance, skeleton) onto the same values.
 13. **Skeletons that match the final layout** for People, Performers and the watch page. (content-skeleton)
 14. **Blur-in for images** (a short blur to sharp on first load) for photo tiles, avatars and posters, only for the first paint. (focus-blur-resolve)
 15. **Tests**: each new piece gets a Testing Library test, and animations are turned off in jsdom through the existing reduced-motion path.
