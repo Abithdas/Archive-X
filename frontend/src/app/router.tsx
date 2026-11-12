@@ -1,4 +1,4 @@
-import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
+import { Link, createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
 import { LibraryPage } from '@/features/library/LibraryPage'
 import { EntityDirectory } from '@/features/entities/EntityDirectory'
 import { StudioPage } from '@/features/entities/StudioPage'
@@ -14,6 +14,8 @@ import { Shell } from './Shell'
 const root = createRootRoute({ component: Shell })
 // The app opens on Photos; the video library lives at /videos.
 const index = createRoute({ getParentRoute: () => root, path: '/', beforeLoad: () => { throw redirect({ to: '/photos', replace: true }) } })
+// Signed in already: /login (the address the server prints) just goes home. Signed out, the sign-in screen is shown before any page.
+const login = createRoute({ getParentRoute: () => root, path: '/login', beforeLoad: () => { throw redirect({ to: '/photos', replace: true }) } })
 const videos = createRoute({ getParentRoute: () => root, path: '/videos', component: LibraryPage })
 
 const performer = createRoute({
@@ -45,6 +47,7 @@ const watch = createRoute({
 
 const routeTree = root.addChildren([
   index,
+  login,
   videos,
   createRoute({ getParentRoute: () => root, path: '/performers', component: () => <EntityDirectory kind="performers" /> }),
   performer,
@@ -59,7 +62,13 @@ const routeTree = root.addChildren([
 ])
 
 // The backend serves the app at the site root.
-export const router = createRouter({ routeTree, defaultPreload: 'intent' })
+const NotFound = () => (
+  <div className="grid justify-items-center gap-3 py-24 text-center">
+    <h1 className="text-xl font-bold">Page not found</h1>
+    <Link to="/photos" className="font-semibold text-accent underline">Go to Photos</Link>
+  </div>
+)
+export const router = createRouter({ routeTree, defaultPreload: 'intent', defaultNotFoundComponent: NotFound })
 
 declare module '@tanstack/react-router' {
   interface Register {
