@@ -13,7 +13,8 @@ import { cn } from '@/design/cn'
 import { useSearch } from '@/app/search'
 import { ActiveFilters } from './ActiveFilters'
 import { ChannelEditor } from '@/features/channels/ChannelEditor'
-import { ChannelChip, initialsOf } from './ChannelChip'
+import { ChannelChip } from './ChannelChip'
+import { ChannelAvatar } from '@/features/channels/ChannelAvatar'
 import { Pagination } from './Pagination'
 import { Toolbar } from './Toolbar'
 import { collectLibrary } from './collect'
@@ -78,7 +79,7 @@ export function LibraryPage() {
         </ChannelChip>
         {(channels.data ?? []).map((c) => (
           <ChannelChip key={c.telegram_id} label={c.title} count={c.video_count} on={selected.includes(c.telegram_id)} onClick={() => toggle(c.telegram_id)}>
-            <span aria-hidden="true">{initialsOf(c.title)}</span>
+            <ChannelAvatar id={c.telegram_id} title={c.title} image={c.image} />
           </ChannelChip>
         ))}
       </div>

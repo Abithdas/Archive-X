@@ -183,6 +183,52 @@ def _extract_faces(image_path: str, crop_dir_path: str, detector, recognizer) ->
     return results
 
 
+def _index_performer_faces(db, detector, recognizer, limit: int = 4000) -> int:
+    """Embed the face in each performer's cached profile picture (new or changed pictures only).
+
+    These vectors are only used to rank suggestions for unnamed groups; the user still confirms every match.
+    """
+    import tempfile
+    with db.reading() as rdb:
+        rows = rdb.execute(
+            """SELECT c.performer_id, c.url, c.data, length(c.data) AS n, f.image_key AS old
+               FROM performer_image_cache c LEFT JOIN performer_face_embeddings f ON f.performer_id=c.performer_id
+               WHERE c.data IS NOT NULL LIMIT ?""", (int(limit),)).fetchall()
+    done = 0
+    crop_dir = _cache_root() / "performer_crops"
+    for row in rows:
+        key = hashlib.sha1(f"{row['url']}|{row['n']}".encode("utf-8", "ignore")).hexdigest()
+        if row["old"] == key:
+            continue
+        embedding = ""
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".img", delete=False) as handle:
+                handle.write(bytes(row["data"]))
+                tmp = handle.name
+            try:
+                faces = _extract_faces(tmp, str(crop_dir), detector, recognizer)
+            finally:
+                try:
+                    Path(tmp).unlink()
+                except OSError:
+                    pass
+            if faces:
+                embedding = json.dumps(faces[0]["embedding"])   # the largest, best-scoring face
+        except Exception:
+            embedding = ""
+        with db.lock:
+            if embedding:
+                db.conn.execute("INSERT OR REPLACE INTO performer_face_embeddings(performer_id,image_key,embedding_json,updated_at) VALUES(?,?,?,?)",
+                                (int(row["performer_id"]), key, embedding, _now()))
+            else:
+                # No usable face: remember the picture was checked so it is not retried every run.
+                db.conn.execute("INSERT OR REPLACE INTO performer_face_embeddings(performer_id,image_key,embedding_json,updated_at) VALUES(?,?,?,?)",
+                                (int(row["performer_id"]), key, "[]", _now()))
+            db.conn.commit()
+        done += 1
+    return done
+
+
 def _photo_cache_path(channel_id: str, message_id: int) -> Path:
     from .photo_cache import photo_original_path
     return photo_original_path(str(channel_id), int(message_id))
@@ -545,6 +591,11 @@ async def run(ctx) -> dict[str, Any]:
     yunet_path, sface_path = await ctx.blocking(_ensure_models)
     detector, recognizer = await ctx.blocking(_new_models, yunet_path, sface_path)
     exemplars = await ctx.blocking(_load_centroids, ctx.db)
+    ctx.report(completed=0, total=len(rows), current_item="", operation="Reading faces in performer profile pictures", force=True)
+    try:
+        await ctx.blocking(_index_performer_faces, ctx.db, detector, recognizer)
+    except Exception as exc:   # matching against profile pictures is a bonus; never fail the analysis for it
+        ctx.db.log(f"Performer picture face index skipped: {type(exc).__name__}: {exc}", "WARN")
     crop_dir = _cache_root() / "crops"
     crop_dir.mkdir(parents=True, exist_ok=True)
     analyzed = faces_total = failed = 0

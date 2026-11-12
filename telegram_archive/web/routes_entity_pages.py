@@ -58,10 +58,10 @@ def register_entity_page_routes(
             # Locally selected gender remains authoritative. Provider metadata is
             # a fallback only when the local entity has no usable gender value.
             target_gender = normalize_gender(target.get("gender") or target_details.get("gender"))
-            if target_gender not in {"female", "male"}:
+            if target_gender not in {"female", "male", "trans"}:
                 return {"performer": target, "items": [], "reason": "gender_required"}
 
-            gender_aliases = ("female", "f", "woman", "women") if target_gender == "female" else ("male", "m", "man", "men")
+            gender_aliases = ("female", "f", "woman", "women") if target_gender == "female" else ("trans", "transgender", "trans woman", "trans man") if target_gender == "trans" else ("male", "m", "man", "men")
             candidates = _rdb.execute(
                 "SELECT p.*, COUNT(DISTINCT combined.video_id) video_count "
                 "FROM performers p "

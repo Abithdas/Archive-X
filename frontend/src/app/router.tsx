@@ -1,4 +1,4 @@
-import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
 import { LibraryPage } from '@/features/library/LibraryPage'
 import { EntityDirectory } from '@/features/entities/EntityDirectory'
 import { StudioPage } from '@/features/entities/StudioPage'
@@ -12,7 +12,9 @@ import { AiPage } from '@/features/ai/AiPage'
 import { Shell } from './Shell'
 
 const root = createRootRoute({ component: Shell })
-const index = createRoute({ getParentRoute: () => root, path: '/', component: LibraryPage })
+// The app opens on Photos; the video library lives at /videos.
+const index = createRoute({ getParentRoute: () => root, path: '/', beforeLoad: () => { throw redirect({ to: '/photos', replace: true }) } })
+const videos = createRoute({ getParentRoute: () => root, path: '/videos', component: LibraryPage })
 
 const performer = createRoute({
   getParentRoute: () => root,
@@ -43,6 +45,7 @@ const watch = createRoute({
 
 const routeTree = root.addChildren([
   index,
+  videos,
   createRoute({ getParentRoute: () => root, path: '/performers', component: () => <EntityDirectory kind="performers" /> }),
   performer,
   studio,

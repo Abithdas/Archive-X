@@ -20,7 +20,7 @@ export function CommandPalette() {
   const [i, setI] = useState(0)
 
   const cmds: Cmd[] = useMemo(() => [
-    { id: 'videos', label: 'Browse videos', hint: 'Open the primary media workspace', key: 'G', run: () => void navigate({ to: '/' }) },
+    { id: 'videos', label: 'Browse videos', hint: 'Open the primary media workspace', key: 'G', run: () => void navigate({ to: '/videos' }) },
     { id: 'search', label: 'Search library', hint: 'Focus the global search field', key: '/', run: () => requestSearchFocus() },
     { id: 'performers', label: 'Open performers', hint: 'Browse people and relationships', run: () => void navigate({ to: '/performers' }) },
     { id: 'studios', label: 'Open studios', hint: 'Browse studio catalogue', run: () => void navigate({ to: '/studios' }) },

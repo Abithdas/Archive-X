@@ -56,7 +56,7 @@ describe('Edit performer', () => {
     fireEvent.click(saveBtn())
     await waitFor(() => expect(saves(calls)).toHaveLength(1))
     expect(saves(calls)[0]!.url).toBe('/api/performers/2/edit')
-    expect(saves(calls)[0]!.body).toEqual({ name: 'Ava Stone', image_url: '', reset_image_to_api: false, profile: 'https://p/ava', bio: 'Hello' })
+    expect(saves(calls)[0]!.body).toEqual({ name: 'Ava Stone', image_url: '', reset_image_to_api: false, profile: 'https://p/ava', bio: 'Hello', gender: '' })
     await waitFor(() => expect(onDone).toHaveBeenCalled())
     expect(toast).toHaveBeenCalledWith('Profile picture saved.')
   })

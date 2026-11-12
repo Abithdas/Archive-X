@@ -6,10 +6,11 @@ export const CARD = 'flex flex-col rounded-[18px] border border-line bg-surface 
 export const FIELD = 'h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3 text-sm text-fg outline-none placeholder:text-faint focus:border-accent/60'
 export const detail = (e: unknown, fallback: string) => (e instanceof ApiError ? e.detail || fallback : fallback)
 
-export function Check({ checked, onChange, title, hint, disabled }: { checked: boolean; onChange: (v: boolean) => void; title: string; hint?: string; disabled?: boolean }) {
+export function Check({ checked, onChange, title, hint, disabled, icon }: { checked: boolean; onChange: (v: boolean) => void; title: string; hint?: string; disabled?: boolean; icon?: ReactNode }) {
   return (
     <label className={cn('flex cursor-pointer items-start gap-3 rounded-xl p-2 hover:bg-fg/5', disabled && 'cursor-not-allowed opacity-50')}>
       <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="mt-1 size-4 shrink-0 accent-[var(--color-accent)]" />
+      {icon ? <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-2 text-[11px] font-bold">{icon}</span> : null}
       <span className="min-w-0"><b className="block text-sm">{title}</b>{hint ? <small className="text-xs text-muted">{hint}</small> : null}</span>
     </label>
   )

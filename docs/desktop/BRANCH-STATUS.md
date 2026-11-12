@@ -106,3 +106,9 @@ from `desktop/` (needs the Tauri Linux prerequisites listed there).
 
 ## Player: any format
 Order: direct play, then in-browser smart engine (MP4/TS/FLV), then PC conversion to HLS (`/hls/<channel>/<message>/index.m3u8`, H.264/AAC via ffmpeg, played with hls.js and seekable). Each step is tried once, from the position reached. Needs ffmpeg on the PC. Not verified here: actual decoding of the converted stream (sandbox Chromium has no H.264) and Telegram sources.
+
+## Photos home, People, channel pictures, gender
+- The app opens on Photos (`/`); the video library is `/videos`.
+- Photos has a People row (named people first, then frequent faces; "Is this X?" on unnamed ones). Unnamed face groups also get a third suggestion source: the face in each performer's cached profile picture is embedded during Image Analysis (`performer_face_embeddings`) and compared with the group (SFace cosine >= 0.40). Always a suggestion; the user confirms. Not verified here: real face detection (the models download from GitHub, blocked in the sandbox); the matching was tested with synthetic embeddings.
+- Channel pictures show in the video channel row and Transfers pickers; the Telegram photo is now also cached on disk so it appears at launch and offline.
+- Performers: default filter Female, plus Trans and All. Gender is set in Edit profile -> Profile details (Unspecified / Female / Male / Trans); provider values like "transgender_female" count as Trans.

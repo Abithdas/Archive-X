@@ -260,6 +260,27 @@ def register_telegram_routes(
             raise HTTPException(404, "Channel not found")
         return row
 
+    def _channel_photo_path(cid: str):
+        return Path(config.CACHE_DIR) / "channel_photos" / f"{cid.lstrip('-') or '0'}{'n' if cid.startswith('-') else ''}.img"
+
+    def _channel_photo_disk(cid: str):
+        try:
+            data = _channel_photo_path(cid).read_bytes()
+        except OSError:
+            return None
+        if not data:
+            return None
+        mime = "image/png" if data.startswith(b"\x89PNG") else "image/webp" if data[8:12] == b"WEBP" else "image/gif" if data.startswith(b"GIF8") else "image/jpeg"
+        return data, mime
+
+    def _channel_photo_disk_save(cid: str, data: bytes) -> None:
+        try:
+            path = _channel_photo_path(cid)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        except OSError:
+            pass
+
     @router.get("/api/channels/{channel_id}/telegram-photo")
     async def channel_telegram_photo(channel_id: str, request: Request):
         """Return the current Telegram profile photo for a channel.
@@ -277,6 +298,12 @@ def register_telegram_routes(
         if cached and now - cached[0] < 6 * 60 * 60:
             return Response(content=cached[1], media_type=cached[2], headers={
                 "Cache-Control": "private, max-age=900", "X-Content-Type-Options": "nosniff"})
+        # A copy on disk survives restarts, so channel pictures show at once on launch and while Telegram is offline.
+        disk = _channel_photo_disk(cid)
+        if cached is None and disk is not None:
+            _channel_profile_photo_cache[cid] = cached = (now - 6 * 60 * 60 + 60, disk[0], disk[1])   # served now, refreshed within a minute when Telegram is up
+            return Response(content=disk[0], media_type=disk[1], headers={
+                "Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff"})
         with db.reading() as rdb:
             exists = rdb.execute("SELECT 1 FROM channels WHERE telegram_id=?", (cid,)).fetchone()
         if not exists:
@@ -318,6 +345,7 @@ def register_telegram_routes(
             else:
                 mime = "image/jpeg"
             _channel_profile_photo_cache[cid] = (time.monotonic(), data, mime)
+            _channel_photo_disk_save(cid, data)
             return Response(content=data, media_type=mime, headers={
                 "Cache-Control": "private, max-age=900", "X-Content-Type-Options": "nosniff"})
 

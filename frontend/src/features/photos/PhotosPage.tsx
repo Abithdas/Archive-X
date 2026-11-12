@@ -14,6 +14,7 @@ import { cn } from '@/design/cn'
 import { ChannelChip } from '@/features/library/ChannelChip'
 import { useDebounced } from '@/features/library/useDebounced'
 import { FaceGroups, useFaceGroups } from './FaceGroups'
+import { PeopleRow } from './PeopleRow'
 import { DIFFERENT_NEEDS_GROUP, differentBody, differentCopy, filterLabel } from './faces'
 import { ChannelEditor } from '@/features/channels/ChannelEditor'
 import { PhotoCard } from './PhotoCard'
@@ -152,6 +153,7 @@ export function PhotosPage() {
       </div>
       {tab === 'faces' ? <FaceGroups onView={() => undefined} /> : null}
       {tab === 'library' ? <>
+      <PeopleRow groups={faces.data?.groups ?? []} />
       <div className="mb-3 flex flex-wrap items-center gap-3"><h2 className="text-lg font-bold">Photos</h2><span className="text-xs text-muted">{summaryText(total)}{selected.length ? ` · ${selected.length.toLocaleString()} channel${selected.length === 1 ? '' : 's'}` : ''}</span>
         {face ? <span className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">{filterLabel(face)}<button type="button" onClick={() => setFace(null)} className="rounded-full border border-accent/40 px-2 py-0.5 hover:bg-accent/10">Clear group filter</button></span> : null}</div>
       {!selected.length ? null : q.isPending ? (

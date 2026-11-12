@@ -26,7 +26,7 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
   const copy = COPY[kind]
   const entities = useEntities(kind)
   const query = useSearch((s) => s.q)
-  const [gender, setGender] = useState<GenderFilter>('all')
+  const [gender, setGender] = useState<GenderFilter>('female')
   const [page, setPage] = useState(1)
   const [per, setPer] = useState(DEFAULT_PER)
   const [sort, setSort] = useState<SortKey>('default')
@@ -71,7 +71,7 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
             label="Gender"
             value={gender}
             onChange={setGender}
-            options={[{ value: 'all', label: 'All' }, { value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }]}
+            options={[{ value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }, { value: 'trans', label: 'Trans' }, { value: 'all', label: 'All' }]}
           />
         ) : null}
         {kind === 'performers' ? (
@@ -100,7 +100,8 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
         </div>
       ) : !rows.length ? (
         <p className="rounded-card border border-dashed border-line py-16 text-center text-muted">
-          {entities.data.length ? 'No matches.' : copy.empty}
+          {entities.data.length ? (kind === 'performers' && gender !== 'all' && !query.trim() ? `No ${gender} performers. ` : 'No matches. ') : copy.empty}
+          {entities.data.length && kind === 'performers' && gender !== 'all' ? <button type="button" onClick={() => setGender('all')} className="font-semibold text-accent underline">Show all performers</button> : null}
         </p>
       ) : (
         <>

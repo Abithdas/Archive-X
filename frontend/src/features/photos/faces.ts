@@ -5,11 +5,11 @@ export interface Suggestion { id: number; name?: string; image_url?: string; rea
 export interface FaceGroup {
   id: number; label?: string; performer_id?: number | null; performer_name?: string; photo_count?: number; face_count?: number
   cluster_ids?: number[]; detection_ids?: number[]; channel_ids?: string[]; representative_url?: string; performer_image_url?: string; updated_at?: string
-  metadata_suggestions?: Suggestion[]; confirmed_assignment_suggestions?: Suggestion[]
+  metadata_suggestions?: Suggestion[]; confirmed_assignment_suggestions?: Suggestion[]; profile_image_suggestions?: Suggestion[]
 }
 export interface Analysis { total_photos?: number; analyzed_photos?: number; failed_photos?: number }
 export interface FaceGroupsResult { ok?: boolean; detail?: string; groups?: FaceGroup[]; analysis?: Analysis }
-export type Source = 'metadata' | 'confirmed_assignment'
+export type Source = 'metadata' | 'confirmed_assignment' | 'profile_image'
 export type Tone = '' | 'success' | 'error'
 
 export const LOAD_FAILED = 'Could not load face groups.'
@@ -64,14 +64,14 @@ export const CLEARED = 'Performer assignment cleared.'
 export const suggestionBody = (g: FaceGroup, s: Suggestion, source: Source, basis: string) => ({
   performer_id: s.id, group_ids: clusterIds(g), suggestion_source: source,
   suggestion_score: s.similarity_score == null || !Number.isFinite(Number(s.similarity_score)) ? null : Number(s.similarity_score),
-  suggestion_reason: source === 'confirmed_assignment' ? 'Confirmed from a previously assigned visual group' : `Confirmed from source metadata: ${basis || 'text match'}`,
+  suggestion_reason: source === 'confirmed_assignment' ? 'Confirmed from a previously assigned visual group' : source === 'profile_image' ? 'Confirmed from a face match with the performer profile picture' : `Confirmed from source metadata: ${basis || 'text match'}`,
 })
 export const confirmedText = (name: string) => `Confirmed ${name} for this face group. Future suggestions can learn from this confirmation.`
 export const rejectBody = (g: FaceGroup, s: Suggestion, source: Source) => ({ group_ids: clusterIds(g), performer_id: s.id, source, similarity_score: s.similarity_score == null || !Number.isFinite(Number(s.similarity_score)) ? null : Number(s.similarity_score), reason: 'Rejected by user in Image Analysis' })
 export const REJECTED = 'Suggestion rejected and remembered; it will stay hidden on future refreshes.'
 export const scoreText = (s: Suggestion) => (s.similarity_score != null && Number.isFinite(Number(s.similarity_score)) ? `Embedding similarity ${Number(s.similarity_score).toFixed(2)} · not a probability` : '')
-export const suggestionReason = (s: Suggestion, source: Source) => String(s.reason || (source === 'metadata' ? 'Source text match' : 'Similar to a previously confirmed group'))
-export const suggestionsFor = (g: FaceGroup) => (isAssigned(g) ? { confirmed: [], metadata: [] } : { confirmed: (g.confirmed_assignment_suggestions ?? []).slice(0, 3), metadata: (g.metadata_suggestions ?? []).slice(0, 3) })
+export const suggestionReason = (s: Suggestion, source: Source) => String(s.reason || (source === 'metadata' ? 'Source text match' : source === 'profile_image' ? "Face resembles this performer's profile picture" : 'Similar to a previously confirmed group'))
+export const suggestionsFor = (g: FaceGroup) => (isAssigned(g) ? { confirmed: [], metadata: [], profile: [] } : { profile: (g.profile_image_suggestions ?? []).slice(0, 3), confirmed: (g.confirmed_assignment_suggestions ?? []).slice(0, 3), metadata: (g.metadata_suggestions ?? []).slice(0, 3) })
 
 /** Selecting a group to view photos: an assigned group filters by performer, others by their cluster ids. */
 export function viewFilter(g: FaceGroup): { filter: FaceFilter; channels: string[] } {
@@ -112,3 +112,18 @@ export const loadedText = (list: readonly Candidate[]) => {
 }
 export const NO_PROVIDER = 'No provider images were returned. The saved profile image is still available on the left.'
 export const lookupFailed = (m: string) => `Provider image lookup unavailable: ${m}. You can still compare with the saved profile picture and assign manually.`
+
+/** The people shown across the top of Photos (like the People row in Google/Apple Photos): named people first, then the faces seen most often; one-off faces are left out. */
+export function peopleRow(groups: readonly FaceGroup[], max = 24): FaceGroup[] {
+  const seen = (g: FaceGroup) => Number(g.photo_count ?? 0)
+  return groups
+    .filter((g) => isAssigned(g) || seen(g) >= 3)
+    .sort((a, b) => Number(isAssigned(b)) - Number(isAssigned(a)) || seen(b) - seen(a) || groupLabel(a).localeCompare(groupLabel(b)))
+    .slice(0, max)
+}
+/** A suggestion good enough to ask "Is this X?" about on the person's tile: the best candidate from any source. */
+export function bestGuess(g: FaceGroup): Suggestion | null {
+  if (isAssigned(g)) return null
+  const all = [...(g.metadata_suggestions ?? []), ...(g.profile_image_suggestions ?? []), ...(g.confirmed_assignment_suggestions ?? [])]
+  return all.sort((a, b) => Number(b.similarity_score ?? 0.99) - Number(a.similarity_score ?? 0.99))[0] ?? null
+}

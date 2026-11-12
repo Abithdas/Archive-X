@@ -24,7 +24,7 @@ interface NavDef {
 const GROUPS: { title: string; items: NavDef[] }[] = [
   { title: 'Library', items: [
     { to: '/photos', label: 'Photos', icon: 'images' },
-    { to: '/', label: 'Videos', icon: 'library' },
+    { to: '/videos', label: 'Videos', icon: 'library' },
     { to: '/performers', label: 'Performers', icon: 'user' },
     { to: '/studios', label: 'Studios', icon: 'studio' },
   ] },
@@ -37,7 +37,7 @@ const GROUPS: { title: string; items: NavDef[] }[] = [
     { to: '/ai', label: 'AI Assistance', icon: 'sparkle' },
   ] },
 ]
-const PHONE_NAV = ['/photos', '/', '/performers', '/studios', '/transfers']
+const PHONE_NAV = ['/photos', '/videos', '/performers', '/studios', '/transfers']
 const RAIL_KEY = 'ax_next_sidebar_rail'
 
 const SIDE_ITEM = 'flex h-11 w-full items-center rounded-xl text-[15px] font-medium text-muted transition-colors hover:bg-fg/5 hover:text-fg'
@@ -168,7 +168,7 @@ function useGlobalKeys() {
           e.preventDefault()
           useUi.getState().requestSearchFocus()
         } else if (e.key.toLowerCase() === 'g') {
-          void navigate({ to: '/' })
+          void navigate({ to: '/videos' })
         }
       }
     }

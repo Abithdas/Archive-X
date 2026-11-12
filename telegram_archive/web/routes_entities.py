@@ -680,6 +680,12 @@ def register_entity_routes(
 
             with db.lock:
                 db.conn.execute("UPDATE performers SET name=?,profile=?,bio=?,name_locked=1,profile_locked=1 WHERE id=?", (name, profile, bio, performer_id))
+                if "gender" in body:
+                    # Chosen by hand: female, male, trans, or empty for unknown.
+                    chosen = str(body.get("gender") or "").strip().lower()
+                    if chosen not in {"", "female", "male", "trans"}:
+                        raise HTTPException(400, "Gender must be female, male, trans or empty")
+                    db.conn.execute("UPDATE performers SET gender=? WHERE id=?", (chosen, performer_id))
                 if reset_api:
                     db.conn.execute("UPDATE performers SET image_locked=0,image_source='provider',image_crop_version=0 WHERE id=?", (performer_id,))
                     db.conn.execute("DELETE FROM performer_image_cache WHERE performer_id=?", (performer_id,))

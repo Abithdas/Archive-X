@@ -36,14 +36,14 @@ export const STATE_LOCAL = 'Local image selected — save to apply'
 export const STATE_RESET = 'Provider image will be restored on save'
 export const stateProvider = (p: string | undefined) => `Selected ${providerLabel(p)} image — save to apply`
 
-export interface Form { kind: Kind; name: string; manualUrl: string; reset: boolean; profile: string; bio: string; imageData: string; provider: Candidate | null }
+export interface Form { kind: Kind; name: string; manualUrl: string; reset: boolean; profile: string; bio: string; gender?: string; imageData: string; provider: Candidate | null }
 /** A typed URL wins over a chosen provider image and over "restore"; an uploaded file wins over a provider image. */
 export function saveBody(f: Form): Record<string, unknown> {
   const url = f.manualUrl.trim()
   const reset = url ? false : f.reset
   const provider = url ? null : f.provider
   const body: Record<string, unknown> = { name: f.name.trim(), image_url: url, reset_image_to_api: reset }
-  if (isPerformer(f.kind)) { body.profile = f.profile.trim(); body.bio = f.bio.trim() }
+  if (isPerformer(f.kind)) { body.profile = f.profile.trim(); body.bio = f.bio.trim(); if (f.gender !== undefined) body.gender = f.gender }
   if (f.imageData) body.image_data = f.imageData
   if (!f.imageData && !url && !reset && provider?.url) { body.provider_image_url = provider.url; body.provider_image_provider = provider.provider || 'provider' }
   return body

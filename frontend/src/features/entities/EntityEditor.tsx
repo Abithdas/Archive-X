@@ -6,10 +6,11 @@ import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { LOADING, STATE_LOCAL, STATE_RESET, candidatesUrl, editUrl, fileProblem, footerFor, groups, imageUrl, initialState, isPerformer, loadFailed, lookupFailed, nameProblem, providerSummary, saveBody, saveFailed, saveLabel, savedMessage, stateProvider, titleFor, type Candidate, type Kind } from './editor'
+import { normalizeGender } from './filter'
 
 const INPUT = 'h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5 text-[15px] text-fg outline-none placeholder:text-faint focus:border-accent/60'
 const PANEL = 'grid gap-2 rounded-2xl border border-line p-3'
-interface Loaded { name?: string; image?: string | null; image_source?: string; image_locked?: boolean; profile?: string; bio?: string }
+interface Loaded { name?: string; image?: string | null; image_source?: string; image_locked?: boolean; profile?: string; bio?: string; gender?: string | null }
 
 /** Edit a performer or studio: picture (provider choice, URL, file or "use the provider's again"), name, and for performers a profile URL and biography. */
 export function EntityEditor({ kind, id, onDone }: { kind: Kind; id: number; onDone: () => void }) {
@@ -18,6 +19,7 @@ export function EntityEditor({ kind, id, onDone }: { kind: Kind; id: number; onD
   const [name, setName] = useState('')
   const [profile, setProfile] = useState('')
   const [bio, setBio] = useState('')
+  const [gender, setGender] = useState('')
   const [url, setUrl] = useState('')
   const [imageData, setImageData] = useState('')
   const [reset, setReset] = useState(false)
@@ -40,7 +42,7 @@ export function EntityEditor({ kind, id, onDone }: { kind: Kind; id: number; onD
   useEffect(() => {
     api<Loaded & { ok?: boolean }>(editUrl(kind, id)).then((r) => {
       if (!live.current) return
-      setData(r); setName(r.name ?? ''); setProfile(r.profile ?? ''); setBio(r.bio ?? '')
+      setData(r); setName(r.name ?? ''); setProfile(r.profile ?? ''); setBio(r.bio ?? ''); setGender(normalizeGender(r.gender))
       setUrl(r.image_source === 'manual' && /^https?:/i.test(r.image ?? '') ? String(r.image) : '')
       setPreview(imageUrl(kind, id, r.image)); setState(initialState(Boolean(r.image_locked)))
     }).catch((e) => { toast.error(loadFailed(e instanceof ApiError ? e.detail : '')); onDone() })
@@ -89,7 +91,7 @@ export function EntityEditor({ kind, id, onDone }: { kind: Kind; id: number; onD
     e.preventDefault()
     const bad = nameProblem(name)
     if (bad) return void setNameMsg(bad)
-    const form = { kind, name, manualUrl: url, reset, profile, bio, imageData, provider: picked }
+    const form = { kind, name, manualUrl: url, reset, profile, bio, gender, imageData, provider: picked }
     setSaving(true)
     try {
       const r = await api<{ ok?: boolean; detail?: string }>(editUrl(kind, id), { method: 'POST', json: saveBody(form) })
@@ -155,6 +157,11 @@ export function EntityEditor({ kind, id, onDone }: { kind: Kind; id: number; onD
           <div className="mt-3 grid gap-3">
             {isPerformer(kind) ? (
               <>
+                <label className="grid gap-1.5 text-xs font-semibold text-muted">Gender
+                  <select value={gender} onChange={(e) => setGender(e.target.value)} aria-label="Gender" className="h-10 w-full rounded-xl border border-line-2 bg-bg px-3 text-[15px] text-fg">
+                    <option value="">Unspecified</option><option value="female">Female</option><option value="male">Male</option><option value="trans">Trans</option>
+                  </select>
+                </label>
                 <label className="grid gap-1.5 text-xs font-semibold text-muted">Profile URL<input value={profile} onChange={(e) => setProfile(e.target.value)} placeholder="https://…" className={INPUT} inputMode="url" /></label>
                 <label className="grid gap-1.5 text-xs font-semibold text-muted">Biography<textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Optional biography" rows={4} className="w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5 py-2.5 text-[15px] text-fg outline-none placeholder:text-faint focus:border-accent/60" /></label>
               </>

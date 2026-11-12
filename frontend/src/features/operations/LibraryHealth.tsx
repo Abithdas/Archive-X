@@ -54,7 +54,7 @@ export function LibraryHealth() {
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" disabled={busy} aria-busy={busy} onClick={() => void check()} className="inline-flex h-9 items-center gap-2 rounded-xl bg-accent px-3 text-[13px] font-bold text-accent-fg disabled:opacity-60" title="Check local previews, artwork caches and stale jobs"><Icon name="refresh" className={cn('size-4', busy && 'animate-spin')} />Run full check</button>
         <button type="button" disabled={busy} onClick={() => void repair()} className={BTN} title="Repair artwork bytes from matching local files">Repair artwork cache</button>
-        <Link to="/" className={BTN}><Icon name="library" className="size-4" />Open library</Link>
+        <Link to="/videos" className={BTN}><Icon name="library" className="size-4" />Open library</Link>
         <span className="ml-auto text-xs text-muted">Last checked <strong className="text-fg">{last}</strong></span>
       </div>
       <details className="mt-auto text-xs"><summary className="cursor-pointer font-semibold">View check details</summary><div role="status" aria-live="polite" className="mt-2 whitespace-pre-wrap text-muted">{detail}</div></details>

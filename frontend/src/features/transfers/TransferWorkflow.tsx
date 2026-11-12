@@ -7,6 +7,7 @@ import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { Segmented } from '@/design/Segmented'
 import { CARD, Check, FIELD, Field, Stepper, detail, videosHint } from './parts'
+import { ChannelAvatar } from '@/features/channels/ChannelAvatar'
 import {
   DEFAULT_LOCAL, DEFAULT_TELEGRAM, ORIENTATIONS, RESOLUTIONS, localPayload, planPhotoScan, resolveAsk, startMessage, telegramPayload, validateLocal, validateTelegram,
   type LocalOptions, type PhotoPlan, type PhotoScan, type Source, type TelegramOptions,
@@ -169,7 +170,7 @@ export function TransferWorkflow() {
                   <button type="button" onClick={() => setT('channels', chans.map((c) => c.telegram_id))} className="h-11 rounded-xl border border-line-2 px-3 text-xs font-bold">All</button>
                   <button type="button" onClick={() => setT('channels', [])} className="h-11 rounded-xl border border-line-2 px-3 text-xs font-bold">Clear</button></div>
                 <div role="group" aria-label="Source channels" className="max-h-44 overflow-auto rounded-xl border border-line bg-bg p-1">
-                  {channels.isPending ? <p className="p-3 text-sm text-muted">Loading channels…</p> : visible.length ? visible.map((c) => <Check key={c.telegram_id} checked={tg.channels.includes(c.telegram_id)} onChange={() => toggle(c.telegram_id)} title={c.title} hint={videosHint(libraryCount.get(c.telegram_id) ?? c.video_count)} />) : <p className="p-3 text-sm text-muted">No channels match.</p>}
+                  {channels.isPending ? <p className="p-3 text-sm text-muted">Loading channels…</p> : visible.length ? visible.map((c) => <Check key={c.telegram_id} checked={tg.channels.includes(c.telegram_id)} onChange={() => toggle(c.telegram_id)} title={c.title} icon={<ChannelAvatar id={c.telegram_id} title={c.title} image={c.image} />} hint={videosHint(libraryCount.get(c.telegram_id) ?? c.video_count)} />) : <p className="p-3 text-sm text-muted">No channels match.</p>}
                 </div>
                 <p className="mt-2 text-xs text-muted" aria-live="polite">Selected: {tg.channels.length} channel{tg.channels.length === 1 ? '' : 's'}</p>
               </div>

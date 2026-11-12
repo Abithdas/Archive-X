@@ -158,6 +158,36 @@ def register_library_routes(
             entry['group_ids'].add(int(row['group_id']))
         return refs
 
+    _PROFILE_PICTURE_MATCH_THRESHOLD = 0.40   # SFace cosine; OpenCV documents ~0.363 as the same-person cut-off
+
+    def _photo_profile_picture_suggestions(rdb, vectors, performer_rows, rejected_ids, limit=3):
+        """Rank performers whose profile-picture face resembles this group's faces. A suggestion only; the user confirms it."""
+        if not vectors:
+            return []
+        try:
+            import numpy as _np
+            rows = rdb.execute("SELECT performer_id,embedding_json FROM performer_face_embeddings WHERE embedding_json<>'[]'").fetchall()
+            names = {int(r['id']): str(r['name'] or '').strip() for r in performer_rows}
+            ids, mats = [], []
+            for r in rows:
+                v = _photo_decode_embedding(r['embedding_json'])
+                pid = int(r['performer_id'])
+                if v is not None and names.get(pid) and pid not in rejected_ids:
+                    ids.append(pid); mats.append(v)
+            if not ids:
+                return []
+            target = _np.asarray(vectors[:32], dtype=_np.float32)
+            scores = (target @ _np.asarray(mats, dtype=_np.float32).T).max(axis=0)
+            order = _np.argsort(-scores)[:max(1, min(5, int(limit)))]
+            return [{
+                'id': ids[i], 'name': names[ids[i]], 'image_url': f"/api/performers/{ids[i]}/image",
+                'source': 'profile_image', 'basis': 'profile picture',
+                'reason': "Face resembles this performer's profile picture",
+                'similarity_score': round(float(scores[i]), 4),
+            } for i in order if float(scores[i]) >= _PROFILE_PICTURE_MATCH_THRESHOLD]
+        except Exception:
+            return []
+
     def _photo_group_embeddings(rdb, cluster_ids, max_per_group=16):
         ids = list(dict.fromkeys(int(value) for value in cluster_ids if int(value) > 0))[:700]
         if not ids:
@@ -470,6 +500,7 @@ def register_library_routes(
                     if item.get("performer_id"):
                         item["metadata_suggestions"] = []
                         item["confirmed_assignment_suggestions"] = []
+                        item["profile_image_suggestions"] = []
                         continue
                     item_cluster_ids = [int(value) for value in (item.get('cluster_ids') or []) if int(value) > 0]
                     feedback_group_ids = list(dict.fromkeys([int(item['id'])] + item_cluster_ids))
@@ -485,15 +516,19 @@ def register_library_routes(
                     item["confirmed_assignment_suggestions"] = _photo_confirmed_group_suggestions(
                         vectors, reference_index, performer_rows, rejected_visual_ids, limit=3
                     )
+                    item["profile_image_suggestions"] = _photo_profile_picture_suggestions(rdb, vectors, performer_rows, rejected_visual_ids, limit=3)
                     # Keep each performer suggestion once per group. Confirmation is always explicit.
                     already = {int(candidate['id']) for candidate in item['metadata_suggestions']}
                     item["confirmed_assignment_suggestions"] = [candidate for candidate in item["confirmed_assignment_suggestions"] if int(candidate['id']) not in already]
+                    already |= {int(candidate['id']) for candidate in item["confirmed_assignment_suggestions"]}
+                    item["profile_image_suggestions"] = [candidate for candidate in item["profile_image_suggestions"] if int(candidate['id']) not in already]
         except Exception as exc:
             db.log(f"Photo group suggestions unavailable: {type(exc).__name__}: {exc}", "WARN",
                    event="photo_library.suggestions_failed")
             for item in groups:
                 item.setdefault("metadata_suggestions", [])
                 item.setdefault("confirmed_assignment_suggestions", [])
+                item.setdefault("profile_image_suggestions", [])
         return {"ok": True, "groups": groups,
                 "analysis": {"total_photos": int(analysis_row["total"] or 0),
                              "analyzed_photos": int(analysis_row["analyzed"] or 0),
@@ -597,7 +632,7 @@ def register_library_routes(
             raise HTTPException(400, "Provide between 1 and 300 face cluster IDs")
         marks = ",".join("?" for _ in group_ids)
         suggestion_source = str(body.get("suggestion_source") or "manual").strip().lower()
-        if suggestion_source not in {"manual", "metadata", "confirmed_assignment"}:
+        if suggestion_source not in {"manual", "metadata", "confirmed_assignment", "profile_image"}:
             suggestion_source = "manual"
         suggestion_score = body.get("suggestion_score")
         try: suggestion_score = float(suggestion_score) if suggestion_score not in (None, "") else None
@@ -661,7 +696,7 @@ def register_library_routes(
             raise HTTPException(400, "A valid performer_id and group_ids are required")
         if performer_id <= 0 or not group_ids or len(group_ids) > 300:
             raise HTTPException(400, "Select a performer suggestion and one or more face clusters")
-        if source not in {"metadata", "confirmed_assignment"}:
+        if source not in {"metadata", "confirmed_assignment", "profile_image"}:
             raise HTTPException(400, "Unknown suggestion source")
         with db.reading() as rdb:
             if not rdb.execute("SELECT id FROM performers WHERE id=?", (performer_id,)).fetchone():

@@ -439,6 +439,15 @@ class Database:
             CREATE INDEX IF NOT EXISTS idx_photo_face_groups_performer
                 ON photo_face_groups(performer_id, id);
 
+            -- Face embedding of each performer's profile picture, used only to
+            -- suggest (never auto-assign) a performer for an unnamed face group.
+            CREATE TABLE IF NOT EXISTS performer_face_embeddings (
+                performer_id INTEGER PRIMARY KEY,
+                image_key TEXT NOT NULL,
+                embedding_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS photo_face_detections (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 photo_id INTEGER NOT NULL,

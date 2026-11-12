@@ -116,7 +116,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
       <section role="alert" className="mx-auto grid max-w-xl place-items-center gap-3 p-10 text-center">
         <p className="font-semibold">{missing ? 'Video not found.' : 'Could not load this video.'}</p>
         {missing ? null : <button type="button" onClick={() => void video.refetch()} className="h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Retry</button>}
-        <Link to="/" className="font-semibold text-accent underline">Back to videos</Link>
+        <Link to="/videos" className="font-semibold text-accent underline">Back to videos</Link>
       </section>
     )
   }

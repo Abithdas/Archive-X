@@ -18,8 +18,8 @@ type Ask = null | { title: string; text: string; ok: string; run: () => Promise<
 
 function Suggestions({ group, source, items, onCompare, onConfirm, onReject }: { group: FaceGroup; source: Source; items: Suggestion[]; onCompare: (s: Suggestion) => void; onConfirm: (s: Suggestion, src: Source) => void; onReject: (s: Suggestion, src: Source) => void }) {
   if (!items.length) return null
-  const title = source === 'metadata' ? 'Suggestions from source text' : 'Suggestions from your previous confirmations'
-  const note = source === 'metadata' ? 'Based on exact filename, caption, or channel-title text matches.' : 'Ranked by similarity to face groups you previously assigned. These are candidates, not automatic assignments.'
+  const title = source === 'metadata' ? 'Suggestions from source text' : source === 'profile_image' ? 'Looks like these performers' : 'Suggestions from your previous confirmations'
+  const note = source === 'metadata' ? 'Based on exact filename, caption, or channel-title text matches.' : source === 'profile_image' ? 'The face in this group resembles the performer\'s profile picture. Check it, then confirm; nothing is assigned automatically.' : 'Ranked by similarity to face groups you previously assigned. These are candidates, not automatic assignments.'
   return (
     <div className="mt-2 grid gap-1.5 rounded-xl border border-line bg-bg p-2.5" aria-label={title}>
       <strong className="text-xs">{title}</strong><small className="text-[11px] text-muted">{note}</small>
@@ -93,6 +93,7 @@ function Card({ group, checked, onCheck, busy, onView, onAssign, onClear, onSpli
         <div className="min-w-0"><h3 className="truncate text-base font-bold">{label}</h3><p className="text-xs text-muted">{countsLine(group)}</p></div>
       </div>
       <span className={cn('w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold', isAssigned(group) ? 'bg-good/15 text-good' : 'bg-warn/15 text-warn')}>{assignedText(group)}</span>
+      <Suggestions group={group} source="profile_image" items={sug.profile} onCompare={compare} onConfirm={onConfirm} onReject={onReject} />
       <Suggestions group={group} source="confirmed_assignment" items={sug.confirmed} onCompare={compare} onConfirm={onConfirm} onReject={onReject} />
       <Suggestions group={group} source="metadata" items={sug.metadata} onCompare={compare} onConfirm={onConfirm} onReject={onReject} />
       <PerformerSearch group={group} picked={picked} onPick={setPicked} />

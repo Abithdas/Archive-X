@@ -28,7 +28,7 @@ describe('face groups', () => {
     expect(suggestionBody(g(), { id: 2 }, 'metadata', 'caption')).toMatchObject({ suggestion_score: null, suggestion_reason: 'Confirmed from source metadata: caption' })
     expect(rejectBody(g(), { id: 2 }, 'metadata')).toEqual({ group_ids: [4, 9], performer_id: 2, source: 'metadata', similarity_score: null, reason: 'Rejected by user in Image Analysis' })
     expect(scoreText({ id: 1, similarity_score: 0.456 })).toBe('Embedding similarity 0.46 · not a probability'); expect(scoreText({ id: 1 })).toBe('')
-    expect(suggestionsFor(g({ performer_id: 3, metadata_suggestions: [{ id: 1 }] }))).toEqual({ confirmed: [], metadata: [] })
+    expect(suggestionsFor(g({ performer_id: 3, metadata_suggestions: [{ id: 1 }] }))).toEqual({ confirmed: [], metadata: [], profile: [] })
     expect(suggestionsFor(g({ metadata_suggestions: [1, 2, 3, 4].map((id) => ({ id })) })).metadata).toHaveLength(3)
   })
   it('filters the photo grid by a group or its performer', () => {

@@ -35,6 +35,14 @@ _MULTI_UNDER_RE = re.compile(r"_+")
 # Display names, normalized names and canonical keys.
 # ==============================================================================
 
+def _clean_gender(value) -> str:
+    """Providers say 'Female', 'transgender_female', 'Trans Woman'...; the app keeps female, male or trans."""
+    text = str(value or '').strip().lower()
+    if 'trans' in text:
+        return 'trans'
+    return text if text in {'male', 'female'} else ''
+
+
 def display_name(value: str) -> str:
     return " ".join(str(value or "").strip().split())
 
@@ -289,9 +297,9 @@ def upsert_entity(db, table: str, name: str, *, provider: str = "",
             if bio and table == "performers":
                 fields.append("bio=COALESCE(NULLIF(bio,''),?)")
                 vals.append(bio)
-            if gender and table == "performers" and str(gender).strip().lower() in {"male", "female"}:
+            if gender and table == "performers" and _clean_gender(gender):
                 fields.append("gender=COALESCE(NULLIF(gender,''),?)")
-                vals.append(str(gender).strip().lower())
+                vals.append(_clean_gender(gender))
             vals.append(pid)
             db.conn.execute(f"UPDATE {table} SET {', '.join(fields)} WHERE id=?", vals)
             return pid

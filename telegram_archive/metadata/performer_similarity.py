@@ -127,6 +127,8 @@ def extract_performer_details(metadata_rows: Iterable[Any]) -> dict[str, Any]:
 
 def normalize_gender(value: object) -> str:
     text = re.sub(r"[^a-z]+", " ", str(value or "").casefold()).strip()
+    if "trans" in text:
+        return "trans"
     aliases = {
         "f": "female", "woman": "female", "women": "female", "female": "female",
         "m": "male", "man": "male", "men": "male", "male": "male",
