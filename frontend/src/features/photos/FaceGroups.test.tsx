@@ -2,7 +2,7 @@ import type React from 'react'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
-import { PeoplePage } from './PeoplePage'
+import { FaceGroups } from './FaceGroups'
 import { PhotosPage } from './PhotosPage'
 import { usePhotoStore } from './store'
 
@@ -18,7 +18,7 @@ const json = (b: unknown, code = 200) => new Response(JSON.stringify(b), { statu
 const G = (id: number, o = {}) => ({ id, label: `Face group ${id}`, performer_id: null, performer_name: '', photo_count: 3, face_count: 4, cluster_ids: [id], detection_ids: [id * 10], channel_ids: ['-1001'], representative_url: `/crop/${id}`, metadata_suggestions: [], confirmed_assignment_suggestions: [], ...o })
 const GROUPS = [G(1), G(2, { metadata_suggestions: [{ id: 5, name: 'Mia Rivera', basis: 'caption', reason: 'Exact text match in caption', image_url: '/p/5' }] }), G(-3, { performer_id: 3, performer_name: 'Ava Stone', cluster_ids: [3] })]
 type Call = { url: string; method: string; body?: Record<string, unknown> }
-const mount = (over: (u: string, i?: RequestInit) => Response | undefined = () => undefined, groups: unknown[] = GROUPS, analysis = { total_photos: 9, analyzed_photos: 5, failed_photos: 0 }, Page: () => React.JSX.Element = PeoplePage) => {
+const mount = (over: (u: string, i?: RequestInit) => Response | undefined = () => undefined, groups: unknown[] = GROUPS, analysis = { total_photos: 9, analyzed_photos: 5, failed_photos: 0 }, Page: () => React.JSX.Element = () => <FaceGroups onView={() => {}} />) => {
   const calls: Call[] = []
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : undefined })
@@ -34,7 +34,7 @@ const mount = (over: (u: string, i?: RequestInit) => Response | undefined = () =
   return calls
 }
 const posts = (c: Call[]) => c.filter((x) => x.method === 'POST')
-const openTab = async () => { await screen.findByRole('heading', { name: 'People' }) }
+const openTab = async () => { await screen.findByRole('region', { name: 'People' }) }
 
 describe('People page', () => {
   it('lists the groups with their status and counts in the tab', async () => {

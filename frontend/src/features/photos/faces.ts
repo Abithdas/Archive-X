@@ -1,7 +1,7 @@
 /** Pure logic for the Photos "Image Analysis" tab (face groups). Mirrors the classic rules and wording. */
 import type { FaceFilter } from './photos'
 
-export interface Suggestion { id: number; name?: string; image_url?: string; reason?: string; basis?: string; similarity_score?: number | null }
+export interface Suggestion { id: number; source?: string; name?: string; image_url?: string; reason?: string; basis?: string; similarity_score?: number | null }
 export interface FaceGroup {
   id: number; label?: string; performer_id?: number | null; performer_name?: string; photo_count?: number; face_count?: number
   cluster_ids?: number[]; detection_ids?: number[]; channel_ids?: string[]; representative_url?: string; performer_image_url?: string; updated_at?: string
@@ -126,4 +126,25 @@ export function bestGuess(g: FaceGroup): Suggestion | null {
   if (isAssigned(g)) return null
   const all = [...(g.metadata_suggestions ?? []), ...(g.profile_image_suggestions ?? []), ...(g.confirmed_assignment_suggestions ?? [])]
   return all.sort((a, b) => Number(b.similarity_score ?? 0.99) - Number(a.similarity_score ?? 0.99))[0] ?? null
+}
+
+/** The People view in plain groups: named people, faces with a good guess ("Is this X?"), faces to name, and faces seen too rarely to bother with. */
+export function peopleSections(groups: readonly FaceGroup[]) {
+  const seen = (g: FaceGroup) => Number(g.photo_count ?? 0)
+  const byCount = (a: FaceGroup, b: FaceGroup) => seen(b) - seen(a) || groupLabel(a).localeCompare(groupLabel(b))
+  const named = groups.filter(isAssigned).sort((a, b) => groupLabel(a).localeCompare(groupLabel(b)))
+  const open = groups.filter((g) => !isAssigned(g))
+  const common = open.filter((g) => seen(g) >= 3).sort(byCount)
+  return {
+    named,
+    guesses: common.filter((g) => bestGuess(g)),
+    toName: common.filter((g) => !bestGuess(g)),
+    rare: open.filter((g) => seen(g) < 3).sort(byCount),
+  }
+}
+export const findPeopleHint = (groups: readonly FaceGroup[], analysis?: Analysis) => {
+  const total = Number(analysis?.total_photos ?? 0), done = Number(analysis?.analyzed_photos ?? 0)
+  if (!total) return 'No photos are indexed yet. Scan a channel for images first (Transfers → Metadata & Assets → Image scan).'
+  if (!groups.length) return done ? 'No faces were found in your photos.' : 'Press Find people to look for faces in your photos.'
+  return `${groups.length.toLocaleString()} ${groups.length === 1 ? 'person' : 'people'} found in ${done.toLocaleString()} analysed photos.`
 }
