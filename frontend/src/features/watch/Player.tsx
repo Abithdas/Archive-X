@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { SMART_FAILED, TRYING, initialMode, isDecodeFailure, loadSmartStream, shouldFallBack, type Mode, type PlayInfo, type SmartApi } from './smartstream'
 import { Icon } from '@/design/Icon'
 import { BufferIcon, ChevronIcon, FullscreenIcon, GearIcon, NextIcon, PauseIcon, PipIcon, PlayIcon, PrevIcon, VolumeIcon } from './PlayerIcons'
-import { Divider, Kbd, MenuHead, MenuItem, MenuRow, PopMenu, VolumeBar } from './PlayerParts'
+import { Divider, MenuHead, MenuItem, MenuRow, PopMenu, VolumeBar } from './PlayerParts'
 import { cn } from '@/design/cn'
 import { formatDuration } from '@/features/library/format'
 import { SnapshotGrid, type SnapshotData } from './SnapshotGrid'
 import { Timeline, type PreviewInfo } from './Timeline'
 import type { Segment } from './timeline'
 import { HLS_FAILED, hlsUrl, startHls } from './hlsplay'
+import { DOUBLE_TAP_MS, KEEP_SKIPPING_MS, registerTap, type TapState } from './tapseek'
 import { CcMenu } from './CcMenu'
 import { useAltAudio, useTracks, type MediaRef } from './useTracks'
 
@@ -72,7 +73,8 @@ export function Player({ media, info, infoPending = false, src, poster, duration
   const altAudio = useRef<HTMLAudioElement>(null)
   const tracks = useTracks(media, video, time, playing)
   useAltAudio(video, altAudio, tracks.altUrl, muted, volume, rate)
-  const tap = useRef<{ t: number; x: number } | null>(null)
+  const tap = useRef<TapState | null>(null)
+  const [skip, setSkip] = useState<{ side: 'left' | 'right'; total: number } | null>(null)
   const tapTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -106,22 +108,19 @@ export function Player({ media, info, infoPending = false, src, poster, duration
     clearTimeout(hintTimer.current)
     hintTimer.current = setTimeout(() => setHint(''), 700)
   }
-  /** One tap toggles play. A second tap within 280 ms on the left or right third seeks 10 s that way (phone gesture). */
+  /** One tap toggles play. Double-tap the left or right third to skip 10 s; keep tapping to add 10 s more each time (like YouTube). */
   const onTap = (e: React.MouseEvent<HTMLVideoElement>) => {
     const r = e.currentTarget.getBoundingClientRect()
-    const x = (e.clientX - r.left) / r.width
-    const now = Date.now()
-    if (tap.current && now - tap.current.t < 280 && (x < 0.33 || x > 0.67)) {
-      clearTimeout(tapTimer.current)
-      tap.current = null
-      const delta = x < 0.33 ? -10 : 10
-      seek((video.current?.currentTime ?? 0) + delta)
-      flash(delta < 0 ? '−10 s' : '+10 s')
+    const { state, skip: by } = registerTap(tap.current, (e.clientX - r.left) / r.width, Date.now())
+    tap.current = state
+    clearTimeout(tapTimer.current)
+    if (by !== null) {
+      seek((video.current?.currentTime ?? 0) + by)
+      setSkip({ side: state.side === 'left' ? 'left' : 'right', total: state.total })
+      tapTimer.current = setTimeout(() => { tap.current = null; setSkip(null) }, KEEP_SKIPPING_MS)
       return
     }
-    tap.current = { t: now, x }
-    clearTimeout(tapTimer.current)
-    tapTimer.current = setTimeout(() => { tap.current = null; toggle() }, 280)
+    tapTimer.current = setTimeout(() => { tap.current = null; toggle() }, DOUBLE_TAP_MS)
   }
   const full = () => (document.fullscreenElement ? void document.exitFullscreen() : void box.current?.requestFullscreen?.())
   useEffect(() => {
@@ -260,6 +259,11 @@ export function Player({ media, info, infoPending = false, src, poster, duration
           }}
           className="absolute inset-0 h-full w-full cursor-pointer object-contain"
         />
+        {skip ? (
+          <div data-testid="skip-indicator" aria-live="polite" className={cn('pointer-events-none absolute inset-y-0 z-20 grid w-1/3 place-items-center bg-white/10 text-white', skip.side === 'left' ? 'left-0 rounded-r-[100%]' : 'right-0 rounded-l-[100%]')}>
+            <div className="grid justify-items-center gap-0.5 text-sm font-semibold"><span aria-hidden="true" className="text-xl">{skip.side === 'left' ? '◀◀' : '▶▶'}</span>{skip.total} seconds</div>
+          </div>
+        ) : null}
         {tracks.altUrl ? <audio ref={altAudio} src={tracks.altUrl} preload="auto" className="hidden" /> : null}
         {tracks.text ? <div aria-live="off" data-testid="caption" className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center px-4 sm:bottom-6"><span className="max-w-[90%] whitespace-pre-line rounded-lg bg-black/70 px-3 py-1.5 text-center text-sm font-medium leading-snug text-white [text-shadow:0_1px_2px_#000] sm:text-lg">{tracks.text}</span></div> : null}
         {snapshots && !started && !failed ? <SnapshotGrid data={snapshots} onPick={pickTime} /> : null}
@@ -319,8 +323,13 @@ export function Player({ media, info, infoPending = false, src, poster, duration
             {tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
             <PopMenu label="Settings" align="right" iconOnly button={<GearIcon />}>
               <MenuHead>Playback</MenuHead>
-              <MenuItem onClick={(close) => { seek((video.current?.currentTime ?? 0) - 30); close() }} label="Back 30 seconds">Back 30 s <Kbd>J</Kbd></MenuItem>
-              <MenuItem onClick={(close) => { seek((video.current?.currentTime ?? 0) + 30); close() }} label="Forward 30 seconds">Forward 30 s <Kbd>L</Kbd></MenuItem>
+              <MenuHead>Live captions</MenuHead>
+              {tracks.info?.captions.available ? (<>
+                <MenuItem active={tracks.sub.kind !== 'live'} onClick={(close) => { if (tracks.sub.kind === 'live') tracks.pickSub({ kind: 'off' }); close() }}>Off</MenuItem>
+                <MenuItem active={tracks.sub.kind === 'live' && !tracks.sub.original} onClick={(close) => { tracks.pickSub({ kind: 'live' }); close() }}>English (translated)</MenuItem>
+                <MenuItem active={tracks.sub.kind === 'live' && !!tracks.sub.original} onClick={(close) => { tracks.pickSub({ kind: 'live', original: true }); close() }}>Original language</MenuItem>
+              </>) : <span className="max-w-[13rem] px-2.5 py-1 text-[11px] leading-snug text-muted">{tracks.info ? <>Needs <code>pip install faster-whisper</code></> : 'Loading…'}</span>}
+              <MenuHead>Playback</MenuHead>
               <MenuItem onClick={() => { setLoop(!loop); flash(`Auto-repeat: ${loop ? 'OFF' : 'ON'}`) }} label="Loop" pressed={loop}>Auto-repeat <span className={loop ? 'text-emerald-400' : 'text-muted'}>{loop ? 'ON' : 'OFF'}</span></MenuItem>
             </PopMenu>
             <button type="button" className={BTN} onClick={full} aria-label="Full screen" title="Full screen (F)"><FullscreenIcon /></button>

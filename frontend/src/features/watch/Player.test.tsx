@@ -157,18 +157,11 @@ describe('Player control deck (minimal player look)', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()   // closes after a choice
     expect(screen.getByRole('button', { name: 'Speed 1.5x' })).toBeInTheDocument()
   })
-  it('the settings menu skips 30 seconds and toggles auto-repeat', () => {
+  it('the settings menu has no skip items, and toggles auto-repeat', () => {
     const { container } = mount()
     const v = container.querySelector('video')!
-    Object.defineProperty(v, 'duration', { value: 600, configurable: true })
-    v.currentTime = 100
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Forward 30 seconds' }))
-    expect(v.currentTime).toBe(130)
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Back 30 seconds' }))
-    expect(v.currentTime).toBe(100)
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    expect(screen.queryByRole('menuitem', { name: /Forward 30|Back 30/ })).toBeNull()
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Loop' }))
     expect(v.loop).toBe(true)
   })

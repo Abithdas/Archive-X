@@ -52,3 +52,25 @@ describe('Player audio / subtitle menu', () => {
     expect(container.querySelector('video')!.muted).toBe(true)
   })
 })
+
+describe('Player settings and tap skipping', () => {
+  it('offers live captions in the settings menu', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => (url.includes('/api/play/tracks/') ? json(tracks) : Promise.resolve(new Response('', { status: 404 })))))
+    render(<Player src="/stream/-1/1" media={{ cid: '-1', mid: 1 }} durationHint={60} onOpenVlc={() => {}} />)
+    await screen.findByRole('button', { name: 'Audio and subtitles' })
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    expect(screen.getByRole('menuitemradio', { name: 'English (translated)' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Original language' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    expect(screen.getByRole('menuitemradio', { name: 'Original language' })).toHaveAttribute('aria-checked', 'true')
+  })
+  it('keeps adding 10 s per tap on the right side, and shows the running total', () => {
+    const { container } = render(<Player src="/stream/-1/1" durationHint={600} onOpenVlc={() => {}} />)
+    const v = container.querySelector('video')!
+    Object.defineProperty(v, 'duration', { value: 600, configurable: true }); v.currentTime = 100
+    v.getBoundingClientRect = () => ({ left: 0, width: 1000, top: 0, height: 500, right: 1000, bottom: 500, x: 0, y: 0, toJSON() {} })
+    for (let i = 0; i < 3; i++) fireEvent.click(v, { clientX: 900 })
+    expect(v.currentTime).toBe(120)   // first tap arms, the next two skip
+    expect(screen.getByTestId('skip-indicator')).toHaveTextContent('20 seconds')
+  })
+})
