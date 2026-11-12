@@ -116,6 +116,6 @@ describe('Player with snapshots', () => {
     const { container } = render(<Player src="/stream/-1/1" durationHint={3600} onOpenVlc={() => {}} />)
     fireEvent.canPlay(container.querySelector('video')!)
     expect(screen.queryByRole('group', { name: /Video snapshots/ })).toBeNull()
-    expect(container.querySelector('button.size-16')).not.toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Play' }).some((b) => b.className.includes('size-12'))).toBe(true)   // the big round play button
   })
 })

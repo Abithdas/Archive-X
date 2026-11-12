@@ -143,3 +143,59 @@ describe('telegramLink', () => {
     expect(telegramLink('-1001234567890', 7)).toBe('https://t.me/c/1234567890/7')
   })
 })
+
+describe('Player control deck (minimal player look)', () => {
+  const mount = () => render(<Player src="/stream/-1/1" durationHint={600} onOpenVlc={() => {}} />)
+  it('the speed menu lists every speed, ticks the current one and applies a choice', () => {
+    const { container } = mount()
+    const v = container.querySelector('video')!
+    fireEvent.click(screen.getByRole('button', { name: 'Speed 1x' }))
+    const items = screen.getAllByRole('menuitemradio').map((i) => i.textContent)
+    expect(items).toEqual(['0.5x', '0.75x', '1x✓', '1.25x', '1.5x', '2x'])
+    fireEvent.click(screen.getByRole('menuitemradio', { name: '1.5x' }))
+    expect(v.playbackRate).toBe(1.5)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()   // closes after a choice
+    expect(screen.getByRole('button', { name: 'Speed 1.5x' })).toBeInTheDocument()
+  })
+  it('the settings menu skips 30 seconds and toggles auto-repeat', () => {
+    const { container } = mount()
+    const v = container.querySelector('video')!
+    Object.defineProperty(v, 'duration', { value: 600, configurable: true })
+    v.currentTime = 100
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Forward 30 seconds' }))
+    expect(v.currentTime).toBe(130)
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Back 30 seconds' }))
+    expect(v.currentTime).toBe(100)
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Loop' }))
+    expect(v.loop).toBe(true)
+  })
+  it('menus close with Escape or a click elsewhere, and only one is open at a time', () => {
+    mount()
+    fireEvent.click(screen.getByRole('button', { name: 'Speed 1x' }))
+    expect(screen.getByRole('menu', { name: 'Speed 1x' })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+  it('the buffer menu reports how much is buffered', () => {
+    mount()
+    fireEvent.click(screen.getByRole('button', { name: 'Buffer status' }))
+    expect(screen.getByRole('menu', { name: 'Buffer status' })).toHaveTextContent('Buffered0%')
+  })
+  it('the volume slider and mute button work', () => {
+    const { container } = mount()
+    const v = container.querySelector('video')!
+    const vol = screen.getByRole('slider', { name: 'Volume' })
+    expect(vol).toHaveAttribute('aria-valuenow', '100')
+    fireEvent.keyDown(vol, { key: 'ArrowLeft' })
+    expect(screen.getByRole('slider', { name: 'Volume' })).toHaveAttribute('aria-valuenow', '95')
+    fireEvent.click(screen.getByRole('button', { name: 'Mute' }))
+    expect(v.muted).toBe(true)
+    expect(screen.getByRole('slider', { name: 'Volume' })).toHaveAttribute('aria-valuenow', '0')
+  })
+})

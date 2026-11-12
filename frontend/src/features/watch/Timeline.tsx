@@ -75,15 +75,15 @@ export function Timeline({ time, duration, buffered, segments, preview, onSeek }
           <span className="rounded-md bg-black/80 px-2 py-0.5 text-xs font-bold tabular-nums text-white">{clock(tip.t)}</span>
         </div>
       ) : null}
-      <div className={cn('absolute inset-x-0 top-1/2 -translate-y-1/2 transition-[height] duration-150', tip || drag !== null ? 'h-2.5' : 'h-1.5')}>
-        <div className="absolute inset-0 overflow-hidden rounded-full bg-fg/15">
+      <div className={cn('absolute inset-x-0 top-1/2 -translate-y-1/2 transition-[height] duration-150', tip || drag !== null ? 'h-2' : 'h-1')}>
+        <div className="absolute inset-0 overflow-hidden rounded-full bg-fg/20">
           <span className="absolute inset-y-0 left-0 bg-fg/20" style={{ width: `${pct(buffered)}%` }} />
-          <span className="absolute inset-y-0 left-0 bg-accent" style={{ width: `${pct(shown)}%` }} />
+          <span className="absolute inset-y-0 left-0 bg-fg" style={{ width: `${pct(shown)}%` }} />
         </div>
         {segments.map((s, i) => (
           <span key={i} aria-hidden="true" data-segment={s.title} className="absolute inset-y-0 border-r-2 border-bg last:border-r-0" style={{ left: `${pct(s.start)}%`, width: `${pct(s.end) - pct(s.start)}%` }} />
         ))}
-        <span aria-hidden="true" className={cn('absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent shadow transition-transform', tip || drag !== null ? 'scale-100' : 'scale-0 group-focus-visible:scale-100')} style={{ left: `${pct(shown)}%` }} />
+        <span aria-hidden="true" className={cn('absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg shadow-md transition-transform', tip || drag !== null ? 'scale-100' : 'scale-0 group-focus-visible:scale-100')} style={{ left: `${pct(shown)}%` }} />
       </div>
     </div>
   )

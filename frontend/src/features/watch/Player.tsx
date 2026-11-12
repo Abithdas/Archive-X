@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SMART_FAILED, TRYING, initialMode, loadSmartStream, shouldFallBack, type Mode, type PlayInfo, type SmartApi } from './smartstream'
 import { Icon } from '@/design/Icon'
+import { BufferIcon, ChevronIcon, FullscreenIcon, GearIcon, NextIcon, PauseIcon, PipIcon, PlayIcon, PrevIcon, VolumeIcon } from './PlayerIcons'
+import { Divider, Kbd, MenuHead, MenuItem, MenuRow, PopMenu, VolumeBar } from './PlayerParts'
 import { cn } from '@/design/cn'
 import { formatDuration } from '@/features/library/format'
 import { SnapshotGrid, type SnapshotData } from './SnapshotGrid'
@@ -12,7 +14,7 @@ export const nextRate = (r: number) => RATES[(RATES.findIndex((x) => x === r) + 
 export const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) && dur > 0 ? Math.min(dur, t) : t)
 const clock = (s: number) => formatDuration(s) || '0:00'
 
-const BTN = 'grid size-9 place-items-center rounded-lg text-fg/90 hover:bg-fg/10 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent'
+const BTN = 'grid size-8 shrink-0 place-items-center rounded-md text-fg/85 transition-all hover:bg-fg/10 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent active:scale-95 disabled:opacity-35 disabled:hover:bg-transparent'
 
 /**
  * Native <video> with the classic player's control bar: seek, play, previous/next, ±30 s, speed, mute and volume,
@@ -23,7 +25,7 @@ export function Player({ info, infoPending = false, src, poster, durationHint, s
   const startApplied = useRef(false)
   const pendingStart = useRef<number | null>(null)
   const [started, setStarted] = useState(false)
-  useEffect(() => { startApplied.current = false; pendingStart.current = null; setStarted(false) }, [src])   // a new video may have its own start position
+  useEffect(() => { startApplied.current = false; pendingStart.current = null; setStarted(false); setRes('') }, [src])   // a new video may have its own start position
   const box = useRef<HTMLDivElement>(null)
   const [playing, setPlaying] = useState(false)
   const [time, setTime] = useState(0)
@@ -57,6 +59,7 @@ export function Player({ info, infoPending = false, src, poster, durationHint, s
   }, [ready, committed, info, smart, src])
   const [loop, setLoop] = useState(false)
   const [hint, setHint] = useState('')
+  const [res, setRes] = useState('')
   const tap = useRef<{ t: number; x: number } | null>(null)
   const tapTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -162,9 +165,10 @@ export function Player({ info, infoPending = false, src, poster, durationHint, s
     }
   }, [rate, muted, volume])
 
+  const buffer = dur > 0 ? Math.min(100, Math.round((buffered / dur) * 100)) : 0
   return (
-    <div ref={box} className="overflow-hidden rounded-[18px] border border-line bg-surface">
-      <div className="relative aspect-video w-full bg-black">
+    <div ref={box} className="grid gap-4 sm:gap-5">
+      <div className="group relative aspect-video w-full overflow-hidden rounded-[18px] bg-[#111215] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]">
         <video
           key={`${attempt}-${mode}`}
           ref={video}
@@ -183,6 +187,7 @@ export function Player({ info, infoPending = false, src, poster, durationHint, s
           onLoadedMetadata={(e) => {
             const v = e.currentTarget
             setDur(v.duration || durationHint || 0)
+            if (v.videoWidth) setRes(`${v.videoWidth} × ${v.videoHeight}`)
             // Start where the viewer chose to resume, once per video (a retry keeps the position it reached).
             if (pendingStart.current !== null) { v.currentTime = clampTime(pendingStart.current, v.duration || durationHint || 0); pendingStart.current = null; startApplied.current = true }
             else if (startAt > 0 && !startApplied.current) { startApplied.current = true; v.currentTime = clampTime(startAt, v.duration || durationHint || 0) }
@@ -205,46 +210,68 @@ export function Player({ info, infoPending = false, src, poster, durationHint, s
             if (mode === 'mse') setFailText(SMART_FAILED)
             setFailed(true); setLoading(false)
           }}
-          className="absolute inset-0 h-full w-full object-contain"
+          className="absolute inset-0 h-full w-full cursor-pointer object-contain"
         />
         {snapshots && !started && !failed ? <SnapshotGrid data={snapshots} onPick={pickTime} /> : null}
-        {hint ? <div role="status" className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/65 px-4 py-2 text-sm font-bold text-white">{hint}</div> : null}
-        {loading && !failed ? <div role="status" aria-label="Loading video" className="absolute inset-0 grid place-items-center"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-accent" /></div> : null}
+        {res ? <div aria-hidden="true" className="pointer-events-none absolute left-3.5 top-3.5 z-20 rounded-md border border-white/10 bg-[#121317]/75 px-2 py-0.5 text-[11px] font-semibold text-zinc-300 opacity-0 backdrop-blur-md transition-opacity duration-200 group-hover:opacity-100">{res}</div> : null}
+        {hint ? <div role="status" className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-[#141417]/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-md">{hint}</div> : null}
+        {loading && !failed ? <div role="status" aria-label="Loading video" className="absolute inset-0 grid place-items-center"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-white" /></div> : null}
         {!playing && !failed && !loading && !(snapshots && !started) ? (
-          <button type="button" onClick={toggle} aria-label="Play" className="absolute left-1/2 top-1/2 grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/65">
-            <Icon name="play" className="size-7" />
+          <button type="button" onClick={toggle} aria-label="Play" className="absolute left-1/2 top-1/2 z-20 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-[#1e1f23]/80 text-white shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95 sm:size-14">
+            <span className="ml-0.5"><PlayIcon cls="size-5 sm:size-6" /></span>
           </button>
         ) : null}
         {failed ? (
-          <div role="alert" className="absolute inset-0 grid content-center justify-items-center gap-3 bg-black/85 p-5 text-center">
-            <span className="grid size-12 place-items-center rounded-full bg-bad/20 text-xl font-bold text-bad">!</span>
-            <p className="max-w-lg text-lg font-bold leading-snug">{failText || 'This video could not be played from the original stream (the browser cannot decode this file, or Telegram is not connected).'}</p>
-            <p className="max-w-lg text-xs text-muted">Automatic conversion is off. You can retry the original stream or open it in VLC.</p>
+          <div role="alert" className="absolute inset-0 grid content-center justify-items-center gap-2 overflow-y-auto bg-black/85 p-3 text-center text-white sm:gap-3 sm:p-5">
+            <span className="hidden size-12 place-items-center rounded-full bg-bad/20 text-xl font-bold text-bad sm:grid">!</span>
+            <p className="max-w-lg text-sm font-bold leading-snug sm:text-lg">{failText || 'This video could not be played from the original stream (the browser cannot decode this file, or Telegram is not connected).'}</p>
+            <p className="hidden max-w-lg text-xs text-zinc-400 sm:block">Automatic conversion is off. You can retry the original stream or open it in VLC.</p>
             <div className="flex flex-wrap justify-center gap-2">
               <button type="button" onClick={() => setAttempt(attempt + 1)} className="h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Retry original</button>
-              <button type="button" onClick={onOpenVlc} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 bg-surface px-4 text-sm font-bold"><Icon name="brand-vlc" />Open in VLC</button>
+              <button type="button" onClick={onOpenVlc} className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-bold"><Icon name="brand-vlc" />Open in VLC</button>
             </div>
           </div>
         ) : null}
       </div>
-      <div className="grid gap-1 px-4 pb-3 pt-2">
-        <div className="flex justify-between text-xs font-semibold tabular-nums" aria-hidden="true"><span>{clock(time)}</span><span className="text-muted">{dur ? clock(dur) : '–:––'}</span></div>
-        <Timeline time={time} duration={dur} buffered={buffered} segments={segments} preview={preview} onSeek={seek} />
-        <div className="flex flex-wrap items-center gap-0.5">
-          <button type="button" className={BTN} onClick={onPrev} disabled={!onPrev} aria-label="Previous video" title="Previous (Shift+P)"><Icon name="arrow-left" /></button>
-          <button type="button" className={cn(BTN, 'size-10')} onClick={toggle} aria-label={playing ? 'Pause' : 'Play'} title="Play / pause (Space)"><Icon name={playing ? 'pause' : 'play'} /></button>
-          <button type="button" className={BTN} onClick={onNext} disabled={!onNext} aria-label="Next video" title="Next (N)"><Icon name="arrow-right" /></button>
-          <button type="button" className={BTN} onClick={() => seek((video.current?.currentTime ?? 0) - 30)} aria-label="Back 30 seconds" title="Back 30 seconds (J)"><Icon name="rewind" /></button>
-          <button type="button" className={BTN} onClick={() => seek((video.current?.currentTime ?? 0) + 30)} aria-label="Forward 30 seconds" title="Forward 30 seconds (L)"><Icon name="forward" /></button>
-          <span className="flex-1" />
-          <button type="button" className={cn(BTN, 'w-11 text-xs font-bold')} onClick={() => setRate(nextRate(rate))} aria-label={`Speed ${rate}x`} title="Speed">{rate}×</button>
-          <button type="button" className={cn(BTN, loop && 'bg-accent/20 text-accent')} onClick={() => setLoop(!loop)} aria-label="Loop" aria-pressed={loop} title="Loop this video"><Icon name="refresh" /></button>
-          <button type="button" className={cn(BTN, 'hidden sm:grid')} onClick={() => setMuted(!muted)} aria-label={muted ? 'Unmute' : 'Mute'} aria-pressed={muted} title="Mute (M)">
-            <span aria-hidden="true" className="text-base leading-none">{muted || volume === 0 ? '🔇' : '🔊'}</span>
-          </button>
-          <input type="range" min={0} max={1} step={0.05} value={muted ? 0 : volume} onChange={(e) => { setVolume(Number(e.target.value)); setMuted(false) }} aria-label="Volume" className="hidden h-1.5 w-20 accent-[var(--color-accent)] sm:block" />
-          <button type="button" className={cn(BTN, 'hidden sm:grid')} onClick={pip} aria-label="Picture in picture" title="Picture in picture"><Icon name="picture" /></button>
-          <button type="button" className={BTN} onClick={full} aria-label="Full screen" title="Full screen (F)"><Icon name="expand" /></button>
+      <div className="grid gap-3">
+        <div>
+          <div className="mb-1 flex items-center justify-between px-0.5 text-[13px] font-semibold tracking-tight tabular-nums" aria-hidden="true"><span>{clock(time)}</span><span className="font-medium text-muted">{dur ? clock(dur) : '–:––'}</span></div>
+          <Timeline time={time} duration={dur} buffered={buffered} segments={segments} preview={preview} onSeek={seek} />
+        </div>
+        <div className="flex items-center justify-between py-1 text-xs font-medium text-fg/80 sm:text-[13px]">
+          <div className="flex min-w-0 items-center gap-1 sm:gap-2.5">
+            <button type="button" className={BTN} onClick={onPrev} disabled={!onPrev} aria-label="Previous video" title="Previous (Shift+P)"><PrevIcon /></button>
+            <button type="button" className={BTN} onClick={toggle} aria-label={playing ? 'Pause' : 'Play'} title="Play / pause (Space)">{playing ? <PauseIcon /> : <PlayIcon />}</button>
+            <button type="button" className={BTN} onClick={onNext} disabled={!onNext} aria-label="Next video" title="Next (N)"><NextIcon /></button>
+            <Divider />
+            <PopMenu label="Buffer status" align="left" button={<><BufferIcon /><span className={cn('size-1.5 rounded-full', buffer >= 99 ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-amber-400')} /><span className="hidden sm:inline">{buffer >= 99 ? 'Cached' : `${buffer}%`}</span><ChevronIcon /></>}>
+              <MenuHead>Buffer status</MenuHead>
+              <MenuRow k="Buffered" v={`${buffer}%`} good={buffer >= 99} />
+              <MenuRow k="Playback" v={mode === 'mse' ? 'Smart' : 'Direct'} />
+              {res ? <MenuRow k="Picture" v={res} /> : null}
+            </PopMenu>
+            <Divider />
+            <PopMenu label={`Speed ${rate}x`} align="left" button={<><span>{rate}x</span><ChevronIcon /></>}>
+              {RATES.map((r) => (
+                <MenuItem key={r} active={r === rate} onClick={(close) => { setRate(r); flash(`Speed: ${r}x`); close() }}>{r}x</MenuItem>
+              ))}
+            </PopMenu>
+            <Divider />
+            <div className="flex items-center gap-1.5">
+              <button type="button" className={BTN} onClick={() => setMuted(!muted)} aria-label={muted ? 'Unmute' : 'Mute'} aria-pressed={muted} title="Mute (M)"><VolumeIcon muted={muted || volume === 0} /></button>
+              <VolumeBar value={muted ? 0 : volume} onChange={(v) => { setVolume(v); setMuted(false) }} />
+            </div>
+          </div>
+          <div className="flex items-center gap-1 sm:gap-2.5">
+            <button type="button" className={cn(BTN, 'hidden sm:grid')} onClick={pip} aria-label="Picture in picture" title="Picture in picture"><PipIcon /></button>
+            <PopMenu label="Settings" align="right" iconOnly button={<GearIcon />}>
+              <MenuHead>Playback</MenuHead>
+              <MenuItem onClick={(close) => { seek((video.current?.currentTime ?? 0) - 30); close() }} label="Back 30 seconds">Back 30 s <Kbd>J</Kbd></MenuItem>
+              <MenuItem onClick={(close) => { seek((video.current?.currentTime ?? 0) + 30); close() }} label="Forward 30 seconds">Forward 30 s <Kbd>L</Kbd></MenuItem>
+              <MenuItem onClick={() => { setLoop(!loop); flash(`Auto-repeat: ${loop ? 'OFF' : 'ON'}`) }} label="Loop" pressed={loop}>Auto-repeat <span className={loop ? 'text-emerald-400' : 'text-muted'}>{loop ? 'ON' : 'OFF'}</span></MenuItem>
+            </PopMenu>
+            <button type="button" className={BTN} onClick={full} aria-label="Full screen" title="Full screen (F)"><FullscreenIcon /></button>
+          </div>
         </div>
       </div>
     </div>
