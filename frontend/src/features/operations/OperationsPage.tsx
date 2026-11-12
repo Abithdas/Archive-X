@@ -54,10 +54,18 @@ const Card = ({ title, aside, children, className }: { title: string; aside?: Re
 
 const statusTone = (st: string): Tone => (/^(RUNNING|ACTIVE)$/.test(st) ? 'ok' : /^(FAILED|ERROR|CANCELLED)$/.test(st) ? 'bad' : /^(QUEUED|PAUSED|WAITING|RETRYING|COMPLETED_WITH_ERRORS)$/.test(st) ? 'warn' : 'neutral')
 
-function JobRow({ j }: { j: Obj }) {
+/** The jobs-list progress: files done of total when the job counts them, else the job's own percentage; "not yet measurable" only when it has neither. */
+export function listProgress(j: Obj): { known: boolean; percent: number; text: string } {
   const total = Number(j.total) || 0
-  const done = Number(j.completed) || 0
-  const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0
+  const done = Math.max(0, Number(j.completed) || 0)
+  if (total > 0) { const percent = Math.max(0, Math.min(100, Math.round((done / total) * 100))); return { known: true, percent, text: `${percent}% · ${done.toLocaleString()} / ${total.toLocaleString()}` } }
+  const p = Number(j.progress)
+  if (Number.isFinite(p) && p > 0) { const percent = Math.max(0, Math.min(100, p)); return { known: true, percent, text: `${percent.toFixed(percent < 10 ? 1 : 0)}%` } }
+  return { known: false, percent: 0, text: 'progress not yet measurable' }
+}
+
+function JobRow({ j }: { j: Obj }) {
+  const prog = listProgress(j)
   const st = String(j.status ?? '').toUpperCase()
   const [open, setOpen] = useState(false)
   const id = idOf(j)
@@ -69,10 +77,10 @@ function JobRow({ j }: { j: Obj }) {
         <span className={cn('shrink-0 rounded-full bg-surface-3 px-2.5 py-0.5 text-[11px] font-bold', TONE[statusTone(st)])}>{st.replace(/_/g, ' ')}</span>
       </div>
       <p className="mt-0.5 truncate text-xs text-muted">{String(j.operation || '')}</p>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={total ? pct : undefined}>
-        <span className={cn('block h-full rounded-full bg-accent', !total && 'w-1/3 animate-pulse')} style={total ? { width: `${pct}%` } : undefined} />
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={prog.known ? prog.percent : undefined}>
+        <span className={cn('block h-full rounded-full bg-accent transition-[width] duration-500', !prog.known && 'w-1/3 animate-pulse')} style={prog.known ? { width: `${prog.percent}%` } : undefined} />
       </div>
-      <p className="mt-1 text-[11px] text-faint">{total ? `${pct}% · ${done.toLocaleString()} / ${total.toLocaleString()}` : 'progress not yet measurable'}</p>
+      <p className="mt-1 text-[11px] text-faint">{prog.text}</p>
       <JobControls j={j} />
       {open ? <JobDetails id={id} onClose={() => setOpen(false)} /> : null}
     </li>
