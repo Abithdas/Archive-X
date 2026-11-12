@@ -224,11 +224,13 @@ export function Player({ info, infoPending = false, src, poster, durationHint, s
         {failed ? (
           <div role="alert" className="absolute inset-0 grid content-center justify-items-center gap-2 overflow-y-auto bg-black/85 p-3 text-center text-white sm:gap-3 sm:p-5">
             <span className="hidden size-12 place-items-center rounded-full bg-bad/20 text-xl font-bold text-bad sm:grid">!</span>
-            <p className="max-w-lg text-sm font-bold leading-snug sm:text-lg">{failText || 'This video could not be played from the original stream (the browser cannot decode this file, or Telegram is not connected).'}</p>
+            <p className="max-w-lg text-sm font-bold leading-snug sm:text-lg">
+              {failText ? failText : <><span className="sm:hidden">This video could not be played here.</span><span className="hidden sm:inline">This video could not be played from the original stream (the browser cannot decode this file, or Telegram is not connected).</span></>}
+            </p>
             <p className="hidden max-w-lg text-xs text-zinc-400 sm:block">Automatic conversion is off. You can retry the original stream or open it in VLC.</p>
             <div className="flex flex-wrap justify-center gap-2">
-              <button type="button" onClick={() => setAttempt(attempt + 1)} className="h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Retry original</button>
-              <button type="button" onClick={onOpenVlc} className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-bold"><Icon name="brand-vlc" />Open in VLC</button>
+              <button type="button" onClick={() => setAttempt(attempt + 1)} className="h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg sm:h-10 sm:px-4">Retry original</button>
+              <button type="button" onClick={onOpenVlc} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 text-sm font-bold sm:h-10 sm:px-4"><Icon name="brand-vlc" />Open in VLC</button>
             </div>
           </div>
         ) : null}
