@@ -74,3 +74,22 @@ describe('Player settings and tap skipping', () => {
     expect(screen.getByTestId('skip-indicator')).toHaveTextContent('20 seconds')
   })
 })
+
+describe('live caption model', () => {
+  it('starts the model download when live captions are chosen and shows the captions once ready', async () => {
+    let calls = 0
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.includes('/api/play/tracks/')) return json(tracks)
+      if (url.includes('/api/captions/status')) { calls++; return json({ model: calls > 1 ? 'ready' : 'preparing' }) }
+      if (url.includes('/api/play/captions/')) return json({ cues: [{ start: 0, end: 5, text: 'Hello from speech' }] })
+      return Promise.resolve(new Response('', { status: 404 }))
+    }))
+    const { container } = render(<Player src="/stream/-1/1" media={{ cid: '-1', mid: 1 }} durationHint={60} onOpenVlc={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Audio and subtitles' }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Live captions → English/ }))
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.some((c) => String(c[0]).includes('/api/captions/status?prepare=1'))).toBe(true))
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.some((c) => String(c[0]).includes('/api/play/captions/-1/1?start=0'))).toBe(true), { timeout: 4000 })
+    await act(async () => { fireEvent.timeUpdate(container.querySelector('video')!) })
+    await waitFor(() => expect(screen.getByTestId('caption')).toHaveTextContent('Hello from speech'))
+  })
+})

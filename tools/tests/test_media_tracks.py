@@ -93,3 +93,32 @@ def test_original_language_is_cached_separately(media, tmp_path):
         await svc.window("k", 0, None, get_wav, "transcribe")
     asyncio.run(go())
     assert seen == ["translate", "transcribe"]
+
+
+def test_window_waits_for_model_then_works(media, tmp_path):
+    from telegram_archive.playback import captions
+
+    class Slow:
+        name = "slow"
+        def prepare(self):
+            import time; time.sleep(0.2)
+        def transcribe_wav(self, wav, task="translate"):
+            return {"language": "en", "cues": []}
+    svc = captions.CaptionService(tmp_path, Slow())
+
+    async def get_wav(s, d):
+        return await tracks.audio_window_wav(media, s, 1.0)
+
+    async def go():
+        try:
+            await svc.window("k", 0, None, get_wav)
+            first = "ready"
+        except captions.CaptionsPreparing:
+            first = "preparing"
+        for _ in range(40):
+            if svc.model_state == "ready":
+                break
+            await asyncio.sleep(0.05)
+        await svc.window("k", 0, None, get_wav)
+        return first, svc.status()["model"]
+    assert asyncio.run(go()) == ("preparing", "ready")

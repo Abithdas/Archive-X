@@ -5,7 +5,7 @@ import asyncio
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 from ..playback import captions, tracks
 
@@ -90,8 +90,11 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
         return FileResponse(p, media_type="audio/mp4")
 
     @router.get("/api/captions/status")
-    async def captions_status(request: Request):
+    async def captions_status(request: Request, prepare: int = 0):
+        """?prepare=1 starts downloading/loading the speech model in the background; the player polls until model is "ready"."""
         require_auth(request)
+        if prepare and svc.status()["available"]:
+            svc.ensure_ready()
         return svc.status()
 
     @router.get("/api/play/captions/{channel_id}/{message_id}")
@@ -106,6 +109,8 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
             return await tracks.audio_window_wav(url, s, d, track)
         try:
             return await svc.window(f"{channel_id}_{message_id}", start, track, wav, "transcribe" if task == "transcribe" else "translate")
+        except captions.CaptionsPreparing:
+            return JSONResponse({"preparing": True, "cues": []}, status_code=202)
         except Exception as exc:
             raise HTTPException(502, f"Caption engine failed: {exc}") from exc
 

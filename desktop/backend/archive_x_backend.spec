@@ -23,6 +23,15 @@ datas = [
 datas += collect_data_files("av") + collect_data_files("cv2") + collect_data_files("certifi")
 binaries = collect_dynamic_libs("av") + collect_dynamic_libs("cv2")
 
+# Live captions (optional): bundle the speech engine and its native runtime when it is installed in the build environment.
+try:
+    from PyInstaller.utils.hooks import collect_all
+    for _pkg in ("faster_whisper", "ctranslate2", "tokenizers", "onnxruntime"):
+        _d, _b, _h = collect_all(_pkg)
+        datas += _d; binaries += _b; hiddenimports += _h
+except Exception:
+    pass
+
 a = Analysis([str(ROOT / "desktop" / "backend" / "entry.py")], pathex=[str(ROOT)], binaries=binaries, datas=datas,
              hiddenimports=hiddenimports, excludes=["tkinter", "pytest", "IPython"], noarchive=False)
 pyz = PYZ(a.pure)

@@ -1,8 +1,10 @@
+import { toast } from 'sonner'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { CAPTION_WINDOW, activeText, initialChoice, loadPrefs, mergeCues, parseVtt, savePrefs, windowStart, type AudioTrack, type Cue, type SubChoice, type TrackInfo } from './tracks'
 
 export interface MediaRef { cid: string; mid: number }
 export type LiveState = 'idle' | 'working' | 'error'
+type ModelState = 'idle' | 'preparing' | 'ready' | 'error'
 
 const getJson = async <T,>(url: string): Promise<T> => {
   const r = await fetch(url, { credentials: 'same-origin', cache: 'no-store' })
@@ -19,6 +21,7 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
   const [live, setLive] = useState<LiveState>('idle')
   const [altUrl, setAltUrl] = useState<string | null>(null)
   const [altBusy, setAltBusy] = useState(false)
+  const [model, setModel] = useState<ModelState>('idle')
   const fetched = useRef(new Set<number>())
   const key = media ? `${media.cid}/${media.mid}` : ''
 
@@ -45,20 +48,38 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
     return () => { dead = true }
   }, [key, sub])   // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Live captions need the speech model. Choosing them starts its download/load at once and tells the viewer in a pop-up outside the player.
+  useEffect(() => {
+    if (sub.kind !== 'live' || model === 'ready') return
+    let dead = false; let timer: ReturnType<typeof setTimeout> | undefined; let shown = false
+    const poll = () => getJson<{ model?: ModelState; model_error?: string }>('/api/captions/status?prepare=1').then((s) => {
+      if (dead) return
+      const m = s.model ?? 'ready'
+      setModel(m)
+      if (m === 'ready') { if (shown) toast.success('Live captions are ready', { id: 'caption-model' }); shown = false; return }
+      if (m === 'error') { toast.error(`Live captions could not start: ${s.model_error || 'speech model unavailable'}`, { id: 'caption-model' }); setLive('error'); shown = false; return }
+      if (!shown) { shown = true; toast.loading('Preparing live captions: downloading the speech model (first time only, can take a few minutes)…', { id: 'caption-model', duration: Infinity }) }
+      timer = setTimeout(poll, 2000)
+    }).catch(() => { if (!dead) { setModel('error'); setLive('error') } })
+    void poll()
+    return () => { dead = true; if (timer) clearTimeout(timer); if (shown) toast.dismiss('caption-model') }
+  }, [sub.kind, model])
+
   // Live captions: transcribe the 30 s window being watched, and fetch the next one ahead of time.
   useEffect(() => { fetched.current = new Set(); if (sub.kind === 'live') setCues([]) }, [sub.kind, sub.kind === 'live' && sub.original, audio, key])
   useEffect(() => {
-    if (!media || sub.kind !== 'live') return
+    if (!media || sub.kind !== 'live' || model !== 'ready') return
     const w = windowStart(time)
     const wanted = [w, w + CAPTION_WINDOW].filter((s) => !fetched.current.has(s))
     if (!wanted.length) return
     const s = wanted[0]!
     fetched.current.add(s)
     setLive('working')
-    getJson<{ cues: Cue[] }>(`/api/play/captions/${encodeURIComponent(media.cid)}/${media.mid}?start=${s}${audio !== null ? `&track=${audio}` : ''}${sub.original ? '&task=transcribe' : ''}`)
-      .then((r) => { setCues((c) => mergeCues(c, r.cues)); setLive('idle') })
+    getJson<{ cues: Cue[]; preparing?: boolean }>(`/api/play/captions/${encodeURIComponent(media.cid)}/${media.mid}?start=${s}${audio !== null ? `&track=${audio}` : ''}${sub.original ? '&task=transcribe' : ''}`)
+      .then((r) => { if (r.preparing) { fetched.current.delete(s); setModel('preparing'); setLive('idle'); return }
+        setCues((c) => mergeCues(c, r.cues)); setLive('idle') })
       .catch(() => { fetched.current.delete(s); setLive('error') })
-  }, [media, sub.kind, sub.kind === 'live' && sub.original, audio, Math.floor(time / 5), playing])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [media, sub.kind, sub.kind === 'live' && sub.original, audio, Math.floor(time / 5), playing, model])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Alternate audio: ask the server to build it, poll until it is ready.
   useEffect(() => {

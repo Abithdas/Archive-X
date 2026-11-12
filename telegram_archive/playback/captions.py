@@ -42,6 +42,11 @@ class FasterWhisperEngine:
         self._model: Any = None
         self._lock = threading.Lock()
 
+    def prepare(self) -> None:
+        """Load the model, downloading it first time (about 460 MB for "small")."""
+        with self._lock:
+            self._load()
+
     def _load(self):
         if self._model is None:
             from faster_whisper import WhisperModel  # type: ignore
@@ -67,6 +72,10 @@ def window_start(t: float) -> float:
     return max(0.0, (float(t) // WINDOW) * WINDOW)
 
 
+class CaptionsPreparing(Exception):
+    """The speech model is still downloading or loading."""
+
+
 class CaptionService:
     """Caches windows on disk and makes sure one window is never transcribed twice at once."""
 
@@ -74,11 +83,31 @@ class CaptionService:
         self.cache_dir = Path(cache_dir)
         self.engine = engine
         self._inflight: dict[tuple, asyncio.Future] = {}
+        self.model_state = "ready" if engine is not None and not hasattr(engine, "prepare") else "idle"   # idle | preparing | ready | error
+        self.model_error = ""
+        self._prep: asyncio.Task | None = None
+
+    def ensure_ready(self) -> bool:
+        """Start loading/downloading the model in the background if needed. True once it is ready."""
+        if self.model_state == "ready":
+            return True
+        if self.model_state in ("idle", "error") and (self._prep is None or self._prep.done()):
+            self.model_state, self.model_error = "preparing", ""
+            self._prep = asyncio.get_running_loop().create_task(self._prepare())
+        return False
+
+    async def _prepare(self) -> None:
+        try:
+            await asyncio.to_thread(self._engine().prepare)   # type: ignore[attr-defined]
+            self.model_state = "ready"
+        except Exception as exc:
+            self.model_state, self.model_error = "error", f"{type(exc).__name__}: {exc}"[:300]
 
     def status(self) -> dict:
         eng = self.engine
         return {"available": bool(eng) or available(), "engine": getattr(eng, "name", "faster-whisper") if (eng or available()) else "",
-                "install": "" if (eng or available()) else "pip install faster-whisper"}
+                "install": "" if (eng or available()) else "pip install faster-whisper",
+                "model": self.model_state, "model_error": self.model_error}
 
     def _engine(self) -> CaptionEngine:
         if self.engine is None:
@@ -93,6 +122,8 @@ class CaptionService:
     async def window(self, key: str, start: float, track: int | None, get_wav, task: str = "translate") -> dict:
         """Cues (absolute seconds) of the window beginning at `start`. `get_wav(start, duration)` is an async callable returning WAV bytes."""
         start = window_start(start)
+        if not self.ensure_ready():
+            raise CaptionsPreparing(self.model_state)
         path = self._path(key, start, track, task)
         if path.exists():
             try:
