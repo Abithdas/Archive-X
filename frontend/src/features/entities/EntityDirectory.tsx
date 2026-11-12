@@ -10,13 +10,12 @@ import { PageHead } from '@/design/PageHead'
 import { Segmented } from '@/design/Segmented'
 import { useSearch } from '@/app/search'
 import { SkeletonGroup } from '@/design/Skeleton'
-import { EntityCard, EntityCardSkeleton, StudioTile, StudioTileSkeleton } from './EntityCard'
+import { EntityCard, EntityCardSkeleton } from './EntityCard'
 import { Pagination } from '@/features/library/Pagination'
 import { filterEntities, pageCount, type GenderFilter } from './filter'
 import { FAILED, IDLE, NEED_SELECTION, SORTS, canCommit, commitLabel, confirmation, duplicatesOf, hint, mergeBody, modeLabel, pick, sortBy, successMessage, toggleMode, type MergeState, type SortKey } from './merge'
 
 const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-[18px] sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]'
-const STUDIO_GRID = 'grid grid-cols-1 gap-[18px] sm:grid-cols-[repeat(auto-fill,minmax(260px,1fr))]'
 const DEFAULT_PER = 12
 const COPY = {
   performers: { eyebrow: 'Library', title: 'Performers', blurb: 'Everyone linked to your videos', empty: 'No performers yet.' },
@@ -91,8 +90,8 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
       </div>
 
       {entities.isPending ? (
-        <SkeletonGroup label={`Loading ${copy.title.toLowerCase()}`} className={kind === 'studios' ? STUDIO_GRID : GRID}>
-          {Array.from({ length: 12 }, (_, i) => kind === 'studios' ? <StudioTileSkeleton key={i} /> : <EntityCardSkeleton key={i} />)}
+        <SkeletonGroup label={`Loading ${copy.title.toLowerCase()}`} className={GRID}>
+          {Array.from({ length: 12 }, (_, i) => <EntityCardSkeleton key={i} kind={kind} />)}
         </SkeletonGroup>
       ) : entities.isError ? (
         <div role="alert" className="grid place-items-center gap-3 rounded-card border border-line py-16 text-center">
@@ -105,9 +104,7 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
         </p>
       ) : (
         <>
-          {kind === 'studios'
-            ? <div className={STUDIO_GRID}>{visible.map((e) => <StudioTile key={e.id} entity={e} />)}</div>
-            : <div className={GRID}>{visible.map((e) => <EntityCard key={e.id} kind={kind} entity={e} merge={merging ? { keeper: merge.keepId === e.id, selected: merge.mergeIds.includes(e.id), onPick: () => pickCard(e.id) } : undefined} />)}</div>}
+          <div className={GRID}>{visible.map((e) => <EntityCard key={e.id} kind={kind} entity={e} merge={merging ? { keeper: merge.keepId === e.id, selected: merge.mergeIds.includes(e.id), onPick: () => pickCard(e.id) } : undefined} />)}</div>
           <Pagination page={current - 1} pages={pages} per={per} onPage={(n) => setPage(n + 1)} onPer={(n) => { setPer(n); setPage(1) }} />
         </>
       )}
