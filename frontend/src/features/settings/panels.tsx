@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { useStorage } from '@/api/hooks'
 import { Icon } from '@/design/Icon'
+import { ThemePreview } from './ThemePreview'
 import { Segmented } from '@/design/Segmented'
 import { Switch } from '@/design/Switch'
 import { cn } from '@/design/cn'
@@ -111,9 +112,7 @@ export function ExperiencePanel() {
   )
 }
 
-function Swatches({ colors }: { colors: string[] }) {
-  return <span className="flex gap-1.5 rounded-lg p-2" style={{ background: colors[0] }}>{colors.map((c, i) => <i key={i} className="h-6 flex-1 rounded-md" style={{ background: c }} aria-hidden="true" />)}</span>
-}
+const SIZE_NOTES: Record<number, string> = { 70: 'Fits more on screen', 100: 'The standard size', 130: 'Larger and easier to read' }
 
 export function AppearancePanel() {
   const { preset, mode, scale } = useAppearance()
@@ -124,42 +123,54 @@ export function AppearancePanel() {
   }
   return (
     <div className="grid gap-4">
-      <section aria-label="Appearance" className={BOX}>
-        <Head icon="grid" title="Appearance" count="Customize grid layout and density" />
-        <p className="mb-2 text-sm font-semibold text-muted">Zoom level</p>
-        <div className="mb-4 grid grid-cols-3 gap-3" role="group" aria-label="Application zoom level">
-          {SCALE_PRESETS.map((p) => (
-            <button key={p.id} type="button" aria-pressed={scale === p.value} onClick={() => void save(() => setScale(p.value), `Application zoom: ${p.value}%. Saved.`)} className={cn('rounded-2xl border p-4 text-center', scale === p.value ? 'border-accent bg-accent/10' : 'border-line hover:bg-fg/5')}>
-              <span className="mb-2 flex justify-center gap-1" aria-hidden="true">{Array.from({ length: p.value === 70 ? 4 : p.value === 100 ? 3 : 2 }, (_, i) => <i key={i} className="h-2 w-4 rounded-sm bg-surface-3" />)}</span>
-              <b className="block text-xs">{p.label}</b><small className="text-xs text-muted">{p.value}%</small>
-            </button>
-          ))}
-        </div>
-        <div className="mb-1 flex items-baseline justify-between"><label htmlFor="ui-scale" className="text-xs text-muted">Interface scale</label><b className="text-xl" aria-live="polite">{scale}%</b></div>
-        <input id="ui-scale" type="range" min={SCALE_MIN} max={SCALE_MAX} step={1} value={scale} aria-valuetext={`${scale} percent`} onChange={(e) => previewScale(Number(e.target.value))} onPointerUp={(e) => void save(() => setScale(Number((e.target as HTMLInputElement).value)), `Application zoom saved at ${(e.target as HTMLInputElement).value}%.`)} onKeyUp={(e) => void save(() => setScale(Number((e.target as HTMLInputElement).value)), `Application zoom saved at ${(e.target as HTMLInputElement).value}%.`)} className="w-full accent-[var(--color-accent)]" />
-        <div className="mt-1 flex justify-between text-[11px] text-faint" aria-hidden="true">{[70, 80, 90, 100, 110, 120, 130].map((n) => <span key={n}>{n}%</span>)}</div>
-        <p className="mt-3 text-xs text-muted">Shortcut: <kbd className="rounded border border-line-2 px-1.5">Ctrl</kbd> <kbd className="rounded border border-line-2 px-1.5">−</kbd> / <kbd className="rounded border border-line-2 px-1.5">+</kbd>, reset with <kbd className="rounded border border-line-2 px-1.5">Ctrl</kbd> <kbd className="rounded border border-line-2 px-1.5">0</kbd> · <button type="button" onClick={() => void save(() => setScale(100), 'Application zoom: 100%. Saved.')} className="text-accent underline">Reset</button></p>
-      </section>
       <section aria-label="Themes" className={BOX}>
-        <div className="mb-4 flex items-center justify-between gap-3"><h3 className="flex items-center gap-3 text-xl font-extrabold"><span className="text-accent"><Icon name="sparkle" className="size-5" /></span>Themes</h3>
-          <Segmented<Mode> label="Theme mode" value={mode} onChange={(m) => void save(() => setTheme(preset, m), `Theme: ${m === 'dark' ? 'Dark' : 'Light'}. Saved.`)} options={[{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }]} /></div>
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Theme presets">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="flex items-center gap-3 text-xl font-extrabold"><span className="text-accent"><Icon name="sparkle" className="size-5" /></span>Themes</h3>
+          <Segmented<Mode> label="Theme mode" value={mode} onChange={(m) => void save(() => setTheme(preset, m), `Theme: ${m === 'dark' ? 'Dark' : 'Light'}. Saved.`)} options={[{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }]} />
+        </div>
+        <p className="mb-4 text-sm text-muted">Pick a look for the whole app. Every theme comes in a dark and a light version; the switch above changes between them.</p>
+        <ul className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-4" aria-label="Theme presets">
           {THEMES.map((t) => {
             const p = t[mode]
+            const on = preset === t.id
             return (
               <li key={t.id}>
-                <button type="button" aria-pressed={preset === t.id} aria-label={t.name} onClick={() => void save(() => setTheme(t.id, mode), `Theme: ${t.name}. Saved.`)} className={cn('relative grid w-full gap-2 rounded-2xl border p-2 text-left', preset === t.id ? 'border-accent bg-accent/10' : 'border-line hover:bg-fg/5')}>
-                  <Swatches colors={[p.bg, p.surface2, p.accent, p.surface3]} />
-                  <b className="px-1 text-xs">{t.name}</b>
-                  {preset === t.id ? <span className="absolute right-3 top-3 grid size-5 place-items-center rounded-full bg-accent text-accent-fg" aria-hidden="true"><Icon name="check" className="size-3" /></span> : null}
+                <button type="button" aria-pressed={on} aria-label={t.name} onClick={() => void save(() => setTheme(t.id, mode), `Theme: ${t.name}. Saved.`)}
+                  className={cn('group relative grid w-full gap-2.5 rounded-2xl border p-2.5 text-left transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5', on ? 'border-accent shadow-[0_0_0_1px_var(--color-accent)]' : 'border-line-2 hover:border-fg/30')}>
+                  <ThemePreview c={{ bg: p.bg, surface: p.surface, card: p.surface2, thumb: p.surface3, text: p.text, muted: p.text3, accent: p.accent }} />
+                  <span className="flex items-center justify-between gap-2 px-1">
+                    <b className="truncate text-[13px]">{t.name}</b>
+                    {on ? <span className="inline-flex items-center gap-1 text-[11px] font-bold text-accent"><Icon name="check" className="size-3" />In use</span> : <span className="text-[11px] text-faint opacity-0 group-hover:opacity-100">Use</span>}
+                  </span>
                 </button>
               </li>
             )
           })}
         </ul>
         <p className="mt-3 text-xs text-muted" role="status">{status}</p>
-        <p className="mt-1 text-xs text-faint">Each theme includes light and dark variants.</p>
       </section>
+
+      <section aria-label="Appearance" className={BOX}>
+        <Head icon="grid" title="Display size" count="How large everything is" />
+        <div className="mb-4 grid grid-cols-3 gap-2.5" role="group" aria-label="Application zoom level">
+          {SCALE_PRESETS.map((p) => (
+            <button key={p.id} type="button" aria-pressed={scale === p.value} onClick={() => void save(() => setScale(p.value), `Application zoom: ${p.value}%. Saved.`)}
+              className={cn('rounded-2xl border px-3 py-3.5 text-center transition-colors', scale === p.value ? 'border-accent bg-accent/10' : 'border-line-2 hover:bg-fg/5')}>
+              <b className="block text-sm">{p.label}</b>
+              <small className="text-xs text-muted">{p.value}%</small>
+              <small className="mt-0.5 hidden text-[11px] text-faint sm:block">{SIZE_NOTES[p.value]}</small>
+            </button>
+          ))}
+        </div>
+        <div className="rounded-2xl border border-line bg-bg p-4">
+          <div className="mb-1 flex items-baseline justify-between"><label htmlFor="ui-scale" className="text-sm font-semibold">Fine-tune</label><b className="text-xl tabular-nums" aria-live="polite">{scale}%</b></div>
+          <input id="ui-scale" type="range" min={SCALE_MIN} max={SCALE_MAX} step={1} value={scale} aria-valuetext={`${scale} percent`} onChange={(e) => previewScale(Number(e.target.value))} onPointerUp={(e) => void save(() => setScale(Number((e.target as HTMLInputElement).value)), `Application zoom saved at ${(e.target as HTMLInputElement).value}%.`)} onKeyUp={(e) => { if (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End') void save(() => setScale(scale), `Application zoom saved at ${scale}%.`) }} aria-label="Interface scale" className="w-full accent-[var(--color-accent)]" />
+          <div className="mt-1 flex justify-between text-[11px] text-faint" aria-hidden="true">{[70, 100, 130].map((n) => <span key={n}>{n}%</span>)}</div>
+        </div>
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">Shortcuts: <kbd className="rounded border border-line-2 px-1.5">Ctrl</kbd> <kbd className="rounded border border-line-2 px-1.5">−</kbd> / <kbd className="rounded border border-line-2 px-1.5">+</kbd>, reset with <kbd className="rounded border border-line-2 px-1.5">Ctrl</kbd> <kbd className="rounded border border-line-2 px-1.5">0</kbd>
+          {scale !== 100 ? <button type="button" onClick={() => void save(() => setScale(100), 'Application zoom: 100%. Saved.')} className="font-semibold text-accent underline">Reset to 100%</button> : null}</p>
+      </section>
+
       <CustomThemes onStatus={setStatus} />
     </div>
   )

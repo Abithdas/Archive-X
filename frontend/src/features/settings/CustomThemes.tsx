@@ -6,6 +6,7 @@ import { cn } from '@/design/cn'
 import { ACTIVE_KEY, FIELDS, NAME_MAX, activeId, createTheme, normalizeTheme, pickerColor, readThemes, upsert, validColor, withVariant, writeThemes, type CustomPalette, type CustomTheme, type Mode, type PaletteKey } from '@/theme/custom'
 import { applyTheme, currentPalette, previewPalette, storedTheme } from '@/theme/themes'
 import { useAppearance, useAppearanceActions } from './useAppearance'
+import { ThemePreview } from './ThemePreview'
 
 const BTN = 'h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
 const PRIMARY = 'h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60'
@@ -17,7 +18,7 @@ function Chip({ theme, mode, active, onSelect, onDelete }: { theme: CustomTheme;
   return (
     <li className="relative">
       <button type="button" aria-pressed={active} aria-label={theme.name} title={theme.name} onClick={onSelect} className={cn('relative grid w-full gap-2 rounded-2xl border p-2 text-left', active ? 'border-accent bg-accent/10' : 'border-line hover:bg-fg/5')}>
-        <span className="flex gap-1.5 rounded-lg p-2" style={{ background: p.bg }} aria-hidden="true">{[p.bg, p.surface, p.primary, p.secondary].map((c, i) => <i key={i} className="h-6 flex-1 rounded-md" style={{ background: c }} />)}</span>
+        <ThemePreview c={{ bg: p.bg, surface: p.surface, card: p.surface, thumb: p.hover, text: p.text, muted: p.subtext, accent: p.primary }} />
         <b className="truncate px-1 text-xs">{theme.name}</b>
       </button>
       <button type="button" onClick={onDelete} aria-label={`Delete ${theme.name}`} title="Delete custom theme" className="absolute right-3 top-3 grid size-6 place-items-center rounded-full bg-black/55 text-white hover:bg-black/75"><Icon name="trash" className="size-3" /></button>
