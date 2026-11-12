@@ -1,7 +1,8 @@
 import { dropdownPosition } from '@/design/placement'
-import { useId, useRef } from 'react'
+import { useId, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Icon } from '@/design/Icon'
+import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
 import { photoName, ratio, type Photo } from './photos'
 
@@ -10,6 +11,9 @@ const OPTION = 'flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left te
 /** One photo tile at its own aspect ratio, with a ⋯ menu (open, copy filename, remove, delete from Telegram too). */
 export function PhotoCard({ photo, favorite, onOpen, onRemove, onDifferent }: { photo: Photo; favorite: boolean; onOpen: () => void; onRemove: (remote: boolean) => void; onDifferent?: () => void }) {
   const id = useId()
+  // The tile shimmers until its picture has arrived, then the picture fades in (a cached picture shows at once).
+  const [ready, setReady] = useState(false)
+  const [failed, setFailed] = useState(false)
   const pop = useRef<HTMLDivElement>(null)
   const btn = useRef<HTMLButtonElement>(null)
   const name = photoName(photo)
@@ -30,7 +34,9 @@ export function PhotoCard({ photo, favorite, onOpen, onRemove, onDifferent }: { 
   return (
     <article title={name} aria-label={name} className="group relative mb-2 block break-inside-avoid overflow-hidden rounded-xl border border-line bg-surface-2 sm:mb-3">
       <button type="button" onClick={onOpen} aria-label={`Open ${name}`} style={{ aspectRatio: ratio(photo) }} className="relative block w-full bg-surface-3">
-        <img src={photo.thumbnail_url} alt="" loading="lazy" decoding="async" draggable={false} className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
+        {!ready && !failed ? <Skeleton className="absolute inset-0 rounded-none" /> : null}
+        <img ref={(el) => { if (el?.complete && el.naturalWidth > 0) setReady(true) }} src={photo.thumbnail_url} alt="" loading="lazy" decoding="async" draggable={false} onLoad={() => setReady(true)} onError={() => { setFailed(true); setReady(true) }}
+          className={cn('absolute inset-0 size-full object-cover transition-[opacity,transform] duration-300 group-hover:scale-[1.03]', ready && !failed ? 'opacity-100' : 'opacity-0')} />
       </button>
       {favorite ? <span title="Favourite" aria-label="Favourite" className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/55 px-1.5 text-sm text-warn">★</span> : null}
       <button ref={btn} type="button" popoverTarget={id} aria-label={`More options for ${name}`} aria-haspopup="menu" title="More options" onClick={place}

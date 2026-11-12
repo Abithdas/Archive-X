@@ -72,6 +72,23 @@ describe('PhotosPage', () => {
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
   })
 
+  it('a tile shimmers until its picture arrives, then shows it; a picture that fails leaves a quiet tile', async () => {
+    mount()
+    await pickMain()
+    const tile = await screen.findByRole('button', { name: 'Open IMG_1.jpg' })
+    const img = tile.querySelector('img')!
+    const shimmer = () => tile.querySelector('span[aria-hidden="true"]')
+    expect(shimmer()).not.toBeNull()
+    expect(img.className).toContain('opacity-0')
+    fireEvent.load(img)
+    expect(shimmer()).toBeNull()
+    expect(img.className).toContain('opacity-100')
+    const other = (await screen.findByRole('button', { name: 'Open IMG_2.jpg' })).querySelector('img')!
+    fireEvent.error(other)
+    expect(other.closest('button')!.querySelector('span[aria-hidden="true"]')).toBeNull()
+    expect(other.className).toContain('opacity-0')
+  })
+
   it('explains an empty index', async () => {
     mount(() => undefined, [])
     await pickMain()
