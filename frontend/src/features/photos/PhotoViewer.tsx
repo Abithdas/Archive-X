@@ -2,9 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { createPortal } from 'react-dom'
 import { cn } from '@/design/cn'
 import { firstLoaded, loadImage } from './imageCache'
+import { IconClose, IconFit, IconFullscreen, IconNext, IconPause, IconPlay, IconPrev, IconRotateLeft, IconRotateRight, IconStar, IconZoomIn, IconZoomOut } from './ViewerIcons'
 import { MIN_REL, SLIDE_MS, SWIPE_PX, anchorPan, paddedBox, clampPan, clampScale, pinchScale, wheelFactor, wheelSteps, counterText, favKey, fitScale, hud, neighborUrls, photoName, rotate, stepIndex, stripRange, zoomBy, zoomPercent, type Photo } from './photos'
 
-const PILL = 'grid h-9 min-w-9 place-items-center rounded-full px-2.5 text-base font-semibold text-white hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-white/20'
+const PILL = 'grid size-10 shrink-0 place-items-center rounded-full text-white transition-colors hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-35 disabled:hover:bg-transparent aria-pressed:bg-white/20 sm:size-9'
+const NOBAR = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+const DIVIDER = 'mx-1 hidden h-5 w-px bg-white/25 sm:block'
 
 /** Full-screen photo viewer: preview first, original swapped in when ready; zoom, pan, rotate, slideshow, filmstrip, keyboard. */
 export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, onFavorite, onNeedMore }: {
@@ -196,15 +199,15 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
   return createPortal(
     <dialog ref={ref} aria-label="Photo viewer" onClose={onClose} onCancel={(e) => { e.preventDefault(); onClose() }} onClick={(e) => e.target === ref.current && onClose()}
       className="fixed inset-0 m-0 hidden h-[calc(100dvh/var(--ax-page-zoom,1))] max-h-none w-[calc(100vw/var(--ax-page-zoom,1))] max-w-none flex-col bg-black/95 p-0 text-white open:flex">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 py-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
-          <b className="max-w-[40vw] truncate text-sm" title={h.title}>{h.title}</b>
-          {[h.dims, h.mp, h.size, h.date].filter(Boolean).map((t) => <span key={t} className="rounded-full bg-white/10 px-2 py-0.5">{t}</span>)}
-          {h.channel ? <span className="max-w-[30vw] truncate rounded-full bg-white/10 px-2 py-0.5" title={h.channel}>{h.channel}</span> : null}
+      <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 px-3 pb-1 pt-[max(8px,env(safe-area-inset-top))] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-x-3 sm:py-2">
+        <b className="min-w-0 truncate text-sm sm:col-start-1 sm:row-start-1 sm:max-w-[34vw]" title={h.title}>{h.title}</b>
+        <div className={cn('col-span-2 row-start-2 flex min-w-0 items-center gap-1.5 overflow-x-auto text-xs sm:col-span-1 sm:col-start-2 sm:row-start-1', NOBAR)}>
+          {[h.dims, h.mp, h.size, h.date].filter(Boolean).map((t) => <span key={t} className="shrink-0 whitespace-nowrap rounded-full bg-white/10 px-2 py-0.5">{t}</span>)}
+          {h.channel ? <span className="max-w-[60vw] shrink-0 truncate rounded-full bg-white/10 px-2 py-0.5" title={h.channel}>{h.channel}</span> : null}
         </div>
-        <div className="flex items-center gap-2">
-          <span aria-live="polite" className="text-xs text-white/70">{counterText(index, total || items.length)}</span>
-          <button type="button" onClick={onClose} aria-label="Close photo viewer" title="Close (Esc)" className={PILL}>✕</button>
+        <div className="flex items-center gap-1 sm:col-start-3 sm:row-start-1">
+          <span aria-live="polite" className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold tabular-nums">{counterText(index, total || items.length)}</span>
+          <button type="button" onClick={onClose} aria-label="Close photo viewer" title="Close (Esc)" className={PILL}><IconClose /></button>
         </div>
       </div>
 
@@ -214,28 +217,32 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
         {slow ? <div role="status" aria-label="Loading selected photo" className="absolute inset-0 grid place-items-center"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-white" /></div> : null}
       </div>
 
-      <div className="shrink-0 px-3 pb-3">
-        <div ref={toolbar} role="toolbar" aria-label="Photo viewer controls" className="mx-auto mb-2 flex w-fit max-w-full flex-wrap items-center justify-center gap-0.5 rounded-full bg-white/10 px-2 py-1 backdrop-blur">
-          <button type="button" className={PILL} onClick={() => go(-1)} disabled={index <= 0} title="Previous photo (←)" aria-label="Previous photo">‹</button>
-          <button type="button" className={PILL} onClick={() => setPlaying(!playing)} aria-pressed={playing} title={playing ? 'Pause slideshow (Space)' : 'Play slideshow (Space)'} aria-label={playing ? 'Pause slideshow' : 'Play slideshow'}>{playing ? 'Ⅱ' : '▶'}</button>
-          <button type="button" className={PILL} onClick={() => go(1)} disabled={index >= items.length - 1} title="Next photo (→)" aria-label="Next photo">›</button>
-          <span aria-hidden="true" className="mx-1 h-5 w-px bg-white/25" />
-          <button type="button" className={PILL} onClick={() => zoomStep(-1)} title="Zoom out (↓)" aria-label="Zoom out">↓</button>
-          <span role="status" aria-live="polite" aria-label="Zoom level" className="min-w-12 text-center text-xs tabular-nums">{zoomPercent(scale, fit)}</span>
-          <button type="button" className={PILL} onClick={() => zoomStep(1)} title="Zoom in (↑)" aria-label="Zoom in">↑</button>
-          <button type="button" className={PILL} onClick={doFit} title="Fit full image (0)" aria-label="Fit image">Fit</button>
-          <span aria-hidden="true" className="mx-1 h-5 w-px bg-white/25" />
-          <button type="button" className={PILL} onClick={() => turn(-90)} title="Rotate counter-clockwise (Shift+R)" aria-label="Rotate counter-clockwise">↶</button>
-          <button type="button" className={PILL} onClick={() => turn(90)} title="Rotate clockwise (R)" aria-label="Rotate clockwise">↷</button>
-          <button type="button" className={cn(PILL, fav && 'text-warn')} onClick={() => onFavorite(item)} aria-pressed={fav} title={fav ? 'Remove from favourites' : 'Add to favourites'} aria-label={fav ? 'Remove from favourites' : 'Add to favourites'}>{fav ? '★' : '☆'}</button>
-          <button type="button" className={PILL} onClick={toggleFs} aria-pressed={fs} title="Toggle fullscreen (F)" aria-label="Toggle fullscreen">⛶</button>
+      <div className="shrink-0 px-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+        <div ref={toolbar} role="toolbar" aria-label="Photo viewer controls" className="mx-auto mb-2.5 flex w-full max-w-[420px] flex-col gap-0.5 rounded-3xl bg-white/10 p-1.5 backdrop-blur sm:w-fit sm:max-w-full sm:flex-row sm:items-center sm:gap-0.5 sm:rounded-full sm:px-2 sm:py-1">
+          <div className="flex items-center justify-center gap-1 sm:gap-0.5">
+            <button type="button" className={PILL} onClick={() => go(-1)} disabled={index <= 0} title="Previous photo (←)" aria-label="Previous photo"><IconPrev /></button>
+            <button type="button" className={PILL} onClick={() => setPlaying(!playing)} aria-pressed={playing} title={playing ? 'Pause slideshow (Space)' : 'Play slideshow (Space)'} aria-label={playing ? 'Pause slideshow' : 'Play slideshow'}>{playing ? <IconPause /> : <IconPlay />}</button>
+            <button type="button" className={PILL} onClick={() => go(1)} disabled={index >= items.length - 1} title="Next photo (→)" aria-label="Next photo"><IconNext /></button>
+          </div>
+          <span aria-hidden="true" className={DIVIDER} />
+          <div className="flex items-center justify-between sm:justify-center sm:gap-0.5">
+            <button type="button" className={PILL} onClick={() => zoomStep(-1)} title="Zoom out (↓)" aria-label="Zoom out"><IconZoomOut /></button>
+            <span role="status" aria-live="polite" aria-label="Zoom level" className="min-w-12 text-center text-xs font-semibold tabular-nums">{zoomPercent(scale, fit)}</span>
+            <button type="button" className={PILL} onClick={() => zoomStep(1)} title="Zoom in (↑)" aria-label="Zoom in"><IconZoomIn /></button>
+            <button type="button" className={PILL} onClick={doFit} title="Fit full image (0)" aria-label="Fit image"><IconFit /></button>
+            <span aria-hidden="true" className={DIVIDER} />
+            <button type="button" className={PILL} onClick={() => turn(-90)} title="Rotate counter-clockwise (Shift+R)" aria-label="Rotate counter-clockwise"><IconRotateLeft /></button>
+            <button type="button" className={PILL} onClick={() => turn(90)} title="Rotate clockwise (R)" aria-label="Rotate clockwise"><IconRotateRight /></button>
+            <button type="button" className={cn(PILL, fav && 'text-warn')} onClick={() => onFavorite(item)} aria-pressed={fav} title={fav ? 'Remove from favourites' : 'Add to favourites'} aria-label={fav ? 'Remove from favourites' : 'Add to favourites'}><IconStar on={fav} /></button>
+            <button type="button" className={PILL} onClick={toggleFs} aria-pressed={fs} title="Toggle fullscreen (F)" aria-label="Toggle fullscreen"><IconFullscreen on={fs} /></button>
+          </div>
         </div>
-        <div ref={strip} aria-label="Photo carousel" className="flex gap-1.5 overflow-x-auto pb-1">
+        <div ref={strip} aria-label="Photo carousel" className={cn('flex gap-1.5 overflow-x-auto', NOBAR)}>
           {items.slice(from, to).map((p, k) => {
             const i = from + k
             return (
               <button key={`${p.channel_id}:${p.message_id}`} type="button" onClick={() => onIndex(i)} aria-label={`Photo ${i + 1}: ${photoName(p)}`} aria-current={i === index ? 'true' : undefined}
-                className={cn('relative h-14 w-20 shrink-0 overflow-hidden rounded-lg border-2 opacity-70 hover:opacity-100', i === index ? 'border-accent opacity-100' : 'border-transparent')}>
+                className={cn('relative h-12 w-[68px] shrink-0 overflow-hidden rounded-lg border-2 opacity-70 hover:opacity-100 sm:h-14 sm:w-20', i === index ? 'border-accent opacity-100' : 'border-transparent')}>
                 <img src={p.thumbnail_url} alt="" loading="lazy" draggable={false} className="size-full object-cover" />
                 {favorites.has(favKey(p)) ? <span aria-hidden="true" className="absolute right-0.5 top-0 text-xs text-warn">★</span> : null}
               </button>
