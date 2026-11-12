@@ -16,7 +16,7 @@ const SHAPE = { performers: 'aspect-[2/3] rounded-[23px] border-white/[0.13]', s
 
 export interface MergePick { keeper: boolean; selected: boolean; onPick: () => void }
 
-export function EntityCard({ kind, entity, merge }: { kind: EntityKind; entity: Entity; merge?: MergePick }) {
+export function EntityCard({ kind, entity, merge, index = 0 }: { kind: EntityKind; entity: Entity; merge?: MergePick; index?: number }) {
   const [broken, setBroken] = useState(false)
   const [editing, setEditing] = useState(false)
   const studio = kind === 'studios'
@@ -24,7 +24,7 @@ export function EntityCard({ kind, entity, merge }: { kind: EntityKind; entity: 
   const img = broken ? { src: PLACEHOLDER } : responsive(imageUrl(kind, entity), '(max-width: 639px) 46vw, 260px')
   const ring = merge?.keeper ? 'border-good ring-2 ring-good/60' : merge?.selected ? 'border-warn ring-2 ring-warn/60' : ''
   return (
-    <article aria-label={entity.name} className="group relative">
+    <article aria-label={entity.name} style={{ '--i': index } as React.CSSProperties} className="card-in group relative">
       {merge ? (
         <button type="button" onClick={merge.onPick} aria-pressed={merge.keeper || merge.selected} aria-label={`${merge.keeper ? 'Keeper: ' : merge.selected ? 'Duplicate: ' : 'Choose '}${entity.name}`} className="absolute inset-0 z-10 rounded-[23px] outline-none focus-visible:ring-2 focus-visible:ring-accent" />
       ) : null}

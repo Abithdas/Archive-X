@@ -104,7 +104,7 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
         </p>
       ) : (
         <>
-          <div className={GRID}>{visible.map((e) => <EntityCard key={e.id} kind={kind} entity={e} merge={merging ? { keeper: merge.keepId === e.id, selected: merge.mergeIds.includes(e.id), onPick: () => pickCard(e.id) } : undefined} />)}</div>
+          <div className={GRID}>{visible.map((e, i) => <EntityCard key={e.id} index={i} kind={kind} entity={e} merge={merging ? { keeper: merge.keepId === e.id, selected: merge.mergeIds.includes(e.id), onPick: () => pickCard(e.id) } : undefined} />)}</div>
           <Pagination page={current - 1} pages={pages} per={per} onPage={(n) => setPage(n + 1)} onPer={(n) => { setPer(n); setPage(1) }} />
         </>
       )}

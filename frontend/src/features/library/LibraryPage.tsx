@@ -120,7 +120,7 @@ export function LibraryPage() {
           </h2>
           <ActiveFilters />
           <div className={cn(GRID, library.isPlaceholderData && 'opacity-60 transition-opacity')}>
-            <AnimatePresence mode="popLayout" initial={false}>
+            <AnimatePresence mode="popLayout">
               {library.data.items.map((item, i) => (
                 <motion.div key={`${item._cid}:${item.id}`} {...cardMotion(i)}>
                   <VideoCard item={item} />

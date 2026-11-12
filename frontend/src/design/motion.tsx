@@ -23,6 +23,6 @@ export const cardMotion = (index: number) =>
   ({
     layout: true,
     initial: { opacity: 0, y: 10 },
-    animate: { opacity: 1, y: 0, transition: { duration: timing.base, ease, delay: Math.min(index, 12) * 0.02 } },
+    animate: { opacity: 1, y: 0, transition: { duration: timing.base, ease, delay: Math.min(index, 16) * 0.035 } },
     exit: { opacity: 0, scale: 0.96, transition: { duration: timing.fast } },
   }) as const
