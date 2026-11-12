@@ -79,3 +79,20 @@ describe('Open console', () => {
     expect(within(dlg).queryByRole('button', { name: 'Stop' })).not.toBeInTheDocument()
   })
 })
+
+describe('Open console with no CLI output', () => {
+  it('shows the job activity log instead, with a note saying why', async () => {
+    mount('TELEGRAM_TRANSFER', [{ running: false, seq: 0, lines: [] }], (url) => url.startsWith('/api/jobs/job1') ? json({ activity: [{ id: 2, level: 'WARN', message: 'Retrying chunk' }, { id: 1, level: 'INFO', message: 'Started transfer' }] }) : undefined)
+    const dlg = await open()
+    await waitFor(() => expect(within(dlg).getByLabelText('CLI output')).toHaveTextContent('Started transfer'))
+    expect(within(dlg).getByLabelText('CLI output').textContent).toMatch(/INFO\s+Started transfer\nWARN\s+Retrying chunk/)
+    expect(within(dlg).getByText(/interactive CLI has no output for this job/)).toBeInTheDocument()
+  })
+  it('keeps the real CLI output when there is some', async () => {
+    mount('TELEGRAM_TRANSFER', [{ running: true, seq: 1, lines: [{ n: 1, t: 'Real CLI line' }] }], (url) => url.startsWith('/api/jobs/job1') ? json({ activity: [{ id: 1, message: 'Should not show' }] }) : undefined)
+    const dlg = await open()
+    await waitFor(() => expect(within(dlg).getByLabelText('CLI output')).toHaveTextContent('Real CLI line'))
+    expect(within(dlg).getByLabelText('CLI output')).not.toHaveTextContent('Should not show')
+    expect(within(dlg).queryByText(/interactive CLI has no output/)).not.toBeInTheDocument()
+  })
+})

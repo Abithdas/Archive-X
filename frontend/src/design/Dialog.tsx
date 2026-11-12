@@ -20,9 +20,11 @@ export function Dialog({ open, onClose, title, children, side = 'center', labell
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
       className={cn(
-        'fixed m-0 max-h-[calc((100dvh-24px)/(var(--ax-ui-zoom,1)*var(--ax-page-zoom,1)))] flex-col overflow-hidden rounded-[24px] border border-line-2 bg-surface p-4 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)] backdrop:bg-black/55 backdrop:backdrop-blur-sm open:flex',
+        'fixed m-0 flex-col overflow-hidden rounded-[24px] border border-line-2 bg-surface p-4 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)] backdrop:bg-black/55 backdrop:backdrop-blur-sm open:flex',
         wide ? 'w-[min(1040px,calc(100vw-24px))]' : 'w-[min(400px,calc(100vw-24px))]',
-        side === 'right' ? 'left-auto right-3 top-3 sm:right-4 sm:top-[72px]' : 'inset-0 m-auto',
+        side === 'right'
+          ? 'left-auto right-3 top-3 max-h-[calc((100dvh-24px)/(var(--ax-ui-zoom,1)*var(--ax-page-zoom,1)))] sm:right-4 sm:top-[72px] sm:max-h-[calc((100dvh-84px*var(--ax-ui-zoom,1)*var(--ax-page-zoom,1))/(var(--ax-ui-zoom,1)*var(--ax-page-zoom,1)))]'
+          : 'inset-0 m-auto max-h-[calc((100dvh-24px)/(var(--ax-ui-zoom,1)*var(--ax-page-zoom,1)))]',
       )}
     >
       <span aria-hidden="true" className="mx-auto mb-3 block h-1 w-9 shrink-0 rounded-full bg-fg/20 sm:hidden" />

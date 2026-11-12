@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
@@ -6,10 +6,10 @@ import { queryKeys } from '@/api/hooks'
 import { Confirm } from '@/design/Confirm'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
-import { NOT_WAITING, STOP_COPY, answerText, appendLines, consoleTitle, jobLine, liveOperation, nextDelay, panelFor, percent, pollUrl, type ConsoleState } from './console'
+import { FALLBACK_NOTE, NOT_WAITING, activityText, jobLogUrl, STOP_COPY, answerText, appendLines, consoleTitle, jobLine, liveOperation, nextDelay, panelFor, percent, pollUrl, type ConsoleState, type LogItem } from './console'
 
 /** Live view of the Telegram job manager: its output, current operation, any question it is asking, and Stop. */
-export function TransferConsole({ onClose }: { onClose: () => void }) {
+export function TransferConsole({ onClose, jobId }: { onClose: () => void; jobId?: string }) {
   const qc = useQueryClient()
   const [state, setState] = useState<ConsoleState | null>(null)
   const [text, setText] = useState('')
@@ -38,7 +38,6 @@ export function TransferConsole({ onClose }: { onClose: () => void }) {
     if (alive.current) timer.current = setTimeout(() => void poll.current(), nextDelay(running))
   }
   useEffect(() => { alive.current = true; void poll.current(); return () => { alive.current = false; clearTimeout(timer.current) } }, [])
-  useEffect(() => { const el = scroller.current; if (el && atEnd.current) el.scrollTop = el.scrollHeight }, [text])
 
   const send = async () => {
     const v = answerText(answer)
@@ -57,6 +56,11 @@ export function TransferConsole({ onClose }: { onClose: () => void }) {
       void qc.invalidateQueries({ queryKey: queryKeys.status })
     }
   }
+  const noCli = state !== null && !text
+  const jobLog = useQuery({ queryKey: ['job-log', jobId], enabled: Boolean(jobId) && noCli, refetchInterval: 2500, retry: false, queryFn: () => api<{ activity?: LogItem[] }>(jobLogUrl(jobId!)) })
+  const fallback = noCli && jobId ? activityText(jobLog.data?.activity ?? [], (iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString() }) : ''
+  const shown = text || fallback
+  useEffect(() => { const el = scroller.current; if (el && atEnd.current) el.scrollTop = el.scrollHeight }, [text, fallback])
   const s = state ?? {}
   const panel = panelFor(s)
   const pct = percent(s)
@@ -83,7 +87,8 @@ export function TransferConsole({ onClose }: { onClose: () => void }) {
             </div>
           ) : <div className="rounded-xl border border-line p-3"><b className="text-sm">{panel.title}</b><p className="mt-1 text-xs text-muted">{panel.help}</p></div>}
           <div><h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-muted">CLI output</h3>
-            <pre ref={scroller} aria-label="CLI output" tabIndex={0} onScroll={(e) => { const el = e.currentTarget; atEnd.current = el.scrollTop + el.clientHeight >= el.scrollHeight - 40 }} className="max-h-[40vh] min-h-32 overflow-auto whitespace-pre-wrap rounded-xl bg-black/40 p-3 font-mono text-xs [overflow-wrap:anywhere]">{text}</pre>
+            {!text && fallback ? <p className="mb-1 text-[11px] text-muted">{FALLBACK_NOTE}</p> : null}
+            <pre ref={scroller} aria-label="CLI output" tabIndex={0} onScroll={(e) => { const el = e.currentTarget; atEnd.current = el.scrollTop + el.clientHeight >= el.scrollHeight - 40 }} className="max-h-[40vh] min-h-32 overflow-auto whitespace-pre-wrap rounded-xl bg-black/40 p-3 font-mono text-xs [overflow-wrap:anywhere]">{shown}</pre>
           </div>
         </div>
       </Dialog>

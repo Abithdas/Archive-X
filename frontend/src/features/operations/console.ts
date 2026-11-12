@@ -46,3 +46,20 @@ export function panelFor(r: ConsoleState): Panel {
 export const answerText = (v: string) => v.trim()
 export const nextDelay = (running: boolean) => (running ? POLL_RUNNING_MS : POLL_IDLE_MS)
 export const pollUrl = (since: number) => `/api/telegram-transfer?since=${since}`
+
+/** When the interactive CLI printed nothing for this job (a background job, or the app restarted since), the job's own activity log is shown instead. */
+export const FALLBACK_NOTE = 'The interactive CLI has no output for this job (it ran in the background or before this session). Showing the job activity log instead.'
+export interface LogItem { id?: number | string; level?: string; message?: string; operation?: string; created_at?: string }
+export function activityText(items: readonly LogItem[], fmt: (iso: string) => string): string {
+  return [...items]
+    .sort((a, b) => Number(a.id ?? 0) - Number(b.id ?? 0))
+    .map((x) => {
+      const msg = String(x.message || x.operation || '').trim()
+      if (!msg) return ''
+      const when = x.created_at ? fmt(x.created_at) : ''
+      return `${when ? `${when}  ` : ''}${String(x.level || 'INFO').toUpperCase().padEnd(5)} ${msg}`
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+export const jobLogUrl = (id: string) => `/api/jobs/${encodeURIComponent(id)}?activity_limit=300`

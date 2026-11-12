@@ -97,7 +97,7 @@ export function JobControls({ j }: { j: Obj }) {
           {hasConsole(j) ? <button type="button" onClick={() => setConsole(true)} className={BTN}>Open console</button> : null}
         </>
       )}
-      {console_ ? <TransferConsole onClose={() => setConsole(false)} /> : null}
+      {console_ ? <TransferConsole jobId={idOf(j)} onClose={() => setConsole(false)} /> : null}
       {dialogs}
     </div>
   )

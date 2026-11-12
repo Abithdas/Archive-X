@@ -66,7 +66,7 @@ export function VideoCard({ item }: { item: LibraryItem }) {
         </button>
       </div>
       <div className={BODY}>
-        <div className="pr-[34px]">
+        <div className="h-9 pr-[34px]">
           <h3 className="line-clamp-2 text-sm font-bold leading-[18px] [overflow-wrap:anywhere]">
             <Link to="/watch/$cid/$mid" params={{ cid: item._cid, mid: String(item.id) }} className="outline-none after:absolute after:inset-0 after:z-0 focus-visible:after:ring-2 focus-visible:after:ring-accent">{item.name}</Link>
           </h3>
@@ -90,22 +90,26 @@ export function VideoCard({ item }: { item: LibraryItem }) {
             <span className="text-muted">Unknown performer</span>
           )}
         </div>
-        {place ? (
-          <div className="mt-1.5 flex items-center gap-[5px] text-xs text-faint">
-            <Icon name="send" className="size-[13px] text-[#4fb3ea]" />
-            <span className="truncate">{place}</span>
-          </div>
-        ) : null}
+        <div className="mt-1.5 flex h-4 items-center gap-[5px] text-xs text-faint">
+          {place ? (
+            <>
+              <Icon name="send" className="size-[13px] shrink-0 text-[#4fb3ea]" />
+              <span className="truncate">{place}</span>
+            </>
+          ) : null}
+        </div>
+        <div className="mt-2 h-6 overflow-hidden">
         {item.tags.length ? (
-          <ul className="mt-2 flex flex-wrap gap-x-[5px] gap-y-1">
+          <ul className="flex flex-nowrap gap-x-[5px] overflow-hidden">
             {item.tags.slice(0, 2).map((t, i) => (
-              <li key={t} className={cn('rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold', TAG_TINTS[i % 2])}>
+              <li key={t} className={cn('max-w-[60%] shrink-0 truncate rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold', TAG_TINTS[i % 2])}>
                 {t}
               </li>
             ))}
-            {item.tags.length > 2 ? <li className={cn('rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold', TAG_TINTS[2])}>+{item.tags.length - 2}</li> : null}
+            {item.tags.length > 2 ? <li className={cn('shrink-0 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold', TAG_TINTS[2])}>+{item.tags.length - 2}</li> : null}
           </ul>
         ) : null}
+        </div>
       </div>
       <CardMenu item={item} className="absolute right-[6px] top-[calc((100cqw-2px)*0.5625+10px)] z-10" />
     </article>
@@ -122,7 +126,7 @@ export function VideoCardSkeleton({ index = 0 }: { index?: number }) {
         <Skeleton className="absolute inset-0 rounded-none" />
       </div>
       <div className={BODY}>
-        <div className="pr-[34px] text-sm font-bold leading-[18px]">
+        <div className="h-9 pr-[34px] text-sm font-bold leading-[18px]">
           <SkeletonLine width={a} />
           <SkeletonLine width={b} />
         </div>
@@ -130,7 +134,8 @@ export function VideoCardSkeleton({ index = 0 }: { index?: number }) {
           <Skeleton className="size-[22px] rounded-full" />
           <Skeleton className="h-3 w-24 rounded" />
         </div>
-        <Skeleton className="mt-1.5 h-3 w-3/4 rounded" />
+        <div className="mt-1.5 flex h-4 items-center"><Skeleton className="h-3 w-3/4 rounded" /></div>
+        <div className="mt-2 h-6" />
       </div>
     </div>
   )

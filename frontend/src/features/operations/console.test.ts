@@ -28,3 +28,20 @@ describe('transfer console', () => {
   })
   it('small helpers', () => { expect(answerText('  y ')).toBe('y'); expect(nextDelay(true)).toBe(700); expect(nextDelay(false)).toBe(2500); expect(pollUrl(5)).toBe('/api/telegram-transfer?since=5') })
 })
+
+import { activityText, jobLogUrl, FALLBACK_NOTE } from './console'
+describe('job log fallback', () => {
+  it('formats activity oldest first with time and level', () => {
+    const t = activityText([{ id: 2, level: 'warn', message: 'Second' }, { id: 1, level: 'info', message: 'First', created_at: '2026-01-01T10:00:00Z' }], () => '10:00')
+    expect(t).toBe('10:00  INFO  First\nWARN  Second')
+  })
+  it('skips empty entries and defaults the level', () => {
+    expect(activityText([{ id: 1 }, { id: 2, message: 'x' }], () => '')).toBe('INFO  x')
+    expect(activityText([], () => '')).toBe('')
+  })
+  it('uses the operation when there is no message, and escapes the job id', () => {
+    expect(activityText([{ id: 1, operation: 'Scanning' }], () => '')).toBe('INFO  Scanning')
+    expect(jobLogUrl('a/b')).toBe('/api/jobs/a%2Fb?activity_limit=300')
+    expect(FALLBACK_NOTE).toMatch(/activity log/)
+  })
+})
