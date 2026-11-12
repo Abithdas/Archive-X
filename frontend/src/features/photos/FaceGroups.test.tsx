@@ -1,6 +1,8 @@
+import type React from 'react'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
+import { PeoplePage } from './PeoplePage'
 import { PhotosPage } from './PhotosPage'
 import { usePhotoStore } from './store'
 
@@ -16,7 +18,7 @@ const json = (b: unknown, code = 200) => new Response(JSON.stringify(b), { statu
 const G = (id: number, o = {}) => ({ id, label: `Face group ${id}`, performer_id: null, performer_name: '', photo_count: 3, face_count: 4, cluster_ids: [id], detection_ids: [id * 10], channel_ids: ['-1001'], representative_url: `/crop/${id}`, metadata_suggestions: [], confirmed_assignment_suggestions: [], ...o })
 const GROUPS = [G(1), G(2, { metadata_suggestions: [{ id: 5, name: 'Mia Rivera', basis: 'caption', reason: 'Exact text match in caption', image_url: '/p/5' }] }), G(-3, { performer_id: 3, performer_name: 'Ava Stone', cluster_ids: [3] })]
 type Call = { url: string; method: string; body?: Record<string, unknown> }
-const mount = (over: (u: string, i?: RequestInit) => Response | undefined = () => undefined, groups: unknown[] = GROUPS, analysis = { total_photos: 9, analyzed_photos: 5, failed_photos: 0 }) => {
+const mount = (over: (u: string, i?: RequestInit) => Response | undefined = () => undefined, groups: unknown[] = GROUPS, analysis = { total_photos: 9, analyzed_photos: 5, failed_photos: 0 }, Page: () => React.JSX.Element = PeoplePage) => {
   const calls: Call[] = []
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : undefined })
@@ -28,35 +30,34 @@ const mount = (over: (u: string, i?: RequestInit) => Response | undefined = () =
     if (url.startsWith('/api/photos?')) return json({ ok: true, items: [{ id: 1, channel_id: '-1001', message_id: 1, filename: 'a.jpg', size: 1, width: 10, height: 10, thumbnail_url: '/t', preview_url: '/p', image_url: '/i' }], total: 1, page: 0, per: 48 })
     return json({ ok: true })
   }))
-  withRouter(<PhotosPage />)
+  withRouter(<Page />)
   return calls
 }
 const posts = (c: Call[]) => c.filter((x) => x.method === 'POST')
-const openTab = async () => fireEvent.click(await screen.findByRole('tab', { name: /Image Analysis/ }))
+const openTab = async () => { await screen.findByRole('heading', { name: 'People' }) }
 
-describe('Image Analysis tab', () => {
+describe('People page', () => {
   it('lists the groups with their status and counts in the tab', async () => {
     mount(); await openTab()
     expect(await screen.findByRole('article', { name: 'Face group 1' })).toBeInTheDocument()
     expect(screen.getByRole('article', { name: 'Ava Stone' })).toHaveTextContent('Assigned · Ava Stone')
     expect(screen.getByRole('article', { name: 'Face group 1' })).toHaveTextContent('Needs performer review')
     expect(screen.getByText(/5 \/ 9 photos analyzed in the full indexed library · 3 visual groups/)).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /Image Analysis/ })).toHaveTextContent('3')
   })
   it('explains an empty analysis', async () => {
     mount(() => undefined, [], { total_photos: 0, analyzed_photos: 0, failed_photos: 0 }); await openTab()
     expect(await screen.findByText('No face groups yet')).toBeInTheDocument()
     expect(screen.getByText(/No indexed photos yet/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Analyze images for faces/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Find people/ })).toBeDisabled()
   })
-  it('asks before analysing and sends the selected channels', async () => {
+  it('asks before finding people, and downloads performer pictures and matches them', async () => {
     const calls = mount((u, i) => (u === '/api/photos/faces/analyze' && i?.method === 'POST' ? json({ id: 'job1' }) : u.startsWith('/api/photos/scan-status/') ? json({ status: 'COMPLETED', progress: 100 }) : undefined))
-    usePhotoStore.setState({ selected: ['-1001'] }); await openTab()
-    fireEvent.click(await screen.findByRole('button', { name: 'Analyze images for faces' }))
-    const ask = await screen.findByRole('dialog', { name: 'Analyze photos for faces?' })
-    expect(ask).toHaveTextContent('1 selected channel'); expect(posts(calls)).toHaveLength(0)
-    fireEvent.click(within(ask).getByRole('button', { name: 'Analyze images' }))
-    await waitFor(() => expect(posts(calls)[0]).toMatchObject({ url: '/api/photos/faces/analyze', body: { channel_ids: ['-1001'] } }))
+    await openTab()
+    fireEvent.click(await screen.findByRole('button', { name: 'Find people' }))
+    const ask = await screen.findByRole('dialog', { name: 'Find people?' })
+    expect(ask).toHaveTextContent('Download the available picture of every performer'); expect(posts(calls)).toHaveLength(0)
+    fireEvent.click(within(ask).getByRole('button', { name: 'Find people' }))
+    await waitFor(() => expect(posts(calls)[0]).toMatchObject({ url: '/api/photos/faces/analyze', body: { channel_ids: [], match_performers: true } }))
   })
   it('merges two or more clusters only after confirmation', async () => {
     const calls = mount(); await openTab()
@@ -98,12 +99,17 @@ describe('Image Analysis tab', () => {
     await waitFor(() => expect(posts(calls).at(-1)).toMatchObject({ url: '/api/photos/faces/suggestions/reject', body: { group_ids: [2], performer_id: 5, source: 'metadata' } }))
     expect(screen.queryByText('Suggestions from your previous confirmations')).not.toBeInTheDocument()
   })
-  it('opens a group\'s photos filtered by it, offers Different person there, and can clear the filter', async () => {
-    const calls = mount(); await openTab()
+  it('"View photos" on a person sets the photo filter and the channels they appear in', async () => {
+    mount(); await openTab()
     fireEvent.click(await screen.findByRole('button', { name: 'View photos in Face group 2' }))
+    await waitFor(() => expect(usePhotoStore.getState().face?.groupIds).toEqual([2]))
+    expect(usePhotoStore.getState().selected).toEqual(['-1001'])
+  })
+  it('on Photos, a person filter offers Different person on a photo and can be cleared', async () => {
+    usePhotoStore.setState({ selected: ['-1001'], face: { performerId: null, groupId: 2, groupIds: [2], label: 'Face group 2' } })
+    const calls = mount(() => undefined, GROUPS, { total_photos: 9, analyzed_photos: 5, failed_photos: 0 }, PhotosPage)
     expect(await screen.findByText('Face group · Face group 2')).toBeInTheDocument()
     await waitFor(() => expect(calls.some((c) => c.url.startsWith('/api/photos?') && c.url.includes('face_group_ids=2'))).toBe(true))
-    expect(usePhotoStore.getState().selected).toEqual(['-1001'])
     const card = await screen.findByRole('article', { name: 'a.jpg' })
     fireEvent.click(within(card).getByRole('menuitem', { name: /Different person/, hidden: true }))
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Different person?' })).getByRole('button', { name: 'Separate photo' }))

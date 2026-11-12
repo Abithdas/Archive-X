@@ -1,6 +1,7 @@
 import { aspectOf, assignColumns } from './masonry'
 import { useColumnCount } from './useColumnCount'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
@@ -13,7 +14,7 @@ import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
 import { ChannelChip } from '@/features/library/ChannelChip'
 import { useDebounced } from '@/features/library/useDebounced'
-import { FaceGroups, useFaceGroups } from './FaceGroups'
+import { useFaceGroups } from './FaceGroups'
 import { PeopleRow } from './PeopleRow'
 import { DIFFERENT_NEEDS_GROUP, differentBody, differentCopy, filterLabel } from './faces'
 import { ChannelEditor } from '@/features/channels/ChannelEditor'
@@ -32,7 +33,7 @@ function Avatar({ channel }: { channel: PhotoChannel }) {
 }
 
 export function PhotosPage() {
-  const { selected, sort, favoritesOnly, favorites, tab, face, setTab, setFace, setSelected, setSort, setFavoritesOnly, toggleFavorite } = usePhotoStore()
+  const { selected, sort, favoritesOnly, favorites, face, setFace, setSelected, setSort, setFavoritesOnly, toggleFavorite } = usePhotoStore()
   const search = useDebounced(useSearch((s) => s.q).trim(), 300)
   const channels = usePhotoChannels()
   const qc = useQueryClient()
@@ -43,6 +44,7 @@ export function PhotosPage() {
   const [note, setNote] = useState('')
   const [editChannel, setEditChannel] = useState<string | null>(null)
   const sentinel = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
   const faces = useFaceGroups(selected, true)
   const [different, setDifferent] = useState<Photo | null>(null)
 
@@ -52,7 +54,7 @@ export function PhotosPage() {
   const favIds = useMemo(() => favorites, [favorites])
   const q = useInfiniteQuery({
     queryKey: ['photos', selected, search, sort, favoritesOnly, favoritesOnly ? [...favIds].sort() : null, face] as const,
-    enabled: selected.length > 0 && tab === 'library',
+    enabled: selected.length > 0,
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       const r = await api<PhotoPage>(photosUrl({ channels: selected, q: search, sort, favorites: favoritesOnly, favoriteIds: favIds, page: pageParam, face }))
@@ -142,18 +144,8 @@ export function PhotosPage() {
         </div>
       </section>
 
-      <div role="tablist" aria-label="Photo library sections" className="mb-4 flex gap-1.5 border-b border-line">
-        {([['library', 'Photo Library', total], ['faces', 'Image Analysis', faces.data?.groups?.length ?? 0]] as const).map(([v, label, n]) => (
-          <button key={v} type="button" role="tab" id={`photos-tab-${v}`} aria-selected={tab === v} tabIndex={tab === v ? 0 : -1} onClick={() => setTab(v)}
-            onKeyDown={(e) => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Home' || e.key === 'End') { e.preventDefault(); const next = e.key === 'Home' ? 'library' : e.key === 'End' ? 'faces' : v === 'library' ? 'faces' : 'library'; setTab(next); document.getElementById(`photos-tab-${next}`)?.focus() } }}
-            className={cn('-mb-px h-11 border-b-2 px-4 text-sm font-bold', tab === v ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg')}>
-            {label} <span className="ml-1 text-xs font-semibold text-faint">{Number(n).toLocaleString()}</span>
-          </button>
-        ))}
-      </div>
-      {tab === 'faces' ? <FaceGroups onView={() => undefined} /> : null}
-      {tab === 'library' ? <>
-      <PeopleRow groups={faces.data?.groups ?? []} />
+      <>
+      <PeopleRow groups={faces.data?.groups ?? []} onManage={() => void navigate({ to: '/people' })} />
       <div className="mb-3 flex flex-wrap items-center gap-3"><h2 className="text-lg font-bold">Photos</h2><span className="text-xs text-muted">{summaryText(total)}{selected.length ? ` · ${selected.length.toLocaleString()} channel${selected.length === 1 ? '' : 's'}` : ''}</span>
         {face ? <span className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">{filterLabel(face)}<button type="button" onClick={() => setFace(null)} className="rounded-full border border-accent/40 px-2 py-0.5 hover:bg-accent/10">Clear group filter</button></span> : null}</div>
       {!selected.length ? null : q.isPending ? (
@@ -174,7 +166,7 @@ export function PhotosPage() {
       <div ref={sentinel} aria-hidden="true" className="h-8" hidden={!hasNextPage}>{isFetchingNextPage ? <span className="mx-auto block size-5 animate-spin rounded-full border-2 border-line border-t-accent" /> : null}</div>
       {hasNextPage ? <div className="text-center"><button type="button" onClick={more} disabled={isFetchingNextPage} className="h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold">Load more</button></div> : null}
 
-      </> : null}
+      </>
       {viewer !== null && items[viewer] ? <PhotoViewer items={items} index={viewer} total={total} favorites={favorites} onIndex={setViewer} onClose={() => setViewer(null)} onFavorite={toggleFavorite} onNeedMore={more} /> : null}
       {different ? <Confirm title="Different person?" text={differentCopy} ok="Separate photo" danger busy={busy} onCancel={() => setDifferent(null)} onOk={() => void separate()} /> : null}
       {ask ? (() => { const c = deleteCopy(ask.remote, photoName(ask.photo), ask.photo.channel_title || 'this channel'); return <Confirm title={c.title} text={c.text} ok={c.ok} danger busy={busy} onCancel={() => setAsk(null)} onOk={() => void remove()} /> })() : null}

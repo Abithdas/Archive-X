@@ -8,6 +8,7 @@ import { OperationsPage } from '@/features/operations/OperationsPage'
 import { TransfersPage } from '@/features/transfers/TransfersPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
 import { PhotosPage } from '@/features/photos/PhotosPage'
+import { PeoplePage } from '@/features/photos/PeoplePage'
 import { AiPage } from '@/features/ai/AiPage'
 import { Shell } from './Shell'
 
@@ -55,6 +56,7 @@ const routeTree = root.addChildren([
   watch,
   createRoute({ getParentRoute: () => root, path: '/studios', component: () => <EntityDirectory kind="studios" /> }),
   createRoute({ getParentRoute: () => root, path: '/photos', component: PhotosPage }),
+  createRoute({ getParentRoute: () => root, path: '/people', component: PeoplePage }),
   createRoute({ getParentRoute: () => root, path: '/ai', component: AiPage }),
   createRoute({ getParentRoute: () => root, path: '/operations', component: OperationsPage }),
   createRoute({ getParentRoute: () => root, path: '/transfers', component: TransfersPage }),

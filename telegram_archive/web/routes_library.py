@@ -588,11 +588,12 @@ def register_library_routes(
         else:
             with db.reading() as rdb:
                 indexed = int(rdb.execute("SELECT COUNT(*) n FROM photo_library_items").fetchone()["n"] or 0)
+        match_performers = bool(body.get("match_performers")) if isinstance(body, dict) else False
         if not indexed:
             raise HTTPException(400, "No indexed photos found. Scan Telegram channels for images first.")
-        detail = {"source": "telegram", "workflow": "PHOTO_FACE_ANALYSIS", "channel_ids": channel_ids,
+        detail = {"match_performers": match_performers, "source": "telegram", "workflow": "PHOTO_FACE_ANALYSIS", "channel_ids": channel_ids,
                   "source_count": indexed, "source_mode": "PHOTO_FACE_ANALYSIS", "read_only": True,
-                  "image_based": True, "auto_identity_assignment": False}
+                  "image_based": True, "auto_identity_assignment": match_performers}
         jid = db.create_job("TELEGRAM_TRANSFER", ",".join(channel_ids) or "all indexed photos", "", False,
                             detail=json.dumps(detail, ensure_ascii=False, separators=(",", ":")))
         jobs.submit(jid)

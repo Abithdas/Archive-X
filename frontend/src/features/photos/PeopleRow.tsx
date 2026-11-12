@@ -20,18 +20,18 @@ function Face({ g, active, onPick }: { g: FaceGroup; active: boolean; onPick: ()
 }
 
 /** People across the top of the photo library. Click a person to see their photos; a person without a name opens Image Analysis to confirm who it is. */
-export function PeopleRow({ groups }: { groups: readonly FaceGroup[] }) {
-  const { face, setFace, setTab } = usePhotoStore()
+export function PeopleRow({ groups, onManage }: { groups: readonly FaceGroup[]; onManage: () => void }) {
+  const { face, setFace } = usePhotoStore()
   const row = peopleRow(groups)
   if (!row.length) return null
   return (
     <section aria-label="People" className="mb-4">
       <div className="mb-2 flex items-center justify-between"><h2 className="text-lg font-bold">People</h2>
-        <button type="button" onClick={() => setTab('faces')} className="text-xs font-semibold text-accent hover:underline">Manage people</button></div>
+        <button type="button" onClick={onManage} className="text-xs font-semibold text-accent hover:underline">Manage people</button></div>
       <div className="flex gap-3 overflow-x-auto pb-2 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {row.map((g) => {
           const active = face?.groupId === Number(g.id)
-          return <Face key={g.id} g={g} active={active} onPick={() => (active ? setFace(null) : isAssigned(g) || Number(g.photo_count ?? 0) > 0 ? setFace(viewFilter(g).filter) : setTab('faces'))} />
+          return <Face key={g.id} g={g} active={active} onPick={() => (active ? setFace(null) : isAssigned(g) || Number(g.photo_count ?? 0) > 0 ? setFace(viewFilter(g).filter) : onManage())} />
         })}
       </div>
     </section>

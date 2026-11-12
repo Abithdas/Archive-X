@@ -264,8 +264,18 @@ async def _ensure_photo_file(ctx, row) -> Path:
             await ctx.blocking(record_photo_cache, ctx.db, str(row["channel_id"]), int(row["message_id"]), info)
         return cached
 
+    pictures: dict[str, int] = {}
+    if match_people:
+        ctx.report(completed=0, total=0, current_item="", operation="Downloading performer pictures through the metadata APIs", force=True)
+        try:
+            pictures = await _download_performer_images(ctx)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            ctx.db.log(f"Performer picture download stopped: {type(exc).__name__}: {exc}", "WARN")
+
     client = getattr(ctx.telegram, "client", None)
-    if client is None or not getattr(ctx.telegram, "connected", False):
+    if rows and (client is None or not getattr(ctx.telegram, "connected", False)):
         raise RuntimeError("Telegram is disconnected and this photo is not cached locally")
     from .photo_channel_scanner import _is_photo_message
     channel_id = str(row["channel_id"])
@@ -551,12 +561,105 @@ def _separate_photo_detections(db, photo_id: int, group_ids: list[int]) -> list[
 # Face analysis job.
 # ==============================================================================
 
+
+# Auto-matching is deliberately strict; anything below it stays a suggestion for the user to confirm.
+_AUTO_MATCH_MIN_SCORE = 0.46      # mean SFace cosine between a group's faces and the performer's picture
+_AUTO_MATCH_MARGIN = 0.05         # and the best performer must beat the runner-up by this much
+_AUTO_MATCH_MIN_FACES = 2
+
+
+async def _download_performer_images(ctx) -> dict[str, int]:
+    """Fetch the best available artwork (through the metadata APIs) for every performer that has no local picture yet."""
+    from .performer_image_sync import refresh_performer_image
+    with ctx.db.reading() as rdb:
+        rows = rdb.execute(
+            """SELECT p.id FROM performers p
+               WHERE lower(trim(p.name))<>'unknown performer'
+                 AND NOT EXISTS (SELECT 1 FROM performer_image_cache c WHERE c.performer_id=p.id AND c.data IS NOT NULL)
+               ORDER BY p.id""").fetchall()
+    ids = [int(r["id"]) for r in rows]
+    got = failed = 0
+    for n, pid in enumerate(ids, start=1):
+        await ctx.checkpoint()
+        try:
+            result = await refresh_performer_image(ctx.db, pid, force_api=False)
+            got += 1 if result.get("ok") else 0
+            failed += 0 if result.get("ok") else 1
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            failed += 1
+        ctx.report(completed=n, total=len(ids), current_item="", operation=f"Downloading performer pictures · {n:,}/{len(ids):,}", force=(n == len(ids) or n % 5 == 0))
+    return {"wanted": len(ids), "downloaded": got, "unavailable": failed}
+
+
+def _auto_match_people(db) -> dict[str, int]:
+    """Name each unnamed face group after the performer whose profile-picture face matches it clearly. Everything else stays a suggestion."""
+    import numpy as np
+    with db.reading() as rdb:
+        perf = rdb.execute("SELECT performer_id,embedding_json FROM performer_face_embeddings WHERE embedding_json<>'[]'").fetchall()
+        groups = rdb.execute(
+            """SELECT g.id FROM photo_face_groups g
+               WHERE g.performer_id IS NULL AND EXISTS (SELECT 1 FROM photo_face_detections d WHERE d.group_id=g.id)""").fetchall()
+        rejected = {(int(r["group_id"]), int(r["performer_id"])) for r in rdb.execute(
+            "SELECT group_id,performer_id FROM photo_face_suggestion_feedback WHERE status='REJECTED'").fetchall()}
+    ids, mats = [], []
+    for r in perf:
+        try:
+            v = np.asarray(json.loads(r["embedding_json"]), dtype=np.float32)
+        except Exception:
+            continue
+        if v.shape == (128,) and np.isfinite(v).all() and float(np.linalg.norm(v)):
+            ids.append(int(r["performer_id"])); mats.append(v / float(np.linalg.norm(v)))
+    if not ids or not groups:
+        return {"matched": 0, "groups": len(groups), "performers_with_faces": len(ids)}
+    pm = np.stack(mats)
+    matched = 0
+    for g in groups:
+        gid = int(g["id"])
+        with db.reading() as rdb:
+            emb = rdb.execute(
+                """SELECT d.embedding_json FROM photo_face_detections d JOIN photo_face_analysis a ON a.photo_id=d.photo_id
+                   WHERE d.group_id=? AND a.status='COMPLETE' ORDER BY d.id DESC LIMIT 16""", (gid,)).fetchall()
+        vecs = []
+        for r in emb:
+            try:
+                v = np.asarray(json.loads(r["embedding_json"]), dtype=np.float32)
+            except Exception:
+                continue
+            if v.shape == (128,) and np.isfinite(v).all() and float(np.linalg.norm(v)):
+                vecs.append(v / float(np.linalg.norm(v)))
+        if len(vecs) < _AUTO_MATCH_MIN_FACES:
+            continue
+        scores = (np.stack(vecs) @ pm.T).mean(axis=0)
+        for i, pid in enumerate(ids):
+            if (gid, pid) in rejected:
+                scores[i] = -1.0
+        order = np.argsort(-scores)
+        best = float(scores[order[0]]); second = float(scores[order[1]]) if len(order) > 1 else -1.0
+        if best < _AUTO_MATCH_MIN_SCORE or best - second < _AUTO_MATCH_MARGIN:
+            continue
+        pid = ids[int(order[0])]
+        now = _now()
+        with db.lock:
+            db.conn.execute("UPDATE photo_face_groups SET performer_id=?,updated_at=? WHERE id=? AND performer_id IS NULL", (pid, now, gid))
+            db.conn.execute(
+                """INSERT INTO photo_face_suggestion_feedback(group_id,performer_id,source,status,similarity_score,reason,created_at,updated_at)
+                   VALUES(?,?,'profile_image','CONFIRMED',?,?,?,?)
+                   ON CONFLICT(group_id,performer_id,source) DO UPDATE SET status='CONFIRMED',similarity_score=excluded.similarity_score,reason=excluded.reason,updated_at=excluded.updated_at""",
+                (gid, pid, round(best, 4), "Matched automatically from the performer profile picture", now, now))
+            db.conn.commit()
+        matched += 1
+    return {"matched": matched, "groups": len(groups), "performers_with_faces": len(ids)}
+
+
 async def run(ctx) -> dict[str, Any]:
     """Analyze unprocessed indexed photos; produce anonymous, editable face groups."""
     try:
         detail = json.loads(ctx.job.get("detail") or "{}")
     except Exception:
         detail = {}
+    match_people = bool(detail.get("match_performers")) if isinstance(detail, dict) else False
     raw_channel_ids = detail.get("channel_ids") if isinstance(detail, dict) else []
     channel_ids = list(dict.fromkeys(_text(v) for v in (raw_channel_ids or []) if _text(v)))
     where = ["(a.photo_id IS NULL OR a.status<>'COMPLETE')"]
@@ -571,7 +674,7 @@ async def run(ctx) -> dict[str, Any]:
                 FROM photo_library_items p LEFT JOIN photo_face_analysis a ON a.photo_id=p.id
                 WHERE {' AND '.join(where)} ORDER BY p.message_date DESC,p.id DESC""", params
         ).fetchall()
-    if not rows:
+    if not rows and not match_people:
         with ctx.db.reading() as rdb:
             total = int(rdb.execute("SELECT COUNT(*) n FROM photo_library_items" + (f" WHERE channel_id IN ({','.join('?' for _ in channel_ids)})" if channel_ids else ""), channel_ids).fetchone()["n"] or 0)
         summary = "No indexed photos to analyze" if total == 0 else "All indexed photos in this selection have already been analyzed"
@@ -627,7 +730,18 @@ async def run(ctx) -> dict[str, Any]:
                    force=(index == len(rows) or index % 5 == 0))
     with ctx.db.reading() as rdb:
         groups_count = int(rdb.execute("SELECT COUNT(*) n FROM photo_face_groups g WHERE EXISTS (SELECT 1 FROM photo_face_detections d WHERE d.group_id=g.id)").fetchone()["n"] or 0)
+    matched_info: dict[str, int] = {}
+    if match_people:
+        ctx.report(completed=len(rows), total=len(rows), current_item="", operation="Matching faces with performer pictures", force=True)
+        try:
+            matched_info = await ctx.blocking(_auto_match_people, ctx.db)
+        except Exception as exc:
+            ctx.db.log(f"Performer face matching failed: {type(exc).__name__}: {exc}", "WARN")
+        with ctx.db.reading() as rdb:
+            groups_count = int(rdb.execute("SELECT COUNT(*) n FROM photo_face_groups g WHERE EXISTS (SELECT 1 FROM photo_face_detections d WHERE d.group_id=g.id)").fetchone()["n"] or 0)
     summary = f"Analyzed {analyzed:,} photo(s); detected {faces_total:,} face(s) in {groups_count:,} visual groups"
+    if match_people:
+        summary += f"; downloaded {pictures.get('downloaded', 0):,} performer picture(s); named {matched_info.get('matched', 0):,} group(s) from performer pictures"
     if failed:
         summary += f"; {failed:,} photo(s) failed and can be retried"
     from ..core.job_results import record as record_job_result

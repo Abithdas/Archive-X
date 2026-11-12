@@ -15,7 +15,7 @@ export type Tone = '' | 'success' | 'error'
 export const LOAD_FAILED = 'Could not load face groups.'
 export const EMPTY_TITLE = 'No face groups yet'
 export const EMPTY_BODY = 'Archive X groups similar faces from indexed image pixels, not filenames. Run Image scan in Metadata & Assets Manager first; groups stay anonymous until you confirm an assignment.'
-export const INTRO = 'Face groups are built from image pixels. Suggestions can use exact source-text matches or similarity to groups you previously confirmed. Every new performer assignment requires your confirmation.'
+export const INTRO = 'People are built from image pixels. Find people downloads every performer picture, groups the faces in your photos and names clear matches automatically; the rest are suggestions (profile picture, source text, or your earlier confirmations). Suggestions need your confirmation.'
 export const UNANALYZED = 'Face analysis has not been run yet. Run Image scan in Metadata & Assets Manager first so channel images are indexed.'
 export const NEEDS_PERFORMER = 'Search and select a local performer before saving this assignment.'
 export const JOB_END = ['COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED', 'CANCELLED', 'INTERRUPTED']
@@ -38,14 +38,14 @@ export function analysisStatus(groups: readonly FaceGroup[], a: Analysis, select
     else if (done >= total && failed === 0) { text = 'Analysis finished, but no faces were detected in this selection.' }
   }
   const complete = total > 0 && done >= total && failed === 0
-  return { text, tone, analyzeLabel: watching ? 'Analyzing images…' : complete ? 'All images analyzed' : failed ? 'Retry failed images' : 'Analyze images for faces', analyzeDisabled: watching || total === 0 || complete }
+  return { text, tone, analyzeLabel: watching ? 'Finding people…' : complete ? 'Find people again' : failed ? 'Retry failed images' : 'Find people', analyzeDisabled: watching || total === 0 }
 }
 
 export const analyzeCopy = (channels: number) => {
-  const scope = channels ? `${channels} selected channel${channels === 1 ? '' : 's'}` : 'the entire indexed Photos library'
-  return { title: 'Analyze photos for faces?', ok: 'Analyze images', text: `Analyze image pixels in ${scope} to detect faces and cluster visually similar faces?\n\nThis is processed locally. Archive X will create anonymous face groups and will not automatically assign real performer names. You can assign each group manually after reviewing it. First run downloads the local OpenCV models (about 38 MB).` }
+  const scope = channels ? `${channels} selected channel${channels === 1 ? '' : 's'}` : 'your whole indexed photo library'
+  return { title: 'Find people?', ok: 'Find people', text: `Archive X will:\n\n1. Download the available picture of every performer through your metadata APIs.\n2. Detect and group the faces in ${scope}, on this PC.\n3. Name each group after the performer whose picture it clearly matches. Weaker matches stay as suggestions for you to confirm, and you can change any name.\n\nThe first run downloads the local face models (about 38 MB) and can take a while.` }
 }
-export const analyzeBody = (channels: readonly string[]) => ({ channel_ids: [...channels] })
+export const analyzeBody = (channels: readonly string[]) => ({ channel_ids: [...channels], match_performers: true })
 export const jobStatusText = (status: string, progress: unknown, current: unknown) => `Image-based face analysis ${String(status).toLowerCase().replaceAll('_', ' ')} · ${Number(progress || 0).toFixed(0)}%${String(current ?? '').trim() ? ` · ${String(current).trim()}` : ''}`
 export const jobDone = (status: string) => JOB_END.includes(String(status).toUpperCase())
 export const jobEndText = (status: string) => (status === 'COMPLETED' || status === 'COMPLETED_WITH_ERRORS' ? 'Face analysis complete. Refreshing visual groups…' : `Face analysis ${status.toLowerCase().replaceAll('_', ' ')}. Check Operations for details; failed images can be retried.`)

@@ -10,6 +10,7 @@ import { ReferenceReview } from './ReferenceReview'
 import { usePhotoStore } from './store'
 import { withWidth } from '@/design/responsive'
 
+const NO_CHANNELS: string[] = []
 const BTN = 'h-9 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
 const PRIMARY = 'h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg disabled:opacity-50'
 const reason = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.detail : e instanceof Error && e.message ? e.message : fb)
@@ -120,7 +121,8 @@ export function useFaceGroups(selected: readonly string[], enabled = true) {
 
 /** The Image Analysis tab: anonymous face groups, with analysis, merge, split, and manual or suggested performer assignment. */
 export function FaceGroups({ onView }: { onView: () => void }) {
-  const { selected, setSelected, setFace, setTab } = usePhotoStore()
+  const { setSelected, setFace } = usePhotoStore()
+  const selected = NO_CHANNELS   // People covers the whole photo library, whatever channels Photos has selected
   const qc = useQueryClient()
   const q = useFaceGroups(selected)
   const groups = q.data?.groups ?? []
@@ -206,13 +208,13 @@ export function FaceGroups({ onView }: { onView: () => void }) {
       say(REJECTED, 'success'); await refresh()
     } catch (e) { say(reason(e, 'Could not reject this suggestion.'), 'error') } finally { setBusy(false) }
   }
-  const view = (g: FaceGroup) => { const v = viewFilter(g); if (v.channels.length) setSelected(v.channels); setFace(v.filter); setTab('library'); onView() }
+  const view = (g: FaceGroup) => { const v = viewFilter(g); if (v.channels.length) setSelected(v.channels); setFace(v.filter); onView() }
   const toggle = (id: number) => setClusters((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   return (
-    <section role="tabpanel" aria-label="Image Analysis" className="grid gap-4">
+    <section aria-label="People" className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 max-w-3xl"><h2 className="text-lg font-bold">Face groups</h2><p className="text-xs text-muted">{INTRO}</p></div>
+        <div className="min-w-0 max-w-3xl"><p className="text-sm text-muted">{INTRO}</p></div>
         <button type="button" disabled={!st || st.analyzeDisabled} onClick={analyze} className={cn(PRIMARY, 'inline-flex h-10 items-center gap-2')}><Icon name="images" className="size-4" />{st?.analyzeLabel ?? 'Analyze images for faces'}</button>
       </div>
       <p role="status" aria-live="polite" className={cn('text-sm', shown.tone === 'error' ? 'text-bad' : shown.tone === 'success' ? 'text-good' : 'text-muted')}>{q.isError ? reason(q.error, LOAD_FAILED) : shown.text}</p>

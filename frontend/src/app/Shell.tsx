@@ -24,6 +24,7 @@ interface NavDef {
 const GROUPS: { title: string; items: NavDef[] }[] = [
   { title: 'Library', items: [
     { to: '/photos', label: 'Photos', icon: 'images' },
+    { to: '/people', label: 'People', icon: 'user' },
     { to: '/videos', label: 'Videos', icon: 'library' },
     { to: '/performers', label: 'Performers', icon: 'user' },
     { to: '/studios', label: 'Studios', icon: 'studio' },

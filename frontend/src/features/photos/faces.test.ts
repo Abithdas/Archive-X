@@ -10,14 +10,14 @@ describe('face groups', () => {
     expect(assignedText(g())).toBe('Needs performer review'); expect(assignedText(g({ performer_id: 1, performer_name: 'Ava' }))).toBe('Assigned · Ava'); expect(firstDetection(g())).toBe(11); expect(firstDetection({ id: 1 })).toBe(0)
   })
   it('summarises the analysis and the analyze button', () => {
-    expect(analysisStatus([g()], { total_photos: 32, analyzed_photos: 9, failed_photos: 0 }, 0, false)).toMatchObject({ tone: 'success', analyzeDisabled: false, analyzeLabel: 'Analyze images for faces', text: '9 / 32 photos analyzed in the full indexed library · 1 visual groups. Groups are based on image pixels, not filenames.' })
+    expect(analysisStatus([g()], { total_photos: 32, analyzed_photos: 9, failed_photos: 0 }, 0, false)).toMatchObject({ tone: 'success', analyzeDisabled: false, analyzeLabel: 'Find people', text: '9 / 32 photos analyzed in the full indexed library · 1 visual groups. Groups are based on image pixels, not filenames.' })
     expect(analysisStatus([], { total_photos: 0 }, 0, false)).toMatchObject({ analyzeDisabled: true, text: expect.stringMatching(/No indexed photos yet/) })
-    expect(analysisStatus([], { total_photos: 5, analyzed_photos: 5 }, 2, false)).toMatchObject({ text: 'Analysis finished, but no faces were detected in this selection.', analyzeLabel: 'All images analyzed', analyzeDisabled: true })
+    expect(analysisStatus([], { total_photos: 5, analyzed_photos: 5 }, 2, false)).toMatchObject({ text: 'Analysis finished, but no faces were detected in this selection.', analyzeLabel: 'Find people again', analyzeDisabled: false })
     expect(analysisStatus([g()], { total_photos: 5, analyzed_photos: 4, failed_photos: 1 }, 2, false)).toMatchObject({ tone: 'error', analyzeLabel: 'Retry failed images', text: expect.stringContaining('1 failed (can retry)') })
-    expect(analysisStatus([g()], { total_photos: 5 }, 0, true)).toMatchObject({ analyzeDisabled: true, analyzeLabel: 'Analyzing images…' })
+    expect(analysisStatus([g()], { total_photos: 5 }, 0, true)).toMatchObject({ analyzeDisabled: true, analyzeLabel: 'Finding people…' })
   })
   it('words the analyze job', () => {
-    expect(analyzeCopy(0).text).toMatch(/entire indexed Photos library/); expect(analyzeCopy(2).text).toMatch(/2 selected channels/); expect(analyzeBody(['-1'])).toEqual({ channel_ids: ['-1'] })
+    expect(analyzeCopy(0).text).toMatch(/whole indexed photo library/); expect(analyzeCopy(2).text).toMatch(/2 selected channels/); expect(analyzeBody(['-1'])).toEqual({ channel_ids: ['-1'], match_performers: true })
     expect(jobStatusText('IN_PROGRESS', 41.6, ' x.jpg ')).toBe('Image-based face analysis in progress · 42% · x.jpg'); expect(jobDone('failed')).toBe(true); expect(jobDone('RUNNING')).toBe(false)
     expect(jobEndText('COMPLETED')).toMatch(/complete/); expect(jobEndText('FAILED')).toBe('Face analysis failed. Check Operations for details; failed images can be retried.')
   })
