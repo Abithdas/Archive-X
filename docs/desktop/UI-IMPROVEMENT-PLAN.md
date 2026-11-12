@@ -1,13 +1,21 @@
 # UI improvement plan (from SmoothUI and unlumen UI)
 
-Sources read: the SmoothUI repo (github.com/educlopez/smoothui: README and its components folder) and the unlumen UI docs repo (github.com/leovvx/unlumen-ui-docs: README and folder layout).
-The three sites (smoothui.dev, ui.unlumen.com, transitions.dev) could not be opened: the sandbox network blocks them. Their entries below are not based on those pages.
+Sources read: the SmoothUI repo (README, components folder) and its site smoothui.dev; the unlumen UI docs repo and ui.unlumen.com (a script-driven site: only its navigation was readable, no component list); transitions.dev (home page text, including its library of 43+ transitions).
 
 ## What those projects are
 - **SmoothUI**: MIT, React + Tailwind + shadcn registry, animated with `motion` (the library this app already uses). Light/dark, oklch colour props, `animationDuration` props, tests per component. About 150 components, e.g. animated-list, fluid-hover-highlight, glow-hover-card, expandable-cards, animated-stepper, count-badge, digit-roll, content-skeleton, empty, dock, drawer, command, fade-through, blur transitions, file-tree, coverflow-carousel, animated-file-upload, ai-* (loader, reasoning, task-list, context-meter).
 - **unlumen UI**: MIT docs and public shadcn registry (Next.js, Tailwind, MDX), with small primitives and hooks (`use-controlled-state`, `get-strict-context`). Pro parts are private; only the public registry is visible.
 
 Neither should be installed as a dependency. We copy ideas and write our own small versions, because the app already has its own theme tokens, zoom handling and Tailwind 4 setup, and shadcn components bring Radix and their own tokens.
+
+## What transitions.dev adds
+A library of 43+ transition recipes (HTML/CSS and React), plus an optional scanner, `npx transitions-agent`, that scores a codebase's motion 0 to 100 and lists findings such as "transition: all", hard-coded durations and missing `prefers-reduced-motion` guards. Recipes that fit this app directly:
+- **Tabs sliding** (pill follows the active tab), **Toggle** (thumb with a double bounce), **Accordion** (grid-rows height), **Card resize**.
+- **Page side-by-side** (forward/back page transition), **Modal open/close**, **Panel reveal**, **Toggle menu / dropdown morph** (origin-aware), **Tooltip** (delayed in, instant out).
+- **Toast open/close** (rise, fade, blur, scale) and **Banner stacking** (stacked three deep), **Notification badge**.
+- **Number pop-in / Spinning counter / Number subtle change**, **Skeleton loader and reveal** (pulse to content cross-fade), **Success check**, **Checkbox check** (stroke draw), **Icon swap**, **Text states swap**, **Streaming text**, **Shimmer text** (useful for "finding people" and live-caption status), **Avatar group hover**, **3D tilt** (poster cards).
+- Their stated rules worth adopting: name the animated properties (never `transition: all`), animate transform and opacity only (an animated mask repaints the element), use duration and easing variables, guard with `prefers-reduced-motion`.
+The scanner was not run: the sandbox declined to run third-party code from npm. It can be run on your PC (`npx transitions-agent` in `frontend/`) and its report pasted here.
 
 ## Plan, in order of value for this app
 
@@ -28,9 +36,10 @@ Neither should be installed as a dependency. We copy ideas and write our own sma
 
 ### Phase 3: polish and rules
 12. **Motion tokens**: `design/motion.tsx` already has durations (120 / 200 / 320 ms), one easing and reduced-motion handling. Extend it with a single popover spring and a shared fade-through and list-item preset, and move the CSS-only animations (card entrance, skeleton) onto the same values.
-13. **Skeletons that match the final layout** for People, Performers and the watch page. (content-skeleton)
-14. **Blur-in for images** (a short blur to sharp on first load) for photo tiles, avatars and posters, only for the first paint. (focus-blur-resolve)
-15. **Tests**: each new piece gets a Testing Library test, and animations are turned off in jsdom through the existing reduced-motion path.
+13. **Audit the existing CSS** for `transition: all`, hard-coded durations and missing reduced-motion guards, and fix them (the transitions.dev scanner's own checks).
+14. **Skeletons that match the final layout** for People, Performers and the watch page. (content-skeleton)
+15. **Blur-in for images** (a short blur to sharp on first load) for photo tiles, avatars and posters, only for the first paint. (focus-blur-resolve)
+16. **Tests**: each new piece gets a Testing Library test, and animations are turned off in jsdom through the existing reduced-motion path.
 
 ## Not recommended
 - The decorative ones (aurora, gravity stars, holographic foil, ASCII render, cursor trail): they add GPU cost on a media app that is already decoding video.
@@ -40,5 +49,5 @@ Neither should be installed as a dependency. We copy ideas and write our own sma
 Items 1, 2, 3, 4, 5 and 12: about a day of work, no new dependency, and the visible result is a calmer, smoother app.
 
 ## Needed from you
-- Allow smoothui.dev, ui.unlumen.com and transitions.dev in the session's network settings, so I can read the actual transition recipes (especially transitions.dev) before building items 1 and 12.
 - Say which batch to start with.
+- Optional: run `npx transitions-agent` in `frontend/` on your PC and send me the score and findings; I will fix them in the same batch.
