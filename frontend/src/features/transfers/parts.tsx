@@ -8,9 +8,15 @@ export const detail = (e: unknown, fallback: string) => (e instanceof ApiError ?
 
 export function Check({ checked, onChange, title, hint, disabled, icon }: { checked: boolean; onChange: (v: boolean) => void; title: string; hint?: string; disabled?: boolean; icon?: ReactNode }) {
   return (
-    <label className={cn('flex cursor-pointer items-start gap-3 rounded-xl p-2 hover:bg-fg/5', disabled && 'cursor-not-allowed opacity-50')}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="mt-1 size-4 shrink-0 accent-[var(--color-accent)]" />
-      {icon ? <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-2 text-[11px] font-bold">{icon}</span> : null}
+    <label className={cn('flex cursor-pointer items-start gap-3 rounded-xl p-2 hover:bg-fg/5', !!icon && 'items-center', !!icon && checked && 'bg-good/10', disabled && 'cursor-not-allowed opacity-50')}>
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className={icon ? 'peer sr-only' : 'mt-1 size-4 shrink-0 accent-[var(--color-accent)]'} />
+      {icon ? (
+        // Channels: no checkbox; a small green tick on the picture shows what is selected.
+        <span className="relative grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 text-xs font-bold peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
+          {icon}
+          {checked ? <span aria-hidden="true" className="absolute -right-1 -top-1 grid size-[18px] place-items-center rounded-full bg-good text-white ring-2 ring-surface"><svg viewBox="0 0 24 24" className="size-3" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span> : null}
+        </span>
+      ) : null}
       <span className="min-w-0"><b className="block text-sm">{title}</b>{hint ? <small className="text-xs text-muted">{hint}</small> : null}</span>
     </label>
   )
