@@ -168,7 +168,7 @@ export function Player({ info, infoPending = false, src, poster, durationHint, s
   const buffer = dur > 0 ? Math.min(100, Math.round((buffered / dur) * 100)) : 0
   return (
     <div ref={box} className="grid gap-4 sm:gap-5">
-      <div className="group relative aspect-video w-full overflow-hidden rounded-[18px] bg-[#111215] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]">
+      <div className="relative aspect-video w-full overflow-hidden rounded-[18px] bg-[#111215] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]">
         <video
           key={`${attempt}-${mode}`}
           ref={video}
@@ -213,7 +213,6 @@ export function Player({ info, infoPending = false, src, poster, durationHint, s
           className="absolute inset-0 h-full w-full cursor-pointer object-contain"
         />
         {snapshots && !started && !failed ? <SnapshotGrid data={snapshots} onPick={pickTime} /> : null}
-        {res ? <div aria-hidden="true" className="pointer-events-none absolute left-3.5 top-3.5 z-20 rounded-md border border-white/10 bg-[#121317]/75 px-2 py-0.5 text-[11px] font-semibold text-zinc-300 opacity-0 backdrop-blur-md transition-opacity duration-200 group-hover:opacity-100">{res}</div> : null}
         {hint ? <div role="status" className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-[#141417]/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-md">{hint}</div> : null}
         {loading && !failed ? <div role="status" aria-label="Loading video" className="absolute inset-0 grid place-items-center"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-white" /></div> : null}
         {!playing && !failed && !loading && !(snapshots && !started) ? (
