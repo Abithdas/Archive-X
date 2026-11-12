@@ -136,6 +136,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
   }, [])
   useEffect(() => { if (isFs) wake(); return () => clearTimeout(idleTimer.current) }, [isFs, wake])
   const hideBar = isFs && idle && playing
+  const overlay = isFs || ratio < 0.9   // tall and square videos carry the controls on the picture, so everything fits the window
   const pip = () => void (document.pictureInPictureElement ? document.exitPictureInPicture() : video.current?.requestPictureInPicture?.())?.catch(() => {})
 
   useEffect(() => {
@@ -211,8 +212,8 @@ export function Player({ media, info, infoPending = false, src, poster, duration
   const buffer = dur > 0 ? Math.min(100, Math.round((buffered / dur) * 100)) : 0
   return (
     <div ref={box} onPointerMove={isFs ? wake : undefined} onKeyDown={isFs ? wake : undefined} onTouchStart={isFs ? wake : undefined}
-      style={isFs ? undefined : { width: `min(100%, max(360px, calc((100dvh - 210px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${ratio.toFixed(4)})))` }}
-      className={cn(isFs ? 'relative h-full w-full bg-black' : 'mx-auto grid gap-4 sm:gap-5', hideBar && 'cursor-none [&_video]:cursor-none')}>
+      style={isFs ? undefined : ({ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${ratio.toFixed(4)})))` } as React.CSSProperties)}
+      className={cn(isFs ? 'relative h-full w-full bg-black' : cn('relative mx-auto grid w-full sm:w-[var(--pw)]', !overlay && 'gap-4 sm:gap-5'), hideBar && 'cursor-none [&_video]:cursor-none')}>
       <div style={isFs ? undefined : { aspectRatio: ratio }} className={cn('relative w-full overflow-hidden bg-[#111215]', isFs ? 'absolute inset-0 h-full' : 'rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
         <video
           key={`${attempt}-${mode}`}
@@ -288,24 +289,26 @@ export function Player({ media, info, infoPending = false, src, poster, duration
           </div>
         ) : null}
       </div>
-      <div onPointerEnter={() => { overBar.current = true; setIdle(false) }} onPointerLeave={() => { overBar.current = false }}
-        className={cn('grid gap-3', isFs && 'absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-4 pb-3 pt-14 text-white transition-opacity duration-300 sm:px-8', hideBar && 'pointer-events-none opacity-0')}>
+      <div data-ov={overlay ? '' : undefined} onPointerEnter={() => { overBar.current = true; setIdle(false) }} onPointerLeave={() => { overBar.current = false }}
+        className={cn('@container grid gap-1.5', overlay && 'absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-3 pb-2 pt-12 text-white [--color-fg:#fff] [--color-muted:#c9d1e0] transition-opacity duration-300 sm:px-4', isFs && 'px-4 pb-3 sm:px-8', !overlay && 'gap-3', overlay && !isFs && 'rounded-b-[18px] sm:rounded-b-[22px]', hideBar && 'pointer-events-none opacity-0')}>
         <div>
           <div className="mb-1 flex items-center justify-between px-0.5 text-[13px] font-semibold tracking-tight tabular-nums" aria-hidden="true"><span>{clock(time)}</span><span className="font-medium text-muted">{dur ? clock(dur) : '–:––'}</span></div>
           <Timeline time={time} duration={dur} buffered={buffered} segments={segments} preview={preview} onSeek={seek} />
         </div>
         <div className="flex items-center justify-between py-1 text-xs font-medium text-fg/80 sm:text-[13px]">
-          <div className="flex min-w-0 items-center gap-1 sm:gap-2.5">
+          <div className="flex min-w-0 items-center gap-1 @lg:gap-2.5">
             <button type="button" className={BTN} onClick={onPrev} disabled={!onPrev} aria-label="Previous video" title="Previous (Shift+P)"><PrevIcon /></button>
             <button type="button" className={BTN} onClick={toggle} aria-label={playing ? 'Pause' : 'Play'} title="Play / pause (Space)">{playing ? <PauseIcon /> : <PlayIcon />}</button>
             <button type="button" className={BTN} onClick={onNext} disabled={!onNext} aria-label="Next video" title="Next (N)"><NextIcon /></button>
             <Divider />
-            <PopMenu label="Buffer status" align="left" button={<><BufferIcon /><span className={cn('size-1.5 rounded-full', buffer >= 99 ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-amber-400')} /><span className="hidden sm:inline">{buffer >= 99 ? 'Cached' : `${buffer}%`}</span><ChevronIcon /></>}>
+            <div className="hidden @lg:block">
+            <PopMenu label="Buffer status" align="left" button={<><BufferIcon /><span className={cn('size-1.5 rounded-full', buffer >= 99 ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-amber-400')} /><span className="hidden @lg:inline">{buffer >= 99 ? 'Cached' : `${buffer}%`}</span><ChevronIcon /></>}>
               <MenuHead>Buffer status</MenuHead>
               <MenuRow k="Buffered" v={`${buffer}%`} good={buffer >= 99} />
               <MenuRow k="Playback" v={mode === 'mse' ? 'Smart' : 'Direct'} />
               {res ? <MenuRow k="Picture" v={res} /> : null}
             </PopMenu>
+            </div>
             <Divider />
             <PopMenu label={`Speed ${rate}x`} align="left" button={<><span>{rate}x</span><ChevronIcon /></>}>
               {RATES.map((r) => (
@@ -318,8 +321,8 @@ export function Player({ media, info, infoPending = false, src, poster, duration
               <VolumeBar value={muted ? 0 : volume} onChange={(v) => { setVolume(v); setMuted(false) }} />
             </div>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2.5">
-            <button type="button" className={cn(BTN, 'hidden sm:grid')} onClick={pip} aria-label="Picture in picture" title="Picture in picture"><PipIcon /></button>
+          <div className="flex items-center gap-1 @lg:gap-2.5">
+            <button type="button" className={cn(BTN, 'hidden @lg:grid')} onClick={pip} aria-label="Picture in picture" title="Picture in picture"><PipIcon /></button>
             {tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
             <PopMenu label="Settings" align="right" iconOnly button={<GearIcon />}>
               <MenuHead>Playback</MenuHead>
