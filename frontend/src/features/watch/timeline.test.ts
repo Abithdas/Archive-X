@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { frameIndexFor, keyStep, normaliseChapters, segmentAt, timeAt, toSegments } from './timeline'
+import { bucketSecond, choosePreview, frameIndexFor, keyStep, normaliseChapters, segmentAt, timeAt, toSegments } from './timeline'
 
 describe('normaliseChapters', () => {
   it('sorts, drops duplicates and positions outside the video, and fills missing titles', () => {
@@ -49,5 +49,27 @@ describe('keyStep', () => {
     expect(keyStep('Home', 50, 100)).toBe(0)
     expect(keyStep('End', 50, 100)).toBe(100)
     expect(keyStep('x', 50, 100)).toBeNull()
+  })
+})
+
+describe('seek bubble: the picture and the time always agree', () => {
+  const times = [60, 360, 660, 960]
+  it('rounds to a whole second inside the video', () => {
+    expect(bucketSecond(12.4, 100)).toBe(12); expect(bucketSecond(12.6, 100)).toBe(13)
+    expect(bucketSecond(100, 100)).toBe(100); expect(bucketSecond(99.9, 99.5)).toBe(99); expect(bucketSecond(-3, 100)).toBe(0)
+  })
+  it('shows the live frame, labelled with that second, once it has loaded', () => {
+    expect(choosePreview(125.3, 1000, 'ok', times, true)).toEqual({ kind: 'live', time: 125, frame: -1 })
+  })
+  it('waits (no picture from elsewhere) while the exact frame is loading', () => {
+    expect(choosePreview(125.3, 1000, 'loading', times, true)).toEqual({ kind: 'loading', time: 125, frame: -1 })
+    expect(choosePreview(125.3, 1000, undefined, times, true).kind).toBe('loading')
+  })
+  it('falls back to the nearest stored snapshot, with its own time, when the live frame cannot be made', () => {
+    expect(choosePreview(400, 1000, 'failed', times, true)).toEqual({ kind: 'snapshot', time: 360, frame: 1 })
+  })
+  it('uses the snapshots alone when there is no live preview', () => {
+    expect(choosePreview(700, 1000, undefined, times, false)).toEqual({ kind: 'snapshot', time: 660, frame: 2 })
+    expect(choosePreview(700, 1000, undefined, undefined, false)).toEqual({ kind: 'none', time: 700, frame: -1 })
   })
 })

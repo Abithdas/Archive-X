@@ -92,7 +92,9 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const prev = index > 0 ? items[index - 1] : undefined
   const next = index >= 0 ? items[index + 1] : items.find((i) => item && !(i.id === item.id && i._cid === item._cid))
   const segments = useMemo(() => toSegments(normaliseChapters(markers.data, item?.duration ?? 0), item?.duration ?? 0), [markers.data, item?.duration])
-  const preview = exp.live_seek_preview && manifest.data?.frames_ready && manifest.data.frame_times.length ? { times: manifest.data.frame_times, url: (n: number) => `/api/play/preview-frame/${encodeURIComponent(cid)}/${mid}/${n}` } : undefined
+  // Live seek preview: a frame made at the exact second under the pointer; the stored snapshots (when all cached) are the fallback.
+  const snapshotsReady = Boolean(manifest.data?.frames_ready && manifest.data.frame_times.length)
+  const preview = exp.live_seek_preview ? { times: snapshotsReady ? manifest.data!.frame_times : [], url: (n: number) => `/api/play/preview-frame/${encodeURIComponent(cid)}/${mid}/${n}`, live: (t: number) => `/api/play/preview/${encodeURIComponent(cid)}/${mid}?t=${t.toFixed(3)}&w=320&pv=15&lw=1` } : undefined
   const frameFor = manifest.data?.frames_ready && manifest.data.frame_times.length ? (t: number) => `/api/play/preview-frame/${encodeURIComponent(cid)}/${mid}/${frameIndexFor(manifest.data!.frame_times, t)}` : undefined
   const snapshots = useMemo(() => {
     const m = manifest.data

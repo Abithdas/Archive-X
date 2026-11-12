@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Player, nextRate } from './Player'
 import { Timeline } from './Timeline'
@@ -197,5 +197,63 @@ describe('Player control deck (minimal player look)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mute' }))
     expect(v.muted).toBe(true)
     expect(screen.getByRole('slider', { name: 'Volume' })).toHaveAttribute('aria-valuenow', '0')
+  })
+})
+
+describe('Timeline live seek preview', () => {
+  const rect = { left: 0, width: 200, top: 0, height: 28, right: 200, bottom: 28, x: 0, y: 0, toJSON: () => ({}) }
+  const RealImage = globalThis.Image
+  let loaded: Array<{ src: string; ok: () => void; fail: () => void }> = []
+  const preview = { times: [10, 40, 70, 100], url: (n: number) => `/snap/${n}`, live: (t: number) => `/live/${t}` }
+  const setup = (seeks: number[]) => {
+    loaded = []
+    globalThis.Image = class { onload?: () => void; onerror?: () => void; decoding = ''
+      set src(v: string) { const me = this; loaded.push({ src: v, ok: () => me.onload?.(), fail: () => me.onerror?.() }) } } as unknown as typeof Image
+    render(<Timeline time={0} duration={100} buffered={0} segments={[]} preview={preview} onSeek={(t) => seeks.push(t)} />)
+    const s = screen.getByRole('slider', { name: 'Seek' })
+    s.getBoundingClientRect = () => rect as DOMRect
+    s.setPointerCapture = () => {}
+    return s
+  }
+  afterEach(() => { globalThis.Image = RealImage })
+
+  it('waits with a spinner, shows the frame of that very second once it arrives, and labels it with that second', async () => {
+    const s = setup([])
+    fireEvent.pointerMove(s, { clientX: 150 })   // 75 s
+    expect(screen.getByText('1:15')).toBeInTheDocument()
+    expect(document.querySelector('img[src^="/snap/"]')).toBeNull()   // no picture from somewhere else while waiting
+    await waitFor(() => expect(loaded.map((l) => l.src)).toContain('/live/75'))
+    expect(screen.getByRole('status', { name: 'Loading preview' })).toBeInTheDocument()
+    loaded.find((l) => l.src === '/live/75')!.ok()
+    await waitFor(() => expect(document.querySelector('img[src="/live/75"]')).not.toBeNull())
+    expect(screen.queryByRole('status', { name: 'Loading preview' })).not.toBeInTheDocument()
+    expect(screen.getByText('1:15')).toBeInTheDocument()
+  })
+  it('a click seeks to the second that was previewed', async () => {
+    const seeks: number[] = []
+    const s = setup(seeks)
+    fireEvent.pointerDown(s, { clientX: 150, pointerId: 1 })
+    fireEvent.pointerUp(s, { clientX: 150, pointerId: 1 })
+    expect(seeks).toEqual([75])
+  })
+  it('moving to another second asks for that second, not the old one', async () => {
+    const s = setup([])
+    fireEvent.pointerMove(s, { clientX: 100 })   // 50 s
+    await waitFor(() => expect(loaded.map((l) => l.src)).toContain('/live/50'))
+    fireEvent.pointerMove(s, { clientX: 110 })   // 55 s
+    await waitFor(() => expect(loaded.map((l) => l.src)).toContain('/live/55'))
+    expect(screen.getByText('0:55')).toBeInTheDocument()
+  })
+  it('when the exact frame cannot be made it shows the nearest stored snapshot with that snapshot\'s own time, and a click seeks there', async () => {
+    const seeks: number[] = []
+    const s = setup(seeks)
+    fireEvent.pointerMove(s, { clientX: 90 })   // 45 s -> nearest snapshot is at 40 s
+    await waitFor(() => expect(loaded.map((l) => l.src)).toContain('/live/45'))
+    loaded.find((l) => l.src === '/live/45')!.fail()
+    await waitFor(() => expect(document.querySelector('img[src="/snap/1"]')).not.toBeNull())
+    expect(screen.getByText('0:40')).toBeInTheDocument()   // the label is the snapshot's time, not the pointer's
+    fireEvent.pointerDown(s, { clientX: 90, pointerId: 1 })
+    fireEvent.pointerUp(s, { clientX: 90, pointerId: 1 })
+    expect(seeks).toEqual([40])
   })
 })

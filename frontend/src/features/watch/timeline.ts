@@ -39,6 +39,24 @@ export function timeAt(clientX: number, left: number, width: number, duration: n
   return Math.max(0, Math.min(duration, ((clientX - left) / width) * duration))
 }
 
+/** The live frame is asked for per whole second (the server caches one frame a second), so the preview and the seek share one time. */
+export const bucketSecond = (t: number, duration: number) => Math.max(0, Math.min(Math.floor(duration > 0 ? duration : t), Math.round(t)))
+
+export type LiveStatus = 'loading' | 'ok' | 'failed' | undefined
+export interface PreviewChoice { kind: 'live' | 'loading' | 'snapshot' | 'none'; /** the moment of the frame shown: also where a click here seeks to */ time: number; frame: number }
+/**
+ * What the seek bubble shows for hover time `t`. Only a frame taken at that very second is shown as "the picture at this time";
+ * while it loads the bubble waits (it never shows a picture from somewhere else under this time). If the exact frame cannot be made,
+ * the nearest stored snapshot is shown with its own time, and a click there seeks to that same moment.
+ */
+export function choosePreview(t: number, duration: number, status: LiveStatus, times: number[] | undefined, liveAvailable: boolean): PreviewChoice {
+  const b = bucketSecond(t, duration)
+  const snap = times?.length ? frameIndexFor(times, t) : -1
+  if (liveAvailable && status !== 'failed') return status === 'ok' ? { kind: 'live', time: b, frame: -1 } : { kind: 'loading', time: b, frame: -1 }
+  if (snap >= 0) return { kind: 'snapshot', time: times![snap]!, frame: snap }
+  return { kind: 'none', time: t, frame: -1 }
+}
+
 export const segmentAt = (segments: Segment[], t: number) => segments.find((s) => t >= s.start && t < s.end)
 
 /** Keyboard step for the slider: arrows ±5 s, PageUp/Down ±30 s, Home/End jump. Returns null for other keys. */
