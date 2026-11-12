@@ -21,7 +21,7 @@ const BTN = 'grid h-9 min-w-9 place-items-center rounded-lg border border-line b
 export function Pagination({ page, pages, per, onPage, onPer }: { page: number; pages: number; per: number; onPage: (zeroBased: number) => void; onPer: (n: number) => void }) {
   const cur = page + 1
   return (
-    <nav aria-label="Pages" className="mt-8 flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
+    <nav aria-label="Pages" className="mt-auto flex pt-8 flex-wrap items-center justify-between gap-3 text-sm text-muted">
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-2">
           Page

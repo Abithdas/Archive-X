@@ -63,7 +63,7 @@ export function LibraryPage() {
   const pages = library.data ? Math.max(1, Math.ceil(library.data.total / per)) : 1
 
   return (
-    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="mx-auto flex w-full max-w-[1800px] flex-1 flex-col pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead title="Videos" blurb="Browse and manage your video library" />
 
       <Toolbar onRefresh={() => void refresh()} refreshing={refreshing} onShuffle={(pl) => void shuffleAll(pl)} shuffling={shuffle.busy} />

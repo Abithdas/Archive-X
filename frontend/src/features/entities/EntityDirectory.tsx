@@ -63,7 +63,7 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
   }
 
   return (
-    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="mx-auto flex w-full max-w-[1800px] flex-1 flex-col pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead title={copy.title} blurb={copy.blurb} />
       <div className="mb-5 flex flex-wrap items-center gap-2.5">
         {kind === 'performers' ? (
