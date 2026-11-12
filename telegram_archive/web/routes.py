@@ -43,6 +43,7 @@ from .routes_media import register_media_routes
 from .routes_metadata_assets import register_metadata_assets_routes
 from .routes_playback import register_playback_routes
 from .routes_playback_compat import register_playback_compat_routes
+from .routes_tracks import register_tracks_routes
 from .routes_settings import register_settings_routes
 from .routes_system import register_system_routes
 from .routes_tags_logs import register_tags_logs_routes
@@ -244,6 +245,7 @@ ROUTE_MODULES = (
     'routes_metadata_assets',
     'routes_playback',
     'routes_playback_compat',
+    'routes_tracks',
     'routes_settings',
     'routes_library',
     'routes_entities',
@@ -800,6 +802,16 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                     _validated_snapshot_counts_sync=route_exports["_validated_snapshot_counts_sync"],
                     engine_lock=route_exports["engine_lock"],
                     index_tasks=route_exports["index_tasks"],
+                    require_playback_allowed=route_exports["require_playback_allowed"],
+                )
+            )
+        elif _module == "routes_tracks":
+            route_exports.update(
+                register_tracks_routes(
+                    router,
+                    config=config,
+                    require_auth=require_auth,
+                    _local_url=route_exports["_local_url"],
                     require_playback_allowed=route_exports["require_playback_allowed"],
                 )
             )

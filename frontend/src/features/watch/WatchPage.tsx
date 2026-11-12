@@ -136,7 +136,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
         </div>
 
         {resume.ready ? (
-          <Player info={playInfo.data} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay} startAt={resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} />
+          <Player media={{ cid: String(item._cid), mid: item.id }} info={playInfo.data} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay} startAt={resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} />
         ) : (
           <div className="aspect-video w-full rounded-[18px] border border-line bg-black" aria-hidden="true" />
         )}

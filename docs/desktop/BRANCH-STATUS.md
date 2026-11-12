@@ -97,3 +97,9 @@ from `desktop/` (needs the Tauri Linux prerequisites listed there).
 > Update: performer and studio profile pages now match the classic look (back bar, one hero card, pills with metadata dot and provider colours, detail tiles, tab underline and count chips, "Videos linked to this …" with Edit multiple videos). New: performer "Adjust framing" (pan and zoom, saved per performer in this browser under the classic storage key), which the earlier parity audit had missed.
 
 > Update: related tabs restyled as classic posters (similar performers with match chip, similar studios, performer Studios and studio Performers); Studios directory tiles with the classic pager; suggestion rows open a four-frame verification dialog; Telegram job pickers (Metadata & Assets, Transfer, Automation) list every saved channel, not just library channels; suggestions and similar performers are limited to videos that are in the library.
+
+## Video player: audio tracks, subtitles, live English captions
+- CC menu in the watch player (Audio / Subtitles columns). Embedded audio tracks are extracted by ffmpeg to a cached AAC file and played in a hidden `<audio>` kept in sync with the muted video.
+- Text subtitle tracks (SRT/ASS/mov_text/WebVTT) are converted to WebVTT on demand and cached. Picture subtitles (PGS/VobSub) are listed as unsupported.
+- Live captions: optional local engine, `pip install faster-whisper`. Speech is cut into 30 s windows, auto-detected and translated to English (`task="translate"`), cached under `player_cache/captions`. Without the package the menu says how to install it. First use downloads the Whisper "base" model.
+- Backend: `playback/tracks.py`, `playback/captions.py`, `web/routes_tracks.py`; tests in `tools/tests/test_media_tracks.py`. Not verified here: real speech recognition and Telegram-streamed sources.

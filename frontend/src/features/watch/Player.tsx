@@ -8,6 +8,8 @@ import { formatDuration } from '@/features/library/format'
 import { SnapshotGrid, type SnapshotData } from './SnapshotGrid'
 import { Timeline, type PreviewInfo } from './Timeline'
 import type { Segment } from './timeline'
+import { CcMenu } from './CcMenu'
+import { useAltAudio, useTracks, type MediaRef } from './useTracks'
 
 export const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const
 export const nextRate = (r: number) => RATES[(RATES.findIndex((x) => x === r) + 1) % RATES.length] ?? 1
@@ -20,7 +22,7 @@ const BTN = 'grid size-8 shrink-0 place-items-center rounded-md text-fg/85 trans
  * Native <video> with the classic player's control bar: seek, play, previous/next, ±30 s, speed, mute and volume,
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
-export function Player({ info, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc }: { info?: PlayInfo | null; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
+export function Player({ media, info, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc }: { media?: MediaRef; info?: PlayInfo | null; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
   const pendingStart = useRef<number | null>(null)
@@ -60,6 +62,9 @@ export function Player({ info, infoPending = false, src, poster, durationHint, s
   const [loop, setLoop] = useState(false)
   const [hint, setHint] = useState('')
   const [res, setRes] = useState('')
+  const altAudio = useRef<HTMLAudioElement>(null)
+  const tracks = useTracks(media, video, time, playing)
+  useAltAudio(video, altAudio, tracks.altUrl, muted, volume, rate)
   const tap = useRef<{ t: number; x: number } | null>(null)
   const tapTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -160,10 +165,10 @@ export function Player({ info, infoPending = false, src, poster, durationHint, s
     const v = video.current
     if (v) {
       v.playbackRate = rate
-      v.muted = muted
+      v.muted = muted || tracks.altUrl !== null
       v.volume = volume
     }
-  }, [rate, muted, volume])
+  }, [rate, muted, volume, tracks.altUrl])
 
   const buffer = dur > 0 ? Math.min(100, Math.round((buffered / dur) * 100)) : 0
   return (
@@ -212,6 +217,8 @@ export function Player({ info, infoPending = false, src, poster, durationHint, s
           }}
           className="absolute inset-0 h-full w-full cursor-pointer object-contain"
         />
+        {tracks.altUrl ? <audio ref={altAudio} src={tracks.altUrl} preload="auto" className="hidden" /> : null}
+        {tracks.text ? <div aria-live="off" data-testid="caption" className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center px-4 sm:bottom-6"><span className="max-w-[90%] whitespace-pre-line rounded-lg bg-black/70 px-3 py-1.5 text-center text-sm font-medium leading-snug text-white [text-shadow:0_1px_2px_#000] sm:text-lg">{tracks.text}</span></div> : null}
         {snapshots && !started && !failed ? <SnapshotGrid data={snapshots} onPick={pickTime} /> : null}
         {hint ? <div role="status" className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-[#141417]/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-md">{hint}</div> : null}
         {loading && !failed ? <div role="status" aria-label="Loading video" className="absolute inset-0 grid place-items-center"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-white" /></div> : null}
@@ -265,6 +272,7 @@ export function Player({ info, infoPending = false, src, poster, durationHint, s
           </div>
           <div className="flex items-center gap-1 sm:gap-2.5">
             <button type="button" className={cn(BTN, 'hidden sm:grid')} onClick={pip} aria-label="Picture in picture" title="Picture in picture"><PipIcon /></button>
+            {tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
             <PopMenu label="Settings" align="right" iconOnly button={<GearIcon />}>
               <MenuHead>Playback</MenuHead>
               <MenuItem onClick={(close) => { seek((video.current?.currentTime ?? 0) - 30); close() }} label="Back 30 seconds">Back 30 s <Kbd>J</Kbd></MenuItem>
