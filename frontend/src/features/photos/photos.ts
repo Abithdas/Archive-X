@@ -145,7 +145,7 @@ export const deletePath = (p: Pick<Photo, 'channel_id' | 'message_id'>) => `/api
 export const deleteStatus = (remote: boolean, name: string) => (remote ? `Deleting ${name} from Telegram and Archive X…` : `Removing ${name} from Archive X…`)
 export const deleteDone = (remote: boolean, r: { message?: string }) => r.message || (remote ? 'Photo deleted from Archive X and Telegram.' : 'Photo removed from Archive X.')
 
-/** Pictures worth fetching ahead while one photo is open: the next two and the previous one (preview size, which is what the viewer shows first). */
-export function neighborUrls(items: ReadonlyArray<{ preview_url?: string }>, index: number): string[] {
-  return [index + 1, index + 2, index - 1].map((i) => items[i]?.preview_url).filter((u): u is string => Boolean(u))
+/** Pictures worth fetching ahead while one photo is open: the next two and the previous one, the full image first and the preview as a quick fallback. */
+export function neighborUrls(items: ReadonlyArray<{ preview_url?: string; image_url?: string }>, index: number): string[] {
+  return [index + 1, index + 2, index - 1].flatMap((i) => [items[i]?.image_url, items[i]?.preview_url]).filter((u): u is string => Boolean(u))
 }

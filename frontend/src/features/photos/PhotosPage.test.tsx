@@ -3,10 +3,16 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { withRouter } from '@/test/withRouter'
 import { PhotosPage } from './PhotosPage'
 import { usePhotoStore } from './store'
+import { clearImageCache } from './imageCache'
 
 const toast = vi.hoisted(() => Object.assign(vi.fn(), { error: vi.fn() }))
 vi.mock('sonner', () => ({ toast, Toaster: () => null }))
+// Images "load" at once in these tests (jsdom never loads any), so the viewer can show a photo.
 beforeAll(() => {
+  globalThis.Image = class { onload?: () => void; onerror?: () => void; decoding = ''; _src = ''
+    set src(v: string) { this._src = v; queueMicrotask(() => this.onload?.()) }
+    get src() { return this._src }
+    decode() { return Promise.resolve() } } as unknown as typeof Image
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') }
 })
@@ -111,13 +117,34 @@ describe('PhotoViewer', () => {
     const dlg = await open(1)
     expect(within(dlg).getByText('1200 × 800')).toBeInTheDocument(); expect(within(dlg).getByText('1.0 MP')).toBeInTheDocument(); expect(within(dlg).getByText('2 KB')).toBeInTheDocument()
     expect(within(dlg).getByText('1 / 3')).toBeInTheDocument()
-    expect(within(dlg).getByAltText('IMG_1.jpg')).toHaveAttribute('src', '/p/1')
+    expect(await within(dlg).findByAltText('IMG_1.jpg')).toHaveAttribute('src', '/i/1')
     expect(within(dlg).getByRole('button', { name: 'Previous photo' })).toBeDisabled()
     fireEvent.click(within(dlg).getByRole('button', { name: 'Next photo' }))
     expect(within(dlg).getByText('2 / 3')).toBeInTheDocument()
     fireEvent.keyDown(document, { key: 'ArrowRight' }); expect(within(dlg).getByText('3 / 3')).toBeInTheDocument()
     fireEvent.keyDown(document, { key: 'ArrowRight' }); expect(within(dlg).getByText('3 / 3')).toBeInTheDocument()
     fireEvent.keyDown(document, { key: 'ArrowLeft' }); expect(within(dlg).getByText('2 / 3')).toBeInTheDocument()
+  })
+  it('keeps showing the current photo until the next one is loaded, with no stand-in image, then swaps', async () => {
+    const dlg = await open(1)
+    expect(await within(dlg).findByAltText('IMG_1.jpg')).toHaveAttribute('src', '/i/1')
+    clearImageCache()   // the neighbours were fetched ahead; forget them so this test controls when they load
+    const held: Array<() => void> = []
+    const Loads = globalThis.Image
+    globalThis.Image = class { onload?: () => void; onerror?: () => void; decoding = ''; _src = ''
+      set src(v: string) { this._src = v; if (/\/(i|p)\/2$/.test(v)) held.push(() => this.onload?.()); else queueMicrotask(() => this.onload?.()) }
+      get src() { return this._src }
+      decode() { return Promise.resolve() } } as unknown as typeof Image
+    try {
+      fireEvent.click(within(dlg).getByRole('button', { name: 'Next photo' }))
+      expect(within(dlg).getByText('2 / 3')).toBeInTheDocument()
+      expect(within(dlg).getByAltText('IMG_1.jpg')).toHaveAttribute('src', '/i/1')
+      expect([...dlg.querySelectorAll('[role="img"] img')].map((i) => i.getAttribute('src'))).toEqual(['/i/1'])
+      expect(within(dlg).queryByRole('status', { name: 'Loading selected photo' })).not.toBeInTheDocument()
+      await waitFor(() => expect(held.length).toBeGreaterThan(0))
+      held.forEach((release) => release())
+      expect(await within(dlg).findByAltText('IMG_2.jpg')).toBeInTheDocument()
+    } finally { globalThis.Image = Loads }
   })
   it('jumps from the filmstrip', async () => {
     const dlg = await open(1)
@@ -127,6 +154,7 @@ describe('PhotoViewer', () => {
   })
   it('zooms in steps, fits, and rotates', async () => {
     const dlg = await open(1)
+    await within(dlg).findByAltText('IMG_1.jpg')
     const level = () => within(dlg).getByRole('status', { name: 'Zoom level' }).textContent
     expect(level()).toBe('100%')
     fireEvent.click(within(dlg).getByRole('button', { name: 'Zoom in' })); expect(level()).toBe('125%')

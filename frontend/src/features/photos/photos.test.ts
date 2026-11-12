@@ -85,11 +85,11 @@ describe('delete', () => {
 
 import { neighborUrls } from './photos'
 describe('neighborUrls', () => {
-  const items = [0, 1, 2, 3, 4].map((i) => ({ preview_url: `/p/${i}` }))
-  it('is the next two and the previous one', () => { expect(neighborUrls(items, 2)).toEqual(['/p/3', '/p/4', '/p/1']) })
+  const items = [0, 1, 2, 3, 4].map((i) => ({ image_url: `/i/${i}`, preview_url: `/p/${i}` }))
+  it('is the next two and the previous one, full image first', () => { expect(neighborUrls(items, 2)).toEqual(['/i/3', '/p/3', '/i/4', '/p/4', '/i/1', '/p/1']) })
   it('skips what does not exist at the ends', () => {
-    expect(neighborUrls(items, 0)).toEqual(['/p/1', '/p/2'])
-    expect(neighborUrls(items, 4)).toEqual(['/p/3'])
+    expect(neighborUrls(items, 0)).toEqual(['/i/1', '/p/1', '/i/2', '/p/2'])
+    expect(neighborUrls(items, 4)).toEqual(['/i/3', '/p/3'])
     expect(neighborUrls([], 0)).toEqual([])
   })
 })

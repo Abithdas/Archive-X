@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/design/cn'
+import { firstLoaded, loadImage } from './imageCache'
 import { SLIDE_MS, SWIPE_PX, clampPan, counterText, favKey, fitScale, hud, neighborUrls, photoName, rotate, stepIndex, stripRange, zoomBy, zoomPercent, type Photo } from './photos'
 
 const PILL = 'grid h-9 min-w-9 place-items-center rounded-full px-2.5 text-base font-semibold text-white hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-white/20'
@@ -21,8 +22,9 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [playing, setPlaying] = useState(false)
   const [fs, setFs] = useState(false)
-  const [original, setOriginal] = useState('')
-  const [loading, setLoading] = useState(true)
+  // What is on screen. It changes only once the next photo is fully decoded, so moving between photos never shows a blank or a blurry stand-in.
+  const [shown, setShown] = useState<null | { key: string; src: string; alt: string }>(null)
+  const [slow, setSlow] = useState(false)
   const drag = useRef<null | { x: number; y: number; px: number; py: number; moved: boolean }>(null)
 
   useEffect(() => {
@@ -41,24 +43,28 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
   }, [])
 
   const key = item ? `${item.channel_id}:${item.message_id}` : ''
-  // A new photo starts fitted, unrotated, showing its preview; the original replaces it once decoded.
+  // Load the photo (the preview and the original race; the original takes over if it was second), then swap it in with a fresh fit.
   useEffect(() => {
-    setMul(1); setRot(0); setPan({ x: 0, y: 0 }); setOriginal(''); setLoading(true)
     if (!item) return
-    setNat({ w: item.width, h: item.height })
     let live = true
-    const img = new Image()
-    img.onload = () => { if (live) setOriginal(item.image_url) }
-    img.src = item.image_url
-    return () => { live = false; img.onload = null }
+    setSlow(false)
+    const t = setTimeout(() => { if (live) setSlow(true) }, 900)
+    const urls = [item.image_url, item.preview_url].filter(Boolean)
+    void firstLoaded(urls).then(({ url, img }) => {
+      if (!live) return
+      clearTimeout(t); setSlow(false)
+      setMul(1); setRot(0); setPan({ x: 0, y: 0 })
+      setNat({ w: item.width || img.naturalWidth, h: item.height || img.naturalHeight })
+      setShown({ key, src: url, alt: photoName(item) })
+      if (url !== item.image_url && item.image_url) void loadImage(item.image_url).then(() => { if (live) setShown({ key, src: item.image_url, alt: photoName(item) }) }).catch(() => undefined)
+    }).catch(() => { if (live) { clearTimeout(t); setSlow(false) } })
+    return () => { live = false; clearTimeout(t) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
   useEffect(() => { if (items.length - index <= 6 && items.length < total) onNeedMore() }, [index, items.length, total, onNeedMore])
-  // Fetch the neighbours now so Next and Previous show a photo at once (the server builds each preview the first time it is asked for).
-  const warmed = useRef(new Map<string, HTMLImageElement>())
+  // Fetch the neighbours at full quality now (next two, previous one), so Next and Previous are instant.
   useEffect(() => {
-    for (const u of neighborUrls(items, index)) if (!warmed.current.has(u)) { const img = new Image(); img.decoding = 'async'; img.src = u; warmed.current.set(u, img) }
-    if (warmed.current.size > 24) for (const k of [...warmed.current.keys()].slice(0, warmed.current.size - 24)) warmed.current.delete(k)
+    for (const u of neighborUrls(items, index)) void loadImage(u).catch(() => undefined)
   }, [items, index])
 
   const fit = fitScale(nat, box, rot)
@@ -141,11 +147,8 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
 
       <div ref={stage} role="img" aria-label={`${h.title}. Drag to pan, scroll or use arrow keys to zoom, swipe to navigate.`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null }} onWheel={wheel} onDoubleClick={() => (atFit ? setScale(fit * 2.5) : doFit())}
         className={cn('relative min-h-0 flex-1 touch-none select-none overflow-hidden', atFit ? 'cursor-zoom-in' : 'cursor-grab active:cursor-grabbing')}>
-        {loading ? <img src={item.thumbnail_url} alt="" aria-hidden="true" draggable={false} style={{ width: nat.w || undefined, height: nat.h || undefined, maxWidth: 'none', transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) rotate(${rot}deg) scale(${scale})` }} className="absolute left-1/2 top-1/2 origin-center blur-[2px]" /> : null}
-        <img src={original || item.preview_url} alt={photoName(item)} draggable={false} onLoad={(e) => { setLoading(false); if (!item.width) setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight }) }} onError={() => setLoading(false)}
-          style={{ width: nat.w || undefined, height: nat.h || undefined, maxWidth: 'none', transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) rotate(${rot}deg) scale(${scale})` }}
-          className="absolute left-1/2 top-1/2 origin-center transition-transform duration-150 ease-out" />
-        {loading ? <div role="status" aria-label="Loading selected photo" className="absolute inset-0 grid place-items-center"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-white" /></div> : null}
+        {shown ? <img src={shown.src} alt={shown.alt} draggable={false} style={{ width: nat.w || undefined, height: nat.h || undefined, maxWidth: 'none', transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) rotate(${rot}deg) scale(${scale})` }} className="absolute left-1/2 top-1/2 origin-center" /> : null}
+        {slow ? <div role="status" aria-label="Loading selected photo" className="absolute inset-0 grid place-items-center"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-white" /></div> : null}
       </div>
 
       <div className="shrink-0 px-3 pb-3">
