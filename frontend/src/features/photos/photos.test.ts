@@ -83,7 +83,7 @@ describe('delete', () => {
   })
 })
 
-import { neighborUrls } from './photos'
+import { anchorPan, clampScale, neighborUrls, pinchScale, wheelFactor, wheelSteps } from './photos'
 describe('neighborUrls', () => {
   const items = [0, 1, 2, 3, 4].map((i) => ({ image_url: `/i/${i}`, preview_url: `/p/${i}` }))
   it('is the next two and the previous one, full image first', () => { expect(neighborUrls(items, 2)).toEqual(['/i/3', '/p/3', '/i/4', '/p/4', '/i/1', '/p/1']) })
@@ -91,5 +91,47 @@ describe('neighborUrls', () => {
     expect(neighborUrls(items, 0)).toEqual(['/i/1', '/p/1', '/i/2', '/p/2'])
     expect(neighborUrls(items, 4)).toEqual(['/i/3', '/p/3'])
     expect(neighborUrls([], 0)).toEqual([])
+  })
+})
+
+describe('wheel zoom and photo switching', () => {
+  it('zooms in for a scroll up and out for a scroll down, smoothly', () => {
+    expect(wheelFactor(-120)).toBeGreaterThan(1)
+    expect(wheelFactor(120)).toBeLessThan(1)
+    expect(wheelFactor(-120) * wheelFactor(120)).toBeCloseTo(1)
+    expect(wheelFactor(-100000)).toBeCloseTo(wheelFactor(-2400))
+  })
+  it('understands lines and pages as well as pixels', () => {
+    expect(wheelFactor(-3, 1)).toBeCloseTo(wheelFactor(-48, 0))
+    expect(wheelFactor(-1, 2, 500)).toBeCloseTo(wheelFactor(-500, 0))
+  })
+  it('keeps the point under the cursor still when zooming', () => {
+    const pan = { x: 30, y: -10 }, cursor = { x: 100, y: 50 }
+    const p2 = anchorPan(pan, 1, 2, cursor)
+    // the image point under the cursor, before and after, as a screen position
+    const before = { x: cursor.x - pan.x, y: cursor.y - pan.y }
+    const after = { x: (cursor.x - p2.x) / 2, y: (cursor.y - p2.y) / 2 }
+    expect(after.x).toBeCloseTo(before.x); expect(after.y).toBeCloseTo(before.y)
+  })
+  it('zooming at the centre of a centred photo leaves it centred', () => {
+    expect(anchorPan({ x: 0, y: 0 }, 1, 3, { x: 0, y: 0 })).toEqual({ x: 0, y: 0 })
+  })
+  it('turns the wheel into one to three photo steps, in the right direction', () => {
+    expect(wheelSteps(0, 100)).toBe(1)
+    expect(wheelSteps(0, -100)).toBe(-1)
+    expect(wheelSteps(0, 360)).toBe(3)
+    expect(wheelSteps(0, 5000)).toBe(3)
+    expect(wheelSteps(-240, 10)).toBe(-2)
+    expect(wheelSteps(0, 0)).toBe(0)
+  })
+  it('limits the scale between the fitted size and the maximum', () => {
+    expect(clampScale(0.1, 0.4)).toBe(0.4)
+    expect(clampScale(50, 0.4)).toBe(8)
+    expect(clampScale(2, 0.4)).toBe(2)
+  })
+  it('scales with the pinch', () => {
+    expect(pinchScale(1, 100, 200)).toBe(2)
+    expect(pinchScale(2, 100, 50)).toBe(1)
+    expect(pinchScale(2, 0, 50)).toBe(2)
   })
 })

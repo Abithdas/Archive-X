@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { createPortal } from 'react-dom'
 import { cn } from '@/design/cn'
 import { firstLoaded, loadImage } from './imageCache'
-import { SLIDE_MS, SWIPE_PX, clampPan, counterText, favKey, fitScale, hud, neighborUrls, photoName, rotate, stepIndex, stripRange, zoomBy, zoomPercent, type Photo } from './photos'
+import { SLIDE_MS, SWIPE_PX, anchorPan, clampPan, clampScale, pinchScale, wheelFactor, wheelSteps, counterText, favKey, fitScale, hud, neighborUrls, photoName, rotate, stepIndex, stripRange, zoomBy, zoomPercent, type Photo } from './photos'
 
 const PILL = 'grid h-9 min-w-9 place-items-center rounded-full px-2.5 text-base font-semibold text-white hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-white/20'
 
@@ -25,6 +25,10 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
   // What is on screen. It changes only once the next photo is fully decoded, so moving between photos never shows a blank or a blurry stand-in.
   const [shown, setShown] = useState<null | { key: string; src: string; alt: string }>(null)
   const [slow, setSlow] = useState(false)
+  const [anim, setAnim] = useState(false)   // ease zoom steps and fit; never while dragging or when a new photo appears
+  const pointers = useRef(new Map<number, { x: number; y: number }>())
+  const pinch = useRef<null | { dist: number; scale: number; pan: { x: number; y: number } }>(null)
+  const toolbar = useRef<HTMLDivElement>(null)
   const drag = useRef<null | { x: number; y: number; px: number; py: number; moved: boolean }>(null)
 
   useEffect(() => {
@@ -53,7 +57,7 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
     void firstLoaded(urls).then(({ url, img }) => {
       if (!live) return
       clearTimeout(t); setSlow(false)
-      setMul(1); setRot(0); setPan({ x: 0, y: 0 })
+      setAnim(false); setMul(1); setRot(0); setPan({ x: 0, y: 0 })
       setNat({ w: item.width || img.naturalWidth, h: item.height || img.naturalHeight })
       setShown({ key, src: url, alt: photoName(item) })
       if (url !== item.image_url && item.image_url) void loadImage(item.image_url).then(() => { if (live) setShown({ key, src: item.image_url, alt: photoName(item) }) }).catch(() => undefined)
@@ -71,9 +75,21 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
   const scale = fit * mul
   const atFit = mul <= 1
   const go = useCallback((d: number, wrap = false) => { const t = stepIndex(index, d, items.length, wrap); if (t !== null) onIndex(t) }, [index, items.length, onIndex])
-  const setScale = (s: number) => { const m = Math.max(1, s / fit); setMul(m); setPan((p) => clampPan(p.x, p.y, nat, box, fit * m, rot)) }
+  const setScale = (s: number) => { const m = Math.max(1, s / fit); setAnim(true); setMul(m); setPan((p) => clampPan(p.x, p.y, nat, box, fit * m, rot)) }
   const zoomStep = (dir: number) => setScale(zoomBy(scale, dir, fit))
-  const doFit = () => { setMul(1); setPan({ x: 0, y: 0 }) }
+  /** Zoom to `to`, keeping the point under the pointer where it is. */
+  const zoomAt = (to: number, client: { x: number; y: number }, animate = true) => {
+    const r = stage.current?.getBoundingClientRect()
+    if (!r) return
+    const z = r.width / (stage.current!.clientWidth || r.width || 1) || 1   // the page is zoomed on large screens; pan and scale are in unzoomed pixels
+    const cursor = { x: (client.x - (r.left + r.width / 2)) / z, y: (client.y - (r.top + r.height / 2)) / z }
+    const next = clampScale(to, fit)
+    const m = Math.max(1, next / fit)
+    setAnim(animate); setMul(m)
+    const p = anchorPan(pan, scale, fit * m, cursor)
+    setPan(clampPan(p.x, p.y, nat, box, fit * m, rot))
+  }
+  const doFit = () => { setAnim(true); setMul(1); setPan({ x: 0, y: 0 }) }
   const turn = (deg: number) => { setRot((r) => rotate(r, deg)); setMul(1); setPan({ x: 0, y: 0 }) }
   const toggleFs = useCallback(() => {
     const d = ref.current
@@ -111,19 +127,63 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
     ;(cur as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest', inline: 'center' })
   }, [index])
 
-  const down = (e: RPointerEvent) => { drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y, moved: false }; (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId) }
+  const down = (e: RPointerEvent) => {
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()]
+      pinch.current = { dist: Math.hypot(b!.x - a!.x, b!.y - a!.y), scale, pan }
+      drag.current = null
+      return
+    }
+    drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y, moved: false }
+  }
   const move = (e: RPointerEvent) => {
+    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    const pc = pinch.current
+    if (pc && pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()]
+      const mid = { x: (a!.x + b!.x) / 2, y: (a!.y + b!.y) / 2 }
+      zoomAt(pinchScale(pc.scale, pc.dist, Math.hypot(b!.x - a!.x, b!.y - a!.y)), mid, false)
+      return
+    }
     const d = drag.current
     if (!d || atFit) return
     if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 3) d.moved = true
+    setAnim(false)
     setPan(clampPan(d.px + e.clientX - d.x, d.py + e.clientY - d.y, nat, box, scale, rot))
   }
   const up = (e: RPointerEvent) => {
+    pointers.current.delete(e.pointerId)
+    if (pinch.current) { if (pointers.current.size < 2) pinch.current = null; drag.current = null; return }
     const d = drag.current
     drag.current = null
     if (d && atFit) { const dx = e.clientX - d.x; if (Math.abs(dx) >= SWIPE_PX) go(dx < 0 ? 1 : -1) }
   }
-  const wheel = (e: React.WheelEvent) => { zoomStep(e.deltaY < 0 ? 1 : -1) }
+  // Wheel over the photo zooms toward the pointer; over the toolbar or the filmstrip it turns the pages. Native listeners, because a wheel handler must be able to stop the page scrolling.
+  const wheelPhoto = useRef<(e: WheelEvent) => void>(() => undefined)
+  wheelPhoto.current = (e) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    e.preventDefault()
+    const r = stage.current?.getBoundingClientRect()
+    zoomAt(scale * wheelFactor(e.deltaY, e.deltaMode, r?.height ?? 800), { x: e.clientX, y: e.clientY })
+  }
+  const wheelPages = useRef<(e: WheelEvent) => void>(() => undefined)
+  wheelPages.current = (e) => {
+    if (e.ctrlKey || e.metaKey) return
+    const n = wheelSteps(e.deltaX, e.deltaY)
+    if (!n) return
+    e.preventDefault()
+    const dir = n > 0 ? 1 : -1
+    for (let i = 0; i < Math.abs(n); i++) go(dir)
+  }
+  useEffect(() => {
+    const els: Array<[HTMLElement | null, (e: WheelEvent) => void]> = [
+      [stage.current, (e) => wheelPhoto.current(e)], [toolbar.current, (e) => wheelPages.current(e)], [strip.current, (e) => wheelPages.current(e)],
+    ]
+    for (const [el, fn] of els) el?.addEventListener('wheel', fn, { passive: false })
+    return () => { for (const [el, fn] of els) el?.removeEventListener('wheel', fn) }
+  })
 
   const h = useMemo(() => (item ? hud(item) : null), [item])
   const [from, to] = stripRange(index, items.length)
@@ -145,14 +205,14 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
         </div>
       </div>
 
-      <div ref={stage} role="img" aria-label={`${h.title}. Drag to pan, scroll or use arrow keys to zoom, swipe to navigate.`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null }} onWheel={wheel} onDoubleClick={() => (atFit ? setScale(fit * 2.5) : doFit())}
+      <div ref={stage} role="img" aria-label={`${h.title}. Scroll to zoom, drag to pan, scroll over the toolbar or use arrow keys to change photo.`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={(e) => { pointers.current.delete(e.pointerId); pinch.current = null; drag.current = null }} onDoubleClick={(e) => (atFit ? zoomAt(fit * 2.5, { x: e.clientX, y: e.clientY }) : doFit())}
         className={cn('relative min-h-0 flex-1 touch-none select-none overflow-hidden', atFit ? 'cursor-zoom-in' : 'cursor-grab active:cursor-grabbing')}>
-        {shown ? <img src={shown.src} alt={shown.alt} draggable={false} style={{ width: nat.w || undefined, height: nat.h || undefined, maxWidth: 'none', transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) rotate(${rot}deg) scale(${scale})` }} className="absolute left-1/2 top-1/2 origin-center" /> : null}
+        {shown ? <img src={shown.src} alt={shown.alt} draggable={false} style={{ width: nat.w || undefined, height: nat.h || undefined, maxWidth: 'none', transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) rotate(${rot}deg) scale(${scale})` }} className={cn('absolute left-1/2 top-1/2 origin-center', anim && 'transition-transform duration-150 ease-out')} /> : null}
         {slow ? <div role="status" aria-label="Loading selected photo" className="absolute inset-0 grid place-items-center"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-white" /></div> : null}
       </div>
 
       <div className="shrink-0 px-3 pb-3">
-        <div role="toolbar" aria-label="Photo viewer controls" className="mx-auto mb-2 flex w-fit max-w-full flex-wrap items-center justify-center gap-0.5 rounded-full bg-white/10 px-2 py-1 backdrop-blur">
+        <div ref={toolbar} role="toolbar" aria-label="Photo viewer controls" className="mx-auto mb-2 flex w-fit max-w-full flex-wrap items-center justify-center gap-0.5 rounded-full bg-white/10 px-2 py-1 backdrop-blur">
           <button type="button" className={PILL} onClick={() => go(-1)} disabled={index <= 0} title="Previous photo (←)" aria-label="Previous photo">‹</button>
           <button type="button" className={PILL} onClick={() => setPlaying(!playing)} aria-pressed={playing} title={playing ? 'Pause slideshow (Space)' : 'Play slideshow (Space)'} aria-label={playing ? 'Pause slideshow' : 'Play slideshow'}>{playing ? 'Ⅱ' : '▶'}</button>
           <button type="button" className={PILL} onClick={() => go(1)} disabled={index >= items.length - 1} title="Next photo (→)" aria-label="Next photo">›</button>

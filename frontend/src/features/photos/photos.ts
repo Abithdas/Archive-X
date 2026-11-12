@@ -149,3 +149,23 @@ export const deleteDone = (remote: boolean, r: { message?: string }) => r.messag
 export function neighborUrls(items: ReadonlyArray<{ preview_url?: string; image_url?: string }>, index: number): string[] {
   return [index + 1, index + 2, index - 1].flatMap((i) => [items[i]?.image_url, items[i]?.preview_url]).filter((u): u is string => Boolean(u))
 }
+
+/** Mouse wheel zoom: a smooth exponential factor (same feel as the classic viewer), whatever unit the wheel reports. */
+export function wheelFactor(deltaY: number, deltaMode = 0, stageHeight = 800): number {
+  const px = deltaMode === 1 ? deltaY * 16 : deltaMode === 2 ? deltaY * stageHeight : deltaY
+  return Math.exp(-Math.max(-2400, Math.min(2400, px)) * 0.0018)
+}
+/** New pan after changing the scale from `from` to `to` while keeping the point under the cursor fixed. `cursor` is measured from the stage centre. */
+export function anchorPan(pan: { x: number; y: number }, from: number, to: number, cursor: { x: number; y: number }) {
+  const k = from > 0 ? to / from : 1
+  return { x: cursor.x - (cursor.x - pan.x) * k, y: cursor.y - (cursor.y - pan.y) * k }
+}
+/** Wheel over the toolbar or filmstrip turns pages: one photo per notch, up to three for a big spin. 0 when there is no movement. */
+export function wheelSteps(deltaX: number, deltaY: number): number {
+  const raw = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY
+  if (!raw) return 0
+  return (raw > 0 ? 1 : -1) * Math.max(1, Math.min(3, Math.round(Math.abs(raw) / 120) || 1))
+}
+export const clampScale = (scale: number, fit: number) => Math.min(MAX_ZOOM, Math.max(fit, scale))
+/** Two-finger pinch: the scale follows how far the fingers moved apart or together. */
+export const pinchScale = (startScale: number, startDistance: number, distance: number) => (startDistance > 0 ? startScale * (distance / startDistance) : startScale)

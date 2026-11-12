@@ -146,6 +146,23 @@ describe('PhotoViewer', () => {
       expect(await within(dlg).findByAltText('IMG_2.jpg')).toBeInTheDocument()
     } finally { globalThis.Image = Loads }
   })
+  it('the wheel over the photo zooms in and out, and over the toolbar changes photo', async () => {
+    const dlg = await open(1)
+    await within(dlg).findByAltText('IMG_1.jpg')
+    const level = () => Number(within(dlg).getByRole('status', { name: 'Zoom level' }).textContent!.replace('%', ''))
+    const stage = within(dlg).getByRole('img', { name: /Scroll to zoom/ })
+    expect(level()).toBe(100)
+    fireEvent.wheel(stage, { deltaY: -120 }); expect(level()).toBeGreaterThan(100)
+    const zoomed = level()
+    fireEvent.wheel(stage, { deltaY: 120 }); expect(level()).toBeLessThan(zoomed)
+    fireEvent.wheel(stage, { deltaY: 5000 }); expect(level()).toBe(100)   // never smaller than the fitted size
+    const bar = within(dlg).getByRole('toolbar', { name: 'Photo viewer controls' })
+    expect(within(dlg).getByText('1 / 3')).toBeInTheDocument()
+    fireEvent.wheel(bar, { deltaY: 120 }); expect(within(dlg).getByText('2 / 3')).toBeInTheDocument()
+    fireEvent.wheel(bar, { deltaY: -120 }); expect(within(dlg).getByText('1 / 3')).toBeInTheDocument()
+    fireEvent.wheel(bar, { deltaY: 0 }); expect(within(dlg).getByText('1 / 3')).toBeInTheDocument()
+    expect(level()).toBe(100)   // changing photo by wheel did not zoom
+  })
   it('jumps from the filmstrip', async () => {
     const dlg = await open(1)
     fireEvent.click(within(dlg).getByRole('button', { name: 'Photo 3: IMG_3.jpg' }))
