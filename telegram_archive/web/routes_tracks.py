@@ -95,7 +95,7 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
         return svc.status()
 
     @router.get("/api/play/captions/{channel_id}/{message_id}")
-    async def play_captions(channel_id: int, message_id: int, request: Request, start: float = 0.0, track: int | None = None):
+    async def play_captions(channel_id: int, message_id: int, request: Request, start: float = 0.0, track: int | None = None, task: str = "translate"):
         require_auth(request)
         require_playback_allowed(channel_id, message_id)
         if not svc.status()["available"]:
@@ -105,7 +105,7 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
         async def wav(s: float, d: float) -> bytes:
             return await tracks.audio_window_wav(url, s, d, track)
         try:
-            return await svc.window(f"{channel_id}_{message_id}", start, track, wav)
+            return await svc.window(f"{channel_id}_{message_id}", start, track, wav, "transcribe" if task == "transcribe" else "translate")
         except Exception as exc:
             raise HTTPException(502, f"Caption engine failed: {exc}") from exc
 

@@ -50,7 +50,7 @@ class StubEngine:
     name = "stub"
     calls = 0
 
-    def transcribe_wav(self, wav):
+    def transcribe_wav(self, wav, task="translate"):
         StubEngine.calls += 1
         return {"language": "es", "cues": [{"start": 1.0, "end": 2.0, "text": "Hello"}]}
 
@@ -71,3 +71,25 @@ def test_caption_window_cached_and_single_flight(media, tmp_path):
     assert a == b == c and a["start"] == 30.0
     assert a["cues"][0]["start"] == 31.0 and a["language"] == "es"
     assert StubEngine.calls == 1
+
+
+def test_original_language_is_cached_separately(media, tmp_path):
+    from telegram_archive.playback import captions
+    seen = []
+
+    class E:
+        name = "e"
+        def transcribe_wav(self, wav, task="translate"):
+            seen.append(task)
+            return {"language": "ja", "cues": []}
+    svc = captions.CaptionService(tmp_path, E())
+
+    async def get_wav(s, d):
+        return await tracks.audio_window_wav(media, s, 1.0)
+
+    async def go():
+        await svc.window("k", 0, None, get_wav, "translate")
+        await svc.window("k", 0, None, get_wav, "transcribe")
+        await svc.window("k", 0, None, get_wav, "transcribe")
+    asyncio.run(go())
+    assert seen == ["translate", "transcribe"]

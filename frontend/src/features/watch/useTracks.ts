@@ -46,7 +46,7 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
   }, [key, sub])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live captions: transcribe the 30 s window being watched, and fetch the next one ahead of time.
-  useEffect(() => { fetched.current = new Set(); if (sub.kind === 'live') setCues([]) }, [sub.kind, audio, key])
+  useEffect(() => { fetched.current = new Set(); if (sub.kind === 'live') setCues([]) }, [sub.kind, sub.kind === 'live' && sub.original, audio, key])
   useEffect(() => {
     if (!media || sub.kind !== 'live') return
     const w = windowStart(time)
@@ -55,10 +55,10 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
     const s = wanted[0]!
     fetched.current.add(s)
     setLive('working')
-    getJson<{ cues: Cue[] }>(`/api/play/captions/${encodeURIComponent(media.cid)}/${media.mid}?start=${s}${audio !== null ? `&track=${audio}` : ''}`)
+    getJson<{ cues: Cue[] }>(`/api/play/captions/${encodeURIComponent(media.cid)}/${media.mid}?start=${s}${audio !== null ? `&track=${audio}` : ''}${sub.original ? '&task=transcribe' : ''}`)
       .then((r) => { setCues((c) => mergeCues(c, r.cues)); setLive('idle') })
       .catch(() => { fetched.current.delete(s); setLive('error') })
-  }, [media, sub.kind, audio, Math.floor(time / 5), playing])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [media, sub.kind, sub.kind === 'live' && sub.original, audio, Math.floor(time / 5), playing])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Alternate audio: ask the server to build it, poll until it is ready.
   useEffect(() => {
@@ -80,7 +80,7 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
   }, [])
   const pickSub = useCallback((c: SubChoice, language = '') => {
     setSubState(c)
-    savePrefs({ ...loadPrefs(), sub: c.kind === 'off' ? 'off' : c.kind, subLanguage: c.kind === 'track' ? language || undefined : loadPrefs().subLanguage })
+    savePrefs({ ...loadPrefs(), liveOriginal: c.kind === 'live' ? !!c.original : loadPrefs().liveOriginal, sub: c.kind === 'off' ? 'off' : c.kind, subLanguage: c.kind === 'track' ? language || undefined : loadPrefs().subLanguage })
   }, [])
 
   const text = sub.kind === 'off' ? '' : activeText(cues, time)

@@ -3,8 +3,8 @@ export interface SubtitleTrack { index: number; ordinal: number; label: string; 
 export interface TrackInfo { audio: AudioTrack[]; subtitles: SubtitleTrack[]; captions: { available: boolean; engine: string; install: string } }
 export interface Cue { start: number; end: number; text: string }
 /** Which subtitle source is showing: nothing, an embedded/sidecar track (by stream index) or live English captions. */
-export type SubChoice = { kind: 'off' } | { kind: 'track'; index: number } | { kind: 'live' }
-export interface TrackPrefs { audioLanguage?: string; sub?: 'off' | 'live' | 'track'; subLanguage?: string }
+export type SubChoice = { kind: 'off' } | { kind: 'track'; index: number } | { kind: 'live'; original?: boolean }
+export interface TrackPrefs { audioLanguage?: string; sub?: 'off' | 'live' | 'track'; subLanguage?: string; liveOriginal?: boolean }
 
 const STAMP = /(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})/
 
@@ -56,7 +56,7 @@ export function initialChoice(info: TrackInfo, prefs: TrackPrefs): { audio: numb
   const pick = info.audio.find((a) => want && lang(a) === want)
   const audio = pick && !pick.default && pick.ordinal !== 0 ? pick.index : null   // null: keep the video's own audio
   let sub: SubChoice = { kind: 'off' }
-  if (prefs.sub === 'live' && info.captions.available) sub = { kind: 'live' }
+  if (prefs.sub === 'live' && info.captions.available) sub = { kind: 'live', original: !!prefs.liveOriginal }
   else if (prefs.sub === 'track') {
     const s = info.subtitles.find((x) => x.text && prefs.subLanguage && lang(x) === prefs.subLanguage.toLowerCase().slice(0, 2))
     if (s) sub = { kind: 'track', index: s.index }

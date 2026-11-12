@@ -14,6 +14,7 @@ const Col = ({ title, children }: { title: string; children: ReactNode }) => (
 export function CcMenu({ info, audio, sub, live, altBusy, onAudio, onSub }: { info: TrackInfo; audio: number | null; sub: SubChoice; live: LiveState; altBusy: boolean; onAudio: (t: AudioTrack | null) => void; onSub: (c: SubChoice, language?: string) => void }) {
   const current = audio ?? info.audio[0]?.index
   const on = sub.kind !== 'off'
+  const state = live === 'working' ? <span className="text-muted"> …</span> : live === 'error' ? <span className="text-bad"> failed</span> : null
   return (
     <PopMenu label="Audio and subtitles" align="right" iconOnly button={<span className={on ? 'text-accent' : undefined}><CcIcon /></span>}>
       <div className="flex max-w-[calc(100vw-2rem)] flex-col gap-1 sm:flex-row sm:gap-3">
@@ -27,9 +28,10 @@ export function CcMenu({ info, audio, sub, live, altBusy, onAudio, onSub }: { in
           {info.subtitles.filter((s: SubtitleTrack) => s.text).map((s: SubtitleTrack) => (
             <MenuItem key={s.index} active={sub.kind === 'track' && sub.index === s.index} onClick={() => onSub({ kind: 'track', index: s.index }, s.language)}>{s.label}</MenuItem>
           ))}
-          {info.captions.available
-            ? <MenuItem active={sub.kind === 'live'} onClick={() => onSub({ kind: 'live' })}>Live captions → English{sub.kind === 'live' && live === 'working' ? <span className="text-muted"> …</span> : sub.kind === 'live' && live === 'error' ? <span className="text-bad"> failed</span> : null}</MenuItem>
-            : <span className="max-w-[14rem] px-2.5 py-1 text-[11px] leading-snug text-muted">Live English captions need <code>pip install faster-whisper</code></span>}
+          {info.captions.available ? (<>
+            <MenuItem active={sub.kind === 'live' && !sub.original} onClick={() => onSub({ kind: 'live' })}>Live captions → English{sub.kind === 'live' && !sub.original ? state : null}</MenuItem>
+            <MenuItem active={sub.kind === 'live' && !!sub.original} onClick={() => onSub({ kind: 'live', original: true })}>Live captions · original language{sub.kind === 'live' && sub.original ? state : null}</MenuItem>
+          </>) : <span className="max-w-[14rem] px-2.5 py-1 text-[11px] leading-snug text-muted">Live captions need <code>pip install faster-whisper</code></span>}
         </Col>
       </div>
     </PopMenu>

@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import os
 import threading
 import wave
 from pathlib import Path
@@ -19,7 +20,7 @@ WINDOW = 30.0  # seconds per caption window
 class CaptionEngine(Protocol):
     name: str
 
-    def transcribe_wav(self, wav: bytes) -> dict: ...
+    def transcribe_wav(self, wav: bytes, task: str = "translate") -> dict: ...
 
 
 def available() -> bool:
@@ -33,8 +34,10 @@ def available() -> bool:
 class FasterWhisperEngine:
     name = "faster-whisper"
 
-    def __init__(self, model: str = "base", cache_dir: Path | None = None):
-        self.model_name = model
+    def __init__(self, model: str | None = None, cache_dir: Path | None = None):
+        # "small" is the smallest model that handles Chinese/Japanese/Korean reasonably; "base" and "tiny" mostly fail on them.
+        # Set ARCHIVE_X_WHISPER_MODEL=medium (or large-v3) for better accuracy on a faster PC.
+        self.model_name = model or os.environ.get("ARCHIVE_X_WHISPER_MODEL", "small")
         self.cache_dir = cache_dir
         self._model: Any = None
         self._lock = threading.Lock()
@@ -46,13 +49,16 @@ class FasterWhisperEngine:
             self._model = WhisperModel(self.model_name, device="auto", compute_type="int8", **kw)
         return self._model
 
-    def transcribe_wav(self, wav: bytes) -> dict:
+    def transcribe_wav(self, wav: bytes, task: str = "translate") -> dict:
         import numpy as np  # installed with faster-whisper
         with wave.open(io.BytesIO(wav)) as w:
             audio = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype("float32") / 32768.0
         with self._lock:
             model = self._load()
-            segs, info = model.transcribe(audio, task="translate", vad_filter=True, beam_size=1)
+            segs, info = model.transcribe(
+                audio, task="translate" if task == "translate" else "transcribe", beam_size=5, vad_filter=True,
+                vad_parameters={"min_silence_duration_ms": 500, "speech_pad_ms": 400, "threshold": 0.35},
+                condition_on_previous_text=False, no_speech_threshold=0.7, temperature=[0.0, 0.2, 0.4])
             cues = [{"start": float(s.start), "end": float(s.end), "text": s.text.strip()} for s in segs if s.text.strip()]
         return {"language": getattr(info, "language", "") or "", "cues": cues}
 
@@ -81,19 +87,19 @@ class CaptionService:
             self.engine = FasterWhisperEngine(cache_dir=self.cache_dir / "models")
         return self.engine
 
-    def _path(self, key: str, start: float, track: int | None) -> Path:
-        return self.cache_dir / "captions" / key / f"{'a' if track is None else track}_{int(start)}.json"
+    def _path(self, key: str, start: float, track: int | None, task: str) -> Path:
+        return self.cache_dir / "captions" / key / f"{'en' if task == 'translate' else 'orig'}_{'a' if track is None else track}_{int(start)}.json"
 
-    async def window(self, key: str, start: float, track: int | None, get_wav) -> dict:
+    async def window(self, key: str, start: float, track: int | None, get_wav, task: str = "translate") -> dict:
         """Cues (absolute seconds) of the window beginning at `start`. `get_wav(start, duration)` is an async callable returning WAV bytes."""
         start = window_start(start)
-        path = self._path(key, start, track)
+        path = self._path(key, start, track, task)
         if path.exists():
             try:
                 return json.loads(path.read_text("utf-8"))
             except (OSError, ValueError):
                 pass
-        fk = (key, start, track)
+        fk = (key, start, track, task)
         if fk in self._inflight:
             return await asyncio.shield(self._inflight[fk])
         fut: asyncio.Future = asyncio.get_running_loop().create_future()
@@ -101,7 +107,7 @@ class CaptionService:
         try:
             engine = self._engine()
             wav = await get_wav(start, WINDOW)
-            res = await asyncio.to_thread(engine.transcribe_wav, wav)
+            res = await asyncio.to_thread(engine.transcribe_wav, wav, task)
             out = {"start": start, "end": start + WINDOW, "language": res.get("language", ""),
                    "cues": [{"start": start + c["start"], "end": start + c["end"], "text": c["text"]} for c in res.get("cues", [])]}
             path.parent.mkdir(parents=True, exist_ok=True)
