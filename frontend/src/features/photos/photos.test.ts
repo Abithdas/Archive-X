@@ -82,3 +82,14 @@ describe('delete', () => {
     expect(deletePath({ channel_id: '-1001', message_id: 3 })).toBe('/api/photos/-1001/3/delete')
   })
 })
+
+import { neighborUrls } from './photos'
+describe('neighborUrls', () => {
+  const items = [0, 1, 2, 3, 4].map((i) => ({ preview_url: `/p/${i}` }))
+  it('is the next two and the previous one', () => { expect(neighborUrls(items, 2)).toEqual(['/p/3', '/p/4', '/p/1']) })
+  it('skips what does not exist at the ends', () => {
+    expect(neighborUrls(items, 0)).toEqual(['/p/1', '/p/2'])
+    expect(neighborUrls(items, 4)).toEqual(['/p/3'])
+    expect(neighborUrls([], 0)).toEqual([])
+  })
+})

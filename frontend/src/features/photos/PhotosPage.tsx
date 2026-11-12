@@ -1,3 +1,5 @@
+import { aspectOf, assignColumns } from './masonry'
+import { useColumnCount } from './useColumnCount'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -60,6 +62,8 @@ export function PhotosPage() {
     staleTime: 15_000,
   })
   const items = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data])
+  const columnCount = useColumnCount()
+  const columns = useMemo(() => assignColumns(items.map(aspectOf), columnCount), [items, columnCount])
   const total = q.data?.pages[0]?.total ?? 0
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = q
   const more = () => { if (hasNextPage && !isFetchingNextPage) void fetchNextPage() }
@@ -157,8 +161,12 @@ export function PhotosPage() {
       ) : !items.length ? (
         <div className="rounded-card border border-dashed border-line py-12 text-center"><p className="font-semibold">{empty.title}</p><p className="mt-1 text-sm text-muted">{empty.body}</p></div>
       ) : (
-        <div className="columns-2 gap-2 sm:columns-3 sm:gap-3 lg:columns-4 xl:columns-6" aria-label="Photos in selected channels">
-          {items.map((p, i) => <PhotoCard key={`${p.channel_id}:${p.message_id}`} photo={p} favorite={favorites.has(String(p.id))} onOpen={() => setViewer(i)} onRemove={(remote) => setAsk({ photo: p, remote })} onDifferent={face ? () => setDifferent(p) : undefined} />)}
+        <div className="flex gap-2 sm:gap-3" aria-label="Photos in selected channels">
+          {columns.map((col, c) => (
+            <div key={c} className="flex min-w-0 flex-1 flex-col">
+              {col.map((i) => { const p = items[i]!; return <PhotoCard key={`${p.channel_id}:${p.message_id}`} photo={p} favorite={favorites.has(String(p.id))} onOpen={() => setViewer(i)} onRemove={(remote) => setAsk({ photo: p, remote })} onDifferent={face ? () => setDifferent(p) : undefined} /> })}
+            </div>
+          ))}
         </div>
       )}
       <div ref={sentinel} aria-hidden="true" className="h-8" hidden={!hasNextPage}>{isFetchingNextPage ? <span className="mx-auto block size-5 animate-spin rounded-full border-2 border-line border-t-accent" /> : null}</div>

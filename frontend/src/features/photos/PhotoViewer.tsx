@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/design/cn'
-import { SLIDE_MS, SWIPE_PX, clampPan, counterText, favKey, fitScale, hud, photoName, rotate, stepIndex, stripRange, zoomBy, zoomPercent, type Photo } from './photos'
+import { SLIDE_MS, SWIPE_PX, clampPan, counterText, favKey, fitScale, hud, neighborUrls, photoName, rotate, stepIndex, stripRange, zoomBy, zoomPercent, type Photo } from './photos'
 
 const PILL = 'grid h-9 min-w-9 place-items-center rounded-full px-2.5 text-base font-semibold text-white hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-white/20'
 
@@ -54,6 +54,12 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
   useEffect(() => { if (items.length - index <= 6 && items.length < total) onNeedMore() }, [index, items.length, total, onNeedMore])
+  // Fetch the neighbours now so Next and Previous show a photo at once (the server builds each preview the first time it is asked for).
+  const warmed = useRef(new Map<string, HTMLImageElement>())
+  useEffect(() => {
+    for (const u of neighborUrls(items, index)) if (!warmed.current.has(u)) { const img = new Image(); img.decoding = 'async'; img.src = u; warmed.current.set(u, img) }
+    if (warmed.current.size > 24) for (const k of [...warmed.current.keys()].slice(0, warmed.current.size - 24)) warmed.current.delete(k)
+  }, [items, index])
 
   const fit = fitScale(nat, box, rot)
   const scale = fit * mul
@@ -135,6 +141,7 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
 
       <div ref={stage} role="img" aria-label={`${h.title}. Drag to pan, scroll or use arrow keys to zoom, swipe to navigate.`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null }} onWheel={wheel} onDoubleClick={() => (atFit ? setScale(fit * 2.5) : doFit())}
         className={cn('relative min-h-0 flex-1 touch-none select-none overflow-hidden', atFit ? 'cursor-zoom-in' : 'cursor-grab active:cursor-grabbing')}>
+        {loading ? <img src={item.thumbnail_url} alt="" aria-hidden="true" draggable={false} style={{ width: nat.w || undefined, height: nat.h || undefined, maxWidth: 'none', transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) rotate(${rot}deg) scale(${scale})` }} className="absolute left-1/2 top-1/2 origin-center blur-[2px]" /> : null}
         <img src={original || item.preview_url} alt={photoName(item)} draggable={false} onLoad={(e) => { setLoading(false); if (!item.width) setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight }) }} onError={() => setLoading(false)}
           style={{ width: nat.w || undefined, height: nat.h || undefined, maxWidth: 'none', transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) rotate(${rot}deg) scale(${scale})` }}
           className="absolute left-1/2 top-1/2 origin-center transition-transform duration-150 ease-out" />
