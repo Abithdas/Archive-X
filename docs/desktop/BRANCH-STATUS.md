@@ -103,3 +103,6 @@ from `desktop/` (needs the Tauri Linux prerequisites listed there).
 - Text subtitle tracks (SRT/ASS/mov_text/WebVTT) are converted to WebVTT on demand and cached. Picture subtitles (PGS/VobSub) are listed as unsupported.
 - Live captions: optional local engine, `pip install faster-whisper`. Speech is cut into 30 s windows, auto-detected and translated to English (`task="translate"`), cached under `player_cache/captions`. Without the package the menu says how to install it. First use downloads the Whisper "base" model.
 - Backend: `playback/tracks.py`, `playback/captions.py`, `web/routes_tracks.py`; tests in `tools/tests/test_media_tracks.py`. Not verified here: real speech recognition and Telegram-streamed sources.
+
+## Player: any format
+Order: direct play, then in-browser smart engine (MP4/TS/FLV), then PC conversion to HLS (`/hls/<channel>/<message>/index.m3u8`, H.264/AAC via ffmpeg, played with hls.js and seekable). Each step is tried once, from the position reached. Needs ffmpeg on the PC. Not verified here: actual decoding of the converted stream (sandbox Chromium has no H.264) and Telegram sources.

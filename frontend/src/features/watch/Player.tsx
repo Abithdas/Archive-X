@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { SMART_FAILED, TRYING, initialMode, loadSmartStream, shouldFallBack, type Mode, type PlayInfo, type SmartApi } from './smartstream'
+import { SMART_FAILED, TRYING, initialMode, isDecodeFailure, loadSmartStream, shouldFallBack, type Mode, type PlayInfo, type SmartApi } from './smartstream'
 import { Icon } from '@/design/Icon'
 import { BufferIcon, ChevronIcon, FullscreenIcon, GearIcon, NextIcon, PauseIcon, PipIcon, PlayIcon, PrevIcon, VolumeIcon } from './PlayerIcons'
 import { Divider, Kbd, MenuHead, MenuItem, MenuRow, PopMenu, VolumeBar } from './PlayerParts'
@@ -8,6 +8,7 @@ import { formatDuration } from '@/features/library/format'
 import { SnapshotGrid, type SnapshotData } from './SnapshotGrid'
 import { Timeline, type PreviewInfo } from './Timeline'
 import type { Segment } from './timeline'
+import { HLS_FAILED, hlsUrl, startHls } from './hlsplay'
 import { CcMenu } from './CcMenu'
 import { useAltAudio, useTracks, type MediaRef } from './useTracks'
 
@@ -44,6 +45,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
   const [mode, setMode] = useState<Mode>('direct')
   const [failText, setFailText] = useState('')
   const triedSmart = useRef(false)
+  const triedHls = useRef(false)
   const [committed, setCommitted] = useState(false)   // the source was handed to the video: late codec info must not switch it mid-play
   useEffect(() => {
     if (!info || info.direct_likely) return
@@ -53,7 +55,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
   }, [info])
   const needsSmart = !!info && !info.direct_likely
   const ready = !infoPending && (!needsSmart || smart !== undefined)
-  useEffect(() => { triedSmart.current = false; setCommitted(false); setMode('direct'); setFailText('') }, [src])
+  useEffect(() => { triedSmart.current = false; triedHls.current = false; setCommitted(false); setMode('direct'); setFailText('') }, [src])
   useEffect(() => {
     if (!ready || committed) return
     setCommitted(true)
@@ -144,6 +146,25 @@ export function Player({ media, info, infoPending = false, src, poster, duration
     setTime(0)
   }, [src, attempt])
 
+  /** Hand the file to the PC's converter (HLS), once, resuming where playback had reached. */
+  const toHls = useCallback((at: number) => {
+    if (triedHls.current || !hlsUrl(src, media)) return false
+    triedHls.current = true
+    if (at > 0.5) pendingStart.current = at
+    setHint('Converting for this browser…'); setLoading(true); setFailed(false); setMode('hls')
+    return true
+  }, [src, media])
+
+  useEffect(() => {
+    if (!committed || mode !== 'hls') return
+    const v = video.current; const url = hlsUrl(src, media)
+    if (!v || !url) return
+    let run: { destroy: () => void } | null = null; let gone = false
+    void startHls(v, url, { startTime: pendingStart.current ?? (startAt > 0 && !startApplied.current ? startAt : 0), onError: (why) => { console.warn('[HLS] error:', why); if (!gone) { setFailText(HLS_FAILED); setFailed(true); setLoading(false) } } })
+      .then((r) => { if (gone) r?.destroy(); else run = r })
+    return () => { gone = true; run?.destroy() }
+  }, [committed, mode, src, attempt]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // The smart pipeline owns the video element's source while it runs.
   useEffect(() => {
     if (!committed || mode !== 'mse' || !smart || !info) return
@@ -153,7 +174,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
     if (startTime > 0) pendingStart.current = startTime
     const pipeline = smart.start(v, src, info, {
       startTime,
-      onError: (msg) => { console.warn('[SmartStream] error:', msg); setFailText(SMART_FAILED); setFailed(true); setLoading(false) },
+      onError: (msg) => { console.warn('[SmartStream] error:', msg); if (toHls(video.current?.currentTime ?? 0)) return; setFailText(SMART_FAILED); setFailed(true); setLoading(false) },
     })
     if (!pipeline) { triedSmart.current = true; setMode('direct'); return }
     return () => { try { pipeline.destroy() } catch { /* already gone */ } }
@@ -232,7 +253,9 @@ export function Player({ media, info, infoPending = false, src, poster, duration
               flash(TRYING); setLoading(true); setMode('mse')
               return
             }
+            if (mode !== 'hls' && isDecodeFailure(v.error?.code) && toHls(v.currentTime)) return
             if (mode === 'mse') setFailText(SMART_FAILED)
+            if (mode === 'hls') setFailText(HLS_FAILED)
             setFailed(true); setLoading(false)
           }}
           className="absolute inset-0 h-full w-full cursor-pointer object-contain"
@@ -253,7 +276,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
             <p className="max-w-lg text-sm font-bold leading-snug sm:text-lg">
               {failText ? failText : <><span className="sm:hidden">This video could not be played here.</span><span className="hidden sm:inline">This video could not be played from the original stream (the browser cannot decode this file, or Telegram is not connected).</span></>}
             </p>
-            <p className="hidden max-w-lg text-xs text-zinc-400 sm:block">Automatic conversion is off. You can retry the original stream or open it in VLC.</p>
+            <p className="hidden max-w-lg text-xs text-zinc-400 sm:block">You can retry the original stream or open it in VLC.</p>
             <div className="flex flex-wrap justify-center gap-2">
               <button type="button" onClick={() => setAttempt(attempt + 1)} className="h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg sm:h-10 sm:px-4">Retry original</button>
               <button type="button" onClick={onOpenVlc} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 text-sm font-bold sm:h-10 sm:px-4"><Icon name="brand-vlc" />Open in VLC</button>

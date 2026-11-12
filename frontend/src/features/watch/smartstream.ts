@@ -9,7 +9,7 @@ export interface SmartApi {
   label?: (info: PlayInfo) => string
   diagnostics?: () => Record<string, unknown>
 }
-export type Mode = 'direct' | 'mse'
+export type Mode = 'direct' | 'mse' | 'hls'
 
 export const TRYING = 'Trying client-side smart playback…'
 export const SMART_FAILED = 'Client-side smart playback failed. Automatic HLS/FFmpeg conversion is disabled. Retry the original stream or open it in VLC.'

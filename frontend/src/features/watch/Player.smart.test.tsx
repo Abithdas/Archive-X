@@ -13,7 +13,9 @@ const mkSmart = (over: Partial<SmartApi> = {}) => {
   const api: SmartApi = { canPlay: () => true, start: start as never, ...over }
   return { api, start, destroy }
 }
-beforeEach(() => loader.load.mockReset())
+const hls = vi.hoisted(() => ({ start: vi.fn() }))
+vi.mock('./hlsplay', async (orig) => ({ ...(await orig<typeof import('./hlsplay')>()), startHls: hls.start }))
+beforeEach(() => { loader.load.mockReset(); hls.start.mockReset(); hls.start.mockResolvedValue({ destroy: vi.fn() }) })
 afterEach(() => vi.useRealTimers())
 const video = (c: HTMLElement) => c.querySelector('video')!
 const decodeError = (v: HTMLVideoElement, code = 3) => { Object.defineProperty(v, 'error', { value: { code }, configurable: true }); fireEvent.error(v) }
@@ -38,13 +40,16 @@ describe('Player smart playback', () => {
     expect(video(container).hasAttribute('src')).toBe(false)
     unmount(); expect(destroy).toHaveBeenCalled()
   })
-  it('shows the smart-playback failure message when the engine reports an error', async () => {
+  it('converts on the PC (HLS) when the engine reports an error, and says so if that fails too', async () => {
     const { api, start } = mkSmart(); loader.load.mockResolvedValue(api)
     render(<Player info={NEEDS} src="/stream/-1/1" onOpenVlc={() => {}} />)
     await waitFor(() => expect(start).toHaveBeenCalled())
     const opts = start.mock.calls[0]![3] as { onError: (m: string) => void }
     act(() => opts.onError('boom'))
-    expect(await screen.findByText(/Client-side smart playback failed/)).toBeInTheDocument()
+    await waitFor(() => expect(hls.start).toHaveBeenCalledTimes(1))
+    expect(hls.start.mock.calls[0]![1]).toBe('/hls/-1/1/index.m3u8')
+    act(() => (hls.start.mock.calls[0]![2] as { onError: (w: string) => void }).onError('x'))
+    expect(await screen.findByText(/could not be converted for the browser/)).toBeInTheDocument()
   })
   it('falls back to direct play when the engine has no pipeline for the file', async () => {
     const { api, start } = mkSmart({ start: vi.fn(() => null) as never }); loader.load.mockResolvedValue(api)
@@ -67,7 +72,7 @@ describe('Player smart playback', () => {
     expect(v.getAttribute('src')).toBe('/stream/-1/1'); Object.defineProperty(v, 'currentTime', { value: 42, writable: true, configurable: true })
     rerender(<Player info={{ ...NEEDS, direct_likely: true }} src="/stream/-1/1" onOpenVlc={() => {}} />)   // facts say it should play, so no engine yet
     decodeError(v)
-    expect(await screen.findByRole('alert')).toBeInTheDocument(); expect(start).not.toHaveBeenCalled()
+    await waitFor(() => expect(hls.start).toHaveBeenCalledTimes(1)); expect(start).not.toHaveBeenCalled()
   })
   it('a direct decode failure on a file the engine can take starts it from where it stopped, once', async () => {
     const { api, start } = mkSmart({ canPlay: () => true }); loader.load.mockResolvedValue(api)
@@ -82,15 +87,20 @@ describe('Player smart playback', () => {
     await waitFor(() => expect(start).toHaveBeenCalledTimes(1))
     expect((start.mock.calls[0]![3] as { startTime: number }).startTime).toBe(42)
     expect(screen.getByText('Trying client-side smart playback…')).toBeInTheDocument()
-    decodeError(video(container))   // fails again on the smart path: it is final
-    expect(await screen.findByText(/Client-side smart playback failed/)).toBeInTheDocument(); expect(start).toHaveBeenCalledTimes(1)
+    decodeError(video(container))   // fails again on the smart path: the PC converts it instead, once
+    await waitFor(() => expect(hls.start).toHaveBeenCalledTimes(1)); expect(start).toHaveBeenCalledTimes(1)
+    decodeError(video(container))   // and that is final
+    expect(await screen.findByText(/could not be converted for the browser/)).toBeInTheDocument()
   })
-  it('without the engine, a decode error shows the normal message with Retry and VLC', async () => {
+  it('without the engine, a decode error is converted on the PC; if that is unavailable the message offers Retry and VLC', async () => {
     loader.load.mockResolvedValue(null)
     const { container } = render(<Player info={{ direct_likely: false }} src="/stream/-1/1" onOpenVlc={() => {}} />)
     await waitFor(() => expect(video(container).getAttribute('src')).toBe('/stream/-1/1'))
     decodeError(video(container))
-    expect(await screen.findByText(/could not be played from the original stream/)).toBeInTheDocument()
+    await waitFor(() => expect(hls.start).toHaveBeenCalledTimes(1))
+    expect(hls.start.mock.calls[0]![1]).toBe('/hls/-1/1/index.m3u8')
+    act(() => (hls.start.mock.calls[0]![2] as { onError: (w: string) => void }).onError('x'))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry original' })).toBeInTheDocument()
   })
 })
