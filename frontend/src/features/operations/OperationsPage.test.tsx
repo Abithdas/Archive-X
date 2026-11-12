@@ -44,10 +44,10 @@ describe('OperationsPage', () => {
     expect(screen.getByText('Index channel')).toBeInTheDocument()
     expect(screen.getByText('25% · 5 / 20')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Queued' }))
-    expect(screen.queryByText('Index channel')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('Index channel')).not.toBeInTheDocument())   // leaves with a short exit animation
     expect(screen.getByText('Upload batch')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Completed' }))
-    expect(screen.getByText('No jobs match this filter.')).toBeInTheDocument()
+    expect(await screen.findByText('No jobs match this filter.')).toBeInTheDocument()
   })
   it('explains what needs attention and shows system health', async () => {
     mount()

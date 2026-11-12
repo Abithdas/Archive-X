@@ -18,7 +18,7 @@ export const nextRate = (r: number) => RATES[(RATES.findIndex((x) => x === r) + 
 export const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) && dur > 0 ? Math.min(dur, t) : t)
 const clock = (s: number) => formatDuration(s) || '0:00'
 
-const BTN = 'grid size-8 shrink-0 place-items-center rounded-md text-fg/85 transition-all hover:bg-fg/10 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent active:scale-95 disabled:opacity-35 disabled:hover:bg-transparent'
+const BTN = 'grid size-8 shrink-0 place-items-center rounded-md text-fg/85 transition-[background-color,color,transform] hover:bg-fg/10 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent active:scale-95 disabled:opacity-35 disabled:hover:bg-transparent'
 
 /**
  * Native <video> with the classic player's control bar: seek, play, previous/next, ±30 s, speed, mute and volume,
@@ -271,7 +271,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
         {hint ? <div role="status" className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-[#141417]/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-md">{hint}</div> : null}
         {loading && !failed ? <div role="status" aria-label="Loading video" className="absolute inset-0 grid place-items-center"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-white" /></div> : null}
         {!playing && !failed && !loading ? (
-          <button type="button" onClick={toggle} aria-label="Play" className="absolute left-1/2 top-1/2 z-20 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-[#1e1f23]/80 text-white shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95 sm:size-14">
+          <button type="button" onClick={toggle} aria-label="Play" className="absolute left-1/2 top-1/2 z-20 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-[#1e1f23]/80 text-white shadow-xl backdrop-blur-md transition-[scale] duration-200 hover:scale-105 active:scale-95 sm:size-14">
             <span className="ml-0.5"><PlayIcon cls="size-5 sm:size-6" /></span>
           </button>
         ) : null}

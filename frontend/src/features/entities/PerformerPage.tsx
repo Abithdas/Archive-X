@@ -21,6 +21,7 @@ import { providerBio, socialLinks } from './studioextras'
 import { PerformerPoster, PosterGrid, StudioPoster } from './PosterCard'
 import type { SimilarFields } from './similarity'
 import { responsive } from '@/design/responsive'
+import { Empty } from '@/design/Empty'
 
 const GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
 const BIO_LIMIT = 280
@@ -116,15 +117,15 @@ export function PerformerPage({ id }: { id: number }) {
       <EntityTabs label="Performer details" value={tab} onChange={setTab}
         tabs={PTABS.map((t) => ({ value: t.value, label: t.label, count: t.value === 'videos' ? videos.length : t.value === 'studios' ? studioCount(videos) : t.value === 'suggestions' ? (suggested.data?.length ?? 0) : 0 }))} />
       {tab === 'videos' ? (
-        videos.length ? <><VideosHead kind="performer" videos={videos} /><div className={GRID} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div><EditingBar videos={videos} /></> : <p role="tabpanel" aria-label="Videos" className="rounded-card border border-dashed border-line py-16 text-center text-muted">No videos for this performer yet.</p>
+        videos.length ? <><VideosHead kind="performer" videos={videos} /><div className={GRID} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div><EditingBar videos={videos} /></> : <Empty role="tabpanel" aria-label="Videos" icon="library">No videos for this performer yet.</Empty>
       ) : tab === 'studios' ? (
         (() => { const items = studiosFor(videos, studios.data ?? []); return items.length ? (
           <PosterGrid label="Studios">{items.map((s) => <StudioPoster key={s.id} id={s.id} name={s.name} image={s.image} count={s.count} />)}</PosterGrid>
-        ) : <p role="tabpanel" aria-label="Studios" className="rounded-card border border-dashed border-line py-12 text-center text-muted">{STUDIOS_EMPTY}</p> })()
+        ) : <Empty role="tabpanel" aria-label="Studios" icon="studio">{STUDIOS_EMPTY}</Empty> })()
       ) : tab === 'similar' ? (
         similar.isPending ? <p role="tabpanel" aria-label="Similar Performers" className="py-8 text-center text-sm text-muted">Finding similar performers…</p>
         : (similar.data?.items ?? []).length ? <PerformerGrid items={similar.data!.items!} />
-        : <p role="tabpanel" aria-label="Similar Performers" className="rounded-card border border-dashed border-line py-12 text-center text-muted">{similarEmpty(similar.data?.reason)}</p>
+        : <Empty role="tabpanel" aria-label="Similar Performers" icon="user">{similarEmpty(similar.data?.reason)}</Empty>
       ) : <SuggestionsPanel kind="performer" entityId={p.id} name={p.name} />}
     </section>
   )

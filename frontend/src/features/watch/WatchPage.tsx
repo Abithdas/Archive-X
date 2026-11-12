@@ -20,6 +20,7 @@ import { Player } from './Player'
 import { useResume } from './useResume'
 import { frameIndexFor, normaliseChapters, toSegments } from './timeline'
 import { withWidth } from '@/design/responsive'
+import { AnimatePresence, listItem, motion } from '@/design/motion'
 
 const CARD = 'rounded-[18px] border border-line bg-surface p-4'
 const CHIP = 'inline-flex h-7 items-center rounded-full bg-surface-3 px-3 text-xs font-semibold text-muted'
@@ -47,8 +48,8 @@ function UpNext({ items, current }: { items: LibraryItem[]; current: LibraryItem
     <section aria-label="Up next videos" className={cn(CARD, 'self-start')}>
       <div className="mb-3 flex items-baseline justify-between"><h2 className="text-lg font-extrabold">Up next</h2><span className="text-xs text-faint">Current queue</span></div>
       <ul className="grid gap-2.5">
-        {rest.map((i) => (
-          <li key={`${i._cid}:${i.id}`}>
+        <AnimatePresence initial={false}>{rest.map((i) => (
+          <motion.li key={`${i._cid}:${i.id}`} {...listItem}>
             <Link to="/watch/$cid/$mid" params={{ cid: i._cid, mid: String(i.id) }} className="flex gap-3 rounded-xl p-1 hover:bg-fg/5">
               <span className="relative aspect-video w-[124px] shrink-0 overflow-hidden rounded-lg bg-surface-2">
                 <img src={withWidth(thumbUrl(i._cid, i.thumbnail_id), 320)} alt="" loading="lazy" className="h-full w-full object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
@@ -56,8 +57,8 @@ function UpNext({ items, current }: { items: LibraryItem[]; current: LibraryItem
               </span>
               <span className="line-clamp-3 min-w-0 self-center text-[13px] font-semibold leading-snug [overflow-wrap:anywhere]">{i.name}</span>
             </Link>
-          </li>
-        ))}
+          </motion.li>
+        ))}</AnimatePresence>
         {!rest.length ? <li className="text-sm text-muted">Nothing else in this queue.</li> : null}
       </ul>
     </section>

@@ -45,6 +45,9 @@ The scanner was not run: the sandbox declined to run third-party code from npm. 
 - The decorative ones (aurora, gravity stars, holographic foil, ASCII render, cursor trail): they add GPU cost on a media app that is already decoding video.
 - Adopting the shadcn registry wholesale: it would duplicate Dialog, Segmented, Switch and toasts that already match the app's theme and page zoom.
 
+## Status
+Batch 1 done: items 1 (page fade), 2 (sliding pill in Segmented and the Photos | People switch; sidebar not done), 3 (animated Operations jobs, Transfers lanes, Up next), 4 (counts on channel chips; job percentages not yet), 5 (shared Empty component used in Photos, performer/studio pages, directories and People), 12 (spring, fade-through and list presets in `design/motion.tsx`) and the two `transition-all` uses in item 13.
+
 ## Suggested first batch
 Items 1, 2, 3, 4, 5 and 12: about a day of work, no new dependency, and the visible result is a calmer, smoother app.
 

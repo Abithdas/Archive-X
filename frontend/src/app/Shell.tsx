@@ -1,3 +1,4 @@
+import { fadeThrough, motion } from '@/design/motion'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
@@ -178,6 +179,7 @@ function useGlobalKeys() {
 }
 
 export function Shell(): ReactNode {
+  const section = useRouterState({ select: (s) => s.location.pathname.split('/')[1] || 'home' })
   const live = useLiveStatus(true)
   useAppearanceSync()
   useGlobalKeys()
@@ -225,7 +227,7 @@ export function Shell(): ReactNode {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header live={live} />
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <Outlet />
+          <motion.div key={section} {...fadeThrough} className="flex min-h-0 flex-1 flex-col"><Outlet /></motion.div>
         </main>
       </div>
       <nav className="flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Main">

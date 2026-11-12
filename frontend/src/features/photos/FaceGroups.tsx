@@ -9,6 +9,7 @@ import { EMPTY_BODY, EMPTY_TITLE, INTRO, LOAD_FAILED, MERGE_NEEDS_TWO, NEEDS_PER
 import { ReferenceReview } from './ReferenceReview'
 import { usePhotoStore } from './store'
 import { withWidth } from '@/design/responsive'
+import { Empty } from '@/design/Empty'
 
 const NO_CHANNELS: string[] = []
 const BTN = 'h-9 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
@@ -227,7 +228,7 @@ export function FaceGroups({ onView }: { onView: () => void }) {
       ) : null}
       {q.isPending ? <div role="status" aria-label="Loading face groups" className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-72 rounded-2xl" />)}</div>
         : q.isError ? <button type="button" onClick={() => void q.refetch()} className={cn(PRIMARY, 'w-fit')}>Retry</button>
-        : !groups.length ? <div className="rounded-card border border-dashed border-line p-8 text-center"><h3 className="font-bold">{EMPTY_TITLE}</h3><p className="mx-auto mt-1 max-w-xl text-sm text-muted">{EMPTY_BODY}</p></div>
+        : !groups.length ? <Empty icon="user" title={EMPTY_TITLE}>{EMPTY_BODY}</Empty>
         : <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">{groups.map((g) => <Card key={g.id} group={g} checked={clusters.has(g.id)} busy={busy} onCheck={() => toggle(g.id)} onView={() => view(g)} onAssign={(p) => assign(g, p)} onClear={() => clear(g)} onSplit={split} onConfirm={(s, src) => confirmSuggestion(g, s, src)} onReject={(s, src) => void reject(g, s, src)} />)}</div>}
       {ask ? <Confirm title={ask.title} text={ask.text} ok={ask.ok} onCancel={() => setAsk(null)} onOk={() => { const go = ask.run; setAsk(null); void go() }} /> : null}
     </section>

@@ -15,6 +15,8 @@ import { ChannelChip } from '@/features/library/ChannelChip'
 import { useDebounced } from '@/features/library/useDebounced'
 import { useFaceGroups } from './FaceGroups'
 import { PeopleRow } from './PeopleRow'
+import { Empty } from '@/design/Empty'
+import { motion, spring } from '@/design/motion'
 import { PeopleView } from './PeopleView'
 import { DIFFERENT_NEEDS_GROUP, differentBody, differentCopy, filterLabel } from './faces'
 import { ChannelEditor } from '@/features/channels/ChannelEditor'
@@ -116,7 +118,10 @@ export function PhotosPage() {
 
       <div role="tablist" aria-label="Photos views" className="mb-4 inline-flex gap-0.5 rounded-xl border border-line bg-surface p-[3px]">
         {([['library', 'Photos'], ['faces', 'People']] as const).map(([v, label]) => (
-          <button key={v} type="button" role="tab" aria-selected={tab === v} onClick={() => setTab(v)} className={cn('h-9 rounded-[9px] px-4 text-sm font-semibold transition-colors', tab === v ? 'bg-surface-3 text-fg' : 'text-muted hover:text-fg')}>{label}</button>
+          <button key={v} type="button" role="tab" aria-selected={tab === v} onClick={() => setTab(v)} className={cn('relative h-9 rounded-[9px] px-4 text-sm font-semibold transition-colors', tab === v ? 'text-fg' : 'text-muted hover:text-fg')}>
+            {tab === v ? <motion.span layoutId="photos-view-pill" transition={spring} aria-hidden="true" className="absolute inset-0 rounded-[9px] bg-surface-3" /> : null}
+            <span className="relative">{label}</span>
+          </button>
         ))}
       </div>
 
@@ -160,7 +165,7 @@ export function PhotosPage() {
       ) : q.isError ? (
         <div role="alert" className="rounded-card border border-bad/40 p-6"><p className="font-semibold">Photo library could not be loaded.</p><p className="mt-1 text-sm text-muted">{reason(q.error, 'Check the Operations log and try again.')}</p><button type="button" onClick={() => void q.refetch()} className="mt-3 h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Retry</button></div>
       ) : !items.length ? (
-        <div className="rounded-card border border-dashed border-line py-12 text-center"><p className="font-semibold">{empty.title}</p><p className="mt-1 text-sm text-muted">{empty.body}</p></div>
+        <Empty icon="images" title={empty.title}>{empty.body}</Empty>
       ) : (
         <div className="flex gap-2 sm:gap-3" aria-label="Photos in selected channels">
           {columns.map((col, c) => (

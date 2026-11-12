@@ -10,6 +10,7 @@ import { PosterGrid, StudioPoster } from './PosterCard'
 import { cn } from '@/design/cn'
 import { formatBytes, formatDuration } from '@/features/library/format'
 import { SIMILAR_EMPTY, SUGGEST_EMPTY, brandIcon, confirmBody, confirmPath, failedConfirm, failedReject, linkedText, pending, rejectPath, rejectedText, succeeded, suggestionQuestion, suggestionTitle, suggestionToolbar, yesLabel, type Kind, type Related, type SocialLink, type Suggested } from './studioextras'
+import { Empty } from '@/design/Empty'
 
 export function SocialPanel({ links, loading, label = 'Website and social links' }: { links: SocialLink[]; loading: boolean; label?: string }) {
   return (
@@ -39,7 +40,7 @@ export function DetailsCard({ rows, related, label = 'Studio details' }: { rows:
 }
 
 export function SimilarPanel({ items }: { items: Array<{ id: number; name: string; image?: string | null; count: number }> }) {
-  if (!items.length) return <p role="tabpanel" aria-label="Similar Studios" className="rounded-card border border-dashed border-line py-12 text-center text-muted">{SIMILAR_EMPTY}</p>
+  if (!items.length) return <Empty role="tabpanel" aria-label="Similar Studios" icon="studio">{SIMILAR_EMPTY}</Empty>
   return <PosterGrid label="Similar Studios">{items.map((s) => <StudioPoster key={s.id} id={s.id} name={s.name} image={s.image} count={s.count} />)}</PosterGrid>
 }
 

@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { useDiagnostics, useResources, useStatus } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
+import { AnimatePresence, listItem, motion } from '@/design/motion'
 import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
 import { Segmented } from '@/design/Segmented'
@@ -71,7 +72,7 @@ function JobRow({ j }: { j: Obj }) {
   const id = idOf(j)
   const detailed = Boolean(id) && String(j.type ?? '') !== 'PLAYBACK'   // a playback session has no job record
   return (
-    <li onClick={(e) => { if (detailed && !(e.target as HTMLElement).closest('button,a,dialog,[role=group]')) setOpen(true) }} className={cn('flex flex-col rounded-xl bg-bg p-3.5', detailed && 'cursor-pointer hover:bg-fg/[0.03]')}>
+    <motion.li {...listItem} onClick={(e) => { if (detailed && !(e.target as HTMLElement).closest('button,a,dialog,[role=group]')) setOpen(true) }} className={cn('flex flex-col rounded-xl bg-bg p-3.5', detailed && 'cursor-pointer hover:bg-fg/[0.03]')}>
       <div className="flex items-center justify-between gap-3">
         {detailed ? <button type="button" onClick={() => setOpen(true)} title="Open for pipeline, worker, timing and error details" aria-label={`Details for ${String(j.name || j.type || 'task')}`} className="min-w-0 truncate text-left font-bold hover:underline">{String(j.name || j.type || 'Task')}</button> : <span className="min-w-0 truncate font-bold">{String(j.name || j.type || 'Task')}</span>}
         <span className={cn('shrink-0 rounded-full bg-surface-3 px-2.5 py-0.5 text-[11px] font-bold', TONE[statusTone(st)])}>{st.replace(/_/g, ' ')}</span>
@@ -83,7 +84,7 @@ function JobRow({ j }: { j: Obj }) {
       <p className="mt-1 text-[11px] text-faint">{prog.text}</p>
       <JobControls j={j} />
       {open ? <JobDetails id={id} onClose={() => setOpen(false)} /> : null}
-    </li>
+    </motion.li>
   )
 }
 
@@ -218,7 +219,7 @@ export function OperationsPage() {
 
       <Card title="Jobs" className="mb-4">
         <div className="mb-3"><Segmented label="Job filter" value={tab} onChange={setTab} options={JOB_TABS} /></div>
-        {shown.length ? <ul className="grid grid-cols-[minmax(0,1fr)] auto-rows-fr gap-2.5 md:grid-cols-2">{shown.map((j, i) => <JobRow key={String(j.id ?? j.job_id ?? i)} j={j} />)}</ul> : <p className="py-3 text-sm text-muted">{tab === 'all' ? 'No active jobs.' : 'No jobs match this filter.'}</p>}
+        {shown.length ? <ul className="grid grid-cols-[minmax(0,1fr)] auto-rows-fr gap-2.5 md:grid-cols-2"><AnimatePresence initial={false}>{shown.map((j, i) => <JobRow key={String(j.id ?? j.job_id ?? i)} j={j} />)}</AnimatePresence></ul> : <p className="py-3 text-sm text-muted">{tab === 'all' ? 'No active jobs.' : 'No jobs match this filter.'}</p>}
       </Card>
 
       <div className="mb-4 grid gap-4 lg:grid-cols-3">

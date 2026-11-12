@@ -26,3 +26,20 @@ export const cardMotion = (index: number) =>
     animate: { opacity: 1, y: 0, transition: { duration: timing.base, ease, delay: Math.min(index, 16) * 0.035 } },
     exit: { opacity: 0, scale: 0.96, transition: { duration: timing.fast } },
   }) as const
+
+/** Page change: the new page rises in. Enter only, so the outgoing page never flashes the new content. */
+export const fadeThrough = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0, transition: { duration: timing.base, ease } },
+} as const
+
+/** List row: slides in, slides out, and the rows around it glide into place. */
+export const listItem = {
+  layout: 'position',
+  initial: { opacity: 0, y: 6 },
+  animate: { opacity: 1, y: 0, transition: { duration: timing.base, ease } },
+  exit: { opacity: 0, x: -8, transition: { duration: timing.fast } },
+} as const
+
+/** The one spring for sliding highlights and pop-ups. */
+export const spring = { type: 'spring', stiffness: 520, damping: 38, mass: 0.7 } as const

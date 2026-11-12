@@ -13,6 +13,7 @@ import { cn } from '@/design/cn'
 import { CARD, Check, Stepper, detail, videosHint } from './parts'
 import { AutomationWorkflow } from './AutomationWorkflow'
 import { TransferWorkflow } from './TransferWorkflow'
+import { AnimatePresence, listItem, motion } from '@/design/motion'
 import { ChannelAvatar } from '@/features/channels/ChannelAvatar'
 import { activeLaneCount, jobPath, laneChips, toLanes, type Lane } from './lanes'
 import { DEFAULT_OPTIONS, joinLaunch, pendingBody, photoFailure, photoLaunch, photoMode, photoRequest, prerequisitePlan, processBody, selectedStages, stageLabels, expandStages, type Preflight, type RunOptions, type Stage } from './metadata'
@@ -21,7 +22,7 @@ import { DEFAULT_OPTIONS, joinLaunch, pendingBody, photoFailure, photoLaunch, ph
 function LaneCard({ lane, busy, onAct }: { lane: Lane; busy: boolean; onAct: (l: Lane, a: Lane['actions'][number]) => void }) {
   const label = { pause: 'Pause', resume: 'Resume', cancel: 'Stop', recover: 'Recover & Resume' } as const
   return (
-    <article data-kind={lane.kind} className="rounded-xl bg-bg p-3.5">
+    <motion.article {...listItem} data-kind={lane.kind} className="rounded-xl bg-bg p-3.5">
       <div className="flex items-start gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent"><Icon name={lane.kind === 'metadata' ? 'database' : 'transfer'} /></span>
         <div className="min-w-0 flex-1">
@@ -34,7 +35,7 @@ function LaneCard({ lane, busy, onAct }: { lane: Lane; busy: boolean; onAct: (l:
           </div>
         </div>
       </div>
-    </article>
+    </motion.article>
   )
 }
 
@@ -92,7 +93,7 @@ function LiveLanes() {
             {chips.map((c) => <li key={c.key} className="rounded-full bg-surface-3 px-3.5 py-2 text-xs text-muted">{c.label} <strong className="ml-1 text-fg">{c.value}</strong></li>)}
           </ul>
           <p className="mb-3 text-xs text-faint" role="status">{n} active/queued lane job{n === 1 ? '' : 's'}</p>
-          {list.length ? <div className="grid grid-cols-[minmax(0,1fr)] gap-2.5 md:grid-cols-2">{list.map((l) => <LaneCard key={l.key} lane={l} busy={busy === l.id} onAct={(x, a) => void act(x, a)} />)}</div> : <p className="text-sm text-muted">No active lane jobs. Start a transfer, local upload, manual Metadata &amp; Assets scan, or Content Automation to see its independent progress here.</p>}
+          {list.length ? <div className="grid grid-cols-[minmax(0,1fr)] gap-2.5 md:grid-cols-2"><AnimatePresence initial={false}>{list.map((l) => <LaneCard key={l.key} lane={l} busy={busy === l.id} onAct={(x, a) => void act(x, a)} />)}</AnimatePresence></div> : <p className="text-sm text-muted">No active lane jobs. Start a transfer, local upload, manual Metadata &amp; Assets scan, or Content Automation to see its independent progress here.</p>}
         </>
       )}
       {stop ? (

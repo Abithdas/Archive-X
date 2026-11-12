@@ -14,6 +14,7 @@ import { EntityCard, EntityCardSkeleton } from './EntityCard'
 import { Pagination } from '@/features/library/Pagination'
 import { filterEntities, pageCount, type GenderFilter } from './filter'
 import { FAILED, IDLE, NEED_SELECTION, SORTS, canCommit, commitLabel, confirmation, duplicatesOf, hint, mergeBody, modeLabel, pick, sortBy, successMessage, toggleMode, type MergeState, type SortKey } from './merge'
+import { Empty } from '@/design/Empty'
 
 const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-[18px] sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]'
 const DEFAULT_PER = 12
@@ -99,10 +100,10 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
           <Button variant="primary" onClick={() => void entities.refetch()}>Retry</Button>
         </div>
       ) : !rows.length ? (
-        <p className="rounded-card border border-dashed border-line py-16 text-center text-muted">
+        <Empty icon={kind === 'performers' ? 'user' : 'studio'}>
           {entities.data.length ? (kind === 'performers' && gender !== 'all' && !query.trim() ? `No ${gender} performers. ` : 'No matches. ') : copy.empty}
           {entities.data.length && kind === 'performers' && gender !== 'all' ? <button type="button" onClick={() => setGender('all')} className="font-semibold text-accent underline">Show all performers</button> : null}
-        </p>
+        </Empty>
       ) : (
         <>
           <div className={GRID}>{visible.map((e, i) => <EntityCard key={e.id} index={i} kind={kind} entity={e} merge={merging ? { keeper: merge.keepId === e.id, selected: merge.mergeIds.includes(e.id), onPick: () => pickCard(e.id) } : undefined} />)}</div>
