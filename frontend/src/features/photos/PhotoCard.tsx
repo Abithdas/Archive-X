@@ -1,3 +1,4 @@
+import { dropdownPosition } from '@/design/placement'
 import { useId, useRef } from 'react'
 import { toast } from 'sonner'
 import { Icon } from '@/design/Icon'
@@ -15,9 +16,11 @@ export function PhotoCard({ photo, favorite, onOpen, onRemove, onDifferent }: { 
   const place = () => {
     const el = pop.current, b = btn.current?.getBoundingClientRect()
     if (!el || !b) return
-    const w = 260, h = el.offsetHeight || 220
-    el.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, b.right - w))}px`
-    el.style.top = `${b.bottom + h + 12 <= window.innerHeight ? b.bottom + 4 : Math.max(8, b.top - h - 4)}px`
+    const { left, top, maxHeight } = dropdownPosition(b, btn.current, 260, el.offsetHeight || 220, 'right')
+    el.style.left = `${left}px`
+    el.style.top = `${top}px`
+    el.style.maxHeight = `${maxHeight}px`
+    el.style.overflowY = 'auto'
   }
   const close = () => pop.current?.hidePopover?.()
   const copy = async () => {
@@ -34,7 +37,7 @@ export function PhotoCard({ photo, favorite, onOpen, onRemove, onDifferent }: { 
         className={cn('absolute right-2 top-2 grid size-9 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm hover:bg-black/75 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100')}>
         <span className="flex gap-[3px]" aria-hidden="true"><i className="size-1 rounded-full bg-current" /><i className="size-1 rounded-full bg-current" /><i className="size-1 rounded-full bg-current" /></span>
       </button>
-      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Photo actions" onToggle={(e) => (e.nativeEvent as ToggleEvent).newState === 'open' && pop.current?.querySelector<HTMLElement>('button')?.focus()} className="m-0 w-[260px] rounded-[16px] border border-line-2 bg-surface p-2 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
+      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Photo actions" onToggle={(e) => (e.nativeEvent as ToggleEvent).newState === 'open' && (place(), pop.current?.querySelector<HTMLElement>('button')?.focus())} className="m-0 w-[260px] rounded-[16px] border border-line-2 bg-surface p-2 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
         <button type="button" role="menuitem" className={OPTION} onClick={() => { close(); onOpen() }}><Icon name="images" className="text-muted" />Open photo</button>
         <button type="button" role="menuitem" className={OPTION} onClick={() => void copy()}><Icon name="duplicate" className="text-muted" />Copy filename</button>
         {onDifferent ? <button type="button" role="menuitem" className={OPTION} onClick={() => { close(); onDifferent() }}><Icon name="user" className="text-muted" />Different person · remove from this group</button> : null}

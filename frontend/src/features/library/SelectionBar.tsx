@@ -1,3 +1,4 @@
+import { zoomOf } from '@/design/placement'
 import { useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
@@ -23,9 +24,10 @@ function BarMenu({ label, children, disabled }: { label: string; children: (clos
   const place = () => {
     const el = pop.current, b = btn.current?.getBoundingClientRect()
     if (!el || !b) return
+    const z = zoomOf(btn.current)
     const w = 224
-    el.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, b.left))}px`
-    el.style.bottom = `${window.innerHeight - b.top + 6}px`
+    el.style.left = `${Math.max(8, Math.min(window.innerWidth / z - w - 8, b.left / z))}px`
+    el.style.bottom = `${(window.innerHeight - b.top) / z + 6}px`
   }
   return (
     <>

@@ -8,6 +8,8 @@ const PANEL = 'fixed m-0 overflow-y-auto rounded-[14px] border border-line-2 bg-
 const ROW = 'flex w-full cursor-pointer items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm font-medium hover:bg-fg/5 focus-visible:bg-fg/5 focus-visible:outline-none'
 const ON = 'bg-accent/15 text-accent font-semibold'
 
+import { zoomOf } from './placement'
+
 let open: { close: () => void } | null = null
 
 export function openSelectMenu(select: HTMLSelectElement): void {
@@ -44,20 +46,23 @@ export function openSelectMenu(select: HTMLSelectElement): void {
   const host = select.closest('dialog') ?? document.body
   host.append(panel)
 
-  const gap = 6
-  const width = Math.max(rect.width, 180)
-  panel.style.minWidth = `${Math.min(width, window.innerWidth - 16)}px`
-  panel.style.maxWidth = `${window.innerWidth - 16}px`
+  // Positions are in the menu's own (zoomed) pixels; the select's rectangle and the window are in screen pixels.
   panel.showPopover()
-  const h = panel.getBoundingClientRect().height
-  const below = window.innerHeight - rect.bottom - gap - 8
-  const above = rect.top - gap - 8
+  const z = zoomOf(panel)
+  const sw = window.innerWidth / z, sh = window.innerHeight / z
+  const left0 = rect.left / z, top0 = rect.top / z, bottom0 = rect.bottom / z
+  const gap = 6
+  panel.style.minWidth = `${Math.min(Math.max(rect.width / z, 180), sw - 16)}px`
+  panel.style.maxWidth = `${sw - 16}px`
+  const h = panel.getBoundingClientRect().height / z
+  const below = sh - bottom0 - gap - 8
+  const above = top0 - gap - 8
   const up = h > below && above > below
   const room = Math.max(120, up ? above : below)
   panel.style.maxHeight = `${room}px`
   const used = Math.min(h, room)
-  panel.style.top = `${up ? rect.top - gap - used : rect.bottom + gap}px`
-  panel.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - panel.offsetWidth - 8))}px`
+  panel.style.top = `${up ? top0 - gap - used : bottom0 + gap}px`
+  panel.style.left = `${Math.max(8, Math.min(left0, sw - panel.offsetWidth - 8))}px`
   panel.style.right = 'auto'
   panel.style.bottom = 'auto'
   ;(rows[select.selectedIndex] ?? rows.find((r) => !r.disabled))?.focus()

@@ -1,3 +1,4 @@
+import { dropdownPosition } from '@/design/placement'
 import { useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -45,10 +46,11 @@ export function CardMenu({ item, className }: { item: LibraryItem; className?: s
     const el = pop.current
     const b = btn.current?.getBoundingClientRect()
     if (!el || !b) return
-    const w = 232
-    const h = el.offsetHeight || 260
-    el.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, b.right - w))}px`
-    el.style.top = `${b.bottom + h + 12 <= window.innerHeight ? b.bottom + 4 : Math.max(8, b.top - h - 4)}px`
+    const { left, top, maxHeight } = dropdownPosition(b, btn.current, 232, el.offsetHeight || 260, 'right')
+    el.style.left = `${left}px`
+    el.style.top = `${top}px`
+    el.style.maxHeight = `${maxHeight}px`
+    el.style.overflowY = 'auto'
   }
   const close = () => pop.current?.hidePopover?.()
   const play = async (p: Player) => {
@@ -91,7 +93,7 @@ export function CardMenu({ item, className }: { item: LibraryItem; className?: s
           <i className="size-1 rounded-full bg-current" />
         </span>
       </button>
-      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Video actions" onToggle={(e) => (e.nativeEvent as ToggleEvent).newState === 'open' && pop.current?.querySelector<HTMLElement>('button')?.focus()} className="m-0 w-[232px] rounded-[16px] border border-line-2 bg-surface p-2 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
+      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Video actions" onToggle={(e) => (e.nativeEvent as ToggleEvent).newState === 'open' && (place(), pop.current?.querySelector<HTMLElement>('button')?.focus())} className="m-0 w-[232px] rounded-[16px] border border-line-2 bg-surface p-2 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
         <div className="px-3 pb-1 pt-1.5 text-xs font-semibold text-faint" aria-hidden="true">Video actions</div>
         <button type="button" role="menuitem" className={OPTION} title="Copy to another Telegram channel, verify the copy, then delete source" onClick={() => { close(); setMoving(true) }}>
           <Icon name="transfer" className="text-muted" />Move / delete source
