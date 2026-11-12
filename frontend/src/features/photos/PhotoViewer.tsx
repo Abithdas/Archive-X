@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { createPortal } from 'react-dom'
 import { cn } from '@/design/cn'
 import { firstLoaded, loadImage } from './imageCache'
-import { SLIDE_MS, SWIPE_PX, anchorPan, clampPan, clampScale, pinchScale, wheelFactor, wheelSteps, counterText, favKey, fitScale, hud, neighborUrls, photoName, rotate, stepIndex, stripRange, zoomBy, zoomPercent, type Photo } from './photos'
+import { MIN_REL, SLIDE_MS, SWIPE_PX, anchorPan, paddedBox, clampPan, clampScale, pinchScale, wheelFactor, wheelSteps, counterText, favKey, fitScale, hud, neighborUrls, photoName, rotate, stepIndex, stripRange, zoomBy, zoomPercent, type Photo } from './photos'
 
 const PILL = 'grid h-9 min-w-9 place-items-center rounded-full px-2.5 text-base font-semibold text-white hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-white/20'
 
@@ -71,11 +71,11 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
     for (const u of neighborUrls(items, index)) void loadImage(u).catch(() => undefined)
   }, [items, index])
 
-  const fit = fitScale(nat, box, rot)
+  const fit = fitScale(nat, paddedBox(box), rot)   // leave some air above and below the photo
   const scale = fit * mul
-  const atFit = mul <= 1
+  const atFit = Math.abs(mul - 1) < 0.001
   const go = useCallback((d: number, wrap = false) => { const t = stepIndex(index, d, items.length, wrap); if (t !== null) onIndex(t) }, [index, items.length, onIndex])
-  const setScale = (s: number) => { const m = Math.max(1, s / fit); setAnim(true); setMul(m); setPan((p) => clampPan(p.x, p.y, nat, box, fit * m, rot)) }
+  const setScale = (s: number) => { const m = Math.max(MIN_REL, s / fit); setAnim(true); setMul(m); setPan((p) => clampPan(p.x, p.y, nat, box, fit * m, rot)) }
   const zoomStep = (dir: number) => setScale(zoomBy(scale, dir, fit))
   /** Zoom to `to`, keeping the point under the pointer where it is. */
   const zoomAt = (to: number, client: { x: number; y: number }, animate = true) => {
@@ -84,7 +84,7 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
     const z = r.width / (stage.current!.clientWidth || r.width || 1) || 1   // the page is zoomed on large screens; pan and scale are in unzoomed pixels
     const cursor = { x: (client.x - (r.left + r.width / 2)) / z, y: (client.y - (r.top + r.height / 2)) / z }
     const next = clampScale(to, fit)
-    const m = Math.max(1, next / fit)
+    const m = Math.max(MIN_REL, next / fit)
     setAnim(animate); setMul(m)
     const p = anchorPan(pan, scale, fit * m, cursor)
     setPan(clampPan(p.x, p.y, nat, box, fit * m, rot))
@@ -151,7 +151,10 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
     if (!d || atFit) return
     if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 3) d.moved = true
     setAnim(false)
-    setPan(clampPan(d.px + e.clientX - d.x, d.py + e.clientY - d.y, nat, box, scale, rot))
+    // pointer distances are screen pixels; the photo moves in the page's (possibly zoomed) pixels
+    const r = stage.current?.getBoundingClientRect()
+    const z = r && stage.current!.clientWidth ? r.width / stage.current!.clientWidth : 1
+    setPan(clampPan(d.px + (e.clientX - d.x) / z, d.py + (e.clientY - d.y) / z, nat, box, scale, rot))
   }
   const up = (e: RPointerEvent) => {
     pointers.current.delete(e.pointerId)

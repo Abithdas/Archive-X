@@ -172,7 +172,8 @@ describe('PhotoViewer', () => {
     fireEvent.wheel(stage, { deltaY: -120 }); expect(level()).toBeGreaterThan(100)
     const zoomed = level()
     fireEvent.wheel(stage, { deltaY: 120 }); expect(level()).toBeLessThan(zoomed)
-    fireEvent.wheel(stage, { deltaY: 5000 }); expect(level()).toBe(100)   // never smaller than the fitted size
+    fireEvent.wheel(stage, { deltaY: 5000 }); expect(level()).toBe(10)   // can shrink a long way, but never to nothing
+    fireEvent.click(within(dlg).getByRole('button', { name: 'Fit image' })); expect(level()).toBe(100)
     const bar = within(dlg).getByRole('toolbar', { name: 'Photo viewer controls' })
     expect(within(dlg).getByText('1 / 3')).toBeInTheDocument()
     fireEvent.wheel(bar, { deltaY: 120 }); expect(within(dlg).getByText('2 / 3')).toBeInTheDocument()
@@ -193,7 +194,9 @@ describe('PhotoViewer', () => {
     expect(level()).toBe('100%')
     fireEvent.click(within(dlg).getByRole('button', { name: 'Zoom in' })); expect(level()).toBe('125%')
     fireEvent.keyDown(document, { key: '+' }); expect(level()).toBe('156%')
-    fireEvent.keyDown(document, { key: '-' }); fireEvent.keyDown(document, { key: '-' }); fireEvent.keyDown(document, { key: '-' }); expect(level()).toBe('100%')
+    fireEvent.keyDown(document, { key: '-' }); fireEvent.keyDown(document, { key: '-' }); expect(level()).toBe('100%')
+    fireEvent.keyDown(document, { key: '-' }); expect(level()).toBe('80%')   // it can shrink below the fitted size
+    fireEvent.click(within(dlg).getByRole('button', { name: 'Fit image' })); expect(level()).toBe('100%')
     fireEvent.click(within(dlg).getByRole('button', { name: 'Zoom in' })); fireEvent.click(within(dlg).getByRole('button', { name: 'Fit image' })); expect(level()).toBe('100%')
     fireEvent.click(within(dlg).getByRole('button', { name: 'Rotate clockwise' }))
     expect(within(dlg).getByAltText('IMG_1.jpg').getAttribute('style')).toContain('rotate(90deg)')

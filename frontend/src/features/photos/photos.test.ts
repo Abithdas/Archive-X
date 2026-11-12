@@ -59,11 +59,12 @@ describe('viewer', () => {
     const stage = { w: 1000, h: 500 }
     expect(fitScale({ w: 2000, h: 1000 }, stage, 0)).toBe(0.5); expect(fitScale({ w: 100, h: 100 }, stage, 0)).toBe(1)
     expect(fitScale({ w: 2000, h: 1000 }, stage, 90)).toBe(0.25); expect(fitScale({ w: 0, h: 0 }, stage, 0)).toBe(1)
-    expect(zoomBy(0.5, 1, 0.5)).toBeCloseTo(0.625); expect(zoomBy(0.5, -1, 0.5)).toBe(0.5); expect(zoomBy(7.9, 1, 0.5)).toBe(8)
+    expect(zoomBy(0.5, 1, 0.5)).toBeCloseTo(0.625); expect(zoomBy(0.5, -1, 0.5)).toBeCloseTo(0.4); expect(zoomBy(0.06, -1, 0.5)).toBeCloseTo(0.05); expect(zoomBy(7.9, 1, 0.5)).toBe(8)
     expect(zoomPercent(1, 0.5)).toBe('200%'); expect(zoomPercent(0.5, 0.5)).toBe('100%')
     expect(rotate(0, -90)).toBe(270); expect(rotate(270, 90)).toBe(0)
     expect(clampPan(9999, 9999, { w: 2000, h: 1000 }, stage, 1, 0)).toEqual({ x: 500, y: 250 })
-    expect(clampPan(50, 50, { w: 100, h: 100 }, stage, 1, 0)).toEqual({ x: 0, y: 0 })
+    expect(clampPan(50, 50, { w: 100, h: 100 }, stage, 1, 0)).toEqual({ x: 50, y: 50 })   // a small photo can be moved about
+    expect(clampPan(9999, -9999, { w: 100, h: 100 }, stage, 1, 0)).toEqual({ x: 450, y: -200 })   // but not out of the stage
   })
   it('steps with stops at the ends, and wraps for slideshow', () => {
     expect(stepIndex(0, -1, 5)).toBeNull(); expect(stepIndex(4, 1, 5)).toBeNull(); expect(stepIndex(2, 1, 5)).toBe(3)
@@ -125,7 +126,7 @@ describe('wheel zoom and photo switching', () => {
     expect(wheelSteps(0, 0)).toBe(0)
   })
   it('limits the scale between the fitted size and the maximum', () => {
-    expect(clampScale(0.1, 0.4)).toBe(0.4)
+    expect(clampScale(0.001, 0.4)).toBeCloseTo(0.04)
     expect(clampScale(50, 0.4)).toBe(8)
     expect(clampScale(2, 0.4)).toBe(2)
   })

@@ -104,6 +104,8 @@ export const counterText = (index: number, total: number) => `${Math.max(0, inde
 
 export const ZOOM_STEP = 1.25
 export const MAX_ZOOM = 8
+/** How far below the fitted size the photo may be shrunk (a tenth of it). */
+export const MIN_REL = 0.1
 /** Fit scale for an image shown inside a stage, accounting for 90° rotations. Never upscales past 1. */
 export function fitScale(img: { w: number; h: number }, stage: { w: number; h: number }, rotation: number): number {
   const turned = Math.abs(rotation) % 180 === 90
@@ -111,14 +113,14 @@ export function fitScale(img: { w: number; h: number }, stage: { w: number; h: n
   if (!(w > 0 && h > 0 && stage.w > 0 && stage.h > 0)) return 1
   return Math.min(1, stage.w / w, stage.h / h)
 }
-export const zoomBy = (scale: number, direction: number, fit: number) => Math.min(MAX_ZOOM, Math.max(fit, scale * (direction < 0 ? 1 / ZOOM_STEP : ZOOM_STEP)))
+export const zoomBy = (scale: number, direction: number, fit: number) => Math.min(MAX_ZOOM, Math.max(fit * MIN_REL, scale * (direction < 0 ? 1 / ZOOM_STEP : ZOOM_STEP)))
 export const zoomPercent = (scale: number, fit: number) => `${Math.round((fit > 0 ? scale / fit : 1) * 100)}%`
 export const rotate = (current: number, delta: number) => (((current + delta) % 360) + 360) % 360
-/** Keep a panned image from leaving the stage: at most half of the overflow in each direction. */
+/** Keep a panned image inside the stage. A photo larger than the stage can move until its far edge reaches the stage edge; a smaller one can be placed anywhere in the stage. */
 export function clampPan(x: number, y: number, img: { w: number; h: number }, stage: { w: number; h: number }, scale: number, rotation: number) {
   const turned = Math.abs(rotation) % 180 === 90
   const w = (turned ? img.h : img.w) * scale, h = (turned ? img.w : img.h) * scale
-  const mx = Math.max(0, (w - stage.w) / 2), my = Math.max(0, (h - stage.h) / 2)
+  const mx = Math.abs(w - stage.w) / 2, my = Math.abs(h - stage.h) / 2
   return { x: Math.min(mx, Math.max(-mx, x)), y: Math.min(my, Math.max(-my, y)) }
 }
 /** Next viewer index; manual steps stop at the ends, slideshow playback wraps. */
@@ -166,6 +168,10 @@ export function wheelSteps(deltaX: number, deltaY: number): number {
   if (!raw) return 0
   return (raw > 0 ? 1 : -1) * Math.max(1, Math.min(3, Math.round(Math.abs(raw) / 120) || 1))
 }
-export const clampScale = (scale: number, fit: number) => Math.min(MAX_ZOOM, Math.max(fit, scale))
+export const clampScale = (scale: number, fit: number) => Math.min(MAX_ZOOM, Math.max(fit * MIN_REL, scale))
+/** Space kept clear around a fitted photo: top and bottom, and the sides. */
+export const PAD_Y = 20
+export const PAD_X = 16
+export const paddedBox = (box: { w: number; h: number }) => ({ w: Math.max(1, box.w - 2 * PAD_X), h: Math.max(1, box.h - 2 * PAD_Y) })
 /** Two-finger pinch: the scale follows how far the fingers moved apart or together. */
 export const pinchScale = (startScale: number, startDistance: number, distance: number) => (startDistance > 0 ? startScale * (distance / startDistance) : startScale)
