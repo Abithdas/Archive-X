@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render as rtlRender, screen } from '@testing-library/react'
+import { fireEvent, render as rtlRender, screen, waitFor } from '@testing-library/react'
 import type { ReactElement } from 'react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSelection } from './selection'
 import { withRouter } from '@/test/withRouter'
 import { SkeletonGroup } from '@/design/Skeleton'
@@ -106,5 +106,74 @@ describe('VideoCard in select mode', () => {
     withRouter(<VideoCard item={item()} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Add to favourites' }))
     expect(useSelection.getState().picked).toEqual({})
+  })
+})
+
+
+describe('VideoCard hover preview', () => {
+  const RealImage = globalThis.Image
+  afterEach(() => { vi.unstubAllGlobals(); globalThis.Image = RealImage })
+  const setup = (hover: boolean, manifest: Record<string, unknown>) => {
+    const calls: string[] = []
+    vi.stubGlobal('matchMedia', () => ({ matches: hover, addEventListener() {}, removeEventListener() {} }))
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => { calls.push(url); return new Response(JSON.stringify(url.includes('preview-manifest') ? manifest : { position: 1000, duration: 4000 }), { status: 200 }) }))
+    globalThis.Image = class { onload?: () => void; decoding = ''; _s = ''; set src(v: string) { this._s = v; queueMicrotask(() => this.onload?.()) } get src() { return this._s } decode() { return Promise.resolve() } } as unknown as typeof Image
+    withRouter(<VideoCard item={item({ duration: 3600 })} />)
+    return calls
+  }
+  const READY = { frames_ready: true, frame_count: 36, revision: 'r1', frame_times: Array.from({ length: 36 }, (_, i) => 60 + i * 100) }
+  const thumb = async () => {
+    const card = await screen.findByRole('article', { name: 'A medium length title' })
+    const t = card.querySelector('div.aspect-video') as HTMLElement
+    t.getBoundingClientRect = () => ({ left: 0, top: 0, right: 360, bottom: 202, width: 360, height: 202, x: 0, y: 0, toJSON: () => ({}) })
+    return { card, t }
+  }
+  // jsdom has no PointerEvent, so build the events by hand and give them a pointerType.
+  const pointer = (el: Element, type: string, init: MouseEventInit = {}) => { const ev = new MouseEvent(type, { bubbles: true, ...init }); Object.defineProperty(ev, 'pointerType', { value: 'mouse' }); fireEvent(el, ev) }
+  const mouse = (el: Element, x: number, y = 100) => pointer(el, 'pointermove', { clientX: x, clientY: y })
+
+  it('plays the cached snapshots on hover and shows each one\'s time', async () => {
+    setup(true, READY)
+    const { card } = await thumb()
+    mouse(card, 50)
+    const frame = () => card.querySelector('img[aria-hidden="true"]')?.getAttribute('src')
+    await waitFor(() => expect(frame()).toBe('/api/play/preview-frame/-1001/1001/0?v=r1'))
+    expect(screen.getByText('1:00')).toBeInTheDocument()
+    await waitFor(() => expect(frame()).toBe('/api/play/preview-frame/-1001/1001/1?v=r1'), { timeout: 1500 })
+    expect(screen.getByText('2:40')).toBeInTheDocument()
+  })
+  it('scrubs with the pointer and stops when it leaves', async () => {
+    setup(true, READY)
+    const { card } = await thumb()
+    mouse(card, 50)
+    await waitFor(() => expect(card.querySelector('img[aria-hidden="true"]')).not.toBeNull())
+    mouse(card, 300)
+    await waitFor(() => expect(card.querySelector('img[aria-hidden="true"]')?.getAttribute('src')).toBe('/api/play/preview-frame/-1001/1001/30?v=r1'))
+    expect(screen.getByRole('progressbar', { name: 'Preview frame position' })).toHaveAttribute('aria-valuenow', '83')
+    pointer(card, 'pointerout', { relatedTarget: null })
+    await waitFor(() => expect(card.querySelector('img[aria-hidden="true"]')).toBeNull())
+    expect(screen.getByText('1:00:00')).toBeInTheDocument()
+  })
+  it('keeps the normal thumbnail when the snapshots are not all cached, and asks Telegram for nothing', async () => {
+    const calls = setup(true, { frames_ready: false, frame_count: 12 })
+    const { card } = await thumb()
+    mouse(card, 50)
+    await waitFor(() => expect(calls.some((u) => u.includes('preview-manifest'))).toBe(true))
+    await new Promise((r) => setTimeout(r, 400))
+    expect(card.querySelector('img[aria-hidden="true"]')).toBeNull()
+    expect(calls.some((u) => u.includes('preview-frame'))).toBe(false)
+  })
+  it('does nothing on a touch screen (no hover)', async () => {
+    const calls = setup(false, READY)
+    const { card } = await thumb()
+    mouse(card, 50)
+    await new Promise((r) => setTimeout(r, 200))
+    expect(calls).toHaveLength(0)
+  })
+  it('shows how far you have watched, from the saved position', async () => {
+    setup(true, READY)
+    const { card } = await thumb()
+    mouse(card, 50)
+    await waitFor(() => expect(card.querySelector('[role="progressbar"]')).not.toBeNull())
   })
 })

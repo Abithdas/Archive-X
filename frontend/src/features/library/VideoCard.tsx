@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { thumbUrl } from '@/api/client'
 import { useFavorite } from '@/api/hooks'
 import type { LibraryItem } from '@/api/types'
@@ -9,6 +9,7 @@ import { cn } from '@/design/cn'
 import { CardMenu } from './CardMenu'
 import { formatDuration } from './format'
 import { pickKey, useSelection } from './selection'
+import { useCardPreview } from './useCardPreview'
 import { responsive } from '@/design/responsive'
 
 /** Card metrics live in one place so the skeleton below can never drift from the real card (values from the classic UI). */
@@ -23,7 +24,9 @@ const initials = (name: string) => name.trim().charAt(0).toUpperCase()
 export function VideoCard({ item }: { item: LibraryItem }) {
   const [imgOk, setImgOk] = useState(true)
   const fav = useFavorite()
-  const duration = formatDuration(item.duration)
+  const thumb = useRef<HTMLDivElement>(null)
+  const preview = useCardPreview(item._cid, item.id, Number(item.duration) || 0, thumb)
+  const duration = formatDuration(preview.seconds ?? item.duration)
   const people = item.performers
   const place = [item.studio, item.channel_title].filter(Boolean).join(' · ')
   const selecting = useSelection((s) => s.active)
@@ -37,8 +40,8 @@ export function VideoCard({ item }: { item: LibraryItem }) {
     toggle(item._cid, item.id)
   }
   return (
-    <article onClickCapture={pick} data-picked={selecting ? picked : undefined} className={cn(CARD, 'transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-12px_rgb(0_0_0/0.55)]', selecting && 'cursor-pointer', picked && 'border-accent ring-2 ring-accent/60')} aria-label={item.name}>
-      <div className={THUMB}>
+    <article {...preview.bind} onClickCapture={pick} data-picked={selecting ? picked : undefined} className={cn(CARD, 'transition-[box-shadow,transform] duration-200 hover:z-40 hover:-translate-y-[3px] hover:scale-[1.025] hover:shadow-[0_12px_26px_rgb(0_0_0/0.24)]', selecting && 'cursor-pointer', picked && 'border-accent ring-2 ring-accent/60')} aria-label={item.name}>
+      <div ref={thumb} className={THUMB}>
         {imgOk ? (
           <img
             {...responsive(thumbUrl(item._cid, item.thumbnail_id), '(max-width: 519px) calc(100vw - 32px), (max-width: 899px) 46vw, (max-width: 1199px) 30vw, (max-width: 1699px) 23vw, 18vw', [320, 480, 640], 640)}
@@ -49,11 +52,18 @@ export function VideoCard({ item }: { item: LibraryItem }) {
             className="absolute inset-0 h-full w-full object-cover"
           />
         ) : null}
+        {preview.frame ? <img src={preview.frame} alt="" aria-hidden="true" draggable={false} className="absolute inset-0 z-[1] size-full object-cover" /> : null}
         {selecting ? (
           <input type="checkbox" checked={picked} onChange={() => toggle(item._cid, item.id)} aria-label={`Select ${item.name}`} className="absolute left-2 top-2 z-10 size-5 cursor-pointer accent-[var(--color-accent)]" />
         ) : null}
-        {item.resolution_category ? <span className={cn(BADGE, 'bottom-2 left-2')}>{item.resolution_category}</span> : null}
-        {duration ? <span className={cn(BADGE, 'bottom-2 right-2')}>{duration}</span> : null}
+        {item.resolution_category ? <span className={cn(BADGE, 'bottom-2 left-2 z-[2]')}>{item.resolution_category}</span> : null}
+        {duration ? <span className={cn(BADGE, 'bottom-2 right-2 z-[2]')}>{duration}</span> : null}
+        {preview.loading ? <Skeleton className="absolute inset-x-0 bottom-0 z-[2] h-[3px] rounded-none" /> : null}
+        {preview.ratio !== null || preview.watched > 0 ? (
+          <span role="progressbar" aria-label={preview.ratio !== null ? 'Preview frame position' : 'Playback progress'} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((preview.ratio !== null ? preview.ratio * 100 : preview.watched))} className="pointer-events-none absolute inset-x-0 bottom-0 z-[3] h-[3px] bg-white/20">
+            <span className="block h-full bg-accent transition-[width] duration-150" style={{ width: `${preview.ratio !== null ? preview.ratio * 100 : preview.watched}%` }} />
+          </span>
+        ) : null}
         <button
           type="button"
           aria-label={item.favorite ? 'Remove from favourites' : 'Add to favourites'}
