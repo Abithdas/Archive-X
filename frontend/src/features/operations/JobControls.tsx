@@ -11,7 +11,9 @@ import { cn } from '@/design/cn'
 import { PLAYBACK_STOPPING, PLAYBACK_UNKNOWN, READ_FAILED, REFRESH_FAILED, STOP_ERROR, alreadyFinished, controlsFor, doneMessage, errorFor, idOf, isTerminal, jobPath, playbackConfirm, playbackDone, primaryLabel, primaryPath, stopConfirm, stopDone, type Primary } from './jobs'
 
 type Obj = Record<string, unknown>
-const BTN = 'inline-flex h-8 items-center gap-1.5 rounded-lg border border-line-2 px-3 text-xs font-bold hover:bg-fg/5 disabled:opacity-50'
+const BTN = 'inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-line-2 px-2 text-xs font-bold hover:bg-fg/5 disabled:opacity-50'
+/** The short words on the buttons; the full wording stays in the tooltip and the accessible name. */
+const SHORT = { recover: 'Recover', 'retry-recovery': 'Retry', resume: 'Resume', pause: 'Pause' } as const
 const reason = (e: unknown, fallback: string) => (e instanceof ApiError && e.detail ? e.detail : fallback)
 const inFlight = new Set<string>()   // one control request per job at a time
 
@@ -81,9 +83,10 @@ export function useJobActions(j: Obj, onFinished?: () => void) {
 export function JobControls({ j }: { j: Obj }) {
   const { c, busy, primary, stop, refresh, askPlayback, refetch, dialogs } = useJobActions(j)
   const [console_, setConsole] = useState(false)
-  if (!c) return null
+  // Space for the buttons is always kept, so a job card does not change size when its state does (running -> finished and back).
+  if (!c) return <div aria-hidden="true" className="mt-auto min-h-8 pt-2.5" />
   return (
-    <div className="mt-2.5 flex flex-wrap gap-1.5" role="group" aria-label={`Controls for ${String(j.name || j.type || 'job')}`}>
+    <div className="mt-auto flex min-h-8 gap-1.5 pt-2.5" role="group" aria-label={`Controls for ${String(j.name || j.type || 'job')}`}>
       {c.kind === 'playback' ? (
         <>
           <button type="button" disabled={busy} onClick={askPlayback} className={cn(BTN, 'text-bad')}><Icon name="stop" className="size-3.5" />Stop playback</button>
@@ -91,10 +94,10 @@ export function JobControls({ j }: { j: Obj }) {
         </>
       ) : (
         <>
-          <button type="button" disabled={busy} onClick={() => void primary(c.primary)} className={cn(BTN, (c.primary === 'recover' || c.primary === 'retry-recovery') && 'border-accent bg-accent text-accent-fg hover:bg-accent')}><Icon name={c.primary === 'pause' ? 'pause' : 'play'} className="size-3.5" />{primaryLabel(c.primary)}</button>
+          <button type="button" disabled={busy} onClick={() => void primary(c.primary)} title={primaryLabel(c.primary)} aria-label={primaryLabel(c.primary)} className={cn(BTN, (c.primary === 'recover' || c.primary === 'retry-recovery') && 'border-accent bg-accent text-accent-fg hover:bg-accent')}><Icon name={c.primary === 'pause' ? 'pause' : 'play'} className="size-3.5 shrink-0" /><span className="truncate">{SHORT[c.primary]}</span></button>
           <button type="button" disabled={busy} onClick={() => void stop()} className={cn(BTN, 'text-bad')}><Icon name="stop" className="size-3.5" />Stop</button>
           <button type="button" disabled={busy} onClick={() => void refresh()} className={BTN}><Icon name="refresh" className="size-3.5" />Refresh</button>
-          {hasConsole(j) ? <button type="button" onClick={() => setConsole(true)} className={BTN}>Open console</button> : null}
+          {hasConsole(j) ? <button type="button" onClick={() => setConsole(true)} title="Open console" aria-label="Open console" className={BTN}><span className="truncate">Console</span></button> : null}
         </>
       )}
       {console_ ? <TransferConsole jobId={idOf(j)} onClose={() => setConsole(false)} /> : null}
