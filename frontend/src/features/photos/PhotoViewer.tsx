@@ -120,7 +120,7 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
 
   return createPortal(
     <dialog ref={ref} aria-label="Photo viewer" onClose={onClose} onCancel={(e) => { e.preventDefault(); onClose() }} onClick={(e) => e.target === ref.current && onClose()}
-      className="fixed inset-0 m-0 hidden h-dvh max-h-none w-screen max-w-none flex-col bg-black/95 p-0 text-white open:flex">
+      className="fixed inset-0 m-0 hidden h-[calc(100dvh/var(--ax-page-zoom,1))] max-h-none w-[calc(100vw/var(--ax-page-zoom,1))] max-w-none flex-col bg-black/95 p-0 text-white open:flex">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 py-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
           <b className="max-w-[40vw] truncate text-sm" title={h.title}>{h.title}</b>

@@ -52,7 +52,7 @@ export function CommandPalette() {
       aria-label="Command palette"
       onClose={() => setPalette(false)}
       onClick={(e) => e.target === ref.current && setPalette(false)}
-      className="fixed inset-x-0 top-[12vh] m-auto w-[min(640px,calc(100vw-24px))] overflow-hidden rounded-[18px] border border-line-2 bg-surface p-0 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)] backdrop:bg-black/55 backdrop:backdrop-blur-sm"
+      className="fixed inset-x-0 top-[calc(12vh/(var(--ax-ui-zoom,1)*var(--ax-page-zoom,1)))] m-auto w-[min(640px,calc((100vw-24px)/(var(--ax-ui-zoom,1)*var(--ax-page-zoom,1))))] overflow-hidden rounded-[18px] border border-line-2 bg-surface p-0 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)] backdrop:bg-black/55 backdrop:backdrop-blur-sm"
     >
       <div className="flex items-center gap-3 border-b border-line px-4">
         <Icon name="search" className="text-muted" />
@@ -75,7 +75,7 @@ export function CommandPalette() {
         />
         <kbd className="rounded-md border border-line-2 px-2 py-1 text-[11px] font-semibold text-muted">Esc</kbd>
       </div>
-      <ul id="cmd-list" role="listbox" className="max-h-[min(60vh,440px)] overflow-y-auto p-2">
+      <ul id="cmd-list" role="listbox" className="max-h-[min(calc(60vh/(var(--ax-ui-zoom,1)*var(--ax-page-zoom,1))),440px)] overflow-y-auto p-2">
         {shown.length ? shown.map((c, n) => (
           <li key={c.id} id={`cmd-${c.id}`} role="option" aria-selected={n === idx}>
             <button type="button" onMouseMove={() => setI(n)} onClick={() => run(c)} className={cn('flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px]', n === idx && 'bg-accent/15')}>
