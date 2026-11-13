@@ -2,7 +2,8 @@ import { fadeThrough, motion, spring } from '@/design/motion'
 import { installGlow } from '@/design/glow'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { ErrorBoundary } from './ErrorScreen'
 import { useStatus, useStorage } from '@/api/hooks'
 import { useLiveStatus } from '@/api/live'
 import { Icon } from '@/design/Icon'
@@ -180,6 +181,7 @@ function useGlobalKeys() {
 }
 
 export function Shell(): ReactNode {
+  const fullPath = useRouterState({ select: (s) => s.location.pathname })
   const section = useRouterState({ select: (s) => s.location.pathname.split('/')[1] || 'home' })
   const live = useLiveStatus(true)
   useAppearanceSync()
@@ -229,7 +231,7 @@ export function Shell(): ReactNode {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header live={live} />
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <motion.div key={section} {...fadeThrough} className="flex min-h-0 flex-1 flex-col"><Outlet /></motion.div>
+          <motion.div key={section} {...fadeThrough} className="flex min-h-0 flex-1 flex-col"><ErrorBoundary resetKey={fullPath}><Suspense fallback={<div role="status" aria-label="Loading page" className="grid flex-1 place-items-center py-24"><span className="size-6 animate-spin rounded-full border-2 border-line border-t-accent" /></div>}><Outlet /></Suspense></ErrorBoundary></motion.div>
         </main>
       </div>
       <nav className="flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Main">

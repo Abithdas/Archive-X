@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:api": "openapi-typescript http://127.0.0.1:8443/openapi.json -o src/api/openapi.d.ts"
+    "gen:api": "openapi-typescript http://127.0.0.1:8443/openapi.json -o src/api/openapi.d.ts",
+    "check:size": "node scripts/check-size.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.0",

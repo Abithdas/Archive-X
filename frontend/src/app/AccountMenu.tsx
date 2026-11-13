@@ -9,6 +9,7 @@ import { AccountAvatar, ProfileEditor } from '@/features/profile/ProfileEditor'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
+import { install, useInstall } from './pwa'
 import { toggleTheme, useTheme } from './theme'
 import { useUi } from './ui'
 
@@ -28,6 +29,7 @@ export function AccountMenu({ live }: { live: string }) {
   const theme = useTheme()
   const name = displayName(profile.data) || 'A'
   const [editing, setEditing] = useState(false)
+  const offer = useInstall((st) => st.offer)
   const tg = Boolean(status.data?.telegram_connected ?? status.data?.telegram?.connected)
   const d = storage.data?.disk
   const pct = d?.total ? Math.round(((d.used || d.total - d.free) / d.total) * 100) : null
@@ -84,6 +86,11 @@ export function AccountMenu({ live }: { live: string }) {
           <Icon name="search" className="text-muted" />Command palette
           <kbd className="ml-auto rounded-md border border-line-2 px-1.5 py-0.5 font-sans text-[11px] font-semibold text-muted">Ctrl K</kbd>
         </button>
+        {offer && !desktop.data ? (
+          <button type="button" role="menuitem" className={ROW} onClick={() => { close(); void install() }}>
+            <Icon name="download" className="text-muted" />Install app
+          </button>
+        ) : null}
         <Link to="/settings" role="menuitem" onClick={close} className={ROW}>
           <Icon name="gear" className="text-muted" />Settings
         </Link>

@@ -1,0 +1,1 @@
+function o(n,i){return`${n}${n.includes("?")?"&":"?"}w=${i}`}function $(n,i,t){const c=i.filter(e=>!t||e<t).map(e=>`${o(n,e)} ${e}w`);return t&&c.push(`${n} ${t}w`),c.join(", ")}function r(n,i,t=[240,320,480,640,960],c){return{src:c?n:o(n,t[Math.min(2,t.length-1)]),srcSet:$(n,t,c),sizes:i}}export{r,o as w};

@@ -92,9 +92,9 @@ Dropped: map view (31), On this day (23). Numbers match the lists above.
 
 | # | Item | Size | Why it sits here |
 |---|------|------|------------------|
-| 1 | 34 Error screen + "report a problem" | S | One boundary component and a copy-log button |
-| 2 | 33 Performance budget | S | Lazy routes and a size check, no new screens |
-| 3 | 19 Install as an app (PWA) | S | Manifest and a small service worker |
+| 1 | 34 Error screen + "report a problem" | S | **DONE.** One boundary component and a copy-log button |
+| 2 | 33 Performance budget | S | **DONE.** Lazy routes and a size check, no new screens |
+| 3 | 19 Install as an app (PWA) | S | **DONE.** Manifest and a small service worker |
 | 4 | 12 Shortcut sheet, theatre mode, A-B loop, frame capture | S | Small additions to the player |
 | 5 | 14 Scene markers on the timeline | S | Markers already exist; only drawing them |
 | 6 | 10 Continue watching row | S | Resume data already exists |

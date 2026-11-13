@@ -1,15 +1,17 @@
 import { Link, createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
-import { LibraryPage } from '@/features/library/LibraryPage'
-import { EntityDirectory } from '@/features/entities/EntityDirectory'
-import { StudioPage } from '@/features/entities/StudioPage'
-import { PerformerPage } from '@/features/entities/PerformerPage'
-import { WatchPage } from '@/features/watch/WatchPage'
-import { OperationsPage } from '@/features/operations/OperationsPage'
-import { TransfersPage } from '@/features/transfers/TransfersPage'
-import { SettingsPage } from '@/features/settings/SettingsPage'
-import { PhotosPage } from '@/features/photos/PhotosPage'
+import { lazy } from 'react'
+const LibraryPage = lazy(() => import('@/features/library/LibraryPage').then((m) => ({ default: m.LibraryPage })))
+const EntityDirectory = lazy(() => import('@/features/entities/EntityDirectory').then((m) => ({ default: m.EntityDirectory })))
+const StudioPage = lazy(() => import('@/features/entities/StudioPage').then((m) => ({ default: m.StudioPage })))
+const PerformerPage = lazy(() => import('@/features/entities/PerformerPage').then((m) => ({ default: m.PerformerPage })))
+const WatchPage = lazy(() => import('@/features/watch/WatchPage').then((m) => ({ default: m.WatchPage })))
+const OperationsPage = lazy(() => import('@/features/operations/OperationsPage').then((m) => ({ default: m.OperationsPage })))
+const TransfersPage = lazy(() => import('@/features/transfers/TransfersPage').then((m) => ({ default: m.TransfersPage })))
+const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const PhotosPage = lazy(() => import('@/features/photos/PhotosPage').then((m) => ({ default: m.PhotosPage })))
+const AiPage = lazy(() => import('@/features/ai/AiPage').then((m) => ({ default: m.AiPage })))
 import { usePhotoStore } from '@/features/photos/store'
-import { AiPage } from '@/features/ai/AiPage'
+import { ErrorScreen } from './ErrorScreen'
 import { Shell } from './Shell'
 
 const root = createRootRoute({ component: Shell })
@@ -71,7 +73,7 @@ const NotFound = () => (
     <Link to="/photos" className="font-semibold text-accent underline">Go to Photos</Link>
   </div>
 )
-export const router = createRouter({ routeTree, defaultPreload: 'intent', defaultNotFoundComponent: NotFound })
+export const router = createRouter({ routeTree, defaultPreload: 'intent', defaultNotFoundComponent: NotFound, defaultErrorComponent: ({ error, reset }) => <ErrorScreen error={error} reset={reset} /> })
 
 declare module '@tanstack/react-router' {
   interface Register {

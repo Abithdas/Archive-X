@@ -30,3 +30,16 @@ def test_registered_last_later_routes_work_and_the_app_still_opens(tmp_path):
     assert c.get("/api/ai/status").json() == {"ok": True}
     assert c.get("/photos").text == "<html>app</html>"          # client-side routes still get the app
     assert c.get("/api/unknown").status_code == 404              # unknown backend paths stay 404
+
+
+def test_service_worker_and_manifest_are_always_revalidated(tmp_path):
+    (tmp_path / "index.html").write_text("<html></html>")
+    (tmp_path / "sw.js").write_text("//sw")
+    (tmp_path / "manifest.webmanifest").write_text("{}")
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "assets" / "a-1.js").write_text("x")
+    client = make(tmp_path, True)
+    assert client.get("/sw.js").headers["cache-control"] == "no-cache"
+    m = client.get("/manifest.webmanifest")
+    assert m.headers["cache-control"] == "no-cache" and m.headers["content-type"].startswith("application/manifest+json")
+    assert "immutable" in client.get("/assets/a-1.js").headers["cache-control"]

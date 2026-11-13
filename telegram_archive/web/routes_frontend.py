@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 NOT_BUILT = "frontend not built: run npm run build in frontend/"
 OLD_PREFIX = "/app-next"
 # Paths that belong to the backend: an unknown one is a 404, never the app shell.
+REVALIDATE = ("sw.js", "manifest.webmanifest")
 RESERVED = ("api", "stream", "static", "ws", "desktop", "health", "ca.crt")
 
 
@@ -35,7 +36,10 @@ def register_frontend_routes(router: APIRouter, *, dist_dir: Path) -> None:
         candidate = (dist_root / relative).resolve()
         if path and candidate.is_file() and dist_root in candidate.parents:
             immutable = first == "assets"
-            return FileResponse(candidate, headers={"Cache-Control": "public, max-age=31536000, immutable" if immutable else "public, max-age=3600"})
+            # The service worker and manifest must be re-checked on every load, or an update to the app would never reach an installed copy.
+            cache = "no-cache" if path in REVALIDATE else "public, max-age=31536000, immutable" if immutable else "public, max-age=3600"
+            media = "application/manifest+json" if path == "manifest.webmanifest" else None
+            return FileResponse(candidate, media_type=media, headers={"Cache-Control": cache})
         if relative.suffix:
             raise HTTPException(404)
         return FileResponse(index, headers={"Cache-Control": "no-store"})
