@@ -41,6 +41,16 @@ def register_media_routes(
         """Atomically apply title, full performer-list and studio edits, then sync captions."""
         require_auth(request)
         body = await request.json()
+        state = await asyncio.to_thread(_quick_edit_sync, body)   # database work off the event loop
+        channel_id, message_id, media_id, changes, updated = state["channel_id"], state["message_id"], state["media_id"], state["changes"], state["updated"]
+        resolved_people = state["resolved_people"]
+        caption_sync = await _sync_catalogue_caption(media_id)
+        db.log(f"Video quick edit: channel={channel_id} message={message_id} fields={','.join(changes) or 'none'}")
+        return {"ok": True, "changed": changes, "media": dict(updated) if updated else None,
+                "performers": [name for _pid, name in resolved_people],
+                "caption_sync": caption_sync}
+
+    def _quick_edit_sync(body):
         channel_id = str(body.get("channel_id") or "").strip()
         try:
             message_id = int(body.get("message_id") or 0)
@@ -188,14 +198,11 @@ def register_media_routes(
         if changes and any(x in changes for x in ("performer", "studio", "title")):
             from ..core.resource_registry import mark_media_entity_complete
             mark_media_entity_complete(db, [media_id])
-        caption_sync = await _sync_catalogue_caption(media_id)
-        db.log(f"Video quick edit: channel={channel_id} message={message_id} fields={','.join(changes) or 'none'}")
-        return {"ok": True, "changed": changes, "media": dict(updated) if updated else None,
-                "performers": [name for _pid, name in locals().get("resolved_people", [])],
-                "caption_sync": caption_sync}
+        return {"channel_id": channel_id, "message_id": message_id, "media_id": media_id, "changes": changes, "updated": updated,
+                "resolved_people": locals().get("resolved_people", [])}
 
     @router.post("/api/media/caption-sync/reconcile-deliveries")
-    def reconcile_verified_delivery_captions(request: Request):
+    async def reconcile_verified_delivery_captions(request: Request):
         """Reconcile captions of already-registered destination posts without channel scans."""
         require_auth(request)
         with db.lock:

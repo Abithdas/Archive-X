@@ -818,7 +818,7 @@ def register_telegram_routes(
         return {"ok":True,"id":jid}
 
     @router.post("/api/operations/thumbnails/stop")
-    def thumbnail_index_stop(request: Request):
+    async def thumbnail_index_stop(request: Request):
         require_auth(request)
         active=db.active_jobs("THUMBNAIL_INDEXER")
         for job in active: jobs.cancel(job["id"])

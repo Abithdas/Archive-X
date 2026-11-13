@@ -2323,7 +2323,11 @@ def register_library_routes(
     @router.post("/api/mapping/bulk")
     async def mapping_bulk(request: Request):
         """POST /api/mapping/bulk: Mapping bulk."""
-        require_auth(request); body=await request.json(); ids=[]
+        require_auth(request); body = await request.json()
+        return _mapping_bulk_response(*await asyncio.to_thread(_mapping_bulk_sync, body))   # database work off the event loop; the task start stays on it
+
+    def _mapping_bulk_sync(body):
+        ids=[]
         with db.lock:
             # V29.4.131: one request is all-or-nothing. An error part-way
             # (e.g. unknown performer) used to leave earlier deletes pending,
@@ -2419,6 +2423,10 @@ def register_library_routes(
             except BaseException:
                 db.conn.rollback()
                 raise
+        return ids, field, lock
+
+    def _mapping_bulk_response(ids, field, lock):
+        # Queuing the caption sync starts an asyncio task, so it has to run on the event loop, not in the worker thread.
         queued = _queue_catalogue_caption_sync(ids) if field in {"title", "performer", "site", "performer_site", "all"} else 0
         return {"ok":True,"changed":len(ids),"locked":lock,
                 "caption_sync":{"status":"queued" if queued else "not_needed", "count":queued}}

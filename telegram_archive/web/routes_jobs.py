@@ -207,7 +207,7 @@ def register_job_routes(
         return {"ok": True, "status": "SKIP_REQUESTED", "current_item": job.get("current_item") or ""}
 
     @router.post("/api/jobs/{job_id}/cancel")
-    def cancel_job(job_id: str, request: Request):
+    async def cancel_job(job_id: str, request: Request):
         """POST /api/jobs/{job_id}/cancel: Cancel job."""
         require_auth(request)
         try:
@@ -464,7 +464,7 @@ def register_job_routes(
         return {"ok": True}
 
     @router.post("/api/media-manager/stop")
-    def media_manager_stop(request: Request):
+    async def media_manager_stop(request: Request):
         """POST /api/media-manager/stop: Media manager stop."""
         require_auth(request)
         if media_manager.job_id:
@@ -682,7 +682,7 @@ def register_job_routes(
         return {"ok": True}
 
     @router.post("/api/telegram-transfer/stop")
-    def telegram_transfer_stop(request: Request):
+    async def telegram_transfer_stop(request: Request):
         require_auth(request)
         if media_manager.job_id:
             jobs.cancel(media_manager.job_id)

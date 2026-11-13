@@ -265,7 +265,7 @@ def register_automation_routes(
             raise HTTPException(503, f"Download engine unavailable: {exc}")
 
     @router.post("/api/operations/automation/stop")
-    def automation_stop(request: Request):
+    async def automation_stop(request: Request):
         """POST /api/operations/automation/stop: Automation stop."""
         require_auth(request)
         jobs_found = db.active_jobs(content_automation.AUTOMATION_JOB_TYPE)
