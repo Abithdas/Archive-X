@@ -448,6 +448,22 @@ class Database:
                 updated_at TEXT NOT NULL
             );
 
+            -- What a local detector (NudeNet) can see in each photo: visible body-part regions, kept as plain tags.
+            CREATE TABLE IF NOT EXISTS photo_content_analysis (
+                photo_id INTEGER PRIMARY KEY,
+                status TEXT NOT NULL DEFAULT 'COMPLETE',
+                error TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS photo_content_tags (
+                photo_id INTEGER NOT NULL,
+                tag TEXT NOT NULL,
+                score REAL NOT NULL DEFAULT 0,
+                regions INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY(photo_id, tag)
+            );
+            CREATE INDEX IF NOT EXISTS idx_photo_content_tags_tag ON photo_content_tags(tag, photo_id);
+
             CREATE TABLE IF NOT EXISTS photo_face_detections (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 photo_id INTEGER NOT NULL,

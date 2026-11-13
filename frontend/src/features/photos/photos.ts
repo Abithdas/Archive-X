@@ -55,7 +55,7 @@ export const pruneSelection = (selected: readonly string[], channels: readonly P
 
 export type FaceScope = 'named' | 'unnamed' | 'no_face' | 'pending'
 export interface FaceFilter { performerId: number | null; groupIds: number[]; groupId: number | null; label: string; scope?: FaceScope }
-export interface PhotoQuery { channels: readonly string[]; q: string; sort: PhotoSort; favorites: boolean; favoriteIds: ReadonlySet<string>; page: number; per?: number; face?: FaceFilter | null }
+export interface PhotoQuery { channels: readonly string[]; q: string; sort: PhotoSort; favorites: boolean; favoriteIds: ReadonlySet<string>; page: number; per?: number; face?: FaceFilter | null; contentTags?: readonly string[] }
 export function photoParams(q: PhotoQuery): URLSearchParams {
   const p = new URLSearchParams({ page: String(q.page), per: String(q.per ?? PER_PAGE), channels: q.channels.join(','), q: q.q, sort: q.sort })
   const f = q.face
@@ -63,6 +63,7 @@ export function photoParams(q: PhotoQuery): URLSearchParams {
   else if (f?.groupIds.length) p.set('face_group_ids', f.groupIds.join(','))
   else if (f?.groupId && f.groupId > 0) p.set('face_group_id', String(f.groupId))
   if (f?.scope) p.set('face_scope', f.scope)
+  if (q.contentTags?.length) p.set('content_tags', q.contentTags.join(','))
   if (q.favorites) { p.set('favorites', '1'); p.set('favorite_ids', [...q.favoriteIds].slice(0, 900).join(',')) }
   return p
 }

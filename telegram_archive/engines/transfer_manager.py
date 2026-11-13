@@ -75,6 +75,9 @@ async def run(ctx):
             scan_result = await photo_channel_scanner.run(ctx)
             reconcile_result = await photo_reconcile.run(ctx)
             result = {"scan": scan_result, "reconciliation": reconcile_result}
+        elif workflow == "PHOTO_CONTENT_TAGS":
+            from . import photo_content_tags
+            result = await photo_content_tags.run(ctx)
         elif workflow == "PHOTO_FACE_ANALYSIS":
             from . import photo_face_clustering
             result = await photo_face_clustering.run(ctx)

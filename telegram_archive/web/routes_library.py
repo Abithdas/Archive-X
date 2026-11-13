@@ -381,6 +381,11 @@ def register_library_routes(
         elif face_group_id is not None:
             where.append("EXISTS (SELECT 1 FROM photo_face_detections fd WHERE fd.photo_id=p.id AND fd.group_id=?)")
             params.append(face_group_id)
+        from ..engines.photo_content_tags import TAG_LABELS as _CONTENT_TAGS
+        for content_tag in [t.strip() for t in str(q.get("content_tags", "") or "").split(",") if t.strip()][:9]:
+            if content_tag in _CONTENT_TAGS:   # every ticked tag must be present
+                where.append("EXISTS (SELECT 1 FROM photo_content_tags ct WHERE ct.photo_id=p.id AND ct.tag=?)")
+                params.append(content_tag)
         face_scope = str(q.get("face_scope", "") or "").strip().lower()
         if face_scope in _PHOTO_FACE_SCOPES:
             where.append(_PHOTO_FACE_SCOPES[face_scope])
@@ -850,6 +855,35 @@ def register_library_routes(
                event="photo_library.face_detection_split", details={"detection_id": int(detection_id), "new_group_id": new_group_id})
         return {"ok": True, "detection_id": int(detection_id), "new_group_id": new_group_id}
 
+
+    @router.get("/api/photos/content-tags")
+    async def photo_content_tags_summary(request: Request):
+        """Which content tags exist, how many photos have each, and how many photos have been analysed."""
+        require_auth(request)
+        from ..engines import photo_content_tags
+        return {"ok": True, **await asyncio.to_thread(photo_content_tags.summary, db)}
+
+    @router.post("/api/photos/content-tags/analyze")
+    async def photo_content_tags_start(request: Request):
+        """Queue the local content-tagging job (photos not yet analysed; {"redo": true} for all)."""
+        require_auth(request)
+        from ..engines import photo_content_tags
+        if not photo_content_tags.available():
+            raise HTTPException(501, "Content tags need the optional package nudenet (pip install nudenet)")
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        with db.reading() as rdb:
+            indexed = int(rdb.execute("SELECT COUNT(*) n FROM photo_library_items").fetchone()["n"] or 0)
+        if not indexed:
+            raise HTTPException(400, "No indexed photos found. Scan Telegram channels for images first.")
+        detail = {"source": "telegram", "workflow": "PHOTO_CONTENT_TAGS", "source_count": indexed, "source_mode": "PHOTO_CONTENT_TAGS",
+                  "read_only": True, "redo": bool(isinstance(body, dict) and body.get("redo"))}
+        jid = db.create_job("TELEGRAM_TRANSFER", "all indexed photos", "", False, detail=json.dumps(detail, ensure_ascii=False, separators=(",", ":")))
+        jobs.submit(jid)
+        db.log(f"Queued content tagging job {jid} for {indexed} indexed photo(s)", "INFO", event="photo_library.content_tags_queued", job_id=jid)
+        return {"ok": True, "id": jid, "indexed_photos": indexed, "status": "QUEUED"}
 
     @router.get("/api/photos/faces/review")
     async def photo_face_review(request: Request):

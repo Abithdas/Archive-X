@@ -15,6 +15,7 @@ import { ChannelChip } from '@/features/library/ChannelChip'
 import { useDebounced } from '@/features/library/useDebounced'
 import { useFaceGroups } from './FaceGroups'
 import { PeopleRow } from './PeopleRow'
+import { ContentTags } from './ContentTags'
 import { Empty } from '@/design/Empty'
 import { motion, spring } from '@/design/motion'
 import { PeopleView } from './PeopleView'
@@ -36,7 +37,7 @@ function Avatar({ channel }: { channel: PhotoChannel }) {
 }
 
 export function PhotosPage() {
-  const { selected, sort, favoritesOnly, favorites, tab, setTab, face, setFace, setSelected, setSort, setFavoritesOnly, toggleFavorite } = usePhotoStore()
+  const { selected, sort, favoritesOnly, favorites, tab, setTab, face, contentTags, setFace, setSelected, setSort, setFavoritesOnly, toggleFavorite } = usePhotoStore()
   const search = useDebounced(useSearch((s) => s.q).trim(), 300)
   const channels = usePhotoChannels()
   const qc = useQueryClient()
@@ -56,11 +57,11 @@ export function PhotosPage() {
 
   const favIds = useMemo(() => favorites, [favorites])
   const q = useInfiniteQuery({
-    queryKey: ['photos', selected, search, sort, favoritesOnly, favoritesOnly ? [...favIds].sort() : null, face] as const,
+    queryKey: ['photos', selected, search, sort, favoritesOnly, favoritesOnly ? [...favIds].sort() : null, face, contentTags] as const,
     enabled: selected.length > 0 && tab === 'library',
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
-      const r = await api<PhotoPage>(photosUrl({ channels: selected, q: search, sort, favorites: favoritesOnly, favoriteIds: favIds, page: pageParam, face }))
+      const r = await api<PhotoPage>(photosUrl({ channels: selected, q: search, sort, favorites: favoritesOnly, favoriteIds: favIds, page: pageParam, face, contentTags }))
       if (!r || r.ok !== true) throw new ApiError(0, r?.detail || LOAD_FAILED)
       return r
     },
@@ -168,6 +169,7 @@ export function PhotosPage() {
       </section>
 
       <>
+      <ContentTags />
       <PeopleRow groups={faces.data?.groups ?? []} onManage={() => setTab('faces')} />
       <div className="mb-3 flex flex-wrap items-center gap-3"><h2 className="text-lg font-bold">Photos</h2><span className="text-xs text-muted">{summaryText(total)}{selected.length ? ` · ${selected.length.toLocaleString()} channel${selected.length === 1 ? '' : 's'}` : ''}</span>
         {face ? <span className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">{filterLabel(face)}<button type="button" onClick={() => setFace(null)} className="rounded-full border border-accent/40 px-2 py-0.5 hover:bg-accent/10">Clear group filter</button></span> : null}</div>

@@ -40,6 +40,8 @@ OPTIONAL = {
     "hypercorn": "hypercorn[h3]>=0.18,<1",
     # Local speech recognition for live video captions (any language to English).
     "faster_whisper": "faster-whisper>=1.0,<2",
+    # Small local detector for photo content tags (about 12 MB model inside the package).
+    "nudenet": "nudenet>=3.4,<4",
 }
 
 
@@ -88,7 +90,7 @@ def _requirements_without_pyav() -> list[str]:
         if line.lower().startswith("av==") or line.lower().startswith("av>=") or line.lower().startswith("av<="):
             continue
         # Live-caption speech recognition is optional too: installed separately so a missing wheel never breaks the app.
-        if line.lower().startswith("faster-whisper"):
+        if line.lower().startswith(("faster-whisper", "nudenet")):
             continue
         lines.append(line)
     return lines
@@ -122,6 +124,11 @@ def repair() -> int:
     print(" ".join(fw_cmd))
     if subprocess.run(fw_cmd, check=False).returncode:
         print("WARNING: faster-whisper could not be installed; live captions will be unavailable until it is.", file=sys.stderr)
+    nn_cmd = [sys.executable, "-m", "pip", "install", "--prefer-binary", OPTIONAL["nudenet"]]
+    print("Installing optional nudenet (photo content tags):")
+    print(" ".join(nn_cmd))
+    if subprocess.run(nn_cmd, check=False).returncode:
+        print("WARNING: nudenet could not be installed; photo content tags will be unavailable until it is.", file=sys.stderr)
     return 0
 
 
@@ -158,7 +165,7 @@ def main() -> int:
         except OSError:
             pass
     result = check()
-    if args.repair and (not result["ok"] or not result["optional"].get("faster_whisper", {}).get("ok")):
+    if args.repair and (not result["ok"] or not result["optional"].get("faster_whisper", {}).get("ok") or not result["optional"].get("nudenet", {}).get("ok")):
         code = repair()
         if code:
             return code
