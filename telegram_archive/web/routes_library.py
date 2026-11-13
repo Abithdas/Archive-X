@@ -1394,17 +1394,21 @@ def register_library_routes(
         if not channel_id or message_id <= 0:
             raise HTTPException(400, "A valid Telegram channel and message ID are required")
 
-        with db.reading() as rdb:
-            photo = rdb.execute(
-                "SELECT id,channel_id,message_id,filename,local_path,source_kind FROM photo_library_items WHERE channel_id=? AND message_id=?",
-                (channel_id, message_id),
-            ).fetchone()
-            if not photo:
-                raise HTTPException(404, "Photo is no longer in the Archive X library")
-            crop_rows = rdb.execute(
-                "SELECT crop_path FROM photo_face_detections WHERE photo_id=? AND COALESCE(crop_path,'')<>''",
-                (int(photo["id"]),),
-            ).fetchall()
+        def _read_photo():
+            with db.reading() as rdb:
+                photo = rdb.execute(
+                    "SELECT id,channel_id,message_id,filename,local_path,source_kind FROM photo_library_items WHERE channel_id=? AND message_id=?",
+                    (channel_id, message_id),
+                ).fetchone()
+                if not photo:
+                    raise HTTPException(404, "Photo is no longer in the Archive X library")
+                crop_rows = rdb.execute(
+                    "SELECT crop_path FROM photo_face_detections WHERE photo_id=? AND COALESCE(crop_path,'')<>''",
+                    (int(photo["id"]),),
+                ).fetchall()
+            return photo, crop_rows
+
+        photo, crop_rows = await asyncio.to_thread(_read_photo)   # database work off the event loop
 
         telegram_deleted = False
         telegram_was_already_missing = False
@@ -1437,7 +1441,8 @@ def register_library_routes(
                 raise
             except Exception as exc:
                 try:
-                    db.log(
+                    await asyncio.to_thread(
+                        db.log,
                         f"Photo delete failed before local cleanup for {channel_id}/{message_id}: {type(exc).__name__}: {exc}",
                         "WARN", event="photo_library.delete_telegram_failed",
                         details={"channel_id": channel_id, "message_id": message_id, "scope": scope},
@@ -1461,7 +1466,7 @@ def register_library_routes(
             if crop_path is not None:
                 cache_paths.add(crop_path)
 
-        try:
+        def _cleanup():
             with db.lock:
                 current = db.conn.execute(
                     "SELECT id FROM photo_library_items WHERE channel_id=? AND message_id=?",
@@ -1485,9 +1490,13 @@ def register_library_routes(
                     except Exception:
                         db.conn.rollback()
                         raise
+
+        try:
+            await asyncio.to_thread(_cleanup)
         except Exception as exc:
             try:
-                db.log(
+                await asyncio.to_thread(
+                    db.log,
                     f"Photo DB cleanup failed for {channel_id}/{message_id}: {type(exc).__name__}: {exc}",
                     "ERROR", event="photo_library.delete_database_failed",
                     details={"channel_id": channel_id, "message_id": message_id, "scope": scope,
@@ -1500,18 +1509,23 @@ def register_library_routes(
                 raise HTTPException(500, "Telegram deletion succeeded, but local database cleanup failed. The cached library record may still be visible; check Operations logs.") from exc
             raise HTTPException(500, f"Could not remove the photo from Archive X: {type(exc).__name__}: {exc}") from exc
 
-        cache_removed = 0
-        cache_cleanup_errors = []
-        for cache_path in cache_paths:
-            try:
-                if cache_path.is_file():
-                    cache_path.unlink()
-                    cache_removed += 1
-            except OSError as exc:
-                cache_cleanup_errors.append(f"{cache_path.name}: {type(exc).__name__}: {exc}")
+        def _remove_cache_files():
+            removed = 0
+            errors = []
+            for cache_path in cache_paths:
+                try:
+                    if cache_path.is_file():
+                        cache_path.unlink()
+                        removed += 1
+                except OSError as exc:
+                    errors.append(f"{cache_path.name}: {type(exc).__name__}: {exc}")
+            return removed, errors
+
+        cache_removed, cache_cleanup_errors = await asyncio.to_thread(_remove_cache_files)
         if cache_cleanup_errors:
             try:
-                db.log(
+                await asyncio.to_thread(
+                    db.log,
                     f"Photo was removed from the library but {len(cache_cleanup_errors)} cached file(s) could not be deleted for {channel_id}/{message_id}",
                     "WARN", event="photo_library.delete_cache_cleanup_pending",
                     details={"channel_id": channel_id, "message_id": message_id, "errors": cache_cleanup_errors[:10]},
@@ -1521,7 +1535,8 @@ def register_library_routes(
                 pass
 
         try:
-            db.log(
+            await asyncio.to_thread(
+                db.log,
                 f"Photo removed from Archive X{ ' and Telegram' if scope == 'archive_and_telegram' else '' }: {channel_id}/{message_id}",
                 "SUCCESS", event="photo_library.deleted",
                 details={"channel_id": channel_id, "message_id": message_id, "scope": scope,
@@ -2146,36 +2161,43 @@ def register_library_routes(
             message_id = int(body.get("message_id"))
         except (TypeError, ValueError):
             raise HTTPException(400, "channel_id and message_id must be integers")
-        with db.lock:
-            media = db.conn.execute(
-                "SELECT id,source_channel,source_message_id,filename,title,thumbnail_message_id FROM media "
-                "WHERE source_channel=? AND source_message_id=? AND COALESCE(status,'')<>'SOURCE_DELETED'",
-                (str(channel_id), message_id),
-            ).fetchone()
-            table_names = {str(row[0]) for row in db.conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()}
-            location = None
-            if "telegram_document_locations" in table_names:
-                location_row = db.conn.execute(
-                    "SELECT thumbnail_message_id FROM telegram_document_locations "
-                    "WHERE channel_id=? AND message_id=?",
+        def _lookup():
+            # Database reads run in a worker thread so a busy database cannot freeze the event loop.
+            with db.lock:
+                media = db.conn.execute(
+                    "SELECT id,source_channel,source_message_id,filename,title,thumbnail_message_id FROM media "
+                    "WHERE source_channel=? AND source_message_id=? AND COALESCE(status,'')<>'SOURCE_DELETED'",
                     (str(channel_id), message_id),
                 ).fetchone()
-                location = dict(location_row) if location_row else None
+                table_names = {str(row[0]) for row in db.conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()}
+                location = None
+                if "telegram_document_locations" in table_names:
+                    location_row = db.conn.execute(
+                        "SELECT thumbnail_message_id FROM telegram_document_locations "
+                        "WHERE channel_id=? AND message_id=?",
+                        (str(channel_id), message_id),
+                    ).fetchone()
+                    location = dict(location_row) if location_row else None
+            if not media:
+                return None, 0
+            return media, resolve_linked_thumbnail_message_id(
+                db,
+                channel_id=channel_id,
+                video_message_id=message_id,
+                media_thumbnail_message_id=media["thumbnail_message_id"],
+                location=location,
+            )
+
+        media, thumbnail_id = await asyncio.to_thread(_lookup)
         if not media:
             raise HTTPException(404, "This video is no longer in the active Library; refresh the Library")
-        thumbnail_id = resolve_linked_thumbnail_message_id(
-            db,
-            channel_id=channel_id,
-            video_message_id=message_id,
-            media_thumbnail_message_id=media["thumbnail_message_id"],
-            location=location,
-        )
         try:
             source = await telegram.client.get_entity(channel_id)
         except Exception as exc:
-            db.log(
+            await asyncio.to_thread(
+                db.log,
                 f"Library delete failed for {channel_id}/{message_id}: {type(exc).__name__}: {exc}",
                 "ERROR", event="library.delete",
             )
@@ -2185,7 +2207,8 @@ def register_library_routes(
         thumbnail_deleted = False
         warnings: list[str] = []
         if thumbnail_id:
-            if not thumbnail_message_is_unshared(
+            if not await asyncio.to_thread(
+                thumbnail_message_is_unshared,
                 db,
                 channel_id=channel_id,
                 video_message_id=message_id,
@@ -2219,60 +2242,65 @@ def register_library_routes(
             # Telegram request; never infer a companion from its filename or ID.
             await telegram.client.delete_messages(source, delete_ids)
         except Exception as exc:
-            db.log(
+            await asyncio.to_thread(
+                db.log,
                 f"Library delete failed for {channel_id}/{message_id}: {type(exc).__name__}: {exc}",
                 "ERROR", event="library.delete",
             )
             raise HTTPException(502, f"Telegram could not confirm deletion: {str(exc)[:220]}") from exc
 
-        now = config.now_iso()
-        media_id = int(media["id"])
-        entity_id = f"{channel_id}:{message_id}"
-        with db.lock:
-            db.conn.execute(
-                "UPDATE media SET status='SOURCE_DELETED',updated_at=? WHERE id=?",
-                (now, media_id),
-            )
-            table_names = {str(row[0]) for row in db.conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()}
-            if "resource_state" in table_names:
+        def _mark_deleted():
+            now = config.now_iso()
+            media_id = int(media["id"])
+            entity_id = f"{channel_id}:{message_id}"
+            with db.lock:
                 db.conn.execute(
-                    "UPDATE resource_state SET snapshot_state='UNKNOWN',last_reason='user_deleted_source',updated_at=? WHERE media_id=?",
+                    "UPDATE media SET status='SOURCE_DELETED',updated_at=? WHERE id=?",
                     (now, media_id),
                 )
-            if "asset_registry" in table_names:
-                db.conn.execute(
-                    "UPDATE asset_registry SET state='MISSING',updated_at=? WHERE media_id=? OR (entity_type='telegram_video' AND entity_id=?)",
-                    (now, media_id, entity_id),
-                )
-            if "telegram_document_locations" in table_names:
-                for deleted_id in delete_ids:
+                table_names = {str(row[0]) for row in db.conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()}
+                if "resource_state" in table_names:
                     db.conn.execute(
-                        "UPDATE telegram_document_locations SET location_state='DELETED_BY_ARCHIVE_X',"
-                        "last_seen_at=?,thumbnail_message_id=NULL WHERE channel_id=? AND message_id=?",
-                        (now, str(channel_id), int(deleted_id)),
+                        "UPDATE resource_state SET snapshot_state='UNKNOWN',last_reason='user_deleted_source',updated_at=? WHERE media_id=?",
+                        (now, media_id),
                     )
-            for table in ("thumbnail_cache", "timeline_preview_cache"):
-                if table in table_names:
+                if "asset_registry" in table_names:
                     db.conn.execute(
-                        f"DELETE FROM {table} WHERE source_channel=? AND video_message_id=?",
-                        (str(channel_id), message_id),
+                        "UPDATE asset_registry SET state='MISSING',updated_at=? WHERE media_id=? OR (entity_type='telegram_video' AND entity_id=?)",
+                        (now, media_id, entity_id),
                     )
-            if "resource_events" in table_names:
-                db.conn.execute(
-                    "INSERT INTO resource_events(media_id,event_type,reason,detail,created_at) VALUES(?,?,?,?,?)",
-                    (
-                        media_id, "SOURCE_DELETED", "user_requested_delete",
-                        f"Deleted from Telegram via Library; associated_thumbnail_deleted={thumbnail_deleted}", now,
-                    ),
-                )
-            db.conn.commit()
-        db.log(
-            f"Deleted Telegram video {channel_id}/{message_id} from Library on explicit user request; "
-            f"thumbnail_deleted={thumbnail_deleted}",
-            event="library.delete",
-        )
+                if "telegram_document_locations" in table_names:
+                    for deleted_id in delete_ids:
+                        db.conn.execute(
+                            "UPDATE telegram_document_locations SET location_state='DELETED_BY_ARCHIVE_X',"
+                            "last_seen_at=?,thumbnail_message_id=NULL WHERE channel_id=? AND message_id=?",
+                            (now, str(channel_id), int(deleted_id)),
+                        )
+                for table in ("thumbnail_cache", "timeline_preview_cache"):
+                    if table in table_names:
+                        db.conn.execute(
+                            f"DELETE FROM {table} WHERE source_channel=? AND video_message_id=?",
+                            (str(channel_id), message_id),
+                        )
+                if "resource_events" in table_names:
+                    db.conn.execute(
+                        "INSERT INTO resource_events(media_id,event_type,reason,detail,created_at) VALUES(?,?,?,?,?)",
+                        (
+                            media_id, "SOURCE_DELETED", "user_requested_delete",
+                            f"Deleted from Telegram via Library; associated_thumbnail_deleted={thumbnail_deleted}", now,
+                        ),
+                    )
+                db.conn.commit()
+            db.log(
+                f"Deleted Telegram video {channel_id}/{message_id} from Library on explicit user request; "
+                f"thumbnail_deleted={thumbnail_deleted}",
+                event="library.delete",
+            )
+            return media_id
+
+        media_id = await asyncio.to_thread(_mark_deleted)
         return {
             "ok": True, "deleted": True, "channel_id": channel_id, "message_id": message_id,
             "media_id": media_id, "thumbnail_deleted": thumbnail_deleted,
