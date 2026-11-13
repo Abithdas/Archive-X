@@ -77,6 +77,16 @@ Open `mockups/mockups.html#tray`, `#collections`, `#duplicates`, `#tags`, `#stat
 - Decorative effects and installing UI kits wholesale (see the UI plan).
 - A map view (dropped).
 
+## H. AI Assistance improvements (from the review of the page, 35 to 42)
+35. **Smaller assistant model option**: offer a 0.5B to 1.7B model next to the 4B (about 2.5 GB) for weak PCs. S, best built with 36.
+36. **First-run setup guide**: one button downloads llama-server for your system and the assistant model (checksum checked, progress shown) and fills in the paths, instead of typing them. M to L.
+37. **Answers that open things**: replies carry links ("open this video", "go to this job"), not only text. M.
+38. **Assistant tools for People and Photos**: read-only questions such as "who appears most?", "which photos have no named person?", "how many photos are tagged?". M.
+39. **Visible tool use**: show which tools the assistant called and what it read, so an answer can be checked. S to M.
+40. **Jobs tray link**: model downloads and tests appear in the jobs tray (after item 17). S.
+41. **A real Diagnostics page**: actual health numbers in a panel, with the assistant explaining them. M.
+42. **Chat history controls**: rename, delete and export a conversation. S to M.
+
 ## E. Everything left, easiest to hardest
 Dropped: map view (31), On this day (23). Numbers match the lists above.
 
@@ -93,45 +103,31 @@ Dropped: map view (31), On this day (23). Numbers match the lists above.
 | 9 | 6 Merge two people from their tiles | S | The merge call already exists |
 | 10 | 7 Hide a person (+ restore list) | S | One flag and a filter |
 | 11 | 27 Export and restore your data | S | Read and write one file |
-| 12 | 25 Statistics page | S to M | Counting queries plus charts |
-| 13 | 4 Combinable photo filters | M | Query options plus filter chips |
-| 14 | 16 Undo for deletes, moves, merges | M | Needs reversible operations in several places |
-| 15 | 15 First-run checklist | M | Reads state from many parts of the app |
-| 16 | 17 Jobs tray | M | One panel over data the app already polls |
-| 17 | 5 Grid that renders only what is on screen | M | Changes the photo layout engine, so it needs care |
-| 18 | 1 Month/day headings and timeline rail | M | Date grouping plus a scrubber on top of the grid |
-| 19 | 2 Select many photos, bulk actions | M | Selection state plus several bulk calls |
-| 20 | 18 Keyboard and screen-reader pass | M | Many small fixes across every screen |
-| 21 | 24 Tag manager | M | A new page, merge rules and suggestions |
-| 22 | 21 Collections | M | New data, pages and "add to" everywhere |
-| 23 | 13 Queue and playlists | M | New data plus changes to the player |
-| 24 | 11 Ratings and saved filters / smart playlists | M | Two features across videos, performers and filters |
-| 25 | 9 Face boxes with names in the photo viewer | M | Needs face positions and an overlay in the viewer |
-| 26 | 22 Photo duplicate finder | M | Picture fingerprints, a scan job and a safe review |
-| 27 | 26 Subtitle search and download | M | A new outside service and file saving |
-| 28 | 32 End-to-end browser tests | M | A test suite across the whole app |
-| 29 | 29 More scrapers / StashDB-style linking | L | Outside services with their own rules |
-| 30 | 28 Search by content (local model) | L | Model download, indexing every photo, new search |
-| 31 | 30 Multiple users and a PIN-locked area | L | Touches login, storage and every list |
-
-## F. Search by looks (hair colour and length, bust size, body hair, build)
-The app already stores hair colour, breast type, cup size, ethnicity, country and age for performers (from StashDB / ThePornDB) and uses them for "similar performers". Three levels, most reliable first:
-1. **Filters from provider data (M).** Performer, video and photo filters: hair colour (redhead, brunette, blonde...), cup size and type, ethnicity, country, age range. Shows how many performers actually have each value, so gaps are visible. Photos and videos are filtered through the performers named on them.
-2. **Your own attribute tags (S to M).** A fixed set you set by hand or in bulk: hair length and style (long, short, bob), body hair, build, plus free tags. Reliable because you decide; bulk-apply from a performer to all their videos.
-3. **Picture-based suggestions (L, optional).** A local model (CLIP-style) proposes tags from photos and video thumbnails. Fair for hair colour and hair length/style; poor for finer body terms, so those would only ever be suggestions you confirm, with the score shown. Needs a model download and a test on your own images before trusting it.
-Search box synonyms (for example "redhead", "ginger", "bob") would map to these filters.
-
-## G. Light local models worth using (checked on GitHub, PyPI and Hugging Face)
-Sizes are the files you would download; speed and accuracy on your images are NOT tested except where noted.
-| Model | Download | Licence | Use here |
-|---|---|---|---|
-| YuNet + SFace (already used) | about 39 MB | Apache-2.0 repo; check each model file | Faces and people. Tested working. Keep. |
-| faster-whisper "small" (already used) | 466 MiB (tiny 75, base 142) | MIT | Live captions. "tiny"/"base" are lighter but weak on Chinese and Japanese. |
-| Moonshine | very small, sizes not on its page | MIT (non-English legacy models are non-commercial) | Fast speech to text in the original language incl. Mandarin and Japanese; not translation. Candidate for original-language captions. Not tested. |
-| NudeNet 320n | 12 MB (ONNX, in a 10.6 MB pip package) | MIT | Finds and locates 18 kinds of region (face male/female, breast, buttocks, genitals, belly, armpits, feet; exposed or covered). Says what is visible and where, not size or shape. Fast. Not tested here. |
-| MobileCLIP-S0 (ONNX, quantised) | about 55 MB (image 11.8 + text 42.8) | Apple research terms: personal use fine, cannot be shipped in a product | Zero-shot tags from a text prompt: hair colour, hair length/style, scene. Smallest option. Not tested. |
-| OpenAI CLIP ViT-B/32 (ONNX, quantised) | about 154 MB (image 89 + text 64) | MIT | Same use as above with a permissive licence. |
-| WD14 tagger v3 | 378 MB | Apache-2.0 | Booru-style tags for anime and illustrations only: red_hair, brown_hair, blonde_hair, long_hair, short_hair, bob_cut, small/medium/large/huge_breasts, flat_chest, pubic_hair, thick_thighs (confirmed in its tag list). Too heavy for photos; only for the anime channels. |
-| InsightFace buffalo packs | not listed | Models non-commercial research only | Better faces than SFace, but the licence is stricter. Not needed now. |
-Not suggested: Falconsai nsfw_image_detection (343 MB, only a safe/explicit score), SigLIP (800 MB+), Whisper medium/large (1.5 to 2.9 GB).
-Suggested pairing for "search by looks": MobileCLIP-S0 or CLIP B/32 for hair colour and length on photos, NudeNet only if you want visible-content tags, WD14 only for the anime channels, with your own tags as the final say.
+| 12 | 35 Smaller assistant model option | S | A preset list; best done together with 36 |
+| 13 | 39 Visible tool use in the assistant | S to M | The tool calls already exist; show them |
+| 14 | 42 Chat history controls | S to M | A few calls on data that is already stored |
+| 15 | 25 Statistics page | S to M | Counting queries plus charts |
+| 16 | 4 Combinable photo filters | M | Query options plus filter chips |
+| 17 | 16 Undo for deletes, moves, merges | M | Needs reversible operations in several places |
+| 18 | 15 First-run checklist | M | Reads state from many parts of the app |
+| 19 | 17 Jobs tray | M | One panel over data the app already polls |
+| 20 | 40 Model downloads in the jobs tray | S | Small once the tray exists |
+| 21 | 5 Grid that renders only what is on screen | M | Changes the photo layout engine, so it needs care |
+| 22 | 1 Month/day headings and timeline rail | M | Date grouping plus a scrubber on top of the grid |
+| 23 | 2 Select many photos, bulk actions | M | Selection state plus several bulk calls |
+| 24 | 18 Keyboard and screen-reader pass | M | Many small fixes across every screen |
+| 25 | 24 Tag manager | M | A new page, merge rules and suggestions |
+| 26 | 21 Collections | M | New data, pages and "add to" everywhere |
+| 27 | 13 Queue and playlists | M | New data plus changes to the player |
+| 28 | 37 Assistant answers that open things | M | Links from model text into app pages |
+| 29 | 38 Assistant tools for People and Photos | M | New read-only tools for the registry |
+| 30 | 41 A real Diagnostics page | M | New panels over health data plus the assistant |
+| 31 | 11 Ratings and saved filters / smart playlists | M | Two features across videos, performers and filters |
+| 32 | 9 Face boxes with names in the photo viewer | M | Needs face positions and an overlay in the viewer |
+| 33 | 22 Photo duplicate finder | M | Picture fingerprints, a scan job and a safe review |
+| 34 | 26 Subtitle search and download | M | A new outside service and file saving |
+| 35 | 32 End-to-end browser tests | M | A test suite across the whole app |
+| 36 | 36 Assistant first-run setup guide | M to L | Downloads a program and a model, for each operating system |
+| 37 | 29 More scrapers / StashDB-style linking | L | Outside services with their own rules |
+| 38 | 28 Search by content (local model) | L | Model download, indexing every photo, new search |
+| 39 | 30 Multiple users and a PIN-locked area | L | Touches login, storage and every list |
