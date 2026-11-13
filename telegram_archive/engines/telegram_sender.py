@@ -442,6 +442,28 @@ def _signed_random_file_id() -> int:
     return value if value < (1 << 63) else value - (1 << 64)
 
 
+# A failed upload keeps its file id and acknowledged parts for a short while, so the caller's retry
+# continues from the last good part instead of re-sending a multi-GB file. Telegram holds unfinished
+# parts far longer than this; if it has dropped them anyway the send step reports a missing part and
+# the existing one-time re-upload (see _is_missing_or_expired_upload) starts clean.
+UPLOAD_RESUME_TTL_SECONDS = 900.0
+_UPLOAD_LEDGER: dict[tuple, dict] = {}
+
+
+def _upload_ledger_entry(path: Path, file_size: int, is_big: bool) -> tuple[tuple, dict]:
+    """The resumable state for this exact file (path, size, mtime and part size must all match)."""
+    now = time.monotonic()
+    for key in [k for k, v in _UPLOAD_LEDGER.items() if now - v["touched"] > UPLOAD_RESUME_TTL_SECONDS]:
+        _UPLOAD_LEDGER.pop(key, None)
+    st = path.stat()
+    key = (str(path.resolve()), int(file_size), int(st.st_mtime_ns), UPLOAD_PART_BYTES, bool(is_big))
+    entry = _UPLOAD_LEDGER.get(key)
+    if entry is None:
+        entry = _UPLOAD_LEDGER[key] = {"file_id": _signed_random_file_id(), "confirmed": set(), "touched": now}
+    entry["touched"] = now
+    return key, entry
+
+
 def _is_missing_or_expired_upload(exc: BaseException) -> bool:
     text = f"{type(exc).__name__} {exc}".upper()
     compact = re.sub(r"[^A-Z0-9]", "", text)
@@ -694,17 +716,20 @@ async def _archive_x_upload_file(client, file_path, *, file_name: str | None = N
         raise RuntimeError(f"Telegram upload has no parts: {path.name}")
     is_big = file_size > UPLOAD_SMALL_FILE_BYTES
     file_name = str(file_name or path.name)
-    file_id = _signed_random_file_id()
-    confirmed: set[int] = set()
-    confirmed_bytes = 0
+    ledger_key, ledger = _upload_ledger_entry(path, file_size, is_big)
+    file_id = int(ledger["file_id"])
+    confirmed: set[int] = ledger["confirmed"]   # shared with the ledger, so parts survive a failed attempt
+    confirmed_bytes = sum(min(UPLOAD_PART_BYTES, file_size - i * UPLOAD_PART_BYTES) for i in confirmed)
+    resumed_parts = len(confirmed)
     failure: list[BaseException] = []
     abort = asyncio.Event()
     gate = _AdaptiveUploadGate(client)
     connections = _UploadConnectionPool(client, governor=getattr(client, "_telegram_archive_governor", None))
     queue: asyncio.Queue[int | None] = asyncio.Queue()
     for part_index in range(part_count):
-        queue.put_nowait(part_index)
-    worker_count = min(UPLOAD_MAX_WORKERS, max(1, part_count))
+        if part_index not in confirmed:
+            queue.put_nowait(part_index)
+    worker_count = min(UPLOAD_MAX_WORKERS, max(1, part_count - resumed_parts))
     for _ in range(worker_count):
         queue.put_nowait(None)
     governor = getattr(client, "_telegram_archive_governor", None)
@@ -725,6 +750,8 @@ async def _archive_x_upload_file(client, file_path, *, file_name: str | None = N
             int(seconds),
         )
 
+    if resumed_parts:
+        await emit_status(f"Resuming upload from part {resumed_parts + 1}/{part_count}", 0)
     # GovernedTelegramClient uses this callback only for upload-part FloodWaits.
     try:
         setattr(client, "_archive_x_upload_wait_callback", policy_wait_callback)
@@ -833,6 +860,7 @@ async def _archive_x_upload_file(client, file_path, *, file_name: str | None = N
             f"Telegram upload incomplete for {path.name}: {len(missing)} parts remain unconfirmed "
             f"(first missing part {missing[0] + 1}/{part_count})"
         )
+    _UPLOAD_LEDGER.pop(ledger_key, None)   # finished: a later upload of this file starts with a new id
     if callable(progress_callback):
         value = progress_callback(file_size, file_size)
         if inspect.isawaitable(value):
