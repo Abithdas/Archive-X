@@ -21,7 +21,7 @@ from .core.diagnostics import write_runtime_snapshot
 from .core.request_context import new_request_id, set_trace_context
 from .core.observability import parse_traceparent, set_context
 from .core.process_topology import snapshot as process_topology_snapshot
-from .core.http_middleware import SecurityHeadersMiddleware, BrowserMutationGuardMiddleware, ResponseOptimizationMiddleware, APIRateLimitMiddleware
+from .core.http_middleware import TrustedProxyMiddleware, SecurityHeadersMiddleware, BrowserMutationGuardMiddleware, ResponseOptimizationMiddleware, APIRateLimitMiddleware
 from .telegram.service import TelegramService
 from .jobs.manager import JobManager
 from .web.routes import build_router
@@ -577,6 +577,9 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
     app.add_middleware(ResponseOptimizationMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(HTTP3AdvertisementMiddleware)
+    _proxy_key = os.getenv("ARCHIVE_X_PROXY_KEY", "").strip()
+    if _proxy_key:   # the Rust front door is in front of this server; outermost, so every later layer sees the real client address
+        app.add_middleware(TrustedProxyMiddleware, key=_proxy_key)
     from .core import desktop_mode
     if desktop_mode.enabled():
         desktop_mode.install(app, db, sessions)   # outermost guard + /desktop/session and /desktop/shutdown

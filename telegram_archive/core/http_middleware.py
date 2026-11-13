@@ -62,6 +62,42 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, _send)
 
 
+class TrustedProxyMiddleware:
+    """Take the real client address from the Rust front door, and only from it.
+
+    The front door runs in front of this server, so every connection here comes from 127.0.0.1. Several checks
+    ("only from this PC", rate limits) need the real address, so the front door adds `X-Archive-X-Peer` and signs it
+    with `X-Archive-X-Proxy-Key`, a random secret both processes get at launch. When the key matches, `scope["client"]`
+    becomes the real peer; the two headers and any `X-Forwarded-For` are always removed so nothing downstream can be
+    fooled by a client that sends them itself.
+    """
+    _STRIP = {b"x-archive-x-peer", b"x-archive-x-proxy-key", b"x-forwarded-for"}
+
+    def __init__(self, app, *, key: str):
+        self.app = app
+        self.key = key.encode()
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") not in ("http", "websocket"):
+            await self.app(scope, receive, send)
+            return
+        import hmac
+        headers = list(scope.get("headers") or [])
+        peer = b""
+        presented = b""
+        for k, v in headers:
+            kl = k.lower()
+            if kl == b"x-archive-x-peer":
+                peer = v
+            elif kl == b"x-archive-x-proxy-key":
+                presented = v
+        scope = dict(scope)
+        scope["headers"] = [(k, v) for k, v in headers if k.lower() not in self._STRIP]
+        if self.key and presented and hmac.compare_digest(presented, self.key) and peer:
+            scope["client"] = (peer.decode("latin1", "ignore").strip(), 0)
+        await self.app(scope, receive, send)
+
+
 class APIRateLimitMiddleware:
     """IP-based rate limiter for unauthenticated endpoints (login, setup, health)."""
 

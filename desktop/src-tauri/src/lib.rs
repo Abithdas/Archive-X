@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use archive_x_launcher_core::{backend_exe_in, tools_dir_in, Backend, LaunchOptions};
+use archive_x_launcher_core::{backend_exe_in, tools_dir_in, Backend, FrontDoorOptions, LaunchOptions};
 use tauri::{Manager, RunEvent, Url};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
@@ -28,6 +28,22 @@ fn locate_backend(app: &tauri::AppHandle) -> Result<(PathBuf, Option<PathBuf>), 
     Ok((exe, tools.is_dir().then_some(tools)))
 }
 
+/// Opt-in (ARCHIVE_X_RUST_FRONT_DOOR=1): the Rust front door in front of the backend. It needs the `ax-server` binary
+/// (ARCHIVE_X_FRONT_DOOR_EXE, or `rust/ax-server` in the resource directory) and the built web app (ARCHIVE_X_DIST, or
+/// `web` in the resource directory). When anything is missing the app simply starts without it.
+fn locate_front_door(app: &tauri::AppHandle) -> Option<FrontDoorOptions> {
+    if std::env::var("ARCHIVE_X_RUST_FRONT_DOOR").map(|v| v != "1").unwrap_or(true) {
+        return None;
+    }
+    let res = app.path().resource_dir().ok();
+    let exe = std::env::var("ARCHIVE_X_FRONT_DOOR_EXE").ok().map(PathBuf::from).or_else(|| {
+        let name = if cfg!(windows) { "ax-server.exe" } else { "ax-server" };
+        res.as_ref().map(|r| r.join("rust").join(name))
+    })?;
+    let dist = std::env::var("ARCHIVE_X_DIST").ok().map(PathBuf::from).or_else(|| res.as_ref().map(|r| r.join("web")))?;
+    (exe.is_file() && dist.join("index.html").is_file()).then_some(FrontDoorOptions { exe, dist_dir: dist })
+}
+
 fn fail(app: &tauri::AppHandle, message: String) {
     app.dialog()
         .message(message)
@@ -45,7 +61,8 @@ fn start_backend(app: tauri::AppHandle) {
     let data_dir = std::env::var("ARCHIVE_X_DATA_DIR").ok().map(PathBuf::from);
     // ARCHIVE_X_LANDING overrides the page the window opens; the default is the React UI at "/".
     let landing = std::env::var("ARCHIVE_X_LANDING").ok();
-    let backend = match Backend::spawn(&LaunchOptions { exe, data_dir, tools_dir, landing, ..Default::default() }) {
+    let front_door = locate_front_door(&app);
+    let backend = match Backend::spawn(&LaunchOptions { exe, data_dir, tools_dir, landing, front_door, ..Default::default() }) {
         Ok(b) => b,
         Err(e) => return fail(&app, e.to_string()),
     };

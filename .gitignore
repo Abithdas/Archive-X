@@ -16,3 +16,4 @@ graphify-out/
 shots/
 *.log
 .archive-x-data/
+rust/target/

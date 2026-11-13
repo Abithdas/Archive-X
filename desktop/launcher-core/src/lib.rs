@@ -83,10 +83,26 @@ pub struct LaunchOptions {
     pub landing: Option<String>,
     /// Extra environment for tests or advanced setups.
     pub extra_env: Vec<(String, String)>,
+    /// Opt-in: put the Rust front door (rust/crates/ax-server) in front of the backend. `None` keeps the old behaviour.
+    pub front_door: Option<FrontDoorOptions>,
+}
+
+/// The Rust front door: serves the web app's files itself and forwards everything else to the Python backend.
+#[derive(Debug, Clone)]
+pub struct FrontDoorOptions {
+    pub exe: PathBuf,
+    /// The built web app (frontend/dist).
+    pub dist_dir: PathBuf,
+}
+
+struct FrontDoor {
+    child: Child,
+    port: u16,
 }
 
 pub struct Backend {
     child: Child,
+    front: Option<FrontDoor>,
     pub ready: Ready,
     secret: String,
     /// Recent backend output, kept for diagnostics.
@@ -96,6 +112,8 @@ pub struct Backend {
 impl Backend {
     pub fn spawn(opts: &LaunchOptions) -> Result<Backend, LaunchError> {
         let secret = generate_secret()?;
+        // Shared by the backend and the front door so the backend can trust the client address the front door reports.
+        let proxy_key = if opts.front_door.is_some() { Some(generate_secret()?) } else { None };
         let timeout = opts.ready_timeout.unwrap_or(Duration::from_secs(90));
         let mut cmd = Command::new(&opts.exe);
         cmd.env("ARCHIVE_X_DESKTOP", "1")
@@ -106,6 +124,9 @@ impl Backend {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        if let Some(k) = &proxy_key {
+            cmd.env("ARCHIVE_X_PROXY_KEY", k);
+        }
         if let Some(d) = &opts.data_dir {
             cmd.env("ARCHIVE_X_DATA_DIR", d);
         }
@@ -153,7 +174,20 @@ impl Backend {
         let deadline = Instant::now() + timeout;
         loop {
             match rx.recv_timeout(Duration::from_millis(100)) {
-                Ok(Ok(ready)) => return Ok(Backend { child, ready, secret, log }),
+                Ok(Ok(ready)) => {
+                    let front = match (&opts.front_door, &proxy_key) {
+                        (Some(fd), Some(key)) => match start_front_door(fd, key, ready.port, &log) {
+                            Ok(f) => Some(f),
+                            Err(e) => {
+                                // The app still works without it: fall back to talking to the backend directly.
+                                push_log(&log, format!("front door not started, using the backend directly: {e}"));
+                                None
+                            }
+                        },
+                        _ => None,
+                    };
+                    return Ok(Backend { child, front, ready, secret, log });
+                }
                 Ok(Err(e)) => {
                     let _ = child.kill();
                     return Err(e);
@@ -177,26 +211,33 @@ impl Backend {
         }
     }
 
+    /// The port the window should open: the front door's when it is running, otherwise the backend's.
     pub fn port(&self) -> u16 {
-        self.ready.port
+        self.front.as_ref().map(|f| f.port).unwrap_or(self.ready.port)
     }
 
     /// The one-time URL the window opens: it creates the web session and redirects to the app.
     pub fn session_url(&self) -> String {
-        format!("http://127.0.0.1:{}/desktop/session?token={}", self.ready.port, self.secret)
+        format!("http://127.0.0.1:{}/desktop/session?token={}", self.port(), self.secret)
     }
 
     pub fn log_tail(&self) -> Vec<String> {
         snapshot(&self.log)
     }
 
+    /// True while the backend (and the front door, if one was started) are both alive.
     pub fn is_running(&mut self) -> bool {
-        matches!(self.child.try_wait(), Ok(None))
+        let backend = matches!(self.child.try_wait(), Ok(None));
+        let front = match self.front.as_mut() {
+            Some(f) => matches!(f.child.try_wait(), Ok(None)),
+            None => true,
+        };
+        backend && front
     }
 
     /// `GET /health` over plain loopback HTTP.
     pub fn healthy(&self) -> bool {
-        http_request(self.ready.port, "GET", "/health", &[], Duration::from_secs(3))
+        http_request(self.port(), "GET", "/health", &[], Duration::from_secs(3))
             .map(|(status, _)| status == 200)
             .unwrap_or(false)
     }
@@ -205,6 +246,7 @@ impl Backend {
     /// Returns true if it exited on its own.
     pub fn shutdown(&mut self, grace: Duration) -> bool {
         if !self.is_running() {
+            self.stop_front_door();
             return true;
         }
         let asked = http_request(
@@ -218,22 +260,85 @@ impl Backend {
         .unwrap_or(false);
         let deadline = Instant::now() + grace;
         while asked && Instant::now() < deadline {
-            if !self.is_running() {
+            if !matches!(self.child.try_wait(), Ok(None)) {
+                self.stop_front_door();
                 return true;
             }
             thread::sleep(Duration::from_millis(100));
         }
+        self.stop_front_door();
         let _ = self.child.kill();
         let _ = self.child.wait();
         false
+    }
+
+    fn stop_front_door(&mut self) {
+        if let Some(mut f) = self.front.take() {
+            let _ = f.child.kill();
+            let _ = f.child.wait();
+        }
     }
 }
 
 impl Drop for Backend {
     fn drop(&mut self) {
-        if self.is_running() {
+        self.stop_front_door();
+        if matches!(self.child.try_wait(), Ok(None)) {
             let _ = self.child.kill();
             let _ = self.child.wait();
+        }
+    }
+}
+
+/// Start the front door in front of the backend and wait for it to say which port it bound.
+fn start_front_door(opts: &FrontDoorOptions, key: &str, backend_port: u16, log: &std::sync::Arc<std::sync::Mutex<Vec<String>>>) -> Result<FrontDoor, String> {
+    let mut cmd = Command::new(&opts.exe);
+    cmd.args(["--listen", "127.0.0.1:0", "--upstream", &format!("127.0.0.1:{backend_port}"), "--upstream-plain", "--print-ready", "--dist"])
+        .arg(&opts.dist_dir)
+        .env("ARCHIVE_X_PROXY_KEY", key)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000);
+    }
+    let mut child = cmd.spawn().map_err(|e| format!("cannot start {}: {e}", opts.exe.display()))?;
+    let stdout = child.stdout.take().ok_or("no stdout")?;
+    let stderr = child.stderr.take().ok_or("no stderr")?;
+    let (tx, rx) = mpsc::channel::<Result<Ready, LaunchError>>();
+    let log_out = log.clone();
+    thread::spawn(move || {
+        let mut sent = false;
+        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+            if !sent {
+                if let Some(parsed) = parse_ready_line(&line) {
+                    let _ = tx.send(parsed);
+                    sent = true;
+                    continue;
+                }
+            }
+            push_log(&log_out, format!("[front door] {line}"));
+        }
+    });
+    let log_err = log.clone();
+    thread::spawn(move || {
+        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            push_log(&log_err, format!("[front door] {line}"));
+        }
+    });
+    match rx.recv_timeout(Duration::from_secs(15)) {
+        Ok(Ok(ready)) => Ok(FrontDoor { child, port: ready.port }),
+        Ok(Err(e)) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            Err(e.to_string())
+        }
+        Err(_) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            Err("it did not report a port within 15 seconds".into())
         }
     }
 }

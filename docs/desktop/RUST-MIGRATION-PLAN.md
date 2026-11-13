@@ -2,6 +2,25 @@
 
 Status: a plan only. Nothing has been ported. Sizes are relative (S, M, L, XL); I have not estimated calendar time because it depends on who does the work.
 
+## 0. Progress
+
+| Phase | Status |
+|-------|--------|
+| 0. Prove the risky parts | **Not done.** The `grammers` Telegram trial needs a real account; the `ort` face/tag checks and the Whisper speed check were not run here. SQLite shared between Python and Rust is exercised by the front door tests only indirectly (the front door does not open the database yet) |
+| 1. Safety net | **Done:** frozen API (`docs/desktop/api/`), parity harness (`tools/parity/compare.py`, 0 differences against itself and against the Rust front door on 85 routes). Not done: more backend tests, the Python clean-ups |
+| 2. Rust front door | **Done and verified here** (details below). Not done: bundling the binary in the installer and the GitHub Actions build, and a Windows run |
+| 3 to 9 | Not started |
+
+Phase 2 results (`rust/crates/ax-server`, 12 Rust tests, clippy clean; Python side `TrustedProxyMiddleware`, 2 tests):
+
+- 85 of 85 GET routes identical through the front door (status, content type, JSON body); 14 static paths identical (status, cache and security headers, bytes), including the path-traversal attempts.
+- The real React app works through it: the sign-in form, all eight pages, the live WebSocket, and a 300 MB response arrives byte for byte while the front door stays at about 19 MB of memory (it streams).
+- Security: a request arriving from a non-loopback address is still treated as remote by the "only from this PC" checks, and forged `X-Forwarded-For` / peer / key headers change nothing.
+- Speed (release build, one connection, loopback): app bundle 5.7 ms to 0.9 ms and 580 KB to 186 KB on the wire (gzip); app shell 3.5 ms to 0.4 ms; a proxied API call costs about 0.55 ms more than going to Python directly (it was 1.4 ms before backend connections were reused).
+- The release binary is 4.1 MB.
+- Desktop launcher: `LaunchOptions.front_door` (opt-in); a real end-to-end test (`cargo test -p archive-x-launcher-core real_backend_with_front_door -- --ignored`) passes with the Python backend in desktop mode: health, app shell, the backend's 403 guard, the session hand-off and a graceful shutdown all work through the front door.
+- Known differences: Python counts a plain page load of `/login` against its login rate limit and the front door does not; Python advertises HTTP/3 (`alt-svc`) and the front door removes that header because it does not speak HTTP/3.
+
 ## 1. What is being migrated
 
 | Part | Today | After |
