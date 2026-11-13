@@ -241,7 +241,7 @@ def register_settings_routes(
     # Provider settings and checks.
     # ------------------------------------------------------------------
     @router.get("/api/settings/metadata")
-    async def get_metadata_settings(request: Request):
+    def get_metadata_settings(request: Request):
         """GET /api/settings/metadata: Get metadata settings."""
         require_auth(request)
         stash = db.setting("stashdb_api_key") or ""
@@ -417,7 +417,7 @@ def register_settings_routes(
     # Dashboard login and job read.
     # ------------------------------------------------------------------
     @router.get("/api/settings/weblogin")
-    async def get_weblogin(request: Request):
+    def get_weblogin(request: Request):
         """GET /api/settings/weblogin: Get weblogin."""
         require_auth(request)
         from ..core.auth import is_default_login
@@ -463,7 +463,7 @@ def register_settings_routes(
         return resp
 
     @router.get("/api/jobs/{job_id}")
-    async def get_job(job_id: str, request: Request, activity_before_id: int | None = None, activity_limit: int = 500):
+    def get_job(job_id: str, request: Request, activity_before_id: int | None = None, activity_limit: int = 500):
         """GET /api/jobs/{job_id}: Get job."""
         require_auth(request)
         job = db.get_job(job_id)

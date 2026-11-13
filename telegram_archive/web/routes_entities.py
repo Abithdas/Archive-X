@@ -846,7 +846,7 @@ def register_entity_routes(
                 "caption_sync": {"status": "queued" if queued else "not_needed", "count": queued}}
 
     @router.post("/api/performers/{performer_id}/sync")
-    async def performer_sync(performer_id:int, request:Request):
+    def performer_sync(performer_id:int, request:Request):
         """Compatibility endpoint; route performer rechecks through the combined module."""
         require_auth(request)
         with db.lock:

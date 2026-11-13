@@ -195,7 +195,7 @@ def register_media_routes(
                 "caption_sync": caption_sync}
 
     @router.post("/api/media/caption-sync/reconcile-deliveries")
-    async def reconcile_verified_delivery_captions(request: Request):
+    def reconcile_verified_delivery_captions(request: Request):
         """Reconcile captions of already-registered destination posts without channel scans."""
         require_auth(request)
         with db.lock:
@@ -724,7 +724,7 @@ def register_media_routes(
         return {"ok": True, "decision": result}
 
     @router.post("/api/suggestions/{suggestion_id}/reject")
-    async def reject_suggestion(suggestion_id: int, request: Request):
+    def reject_suggestion(suggestion_id: int, request: Request):
         """POST /api/suggestions/{suggestion_id}/reject: Reject suggestion."""
         require_auth(request)
         from ..metadata.suggestions import reject

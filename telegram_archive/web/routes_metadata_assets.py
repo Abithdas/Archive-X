@@ -39,7 +39,7 @@ def register_metadata_assets_routes(
     # ------------------------------------------------------------------
     """Register Metadata & Assets and channel index routes."""
     @router.get("/api/metadata-assets/job/{job_id}")
-    async def metadata_assets_job_progress(job_id: str, request: Request):
+    def metadata_assets_job_progress(job_id: str, request: Request):
         """Return the hierarchical channel/stage progress for one Metadata & Assets job."""
         require_auth(request)
         job = db.get_job(job_id)

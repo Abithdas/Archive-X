@@ -624,7 +624,7 @@ def register_library_routes(
 
 
     @router.get("/api/photos/faces/performers")
-    async def photo_face_performer_search(request: Request):
+    def photo_face_performer_search(request: Request):
         """Search local performer records for manual face-group assignment."""
         require_auth(request)
         query = str(request.query_params.get("q") or "").strip()[:100]
@@ -1069,7 +1069,7 @@ def register_library_routes(
 
 
     @router.get("/api/photos/faces/crops/{detection_id}")
-    async def photo_face_crop(detection_id: int, request: Request):
+    def photo_face_crop(detection_id: int, request: Request):
         """Serve an aligned face crop from Archive X's private cache."""
         require_auth(request)
         from fastapi.responses import FileResponse as _FileResponse
@@ -1543,7 +1543,7 @@ def register_library_routes(
     # Favorites, move, delete and export.
     # ------------------------------------------------------------------
     @router.post("/api/library/{media_id}/favorite")
-    async def toggle_favorite(media_id: int, request: Request):
+    def toggle_favorite(media_id: int, request: Request):
         """POST /api/library/{media_id}/favorite: Toggle favorite."""
         require_auth(request)
         with db.lock:

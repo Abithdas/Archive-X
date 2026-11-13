@@ -2,6 +2,14 @@
 
 Found by scanning all 187 Python files (about 100,000 lines) of `telegram_archive/`. The numbers come from a syntax-tree scan, not from running the code, so treat the counts as approximate. Nothing here has been changed yet.
 
+## Progress and corrections
+
+- **A4 was a false alarm.** The first scan counted calls inside nested helper functions that already run in worker threads. A stricter scan (ignoring nested sync helpers) finds no blocking calls inside async code.
+- **A1 re-measured:** 274 async functions (850 calls) still do database work directly on the event loop: `routes_library` 147, `routes_entities` 109, `automation` 47, `routes_media` 46, `providers` 41, `routes_ai` 39.
+- **Done:** 36 route handlers that never awaited anything were turned into plain `def` handlers, which FastAPI runs in a worker thread (`routes_jobs` 7, `routes_ai` 5, `routes_entity_pages` 4, and others). Checked: no other code awaits them (one internal call was fixed), backend tests pass, and the converted endpoints answer 200 on the live server.
+- **Left for A1:** the heavy handlers mix database work with Telegram awaits (`library_move_delete` 517 lines, `photo_library_delete`, `library_delete_video`, `channel_maintenance_delete_duplicate`) or read a request body first (`media_quick_edit`, `mapping_bulk`, `performer_edit`, `studio_edit`). They need their database segments moved into `asyncio.to_thread`, one handler at a time with a test.
+- `tools/tests/test_duplicate_delete_thumbnail.py` already fails with an IndexError before these changes (not caused by them); four of the older test files are plain scripts rather than pytest tests.
+
 ## A. Speed and responsiveness (highest value)
 
 | # | Finding | Evidence | Fix |

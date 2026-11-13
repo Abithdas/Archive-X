@@ -664,7 +664,7 @@ def register_playback_compat_routes(
     # Scan schedule read route.
     # ------------------------------------------------------------------
     @router.get("/api/settings/scan-schedule")
-    async def get_scan_schedule(request: Request):
+    def get_scan_schedule(request: Request):
         require_auth(request)
         return {"enabled": str(db.setting("metadata_scan_window_enabled", "0") or "0") == "1",
                 "start": str(db.setting("metadata_scan_window_start", "01:00") or "01:00"),

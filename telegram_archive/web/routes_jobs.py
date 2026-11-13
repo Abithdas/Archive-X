@@ -73,7 +73,7 @@ def register_job_routes(
         return {"id": jid}
 
     @router.get("/api/operations/resources")
-    async def resource_control_status(request: Request):
+    def resource_control_status(request: Request):
         require_auth(request)
         return {"ok": True, "resources": resources.snapshot() if resources is not None else {}, "resource_leases": db.resource_lease_snapshot(), "execution_lanes": jobs.execution_lane_capacities() if hasattr(jobs, "execution_lane_capacities") else {}, "governor": governor.status()}
 
@@ -152,7 +152,7 @@ def register_job_routes(
     # Pause, resume, recover, skip and cancel.
     # ------------------------------------------------------------------
     @router.post("/api/jobs/{job_id}/pause")
-    async def pause_job(job_id: str, request: Request):
+    def pause_job(job_id: str, request: Request):
         require_auth(request)
         job = db.get_job(job_id)
         if not job:
@@ -172,7 +172,7 @@ def register_job_routes(
         return {"ok": True, "status": status}
 
     @router.post("/api/jobs/{job_id}/resume")
-    async def resume_job(job_id: str, request: Request):
+    def resume_job(job_id: str, request: Request):
         require_auth(request)
         job = db.get_job(job_id)
         if not job:
@@ -198,7 +198,7 @@ def register_job_routes(
             raise HTTPException(409, str(exc))
 
     @router.post("/api/jobs/{job_id}/skip-current")
-    async def skip_job_current(job_id: str, request: Request):
+    def skip_job_current(job_id: str, request: Request):
         require_auth(request)
         job = db.get_job(job_id)
         if not job or job.get("job_type") != "UPLOAD_LOCAL":
@@ -207,7 +207,7 @@ def register_job_routes(
         return {"ok": True, "status": "SKIP_REQUESTED", "current_item": job.get("current_item") or ""}
 
     @router.post("/api/jobs/{job_id}/cancel")
-    async def cancel_job(job_id: str, request: Request):
+    def cancel_job(job_id: str, request: Request):
         """POST /api/jobs/{job_id}/cancel: Cancel job."""
         require_auth(request)
         try:
@@ -464,7 +464,7 @@ def register_job_routes(
         return {"ok": True}
 
     @router.post("/api/media-manager/stop")
-    async def media_manager_stop(request: Request):
+    def media_manager_stop(request: Request):
         """POST /api/media-manager/stop: Media manager stop."""
         require_auth(request)
         if media_manager.job_id:
@@ -682,7 +682,7 @@ def register_job_routes(
         return {"ok": True}
 
     @router.post("/api/telegram-transfer/stop")
-    async def telegram_transfer_stop(request: Request):
+    def telegram_transfer_stop(request: Request):
         require_auth(request)
         if media_manager.job_id:
             jobs.cancel(media_manager.job_id)

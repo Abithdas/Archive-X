@@ -250,7 +250,7 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
         return {'ok': True, 'marker': {'id': marker_id, 'media_id': int(media_id), 'position': position, 'title': title, 'note': note, 'tag': tag, 'created_at': now, 'updated_at': now}}
 
     @router.delete('/api/media/{media_id}/markers/{marker_id}')
-    async def delete_marker(media_id: int, marker_id: int, request: Request):
+    def delete_marker(media_id: int, marker_id: int, request: Request):
         require_auth(request)
         with db.lock:
             marker = db.conn.execute('SELECT source FROM scene_markers WHERE id=? AND media_id=?', (int(marker_id), int(media_id))).fetchone()
@@ -317,7 +317,7 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
         return {'items': out}
 
     @router.post('/api/entities/{kind}/{entity_id}/favorite')
-    async def toggle_entity_favorite(kind: str, entity_id: int, request: Request):
+    def toggle_entity_favorite(kind: str, entity_id: int, request: Request):
         require_auth(request)
         _entity_table(kind)
         with db.lock:
@@ -345,7 +345,7 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
     # UI settings and storage moves.
     # ------------------------------------------------------------------
     @router.get('/api/settings/experience')
-    async def experience_settings(request: Request):
+    def experience_settings(request: Request):
         require_auth(request)
         keys = {
             'autoplay': bool(db.setting('ta_autoplay', '1') not in {'0', 'false', 'False'}),
@@ -406,7 +406,7 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
                 if v not in {'context','collection','performer','studio','recommended'}:
                     raise HTTPException(400, 'Invalid autoplay-next mode')
                 db.set_setting(f'ta_{k}', v)
-        return await experience_settings(request)
+        return experience_settings(request)
 
     @router.get('/api/settings/storage')
     async def storage_settings(request: Request):

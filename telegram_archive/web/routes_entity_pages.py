@@ -31,7 +31,7 @@ def register_entity_page_routes(
     # ------------------------------------------------------------------
     """Register performer and studio page and image routes."""
     @router.get("/api/performers/{performer_id}/similar")
-    async def performer_similar(performer_id: int, request: Request):
+    def performer_similar(performer_id: int, request: Request):
         """Return same-gender performers ranked by the seven profile attributes."""
         require_auth(request)
         try:
@@ -421,7 +421,7 @@ def register_entity_page_routes(
         return {"entity": dict(row), "providers": [dict(x) for x in meta]}
 
     @router.get("/api/studios/{studio_id}/metadata")
-    async def studio_metadata(studio_id: int, request: Request):
+    def studio_metadata(studio_id: int, request: Request):
         require_auth(request)
         with db.reading() as _rdb:
             row = _rdb.execute("SELECT * FROM studios WHERE id=?", (studio_id,)).fetchone()
@@ -430,7 +430,7 @@ def register_entity_page_routes(
         return {"entity": dict(row), "providers": [dict(x) for x in meta]}
 
     @router.get("/api/studios/{studio_id}/family")
-    async def studio_family(studio_id: int, request: Request):
+    def studio_family(studio_id: int, request: Request):
         """Return cached parent/child/sibling studio relationships without provider calls."""
         require_auth(request)
         with db.reading() as _rdb:
@@ -752,7 +752,7 @@ def register_entity_page_routes(
         return await asyncio.to_thread(_read_studios)
 
     @router.get("/api/studios/{studio_id}/videos")
-    async def studio_videos(studio_id: int, request: Request, performer_id: int | None = None):
+    def studio_videos(studio_id: int, request: Request, performer_id: int | None = None):
         """Return catalogue videos linked to a site/studio, mirroring the performer detail API."""
         require_auth(request)
         with db.reading() as _rdb:

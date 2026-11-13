@@ -113,7 +113,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     # Assistant status, config and runtime.
     # ------------------------------------------------------------------
     @router.get("/api/ai/status")
-    async def ai_status(request: Request):
+    def ai_status(request: Request):
         app_token, _ = require_auth(request)
         status = ai.masked_status()
         live = current_live_session(app_token)
@@ -254,13 +254,13 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     # Conversation history and investigations.
     # ------------------------------------------------------------------
     @router.get("/api/ai/history")
-    async def ai_history(request: Request):
+    def ai_history(request: Request):
         require_auth(request)
         active = db.ai_active_investigation()
         return {"investigation": active, "messages": db.ai_list_chat_messages(200, int(active["id"])), "observations": db.ai_list_observations(100, int(active["id"])), "evidence": db.ai_list_evidence_history(int(active["id"]), 50)}
 
     @router.get("/api/ai/investigations")
-    async def ai_investigations(request: Request):
+    def ai_investigations(request: Request):
         require_auth(request)
         active = db.ai_active_investigation()
         return {"active_id": int(active["id"]), "investigations": db.ai_list_investigations(50)}
@@ -374,7 +374,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
         return {"ok": True, "session": sess.to_public(), "capabilities": sorted(sess.capabilities)}
 
     @router.post("/api/ai/live/revoke")
-    async def ai_live_revoke(request: Request):
+    def ai_live_revoke(request: Request):
         app_token, _ = require_auth(request)
         pair = live_sessions.pop(app_token, None)
         if pair:
@@ -424,7 +424,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     # Evidence collection, preview, discard and send.
     # ------------------------------------------------------------------
     @router.post("/api/ai/evidence/decline")
-    async def ai_evidence_decline(request: Request):
+    def ai_evidence_decline(request: Request):
         app_token, _ = require_auth(request)
         pending_requests.pop(app_token, None)
         db.log("AI Assistant evidence request declined by operator")

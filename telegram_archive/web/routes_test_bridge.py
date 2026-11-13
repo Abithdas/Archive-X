@@ -208,7 +208,7 @@ def register(router: APIRouter, env: dict) -> LiveTestBridge:
         return {"ok": True, "session": sess.to_public(), "token": token, "warning": "Token is shown once. Store it securely."}
 
     @router.post("/api/test-bridge/session/{session_id}/revoke")
-    async def revoke_session(session_id: str, request: Request):
+    def revoke_session(session_id: str, request: Request):
         require_app_auth(request)
         _local_client_only(request)
         ok = bridge.revoke(session_id)

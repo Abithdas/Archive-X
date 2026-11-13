@@ -474,7 +474,7 @@ def register_telegram_routes(
         return {"ok": True, **_account_profile_payload(tg_name, tg_username)}
 
     @router.get("/api/account/profile/image")
-    async def get_account_profile_image(request: Request):
+    def get_account_profile_image(request: Request):
         require_auth(request)
         mime = str(db.setting("account_profile_image_mime", "") or "")
         if not mime or not _account_profile_image.is_file():
@@ -818,7 +818,7 @@ def register_telegram_routes(
         return {"ok":True,"id":jid}
 
     @router.post("/api/operations/thumbnails/stop")
-    async def thumbnail_index_stop(request: Request):
+    def thumbnail_index_stop(request: Request):
         require_auth(request)
         active=db.active_jobs("THUMBNAIL_INDEXER")
         for job in active: jobs.cancel(job["id"])
@@ -930,7 +930,7 @@ def register_telegram_routes(
     _folder_preference_keys = {"transfer_source"}
 
     @router.get("/api/settings/folder-preference")
-    async def get_folder_preference(request: Request):
+    def get_folder_preference(request: Request):
         require_auth(request)
         key = str(request.query_params.get("key") or "").strip()
         if key not in _folder_preference_keys:

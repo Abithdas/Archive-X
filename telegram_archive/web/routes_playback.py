@@ -80,7 +80,7 @@ def register_playback_routes(
         return result
 
     @router.get("/api/channels/{channel_id}/videos")
-    async def list_channel_videos(channel_id: int, request: Request):
+    def list_channel_videos(channel_id: int, request: Request):
         """Return only fully ready videos for the selected Library channel.
 
         Pending inventory remains accessible through processing tools, not the
