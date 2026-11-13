@@ -45,7 +45,7 @@ Their component pages (Magic UI, Motion-Primitives) could not be listed from the
 ### B1. Worth building soon
 21. **Collections** (manual albums) for videos and photos, with a cover and sort order. M
 22. **Photo duplicate finder** (perceptual hash) with a keep-best review, like the video duplicate tools. M
-23. **On this day / Memories** strip on Photos from message dates. S
+23. ~~On this day / Memories~~ (not required, dropped). 
 24. **Tag manager page** (rename, merge, counts, colours) with tag suggestions. M
 25. **Library statistics page** (counts by channel, performer, studio, resolution, growth over time). S
 26. **Subtitle search and download** for videos with no subtitles, saved beside the file (OpenSubtitles-style provider setting). M
@@ -61,6 +61,9 @@ Their component pages (Magic UI, Motion-Primitives) could not be listed from the
 32. **End-to-end test suite** (Playwright) for login, Photos, People, watch, Transfers; run in CI. M
 33. **Performance budget**: lazy-load People, Operations and the player; measure first paint; keep each route chunk under a set size. S
 34. **Error boundary and a "report a problem" button** that copies the log lines. S
+
+## Mockups
+Open `mockups/mockups.html#tray`, `#collections`, `#duplicates`, `#tags`, `#stats`, `#map` (add `?dark` for the dark theme), or see the PNGs in `mockups/`. They show: item 17 jobs tray, 21 collections, 22 photo duplicate finder, 24 tag manager, 25 statistics, 31 map view. Mockups only, nothing is built.
 
 ## C. Suggested order
 - **Batch 1 (feel of Photos, 1 week):** 1, 2, 3, 5, 6, 7, 10.
