@@ -11,6 +11,7 @@ import type { Segment } from './timeline'
 import { HLS_FAILED, hlsUrl, startHls } from './hlsplay'
 import { DOUBLE_TAP_MS, KEEP_SKIPPING_MS, registerTap, type TapState } from './tapseek'
 import { CcMenu } from './CcMenu'
+import { blockingEnabled, resumeAudio, routeThroughApp, setBlocking } from './audioGraph'
 import { CaptionOverlay } from './CaptionOverlay'
 import { DEFAULT_STYLE, SIZE_STEP, clampSize, loadStyle, saveStyle, sizeLabel, type CaptionBg } from './captionStyle'
 import { useAltAudio, useTracks, type MediaRef } from './useTracks'
@@ -65,6 +66,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
     setMode(initialMode(info, smart))
   }, [ready, committed, info, smart, src])
   const [loop, setLoop] = useState(false)
+  const [block, setBlock] = useState(blockingEnabled)
   const [hint, setHint] = useState('')
   const [res, setRes] = useState('')
   const [ratio, setRatio] = useState(16 / 9)   // the video's own shape, so the frame fits it instead of leaving black bars
@@ -116,6 +118,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
   }
   /** One tap toggles play. Double-tap the left or right third to skip 10 s; keep tapping to add 10 s more each time (like YouTube). */
   const onTap = (e: React.MouseEvent<HTMLVideoElement>) => {
+    resumeAudio()
     const r = e.currentTarget.getBoundingClientRect()
     const { state, skip: by } = registerTap(tap.current, (e.clientX - r.left) / r.width, Date.now())
     tap.current = state
@@ -231,10 +234,10 @@ export function Player({ media, info, infoPending = false, src, poster, duration
           autoPlay={autoPlay}
           onClick={onTap}
           loop={loop}
-          onPlay={() => { setPlaying(true); setStarted(true); onPlayed?.() }}
+          onPlay={(e) => { routeThroughApp(e.currentTarget); resumeAudio(); setPlaying(true); setStarted(true); onPlayed?.() }}
           onPause={() => setPlaying(false)}
           onWaiting={() => setLoading(true)}
-          onPlaying={() => setLoading(false)}
+          onPlaying={() => { resumeAudio(); setLoading(false) }}
           onCanPlay={() => setLoading(false)}
           onLoadedMetadata={(e) => {
             const v = e.currentTarget
@@ -332,7 +335,8 @@ export function Player({ media, info, infoPending = false, src, poster, duration
             <button type="button" className={cn(BTN, 'hidden @lg:grid')} onClick={pip} aria-label="Picture in picture" title="Picture in picture"><PipIcon /></button>
             {tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
             <PopMenu label="Settings" align="right" iconOnly button={<GearIcon />}>
-              <p className="max-w-[15rem] px-2.5 pb-1 text-[11px] leading-snug text-muted">A grey box at the bottom of the window is Chrome's own Live Caption. Switch it off in Chrome Settings → Accessibility; the captions here are drawn by the app.</p>
+              <MenuItem pressed={block} onClick={() => { const on = !block; setBlock(on); setBlocking(on); flash(on ? 'Chrome Live Caption blocked after reload' : 'Chrome Live Caption allowed after reload') }} label="Keep Chrome's Live Caption off this player">Keep Chrome's Live Caption off <span className={block ? 'text-emerald-400' : 'text-muted'}>{block ? 'ON' : 'OFF'}</span></MenuItem>
+              <p className="max-w-[15rem] px-2.5 pb-1 text-[11px] leading-snug text-muted">Plays the sound through the app so Chrome's own black "Live Caption" box has nothing to caption. Applies after a page reload.</p>
               <MenuHead>Caption style</MenuHead>
               <div className="flex items-center justify-between gap-3 px-2.5 py-1 text-xs"><span className="text-muted">Size</span>
                 <span className="flex items-center gap-1">

@@ -1,4 +1,5 @@
 import { toast } from 'sonner'
+import { routeThroughApp } from './audioGraph'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { CAPTION_WINDOW, activeText, initialChoice, loadPrefs, mergeCues, parseVtt, savePrefs, windowStart, type AudioTrack, type Cue, type SubChoice, type TrackInfo } from './tracks'
 
@@ -155,6 +156,7 @@ export function useAltAudio(video: RefObject<HTMLVideoElement | null>, audio: Re
     const pause = () => a.pause()
     const wait = () => a.pause()
     v.muted = true
+    routeThroughApp(a)
     sync()
     if (!v.paused) play()
     v.addEventListener('play', play); v.addEventListener('playing', play); v.addEventListener('pause', pause); v.addEventListener('waiting', wait)
