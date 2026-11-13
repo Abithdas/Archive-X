@@ -26,7 +26,7 @@ export function PerformerPoster({ id, name, image, count, similar }: { id: numbe
   const src = `/api/performers/${id}/image?v=${encodeURIComponent(String(image ?? ''))}`
   return (
     <li className="card-in m-0">
-      <Link to="/performers/$id" params={{ id: String(id) }} aria-label={`Open performer ${name}`} className="group relative block aspect-[2/3] overflow-hidden rounded-[23px] border border-white/[0.13] bg-[#171a1b] shadow-[0_12px_32px_rgb(0_0_0/0.22)] outline-none focus-visible:ring-2 focus-visible:ring-accent">
+      <Link to="/performers/$id" params={{ id: String(id) }} aria-label={`Open performer ${name}`} data-glow className="group relative block aspect-[2/3] overflow-hidden rounded-[23px] border border-white/[0.13] bg-[#171a1b] shadow-[0_12px_32px_rgb(0_0_0/0.22)] outline-none focus-visible:ring-2 focus-visible:ring-accent">
         {ok ? <img {...responsive(src, '(max-width: 639px) 46vw, 220px', [320, 480, 640])} alt="" loading="lazy" decoding="async" onError={() => setOk(false)} className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
           : <Fallback />}
         <span className="absolute inset-x-0 bottom-0 flex flex-col items-stretch gap-[3px] bg-[linear-gradient(rgb(0_0_0/0)_0%,rgb(13_15_17/0.34)_18%,rgb(13_15_17/0.88)_62%,rgb(13_15_17/0.97)_100%)] px-[13px] pb-3 pt-12">
@@ -43,7 +43,7 @@ export function StudioPoster({ id, name, image, count, noun = 'video' }: { id: n
   const [ok, setOk] = useState(true)
   return (
     <li className="card-in m-0">
-      <Link to="/studios/$id" params={{ id: String(id) }} aria-label={`Open studio ${name}`} className="group relative block aspect-square overflow-hidden rounded-[15px] border border-line bg-[#151615] shadow-[0_7px_18px_rgb(0_0_0/0.18)] outline-none focus-visible:ring-2 focus-visible:ring-accent">
+      <Link to="/studios/$id" params={{ id: String(id) }} aria-label={`Open studio ${name}`} data-glow className="group relative block aspect-square overflow-hidden rounded-[15px] border border-line bg-[#151615] shadow-[0_7px_18px_rgb(0_0_0/0.18)] outline-none focus-visible:ring-2 focus-visible:ring-accent">
         <span className="absolute inset-0 grid place-items-center">
           {ok ? <img {...responsive(imagePath(id, image), '(max-width: 639px) 46vw, 220px', [240, 320, 480, 640])} alt="" loading="lazy" decoding="async" onError={() => setOk(false)} className="h-[67%] w-[82%] object-contain" />
             : <Fallback />}

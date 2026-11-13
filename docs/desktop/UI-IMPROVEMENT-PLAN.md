@@ -51,7 +51,9 @@ Batch 1 done: items 1 (page fade), 2 (sliding pill in Segmented and the Photos |
 Batch 2 done: item 2 (sliding highlight now also in the sidebar), 6 (Ctrl-K palette: grouped Go to / Actions, performer and studio name search, recent choices), 11 (Find people progress card with four steps; `/api/photos/scan-status` now returns the job's `operation`).
 Batch 3 done: item 4 (job percentages roll), 13 (duration and easing tokens in styles.css; reduced-motion guards were already global), 14 (People skeleton matches the real card; other pages already had shaped skeletons), 15 (`BlurImg` on channel pictures and faces; posters and video thumbnails keep their own placeholder treatment).
 Batch 4: item 9 done (sliding marker on the phone bar). Item 10 dropped: Local to Telegram reads a folder on the PC by path through the folder picker, so a browser drag-and-drop zone cannot supply what it needs.
-Still open: 7 (card glow) and 8 (expandable job cards; clicking a job already opens its detail dialog).
+Batch 5: item 7 done (card glow on video, performer and studio cards: one document listener sets the pointer position, CSS draws the light, opacity is the only animated property; off on touch and for reduced motion).
+Item 8 closed without building: a job already opens a full detail window (steps, activity, console), so inline expansion would duplicate it.
+The plan is complete.
 
 ## Suggested first batch
 Items 1, 2, 3, 4, 5 and 12: about a day of work, no new dependency, and the visible result is a calmer, smoother app.

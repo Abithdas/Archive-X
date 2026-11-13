@@ -1,4 +1,5 @@
 import { fadeThrough, motion, spring } from '@/design/motion'
+import { installGlow } from '@/design/glow'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
@@ -182,6 +183,7 @@ export function Shell(): ReactNode {
   const section = useRouterState({ select: (s) => s.location.pathname.split('/')[1] || 'home' })
   const live = useLiveStatus(true)
   useAppearanceSync()
+  useEffect(() => installGlow(), [])
   useGlobalKeys()
   const [rail, setRail] = useState(() => {
     try {

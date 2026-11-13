@@ -97,3 +97,12 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
+
+/* Card glow: a soft light under the pointer (set by design/glow.ts). Opacity is the only thing that animates. */
+[data-glow]::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 2; opacity: 0;
+  background: radial-gradient(220px circle at var(--gx, 50%) var(--gy, 50%), rgb(255 255 255 / 0.11), transparent 65%);
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+@media (hover: hover) { [data-glow]:hover::after { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { [data-glow]::after { display: none; } }

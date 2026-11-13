@@ -24,7 +24,7 @@ export function EntityCard({ kind, entity, merge, index = 0 }: { kind: EntityKin
   const img = broken ? { src: PLACEHOLDER } : responsive(imageUrl(kind, entity), '(max-width: 639px) 46vw, 260px')
   const ring = merge?.keeper ? 'border-good ring-2 ring-good/60' : merge?.selected ? 'border-warn ring-2 ring-warn/60' : ''
   return (
-    <article aria-label={entity.name} style={{ '--i': index } as React.CSSProperties} className="card-in group relative">
+    <article aria-label={entity.name} data-glow style={{ '--i': index } as React.CSSProperties} className="card-in group relative">
       {merge ? (
         <button type="button" onClick={merge.onPick} aria-pressed={merge.keeper || merge.selected} aria-label={`${merge.keeper ? 'Keeper: ' : merge.selected ? 'Duplicate: ' : 'Choose '}${entity.name}`} className="absolute inset-0 z-10 rounded-[23px] outline-none focus-visible:ring-2 focus-visible:ring-accent" />
       ) : null}
