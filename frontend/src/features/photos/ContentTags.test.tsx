@@ -10,7 +10,8 @@ beforeAll(() => { HTMLDialogElement.prototype.showModal = function () { this.set
 beforeEach(() => usePhotoStore.setState({ contentTags: [] }))
 afterEach(() => vi.unstubAllGlobals())
 const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200 })
-const SUMMARY = { ok: true, available: true, total_photos: 100, analysed_photos: 60, tags: [{ tag: 'breasts', label: 'Breasts', count: 21 }, { tag: 'feet', label: 'Feet', count: 5 }] }
+const SUMMARY = { ok: true, available: true, total_photos: 100, analysed_photos: 60, tags: [{ tag: 'breasts', label: 'Breasts', count: 21 }, { tag: 'feet', label: 'Feet', count: 5 }],
+  looks: { available: true, total_photos: 100, analysed_photos: 40, tags: [{ tag: 'hair_red', label: 'Redhead', group: 'Hair colour', count: 7 }, { tag: 'hair_long', label: 'Long hair', group: 'Hair length', count: 12 }] } }
 const mount = (summary: unknown = SUMMARY) => {
   const calls: Array<{ url: string; body?: unknown }> = []
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
@@ -58,5 +59,21 @@ describe('Content tags on Photos', () => {
   it('shows nothing when there are no photos', async () => {
     const { container } = (mount({ ...SUMMARY, total_photos: 0, analysed_photos: 0, tags: [] }), { container: document.body })
     await waitFor(() => expect(container.querySelector('[aria-label="Content tags"]')).toBeNull())
+  })
+  it('shows suggested looks in their groups, filterable like the other tags, and says they can be wrong', async () => {
+    mount()
+    const colour = await screen.findByRole('group', { name: 'Hair colour' })
+    expect(screen.getByText(/suggested, can be wrong/)).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Hair length' })).getByRole('button', { name: /Long hair\s*12/ })).toBeInTheDocument()
+    fireEvent.click(within(colour).getByRole('button', { name: /Redhead/ }))
+    expect(usePhotoStore.getState().contentTags).toEqual(['hair_red'])
+  })
+  it('explains the look model first (size, what it guesses) and starts the looks job', async () => {
+    const calls = mount()
+    fireEvent.click(await screen.findByRole('button', { name: 'Suggest looks' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Suggest looks?' })
+    expect(dlg).toHaveTextContent('155 MB'); expect(dlg).toHaveTextContent('hair colour is the weakest')
+    fireEvent.click(within(dlg).getByRole('button', { name: 'Suggest looks' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/photos/content-tags/analyze')?.body).toEqual({ kind: 'looks' }))
   })
 })

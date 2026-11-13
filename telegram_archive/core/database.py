@@ -455,6 +455,12 @@ class Database:
                 error TEXT NOT NULL DEFAULT '',
                 updated_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS photo_look_analysis (
+                photo_id INTEGER PRIMARY KEY,
+                status TEXT NOT NULL DEFAULT 'COMPLETE',
+                error TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS photo_content_tags (
                 photo_id INTEGER NOT NULL,
                 tag TEXT NOT NULL,

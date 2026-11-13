@@ -42,6 +42,8 @@ OPTIONAL = {
     "faster_whisper": "faster-whisper>=1.0,<2",
     # Small local detector for photo content tags (about 12 MB model inside the package).
     "nudenet": "nudenet>=3.4,<4",
+    # Tokenizer for the small CLIP model behind look suggestions (onnxruntime comes with nudenet).
+    "tokenizers": "tokenizers>=0.15",
 }
 
 
@@ -90,7 +92,7 @@ def _requirements_without_pyav() -> list[str]:
         if line.lower().startswith("av==") or line.lower().startswith("av>=") or line.lower().startswith("av<="):
             continue
         # Live-caption speech recognition is optional too: installed separately so a missing wheel never breaks the app.
-        if line.lower().startswith(("faster-whisper", "nudenet")):
+        if line.lower().startswith(("faster-whisper", "nudenet", "tokenizers")):
             continue
         lines.append(line)
     return lines
@@ -129,6 +131,11 @@ def repair() -> int:
     print(" ".join(nn_cmd))
     if subprocess.run(nn_cmd, check=False).returncode:
         print("WARNING: nudenet could not be installed; photo content tags will be unavailable until it is.", file=sys.stderr)
+    tk_cmd = [sys.executable, "-m", "pip", "install", "--prefer-binary", OPTIONAL["tokenizers"]]
+    print("Installing optional tokenizers (look suggestions):")
+    print(" ".join(tk_cmd))
+    if subprocess.run(tk_cmd, check=False).returncode:
+        print("WARNING: tokenizers could not be installed; look suggestions will be unavailable until it is.", file=sys.stderr)
     return 0
 
 
@@ -165,7 +172,7 @@ def main() -> int:
         except OSError:
             pass
     result = check()
-    if args.repair and (not result["ok"] or not result["optional"].get("faster_whisper", {}).get("ok") or not result["optional"].get("nudenet", {}).get("ok")):
+    if args.repair and (not result["ok"] or not result["optional"].get("faster_whisper", {}).get("ok") or not result["optional"].get("nudenet", {}).get("ok") or not result["optional"].get("tokenizers", {}).get("ok")):
         code = repair()
         if code:
             return code
