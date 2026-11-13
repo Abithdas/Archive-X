@@ -6,8 +6,8 @@ export interface MediaRef { cid: string; mid: number }
 export type LiveState = 'idle' | 'working' | 'error'
 type ModelState = 'idle' | 'preparing' | 'ready' | 'error'
 
-const getJson = async <T,>(url: string): Promise<T> => {
-  const r = await fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+const getJson = async <T,>(url: string, signal?: AbortSignal): Promise<T> => {
+  const r = await fetch(url, { credentials: 'same-origin', cache: 'no-store', signal })
   if (!r.ok) { let why = String(r.status); try { const j = (await r.json()) as { detail?: unknown }; if (typeof j.detail === 'string' && j.detail) why = j.detail } catch { /* not JSON */ } throw new Error(why) }
   return (await r.json()) as T
 }
@@ -24,18 +24,28 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
   const [model, setModel] = useState<ModelState>('idle')
   const [liveError, setLiveError] = useState('')
   const fetched = useRef(new Set<number>())
+  const inflight = useRef(new Map<number, AbortController>())
+  const gen = useRef(0)
+  const [retry, setRetry] = useState(0)
   const key = media ? `${media.cid}/${media.mid}` : ''
 
-  // Track list, once per video.
+  // Track list, once per video. What the viewer chose last time carries over at once: live captions keep going on the next video
+  // without waiting for the track list (which can be slow or fail on a remote file).
   useEffect(() => {
-    setInfo(null); setAudioState(null); setSubState({ kind: 'off' }); setCues([]); setAltUrl(null); setLive('idle'); fetched.current = new Set()
+    const prefs = loadPrefs()
+    setInfo(null); setAudioState(null); setCues([]); setAltUrl(null); setLive('idle'); setLiveError(''); fetched.current = new Set()
+    setSubState(prefs.sub === 'live' ? { kind: 'live', original: !!prefs.liveOriginal } : { kind: 'off' })
     if (!media) return
     let dead = false
     getJson<TrackInfo>(`/api/play/tracks/${encodeURIComponent(media.cid)}/${media.mid}`).then((i) => {
       if (dead) return
       setInfo(i)
-      const c = initialChoice(i, loadPrefs()); setAudioState(c.audio); setSubState(c.sub)
-    }).catch(() => undefined)
+      const c = initialChoice(i, prefs); setAudioState(c.audio)
+      setSubState((cur) => (cur.kind === 'live' ? (i.captions.available ? cur : { kind: 'off' }) : c.sub))
+    }).catch(() => {
+      // The track list failed: still offer live captions if the speech engine is there.
+      getJson<TrackInfo['captions']>('/api/captions/status').then((cap) => { if (!dead) { setInfo({ audio: [], subtitles: [], captions: cap }); if (!cap.available) setSubState((cur) => (cur.kind === 'live' ? { kind: 'off' } : cur)) } }).catch(() => undefined)
+    })
     return () => { dead = true }
   }, [key])   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -57,7 +67,11 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
       if (dead) return
       const m = s.model ?? 'ready'
       setModel(m)
-      if (m === 'ready') { if (shown) toast.success('Live captions are ready', { id: 'caption-model' }); shown = false; return }
+      if (m === 'ready') {
+        if (shown) toast.success('Live captions are ready', { id: 'caption-model' }); shown = false
+        try { if (!localStorage.getItem('archive-x:chrome-caption-hint')) { localStorage.setItem('archive-x:chrome-caption-hint', '1'); toast('A black "Live Caption" box at the bottom of the window is Chrome\'s own feature, not this app. Turn it off in Chrome: Settings → Accessibility → Live Caption.', { duration: 15000 }) } } catch { /* private mode */ }
+        return
+      }
       if (m === 'error') { toast.error(`Live captions could not start: ${s.model_error || 'speech model unavailable'}`, { id: 'caption-model' }); setLive('error'); setLiveError(s.model_error || 'speech model unavailable'); shown = false; return }
       if (!shown) { shown = true; toast.loading('Preparing live captions: downloading the speech model (first time only, can take a few minutes)…', { id: 'caption-model', duration: Infinity }) }
       timer = setTimeout(poll, 2000)
@@ -66,21 +80,40 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
     return () => { dead = true; if (timer) clearTimeout(timer); if (shown) toast.dismiss('caption-model') }
   }, [sub.kind, model])
 
-  // Live captions: transcribe the 30 s window being watched, and fetch the next one ahead of time.
-  useEffect(() => { fetched.current = new Set(); if (sub.kind === 'live') setCues([]) }, [sub.kind, sub.kind === 'live' && sub.original, audio, key])
+  // Live captions: transcribe the 30 s window being watched, and the next one ahead of time. A seek, a new video or a changed setting
+  // drops every request still on its way (they would be for the wrong place), so the new position is served first.
+  useEffect(() => {
+    gen.current++
+    for (const c of inflight.current.values()) c.abort()
+    inflight.current.clear(); fetched.current = new Set()
+    if (sub.kind === 'live') setCues([])
+  }, [sub.kind, sub.kind === 'live' && sub.original, audio, key])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!media || sub.kind !== 'live' || model !== 'ready') return
     const w = windowStart(time)
+    for (const [start, c] of inflight.current) if (Math.abs(start - w) > CAPTION_WINDOW) { c.abort(); inflight.current.delete(start); fetched.current.delete(start) }   // the viewer left that place
     const wanted = [w, w + CAPTION_WINDOW].filter((s) => !fetched.current.has(s))
     if (!wanted.length) return
     const s = wanted[0]!
-    fetched.current.add(s)
+    const mine = gen.current
+    const ac = new AbortController()
+    fetched.current.add(s); inflight.current.set(s, ac)
     setLive('working')
-    getJson<{ cues: Cue[]; preparing?: boolean }>(`/api/play/captions/${encodeURIComponent(media.cid)}/${media.mid}?start=${s}${audio !== null ? `&track=${audio}` : ''}${sub.original ? '&task=transcribe' : ''}`)
-      .then((r) => { if (r.preparing) { fetched.current.delete(s); setModel('preparing'); setLive('idle'); return }
-        setCues((c) => mergeCues(c, r.cues)); setLive('idle'); setLiveError('') })
-      .catch((e: unknown) => { fetched.current.delete(s); setLive('error'); setLiveError(e instanceof Error ? e.message : '') })
-  }, [media, sub.kind, sub.kind === 'live' && sub.original, audio, Math.floor(time / 5), playing, model])   // eslint-disable-line react-hooks/exhaustive-deps
+    getJson<{ cues: Cue[]; preparing?: boolean; skipped?: boolean }>(`/api/play/captions/${encodeURIComponent(media.cid)}/${media.mid}?start=${s}${audio !== null ? `&track=${audio}` : ''}${sub.original ? '&task=transcribe' : ''}`, ac.signal)
+      .then((r) => {
+        if (mine !== gen.current) return
+        inflight.current.delete(s)
+        if (r.preparing) { fetched.current.delete(s); setModel('preparing'); setLive('idle'); return }
+        if (r.skipped) { fetched.current.delete(s); setLive('idle'); setTimeout(() => { if (mine === gen.current) setRetry((n) => n + 1) }, 1000); return }   // the server skipped it as out of date; ask again for where we are now
+        setCues((c) => mergeCues(c, r.cues)); setLive('idle'); setLiveError('')
+      })
+      .catch((e: unknown) => {
+        if (mine !== gen.current || (e instanceof DOMException && e.name === 'AbortError')) return
+        inflight.current.delete(s); fetched.current.delete(s)
+        setLive('error'); setLiveError(e instanceof Error ? e.message : '')
+        setTimeout(() => { if (mine === gen.current) setRetry((n) => n + 1) }, 4000)   // try that window again
+      })
+  }, [media, sub.kind, sub.kind === 'live' && sub.original, audio, Math.floor(time / 5), playing, model, retry])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Alternate audio: ask the server to build it, poll until it is ready.
   useEffect(() => {

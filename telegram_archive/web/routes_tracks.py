@@ -108,9 +108,11 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
         async def wav(s: float, d: float) -> bytes:
             return await tracks.audio_window_wav(url, s, d, track)
         try:
-            return await svc.window(f"{channel_id}_{message_id}", start, track, wav, "transcribe" if task == "transcribe" else "translate")
+            return await svc.window(f"{channel_id}_{message_id}", start, track, wav, "transcribe" if task == "transcribe" else "translate", is_gone=request.is_disconnected)
         except captions.CaptionsPreparing:
             return JSONResponse({"preparing": True, "cues": []}, status_code=202)
+        except captions.CaptionsStale:
+            return JSONResponse({"skipped": True, "cues": []}, status_code=202)
         except Exception as exc:
             raise HTTPException(502, f"Caption engine failed: {exc}") from exc
 

@@ -122,3 +122,45 @@ def test_window_waits_for_model_then_works(media, tmp_path):
         await svc.window("k", 0, None, get_wav)
         return first, svc.status()["model"]
     assert asyncio.run(go()) == ("preparing", "ready")
+
+
+def test_a_seek_is_not_stuck_behind_windows_the_viewer_already_left(media, tmp_path):
+    from telegram_archive.playback import captions
+    import time
+
+    class Slow:
+        name = "slow"
+        def transcribe_wav(self, wav, task="translate"):
+            time.sleep(0.3)
+            return {"language": "en", "cues": []}
+    svc = captions.CaptionService(tmp_path, Slow())
+
+    async def get_wav(s, d):
+        return await tracks.audio_window_wav(media, 0.0, 1.0)
+
+    async def go():
+        a = asyncio.create_task(svc.window("k", 0, None, get_wav))        # running
+        await asyncio.sleep(0.05)
+        b = asyncio.create_task(svc.window("k", 30, None, get_wav))       # queued behind it
+        await asyncio.sleep(0.05)
+        d = asyncio.create_task(svc.window("k", 900, None, get_wav))      # the viewer seeks far away
+        return await asyncio.gather(a, b, d, return_exceptions=True)
+    a, b, d = asyncio.run(go())
+    assert isinstance(a, dict)
+    assert isinstance(b, captions.CaptionsStale)                          # skipped, not transcribed
+    assert isinstance(d, dict) and d["start"] == 900                      # the new position got its turn
+
+
+def test_a_window_nobody_waits_for_is_skipped(media, tmp_path):
+    from telegram_archive.playback import captions
+    svc = captions.CaptionService(tmp_path, StubEngine())
+
+    async def get_wav(s, d):
+        return await tracks.audio_window_wav(media, 0.0, 1.0)
+
+    async def gone():
+        return True
+    before = StubEngine.calls
+    with pytest.raises(captions.CaptionsStale):
+        asyncio.run(svc.window("k2", 0, None, get_wav, is_gone=gone))
+    assert StubEngine.calls == before

@@ -76,6 +76,10 @@ class CaptionsPreparing(Exception):
     """The speech model is still downloading or loading."""
 
 
+class CaptionsStale(Exception):
+    """The viewer moved on (seeked away, switched video or left) before this window got its turn; it was skipped."""
+
+
 class CaptionService:
     """Caches windows on disk and makes sure one window is never transcribed twice at once."""
 
@@ -83,6 +87,8 @@ class CaptionService:
         self.cache_dir = Path(cache_dir)
         self.engine = engine
         self._inflight: dict[tuple, asyncio.Future] = {}
+        self._gate: asyncio.Lock | None = None            # one transcription at a time, so a seek is not stuck behind old windows
+        self._latest: dict[str, float] = {}                # newest window start asked for, per video
         self.model_state = "ready" if engine is not None and not hasattr(engine, "prepare") else "idle"   # idle | preparing | ready | error
         self.model_error = ""
         self._prep: asyncio.Task | None = None
@@ -119,9 +125,18 @@ class CaptionService:
     def _path(self, key: str, start: float, track: int | None, task: str) -> Path:
         return self.cache_dir / "captions" / key / f"{'en' if task == 'translate' else 'orig'}_{'a' if track is None else track}_{int(start)}.json"
 
-    async def window(self, key: str, start: float, track: int | None, get_wav, task: str = "translate") -> dict:
-        """Cues (absolute seconds) of the window beginning at `start`. `get_wav(start, duration)` is an async callable returning WAV bytes."""
+    def _stale(self, key: str, start: float) -> bool:
+        """A window far from the newest one asked for belongs to a position the viewer already left."""
+        latest = self._latest.get(key)
+        return latest is not None and abs(start - latest) > 2 * WINDOW
+
+    async def window(self, key: str, start: float, track: int | None, get_wav, task: str = "translate", is_gone=None) -> dict:
+        """Cues (absolute seconds) of the window beginning at `start`. `get_wav(start, duration)` is an async callable returning WAV bytes.
+        `is_gone` (optional async callable) says the caller disconnected; windows that nobody waits for any more are not transcribed."""
         start = window_start(start)
+        self._latest[key] = start
+        if len(self._latest) > 64:
+            self._latest.pop(next(iter(self._latest)))
         if not self.ensure_ready():
             raise CaptionsPreparing(self.model_state)
         path = self._path(key, start, track, task)
@@ -137,8 +152,13 @@ class CaptionService:
         self._inflight[fk] = fut
         try:
             engine = self._engine()
-            wav = await get_wav(start, WINDOW)
-            res = await asyncio.to_thread(engine.transcribe_wav, wav, task)
+            if self._gate is None:
+                self._gate = asyncio.Lock()
+            async with self._gate:
+                if self._stale(key, start) or (is_gone is not None and await is_gone()):
+                    raise CaptionsStale()
+                wav = await get_wav(start, WINDOW)
+                res = await asyncio.to_thread(engine.transcribe_wav, wav, task)
             out = {"start": start, "end": start + WINDOW, "language": res.get("language", ""),
                    "cues": [{"start": start + c["start"], "end": start + c["end"], "text": c["text"]} for c in res.get("cues", [])]}
             path.parent.mkdir(parents=True, exist_ok=True)

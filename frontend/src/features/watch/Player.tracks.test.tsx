@@ -117,3 +117,56 @@ describe('caption look and status', () => {
     expect(await screen.findByText(/getting the speech model ready/)).toBeInTheDocument()
   })
 })
+
+describe('live captions keep going', () => {
+  const CAP = { available: true, engine: 'x', install: '' }
+  const prefsLive = () => localStorage.setItem('archive-x:track-prefs', JSON.stringify({ sub: 'live' }))
+  const setup = (opts: { tracksFail?: boolean } = {}) => {
+    const reqs: Array<{ url: string; signal?: AbortSignal }> = []
+    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+      if (url.includes('/api/play/tracks/')) return opts.tracksFail ? Promise.resolve(new Response('{"detail":"probe failed"}', { status: 502 })) : json({ ...tracks, captions: CAP })
+      if (url.startsWith('/api/captions/status')) return json({ ...CAP, model: 'ready' })
+      if (url.includes('/api/play/captions/')) {
+        reqs.push({ url, signal: init?.signal ?? undefined })
+        const start = Number(/start=(\d+)/.exec(url)?.[1] ?? 0)
+        const vid = /captions\/(-?\d+)\/(\d+)/.exec(url)?.slice(1).join('/') ?? ''
+        return init?.signal ? new Promise((res, rej) => { const t = setTimeout(() => res(json({ cues: [{ start, end: start + 5, text: `video ${vid} cue at ${start}` }] })), 30); init.signal!.addEventListener('abort', () => { clearTimeout(t); rej(new DOMException('aborted', 'AbortError')) }) }) : json({ cues: [] })
+      }
+      return Promise.resolve(new Response('', { status: 404 }))
+    }))
+    return reqs
+  }
+  const at = (v: HTMLVideoElement, t: number) => { Object.defineProperty(v, 'currentTime', { value: t, configurable: true, writable: true }); fireEvent.timeUpdate(v) }
+
+  it('a seek drops the request for the old place and asks for the new one at once', async () => {
+    prefsLive(); const reqs = setup()
+    const { container } = render(<Player src="/stream/-1/1" media={{ cid: '-1', mid: 1 }} durationHint={3600} onOpenVlc={() => {}} />)
+    const v = container.querySelector('video')!
+    await waitFor(() => expect(reqs.some((r) => r.url.includes('start=0'))).toBe(true))
+    const first = reqs.find((r) => r.url.includes('start=0'))!
+    await act(async () => { at(v, 1800) })      // the viewer jumps to 30 minutes
+    await waitFor(() => expect(reqs.some((r) => r.url.includes('start=1800'))).toBe(true))
+    expect(first.signal?.aborted).toBe(true)    // the stale one was cancelled
+    await waitFor(() => expect(screen.getByTestId('caption')).toHaveTextContent('video -1/1 cue at 1800'))
+  })
+
+  it('the next video keeps live captions on even when its track list cannot be read', async () => {
+    prefsLive(); const reqs = setup({ tracksFail: true })
+    const { container, rerender } = render(<Player src="/stream/-1/1" media={{ cid: '-1', mid: 1 }} durationHint={600} onOpenVlc={() => {}} />)
+    await waitFor(() => expect(reqs.some((r) => r.url.includes('/captions/-1/1'))).toBe(true))
+    rerender(<Player src="/stream/-1/2" media={{ cid: '-1', mid: 2 }} durationHint={600} onOpenVlc={() => {}} />)
+    await waitFor(() => expect(reqs.some((r) => r.url.includes('/captions/-1/2?start=0'))).toBe(true))
+    await act(async () => { at(container.querySelector('video')!, 3) })
+    await waitFor(() => expect(screen.getByTestId('caption')).toHaveTextContent('video -1/2 cue at 0'))
+  })
+
+  it('captions from the old video never show on the new one', async () => {
+    prefsLive(); setup()
+    const { container, rerender } = render(<Player src="/stream/-1/1" media={{ cid: '-1', mid: 1 }} durationHint={600} onOpenVlc={() => {}} />)
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.some((c) => String(c[0]).includes('/captions/-1/1'))).toBe(true))
+    rerender(<Player src="/stream/-1/2" media={{ cid: '-1', mid: 2 }} durationHint={600} onOpenVlc={() => {}} />)
+    await act(async () => { at(container.querySelector('video')!, 3) })
+    await waitFor(() => expect(screen.getByTestId('caption')).toHaveTextContent('video -1/2'))   // the first video's late answer was dropped
+    expect(screen.getByTestId('caption')).not.toHaveTextContent('video -1/1')
+  })
+})
