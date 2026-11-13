@@ -73,11 +73,6 @@ MP4_COPY_AUDIO = {"aac", "mp3"}
 # Finds ffmpeg and ffprobe.
 # ==============================================================================
 
-def _candidates(exe: str) -> list[str]:
-    # Kept only as a compatibility list. Application-local tools are resolved
-    # first by core.external_tools; Windows PATH is last.
-    return []
-
 
 _found: dict[str, str] = {}
 

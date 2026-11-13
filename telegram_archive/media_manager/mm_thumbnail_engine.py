@@ -1330,16 +1330,6 @@ def start_temp_http_server(source, *, max_response: int | None = None):
     return server, thread, url
 
 
-def open_stream_url(url):
-    # Seekable/range mode retained for compatibility with the older path.
-    return av.open(url, mode="r", options={
-        "seekable": "1",
-        "rw_timeout": "180000000",
-        "reconnect": "1",
-        "reconnect_streamed": "1",
-        "reconnect_on_network_error": "1",
-    })
-
 
 
 # ==============================================================================
@@ -1361,31 +1351,6 @@ def target_size(width, height, frame_width=None):
     th = max(1, int(tw * height / max(1, width)))
     return tw, th
 
-
-def _decode_one_target(container, stream, target, tw, th):
-    """Seek the open container to ``target`` seconds and return the first frame at/after it.
-
-    Returns ``(PIL image sized tw x th, actual_time_seconds)``.
-    """
-    time_base = stream.time_base
-    if not time_base:
-        raise RuntimeError("Video stream has no time base")
-    pts = int(float(target) / float(time_base))
-    container.seek(pts, stream=stream, any_frame=False, backward=True)
-    last = None
-    for frame in container.decode(stream):
-        last = frame
-        t = float(frame.pts * time_base) if frame.pts is not None else float(target)
-        if t + 1e-3 >= float(target):
-            break
-    if last is None:
-        raise RuntimeError("No frame decoded near target")
-    actual = float(last.pts * time_base) if last.pts is not None else float(target)
-    try:
-        img = last.reformat(width=tw, height=th, format="rgb24", interpolation="LANCZOS").to_image()
-    except Exception:
-        img = last.to_image().resize((tw, th), Image.Resampling.LANCZOS)
-    return img, actual
 
 
 
@@ -2080,76 +2045,3 @@ async def create_thumbnail_for_message(client, entity, message, tempdir):
         except Exception:
             pass
 
-
-async def apply_one(client, entity, video, following, action):
-    """Apply one action: re-forward a video and attach its thumbnail document."""
-    with tempfile.TemporaryDirectory(prefix="tg_thumb_") as td:
-        if action == "photo":
-            print(f"Forwarding VIDEO {video.id} to the same channel without forward tag...")
-            new_video = await forward_without_tag(client, entity, video)
-            try:
-                print("Forwarding existing PHOTO as DOCUMENT after the new video...")
-                new_thumb = await forward_photo_as_document(client, entity, following, video, td)
-            except Exception:
-                print("Thumbnail/document creation failed. Deleting the newly copied video and keeping the original pair...")
-                try:
-                    await delete_messages(client, entity, [getattr(new_video, "id", new_video)])
-                except Exception as cleanup_error:
-                    print(f"WARNING: could not remove replacement video: {cleanup_error}")
-                raise
-
-            print(f"Deleting old VIDEO {video.id} and old PHOTO {following.id}...")
-            await delete_messages(client, entity, [video.id, following.id])
-            return new_video, new_thumb
-
-        # IMPORTANT: create the thumbnail BEFORE copying the old video.
-        # If Telegram range streaming fails, the original post remains untouched
-        # and we never leave a replacement video without its thumbnail.
-        print("Creating thumbnail directly from Telegram stream; full video is NOT downloaded...")
-        print(f"Thumbnail generation timeout: {THUMBNAIL_TIMEOUT_SECONDS}s. Low-bandwidth mode; corrupt/unreadable videos will be skipped.")
-        try:
-            thumb = await _await_thumbnail_watchdog(
-                create_thumbnail_for_message(client, entity, video, td),
-                timeout=THUMBNAIL_TIMEOUT_SECONDS,
-                label=safe_video_name(video),
-            )
-        except asyncio.TimeoutError as exc:
-            raise RuntimeError(
-                f"Video thumbnail generation exceeded {THUMBNAIL_TIMEOUT_SECONDS} seconds; skipped as unreadable/stuck"
-            ) from exc
-
-        print(f"Forwarding VIDEO {video.id} to the same channel without forward tag...")
-        new_video = await forward_without_tag(client, entity, video)
-        try:
-            print("Adding generated thumbnail as DOCUMENT after the new video...")
-            new_thumb = await upload_document(client, entity, thumb)
-        except Exception:
-            # Thumbnail upload failed: remove the newly copied video so the
-            # original video/post remains intact and no orphan video is left.
-            print("Thumbnail upload failed. Deleting the newly copied video and keeping the original post...")
-            try:
-                await delete_messages(client, entity, [getattr(new_video, "id", new_video)])
-            except Exception as cleanup_error:
-                print(f"WARNING: could not remove replacement video: {cleanup_error}")
-            raise
-        finally:
-            # The JPEG exists only to upload it to Telegram. Remove it from
-            # the PC immediately after the upload attempt.
-            try:
-                thumb_path = Path(thumb)
-                temp_root = thumb_path.parent
-                if thumb_path.exists():
-                    thumb_path.unlink()
-                    print(f"Deleted temporary thumbnail from PC: {thumb_path}")
-                # Also remove the now-empty tg_thumb_* directory under AppData\Local\Temp.
-                try:
-                    temp_root.rmdir()
-                    print(f"Deleted temporary thumbnail folder: {temp_root}")
-                except OSError:
-                    pass
-            except Exception as cleanup_error:
-                print(f"WARNING: could not delete temporary thumbnail: {cleanup_error}")
-
-        print(f"Deleting old VIDEO {video.id}...")
-        await delete_messages(client, entity, [video.id])
-        return new_video, new_thumb

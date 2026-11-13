@@ -118,33 +118,6 @@ def get_video_dimensions(message):
     return width, height, normalized_rotation, supports_streaming
 
 
-def vertical_video_summary(message):
-    width, height, rotation, supports_streaming = get_video_dimensions(message)
-    name = safe_video_name(message)
-    size = 0
-    try:
-        size = int(getattr(message.file, "size", 0) or 0)
-    except Exception:
-        pass
-
-    mime = ""
-    try:
-        mime = str(getattr(message.file, "mime_type", "") or "")
-    except Exception:
-        pass
-
-    return {
-        "message_id": int(message.id),
-        "date": getattr(message, "date", None).isoformat() if getattr(message, "date", None) else None,
-        "filename": name,
-        "width": width,
-        "height": height,
-        "rotation": rotation,
-        "size": size,
-        "mime": mime,
-        "supports_streaming": supports_streaming,
-    }
-
 
 def state_key(source, destination, message_id):
     return f"{int(source.id)}:{int(destination.id)}:{int(message_id)}"
@@ -314,71 +287,6 @@ async def generate_thumbnail_with_timeout(client, source, message, tempdir):
 # SECTION: Scan and processing
 # Candidate scan and per-video processing.
 # ==============================================================================
-
-async def scan_vertical_candidates(client, source):
-    """One-pass, oldest-to-newest channel scan; retain only vertical videos."""
-    print("\n" + "=" * 78)
-    print("SCAN SOURCE CHANNEL — VERTICAL VIDEO DETECTION")
-    print("=" * 78)
-    print("History is scanned once. Non-vertical messages are not retained in RAM.")
-    print("Progress is printed continuously so a long channel scan cannot look stuck.\n")
-
-    started = time.monotonic()
-    last_print = started
-    scanned = 0
-    video_count = 0
-    vertical_count = 0
-    unknown_video_count = 0
-    candidates = []
-
-    async for message in client.iter_messages(source, reverse=True):
-        scanned += 1
-
-        try:
-            if is_video_message(message):
-                video_count += 1
-                width, height, rotation, _ = get_video_dimensions(message)
-                if width and height:
-                    if height > width:
-                        vertical_count += 1
-                        candidates.append(message)
-                else:
-                    unknown_video_count += 1
-        except Exception as exc:
-            unknown_video_count += 1
-            print(
-                f"\n[SCAN WARNING] msg={getattr(message, 'id', '?')} "
-                f"could not classify video: {type(exc).__name__}: {exc}"
-            )
-
-        now = time.monotonic()
-        if scanned == 1 or now - last_print >= 0.5:
-            elapsed = max(now - started, 0.001)
-            speed = scanned / elapsed
-            print(
-                f"\r[SCAN] Messages: {scanned:,} | Videos: {video_count:,} | "
-                f"Vertical: {vertical_count:,} | Unknown video: {unknown_video_count:,} | "
-                f"Speed: {speed:,.0f} msg/s | "
-                f"Elapsed: {int(elapsed)//60:02d}:{int(elapsed)%60:02d}",
-                end="",
-                flush=True,
-            )
-            last_print = now
-
-    elapsed = max(time.monotonic() - started, 0.001)
-    print(
-        f"\r[SCAN] COMPLETE | Messages: {scanned:,} | Videos: {video_count:,} | "
-        f"Vertical: {vertical_count:,} | Unknown video: {unknown_video_count:,} | "
-        f"Elapsed: {int(elapsed)//60:02d}:{int(elapsed)%60:02d}"
-    )
-
-    return candidates, {
-        "messages_scanned": scanned,
-        "videos_found": video_count,
-        "vertical_videos": vertical_count,
-        "unknown_video_dimensions": unknown_video_count,
-        "elapsed_seconds": elapsed,
-    }
 
 
 async def process_vertical_video(client, source, destination, message, state, key):

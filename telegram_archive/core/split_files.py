@@ -482,36 +482,6 @@ def map_split_range(parts: Iterable[dict], start: int, end: int, *, total_size: 
 # Stored ZIP validation and member range reads.
 # ==============================================================================
 
-def validate_split_zip_stored(volume_set: SplitVolumeSet) -> tuple[str, ...]:
-    """Allow split ZIP streaming only when every archive member uses ZIP_STORED.
-
-    Archives which cannot be parsed safely, contain compressed members, or use
-    a multi-disk ZIP layout unsupported by Python's ZIP reader are rejected.
-    """
-    if not volume_set.logical_filename.casefold().endswith(".zip"):
-        raise SplitFileError("Stored-only ZIP validation applies to split .zip.001 archives")
-    try:
-        with SplitVolumeReader(volume_set) as reader:
-            with zipfile.ZipFile(reader, mode="r") as archive:
-                infos = archive.infolist()
-                if not infos:
-                    raise SplitFileError("Split ZIP archive is empty; stored-only streaming cannot be confirmed")
-                unsupported = [info.filename for info in infos
-                               if info.compress_type != zipfile.ZIP_STORED or (info.flag_bits & 0x1)]
-                if unsupported:
-                    names = ", ".join(unsupported[:5])
-                    raise SplitFileError(
-                        "Unsupported split ZIP archive: direct streaming requires every ZIP entry to be "
-                        f"unencrypted ZIP_STORED (method 0); unsupported entries include: {names}"
-                    )
-                return tuple(info.filename for info in infos)
-    except SplitFileError:
-        raise
-    except (OSError, EOFError, zipfile.BadZipFile, zipfile.LargeZipFile, NotImplementedError) as exc:
-        raise SplitFileError(
-            f"Unsupported split ZIP archive: its central directory or stored entries could not be verified ({exc})"
-        ) from exc
-
 
 
 # ---------------------------------------------------------------------------

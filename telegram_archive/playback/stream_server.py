@@ -665,9 +665,6 @@ async def update_channel_index(client, channel, records: dict, *, checkpoint: di
 # Cache policy, tuning, keep flags and pruning.
 # ==============================================================================
 
-def _range_cache_manifest_path(cache_path: Path) -> Path:
-    return cache_path.with_suffix(".json")
-
 
 def configure_range_cache_policy(*, budget_gib=DEFAULT_RANGE_CACHE_BUDGET_GIB, retention="idle_30m") -> dict:
     """Apply persistent range-cache budget and retention settings."""
@@ -1779,16 +1776,6 @@ class SparseVideoCache:
 # SECTION: Global priority scheduler
 # SegmentTransferScheduler. Candidate for its own module.
 # ==============================================================================
-
-def sniff_image_type(data: bytes) -> str:
-    head = bytes(data[:12])
-    if head.startswith(b"\xff\xd8"):
-        return "image/jpeg"
-    if head.startswith(b"\x89PNG"):
-        return "image/png"
-    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
-        return "image/webp"
-    return "image/jpeg"
 
 
 class SegmentTransferScheduler:

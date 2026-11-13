@@ -39,30 +39,6 @@ def _entity_table(kind: str) -> str:
     raise HTTPException(400, 'entity type must be performer or studio')
 
 
-def _media_row(db, media_id: int):
-    with db.lock:
-        row = db.conn.execute(
-            "SELECT m.*, GROUP_CONCAT(DISTINCT p.name) performers, "
-            "GROUP_CONCAT(DISTINCT s.name) studios, GROUP_CONCAT(DISTINCT t.name) tags "
-            "FROM archive_x_published_media m "
-            "LEFT JOIN video_performers vp ON vp.video_id=m.id LEFT JOIN performers p ON p.id=vp.performer_id "
-            "LEFT JOIN video_studios vs ON vs.video_id=m.id LEFT JOIN studios s ON s.id=vs.studio_id "
-            "LEFT JOIN video_tags vt ON vt.video_id=m.id LEFT JOIN tags t ON t.id=vt.tag_id "
-            "WHERE m.id=? GROUP BY m.id", (int(media_id,))
-        ).fetchone()
-    if not row:
-        return None
-    d = dict(row)
-    d['performers'] = [x for x in (d.get('performers') or '').split(',') if x]
-    d['studios'] = [x for x in (d.get('studios') or '').split(',') if x]
-    d['tags'] = [x for x in (d.get('tags') or '').split(',') if x]
-    d['studio'] = d['studios'][0] if d['studios'] else ''
-    d['id'] = int(d.get('source_message_id') or 0)
-    d['_cid'] = d.get('source_channel')
-    d['name'] = d.get('title') or d.get('filename') or f"video {d['id']}"
-    d['thumbnail_id'] = d.get('thumbnail_message_id') or d.get('source_message_id')
-    return d
-
 
 def _entity_favorited(db, entity_type: str, entity_id: int) -> bool:
     with db.lock:
@@ -72,16 +48,6 @@ def _entity_favorited(db, entity_type: str, entity_id: int) -> bool:
         ).fetchone()
     return bool(row)
 
-
-def _serialize_entity(db, entity_type: str, entity_id: int):
-    table = _entity_table(entity_type)
-    with db.lock:
-        row = db.conn.execute(f"SELECT * FROM {table} WHERE id=?", (int(entity_id),)).fetchone()
-    if not row:
-        return None
-    out = dict(row)
-    out['favorite'] = _entity_favorited(db, entity_type, entity_id)
-    return out
 
 
 _AX_THEME_PRESETS = {'nord', 'nero-gold', 'black-essence', 'pastel-lavender', 'pastel-mint', 'minimal-slate', 'minimal-sand', 'custom'}

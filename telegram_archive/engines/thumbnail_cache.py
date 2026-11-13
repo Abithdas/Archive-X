@@ -125,18 +125,6 @@ def _thumb_ids_sync(db, channel_id: int, message_id: int):
     return int(message_id), 0
 
 
-def thumb_cached_info_sync(db, channel_id: int, video_id: int):
-    with db.lock:
-        row = db.conn.execute(
-            "SELECT mime,data,source,width,height,visual_hash FROM thumbnail_cache WHERE source_channel=? AND video_message_id=?",
-            (str(channel_id), int(video_id)),
-        ).fetchone()
-    if row and row["data"]:
-        return {"data": bytes(row["data"]), "mime": row["mime"] or "image/jpeg",
-                "source": str(row["source"] or ""), "width": int(row["width"] or 0),
-                "height": int(row["height"] or 0), "visual_hash": str(row["visual_hash"] or "")}
-    return None
-
 
 def _store_thumb_sync(db, channel_id: int, video_id: int, thumbnail_message_id: int | None,
                       mime: str, width: int, height: int, data: bytes, source: str,
@@ -1295,32 +1283,6 @@ async def ensure_local_playback_assets(db, video_path: Path, source_oshash: str 
 # Ensures thumbnails and returns bytes for sending.
 # ==============================================================================
 
-async def ensure_thumbnail(db, telegram, channel_id: int, message_id: int, *,
-                           semaphore: Optional[asyncio.Semaphore] = None,
-                           retry_failed: bool = False):
-    """Compatibility wrapper: thumbnail jobs now build playback snapshots."""
-    if semaphore is None:
-        return await ensure_playback_snapshot(db, telegram, channel_id, message_id)
-    async with semaphore:
-        return await ensure_playback_snapshot(db, telegram, channel_id, message_id)
-
-
-async def get_send_thumbnail_bytes(db, telegram, channel_id: int, message_id: int, *, strict_existing: bool = False):
-    """Return the representative Archive X playback snapshot for UI/repair compatibility.
-
-    This is the individual representative frame used for Telegram thumbnail/cover delivery.
-    """
-    video_id, _ = await asyncio.to_thread(_thumb_ids_sync, db, channel_id, message_id)
-    info = await asyncio.to_thread(playback_snapshot_cached_info_sync, db, channel_id, video_id)
-    if info:
-        return info["data"], info["mime"]
-    if strict_existing:
-        return None
-    if getattr(telegram, "connected", False):
-        snapshot = await ensure_playback_snapshot(db, telegram, channel_id, video_id)
-        if snapshot:
-            return snapshot
-    raise RuntimeError("No Archive X playback snapshot is available for sending")
 
 
 

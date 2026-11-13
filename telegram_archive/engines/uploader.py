@@ -289,10 +289,6 @@ async def build_local_upload_caption(db, video: Path, meta: dict, *, oshash_valu
         default_template=LOCAL_UPLOAD_DEFAULT_TEMPLATE, limit=4096,
     )
 
-async def build_local_caption(db, video: Path, meta: dict, *, oshash_value: str | None = None) -> str:
-    """Backward-compatible alias for the isolated Local Upload caption pipeline."""
-    return await build_local_upload_caption(db, video, meta, oshash_value=oshash_value)
-
 
 
 

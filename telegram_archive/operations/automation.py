@@ -1002,9 +1002,6 @@ def _is_allowed_rss_item(item: RSSItem, cfg: dict[str, Any]) -> tuple[bool, str]
     return _rss_size_allowed(getattr(item, "enclosure_size", 0), cfg)
 
 
-def _safe_dest_name(path: Path) -> str:
-    return path.name[:240]
-
 
 def _torrent_content_verified(torrent: TorrentInfo, files: list[dict[str, Any]]) -> bool:
     """Accept a torrent only after client state and actual file completion agree."""

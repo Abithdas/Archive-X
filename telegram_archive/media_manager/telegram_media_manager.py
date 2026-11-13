@@ -1018,20 +1018,6 @@ def print_main_menu():
         print(f"  {k}. {v}")
     print("  0. Exit")
 
-async def unstreamable_mover_main():
-    """Content mover: the VIDEO/FILE mover for videos of ANY orientation.
-
-    This menu entry used to call a function that did not exist. It now does
-    exactly what the web app's runner does for workflow 1.
-    """
-    global MOVER_ANY_ORIENTATION
-    previous = MOVER_ANY_ORIENTATION
-    MOVER_ANY_ORIENTATION = True
-    try:
-        await vertical_mobile_mover_main()
-    finally:
-        MOVER_ANY_ORIENTATION = previous
-
 
 async def main():
     print_main_menu()

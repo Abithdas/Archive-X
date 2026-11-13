@@ -53,10 +53,6 @@ CHANNEL_CLEANUP_STATE_FILE = config.MEDIA_MANAGER_STATE_DIR / "telegram_channel_
 # Thumbnail lookup, state and candidate checks.
 # ==============================================================================
 
-async def vertical_mobile_find_thumbnail(client, source, video):
-    """Deprecated compatibility shim. Use the persisted playback snapshot."""
-    return None
-
 
 async def _resolve_associated_source_thumbnail_for_move(
     client, source, video, db=None, *, known_message_id=None,
@@ -269,20 +265,6 @@ async def scan_source_mode(client, source, source_mode):
 # SECTION: Copy and verified transfer records
 # Copies media and records verified transfers.
 # ==============================================================================
-
-async def _verify_destination_cover_or_thumbnail(client, destination, message_id, destination_mode):
-    """Verify an embedded thumbnail without requiring a separate channel message."""
-    checked = await client.get_messages(destination, ids=int(message_id))
-    if not checked:
-        return False, "destination media message not found"
-    if str(destination_mode or "").upper() == "VIDEO":
-        media = getattr(checked, "media", None)
-        document = getattr(media, "document", None)
-        has_cover = bool(getattr(media, "video_cover", None) or getattr(document, "video_cover", None))
-        return (True, "native video cover verified") if has_cover else (False, "native video cover missing")
-    document = getattr(getattr(checked, "media", None), "document", None) or getattr(checked, "document", None)
-    thumbs = getattr(document, "thumbs", None) if document else None
-    return (True, "embedded document thumbnail verified") if thumbs else (False, "embedded document thumbnail missing")
 
 async def copy_media_to_destination(
     client,
@@ -994,22 +976,6 @@ async def _vertical_mobile_scan_impl(client, source, source_mode):
     )
     return candidates
 
-
-async def vertical_mobile_generate_thumbnail(client, source, video, tempdir):
-    """Compatibility wrapper returning the canonical local playback snapshot."""
-    db = globals().get("MEDIA_MANAGER_DB")
-    if db is None:
-        raise RuntimeError("Archive X database is required for playback snapshot delivery")
-    from ..engines.thumbnail_cache import ensure_playback_snapshot
-    snapshot = await ensure_playback_snapshot(
-        db, type("TelegramAdapter", (), {"client": client, "connected": True})(),
-        int(canonical_peer_id(source)), int(video.id), message=video,
-    )
-    if not snapshot:
-        raise RuntimeError("Playback snapshot is unavailable")
-    out = Path(tempdir) / thumbnail_name_for_video(safe_video_name(video))
-    out.write_bytes(snapshot[0])
-    return out
 
 
 async def vertical_mobile_process_one(client, source, destination, video, state):
