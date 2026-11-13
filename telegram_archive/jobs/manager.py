@@ -25,6 +25,7 @@ Modules:
 #       - Job execution
 # ------------------------------------------------------------------
 from __future__ import annotations
+from ..core.swallowed import note as _swallowed_note
 from ..core.background_tasks import retain as _retain_task
 
 import asyncio
@@ -300,6 +301,7 @@ class JobManager:
             try:
                 self.db.set_job_admission(jid, "READY", reason="", next_run_at=None, priority=priority, operation="Queued for admission")
             except Exception:
+                _swallowed_note("manager.JobManager._enqueue_job")
                 pass
         self._queue_sequence += 1
         queued_ids.add(jid)
@@ -395,6 +397,7 @@ class JobManager:
             _retain_task(asyncio.create_task(content_automation.pause_qbittorrent_automation_torrents(self.db),
                                 name="pause-qbit-automation-on-boot"))
         except Exception:
+            _swallowed_note("manager.JobManager.start")
             pass
 
     async def stop(self):
@@ -436,6 +439,7 @@ class JobManager:
                 if process.is_alive():
                     process.terminate()
             except Exception:
+                _swallowed_note("manager.JobManager.stop")
                 pass
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -482,7 +486,9 @@ class JobManager:
             pressure=str(snap.get("pressure_state") or snap.get("pressure") or "NORMAL").upper()
             if pressure in {"CRITICAL","CONSTRAINED"}: return max(1, base//2)
             if pressure in {"PRESSURED"} and base>1: return max(1, base-1)
-        except Exception: pass
+        except Exception:
+            _swallowed_note("manager.JobManager.execution_lane_capacity")
+            pass
         return base
 
     def execution_lane_capacities(self, lanes=None) -> dict:
@@ -698,6 +704,7 @@ class JobManager:
                 if media_manager.job_id == job_id or media_manager.last_job_id == job_id:
                     media_manager.pause()
             except Exception:
+                _swallowed_note("manager.JobManager.pause_job")
                 pass
         if status == "QUEUED":
             self.db.update_job(job_id, status="PAUSED", current_operation="Paused before start")
@@ -788,6 +795,7 @@ class JobManager:
                 if media_manager.job_id == job_id or media_manager.last_job_id == job_id:
                     media_manager.resume()
             except Exception:
+                _swallowed_note("manager.JobManager.resume_job")
                 pass
         live_task = job_id in self.running and not self.running[job_id].done()
         if live_task:
@@ -893,6 +901,7 @@ class JobManager:
                 if media_manager.job_id == job_id or media_manager.last_job_id == job_id:
                     media_manager.stop()
             except Exception:
+                _swallowed_note("manager.JobManager.cancel")
                 pass
 
         live_task = job_id in self.running and not self.running[job_id].done()
@@ -923,6 +932,7 @@ class JobManager:
         try:
             self.cancel(jid)
         except Exception:
+            _swallowed_note("manager.JobManager.watchdog_stop_unrecovered")
             pass
 
         process = self.isolated_processes.get(jid)
@@ -939,6 +949,7 @@ class JobManager:
                     self.db.log(f"Watchdog could not terminate isolated worker for {jid}: {type(exc).__name__}: {exc}",
                                 "WARN", event="watchdog.worker_terminate_failed", job_id=jid)
                 except Exception:
+                    _swallowed_note("manager.JobManager.watchdog_stop_unrecovered")
                     pass
 
         task = self.running.get(jid)
@@ -956,6 +967,7 @@ class JobManager:
                 details={"job_type": job.get("job_type"), "previous_status": status, "reason": str(reason)[:1000]},
             )
         except Exception:
+            _swallowed_note("manager.JobManager.watchdog_stop_unrecovered")
             pass
         return True
 
@@ -1013,6 +1025,7 @@ class JobManager:
                 if current and str(current.get("status") or "").upper() not in {"RUNNING", "PAUSING", "CANCEL_REQUESTED"}:
                     return
             except Exception:
+                _swallowed_note("manager.JobManager._acquire_cancellable.publish_waiting_state")
                 pass
             if hasattr(self, "orchestrator"):
                 self.orchestrator.waiting(job_id, wait_reason, operation=operation)
@@ -1175,6 +1188,7 @@ class JobManager:
                                 self.db.update_job(cancel_id, status="CANCELLED", worker_state="STOPPED", current_operation="Stopped")
                                 self.db.log("Job stop reconciled after worker exit", "INFO", event="job.cancelled", job_id=cancel_id)
                         except Exception:
+                            _swallowed_note("manager.JobManager._watch_job_lifecycle")
                             pass
                         self._cancel_requested_at.pop(cancel_id, None)
                         self._cancel_escalated.discard(cancel_id)
@@ -1198,6 +1212,7 @@ class JobManager:
                             try:
                                 self.db.log(f"Could not terminate stopped job worker {cancel_id}: {type(exc).__name__}: {exc}", "WARN", event="job.cancel_escalation_failed", job_id=cancel_id)
                             except Exception:
+                                _swallowed_note("manager.JobManager._watch_job_lifecycle")
                                 pass
                     self.db.log(
                         f"Job did not stop cooperatively within {cancel_grace:.0f}s; escalating cancellation",
@@ -1214,6 +1229,7 @@ class JobManager:
                         if jid in self.running and not self.running[jid].done():
                             self.orchestrator.heartbeat_execution(jid, execution["execution_id"], "RUNNING")
                     except Exception:
+                        _swallowed_note("manager.JobManager._watch_job_lifecycle")
                         pass
                 for expired_id in self.orchestrator.recover_expired_leases():
                     task = self.running.get(expired_id)
@@ -1362,10 +1378,12 @@ class JobManager:
                         execution_status = "FAILED" if latest.get("failure_class") else "INTERRUPTED"
                     self.orchestrator.finish_execution(jid, execution["execution_id"], status=execution_status, failure_class=latest.get("failure_class") or "")
                 except Exception:
+                    _swallowed_note("manager.JobManager._run_job")
                     pass
                 try:
                     self.db.release_execution_lane_slots(execution_id=execution.get("execution_id"))
                 except Exception:
+                    _swallowed_note("manager.JobManager._run_job")
                     pass
 
     def _completion_outcome(self, jid: str) -> tuple[str, dict, float, str]:
@@ -1381,6 +1399,7 @@ class JobManager:
                 if isinstance(p, (int, float)):
                     progress = float(p)
             except Exception:
+                _swallowed_note("manager.JobManager._completion_outcome")
                 pass
         else:
             from ..core import job_results
@@ -1585,6 +1604,7 @@ class JobManager:
                         result_queue.close()
                         result_queue.join_thread()
                     except Exception:
+                        _swallowed_note("manager.JobManager._run_locked_impl")
                         pass
             else:
                 # Automatic jobs enter the same application-wide priority lane.
@@ -1648,11 +1668,13 @@ class JobManager:
                     self.db.update_job(jid, worker_state="STOPPING", current_operation="Waiting for cancelled blocking operation to exit")
                     self.db.log(f"{name} cancellation drain exceeded grace period", "WARN", event="job.blocking_operation_drain_timeout", job_id=jid)
             except Exception:
+                _swallowed_note("manager.JobManager._run_locked_impl")
                 pass
             if transfer_gate is not None:
                 try:
                     await transfer_gate.__aexit__(None, None, None)
                 except Exception:
+                    _swallowed_note("manager.JobManager._run_locked_impl")
                     pass
             if background_slot and self.resources is not None:
                 await self.resources.release_background(background_category)

@@ -131,11 +131,20 @@ def register_system_routes(
         require_auth(request)
         return await asyncio.to_thread(jobs.watchdogs.snapshot) if hasattr(jobs, "watchdogs") else {"overall": "UNKNOWN", "jobs": []}
 
+    @router.get("/api/diagnostics/ignored-errors")
+    def diagnostics_ignored_errors(request: Request):
+        """Errors that best-effort code ignored on purpose, most frequent first, so a quiet failure can be traced."""
+        require_auth(request)
+        from ..core import swallowed
+        return {"ok": True, "items": swallowed.snapshot(100)}
+
     @router.get("/api/diagnostics/summary")
     def diagnostics_summary(request: Request):
         require_auth(request)
         from ..core.diagnostics import observability_snapshot, metadata_assets_diagnostics, telegram_transfer_diagnostics, content_automation_diagnostics
         payload = observability_snapshot(recent_limit=60, errors_limit=30)
+        from ..core import swallowed
+        payload["ignored_errors"] = swallowed.snapshot(20)
         payload["metadata_assets"] = metadata_assets_diagnostics(db, limit=8)
         payload["telegram_transfer"] = telegram_transfer_diagnostics(db, limit=8)
         payload["content_automation"] = content_automation_diagnostics(db, limit=8)

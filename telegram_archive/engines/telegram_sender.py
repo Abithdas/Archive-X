@@ -24,6 +24,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import hashlib
 import html
@@ -123,12 +124,14 @@ async def build_local_media_caption(db, video_path, meta: dict, *, oshash_value:
             try:
                 db.log(f"Local media caption: prepared media_id {media_id} was not found; using filename only", "WARN")
             except Exception:
+                _swallowed_note("telegram_sender.build_local_media_caption")
                 pass
             return filename_caption
         except Exception as exc:
             try:
                 db.log(f"Local media caption: could not read prepared media_id {media_id}: {type(exc).__name__}: {exc}; using filename only", "WARN")
             except Exception:
+                _swallowed_note("telegram_sender.build_local_media_caption")
                 pass
             return filename_caption
 
@@ -138,12 +141,16 @@ async def build_local_media_caption(db, video_path, meta: dict, *, oshash_value:
             oshash = await asyncio.to_thread(oshash_file, str(video_path))
         except Exception as exc:
             try: db.log(f"Local media caption: OSHASH unavailable for {filename}: {exc}", "WARN")
-            except Exception: pass
+            except Exception:
+                _swallowed_note("telegram_sender.build_local_media_caption")
+                pass
     try:
         result = await identify_local_media(db, oshash=oshash, filename=filename)
     except Exception as exc:
         try: db.log(f"Local media caption provider lookup failed for {filename}: {exc}", "WARN")
-        except Exception: pass
+        except Exception:
+            _swallowed_note("telegram_sender.build_local_media_caption")
+            pass
         return filename_caption
 
     # Candidate search is deliberately broader than automatic identification:
@@ -165,6 +172,7 @@ async def build_local_media_caption(db, video_path, meta: dict, *, oshash_value:
                 "INFO",
             )
         except Exception:
+            _swallowed_note("telegram_sender.build_local_media_caption")
             pass
         return filename_caption
 
@@ -407,6 +415,7 @@ async def _await_upload_stage(awaitable_factory, status_callback, stage: str, *,
         except Exception:
             # Liveness reporting must not turn a successful Telegram request
             # into a failed delivery.
+            _swallowed_note("telegram_sender._await_upload_stage._report")
             pass
 
     await _report(stage)
@@ -498,6 +507,7 @@ class _AdaptiveUploadGate:
             try:
                 return max(1, min(UPLOAD_MAX_WORKERS, int(snapshot().get("upload_max_parts") or 4)))
             except Exception:
+                _swallowed_note("telegram_sender._AdaptiveUploadGate.limit")
                 pass
         return 4
 
@@ -542,6 +552,7 @@ class _UploadConnectionPool:
             try:
                 return max(1, min(4, int(snapshot().get("upload_y") or 1)))
             except Exception:
+                _swallowed_note("telegram_sender._UploadConnectionPool._desired_queues")
                 pass
         return 1
 
@@ -587,6 +598,7 @@ class _UploadConnectionPool:
             try:
                 await sender.disconnect()
             except Exception:
+                _swallowed_note("telegram_sender._UploadConnectionPool._create_same_account_sender")
                 pass
             raise
 
@@ -609,6 +621,7 @@ class _UploadConnectionPool:
             try:
                 await sender.disconnect()
             except Exception:
+                _swallowed_note("telegram_sender._UploadConnectionPool._drop_dead_senders")
                 pass
         self.senders = alive
         primary = self.senders[0]
@@ -635,6 +648,7 @@ class _UploadConnectionPool:
                         try:
                             note(available, f"{type(exc).__name__}: {exc}")
                         except Exception:
+                            _swallowed_note("telegram_sender._UploadConnectionPool.sender_for_part")
                             pass
                     break
             usable = max(1, min(desired, len(self.senders)))
@@ -666,12 +680,14 @@ class _UploadConnectionPool:
                         if not done.cancelled():
                             done.exception()
                     except Exception:
+                        _swallowed_note("telegram_sender._UploadConnectionPool.send_part._consume")
                         pass
                 future.add_done_callback(_consume)
                 raise
         try:
             governor.note_upload_part_success()
         except Exception:
+            _swallowed_note("telegram_sender._UploadConnectionPool.send_part")
             pass
         return result
 
@@ -683,6 +699,7 @@ class _UploadConnectionPool:
             try:
                 await sender.disconnect()
             except Exception:
+                _swallowed_note("telegram_sender._UploadConnectionPool.close")
                 pass
 
 
@@ -742,6 +759,7 @@ async def _archive_x_upload_file(client, file_path, *, file_name: str | None = N
                 if inspect.isawaitable(value):
                     await value
             except Exception:
+                _swallowed_note("telegram_sender._archive_x_upload_file.emit_status")
                 pass
 
     def policy_wait_callback(seconds: int, request_name: str):
@@ -756,6 +774,7 @@ async def _archive_x_upload_file(client, file_path, *, file_name: str | None = N
     try:
         setattr(client, "_archive_x_upload_wait_callback", policy_wait_callback)
     except Exception:
+        _swallowed_note("telegram_sender._archive_x_upload_file")
         pass
 
     async def upload_worker() -> None:
@@ -808,6 +827,7 @@ async def _archive_x_upload_file(client, file_path, *, file_name: str | None = N
                                         try:
                                             governor.note_upload_floodwait(seconds, request=type(exc).__name__)
                                         except Exception:
+                                            _swallowed_note("telegram_sender._archive_x_upload_file.upload_worker")
                                             pass
                                     await emit_status(
                                         f"Telegram asked to slow down — resuming in {int(seconds)}s",
@@ -850,6 +870,7 @@ async def _archive_x_upload_file(client, file_path, *, file_name: str | None = N
             else:
                 setattr(client, "_archive_x_upload_wait_callback", old_wait_callback)
         except Exception:
+            _swallowed_note("telegram_sender._archive_x_upload_file")
             pass
         await connections.close()
     if failure:
@@ -1253,6 +1274,7 @@ async def send_split_local_video(
                 if inspect.isawaitable(value):
                     await value
             except Exception:
+                _swallowed_note("telegram_sender.send_split_local_video.emit_status")
                 pass
 
     try:
@@ -1279,6 +1301,7 @@ async def send_split_local_video(
                     _ff, _fp = await asyncio.to_thread(ffmpeg_tools)
                     part_meta = await asyncio.to_thread(probe, _fp, volume.path)
                 except Exception:
+                    _swallowed_note("telegram_sender.send_split_local_video")
                     pass
                 part_width = max(1, int(part_meta.get("width") or 0))
                 part_height = max(1, int(part_meta.get("height") or 0))
@@ -1392,6 +1415,7 @@ async def send_split_local_video(
             try:
                 await client.delete_messages(target_entity, created_messages)
             except Exception:
+                _swallowed_note("telegram_sender.send_split_local_video")
                 pass
         raise
     finally:
@@ -1401,6 +1425,7 @@ async def send_split_local_video(
             else:
                 setattr(client, "_archive_x_upload_wait_callback", previous_upload_wait_callback)
         except Exception:
+            _swallowed_note("telegram_sender.send_split_local_video")
             pass
 
 
@@ -1501,6 +1526,7 @@ async def send_local_video_with_cover(client, target, video_path, thumb: bytes, 
     try:
         setattr(client, "_archive_x_upload_wait_callback", _send_upload_wait)
     except Exception:
+        _swallowed_note("telegram_sender.send_local_video_with_cover")
         pass
     try:
         # Upload the video bytes once, and the cover as a Telegram Photo.  The
@@ -1555,6 +1581,7 @@ async def send_local_video_with_cover(client, target, video_path, thumb: bytes, 
                             if inspect.isawaitable(value):
                                 await value
                     except Exception:
+                        _swallowed_note("telegram_sender.send_local_video_with_cover")
                         pass
                     video_file = await _archive_x_upload_file(
                         client, video_path, file_name=display_filename,
@@ -1654,6 +1681,7 @@ async def send_local_video_with_cover(client, target, video_path, thumb: bytes, 
             try:
                 await client.delete_messages(target_entity, [int(sent.id)])
             except Exception:
+                _swallowed_note("telegram_sender.send_local_video_with_cover")
                 pass
         raise
     except Exception:
@@ -1664,6 +1692,7 @@ async def send_local_video_with_cover(client, target, video_path, thumb: bytes, 
             try:
                 await client.delete_messages(target_entity, [int(sent.id)])
             except Exception:
+                _swallowed_note("telegram_sender.send_local_video_with_cover")
                 pass
         raise
     finally:
@@ -1673,6 +1702,7 @@ async def send_local_video_with_cover(client, target, video_path, thumb: bytes, 
             else:
                 setattr(client, "_archive_x_upload_wait_callback", previous_upload_wait_callback)
         except Exception:
+            _swallowed_note("telegram_sender.send_local_video_with_cover")
             pass
 
 async def _send_existing_video_with_cover(client, target_entity, source_message, thumb: bytes, caption: str):
@@ -1700,6 +1730,7 @@ async def _send_existing_video_with_cover(client, target_entity, source_message,
             try:
                 await client.delete_messages(target_entity, [int(sent.id)])
             except Exception:
+                _swallowed_note("telegram_sender._send_existing_video_with_cover")
                 pass
         raise
 
@@ -1879,6 +1910,7 @@ async def send_video(db, client, channel_id: int, message_id: int, target, thumb
             try:
                 await client.delete_messages(target_entity, [int(thumb_msg.id)])
             except Exception:
+                _swallowed_note("telegram_sender.send_video")
                 pass
             raise
 
@@ -1929,6 +1961,7 @@ async def send_video(db, client, channel_id: int, message_id: int, target, thumb
                     f"{type(cleanup_exc).__name__}: {cleanup_exc}", "WARN"
                 )
             except Exception:
+                _swallowed_note("telegram_sender.send_video")
                 pass
         if metadata_note:
             notes.append(metadata_note)
@@ -1951,6 +1984,7 @@ async def send_video(db, client, channel_id: int, message_id: int, target, thumb
             try:
                 await client.delete_messages(target_entity, [int(sent.id)])
             except Exception:
+                _swallowed_note("telegram_sender.send_video")
                 pass
         raise
     except Exception:
@@ -1961,6 +1995,7 @@ async def send_video(db, client, channel_id: int, message_id: int, target, thumb
             try:
                 await client.delete_messages(target_entity, [int(sent.id)])
             except Exception:
+                _swallowed_note("telegram_sender.send_video")
                 pass
         raise
 

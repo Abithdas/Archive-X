@@ -26,6 +26,7 @@ and heavy thumbnail/FFmpeg work never freeze the web server.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 from ..telegram.client_policy import configure_telethon_client, make_telegram_client, FLOOD_SLEEP_THRESHOLD_SECONDS, REQUEST_RETRIES
 import asyncio
 import importlib
@@ -417,6 +418,7 @@ class MediaManagerRunner:
                     self._module.TRANSFER_JOB_ID = None
                     self._module.MEDIA_MANAGER_RUNNER = None
                 except Exception:
+                    _swallowed_note("runner.MediaManagerRunner._thread_main")
                     pass
             with self.lock:
                 self.job_id = None

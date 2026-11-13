@@ -15,6 +15,7 @@ so delivery history survives metadata edits or later channel scans.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 from pathlib import Path
 from typing import Any
 
@@ -225,6 +226,7 @@ def _ensure_destination_preview_asset(
                 try:
                     db.log(f"Delivery snapshot disk copy deferred for {entity_id}: {type(exc).__name__}: {exc}", "WARN")
                 except Exception:
+                    _swallowed_note("delivery_ledger._ensure_destination_preview_asset")
                     pass
             if _table_exists(db, "thumbnail_cache"):
                 db.conn.execute(
@@ -276,6 +278,7 @@ def _source_frame_directories(db, *, source_row, identity_key: str, file_path: P
         if file_path is not None:
             candidates.append(local_playback_snapshot_frames_path(Path(file_path)))
     except Exception:
+        _swallowed_note("delivery_ledger._source_frame_directories")
         pass
 
     src = dict(source_row) if source_row else {}
@@ -294,6 +297,7 @@ def _source_frame_directories(db, *, source_row, identity_key: str, file_path: P
                 from .preview_prefetch import preview_frames_path
                 candidates.append(preview_frames_path(int(src_channel), src_message_id))
         except Exception:
+            _swallowed_note("delivery_ledger._source_frame_directories")
             pass
 
     key = str(identity_key or src.get("oshash") or src.get("identity_key") or "").strip().lower()
@@ -305,6 +309,7 @@ def _source_frame_directories(db, *, source_row, identity_key: str, file_path: P
             ).fetchall()
             candidates.extend(Path(str(row["frames_path"])) for row in rows if str(row["frames_path"] or "").strip())
         except Exception:
+            _swallowed_note("delivery_ledger._source_frame_directories")
             pass
     # Preserve order while avoiding duplicate checks of the same directory.
     unique: list[Path] = []
@@ -386,6 +391,7 @@ def copy_delivery_preview_frames(
                         "WARN",
                     )
                 except Exception:
+                    _swallowed_note("delivery_ledger.copy_delivery_preview_frames")
                     pass
 
     quality = frame_quality_sync(target) if target_ready else {"frame_count": 0, "ready": False}
@@ -450,6 +456,7 @@ def _canonical_destination_from_db(db, value: str | int) -> str:
         if marked_chat in matches:
             return marked_chat
     except Exception:
+        _swallowed_note("delivery_ledger._canonical_destination_from_db")
         pass
     return raw
 
@@ -831,6 +838,7 @@ def mark_verified_transfer_source_hidden(
                 "INFO", event="library.transfer_source_reconciled",
             )
         except Exception:
+            _swallowed_note("delivery_ledger.mark_verified_transfer_source_hidden")
             pass
     return {"verified": True, "source_rows_hidden": hidden, "locations_retired": locations_retired,
             "cleanup_queued": cleanup_queued, "location_state": target_state}
@@ -894,6 +902,7 @@ def repair_verified_transfer_source_library_rows(db) -> dict[str, int]:
                     f"{destination_channel}:{destination_message_id}: {type(exc).__name__}: {exc}", "WARN"
                 )
             except Exception:
+                _swallowed_note("delivery_ledger.repair_verified_transfer_source_library_rows")
                 pass
     return totals
 
@@ -1025,6 +1034,7 @@ def repair_legacy_channel_peer_ids(db) -> dict[str, int]:
                             ("READY" if quality.get("ready") else "PENDING", app_config.now_iso(), canonical, message_id),
                         )
                 except Exception:
+                    _swallowed_note("delivery_ledger.repair_legacy_channel_peer_ids")
                     pass
 
         # Recover cache/frame keys even if an earlier startup already moved
@@ -1042,6 +1052,7 @@ def repair_legacy_channel_peer_ids(db) -> dict[str, int]:
                         try:
                             stranded_ids.add(int(item["mid"]))
                         except Exception:
+                            _swallowed_note("delivery_ledger.repair_legacy_channel_peer_ids")
                             pass
             if _table_exists(db, "asset_registry"):
                 for item in db.conn.execute(
@@ -1051,6 +1062,7 @@ def repair_legacy_channel_peer_ids(db) -> dict[str, int]:
                     try:
                         stranded_ids.add(int(str(item["entity_id"]).split(":", 1)[1]))
                     except Exception:
+                        _swallowed_note("delivery_ledger.repair_legacy_channel_peer_ids")
                         pass
         # Also recover valid frame directories when their timeline DB row was
         # already canonicalized or removed by an older cleanup path.
@@ -1061,8 +1073,10 @@ def repair_legacy_channel_peer_ids(db) -> dict[str, int]:
                     try:
                         stranded_ids.add(int(directory.name.split("_v", 1)[0]))
                     except Exception:
+                        _swallowed_note("delivery_ledger.repair_legacy_channel_peer_ids")
                         pass
         except Exception:
+            _swallowed_note("delivery_ledger.repair_legacy_channel_peer_ids")
             pass
         for message_id in stranded_ids:
             if message_id <= 0:
@@ -1154,6 +1168,7 @@ def repair_legacy_channel_peer_ids(db) -> dict[str, int]:
                         ("READY" if quality.get("ready") else "PENDING", app_config.now_iso(), canonical, message_id),
                     )
             except Exception:
+                _swallowed_note("delivery_ledger.repair_legacy_channel_peer_ids")
                 pass
 
         # Canonicalize destination-history keys too, without deleting history.
@@ -1307,6 +1322,7 @@ def reconcile_verified_deliveries(db) -> dict[str, int]:
                         "WARN"
                     )
                 except Exception:
+                    _swallowed_note("delivery_ledger.reconcile_verified_deliveries")
                     pass
                 continue
             if not before_id and library_media_id:
@@ -1316,5 +1332,6 @@ def reconcile_verified_deliveries(db) -> dict[str, int]:
             try:
                 db.log(f"Delivery history reconcile failed for {row.get('destination_channel')}/{row.get('destination_message_id')}: {type(exc).__name__}: {exc}", "WARN")
             except Exception:
+                _swallowed_note("delivery_ledger.reconcile_verified_deliveries")
                 pass
     return {"checked": checked, "registered": registered, "errors": errors}

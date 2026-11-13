@@ -16,6 +16,7 @@ them into real modules requires giving each fragment explicit imports first.
 #   - Menu and workflows
 #   - FFmpeg conversion
 # ------------------------------------------------------------------
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 import io
@@ -101,6 +102,7 @@ def _manager_download_progress_callback(filename: str, *, db=None, job_id=None):
         try:
             db.log(message, level, event=event, job_id=job_id, operation="Telegram video download", details=details or {})
         except Exception:
+            _swallowed_note("telegram_media_manager._manager_download_progress_callback._log")
             pass
 
     def _store_telemetry(*, received=None, total=None, sample=None, telemetry_state=None, interval=1.0):
@@ -120,6 +122,7 @@ def _manager_download_progress_callback(filename: str, *, db=None, job_id=None):
                 min_interval=interval,
             )
         except Exception:
+            _swallowed_note("telegram_media_manager._manager_download_progress_callback._store_telemetry")
             pass
 
     def _update_runner_line(line: str):
@@ -132,6 +135,7 @@ def _manager_download_progress_callback(filename: str, *, db=None, job_id=None):
                 runner.operation = str(line or "")[:200]
             runner.heartbeat(progress=True)
         except Exception:
+            _swallowed_note("telegram_media_manager._manager_download_progress_callback._update_runner_line")
             pass
 
     def progress(received: int, total: int):
@@ -240,6 +244,7 @@ async def _download_media_governed(client, media, *args, **kwargs):
                     current_message = fresh
                     return fresh
             except Exception:
+                _swallowed_note("telegram_media_manager._download_media_governed.refresh_reference")
                 pass
             return None
 
@@ -278,6 +283,7 @@ async def _download_media_governed(client, media, *args, **kwargs):
                 try:
                     temp_target.unlink(missing_ok=True)
                 except Exception:
+                    _swallowed_note("telegram_media_manager._download_media_governed.download_ranges")
                     pass
                 raise
 
@@ -533,6 +539,7 @@ async def probe_session(session_path, api_id, api_hash):
             if client:
                 await client.disconnect()
         except Exception:
+            _swallowed_note("telegram_media_manager.probe_session")
             pass
         return False
 
@@ -555,6 +562,7 @@ async def connect_with_retry(client, label="Telegram connection", attempts=8, re
             if client.is_connected():
                 return True
         except Exception:
+            _swallowed_note("telegram_media_manager.connect_with_retry")
             pass
 
         try:
@@ -577,6 +585,7 @@ async def connect_with_retry(client, label="Telegram connection", attempts=8, re
             try:
                 await client.disconnect()
             except Exception:
+                _swallowed_note("telegram_media_manager.connect_with_retry")
                 pass
             if attempt < attempts:
                 delay = min(30, 3 * attempt)
@@ -834,6 +843,7 @@ def is_thumbnail_document(message):
     try:
         name = (message.file.name or "").lower()
     except Exception:
+        _swallowed_note("telegram_media_manager.is_thumbnail_document")
         pass
     return mime.startswith("image/") or name.endswith((".jpg", ".jpeg", ".png", ".webp"))
 
@@ -904,6 +914,7 @@ async def forward_source_thumbnail_as_document(client, destination, source, thum
                 try:
                     Path(downloaded).unlink(missing_ok=True)
                 except Exception:
+                    _swallowed_note("telegram_media_manager.forward_source_thumbnail_as_document")
                     pass
                 return result
             except FloodWaitError as exc:
@@ -1175,6 +1186,7 @@ async def unified_smart_auto_main():
             try:
                 await client.disconnect()
             except Exception:
+                _swallowed_note("telegram_media_manager.unified_smart_auto_main")
                 pass
 
 
@@ -1252,6 +1264,7 @@ if __name__ == "__main__":
         try:
             crash_log.write_text(traceback.format_exc(), encoding="utf-8")
         except Exception:
+            _swallowed_note("telegram_media_manager.<module>")
             pass
         print("\nUnhandled fatal error.")
         print(f"Error log: {crash_log}")
@@ -1259,6 +1272,7 @@ if __name__ == "__main__":
         try:
             input("\nPress Enter to close...")
         except Exception:
+            _swallowed_note("telegram_media_manager.<module>")
             pass
 
 
@@ -1308,6 +1322,7 @@ def _run_ffmpeg_with_progress_sync(cmd, duration: float, label: str, on_progress
             for line in proc.stderr:
                 stderr_lines.put(line.rstrip())
         except Exception:
+            _swallowed_note("telegram_media_manager._run_ffmpeg_with_progress_sync._drain_stderr")
             pass
 
     drain = threading.Thread(target=_drain_stderr, name=f"ffmpeg-{label}-stderr", daemon=True)
@@ -1324,17 +1339,20 @@ def _run_ffmpeg_with_progress_sync(cmd, duration: float, label: str, on_progress
                     try:
                         on_progress(fraction)
                     except Exception:
+                        _swallowed_note("telegram_media_manager._run_ffmpeg_with_progress_sync")
                         pass
             elif key == "progress" and value == "end" and on_progress is not None:
                 try:
                     on_progress(1.0)
                 except Exception:
+                    _swallowed_note("telegram_media_manager._run_ffmpeg_with_progress_sync")
                     pass
         returncode = proc.wait()
     except BaseException:
         try:
             proc.kill()
         except Exception:
+            _swallowed_note("telegram_media_manager._run_ffmpeg_with_progress_sync")
             pass
         raise
     drain.join(timeout=2)

@@ -15,6 +15,7 @@ generates a thumbnail, and uploads VIDEO + THUMBNAIL to Telegram.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import gc
 import html
@@ -251,6 +252,7 @@ async def _delete_verified_source_file(path: Path, log=None, *, attempts: int = 
                 "INFO" if success else "WARN",
             )
         except Exception:
+            _swallowed_note("uploader._delete_verified_source_file")
             pass
     return success
 
@@ -375,6 +377,7 @@ def display_rotation(path: Path) -> int:
             for frame in c.decode(video=0):
                 return int(getattr(frame, "rotation", 0) or 0) % 360
     except Exception:
+        _swallowed_note("uploader.display_rotation")
         pass
     try:
         ffmpeg, ffprobe = ffmpeg_tools()
@@ -390,6 +393,7 @@ def display_rotation(path: Path) -> int:
             if (st.get("tags") or {}).get("rotate"):
                 return int(float(st["tags"]["rotate"])) % 360
     except Exception:
+        _swallowed_note("uploader.display_rotation")
         pass
     return 0
 
@@ -531,6 +535,7 @@ async def prepare_video_async(ctx: JobContext, src: Path, ffmpeg: str, ffprobe: 
                         ctx.report(completed=item_index, total=total, current_item=src.name,
                                    operation=f"{stage} {src.name} ({ipct}%)", progress=overall, force=True)
                 except Exception:
+                    _swallowed_note("uploader.prepare_video_async")
                     pass
         rc = await proc.wait()
         stderr_text = (await stderr_task).decode("utf-8", "ignore").strip()
@@ -729,6 +734,7 @@ def _require_local_upload_assets_ready(db, media_id: int, video_path: Path) -> d
         try:
             db.log(f"Local Upload preparation is incomplete for media_id={media_id}: {reason}", "WARN")
         except Exception:
+            _swallowed_note("uploader._require_local_upload_assets_ready")
             pass
         raise RuntimeError(f"Local Upload is waiting for {reason}; scene identification may finish later.")
     return details
@@ -1412,6 +1418,7 @@ async def run(ctx: JobContext):
                                 from ..core.split_files import finalize_split_group
                                 await asyncio.to_thread(finalize_split_group, ctx.db, str(split_info.get("group_id") or ""), status="INCOMPLETE")
                             except Exception:
+                                _swallowed_note("uploader.run")
                                 pass
                         raise RuntimeError(f"Saved split-volume sequence is not currently verifiable: {reason}")
                     primary_message_id = int(pending.get("video_id") or 0)
@@ -1478,6 +1485,7 @@ async def run(ctx: JobContext):
                             from .thumbnail_cache import cleanup_local_delivery_artifacts
                             cleanup_local_delivery_artifacts(video)
                         except Exception:
+                            _swallowed_note("uploader.run")
                             pass
                         continue
                 except Exception as exc:
@@ -1787,6 +1795,7 @@ async def run(ctx: JobContext):
                         min_interval=0.25 if is_final else 1.0,
                     )
                 except Exception:
+                    _swallowed_note("uploader.run._upload_progress")
                     pass
                 if ctx.cancel_requested():
                     op = f"Cancel requested — stopping {name}"
@@ -1826,6 +1835,7 @@ async def run(ctx: JobContext):
                                             "elapsed_seconds": round(elapsed_total, 2),
                                             "average_rate_mib_per_second": round(average_rate, 2)})
                     except Exception:
+                        _swallowed_note("uploader.run._upload_progress")
                         pass
                     try:
                         ctx.db.set_job_transfer_telemetry(
@@ -1838,6 +1848,7 @@ async def run(ctx: JobContext):
                             min_interval=0.25,
                         )
                     except Exception:
+                        _swallowed_note("uploader.run._upload_progress")
                         pass
                     try:
                         ctx.activity(message, operation=f"Local Upload · {name} · complete",
@@ -1848,6 +1859,7 @@ async def run(ctx: JobContext):
                                               "average_rate_mib_per_second": round(average_rate, 2)},
                                      progress=True)
                     except Exception:
+                        _swallowed_note("uploader.run._upload_progress")
                         pass
 
             def _upload_status(message: str, wait_seconds: int = 0, name=video.name) -> None:
@@ -1870,6 +1882,7 @@ async def run(ctx: JobContext):
                         min_interval=0.25,
                     )
                 except Exception:
+                    _swallowed_note("uploader.run._upload_status")
                     pass
                 ctx.activity(
                     message, operation=message, current_item=f"{name} · {message}",
@@ -1882,6 +1895,7 @@ async def run(ctx: JobContext):
                 try:
                     ctx.db.log(message, status_level, event=status_event)
                 except Exception:
+                    _swallowed_note("uploader.run._upload_status")
                     pass
 
             with tempfile.TemporaryDirectory(prefix="tg_upload_") as td:
@@ -2186,6 +2200,7 @@ async def run(ctx: JobContext):
                 if video_lock_cm is not None:
                     await video_lock_cm.__aexit__(None, None, None)
             except Exception:
+                _swallowed_note("uploader.run")
                 pass
             # Remove this file's converted copy (if any) whatever happened.
             if item_work is not None:

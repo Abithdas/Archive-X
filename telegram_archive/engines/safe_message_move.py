@@ -6,6 +6,7 @@ boundaries remain testable with a fake Telegram client.
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import base64
 from pathlib import Path
 from typing import Any
@@ -122,6 +123,7 @@ async def copy_message_verified(client, source, destination, message_id: int, *,
         try:
             await client.delete_messages(destination, [destination_id])
         except Exception:
+            _swallowed_note("safe_message_move.copy_message_verified")
             pass
         raise
 
@@ -240,6 +242,7 @@ async def move_split_group_verified(client, source, destination, split_group: di
             try:
                 await client.delete_messages(destination, new_ids)
             except Exception:
+                _swallowed_note("safe_message_move.move_split_group_verified")
                 pass
         raise
 

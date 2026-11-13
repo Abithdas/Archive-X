@@ -13,6 +13,7 @@ migration workflows share the same delivery primitives.
 #   - Verification and publication
 # ------------------------------------------------------------------
 from __future__ import annotations
+from ..core.swallowed import note as _swallowed_note
 from pathlib import Path
 import tempfile
 from .telegram_sender import send_local_video_with_cover, send_split_local_video
@@ -180,6 +181,7 @@ async def prepare_local_delivery_assets(db, video_path: Path, *, source_oshash: 
             try:
                 ctx.db.log(f"Local delivery playback precompute incomplete for {video_path.name}: {type(prepare_exc).__name__}: {prepare_exc}", "WARN")
             except Exception:
+                _swallowed_note("delivery_pipeline.prepare_local_delivery_assets")
                 pass
     if ctx is not None:
         ctx.activity(f"Transfer assets verified for {video_path.name}",
@@ -395,6 +397,7 @@ async def register_verified_playback_assets(db, client, destination, destination
             try:
                 db.log(f"Verified delivery location persistence failed for {channel}:{message_id}: {type(exc).__name__}: {exc}", "WARN")
             except Exception:
+                _swallowed_note("delivery_pipeline.register_verified_playback_assets")
                 pass
     try:
         file_obj = getattr(message, "file", None) if message is not None else None
@@ -477,11 +480,13 @@ async def register_verified_playback_assets(db, client, destination, destination
                     update_telegram_location, int(channel), message_id, message
                 )) or bool(result.get("location_saved"))
             except Exception:
+                _swallowed_note("delivery_pipeline.register_verified_playback_assets")
                 pass
         await asyncio.to_thread(_store_verified_delivery_metadata, db, uploaded_hash, probe_json, phash, channel, message_id)
     except Exception as exc:
         try:
             db.log(f"Verified delivery playback-cache registration incomplete: {type(exc).__name__}: {exc}", "WARN")
         except Exception:
+            _swallowed_note("delivery_pipeline.register_verified_playback_assets")
             pass
     return result
