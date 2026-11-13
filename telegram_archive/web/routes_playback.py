@@ -389,27 +389,27 @@ def register_playback_routes(
             headers["Content-Range"] = f"bytes {start}-{end}/{size}"
         if range_was_bounded:
             headers["X-Archive-X-Range-Capped"] = "1"
+        async def stream_browser_range():
+            # Persisted segments stream as they are ready; a client that disconnects (navigated away, closed tab)
+            # is swallowed so the playback engine's resources are released cleanly.
+            try:
+                async for chunk in engine.iter_range(
+                    channel_id, message, start, end, mode="play", browser=True,
+                ):
+                    if chunk:
+                        yield chunk
+            except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError):
+                pass
+            except asyncio.CancelledError:
+                pass
+
         # A plain GET streams cache-sized segments so large videos are never
         # assembled in memory. Each successful segment is persisted by the
         # playback engine and can be reused after the player or app is reopened.
         if not range_header:
-            async def stream_video():
-                try:
-                    async for chunk in engine.iter_range(
-                        channel_id, message, start, end, mode="play", browser=True,
-                    ):
-                        if chunk:
-                            yield chunk
-                except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError) as _disc:
-                    # Client disconnected mid-stream (navigated away, closed tab).
-                    # Swallow so the playback engine's resources are released cleanly.
-                    pass
-                except asyncio.CancelledError:
-                    pass
-
             headers["X-Archive-X-Playback-Delivery"] = "persistent-segment-stream"
             return StreamingResponse(
-                stream_video(), status_code=status, headers=headers, media_type=mime,
+                stream_browser_range(), status_code=status, headers=headers, media_type=mime,
             )
 
         # Startup prebuffer requests need a complete response so fetch() can
@@ -435,18 +435,6 @@ def register_playback_routes(
                 _lap("prebuffer_timeout")
                 raise HTTPException(503, f"Telegram playback prebuffer timed out: {exc}") from exc
             raise HTTPException(503, f"Telegram playback prebuffer failed: {type(exc).__name__}: {exc}") from exc
-
-        async def stream_browser_range():
-            try:
-                async for chunk in engine.iter_range(
-                    channel_id, message, start, end, mode="play", browser=True,
-                ):
-                    if chunk:
-                        yield chunk
-            except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError) as _disc:
-                pass
-            except asyncio.CancelledError:
-                pass
 
         headers["X-Archive-X-Playback-Delivery"] = "persistent-segment-stream"
         return StreamingResponse(

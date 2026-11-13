@@ -216,18 +216,7 @@ def streamable_status(message):
     return True if ext in STREAMABLE_FALLBACK_EXTENSIONS else None
 
 
-def expected_thumbnail_names_router(video_name):
-    name = str(video_name or "").strip()
-    if not name:
-        return set()
-    p = Path(name)
-    values = {
-        name + ".jpg",
-        p.with_suffix(".jpg").name,
-    }
-    if p.suffix:
-        values.add(f"{p.stem}_{p.suffix.lstrip('.')}.jpg")
-    return {str(v).strip().lower() for v in values if v}
+from ..engines.media_utils import source_thumbnail_filename_candidates as expected_thumbnail_names_router   # one shared implementation
 
 
 

@@ -25,7 +25,7 @@ from datetime import date, datetime
 from difflib import SequenceMatcher
 
 from .parser import is_generic_scene_code, parse_scene_name
-from .providers import identify, scene_sites_conflict
+from .providers import _performer_details, identify, scene_sites_conflict
 
 _STOPWORDS = {
     "the", "and", "with", "from", "for", "in", "on", "of", "a", "an",
@@ -65,15 +65,6 @@ def _contains_name(filename: str, name: str) -> bool:
     return any(hay[i:i + width] == needle for i in range(len(hay) - width + 1))
 
 
-def _performer_details(best: dict) -> list[dict]:
-    raw = best.get("performer_details") or best.get("performers") or []
-    out = []
-    for item in raw:
-        if isinstance(item, str):
-            out.append({"name": item})
-        elif isinstance(item, dict) and item.get("name"):
-            out.append(item)
-    return out
 
 
 
