@@ -113,3 +113,10 @@ Dropped: map view (31), On this day (23). Numbers match the lists above.
 | 29 | 29 More scrapers / StashDB-style linking | L | Outside services with their own rules |
 | 30 | 28 Search by content (local model) | L | Model download, indexing every photo, new search |
 | 31 | 30 Multiple users and a PIN-locked area | L | Touches login, storage and every list |
+
+## F. Search by looks (hair colour and length, bust size, body hair, build)
+The app already stores hair colour, breast type, cup size, ethnicity, country and age for performers (from StashDB / ThePornDB) and uses them for "similar performers". Three levels, most reliable first:
+1. **Filters from provider data (M).** Performer, video and photo filters: hair colour (redhead, brunette, blonde...), cup size and type, ethnicity, country, age range. Shows how many performers actually have each value, so gaps are visible. Photos and videos are filtered through the performers named on them.
+2. **Your own attribute tags (S to M).** A fixed set you set by hand or in bulk: hair length and style (long, short, bob), body hair, build, plus free tags. Reliable because you decide; bulk-apply from a performer to all their videos.
+3. **Picture-based suggestions (L, optional).** A local model (CLIP-style) proposes tags from photos and video thumbnails. Fair for hair colour and hair length/style; poor for finer body terms, so those would only ever be suggestions you confirm, with the score shown. Needs a model download and a test on your own images before trusting it.
+Search box synonyms (for example "redhead", "ginger", "bob") would map to these filters.
