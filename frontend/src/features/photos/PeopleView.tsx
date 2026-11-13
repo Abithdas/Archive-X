@@ -6,6 +6,7 @@ import { Confirm } from '@/design/Confirm'
 import { Icon } from '@/design/Icon'
 import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
+import { BlurImg } from '@/design/BlurImg'
 import { FaceGroups, useFaceGroups } from './FaceGroups'
 import { FIND_STEPS, analyzeBody, analyzeCopy, assignBody, bestGuess, findPeopleHint, findStage, groupLabel, jobDone, jobEndText, jobStatusText, peopleSections, rejectBody, suggestionBody, viewFilter, type FaceGroup, type Suggestion } from './faces'
 import { usePhotoStore } from './store'
@@ -19,7 +20,7 @@ function Circle({ g, size = 'size-24' }: { g: FaceGroup; size?: string }) {
   const [ok, setOk] = useState(true)
   return (
     <span className={cn('grid shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 text-2xl font-bold text-muted', size)}>
-      {ok && g.representative_url ? <img src={g.representative_url} alt="" loading="lazy" decoding="async" onError={() => setOk(false)} className="size-full object-cover" /> : <span aria-hidden="true">?</span>}
+      {ok && g.representative_url ? <BlurImg src={g.representative_url} alt="" loading="lazy" decoding="async" onError={() => setOk(false)} className="size-full object-cover" /> : <span aria-hidden="true">?</span>}
     </span>
   )
 }
@@ -144,7 +145,7 @@ export function PeopleView() {
       </div>
       {finding ? <FindProgress {...finding} /> : null}
 
-      {q.isPending ? <div role="status" aria-label="Loading people" className="flex flex-wrap gap-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-52 w-[190px] rounded-2xl" />)}</div>
+      {q.isPending ? <div role="status" aria-label="Loading people" className="flex flex-wrap gap-3">{[0, 1, 2, 3].map((i) => <div key={i} className="grid h-[236px] w-[190px] content-start justify-items-center gap-3 rounded-2xl border border-line bg-surface p-3"><Skeleton className="size-24 rounded-full" /><Skeleton className="h-4 w-28" /><Skeleton className="h-3 w-16" /><Skeleton className="h-8 w-32 rounded-lg" /></div>)}</div>
         : q.isError ? <button type="button" onClick={() => void q.refetch()} className={cn(PRIMARY, 'w-fit')}>Could not load people. Retry</button>
         : (<>
           {sec.guesses.length ? <section aria-label="Is this the right person?" className="grid gap-2"><h2 className="text-lg font-bold">Is this the right person?</h2>{grid(sec.guesses)}</section> : null}

@@ -5,6 +5,7 @@ import { ApiError, api } from '@/api/client'
 import { useDiagnostics, useResources, useStatus } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
 import { AnimatePresence, listItem, motion } from '@/design/motion'
+import { useCountTo } from '@/design/AnimatedNumber'
 import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
 import { Segmented } from '@/design/Segmented'
@@ -67,6 +68,8 @@ export function listProgress(j: Obj): { known: boolean; percent: number; text: s
 
 function JobRow({ j }: { j: Obj }) {
   const prog = listProgress(j)
+  const rolling = useCountTo(Math.round(prog.percent))
+  const progText = prog.known && /^\d+%/.test(prog.text) ? prog.text.replace(/^\d+%/, `${rolling}%`) : prog.text
   const st = String(j.status ?? '').toUpperCase()
   const [open, setOpen] = useState(false)
   const id = idOf(j)
@@ -81,7 +84,7 @@ function JobRow({ j }: { j: Obj }) {
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={prog.known ? prog.percent : undefined}>
         <span className={cn('block h-full rounded-full bg-accent transition-[width] duration-500', !prog.known && 'w-1/3 animate-pulse')} style={prog.known ? { width: `${prog.percent}%` } : undefined} />
       </div>
-      <p className="mt-1 text-[11px] text-faint">{prog.text}</p>
+      <p className="mt-1 text-[11px] tabular-nums text-faint">{progText}</p>
       <JobControls j={j} />
       {open ? <JobDetails id={id} onClose={() => setOpen(false)} /> : null}
     </motion.li>

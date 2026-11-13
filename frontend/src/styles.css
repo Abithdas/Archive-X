@@ -83,12 +83,12 @@ body {
 
 /* Cards fade and rise into place when a grid appears, each a little after the one before (the classic pages did the same). */
 @keyframes card-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-.card-in { animation: card-in 0.3s cubic-bezier(0.2, 0.75, 0.25, 1) both; animation-delay: calc(min(var(--i, 0), 16) * 40ms); }
+.card-in { animation: card-in var(--dur-slow) var(--ease-out) both; animation-delay: calc(min(var(--i, 0), 16) * 40ms); }
 @media (prefers-reduced-motion: reduce) { .card-in { animation: none; } }
 
 /* Large displays: keep layout around 1600-2100 CSS px so text stays in proportion (same scale as the legacy UI). */
 /* --ax-page-zoom mirrors that zoom so anything sized from the window (dialogs) can divide it back out. */
-:root { --ax-page-zoom: 1; }
+:root { --ax-page-zoom: 1; --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 300ms; --ease-out: cubic-bezier(0.2, 0.75, 0.25, 1); }  /* same values as design/motion.tsx */
 @media (min-width: 1800px) { html { zoom: 1.15; } :root { --ax-page-zoom: 1.15; } }
 @media (min-width: 2200px) { html { zoom: 1.3; } :root { --ax-page-zoom: 1.3; } }
 @media (min-width: 2900px) { html { zoom: 1.6; } :root { --ax-page-zoom: 1.6; } }
