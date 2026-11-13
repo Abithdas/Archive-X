@@ -5,6 +5,7 @@ level `db`/`jobs`/etc. the way the original single-file v14 did.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 import os
 import json
 
@@ -599,4 +600,8 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
         "jobs": jobs, "governor": governor,
     }, bridge)
     app.state.ai_assistant = ai
+    # The catch-all that serves the React app must come after every other route (including the two added above),
+    # or it would answer 404 to their GET requests.
+    from .web.routes_frontend import register_frontend_routes
+    register_frontend_routes(app.router, dist_dir=Path(__file__).resolve().parents[1] / "frontend" / "dist")
     return app

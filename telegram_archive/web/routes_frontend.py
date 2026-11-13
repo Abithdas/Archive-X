@@ -13,7 +13,7 @@ RESERVED = ("api", "stream", "static", "ws", "desktop", "health", "ca.crt")
 
 
 def register_frontend_routes(router: APIRouter, *, dist_dir: Path) -> None:
-    """Must be registered after every other route: it answers any GET that nothing else matched."""
+    """Must be registered after every other route (the app factory does it last): it answers any GET that nothing else matched."""
     dist_root = Path(dist_dir).resolve()
 
     @router.get(OLD_PREFIX)
@@ -39,3 +39,4 @@ def register_frontend_routes(router: APIRouter, *, dist_dir: Path) -> None:
         if relative.suffix:
             raise HTTPException(404)
         return FileResponse(index, headers={"Cache-Control": "no-store"})
+

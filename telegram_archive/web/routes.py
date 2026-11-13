@@ -928,6 +928,5 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
         resources=resources,
         playback_state=ps,
     )
-    from .routes_frontend import register_frontend_routes
-    register_frontend_routes(router, dist_dir=Path(__file__).resolve().parents[2] / "frontend" / "dist")
+    # The catch-all that serves the React app is registered by the app factory, after the AI assistant and test bridge routes.
     return router

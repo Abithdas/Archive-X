@@ -70,3 +70,13 @@ export const TEST_FAILED = 'Local model test failed.'
 export const testPassed = (ms: unknown, text: unknown) => `Model test passed in ${ms} ms: ${text}`
 export const messageTime = (m: Message) => `${m.role === 'user' ? 'You' : 'Archive X Local AI'} · ${m.created_at || ''}`
 export const replyMeta = (model: string | undefined) => `Archive X Local AI · ${model || ''}`
+
+export type ModelState = 'ready' | 'stopped' | 'not_set_up' | 'not_downloaded' | 'needs_package' | 'downloading'
+export interface LocalModel { id: string; name: string; detail: string; size_mb: number; licence: string; state: ModelState; installable: boolean; powers: string[]; hint: string; busy?: boolean; error?: string }
+export interface ModelsReply { ok?: boolean; ready: number; total: number; models: LocalModel[] }
+export const STATE_LABEL: Record<ModelState, string> = { ready: 'Ready', stopped: 'Stopped', not_set_up: 'Not set up', not_downloaded: 'Not downloaded', needs_package: 'Needs install', downloading: 'Downloading…' }
+export const stateTone = (s: ModelState): 'good' | 'warn' | 'busy' => (s === 'ready' ? 'good' : s === 'downloading' ? 'busy' : 'warn')
+export const sizeText = (mb: number) => (mb >= 1000 ? `${(mb / 1000).toFixed(1)} GB` : `${mb} MB`)
+export const modelsSummary = (r?: Pick<ModelsReply, 'ready' | 'total'>) => (r ? `${r.ready} of ${r.total} local models ready` : 'Checking local models…')
+export const anyBusy = (r?: ModelsReply) => !!r?.models.some((m) => m.busy || m.state === 'downloading')
+export const testLine = (r: { ok?: boolean; ms?: number | null; detail?: string }) => (r.ok ? `Working${r.ms != null ? ` · ${r.ms} ms` : ''}. ${r.detail ?? ''}`.trim() : `Not working: ${r.detail || 'the test failed.'}`)

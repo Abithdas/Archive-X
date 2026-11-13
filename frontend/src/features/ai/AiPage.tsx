@@ -5,6 +5,7 @@ import { ApiError, api } from '@/api/client'
 import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
 import { cn } from '@/design/cn'
+import { ModelCatalog } from './ModelCatalog'
 import { CHAT_FAILED, DIAGNOSTICS_PROMPT, EMPTY_HISTORY, JOBS_PROMPT, LIBRARY_QUICK, NEED_QUERY, QUICK, RECOMMEND_PROMPT, SAVED, SAVE_FAILED, START_FAILED, STARTED, STARTING, STOPPED, STOP_FAILED, TABS, TEST_FAILED, TESTING, TOOLS_OFF, TOOLS_ON, TOOLS_WAIT, chatBody, configBody, configFrom, header, libraryPrompt, messageTime, readiness, replyMeta, testPassed, type AiStatus, type AiTab, type ChatReply, type Config, type Message } from './ai'
 
 const CARD = 'rounded-2xl border border-line bg-surface p-4'
@@ -162,7 +163,9 @@ function Models({ status, onChanged }: { status: AiStatus | undefined; onChanged
     </label>
   )
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <div className="grid gap-4">
+      <ModelCatalog />
+      <div className="grid gap-4 xl:grid-cols-2">
       <div className={CARD}>
         <Head title="Local model" blurb="Recommended baseline for this application: Qwen3 4B Instruct 2507, Q4_K_M."><span className="rounded-full bg-good/15 px-2.5 py-1 text-[11px] font-bold text-good">NO CLOUD API</span></Head>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -182,6 +185,7 @@ function Models({ status, onChanged }: { status: AiStatus | undefined; onChanged
         <Head title="Readiness" blurb="Archive X does not bundle model weights. The model stays in the user data directory or another configured local path." />
         <div className="grid grid-cols-2 gap-2">{readiness(status).map(([k, v]) => <div key={k} className="rounded-xl bg-bg p-3 text-left"><span className="block text-xs text-muted">{k}</span><b className="text-sm">{v}</b></div>)}</div>
         <p className="mt-3 text-xs text-muted">The recommended Q4_K_M model is roughly 2.5 GB. CPU-first inference works on most machines; GPU layers are optional.</p>
+      </div>
       </div>
     </div>
   )

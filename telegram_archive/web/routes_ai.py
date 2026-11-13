@@ -133,6 +133,72 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
         status["evidence_history"] = db.ai_list_evidence_history(int(active["id"]), 30)
         return status
 
+    # ------------------------------------------------------------------
+    # SUBSECTION: All local AI models
+    # One list of every local model, with a self-test and download.
+    # ------------------------------------------------------------------
+    model_jobs: dict[str, dict[str, Any]] = {}
+    model_tasks: set = set()
+
+    def _model_list() -> list[dict[str, Any]]:
+        from ..core import local_models
+        out = local_models.catalog(ai.masked_status())
+        for item in out:
+            job = model_jobs.get(item["id"]) or {}
+            item["busy"] = job.get("state") == "downloading"
+            item["error"] = job.get("error", "") if job.get("state") == "error" else ""
+            if item["busy"]:
+                item["state"] = "downloading"
+        return out
+
+    @router.get("/api/ai/models")
+    async def ai_models(request: Request):
+        require_auth(request)
+        items = await asyncio.to_thread(_model_list)
+        return {"ok": True, "ready": sum(1 for m in items if m["state"] == "ready"), "total": len(items), "models": items}
+
+    @router.post("/api/ai/models/{model_id}/test")
+    async def ai_model_test(model_id: str, request: Request):
+        require_auth(request)
+        from ..core import local_models
+        if model_id == "llm":
+            try:
+                result = await asyncio.to_thread(ai.test)
+            except LocalAIError as exc:
+                return {"ok": False, "detail": str(exc)}
+            return {"ok": True, "ms": result.get("latency_ms"), "detail": "The assistant model answered."}
+        if model_id not in {"faces", "captions", "content", "looks"}:
+            raise HTTPException(404, "Unknown model")
+        try:
+            return await asyncio.wait_for(asyncio.to_thread(local_models.self_test, model_id), timeout=180)
+        except asyncio.TimeoutError:
+            return {"ok": False, "detail": "The test took longer than three minutes."}
+        except Exception as exc:
+            return {"ok": False, "detail": f"{type(exc).__name__}: {exc}"[:300]}
+
+    @router.post("/api/ai/models/{model_id}/install")
+    async def ai_model_install(model_id: str, request: Request):
+        require_auth(request)
+        from ..core import local_models
+        if model_id not in {"faces", "captions", "looks"}:
+            raise HTTPException(400, "This model is not downloaded from here; see its hint.")
+        if (model_jobs.get(model_id) or {}).get("state") == "downloading":
+            return {"ok": True, "already_running": True}
+        model_jobs[model_id] = {"state": "downloading"}
+
+        async def work():
+            try:
+                await asyncio.to_thread(local_models.download, model_id)
+                model_jobs.pop(model_id, None)
+                db.log(f"Local AI model {model_id} downloaded", "SUCCESS", event="ai.model.downloaded")
+            except Exception as exc:
+                model_jobs[model_id] = {"state": "error", "error": f"{type(exc).__name__}: {exc}"[:300]}
+                db.log(f"Local AI model {model_id} download failed: {type(exc).__name__}: {exc}", "WARN", event="ai.model.download_failed")
+        task = asyncio.get_running_loop().create_task(work())
+        model_tasks.add(task)
+        task.add_done_callback(model_tasks.discard)
+        return {"ok": True, "started": True}
+
     @router.post("/api/ai/config")
     async def ai_config(request: Request):
         require_auth(request)
