@@ -120,3 +120,18 @@ The app already stores hair colour, breast type, cup size, ethnicity, country an
 2. **Your own attribute tags (S to M).** A fixed set you set by hand or in bulk: hair length and style (long, short, bob), body hair, build, plus free tags. Reliable because you decide; bulk-apply from a performer to all their videos.
 3. **Picture-based suggestions (L, optional).** A local model (CLIP-style) proposes tags from photos and video thumbnails. Fair for hair colour and hair length/style; poor for finer body terms, so those would only ever be suggestions you confirm, with the score shown. Needs a model download and a test on your own images before trusting it.
 Search box synonyms (for example "redhead", "ginger", "bob") would map to these filters.
+
+## G. Light local models worth using (checked on GitHub, PyPI and Hugging Face)
+Sizes are the files you would download; speed and accuracy on your images are NOT tested except where noted.
+| Model | Download | Licence | Use here |
+|---|---|---|---|
+| YuNet + SFace (already used) | about 39 MB | Apache-2.0 repo; check each model file | Faces and people. Tested working. Keep. |
+| faster-whisper "small" (already used) | 466 MiB (tiny 75, base 142) | MIT | Live captions. "tiny"/"base" are lighter but weak on Chinese and Japanese. |
+| Moonshine | very small, sizes not on its page | MIT (non-English legacy models are non-commercial) | Fast speech to text in the original language incl. Mandarin and Japanese; not translation. Candidate for original-language captions. Not tested. |
+| NudeNet 320n | 12 MB (ONNX, in a 10.6 MB pip package) | MIT | Finds and locates 18 kinds of region (face male/female, breast, buttocks, genitals, belly, armpits, feet; exposed or covered). Says what is visible and where, not size or shape. Fast. Not tested here. |
+| MobileCLIP-S0 (ONNX, quantised) | about 55 MB (image 11.8 + text 42.8) | Apple research terms: personal use fine, cannot be shipped in a product | Zero-shot tags from a text prompt: hair colour, hair length/style, scene. Smallest option. Not tested. |
+| OpenAI CLIP ViT-B/32 (ONNX, quantised) | about 154 MB (image 89 + text 64) | MIT | Same use as above with a permissive licence. |
+| WD14 tagger v3 | 378 MB | Apache-2.0 | Booru-style tags for anime and illustrations only: red_hair, brown_hair, blonde_hair, long_hair, short_hair, bob_cut, small/medium/large/huge_breasts, flat_chest, pubic_hair, thick_thighs (confirmed in its tag list). Too heavy for photos; only for the anime channels. |
+| InsightFace buffalo packs | not listed | Models non-commercial research only | Better faces than SFace, but the licence is stricter. Not needed now. |
+Not suggested: Falconsai nsfw_image_detection (343 MB, only a safe/explicit score), SigLIP (800 MB+), Whisper medium/large (1.5 to 2.9 GB).
+Suggested pairing for "search by looks": MobileCLIP-S0 or CLIP B/32 for hair colour and length on photos, NudeNet only if you want visible-content tags, WD14 only for the anime channels, with your own tags as the final say.
