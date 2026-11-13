@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { PhotosPage } from './PhotosPage'
@@ -26,6 +26,7 @@ const mount = () => {
     if (url === '/api/source-channels') return json([{ telegram_id: '-1001', title: 'Main' }])
     if (url === '/api/photos/channels') return json([{ telegram_id: '-1001', photo_count: 9, photo_scan_status: 'COMPLETE' }])
     if (url.startsWith('/api/photos/faces/groups') && !init?.method) return json({ ok: true, groups: GROUPS, analysis: { total_photos: 9, analyzed_photos: 9, failed_photos: 0 } })
+    if (url.startsWith('/api/photos?')) return json({ ok: true, items: [], total: 0, page: 0, per: 60 })
     if (url === '/api/photos/faces/analyze') return json({ ok: true, id: 'job1' })
     if (url.startsWith('/api/photos/scan-status/')) return json({ ok: true, status: 'RUNNING', progress: 80, current_item: '', operation: 'Matching faces with performer pictures' })
     if (url.startsWith('/api/photos/faces/performers')) return json({ items: [{ id: 7, name: 'Zoe Ray' }] })
@@ -92,5 +93,21 @@ describe('People inside Photos', () => {
     const card = await screen.findByRole('region', { name: 'Finding people' })
     await waitFor(() => expect(within(card).getByRole('progressbar', { name: 'Progress' })).toHaveAttribute('aria-valuenow', '80'), { timeout: 4000 })
     expect(within(card).getByText('Match faces to performers').closest('li')).toHaveAttribute('aria-current', 'step')
+  })
+})
+
+describe('getting back from a person', () => {
+  it('a banner on that person\'s photos leads back to People, and "Show all photos" drops the filter', async () => {
+    usePhotoStore.setState({ tab: 'library', selected: ['-1001'], face: { performerId: 3, groupId: 1, groupIds: [], label: 'Ava Stone' } })
+    mount()
+    const bar = await screen.findByRole('region', { name: 'Photos of one person' })
+    expect(bar).toHaveTextContent('Photos of Ava Stone')
+    fireEvent.click(within(bar).getByRole('button', { name: 'Show all photos' }))
+    await waitFor(() => expect(usePhotoStore.getState().face).toBeNull())
+    act(() => usePhotoStore.setState({ tab: 'library', face: { performerId: 3, groupId: 1, groupIds: [], label: 'Ava Stone' } }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to People' }))
+    await waitFor(() => expect(usePhotoStore.getState().tab).toBe('faces'))
+    expect(usePhotoStore.getState().face).toBeNull()
+    expect(await screen.findByRole('region', { name: 'Named people' })).toBeInTheDocument()
   })
 })

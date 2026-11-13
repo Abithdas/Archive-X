@@ -125,6 +125,13 @@ export function PhotosPage() {
         ))}
       </div>
 
+      {tab === 'library' && face ? (
+        <div role="region" aria-label="Photos of one person" className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3">
+          <button type="button" onClick={() => { setFace(null); setTab('faces') }} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg"><Icon name="arrow-left" className="size-4" />Back to People</button>
+          <span className="min-w-0 text-sm font-semibold [overflow-wrap:anywhere]">Photos of {face.label}</span>
+          <button type="button" onClick={() => setFace(null)} className="ml-auto text-xs font-semibold text-accent hover:underline">Show all photos</button>
+        </div>
+      ) : null}
       {tab === 'faces' ? <PeopleView /> : null}
       <div hidden={tab === 'faces'}>
       <div className="mb-4 flex flex-wrap items-center gap-2.5" aria-label="Photo library tools" role="group">
