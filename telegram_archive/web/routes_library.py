@@ -158,6 +158,17 @@ def register_library_routes(
             entry['group_ids'].add(int(row['group_id']))
         return refs
 
+    _NAMED_FACE = "EXISTS (SELECT 1 FROM photo_face_detections fd JOIN photo_face_groups fg ON fg.id=fd.group_id WHERE fd.photo_id=p.id AND fg.performer_id IS NOT NULL)"
+    _ANY_FACE = "EXISTS (SELECT 1 FROM photo_face_detections fd WHERE fd.photo_id=p.id)"
+    _ANALYSED = "EXISTS (SELECT 1 FROM photo_face_analysis a WHERE a.photo_id=p.id AND a.status='COMPLETE')"
+    # Which photos have no named person, and why: faces nobody has named, no face found, or not analysed yet.
+    _PHOTO_FACE_SCOPES = {
+        "named": _NAMED_FACE,
+        "unnamed": f"({_ANY_FACE} AND NOT {_NAMED_FACE})",
+        "no_face": f"({_ANALYSED} AND NOT {_ANY_FACE})",
+        "pending": f"(NOT {_ANALYSED})",
+    }
+
     _PROFILE_PICTURE_MATCH_THRESHOLD = 0.40   # SFace cosine; OpenCV documents ~0.363 as the same-person cut-off
 
     def _photo_profile_picture_suggestions(rdb, vectors, performer_rows, rejected_ids, limit=3):
@@ -370,6 +381,9 @@ def register_library_routes(
         elif face_group_id is not None:
             where.append("EXISTS (SELECT 1 FROM photo_face_detections fd WHERE fd.photo_id=p.id AND fd.group_id=?)")
             params.append(face_group_id)
+        face_scope = str(q.get("face_scope", "") or "").strip().lower()
+        if face_scope in _PHOTO_FACE_SCOPES:
+            where.append(_PHOTO_FACE_SCOPES[face_scope])
         w = " AND ".join(where)
         with db.reading() as rdb:
             total = int(rdb.execute(
@@ -529,7 +543,9 @@ def register_library_routes(
                 item.setdefault("metadata_suggestions", [])
                 item.setdefault("confirmed_assignment_suggestions", [])
                 item.setdefault("profile_image_suggestions", [])
-        return {"ok": True, "groups": groups,
+        with db.reading() as rdb:
+            scope_counts = {name: int(rdb.execute(f"SELECT COUNT(*) AS n FROM photo_library_items p WHERE {cond}").fetchone()["n"] or 0) for name, cond in _PHOTO_FACE_SCOPES.items()}
+        return {"ok": True, "groups": groups, "photo_scopes": scope_counts,
                 "analysis": {"total_photos": int(analysis_row["total"] or 0),
                              "analyzed_photos": int(analysis_row["analyzed"] or 0),
                              "failed_photos": int(analysis_row["failed"] or 0)},

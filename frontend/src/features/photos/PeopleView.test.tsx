@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { toast } from 'sonner'
 import { withRouter } from '@/test/withRouter'
 import { PhotosPage } from './PhotosPage'
 import { findStage, peopleSections } from './faces'
@@ -25,13 +26,13 @@ const mount = () => {
     calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : undefined })
     if (url === '/api/source-channels') return json([{ telegram_id: '-1001', title: 'Main' }])
     if (url === '/api/photos/channels') return json([{ telegram_id: '-1001', photo_count: 9, photo_scan_status: 'COMPLETE' }])
-    if (url.startsWith('/api/photos/faces/groups') && !init?.method) return json({ ok: true, groups: GROUPS, analysis: { total_photos: 9, analyzed_photos: 9, failed_photos: 0 } })
+    if (url.startsWith('/api/photos/faces/groups') && !init?.method) return json({ ok: true, groups: GROUPS, photo_scopes: { named: 5, unnamed: 7, no_face: 2, pending: 0 }, analysis: { total_photos: 9, analyzed_photos: 9, failed_photos: 0 } })
     if (url.startsWith('/api/photos?')) return json({ ok: true, items: [], total: 0, page: 0, per: 60 })
     if (url === '/api/photos/faces/analyze') return json({ ok: true, id: 'job1' })
     if (url.startsWith('/api/photos/scan-status/')) return json({ ok: true, status: 'RUNNING', progress: 80, current_item: '', operation: 'Matching faces with performer pictures' })
     if (url.startsWith('/api/photos/faces/performers/provider-search')) return json({ ok: true, configured: true, items: [{ provider: 'stashdb', provider_id: 'abc', name: 'Nova Online', image: 'https://img/x.jpg' }] })
     if (url === '/api/photos/faces/performers/import') return json({ ok: true, id: 55, name: 'Nova Online', picture_saved: true })
-    if (url.startsWith('/api/photos/faces/performers')) return json({ items: [{ id: 7, name: 'Zoe Ray' }] })
+    if (url.startsWith('/api/photos/faces/performers')) return json({ items: [{ id: 7, name: 'Zoe Ray' }, { id: 3, name: 'Ava Stone' }] })
     return json({ ok: true })
   }))
   withRouter(<PhotosPage />)
@@ -120,5 +121,24 @@ describe('getting back from a person', () => {
     fireEvent.click(await screen.findByRole('option', { name: /Nova Online/ }))
     await waitFor(() => expect(calls.find((c) => c.url === '/api/photos/faces/performers/import')?.body).toMatchObject({ provider: 'stashdb', provider_id: 'abc', name: 'Nova Online', image: 'https://img/x.jpg' }))
     await waitFor(() => expect(calls.find((c) => c.url.endsWith('/assign'))).toMatchObject({ body: { performer_id: 55 } }))
+  })
+  it('says how many photos have no named person, and opens exactly those photos', async () => {
+    mount()
+    const sec = await screen.findByRole('region', { name: 'Photos without a named person' })
+    expect(within(sec).getByRole('button', { name: /7 photos with faces nobody has named/ })).toBeInTheDocument()
+    expect(within(sec).getByRole('button', { name: /2 photos where no face was found/ })).toBeInTheDocument()
+    expect(within(sec).queryByText(/not analysed yet/)).toBeNull()   // none pending, so no line
+    fireEvent.click(within(sec).getByRole('button', { name: /7 photos with faces nobody has named/ }))
+    await waitFor(() => expect(usePhotoStore.getState().face?.scope).toBe('unnamed'))
+    expect(usePhotoStore.getState().tab).toBe('library')
+  })
+  it('naming a face with someone who already has a tile says it joined the existing person', async () => {
+    const calls = mount()
+    const card = (await screen.findByRole('region', { name: 'Faces to name' })).querySelector('article')!
+    fireEvent.click(within(card as HTMLElement).getByRole('button', { name: 'Name' }))
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Performer name' }), { target: { value: 'ava' } })
+    fireEvent.click(await screen.findByRole('option', { name: /Ava Stone/ }))   // Ava already has a tile in People
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith('/assign'))).toBe(true))
+    await waitFor(() => expect(vi.mocked(toast)).toHaveBeenCalledWith('Added to the existing Ava Stone'))
   })
 })

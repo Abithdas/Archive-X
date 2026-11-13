@@ -8,8 +8,9 @@ import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
 import { BlurImg } from '@/design/BlurImg'
 import { FaceGroups, useFaceGroups } from './FaceGroups'
-import { FIND_STEPS, analyzeBody, analyzeCopy, assignBody, bestGuess, findPeopleHint, findStage, groupLabel, jobDone, jobEndText, jobStatusText, peopleSections, rejectBody, suggestionBody, viewFilter, type FaceGroup, type Suggestion } from './faces'
+import { FIND_STEPS, scopeChips, analyzeBody, analyzeCopy, assignBody, bestGuess, findPeopleHint, findStage, groupLabel, jobDone, jobEndText, jobStatusText, peopleSections, rejectBody, suggestionBody, viewFilter, type FaceGroup, type Suggestion } from './faces'
 import { usePhotoStore } from './store'
+import { usePhotoChannels } from '@/api/hooks'
 
 const BTN = 'h-8 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50'
 const PRIMARY = 'h-8 rounded-lg bg-accent px-3 text-xs font-bold text-accent-fg disabled:opacity-50'
@@ -131,6 +132,7 @@ export function PeopleView() {
   const qc = useQueryClient()
   const q = useFaceGroups([])
   const { setFace, setSelected, setTab } = usePhotoStore()
+  const channels = usePhotoChannels()
   const groups = q.data?.groups ?? []
   const sec = peopleSections(groups)
   const [busy, setBusy] = useState(false)
@@ -147,8 +149,10 @@ export function PeopleView() {
     try { const r = await api<{ ok?: boolean; detail?: string }>(`/api/photos/faces/groups/${g.id}/assign`, { method: 'POST', json: body }); if (!r?.ok) throw new ApiError(0, r?.detail || ''); toast(ok); await changed() }
     catch (e) { toast.error(why(e, 'Could not save the name.')) } finally { setBusy(false) }
   }
-  const yes = (g: FaceGroup, s: Suggestion) => void send(g, suggestionBody(g, s, sourceOf(s), s.basis ?? ''), `Named ${s.name}`)
-  const name = (g: FaceGroup, p: { id: number; name: string }) => void send(g, assignBody(g, p.id), `Named ${p.name}`)
+  const doneText = (pid: number, nm: string) => (sec.named.some((g) => Number(g.performer_id) === pid) ? `Added to the existing ${nm}` : `Named ${nm}`)
+  const yes = (g: FaceGroup, s: Suggestion) => void send(g, suggestionBody(g, s, sourceOf(s), s.basis ?? ''), doneText(s.id, s.name ?? ''))
+  const name = (g: FaceGroup, p: { id: number; name: string }) => void send(g, assignBody(g, p.id), doneText(p.id, p.name))
+  const openScope = (c: ReturnType<typeof scopeChips>[number]) => { setSelected((channels.data?.channels ?? []).map((ch) => String(ch.telegram_id))); setFace({ performerId: null, groupId: null, groupIds: [], label: c.label, scope: c.scope }); setTab('library') }
   const no = async (g: FaceGroup, s: Suggestion) => {
     setBusy(true)
     try { const r = await api<{ ok?: boolean; detail?: string }>('/api/photos/faces/suggestions/reject', { method: 'POST', json: rejectBody(g, s, sourceOf(s)) }); if (!r?.ok) throw new ApiError(0, r?.detail || ''); await changed() }
@@ -195,6 +199,20 @@ export function PeopleView() {
             </section>
           ) : null}
         </>)}
+
+      {q.isSuccess && scopeChips(q.data?.photo_scopes).length ? (
+        <section aria-label="Photos without a named person" className="grid gap-2 rounded-2xl border border-line p-4">
+          <h2 className="text-lg font-bold">Photos without a named person</h2>
+          <ul className="grid gap-1.5">
+            {scopeChips(q.data?.photo_scopes).map((c) => (
+              <li key={c.scope} className="flex flex-wrap items-center gap-2 text-sm">
+                <button type="button" onClick={() => openScope(c)} className="font-semibold text-accent hover:underline"><span className="tabular-nums">{c.count.toLocaleString()}</span> photos {c.text}</button>
+                <span className="text-xs text-muted">{c.hint}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <details className="rounded-2xl border border-line p-3">
         <summary className="cursor-pointer text-sm font-bold">Advanced: merge, split and review groups</summary>

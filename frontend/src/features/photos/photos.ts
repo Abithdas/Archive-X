@@ -53,7 +53,8 @@ export const toggleAll = (channels: readonly PhotoChannel[], selected: readonly 
 /** Selection limited to channels that still exist (a removed channel can't stay selected). */
 export const pruneSelection = (selected: readonly string[], channels: readonly PhotoChannel[]) => selected.filter((id) => channels.some((c) => String(c.telegram_id) === id))
 
-export interface FaceFilter { performerId: number | null; groupIds: number[]; groupId: number | null; label: string }
+export type FaceScope = 'named' | 'unnamed' | 'no_face' | 'pending'
+export interface FaceFilter { performerId: number | null; groupIds: number[]; groupId: number | null; label: string; scope?: FaceScope }
 export interface PhotoQuery { channels: readonly string[]; q: string; sort: PhotoSort; favorites: boolean; favoriteIds: ReadonlySet<string>; page: number; per?: number; face?: FaceFilter | null }
 export function photoParams(q: PhotoQuery): URLSearchParams {
   const p = new URLSearchParams({ page: String(q.page), per: String(q.per ?? PER_PAGE), channels: q.channels.join(','), q: q.q, sort: q.sort })
@@ -61,6 +62,7 @@ export function photoParams(q: PhotoQuery): URLSearchParams {
   if (f?.performerId) p.set('face_performer_id', String(f.performerId))
   else if (f?.groupIds.length) p.set('face_group_ids', f.groupIds.join(','))
   else if (f?.groupId && f.groupId > 0) p.set('face_group_id', String(f.groupId))
+  if (f?.scope) p.set('face_scope', f.scope)
   if (q.favorites) { p.set('favorites', '1'); p.set('favorite_ids', [...q.favoriteIds].slice(0, 900).join(',')) }
   return p
 }

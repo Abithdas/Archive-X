@@ -8,7 +8,7 @@ export interface FaceGroup {
   metadata_suggestions?: Suggestion[]; confirmed_assignment_suggestions?: Suggestion[]; profile_image_suggestions?: Suggestion[]
 }
 export interface Analysis { total_photos?: number; analyzed_photos?: number; failed_photos?: number }
-export interface FaceGroupsResult { ok?: boolean; detail?: string; groups?: FaceGroup[]; analysis?: Analysis }
+export interface FaceGroupsResult { ok?: boolean; detail?: string; groups?: FaceGroup[]; analysis?: Analysis; photo_scopes?: Partial<Record<'named' | 'unnamed' | 'no_face' | 'pending', number>> }
 export type Source = 'metadata' | 'confirmed_assignment' | 'profile_image'
 export type Tone = '' | 'success' | 'error'
 
@@ -160,4 +160,14 @@ export function findStage(operation: string | undefined | null, status = ''): nu
   if (/reading faces|preparing local face|models/.test(t)) return 1
   if (/downloading performer|performer picture/.test(t)) return 0
   return 0
+}
+
+/** Photos that have no named person, and why. Each opens the gallery filtered to exactly those photos. */
+export function scopeChips(scopes: FaceGroupsResult['photo_scopes']) {
+  const n = (k: 'named' | 'unnamed' | 'no_face' | 'pending') => Number(scopes?.[k] ?? 0)
+  return [
+    { scope: 'unnamed' as const, count: n('unnamed'), text: 'with faces nobody has named', label: 'Photos with faces nobody has named', hint: 'Name them in the sections above.' },
+    { scope: 'no_face' as const, count: n('no_face'), text: 'where no face was found', label: 'Photos where no face was found', hint: 'Nothing to name in these.' },
+    { scope: 'pending' as const, count: n('pending'), text: 'not analysed yet', label: 'Photos not analysed yet', hint: 'Press Find people to analyse them.' },
+  ].filter((c) => c.count > 0)
 }

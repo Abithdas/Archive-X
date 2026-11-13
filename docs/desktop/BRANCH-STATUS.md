@@ -118,3 +118,6 @@ People is a view of the Photos page (Photos | People switch); there is no separa
 
 ## Naming a face from the metadata APIs
 The Name box in People now searches your library first, then the performers available through StashDB / ThePornDB (`GET /api/photos/faces/performers/provider-search`). Picking one calls `POST /api/photos/faces/performers/import`, which creates (or finds) the local performer with its provider id, downloads its picture, and the group is named with it. Its face is read on the next Find people run, so it then also matches other groups. Without a provider key the box says so. Not verified here: a live provider search (no keys in the sandbox); the import was tested without a picture.
+
+## Photos without a named person
+`/api/photos` takes `face_scope` = named | unnamed | no_face | pending, and `/api/photos/faces/groups` returns `photo_scopes` counts (they add up to the number of indexed photos). People shows "Photos without a named person" with a link per group (faces nobody has named, no face found, not analysed yet) that opens the gallery filtered to exactly those photos. Naming a face with a performer who already has a tile joins that tile (the list merges by performer) and says so.

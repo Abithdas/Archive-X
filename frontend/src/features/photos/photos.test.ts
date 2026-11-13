@@ -136,3 +136,11 @@ describe('wheel zoom and photo switching', () => {
     expect(pinchScale(2, 0, 50)).toBe(2)
   })
 })
+
+describe('face scope filter', () => {
+  it('adds face_scope to the photo query', async () => {
+    const { photoParams } = await import('./photos')
+    const p = photoParams({ channels: ['-1'], q: '', sort: 'date_desc', favorites: false, favoriteIds: new Set(), page: 0, face: { performerId: null, groupId: null, groupIds: [], label: 'x', scope: 'no_face' } })
+    expect(p.get('face_scope')).toBe('no_face')
+  })
+})
