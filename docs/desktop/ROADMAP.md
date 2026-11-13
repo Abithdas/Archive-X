@@ -76,3 +76,40 @@ Open `mockups/mockups.html#tray`, `#collections`, `#duplicates`, `#tags`, `#stat
 ## D. Not recommended
 - Decorative effects and installing UI kits wholesale (see the UI plan).
 - A map view (dropped).
+
+## E. Everything left, easiest to hardest
+Dropped: map view (31), On this day (23). Numbers match the lists above.
+
+| # | Item | Size | Why it sits here |
+|---|------|------|------------------|
+| 1 | 34 Error screen + "report a problem" | S | One boundary component and a copy-log button |
+| 2 | 33 Performance budget | S | Lazy routes and a size check, no new screens |
+| 3 | 19 Install as an app (PWA) | S | Manifest and a small service worker |
+| 4 | 12 Shortcut sheet, theatre mode, A-B loop, frame capture | S | Small additions to the player |
+| 5 | 14 Scene markers on the timeline | S | Markers already exist; only drawing them |
+| 6 | 10 Continue watching row | S | Resume data already exists |
+| 7 | 3 Photo slideshow | S | A timer on top of the viewer |
+| 8 | 8 Choose a person's cover photo | S | One field and a picker |
+| 9 | 6 Merge two people from their tiles | S | The merge call already exists |
+| 10 | 7 Hide a person (+ restore list) | S | One flag and a filter |
+| 11 | 27 Export and restore your data | S | Read and write one file |
+| 12 | 25 Statistics page | S to M | Counting queries plus charts |
+| 13 | 4 Combinable photo filters | M | Query options plus filter chips |
+| 14 | 16 Undo for deletes, moves, merges | M | Needs reversible operations in several places |
+| 15 | 15 First-run checklist | M | Reads state from many parts of the app |
+| 16 | 17 Jobs tray | M | One panel over data the app already polls |
+| 17 | 5 Grid that renders only what is on screen | M | Changes the photo layout engine, so it needs care |
+| 18 | 1 Month/day headings and timeline rail | M | Date grouping plus a scrubber on top of the grid |
+| 19 | 2 Select many photos, bulk actions | M | Selection state plus several bulk calls |
+| 20 | 18 Keyboard and screen-reader pass | M | Many small fixes across every screen |
+| 21 | 24 Tag manager | M | A new page, merge rules and suggestions |
+| 22 | 21 Collections | M | New data, pages and "add to" everywhere |
+| 23 | 13 Queue and playlists | M | New data plus changes to the player |
+| 24 | 11 Ratings and saved filters / smart playlists | M | Two features across videos, performers and filters |
+| 25 | 9 Face boxes with names in the photo viewer | M | Needs face positions and an overlay in the viewer |
+| 26 | 22 Photo duplicate finder | M | Picture fingerprints, a scan job and a safe review |
+| 27 | 26 Subtitle search and download | M | A new outside service and file saving |
+| 28 | 32 End-to-end browser tests | M | A test suite across the whole app |
+| 29 | 29 More scrapers / StashDB-style linking | L | Outside services with their own rules |
+| 30 | 28 Search by content (local model) | L | Model download, indexing every photo, new search |
+| 31 | 30 Multiple users and a PIN-locked area | L | Touches login, storage and every list |
