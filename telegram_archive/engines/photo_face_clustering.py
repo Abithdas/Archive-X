@@ -276,18 +276,8 @@ async def _ensure_photo_file(ctx, row) -> Path:
             await ctx.blocking(record_photo_cache, ctx.db, str(row["channel_id"]), int(row["message_id"]), info)
         return cached
 
-    pictures: dict[str, int] = {}
-    if match_people:
-        ctx.report(completed=0, total=0, current_item="", operation="Downloading performer pictures through the metadata APIs", force=True)
-        try:
-            pictures = await _download_performer_images(ctx)
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            ctx.db.log(f"Performer picture download stopped: {type(exc).__name__}: {exc}", "WARN")
-
     client = getattr(ctx.telegram, "client", None)
-    if rows and (client is None or not getattr(ctx.telegram, "connected", False)):
+    if client is None or not getattr(ctx.telegram, "connected", False):
         raise RuntimeError("Telegram is disconnected and this photo is not cached locally")
     from .photo_channel_scanner import _is_photo_message
     channel_id = str(row["channel_id"])
@@ -722,8 +712,18 @@ async def run(ctx) -> dict[str, Any]:
         ctx.report(completed=0, total=0, progress=100, current_item="", operation=summary, force=True)
         return {"photos_analyzed": 0, "faces_detected": 0, "summary": summary}
 
+    pictures: dict[str, int] = {}
+    if match_people:
+        ctx.report(completed=0, total=0, current_item="", operation="Downloading performer pictures through the metadata APIs", force=True)
+        try:
+            pictures = await _download_performer_images(ctx)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            ctx.db.log(f"Performer picture download stopped: {type(exc).__name__}: {exc}", "WARN")
+
     client = getattr(ctx.telegram, "client", None)
-    if client is None or not getattr(ctx.telegram, "connected", False):
+    if rows and (client is None or not getattr(ctx.telegram, "connected", False)):
         # Cached originals can still be used, but if none are available the normal
         # per-photo error below explains that Telegram must be connected.
         if not any(_stored_photo_path(row).is_file() for row in rows):

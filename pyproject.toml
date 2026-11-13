@@ -1,0 +1,16 @@
+# Lint setup (D2 in docs/desktop/BACKEND-IMPROVEMENTS.md). Run:  ruff check
+# Only rules that find real bugs are on: syntax errors, undefined names, bad comparisons and duplicate definitions.
+[tool.ruff]
+target-version = "py311"
+extend-exclude = ["desktop", "frontend", "deliverables", "docs"]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82", "F811"]
+
+[tool.ruff.lint.per-file-ignores]
+# These files are run together inside telegram_media_manager.py's namespace (see _mm_load_parts),
+# so names defined in a sibling file look undefined when a file is checked on its own.
+"telegram_archive/media_manager/mm_*.py" = ["F821"]
+"telegram_archive/media_manager/telegram_media_manager.py" = ["F821"]
+# A second, local import of the same name inside a function (harmless).
+"telegram_archive/engines/delivery_pipeline.py" = ["F811"]
