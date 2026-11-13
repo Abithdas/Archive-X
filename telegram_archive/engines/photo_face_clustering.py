@@ -28,6 +28,9 @@ from .. import config
 
 _YUNET_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
 _SFACE_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
+# The same two files are also published by OpenCV on Hugging Face; used when GitHub cannot be reached. Both are checked against the SHA-256 below.
+_YUNET_URL_FALLBACK = "https://huggingface.co/opencv/face_detection_yunet/resolve/main/face_detection_yunet_2023mar.onnx"
+_SFACE_URL_FALLBACK = "https://huggingface.co/opencv/face_recognition_sface/resolve/main/face_recognition_sface_2021dec.onnx"
 _YUNET_SHA256 = "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
 _SFACE_SHA256 = "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79"
 # SFace's cosine score is only used to cluster similar visual embeddings. It is
@@ -82,9 +85,9 @@ def _ensure_models() -> tuple[Path, Path]:
     root = _cache_root() / "models"
     yunet = root / "face_detection_yunet_2023mar.onnx"
     sface = root / "face_recognition_sface_2021dec.onnx"
-    for path, url, digest in (
-        (yunet, _YUNET_URL, _YUNET_SHA256),
-        (sface, _SFACE_URL, _SFACE_SHA256),
+    for path, urls, digest in (
+        (yunet, (_YUNET_URL, _YUNET_URL_FALLBACK), _YUNET_SHA256),
+        (sface, (_SFACE_URL, _SFACE_URL_FALLBACK), _SFACE_SHA256),
     ):
         valid = False
         if path.is_file() and path.stat().st_size > 1024:
@@ -94,7 +97,16 @@ def _ensure_models() -> tuple[Path, Path]:
                     h.update(chunk)
             valid = h.hexdigest() == digest
         if not valid:
-            _download_checked(url, path, digest)
+            last: Exception | None = None
+            for url in urls:
+                try:
+                    _download_checked(url, path, digest)
+                    last = None
+                    break
+                except Exception as exc:   # try the mirror
+                    last = exc
+            if last is not None:
+                raise last
     return yunet, sface
 
 

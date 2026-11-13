@@ -67,3 +67,18 @@ def test_move_detections_makes_one_group_and_can_name_it(tmp_path):
         pf._move_detections(db, [], None)
     with pytest.raises(ValueError):
         pf._move_detections(db, [1], performer_id=99)
+
+
+def test_model_download_falls_back_to_the_mirror(tmp_path, monkeypatch):
+    calls = []
+
+    def fake(url, dest, digest):
+        calls.append(url)
+        if "github.com" in url:
+            raise OSError("blocked")
+        dest.parent.mkdir(parents=True, exist_ok=True); dest.write_bytes(b"x" * 2048)
+    monkeypatch.setattr(pf, "_download_checked", fake)
+    monkeypatch.setattr(pf, "_cache_root", lambda: tmp_path)
+    yunet, sface = pf._ensure_models()
+    assert calls == [pf._YUNET_URL, pf._YUNET_URL_FALLBACK, pf._SFACE_URL, pf._SFACE_URL_FALLBACK]
+    assert yunet.exists() and sface.exists()
