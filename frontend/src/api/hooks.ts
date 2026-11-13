@@ -30,8 +30,17 @@ export const useLibrary = (query: LibraryQuery) =>
   })
 
 /** Whole performer or studio catalogue (the API caps at 5000); paging, search and filters run client-side. */
+/** The catalogue list: the few fields the directory, pickers and name look-ups need (the full rows, with biographies, were megabytes). */
+export const entitiesUrl = (kind: EntityKind) => `/api/${kind}?limit=5000&brief=1`
+/** Just the catalogue rows for names a page already knows (a video's performers, a performer's studios): a few rows instead of the whole list. */
+export const lookupUrl = (kind: EntityKind, names: readonly string[]) => `/api/entity-lookup?kind=${kind}&names=${encodeURIComponent(JSON.stringify(names))}`
+export const uniqueNames = (names: ReadonlyArray<unknown>) => [...new Set(names.map((n) => String(n ?? '').trim()).filter(Boolean))].sort().slice(0, 300)
+export function useEntityLookup(kind: EntityKind, names: ReadonlyArray<unknown>) {
+  const list = uniqueNames(names)
+  return useQuery({ queryKey: ['entity-lookup', kind, list] as const, queryFn: () => api<Entity[]>(lookupUrl(kind, list)), enabled: list.length > 0, staleTime: 30_000 })
+}
 export const useEntities = (kind: EntityKind) =>
-  useQuery({ queryKey: ['entities', kind] as const, queryFn: () => api<Entity[]>(`/api/${kind}?limit=5000`), staleTime: 30_000 })
+  useQuery({ queryKey: ['entities', kind] as const, queryFn: () => api<Entity[]>(entitiesUrl(kind)), staleTime: 30_000 })
 
 export const usePerformer = (id: number) =>
   useQuery({

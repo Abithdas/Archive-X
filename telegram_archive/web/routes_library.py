@@ -35,11 +35,49 @@ def register_library_routes(
     # Embeddings and suggestion building.
     # ------------------------------------------------------------------
     """Register the video and photo library routes."""
-    def _photo_metadata_performer_suggestions(rdb, cluster_ids, performer_rows, limit=3):
-        """Suggest names from photo text metadata only; never compare face vectors to named people."""
-        import json as _json
+    def _norm_text(value):
         import re as _re
         import unicodedata as _unicodedata
+        value = _unicodedata.normalize('NFKC', str(value or '')).casefold()
+        return _re.sub(r"[\W_]+", " ", value, flags=_re.UNICODE).strip()
+
+    def _prepare_performer_terms(performer_rows):
+        """Each performer's searchable names, normalised once for the whole request instead of once per face group."""
+        import json as _json
+        import re as _re
+        prepared = []
+        for person in performer_rows:
+            name = str(person['name'] or '').strip()
+            if not name:
+                continue
+            terms = [(name, 0)]
+            raw_aliases = str(person['aliases'] or '').strip()
+            if raw_aliases:
+                try:
+                    decoded = _json.loads(raw_aliases)
+                    aliases = decoded if isinstance(decoded, list) else []
+                except Exception:
+                    aliases = _re.split(r"[,;|]", raw_aliases)
+                terms.extend((str(alias or '').strip(), -10) for alias in aliases)
+            needles = []
+            for term, penalty in terms:
+                needle = _norm_text(term)
+                if needle and len(needle.replace(' ', '')) >= 5:
+                    needles.append((term, penalty, f" {needle} "))
+            if needles:
+                prepared.append((int(person['id']), name, needles))
+        return prepared
+
+    def _index_performer_terms(prepared):
+        """first word of each searchable name -> performers, so a face group only checks names that share a word with its text."""
+        index = {}
+        for entry in prepared:
+            for _term, _penalty, phrase in entry[2]:
+                index.setdefault(phrase.split()[0], {})[entry[0]] = entry
+        return index
+
+    def _photo_metadata_performer_suggestions(rdb, cluster_ids, performer_rows, limit=3, prepared=None):
+        """Suggest names from photo text metadata only; never compare face vectors to named people."""
         ids = list(dict.fromkeys(int(value) for value in cluster_ids if int(value) > 0))[:700]
         if not ids:
             return []
@@ -54,38 +92,31 @@ def register_library_routes(
                         WHERE d.group_id IN ({marks})
                         ORDER BY p.message_date DESC,p.id DESC LIMIT 120""", ids
         ).fetchall()
-        def normalize(value):
-            value = _unicodedata.normalize('NFKC', str(value or '')).casefold()
-            return _re.sub(r"[\W_]+", " ", value, flags=_re.UNICODE).strip()
+        normalize = _norm_text
         contexts = {
-            'caption': normalize(' '.join(str(row['caption'] or '') for row in sources)),
-            'filename': normalize(' '.join(str(row['filename'] or '') for row in sources)),
-            'channel name': normalize(' '.join(str(row['channel_title'] or '') for row in sources)),
+            'caption': f" {normalize(' '.join(str(row['caption'] or '') for row in sources))} ",
+            'filename': f" {normalize(' '.join(str(row['filename'] or '') for row in sources))} ",
+            'channel name': f" {normalize(' '.join(str(row['channel_title'] or '') for row in sources))} ",
         }
         field_scores = [('caption', 100), ('filename', 90), ('channel name', 75)]
         candidates = []
-        for person in performer_rows:
-            performer_id = int(person['id'])
-            name = str(person['name'] or '').strip()
-            if not name:
-                continue
-            terms = [(name, 0)]
-            raw_aliases = str(person['aliases'] or '').strip()
-            if raw_aliases:
-                try:
-                    decoded = _json.loads(raw_aliases)
-                    aliases = decoded if isinstance(decoded, list) else []
-                except Exception:
-                    aliases = _re.split(r"[,;|]", raw_aliases)
-                terms.extend((str(alias or '').strip(), -10) for alias in aliases)
+        if prepared is None:
+            prepared = _prepare_performer_terms(performer_rows)
+        words = set()
+        for text in contexts.values():
+            words.update(text.split())
+        if isinstance(prepared, dict):   # the first-word index: only names that share a word with this text
+            pool = {}
+            for w in words:
+                pool.update(prepared.get(w, {}))
+            pool = pool.values()
+        else:
+            pool = prepared
+        for performer_id, name, needles in pool:
             best = None
-            for term, penalty in terms:
-                needle = normalize(term)
-                if not needle or len(needle.replace(' ', '')) < 5:
-                    continue
-                phrase = f" {needle} "
+            for term, penalty, phrase in needles:
                 for source_name, base in field_scores:
-                    if phrase in f" {contexts[source_name]} ":
+                    if phrase in contexts[source_name]:
                         score = base + penalty
                         if best is None or score > best[0]:
                             best = (score, source_name, term)
@@ -158,6 +189,9 @@ def register_library_routes(
             entry['group_ids'].add(int(row['group_id']))
         return refs
 
+    class _SkipSuggestions(Exception):
+        pass
+
     _NAMED_FACE = "EXISTS (SELECT 1 FROM photo_face_detections fd JOIN photo_face_groups fg ON fg.id=fd.group_id WHERE fd.photo_id=p.id AND fg.performer_id IS NOT NULL)"
     _ANY_FACE = "EXISTS (SELECT 1 FROM photo_face_detections fd WHERE fd.photo_id=p.id)"
     _ANALYSED = "EXISTS (SELECT 1 FROM photo_face_analysis a WHERE a.photo_id=p.id AND a.status='COMPLETE')"
@@ -171,24 +205,32 @@ def register_library_routes(
 
     _PROFILE_PICTURE_MATCH_THRESHOLD = 0.40   # SFace cosine; OpenCV documents ~0.363 as the same-person cut-off
 
-    def _photo_profile_picture_suggestions(rdb, vectors, performer_rows, rejected_ids, limit=3):
+    def _prepare_profile_matrix(rdb, performer_rows):
+        """(performer ids, names, normalised picture-face matrix), read and decoded once per request."""
+        import numpy as _np
+        names = {int(r['id']): str(r['name'] or '').strip() for r in performer_rows}
+        ids, mats = [], []
+        for r in rdb.execute("SELECT performer_id,embedding_json FROM performer_face_embeddings WHERE embedding_json<>'[]'").fetchall():
+            v = _photo_decode_embedding(r['embedding_json'])
+            pid = int(r['performer_id'])
+            if v is not None and names.get(pid):
+                ids.append(pid); mats.append(v)
+        return ids, names, (_np.asarray(mats, dtype=_np.float32) if mats else None)
+
+    def _photo_profile_picture_suggestions(rdb, vectors, performer_rows, rejected_ids, limit=3, prepared=None):
         """Rank performers whose profile-picture face resembles this group's faces. A suggestion only; the user confirms it."""
         if not vectors:
             return []
         try:
             import numpy as _np
-            rows = rdb.execute("SELECT performer_id,embedding_json FROM performer_face_embeddings WHERE embedding_json<>'[]'").fetchall()
-            names = {int(r['id']): str(r['name'] or '').strip() for r in performer_rows}
-            ids, mats = [], []
-            for r in rows:
-                v = _photo_decode_embedding(r['embedding_json'])
-                pid = int(r['performer_id'])
-                if v is not None and names.get(pid) and pid not in rejected_ids:
-                    ids.append(pid); mats.append(v)
-            if not ids:
+            ids, names, matrix = prepared if prepared is not None else _prepare_profile_matrix(rdb, performer_rows)
+            if matrix is None or not len(ids):
                 return []
             target = _np.asarray(vectors[:32], dtype=_np.float32)
-            scores = (target @ _np.asarray(mats, dtype=_np.float32).T).max(axis=0)
+            scores = (target @ matrix.T).max(axis=0)
+            for i, pid in enumerate(ids):
+                if pid in rejected_ids:
+                    scores[i] = -1.0
             order = _np.argsort(-scores)[:max(1, min(5, int(limit)))]
             return [{
                 'id': ids[i], 'name': names[ids[i]], 'image_url': f"/api/performers/{ids[i]}/image",
@@ -237,7 +279,9 @@ def register_library_routes(
             for performer_id, entry in reference_index.items():
                 if performer_id in rejected_ids or not person_names.get(performer_id) or not entry['vectors']:
                     continue
-                reference_matrix = _np.asarray(entry['vectors'], dtype=_np.float32)
+                reference_matrix = entry.get('matrix')
+                if reference_matrix is None:   # built once per request and kept on the entry, not rebuilt for every face group
+                    reference_matrix = entry['matrix'] = _np.asarray(entry['vectors'], dtype=_np.float32)
                 similarities = target_matrix @ reference_matrix.T
                 score = float(_np.max(similarities)) if similarities.size else -1.0
                 if score < _PHOTO_CONFIRMED_SIMILARITY_SUGGESTION_THRESHOLD:
@@ -425,7 +469,11 @@ def register_library_routes(
     async def photo_face_groups_list(request: Request):
         """List image-derived anonymous face clusters and available manual performer assignments."""
         require_auth(request)
-        raw_channels = [value.strip() for value in str(request.query_params.get("channels", "") or "").split(",") if value.strip()]
+        # Heavy database work: off the event loop, so the rest of the app keeps answering while it runs.
+        return await asyncio.to_thread(_face_groups_payload, request.query_params)
+
+    def _face_groups_payload(query_params):
+        raw_channels = [value.strip() for value in str(query_params.get("channels", "") or "").split(",") if value.strip()]
         channel_ids = list(dict.fromkeys(raw_channels))[:250]
         where, params = [], []
         if channel_ids:
@@ -486,6 +534,18 @@ def register_library_routes(
         # has previously assigned and confirmed. Profile/provider artwork is shown in
         # the manual review dialog, but is not itself used for face-to-name matching.
         try:
+            top = max(0, min(500, int(query_params.get("top", "0") or 0)))
+        except ValueError:
+            top = 0
+        if top and len(groups) > top:   # the busiest people only (named first); the Photos page shows a row of them, not all
+            groups.sort(key=lambda g: (not g.get("performer_id"), -int(g.get("photo_count") or 0), str(g.get("label") or "").casefold()))
+            groups = groups[:top]
+        skip_suggestions = str(query_params.get("suggestions", "1")) == "0"   # the Photos page only needs the people, not who they might be
+        try:
+            if skip_suggestions:
+                for item in groups:
+                    item["confirmed_assignment_suggestions"] = []; item["profile_image_suggestions"] = []
+                raise _SkipSuggestions()
             unassigned_group_ids = list(dict.fromkeys(
                 int(value) for item in groups if not item.get("performer_id")
                 for value in (item.get("cluster_ids") or []) if int(value) > 0
@@ -495,6 +555,8 @@ def register_library_routes(
                     "SELECT id,name,COALESCE(aliases,'') AS aliases FROM performers ORDER BY name COLLATE NOCASE"
                 ).fetchall()
                 reference_index = _photo_confirmed_reference_index(rdb)
+                prepared_terms = _index_performer_terms(_prepare_performer_terms(performer_rows))   # prepared once, not once per face group
+                prepared_profiles = _prepare_profile_matrix(rdb, performer_rows)
                 rejected_rows = rdb.execute(
                     "SELECT group_id,performer_id,source FROM photo_face_suggestion_feedback WHERE status='REJECTED'"
                 ).fetchall()
@@ -526,7 +588,7 @@ def register_library_routes(
                     item_cluster_ids = [int(value) for value in (item.get('cluster_ids') or []) if int(value) > 0]
                     feedback_group_ids = list(dict.fromkeys([int(item['id'])] + item_cluster_ids))
                     item["metadata_suggestions"] = [candidate for candidate in _photo_metadata_performer_suggestions(
-                        rdb, item_cluster_ids, performer_rows, limit=5
+                        rdb, item_cluster_ids, performer_rows, limit=5, prepared=prepared_terms
                     ) if not any((gid, int(candidate['id'])) in rejected for gid in feedback_group_ids)][:3]
                     vectors = []
                     for cluster_id in item_cluster_ids:
@@ -537,12 +599,14 @@ def register_library_routes(
                     item["confirmed_assignment_suggestions"] = _photo_confirmed_group_suggestions(
                         vectors, reference_index, performer_rows, rejected_visual_ids, limit=3
                     )
-                    item["profile_image_suggestions"] = _photo_profile_picture_suggestions(rdb, vectors, performer_rows, rejected_visual_ids, limit=3)
+                    item["profile_image_suggestions"] = _photo_profile_picture_suggestions(rdb, vectors, performer_rows, rejected_visual_ids, limit=3, prepared=prepared_profiles)
                     # Keep each performer suggestion once per group. Confirmation is always explicit.
                     already = {int(candidate['id']) for candidate in item['metadata_suggestions']}
                     item["confirmed_assignment_suggestions"] = [candidate for candidate in item["confirmed_assignment_suggestions"] if int(candidate['id']) not in already]
                     already |= {int(candidate['id']) for candidate in item["confirmed_assignment_suggestions"]}
                     item["profile_image_suggestions"] = [candidate for candidate in item["profile_image_suggestions"] if int(candidate['id']) not in already]
+        except _SkipSuggestions:
+            pass
         except Exception as exc:
             db.log(f"Photo group suggestions unavailable: {type(exc).__name__}: {exc}", "WARN",
                    event="photo_library.suggestions_failed")

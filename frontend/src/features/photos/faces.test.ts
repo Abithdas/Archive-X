@@ -57,3 +57,10 @@ describe('reference review', () => {
     expect(loadedText([{ provider: 'A' }, { provider: 'A' }, { provider: 'B' }])).toBe('3 provider reference image(s) loaded · A: 2 · B: 1. Choose one to inspect, then assign the group manually.')
   })
 })
+
+describe('face groups address', () => {
+  it('can leave out the suggestion work', async () => {
+    const { faceGroupsUrl } = await import('./FaceGroups')
+    expect(faceGroupsUrl([])).toBe('/api/photos/faces/groups'); expect(faceGroupsUrl(['-1', '-2'], false)).toBe('/api/photos/faces/groups?channels=-1%2C-2&suggestions=0'); expect(faceGroupsUrl([], false)).toBe('/api/photos/faces/groups?suggestions=0'); expect(faceGroupsUrl([], false, 24)).toBe('/api/photos/faces/groups?suggestions=0&top=24')
+  })
+})

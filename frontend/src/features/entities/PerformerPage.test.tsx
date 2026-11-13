@@ -55,7 +55,7 @@ describe('PerformerPage extras', () => {
       if (url === '/api/performers/2/career-counts') return j({ career_counts: [{ provider: 'StashDB', count: 55 }] })
       if (url === '/api/performers/2/suggested') return j(SUG.slice())
       if (url === '/api/performers/2/similar?limit=40') return j({ items: [{ id: 9, name: 'Zoe Ray', video_count: 4 }] })
-      if (url === '/api/studios?limit=5000') return j([{ id: 7, name: 'Northlight', video_count: 1 }])
+      if (url.startsWith('/api/entity-lookup?kind=studios')) return j([{ id: 7, name: 'Northlight', video_count: 1 }])
       if (url.startsWith('/api/suggestions/') && init?.method === 'POST') { SUG.length = 0; return j({ ok: true }) }
       return j({ ok: true })
     }))

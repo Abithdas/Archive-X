@@ -147,3 +147,14 @@ Causes fixed: (1) the next video forgot the live choice until its track list loa
 
 ## Keeping Chrome's own Live Caption away from the player
 `watch/audioGraph.ts`: on the first play of the video (and of the alternate-audio element) its sound is routed through one shared `AudioContext` (`createMediaElementSource` -> destination). Reason, from Chromium's source (`AudioRendererImpl::TranscribeAudio`): audio is only sent to Live Caption `if (speech_recognition_client_ && sink_->IsOptimizedForHardwareParameters())`, and `WebAudioSourceProviderImpl::IsOptimizedForHardwareParameters()` returns false as soon as a Web Audio client is attached. On by default; Settings > "Keep Chrome's Live Caption off" turns it off (applies after a reload). Checked in real Chromium: the video's sound still reaches the speakers path (analyser peak > 0, context running). NOT observable here: Chrome's Live Caption itself (not in headless Chromium), so the suppression rests on the source reading and depends on the Chrome version; if the box still appears, turn off Live Caption in Chrome (Settings > Accessibility). Risk handled: a suspended AudioContext is silent, so it is resumed on play, on playing and on every click of the video; media must be same-origin (it is).
+
+## Load speed: Photos, Performers, Studios (measured with 4,000 performers, 1,200 studios, 40,000 photos, 600 face groups)
+| | before | after |
+|---|---|---|
+| `/api/photos/faces/groups` (People) | 19.5 s, and it blocked the whole server while it ran | 1.4 s, off the event loop; 0.12 s without suggestions |
+| Photos page, data on open | 344 KB (all face groups) | 41 KB (the 24 busiest people, no suggestions) |
+| Performer page, data on open | 196 KB (every studio) | 35 KB (only that performer's studios) |
+| Studio page, data on open | 808 KB (every performer and studio) | 51 KB |
+| Video page, data on open | 900 KB | 142 KB |
+| Performers directory list | 4.4 MB with biographies | 609 KB (41 KB on the wire, gzip); brief fields only |
+Changes: the heavy groups handler runs in a worker thread; suggestion work is prepared once per request (names indexed by first word, picture-face matrix and reference matrices built once) instead of per face group; `?suggestions=0&top=N` for the Photos row; `GET /api/entity-lookup` returns only the rows for names a page already knows; the directory uses `brief=1`. The performers list also stopped turning "trans" into blank. Idle pages make no requests. Not changed: the directory still downloads the whole brief list to filter and sort in the browser (fine to a few thousand rows; server-side paging would be the next step beyond that).

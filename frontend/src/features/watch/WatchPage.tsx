@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, thumbUrl } from '@/api/client'
-import { useEntities, useFavorite, useLibrary, useMarkers, usePlayInfo, usePreviewManifest, useVideo } from '@/api/hooks'
+import { useEntityLookup, useFavorite, useLibrary, useMarkers, usePlayInfo, usePreviewManifest, useVideo } from '@/api/hooks'
 import type { LibraryItem } from '@/api/types'
 import { Icon } from '@/design/Icon'
 import { Skeleton, SkeletonGroup, SkeletonLine } from '@/design/Skeleton'
@@ -78,8 +78,6 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const [infoCapped, setInfoCapped] = useState(false)
   useEffect(() => { setInfoCapped(false); const t = setTimeout(() => setInfoCapped(true), 2500); return () => clearTimeout(t) }, [cid, mid])
   const infoWait = playInfo.isPending && !infoCapped
-  const performers = useEntities('performers')
-  const studios = useEntities('studios')
   const fav = useFavorite()
   const expQuery = useExperienceSettings()
   const exp = experienceFrom(expQuery.data)
@@ -87,6 +85,8 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const [editing, setEditing] = useState(false)
   const [seekRequest, setSeekRequest] = useState<{ t: number; n: number } | undefined>()
   const item = video.data
+  const performers = useEntityLookup('performers', item?.performers ?? [])
+  const studios = useEntityLookup('studios', [item?.studio, ...(item?.studios ?? [])])
   const items = queue.data?.items ?? []
   const index = item ? items.findIndex((i) => i.id === item.id && i._cid === item._cid) : -1
   const go = (i?: LibraryItem) => i && void navigate({ to: '/watch/$cid/$mid', params: { cid: i._cid, mid: String(i.id) } })

@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { useReducer, useState } from 'react'
-import { useEntities, usePerformer, usePerformerCareer, usePerformerMetadata, usePerformerSimilar, useSuggested } from '@/api/hooks'
+import { useEntityLookup, usePerformer, usePerformerCareer, usePerformerMetadata, usePerformerSimilar, useSuggested } from '@/api/hooks'
 import { ApiError } from '@/api/client'
 import { Button } from '@/design/Button'
 import { Skeleton, SkeletonGroup, SkeletonLine } from '@/design/Skeleton'
@@ -34,7 +34,7 @@ export function PerformerPage({ id }: { id: number }) {
   const [adjusting, setAdjusting] = useState(false)
   const [, refreshFraming] = useReducer((n: number) => n + 1, 0)
   const [tab, setTab] = useState<PTab>('videos')
-  const studios = useEntities('studios')
+  const studios = useEntityLookup('studios', (q.data?.videos ?? []).flatMap((v) => (Array.isArray(v.studios) ? v.studios : [])))
   const meta = usePerformerMetadata(id)
   const career = usePerformerCareer(id)
   const suggested = useSuggested('performer', id)

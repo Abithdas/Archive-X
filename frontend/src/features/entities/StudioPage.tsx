@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { useEntities, useStudio, useStudioCareer, useStudioFamily, useStudioMetadata, useStudioSuggested } from '@/api/hooks'
+import { useEntityLookup, useStudio, useStudioCareer, useStudioFamily, useStudioMetadata, useStudioSuggested } from '@/api/hooks'
 import { ApiError } from '@/api/client'
 import { Button } from '@/design/Button'
 import { Icon } from '@/design/Icon'
@@ -24,8 +24,8 @@ const WRAP = 'mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm
 
 export function StudioPage({ id }: { id: number }) {
   const q = useStudio(id)
-  const performers = useEntities('performers')
-  const studios = useEntities('studios')
+  const performers = useEntityLookup('performers', (q.data?.videos ?? []).flatMap((v) => (Array.isArray(v.performers) ? v.performers : [])))
+  const studios = useEntityLookup('studios', (q.data?.videos ?? []).flatMap((v) => (Array.isArray(v.studios) ? v.studios : [])))
   const meta = useStudioMetadata(id)
   const family = useStudioFamily(id)
   const career = useStudioCareer(id)

@@ -126,7 +126,8 @@ def list_performers_sync(db, query_params):
     for row in rows:
         performer = dict(row)
         gender = str(performer.get("gender") or "").strip().lower()
-        performer["gender"] = gender if gender in {"male", "female"} else ""
+        # "transgender_female", "Trans woman" and so on all count as trans; anything else unknown stays blank
+        performer["gender"] = "trans" if "trans" in gender else gender if gender in {"male", "female"} else ""
         if brief:
             performer = {
                 key: performer.get(key)
@@ -142,3 +143,35 @@ def list_performers_sync(db, query_params):
             }
         output.append(performer)
     return output
+
+
+def lookup_entities_sync(db, kind: str, names) -> list[dict]:
+    """Performers or studios whose name is one of `names` (case-insensitive), with the few fields the pages need.
+
+    Detail pages know the names on their own videos; looking those up is a few rows instead of the whole catalogue."""
+    wanted = list(dict.fromkeys(str(n or "").strip().lower() for n in names if str(n or "").strip()))[:300]
+    if not wanted or kind not in {"performers", "studios"}:
+        return []
+    marks = ",".join("?" for _ in wanted)
+    with db.reading() as rdb:
+        if kind == "performers":
+            rows = rdb.execute(
+                "SELECT p.id,p.name,p.image,p.gender,COUNT(DISTINCT combined.video_id) video_count,"
+                "EXISTS(SELECT 1 FROM performer_image_cache pic WHERE pic.performer_id=p.id AND pic.data IS NOT NULL AND length(pic.data)>0) AS has_cached_image "
+                "FROM performers p LEFT JOIN (SELECT performer_id, video_id FROM video_performers WHERE video_id IN (SELECT id FROM archive_x_library_media) "
+                "UNION SELECT performer_id, video_id FROM local_video_performers WHERE video_id IN (SELECT id FROM archive_x_library_media)) combined "
+                f"ON combined.performer_id=p.id WHERE lower(p.name) IN ({marks}) GROUP BY p.id", wanted).fetchall()
+        else:
+            rows = rdb.execute(
+                "SELECT s.id,s.name,s.image,COUNT(DISTINCT CASE WHEN vs.video_id IN (SELECT id FROM archive_x_library_media) THEN vs.video_id END) video_count,"
+                "(SELECT MAX(sic.updated_at) FROM studio_image_cache sic WHERE sic.studio_id=s.id) AS image_cache_updated_at,"
+                "EXISTS(SELECT 1 FROM studio_image_cache sic WHERE sic.studio_id=s.id AND sic.data IS NOT NULL AND length(sic.data)>0 AND (COALESCE(s.image,'')='' OR COALESCE(sic.url,'')=COALESCE(s.image,''))) AS has_cached_image "
+                f"FROM studios s LEFT JOIN video_studios vs ON vs.studio_id=s.id WHERE lower(s.name) IN ({marks}) GROUP BY s.id", wanted).fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        if kind == "performers":
+            g = str(d.get("gender") or "").strip().lower()
+            d["gender"] = "trans" if "trans" in g else g if g in {"male", "female"} else ""
+        out.append(d)
+    return out

@@ -25,9 +25,9 @@ const mount = (body: unknown = detail(), code = 200) => {
     if (url === '/api/studios/3/career-counts') return json({ career_counts: [{ provider: 'StashDB', count: 120 }] })
     if (url === '/api/studios/3/suggested') return json(SUGGESTED.slice())
     if (url.startsWith('/api/suggestions/') && init?.method === 'POST') { SUGGESTED.length = 0; return json({ ok: true }) }
-    if (url === '/api/studios?limit=5000') return json([{ id: 3, name: 'Northlight' }, { id: 5, name: 'Aurora' }])
+    if (url.startsWith('/api/entity-lookup?kind=studios')) return json([{ id: 3, name: 'Northlight' }, { id: 5, name: 'Aurora' }])
     if (url === '/api/entities/studio/3/favorite') return new Response('{"ok":true,"favorite":true}', { status: 200 })
-    if (url.startsWith('/api/performers?')) return new Response('[{"id":8,"name":"Mia","video_count":2}]', { status: 200 })
+    if (url.startsWith('/api/entity-lookup?kind=performers')) return new Response('[{"id":8,"name":"Mia","video_count":2}]', { status: 200 })
     if (init?.method === 'POST') return new Response('{"ok":true,"player":"MPC-HC","count":2}', { status: 200 })
     return new Response(JSON.stringify(body), { status: code })
   }))

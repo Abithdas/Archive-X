@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
+import { entitiesUrl } from '@/api/hooks'
 import type { Entity } from '@/api/types'
 import { usePhotoStore } from '@/features/photos/store'
 import { useNavigate } from '@tanstack/react-router'
@@ -27,8 +28,8 @@ export function CommandPalette() {
   const [recent, setRecent] = useState<string[]>([])
   const term = q.trim().toLowerCase()
   const lookup = open && term.length >= 2
-  const performers = useQuery({ queryKey: ['entities', 'performers'] as const, queryFn: () => api<Entity[]>('/api/performers?limit=5000'), staleTime: 30_000, enabled: lookup })
-  const studios = useQuery({ queryKey: ['entities', 'studios'] as const, queryFn: () => api<Entity[]>('/api/studios?limit=5000'), staleTime: 30_000, enabled: lookup })
+  const performers = useQuery({ queryKey: ['entities', 'performers'] as const, queryFn: () => api<Entity[]>(entitiesUrl('performers')), staleTime: 30_000, enabled: lookup })
+  const studios = useQuery({ queryKey: ['entities', 'studios'] as const, queryFn: () => api<Entity[]>(entitiesUrl('studios')), staleTime: 30_000, enabled: lookup })
 
   const cmds: Cmd[] = useMemo(() => [
     { id: 'photos', group: 'Go to', label: 'Open Photos', hint: 'Browse images and people', run: () => void navigate({ to: '/photos' }) },

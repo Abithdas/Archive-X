@@ -939,6 +939,20 @@ def register_media_routes(
                     videos.append(d)
         return {"videos":videos,"performers":[dict(x) for x in p_rows],"tags":[dict(x) for x in t_rows],"studios":[dict(x) for x in s_rows]}
 
+    @router.get("/api/entity-lookup")
+    async def entity_lookup(request: Request):
+        """GET /api/entity-lookup?kind=performers|studios&names=["A","B"]: the few catalogue rows for names a page already knows."""
+        require_auth(request)
+        kind = str(request.query_params.get("kind") or "")
+        try:
+            names = json.loads(request.query_params.get("names") or "[]")
+        except ValueError:
+            raise HTTPException(400, "names must be a JSON array")
+        if kind not in {"performers", "studios"} or not isinstance(names, list):
+            raise HTTPException(400, "kind must be performers or studios, and names a JSON array")
+        from .performer_catalogue import lookup_entities_sync
+        return await asyncio.to_thread(lookup_entities_sync, db, kind, names)
+
     @router.get("/api/performers")
     async def list_performers(request: Request):
         """GET /api/performers: List performers."""

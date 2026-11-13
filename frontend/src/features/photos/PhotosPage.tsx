@@ -49,7 +49,7 @@ export function PhotosPage() {
   const [editChannel, setEditChannel] = useState<string | null>(null)
   const sentinel = useRef<HTMLDivElement>(null)
   const [checking, setChecking] = useState(false)
-  const faces = useFaceGroups(selected, true)
+  const faces = useFaceGroups(selected, true, false, 24)   // the busiest 24 people for the row, not everyone and not who they might be
   const [different, setDifferent] = useState<Photo | null>(null)
 
   // A channel that is no longer scanned cannot stay selected.
