@@ -8,7 +8,7 @@ type ModelState = 'idle' | 'preparing' | 'ready' | 'error'
 
 const getJson = async <T,>(url: string): Promise<T> => {
   const r = await fetch(url, { credentials: 'same-origin', cache: 'no-store' })
-  if (!r.ok) throw new Error(String(r.status))
+  if (!r.ok) { let why = String(r.status); try { const j = (await r.json()) as { detail?: unknown }; if (typeof j.detail === 'string' && j.detail) why = j.detail } catch { /* not JSON */ } throw new Error(why) }
   return (await r.json()) as T
 }
 
@@ -22,6 +22,7 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
   const [altUrl, setAltUrl] = useState<string | null>(null)
   const [altBusy, setAltBusy] = useState(false)
   const [model, setModel] = useState<ModelState>('idle')
+  const [liveError, setLiveError] = useState('')
   const fetched = useRef(new Set<number>())
   const key = media ? `${media.cid}/${media.mid}` : ''
 
@@ -57,7 +58,7 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
       const m = s.model ?? 'ready'
       setModel(m)
       if (m === 'ready') { if (shown) toast.success('Live captions are ready', { id: 'caption-model' }); shown = false; return }
-      if (m === 'error') { toast.error(`Live captions could not start: ${s.model_error || 'speech model unavailable'}`, { id: 'caption-model' }); setLive('error'); shown = false; return }
+      if (m === 'error') { toast.error(`Live captions could not start: ${s.model_error || 'speech model unavailable'}`, { id: 'caption-model' }); setLive('error'); setLiveError(s.model_error || 'speech model unavailable'); shown = false; return }
       if (!shown) { shown = true; toast.loading('Preparing live captions: downloading the speech model (first time only, can take a few minutes)…', { id: 'caption-model', duration: Infinity }) }
       timer = setTimeout(poll, 2000)
     }).catch(() => { if (!dead) { setModel('error'); setLive('error') } })
@@ -77,8 +78,8 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
     setLive('working')
     getJson<{ cues: Cue[]; preparing?: boolean }>(`/api/play/captions/${encodeURIComponent(media.cid)}/${media.mid}?start=${s}${audio !== null ? `&track=${audio}` : ''}${sub.original ? '&task=transcribe' : ''}`)
       .then((r) => { if (r.preparing) { fetched.current.delete(s); setModel('preparing'); setLive('idle'); return }
-        setCues((c) => mergeCues(c, r.cues)); setLive('idle') })
-      .catch(() => { fetched.current.delete(s); setLive('error') })
+        setCues((c) => mergeCues(c, r.cues)); setLive('idle'); setLiveError('') })
+      .catch((e: unknown) => { fetched.current.delete(s); setLive('error'); setLiveError(e instanceof Error ? e.message : '') })
   }, [media, sub.kind, sub.kind === 'live' && sub.original, audio, Math.floor(time / 5), playing, model])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Alternate audio: ask the server to build it, poll until it is ready.
@@ -106,7 +107,9 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
 
   const text = sub.kind === 'off' ? '' : activeText(cues, time)
   void video
-  return { info, audio, sub, text, live, altUrl, altBusy, pickAudio, pickSub }
+  /** One plain line about live captions while they are not showing text yet ('' when nothing needs saying). */
+  const liveStatus = sub.kind !== 'live' ? '' : model === 'error' || live === 'error' ? `Live captions failed${liveError ? `: ${liveError}` : ''}` : model !== 'ready' ? 'Live captions: getting the speech model ready…' : live === 'working' && !cues.length ? 'Live captions: listening…' : ''
+  return { info, audio, sub, text, live, liveStatus, altUrl, altBusy, pickAudio, pickSub }
 }
 
 /** Keep a hidden <audio> in step with the video (play, pause, seek, speed, volume) while it carries the chosen audio track. */

@@ -93,3 +93,27 @@ describe('live caption model', () => {
     await waitFor(() => expect(screen.getByTestId('caption')).toHaveTextContent('Hello from speech'))
   })
 })
+
+describe('caption look and status', () => {
+  it('Settings lets you change caption size and background, and remembers it', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => (url.includes('/api/play/tracks/') ? json(tracks) : Promise.resolve(new Response('', { status: 404 })))))
+    render(<Player src="/stream/-1/1" media={{ cid: '-1', mid: 1 }} durationHint={60} onOpenVlc={() => {}} />)
+    await screen.findByRole('button', { name: 'Audio and subtitles' })
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Larger captions' }))
+    expect(screen.getByLabelText('Caption size')).toHaveTextContent('115%')
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Solid box' }))
+    expect(JSON.parse(localStorage.getItem('archive-x-caption-style') ?? localStorage.getItem('archive-x:caption-style') ?? '{}')).toMatchObject({ size: 1.15, bg: 'solid' })
+  })
+  it('says in the picture what live captions are doing instead of leaving it to guesswork', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.includes('/api/play/tracks/')) return json(tracks)
+      if (url.includes('/api/captions/status')) return json({ model: 'preparing' })
+      return Promise.resolve(new Response('', { status: 404 }))
+    }))
+    render(<Player src="/stream/-1/1" media={{ cid: '-1', mid: 1 }} durationHint={60} onOpenVlc={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Audio and subtitles' }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Live captions → English/ }))
+    expect(await screen.findByText(/getting the speech model ready/)).toBeInTheDocument()
+  })
+})

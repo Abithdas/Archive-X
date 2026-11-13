@@ -124,3 +124,6 @@ The Name box in People now searches your library first, then the performers avai
 
 ## Check faces (fixing a person in bulk)
 "Check faces" (on a named person's tile and in the banner over their photos) shows all faces of that person at once, least similar to the person's average face first (`GET /api/photos/faces/review`). One click ticks the 10 least alike or every face below 0.4 similarity; "Not X" takes all ticked faces out together into one new unnamed group, and "Move to someone else" puts them straight under the right performer (`POST /api/photos/faces/detections/move`). Nothing is deleted. Tested with synthetic embeddings.
+
+## Captions as subtitles
+Captions are drawn by the app as outlined text with no box (Settings: size A- / A+, no box / soft box / solid box, reset). Drag them anywhere on the picture, or focus them and use the arrow keys (Shift for bigger steps); the position, size and background are remembered. While live captions are not yet showing text, a small pill in the picture says why (getting the speech model ready, listening, or the server's own error). A grey box at the bottom of the window is Chrome's own Live Caption, which a web page cannot switch off: turn it off in Chrome Settings -> Accessibility.

@@ -11,6 +11,8 @@ import type { Segment } from './timeline'
 import { HLS_FAILED, hlsUrl, startHls } from './hlsplay'
 import { DOUBLE_TAP_MS, KEEP_SKIPPING_MS, registerTap, type TapState } from './tapseek'
 import { CcMenu } from './CcMenu'
+import { CaptionOverlay } from './CaptionOverlay'
+import { DEFAULT_STYLE, SIZE_STEP, clampSize, loadStyle, saveStyle, sizeLabel, type CaptionBg } from './captionStyle'
 import { useAltAudio, useTracks, type MediaRef } from './useTracks'
 
 export const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const
@@ -71,6 +73,10 @@ export function Player({ media, info, infoPending = false, src, poster, duration
   const overBar = useRef(false)
   const idleTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const altAudio = useRef<HTMLAudioElement>(null)
+  const [capStyle, setCapStyle] = useState(loadStyle)
+  const capRef = useRef(capStyle)
+  capRef.current = capStyle
+  const changeCap = (patch: Partial<typeof capStyle>) => setCapStyle((c) => { const n = { ...c, ...patch }; saveStyle(n); return n })
   const tracks = useTracks(media, video, time, playing)
   useAltAudio(video, altAudio, tracks.altUrl, muted, volume, rate)
   const tap = useRef<TapState | null>(null)
@@ -214,7 +220,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
     <div ref={box} onPointerMove={isFs ? wake : undefined} onKeyDown={isFs ? wake : undefined} onTouchStart={isFs ? wake : undefined}
       style={isFs ? undefined : ({ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${ratio.toFixed(4)})))` } as React.CSSProperties)}
       className={cn(isFs ? 'relative h-full w-full bg-black' : cn('relative mx-auto grid w-full sm:w-[var(--pw)]', !overlay && 'gap-4 sm:gap-5'), hideBar && 'cursor-none [&_video]:cursor-none')}>
-      <div style={isFs ? undefined : { aspectRatio: ratio }} className={cn('relative w-full overflow-hidden bg-[#111215]', isFs ? 'absolute inset-0 h-full' : 'rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
+      <div data-caption-frame style={isFs ? undefined : { aspectRatio: ratio }} className={cn('@container relative w-full overflow-hidden bg-[#111215]', isFs ? 'absolute inset-0 h-full' : 'rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
         <video
           key={`${attempt}-${mode}`}
           ref={video}
@@ -266,7 +272,8 @@ export function Player({ media, info, infoPending = false, src, poster, duration
           </div>
         ) : null}
         {tracks.altUrl ? <audio ref={altAudio} src={tracks.altUrl} preload="auto" className="hidden" /> : null}
-        {tracks.text ? <div aria-live="off" data-testid="caption" className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center px-4 sm:bottom-6"><span className="max-w-[90%] whitespace-pre-line rounded-lg bg-black/70 px-3 py-1.5 text-center text-sm font-medium leading-snug text-white [text-shadow:0_1px_2px_#000] sm:text-lg">{tracks.text}</span></div> : null}
+        {tracks.text ? <CaptionOverlay text={tracks.text} style={capStyle} onMove={(x, y) => setCapStyle((c) => ({ ...c, x, y }))} onMoveEnd={() => saveStyle(capRef.current)} /> : null}
+        {tracks.liveStatus ? <div role="status" className="pointer-events-none absolute left-3 top-3 z-20 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">{tracks.liveStatus}</div> : null}
         {snapshots && !started && !failed ? <SnapshotGrid data={snapshots} onPick={pickTime} /> : null}
         {hint ? <div role="status" className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-[#141417]/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-md">{hint}</div> : null}
         {loading && !failed ? <div role="status" aria-label="Loading video" className="absolute inset-0 grid place-items-center"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-white" /></div> : null}
@@ -325,6 +332,16 @@ export function Player({ media, info, infoPending = false, src, poster, duration
             <button type="button" className={cn(BTN, 'hidden @lg:grid')} onClick={pip} aria-label="Picture in picture" title="Picture in picture"><PipIcon /></button>
             {tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
             <PopMenu label="Settings" align="right" iconOnly button={<GearIcon />}>
+              <p className="max-w-[15rem] px-2.5 pb-1 text-[11px] leading-snug text-muted">A grey box at the bottom of the window is Chrome's own Live Caption. Switch it off in Chrome Settings → Accessibility; the captions here are drawn by the app.</p>
+              <MenuHead>Caption style</MenuHead>
+              <div className="flex items-center justify-between gap-3 px-2.5 py-1 text-xs"><span className="text-muted">Size</span>
+                <span className="flex items-center gap-1">
+                  <button type="button" aria-label="Smaller captions" onClick={() => changeCap({ size: clampSize(capStyle.size - SIZE_STEP) })} className="grid size-7 place-items-center rounded-md border border-line-2 font-bold hover:bg-fg/10">A−</button>
+                  <output aria-label="Caption size" className="w-10 text-center font-semibold tabular-nums">{sizeLabel(capStyle.size)}</output>
+                  <button type="button" aria-label="Larger captions" onClick={() => changeCap({ size: clampSize(capStyle.size + SIZE_STEP) })} className="grid size-7 place-items-center rounded-md border border-line-2 font-bold hover:bg-fg/10">A+</button>
+                </span></div>
+              {(['none', 'soft', 'solid'] as CaptionBg[]).map((b) => <MenuItem key={b} active={capStyle.bg === b} onClick={() => changeCap({ bg: b })}>{b === 'none' ? 'No box (outlined text)' : b === 'soft' ? 'Soft box' : 'Solid box'}</MenuItem>)}
+              <MenuItem onClick={() => changeCap({ x: DEFAULT_STYLE.x, y: DEFAULT_STYLE.y, size: DEFAULT_STYLE.size })} label="Reset caption position and size">Reset position and size</MenuItem>
               <MenuHead>Playback</MenuHead>
               <MenuHead>Live captions</MenuHead>
               {tracks.info?.captions.available ? (<>
