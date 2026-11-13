@@ -557,6 +557,65 @@ def register_library_routes(
         return {"ok": True, "items": items}
 
 
+    @router.get("/api/photos/faces/performers/provider-search")
+    async def photo_face_performer_provider_search(request: Request):
+        """Performers available through the metadata APIs (StashDB, ThePornDB) that match a typed name; nothing is imported."""
+        require_auth(request)
+        query = str(request.query_params.get("q") or "").strip()[:100]
+        if len(query) < 2:
+            return {"ok": True, "items": [], "configured": True}
+        from ..metadata.providers import search_performer_providers
+        configured = bool(db.setting("stashdb_api_key") or db.setting("tpdb_api_token"))
+        try:
+            rows = await search_performer_providers(db, query, limit=8) if configured else []
+        except Exception as exc:
+            db.log(f"Performer provider search failed for {query!r}: {type(exc).__name__}: {exc}", "WARN")
+            rows = []
+        items = [{"provider": str(r.get("provider") or ""), "provider_id": str(r.get("provider_id") or ""), "name": str(r.get("name") or ""),
+                  "image": str(r.get("image") or ""), "profile": str(r.get("profile") or ""), "aliases": r.get("aliases") or []}
+                 for r in rows if r.get("name") and r.get("provider_id")]
+        return {"ok": True, "items": items, "configured": configured}
+
+    @router.post("/api/photos/faces/performers/import")
+    async def photo_face_performer_import(request: Request):
+        """Create (or find) the local performer for a provider candidate and download its picture, so the face can be matched."""
+        require_auth(request)
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(400, "Request body must be valid JSON")
+        if not isinstance(body, dict):
+            raise HTTPException(400, "Request body must be an object")
+        name = str(body.get("name") or "").strip()
+        provider = str(body.get("provider") or "").strip().lower()
+        provider_id = str(body.get("provider_id") or "").strip()
+        image = str(body.get("image") or "").strip()
+        if not name or not provider or not provider_id:
+            raise HTTPException(400, "name, provider and provider_id are required")
+        if image and not (image.startswith("http://") or image.startswith("https://")):
+            raise HTTPException(400, "image must be an http(s) URL")
+        from ..engines.entity_identity import upsert_entity
+        def _make():
+            with db.lock:
+                pid = upsert_entity(db, "performers", name, provider=provider, provider_id=provider_id,
+                                    image=image or None, profile=str(body.get("profile") or "").strip() or None)
+                db.conn.commit()
+            return pid
+        pid = await asyncio.to_thread(_make)
+        if not pid:
+            raise HTTPException(409, "This performer could not be created locally")
+        downloaded = False
+        if image:
+            try:
+                from ..engines.thumbnail_cache import prefetch_entity_image
+                downloaded = bool(await prefetch_entity_image(db, "performer", int(pid), image))
+            except Exception as exc:
+                db.log(f"Imported performer {name}: picture download failed: {type(exc).__name__}: {exc}", "WARN")
+        db.log(f"Performer {name} imported from {provider} for face matching (picture {'saved' if downloaded else 'not saved'})", "SUCCESS",
+               event="photo_library.performer_imported", details={"performer_id": int(pid), "provider": provider})
+        return {"ok": True, "id": int(pid), "name": name, "picture_saved": downloaded}
+
+
     @router.post("/api/photos/faces/analyze")
     async def photo_face_analyze_start(request: Request):
         """Queue local image-based face detection and anonymous visual grouping."""

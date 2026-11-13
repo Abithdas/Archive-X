@@ -29,6 +29,8 @@ const mount = () => {
     if (url.startsWith('/api/photos?')) return json({ ok: true, items: [], total: 0, page: 0, per: 60 })
     if (url === '/api/photos/faces/analyze') return json({ ok: true, id: 'job1' })
     if (url.startsWith('/api/photos/scan-status/')) return json({ ok: true, status: 'RUNNING', progress: 80, current_item: '', operation: 'Matching faces with performer pictures' })
+    if (url.startsWith('/api/photos/faces/performers/provider-search')) return json({ ok: true, configured: true, items: [{ provider: 'stashdb', provider_id: 'abc', name: 'Nova Online', image: 'https://img/x.jpg' }] })
+    if (url === '/api/photos/faces/performers/import') return json({ ok: true, id: 55, name: 'Nova Online', picture_saved: true })
     if (url.startsWith('/api/photos/faces/performers')) return json({ items: [{ id: 7, name: 'Zoe Ray' }] })
     return json({ ok: true })
   }))
@@ -109,5 +111,14 @@ describe('getting back from a person', () => {
     await waitFor(() => expect(usePhotoStore.getState().tab).toBe('faces'))
     expect(usePhotoStore.getState().face).toBeNull()
     expect(await screen.findByRole('region', { name: 'Named people' })).toBeInTheDocument()
+  })
+  it('a performer who is only available through the APIs can be found, is added with its picture, and named', async () => {
+    const calls = mount()
+    const card = (await screen.findByRole('region', { name: 'Faces to name' })).querySelector('article')!
+    fireEvent.click(within(card as HTMLElement).getByRole('button', { name: 'Name' }))
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Performer name' }), { target: { value: 'nova' } })
+    fireEvent.click(await screen.findByRole('option', { name: /Nova Online/ }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/photos/faces/performers/import')?.body).toMatchObject({ provider: 'stashdb', provider_id: 'abc', name: 'Nova Online', image: 'https://img/x.jpg' }))
+    await waitFor(() => expect(calls.find((c) => c.url.endsWith('/assign'))).toMatchObject({ body: { performer_id: 55 } }))
   })
 })
