@@ -18,6 +18,7 @@ lives in the current playback stack instead.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import asyncio
 import io
 import threading
@@ -175,6 +176,7 @@ class DirectTelegramRangeSource:
             try:
                 self.governor.note_range_success(len(data), elapsed)
             except Exception:
+                _swallowed_note("telegram_range_transport.DirectTelegramRangeSource._fetch_exact_sync")
                 pass
         return data, elapsed
 
@@ -259,6 +261,7 @@ class DirectTelegramRangeSource:
                     try:
                         self.governor.note_range_success(len(data), elapsed)
                     except Exception:
+                        _swallowed_note("telegram_range_transport.DirectTelegramRangeSource._fetch_chunk_sync")
                         pass
                 with self._lock:
                     self._cache[aligned_offset] = data
@@ -275,6 +278,7 @@ class DirectTelegramRangeSource:
                         else:
                             self.governor.note_range_failure()
                     except Exception:
+                        _swallowed_note("telegram_range_transport.DirectTelegramRangeSource._fetch_chunk_sync")
                         pass
                 if is_flood_wait(exc):
                     wait = min(flood_wait_seconds(exc) + 2, self.FLOOD_WAIT_CAP)
@@ -327,6 +331,7 @@ class DirectTelegramRangeSource:
                 self.message = fresh
                 return fresh
         except Exception:
+            _swallowed_note("telegram_range_transport.DirectTelegramRangeSource._refresh_message")
             pass
         return None
 
@@ -399,6 +404,7 @@ class DirectTelegramRangeSource:
                 if key and result:
                     _scan_range_cache().store(key, offset, result)
             except Exception:
+                _swallowed_note("telegram_range_transport.DirectTelegramRangeSource.get_range_sync")
                 pass
             return result
         parts, got, empty = [], 0, 0

@@ -8,6 +8,7 @@ Session for asynchronous callers.
 """
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import asyncio
 import threading
 import weakref
@@ -160,4 +161,5 @@ async def close_async_sessions():
         try:
             await session.close()
         except Exception:
+            _swallowed_note("http_client.close_async_sessions")
             pass

@@ -16,6 +16,7 @@ responsive without shrinking the playback buffer or seek/read-ahead settings.
 #       - Policy and snapshot
 # ------------------------------------------------------------------
 from __future__ import annotations
+from .swallowed import note as _swallowed_note
 from .background_tasks import retain as _retain_task
 
 import asyncio
@@ -60,6 +61,7 @@ def restore_persisted_resource_controls(db, resources) -> str:
         try:
             db.log(f"Invalid saved resource control mode {mode!r}; using Automatic", "WARN")
         except Exception:
+            _swallowed_note("resource_manager.restore_persisted_resource_controls")
             pass
         mode = "automatic"
 

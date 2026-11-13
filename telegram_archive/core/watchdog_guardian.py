@@ -15,6 +15,7 @@ this process may terminate/restart the app only after a sustained liveness breac
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import argparse
 import base64
 import json
@@ -177,6 +178,7 @@ def _process_identity_token(pid: int) -> str | None:
             finally:
                 kernel32.CloseHandle(handle)
         except Exception:
+            _swallowed_note("watchdog_guardian._process_identity_token")
             pass
     proc_stat = Path(f"/proc/{int(pid)}/stat")
     if proc_stat.exists():
@@ -406,6 +408,7 @@ def _decode_command(value: str) -> list[str]:
         if isinstance(parsed, list) and parsed and all(isinstance(x, str) for x in parsed):
             return parsed
     except Exception:
+        _swallowed_note("watchdog_guardian._decode_command")
         pass
     return []
 
@@ -428,6 +431,7 @@ def run_guardian(*, manifest_path: Path, control_path: Path, parent_pid: int,
                 "heartbeat_unix": time.time(), "state": "MONITORING",
             })
         except Exception:
+            _swallowed_note("watchdog_guardian.run_guardian")
             pass
         control = _read_json(control_path)
         if control.get("action") == "stop":

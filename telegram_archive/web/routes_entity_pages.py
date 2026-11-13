@@ -8,6 +8,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 import time
@@ -627,6 +628,7 @@ def register_entity_page_routes(
                         try:
                             db.log(f"Studio image auto-repair failed for {int(studio_id)} ({studio_name}): {type(exc).__name__}: {exc}", "WARN")
                         except Exception:
+                            _swallowed_note("routes_entity_pages.register_entity_page_routes.studio_image")
                             pass
                     result, state, image_url, image_locked, studio_name = await asyncio.to_thread(_cached_image)
 
@@ -698,6 +700,7 @@ def register_entity_page_routes(
                             u=payload.get("studio_url") or payload.get("site_url") or payload.get("url")
                             if u: url=str(u).strip()
                     except Exception:
+                        _swallowed_note("routes_entity_pages.register_entity_page_routes._backfill_studios_from_media")
                         pass
                 if not name:
                     continue

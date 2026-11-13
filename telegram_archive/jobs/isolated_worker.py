@@ -9,6 +9,7 @@ work.
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import importlib
 import multiprocessing as mp
@@ -115,6 +116,7 @@ def _child_entry(job_id: str, job: dict[str, Any], db_path: str, result_queue) -
         try:
             db.log(f"Isolated worker failed for {job.get('job_type')}: {type(exc).__name__}: {exc}", "ERROR")
         except Exception:
+            _swallowed_note("isolated_worker._child_entry")
             pass
         result_queue.put({
             "ok": False,
@@ -125,6 +127,7 @@ def _child_entry(job_id: str, job: dict[str, Any], db_path: str, result_queue) -
         try:
             db.conn.close()
         except Exception:
+            _swallowed_note("isolated_worker._child_entry")
             pass
 
 

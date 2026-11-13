@@ -8,6 +8,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import os
 import re
@@ -75,6 +76,7 @@ class QBittorrentSupervisor:
             if parsed.port:
                 return int(parsed.port)
         except Exception:
+            _swallowed_note("qbittorrent_supervisor.QBittorrentSupervisor.port")
             pass
         return 8080
 
@@ -122,6 +124,7 @@ class QBittorrentSupervisor:
             candidates.append(Path(r"C:\Program Files\qBittorrent\qbittorrent.exe"))
             candidates.append(Path(r"C:\Program Files (x86)\qBittorrent\qbittorrent.exe"))
         except Exception:
+            _swallowed_note("qbittorrent_supervisor.QBittorrentSupervisor._candidate_paths")
             pass
         return list(dict.fromkeys(candidates))
 
@@ -139,6 +142,7 @@ class QBittorrentSupervisor:
                 if found:
                     return Path(found)
             except Exception:
+                _swallowed_note("qbittorrent_supervisor.QBittorrentSupervisor.find_executable")
                 pass
             # Registry lookup catches custom install folders.
             try:
@@ -153,6 +157,7 @@ class QBittorrentSupervisor:
                         if candidate.is_file():
                             return candidate
             except Exception:
+                _swallowed_note("qbittorrent_supervisor.QBittorrentSupervisor.find_executable")
                 pass
         return None
 
@@ -239,6 +244,7 @@ class QBittorrentSupervisor:
             try:
                 shutil.copy2(path, backup)
             except Exception:
+                _swallowed_note("qbittorrent_supervisor.QBittorrentSupervisor.configure_local_webui")
                 pass
         text = original
         # Never overwrite an existing WebUI address/auth policy. Only fill in
@@ -461,6 +467,7 @@ class QBittorrentSupervisor:
                         subprocess.run(ps, capture_output=True, text=True, timeout=5,
                                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
                     except Exception:
+                        _swallowed_note("qbittorrent_supervisor.QBittorrentSupervisor._launch_gui_sync")
                         pass
                 action = "activated"
             else:

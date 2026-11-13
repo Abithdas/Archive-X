@@ -14,6 +14,7 @@ Each video is attempted once per app run, so nothing is repeated endlessly.
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import time
 from collections import deque
@@ -159,6 +160,7 @@ class PageEnricher:
                         try:
                             await self.resources.release_background("metadata")
                         except Exception:
+                            _swallowed_note("page_enricher.PageEnricher._run")
                             pass
                     self.current = None
             self.attempted[key] = time.monotonic()
@@ -259,6 +261,7 @@ class PageEnricher:
                 if age.days < 30:
                     return
             except Exception:
+                _swallowed_note("page_enricher.PageEnricher._metadata")
                 pass
         filename = row["filename"] or f"telegram_{message_id}.mp4"
         oshash = None
@@ -292,6 +295,7 @@ class PageEnricher:
                 else:
                     oshash = await asyncio.to_thread(oshash_from_source, src)
             except Exception:
+                _swallowed_note("page_enricher.PageEnricher._metadata")
                 pass
         if self.priority_gate:
             async with self.priority_gate.slot("metadata"):

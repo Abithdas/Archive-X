@@ -9,6 +9,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import hmac
 import json
@@ -348,6 +349,7 @@ def register_system_routes(
                 with _diag_mod._BROWSER_LOCK:
                     _diag_mod._BROWSER_STATE["last_log_monotonic"] = now_m
         except Exception:
+            _swallowed_note("routes_system.register_system_routes.diagnostics_client")
             pass
         accepted = 0
         for raw in events[:40]:
@@ -464,6 +466,7 @@ def register_system_routes(
             try:
                 db.log(f"Could not count active jobs before graceful exit: {type(exc).__name__}: {exc}", "WARN")
             except Exception:
+                _swallowed_note("routes_system.register_system_routes.exit_archive_x")
                 pass
         try:
             db.log(
@@ -471,6 +474,7 @@ def register_system_routes(
                 "INFO", event="app.exit_requested", details={"active_jobs": active_count},
             )
         except Exception:
+            _swallowed_note("routes_system.register_system_routes.exit_archive_x")
             pass
 
         # Register the shutdown completion marker watched by the Windows .bat
@@ -488,6 +492,7 @@ def register_system_routes(
             try:
                 db.log(f"Shutdown completion marker setup failed: {type(exc).__name__}: {exc}", "WARN", event="app.exit_marker_prepare_failed")
             except Exception:
+                _swallowed_note("routes_system.register_system_routes.exit_archive_x")
                 pass
 
         # Let the 202 response leave the server before switching the server's

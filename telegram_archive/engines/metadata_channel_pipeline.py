@@ -33,6 +33,7 @@ operator workflow.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 import hashlib
@@ -151,6 +152,7 @@ def _log_pipeline_event(ctx, event: str, level: str = "INFO", *, channel_id: str
         if raw_detail.get("parent_automation_item"):
             payload["parent_automation_item"] = str(raw_detail.get("parent_automation_item"))
     except Exception:
+        _swallowed_note("metadata_channel_pipeline._log_pipeline_event")
         pass
     if details:
         payload.update(details)
@@ -601,6 +603,7 @@ async def _discover_and_store_inventory(ctx, channel_id: str, limit: int, *, ful
     try:
         flood_before = int(ctx.governor.channel_download_floodwaits(int(channel_id)))
     except Exception:
+        _swallowed_note("metadata_channel_pipeline._discover_and_store_inventory")
         pass
     highwater_key = f"inventory_highwater_v1_{int(channel_id)}"
     saved_highwater = await asyncio.to_thread(ctx.db.setting, highwater_key, None)
@@ -990,6 +993,7 @@ async def _inventory(ctx, channel_id: str, limit: int, *, full_scan: bool = Fals
             try:
                 ctx.governor.note_channel_scan_floodwait(int(channel_id))
             except Exception:
+                _swallowed_note("metadata_channel_pipeline._inventory")
                 pass
             ctx.db.log(f"Telegram flood wait during channel inventory; pausing {delay}s before retry {attempts}/5", "WARN")
             ctx.report(
@@ -1173,6 +1177,7 @@ def _caption_signatures(db, channel_id: str, videos: list[dict[str, Any]]) -> di
             result[media_id] = hashlib.sha256(caption.encode("utf-8")).hexdigest()
         except Exception:
             # Failure to render a comparison must not stop metadata processing.
+            _swallowed_note("metadata_channel_pipeline._caption_signatures")
             continue
     return result
 
@@ -1575,6 +1580,7 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
                     ctx.pipeline.heartbeat()
             except Exception:
                 # Dashboard progress must never fail actual snapshot work.
+                _swallowed_note("metadata_channel_pipeline._run_channel._snapshot_report")
                 pass
 
         async def _run_parallel_snapshot_phase():
@@ -1668,6 +1674,7 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
                     payload["progress"] = _work_snapshot(payload)
                     _save(ctx, payload)
                 except Exception:
+                    _swallowed_note("metadata_channel_pipeline._run_channel._monitor_phase")
                     continue
         monitor_task = asyncio.create_task(_monitor_phase())
         try:

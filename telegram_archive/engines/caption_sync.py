@@ -14,6 +14,7 @@ failure never rolls back local metadata; it is recorded for diagnosis and retry.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import html
 import re
 from typing import Any
@@ -391,6 +392,7 @@ async def sync_catalogue_caption(db, telegram, media_id: int) -> dict[str, Any]:
         level = "INFO" if ok else "WARN"
         db.log(f"Telegram caption sync {status} for media_id={media_id}: {detail}", level)
     except Exception:
+        _swallowed_note("caption_sync.sync_catalogue_caption")
         pass
     return _result(media_id, status, detail, ok=ok, channel_id=source_channel,
                    message_id=source_message_id, targets=outcomes,
@@ -415,6 +417,7 @@ async def sync_verified_delivery_caption(db, telegram, media_id: int) -> dict[st
                 "WARN",
             )
         except Exception:
+            _swallowed_note("caption_sync.sync_verified_delivery_caption")
             pass
         return _result(int(media_id), "failed", detail, ok=False)
     try:
@@ -424,6 +427,7 @@ async def sync_verified_delivery_caption(db, telegram, media_id: int) -> dict[st
             "INFO" if outcome.get("ok") else "WARN",
         )
     except Exception:
+        _swallowed_note("caption_sync.sync_verified_delivery_caption")
         pass
     return outcome
 

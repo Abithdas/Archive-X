@@ -15,6 +15,7 @@ Telegram FloodWait/network feedback.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import ipaddress
 import os
@@ -79,6 +80,7 @@ def _notify_reconnect_listeners(client, ok, reason, attempts, error) -> None:
         try:
             callback(client, ok, reason, attempts, error)
         except Exception:
+            _swallowed_note("client_policy._notify_reconnect_listeners")
             pass
 
 
@@ -94,10 +96,12 @@ def configure_telethon_client(client):
     try:
         client.flood_sleep_threshold = FLOOD_SLEEP_THRESHOLD_SECONDS
     except Exception:
+        _swallowed_note("client_policy.configure_telethon_client")
         pass
     try:
         client.request_retries = REQUEST_RETRIES
     except Exception:
+        _swallowed_note("client_policy.configure_telethon_client")
         pass
     return client
 
@@ -136,6 +140,7 @@ class GovernedTelegramClient(TelegramClient):
                 self._archive_x_ever_connected = True
                 self._archive_x_closed = False
         except Exception:
+            _swallowed_note("client_policy.GovernedTelegramClient.connect")
             pass
         return result
 
@@ -236,6 +241,7 @@ class GovernedTelegramClient(TelegramClient):
                 try:
                     governor.note_network_error(f"Telegram auth RPC: {type(exc).__name__}: {exc}")
                 except Exception:
+                    _swallowed_note("client_policy.GovernedTelegramClient._archive_x_governed_call")
                     pass
                 raise
 
@@ -260,6 +266,7 @@ class GovernedTelegramClient(TelegramClient):
                     try:
                         governor.note_upload_part_success(time.monotonic() - started)
                     except Exception:
+                        _swallowed_note("client_policy.GovernedTelegramClient._archive_x_governed_call")
                         pass
                     return result
                 except asyncio.CancelledError:
@@ -270,10 +277,12 @@ class GovernedTelegramClient(TelegramClient):
                         try:
                             exc._archive_x_upload_floodwait_noted = True
                         except Exception:
+                            _swallowed_note("client_policy.GovernedTelegramClient._archive_x_governed_call")
                             pass
                         try:
                             governor.note_upload_floodwait(seconds, request=request_name)
                         except Exception:
+                            _swallowed_note("client_policy.GovernedTelegramClient._archive_x_governed_call")
                             pass
                         callback = getattr(self, "_archive_x_upload_wait_callback", None)
                         if callable(callback):
@@ -282,6 +291,7 @@ class GovernedTelegramClient(TelegramClient):
                                 if hasattr(value, "__await__"):
                                     await value
                             except Exception:
+                                _swallowed_note("client_policy.GovernedTelegramClient._archive_x_governed_call")
                                 pass
                         # The slot has been released. Other upload parts wait on
                         # the upload-lane pause; RPC and playback lanes keep going.
@@ -319,6 +329,7 @@ class GovernedTelegramClient(TelegramClient):
                     try:
                         exc._archive_x_flood_noted = True
                     except Exception:
+                        _swallowed_note("client_policy.GovernedTelegramClient._archive_x_governed_call")
                         pass
                     raise
                 await asyncio.sleep(seconds)
@@ -667,5 +678,6 @@ def make_telegram_client(*args, governor=None, playback_priority=False, **kwargs
         try:
             setattr(client, "_archive_x_proxy_type", proxy_runtime.get("type"))
         except Exception:
+            _swallowed_note("client_policy.make_telegram_client")
             pass
     return configure_telethon_client(client)

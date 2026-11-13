@@ -15,6 +15,7 @@ requested operation.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import math
 import json
 import os
@@ -67,11 +68,13 @@ def _duration(container, stream) -> float:
         if stream.duration is not None and stream.time_base:
             return max(0.0, float(stream.duration * stream.time_base))
     except Exception:
+        _swallowed_note("internal_media._duration")
         pass
     try:
         if container.duration:
             return max(0.0, float(container.duration) / 1_000_000.0)
     except Exception:
+        _swallowed_note("internal_media._duration")
         pass
     return 0.0
 
@@ -91,6 +94,7 @@ def _probe_direct(path: str | Path) -> dict:
             if rate:
                 fps = float(rate)
         except Exception:
+            _swallowed_note("internal_media._probe_direct")
             pass
         return {
             "duration": _duration(c, vs) if vs else 0.0,
@@ -412,6 +416,7 @@ def _make_snapshot_frames_indexed_direct(input_path: str | Path, output_dir: str
                 try:
                     on_progress(last_fraction[0])
                 except Exception:
+                    _swallowed_note("internal_media._make_snapshot_frames_indexed_direct.report")
                     pass
 
         result = media_manager._smart_thumbnail_from_telegram_once(
@@ -458,6 +463,7 @@ def _make_snapshot_frames_indexed_direct(input_path: str | Path, output_dir: str
             try:
                 on_progress(1.0)
             except Exception:
+                _swallowed_note("internal_media._make_snapshot_frames_indexed_direct")
                 pass
         return {
             "frames_path": str(outdir), "frames": 36, "distinct_frames": len(signatures),
@@ -479,17 +485,20 @@ def _make_snapshot_frames_indexed_direct(input_path: str | Path, output_dir: str
                 file=sys.stderr, flush=True,
             )
         except Exception:
+            _swallowed_note("internal_media._make_snapshot_frames_indexed_direct")
             pass
         try:
             shutil.rmtree(Path(output_dir).with_name(Path(output_dir).name + ".indexed.building"), ignore_errors=True)
             Path(output_dir).with_name(Path(output_dir).name + ".indexed-representative.jpg").unlink(missing_ok=True)
         except Exception:
+            _swallowed_note("internal_media._make_snapshot_frames_indexed_direct")
             pass
         return None
     finally:
         try:
             representative.unlink(missing_ok=True)
         except Exception:
+            _swallowed_note("internal_media._make_snapshot_frames_indexed_direct")
             pass
 
 
@@ -522,6 +531,7 @@ def _make_snapshot_frames_pyav_direct(input_path: str | Path, output_dir: str | 
             try:
                 on_progress(max(0.0, min(1.0, float(value))))
             except Exception:
+                _swallowed_note("internal_media._make_snapshot_frames_pyav_direct._indexed_progress")
                 pass
     indexed = _make_snapshot_frames_indexed_direct(
         input_path, output_dir, count=count, width=width, quality=quality,
@@ -532,6 +542,7 @@ def _make_snapshot_frames_pyav_direct(input_path: str | Path, output_dir: str | 
             try:
                 on_progress(1.0)
             except Exception:
+                _swallowed_note("internal_media._make_snapshot_frames_pyav_direct")
                 pass
         return indexed
     if on_progress is not None:
@@ -540,6 +551,7 @@ def _make_snapshot_frames_pyav_direct(input_path: str | Path, output_dir: str | 
             # falling back to timestamp decoding, which starts a fresh frame set.
             on_progress(0.0)
         except Exception:
+            _swallowed_note("internal_media._make_snapshot_frames_pyav_direct")
             pass
 
     av = import_pyav()
@@ -596,6 +608,7 @@ def _make_snapshot_frames_pyav_direct(input_path: str | Path, output_dir: str | 
             try:
                 on_progress(fraction)
             except Exception:
+                _swallowed_note("internal_media._make_snapshot_frames_pyav_direct.notify_progress")
                 pass
 
     target_errors: dict[int, str] = {}
@@ -617,6 +630,7 @@ def _make_snapshot_frames_pyav_direct(input_path: str | Path, output_dir: str | 
             try:
                 video_stream.codec_context.thread_count = codec_threads
             except Exception:
+                _swallowed_note("internal_media._make_snapshot_frames_pyav_direct.decode_batch")
                 pass
             worker_tb = float(video_stream.time_base or 0.0)
             worker_start = getattr(video_stream, "start_time", None)
@@ -824,6 +838,7 @@ def _make_snapshot_frames_ffmpeg_direct(input_path: str | Path, output_dir: str 
         try:
             on_progress(max(0.0, min(1.0, float(value))))
         except Exception:
+            _swallowed_note("internal_media._make_snapshot_frames_ffmpeg_direct._report_progress")
             pass
 
     def valid_signature(path: Path) -> bytes | None:
@@ -1037,6 +1052,7 @@ def _make_snapshot_frames_ffmpeg_direct(input_path: str | Path, output_dir: str 
             try:
                 on_progress(1.0)
             except Exception:
+                _swallowed_note("internal_media._make_snapshot_frames_ffmpeg_direct")
                 pass
         return {
             "frames_path": str(outdir), "frames": count, "distinct_frames": len(signatures),
@@ -1062,6 +1078,7 @@ def _make_snapshot_frames_direct(input_path: str | Path, output_dir: str | Path,
         try:
             on_progress(max(0.0, min(1.0, float(value))))
         except Exception:
+            _swallowed_note("internal_media._make_snapshot_frames_direct.report_progress")
             pass
 
     for attempt in range(2):
@@ -1083,6 +1100,7 @@ def _make_snapshot_frames_direct(input_path: str | Path, output_dir: str | Path,
                     file=sys.stderr, flush=True,
                 )
             except Exception:
+                _swallowed_note("internal_media._make_snapshot_frames_direct")
                 pass
     report_progress(0.0)
     try:
@@ -1162,6 +1180,7 @@ def _run_worker(operation: str, payload: dict, on_progress: Optional[Callable[[f
                 if len(stderr_chunks) > 400:
                     del stderr_chunks[:200]
         except Exception:
+            _swallowed_note("internal_media._run_worker._drain_stderr")
             pass
 
     drain = threading.Thread(target=_drain_stderr, daemon=True, name=f"media-worker-{operation}-stderr")
@@ -1175,6 +1194,7 @@ def _run_worker(operation: str, payload: dict, on_progress: Optional[Callable[[f
                 try:
                     proc.kill()
                 except Exception:
+                    _swallowed_note("internal_media._run_worker._kill")
                     pass
         watchdog = threading.Timer(float(timeout), _kill)
         watchdog.daemon = True
@@ -1189,12 +1209,14 @@ def _run_worker(operation: str, payload: dict, on_progress: Optional[Callable[[f
             try:
                 item = json.loads(line)
             except Exception:
+                _swallowed_note("internal_media._run_worker")
                 continue
             if item.get("type") == "progress":
                 if on_progress:
                     try:
                         on_progress(float(item.get("value") or 0.0))
                     except Exception:
+                        _swallowed_note("internal_media._run_worker")
                         pass
             elif item.get("type") == "result":
                 result = item.get("value")
@@ -1207,6 +1229,7 @@ def _run_worker(operation: str, payload: dict, on_progress: Optional[Callable[[f
                 proc.kill()
                 proc.wait(5)
             except Exception:
+                _swallowed_note("internal_media._run_worker")
                 pass
         drain.join(5)
     if timed_out[0]:
@@ -1272,6 +1295,7 @@ def make_snapshot_frames(input_path: str | Path, output_dir: str | Path, *, coun
         try:
             on_progress(max(0.0, min(1.0, float(value))))
         except Exception:
+            _swallowed_note("internal_media.make_snapshot_frames.report_progress")
             pass
 
     for attempt in range(2):
@@ -1300,6 +1324,7 @@ def make_snapshot_frames(input_path: str | Path, output_dir: str | Path, *, coun
                     file=sys.stderr, flush=True,
                 )
             except Exception:
+                _swallowed_note("internal_media.make_snapshot_frames")
                 pass
             if not retry_worker:
                 break
@@ -1401,6 +1426,7 @@ def make_contact_sheet(frames_dir: str | Path, output_path: str | Path, *,
             try:
                 return ImageFont.truetype(candidate, size=size)
             except Exception:
+                _swallowed_note("internal_media.make_contact_sheet.font")
                 continue
         return ImageFont.load_default()
 

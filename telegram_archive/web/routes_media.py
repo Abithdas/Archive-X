@@ -10,6 +10,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 
@@ -193,6 +194,7 @@ def register_media_routes(
                     db.conn.execute("RELEASE SAVEPOINT archive_x_quick_edit")
                     db.conn.commit()
                 except Exception:
+                    _swallowed_note("routes_media.register_media_routes._quick_edit_sync")
                     pass
                 raise
         if changes and any(x in changes for x in ("performer", "studio", "title")):

@@ -15,6 +15,7 @@ one progress stream. The legacy module name is retained for compatibility.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 from collections import Counter
@@ -402,12 +403,14 @@ async def run(ctx):
                 try:
                     await _offload(ctx, _record_entity_refresh, entity_type, entity_id, "FAILED", str(exc))
                 except Exception:
+                    _swallowed_note("entity_data.run.one")
                     pass
                 if artwork_started and not artwork_recorded:
                     try:
                         await _offload(ctx, _record_artwork_refresh, entity_type, entity_id, "download_failed", "", "", f"{type(exc).__name__}: {exc}")
                         artwork_stats["download_failed"] += 1
                     except Exception:
+                        _swallowed_note("entity_data.run.one")
                         pass
                 stats["failed"] += 1
                 _activity(ctx, f"Entity refresh failed: {entity_type} · {name} · {type(exc).__name__}",

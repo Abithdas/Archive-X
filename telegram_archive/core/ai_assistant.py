@@ -7,6 +7,7 @@ Telegram capabilities.
 """
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import json
 import os
 import time
@@ -207,6 +208,7 @@ def project_context(db, *, telegram=None, jobs=None, governor=None, live: dict |
         try:
             parts.append("PROJECT CONTEXT:\n" + ctx_file.read_text(encoding="utf-8", errors="replace")[:10000])
         except Exception:
+            _swallowed_note("ai_assistant.project_context")
             pass
     try:
         investigation = db.ai_active_investigation()

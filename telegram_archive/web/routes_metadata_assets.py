@@ -9,6 +9,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import io
 import json
@@ -439,6 +440,7 @@ def register_metadata_assets_routes(
                 try:
                     await eng.stop()
                 except Exception:
+                    _swallowed_note("routes_metadata_assets.register_metadata_assets_routes._get_engine")
                     pass
                 ps["engine"] = None
             if not telegram.connected or telegram.client is None:
@@ -728,6 +730,7 @@ def register_metadata_assets_routes(
                     if isinstance(recs, dict):
                         return recs, version
                 except Exception:
+                    _swallowed_note("routes_metadata_assets.register_metadata_assets_routes._load_index")
                     pass
         return None, 0
 
@@ -813,6 +816,7 @@ def register_metadata_assets_routes(
                 if cached:
                     ready += 1
             except Exception:
+                _swallowed_note("routes_metadata_assets.register_metadata_assets_routes._validated_snapshot_counts_sync")
                 continue
         return total, ready
 
@@ -931,6 +935,7 @@ def register_metadata_assets_routes(
                         complete=False, dirty=True,
                     )
                 except Exception:
+                    _swallowed_note("routes_metadata_assets.register_metadata_assets_routes._start_index.run")
                     pass
                 db.log(f"Indexing channel {getattr(entity, 'title', cid)} failed: {st['error']}; checkpoint retained for resume", "ERROR")
             finally:
@@ -938,6 +943,7 @@ def register_metadata_assets_routes(
                     try:
                         await resources.release_background("metadata")
                     except Exception:
+                        _swallowed_note("routes_metadata_assets.register_metadata_assets_routes._start_index.run")
                         pass
                 st["done"] = True
         st["task"] = asyncio.create_task(run(), name=f"index-{cid}")

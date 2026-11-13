@@ -10,6 +10,7 @@ so recording a result never triggers a page refresh by itself.
 """
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import json
 
 _RANK = {"COMPLETED": 0, "COMPLETED_WITH_ERRORS": 1}
@@ -44,6 +45,7 @@ def record(db, job_id, *, status: str = "COMPLETED", progress: float | None = No
             "summary": " · ".join(dict.fromkeys(summaries)),
         })
     except Exception:
+        _swallowed_note("job_results.record")
         pass   # bookkeeping must never fail the job itself
 
 

@@ -14,6 +14,7 @@ bandwidth unexpectedly.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import asyncio, ctypes, json, os, platform, shutil, subprocess, time, urllib.request, urllib.error
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -53,7 +54,9 @@ def _cpu_info() -> dict[str, Any]:
     physical=logical
     if psutil:
         try: physical=psutil.cpu_count(logical=False) or logical
-        except Exception: pass
+        except Exception:
+            _swallowed_note("hardware_adaptive._cpu_info")
+            pass
     return {"name": platform.processor() or platform.uname().processor or "Unknown CPU",
             "physical_cores": physical, "logical_threads": logical,
             "architecture": platform.machine(), "python_bits": 64 if __import__('struct').calcsize('P')*8==64 else 32}
@@ -76,6 +79,7 @@ def _ram_info() -> dict[str, Any]:
                 "source": "psutil",
             }
         except Exception:
+            _swallowed_note("hardware_adaptive._ram_info")
             pass
 
     try:
@@ -133,6 +137,7 @@ def _ram_info() -> dict[str, Any]:
                             "total_gb": round(total/2**30,2), "available_gb": round(avail/2**30,2),
                             "source": "macOS-sysctl/vm_stat"}
     except Exception:
+        _swallowed_note("hardware_adaptive._ram_info")
         pass
     return {"total_bytes":0,"available_bytes":0,"total_gb":0,"available_gb":0,"source":"unavailable"}
 
@@ -151,7 +156,9 @@ def _gpu_info(ffmpeg: str|None) -> list[dict[str,Any]]:
             data=json.loads(raw); data=data if isinstance(data,list) else [data]
             for x in data:
                 gpus.append({"name":x.get("Name") or "Unknown GPU","memory_bytes":int(x.get("AdapterRAM") or 0),"driver":x.get("DriverVersion") or "","vendor":"nvidia" if 'nvidia' in (x.get('Name') or '').lower() else ('amd' if any(k in (x.get('Name') or '').lower() for k in ('amd','radeon')) else ('intel' if 'intel' in (x.get('Name') or '').lower() else 'other'))})
-        except Exception: pass
+        except Exception:
+            _swallowed_note("hardware_adaptive._gpu_info")
+            pass
     if not gpus and shutil.which('nvidia-smi'):
         rc,out,_=_run_sync(['nvidia-smi','--query-gpu=name,memory.total,driver_version','--format=csv,noheader,nounits'],5)
         if rc==0:
@@ -444,6 +451,7 @@ def detect_hardware_cached(ffmpeg: str | None = None, package_dir: Path | None =
             tmp.write_text(json.dumps({"key": key, "profile": profile}, default=str), encoding="utf-8")
             tmp.replace(cache)
         except Exception:
+            _swallowed_note("hardware_adaptive.detect_hardware_cached._detect_and_save")
             pass
         return profile
 
@@ -453,5 +461,6 @@ def detect_hardware_cached(ffmpeg: str | None = None, package_dir: Path | None =
             threading.Thread(target=_detect_and_save, name="archive-x-hardware-refresh", daemon=True).start()
             return saved["profile"]
     except Exception:
+        _swallowed_note("hardware_adaptive.detect_hardware_cached")
         pass
     return _detect_and_save()

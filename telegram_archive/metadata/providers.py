@@ -25,6 +25,7 @@ from the operator; without keys, lookups are simply skipped.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 from .. import config
 import json
@@ -155,6 +156,7 @@ def _ensure_cache(db):
         try:
             setattr(db, _CACHE_READY_ATTR, True)
         except Exception:
+            _swallowed_note("providers._ensure_cache")
             pass
 
 
@@ -169,6 +171,7 @@ def _provider_stat(db, provider: str, field: str, amount: int = 1):
             )
             db.conn.commit()
     except Exception:
+        _swallowed_note("providers._provider_stat")
         pass
 
 
@@ -183,6 +186,7 @@ def _record_provider_call(db, provider: str, *, status: str = "OK", error: str =
             )
             db.conn.commit()
     except Exception:
+        _swallowed_note("providers._record_provider_call")
         pass
 
 
@@ -815,7 +819,9 @@ async def tpdb_by_phash(db, token: str, phash: str) -> list[dict]:
             for fp in scene.get("fingerprints") or []:
                 if str(fp.get("algorithm") or fp.get("type") or "").upper() == "PHASH":
                     try: scene["_archive_phash_distance"] = (int(str(fp.get("hash") or fp.get("value") or ""), 16) ^ int(clean, 16)).bit_count()
-                    except Exception: pass
+                    except Exception:
+                        _swallowed_note("providers.tpdb_by_phash")
+                        pass
         _record_provider_call(db, "tpdb", latency_ms=(time.perf_counter()-started)*1000.0, entity_type="scene_phash")
     except Exception as exc:
         _provider_stat(db, "tpdb", "errors", 1)
@@ -1124,6 +1130,7 @@ async def collect_markers_for_message(db, channel_id, message_id) -> None:
         try:
             db.log(f"Scene marker collection skipped for {channel_id}/{message_id}: {type(exc).__name__}", "INFO", event="metadata.scene_markers")
         except Exception:
+            _swallowed_note("providers.collect_markers_for_message")
             pass
 
 
@@ -1490,6 +1497,7 @@ def _http_image_url(value: object) -> str:
         if parsed.scheme.lower() in {"http", "https"} and parsed.netloc:
             return url
     except Exception:
+        _swallowed_note("providers._http_image_url")
         pass
     return ""
 
@@ -2170,6 +2178,7 @@ async def performer_image_candidates_from_providers(db, name: str, provider_ids:
         except Exception:
             # Local artwork recovery is best-effort; remote provider lookup
             # remains the fallback path.
+            _swallowed_note("providers.performer_image_candidates_from_providers")
             pass
 
     async def stash_rows() -> list[dict]:
@@ -2329,6 +2338,7 @@ async def performer_image_from_providers(db, name: str, provider_ids: object = N
             if image and "stashdb" not in skipped:
                 candidates.append((2, image, "stashdb", pid))
         except Exception:
+            _swallowed_note("providers.performer_image_from_providers")
             pass
 
     if tpdb_key:
@@ -2350,6 +2360,7 @@ async def performer_image_from_providers(db, name: str, provider_ids: object = N
             if image and "theporndb" not in skipped and "tpdb" not in skipped:
                 candidates.append((1, image, "theporndb", pid))
         except Exception:
+            _swallowed_note("providers.performer_image_from_providers")
             pass
 
     if not candidates:
@@ -2407,6 +2418,7 @@ async def studio_image_candidates_from_providers(db, name: str, provider_ids: ob
         except Exception:
             # Local artwork recovery is best-effort; remote provider lookup
             # remains the fallback path.
+            _swallowed_note("providers.studio_image_candidates_from_providers")
             pass
 
     async def stash_rows() -> list[dict]:
@@ -2542,6 +2554,7 @@ async def studio_image_from_providers(db, name: str, provider_ids: object = None
             if image and "stashdb" not in skipped:
                 candidates.append((2, image, "stashdb", pid))
         except Exception:
+            _swallowed_note("providers.studio_image_from_providers")
             pass
 
     if tpdb_key:
@@ -2563,6 +2576,7 @@ async def studio_image_from_providers(db, name: str, provider_ids: object = None
             if image and "theporndb" not in skipped and "tpdb" not in skipped:
                 candidates.append((1, image, "theporndb", pid))
         except Exception:
+            _swallowed_note("providers.studio_image_from_providers")
             pass
 
     if not candidates:

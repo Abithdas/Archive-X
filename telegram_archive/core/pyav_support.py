@@ -11,6 +11,7 @@ source and never silently swaps to an incompatible system FFmpeg build.
 """
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import ctypes
 import importlib
 import importlib.util
@@ -37,6 +38,7 @@ def _unique_paths(paths: Iterable[Path]) -> list[Path]:
                 continue
             key = os.path.normcase(os.path.abspath(str(p)))
         except Exception:
+            _swallowed_note("pyav_support._unique_paths")
             continue
         if key not in seen:
             seen.add(key)
@@ -49,12 +51,14 @@ def _site_package_dirs() -> list[Path]:
     try:
         paths.extend(Path(x) for x in site.getsitepackages())
     except Exception:
+        _swallowed_note("pyav_support._site_package_dirs")
         pass
     try:
         user = site.getusersitepackages()
         if user:
             paths.append(Path(user))
     except Exception:
+        _swallowed_note("pyav_support._site_package_dirs")
         pass
     return _unique_paths(paths)
 
@@ -75,6 +79,7 @@ def _av_dirs() -> list[Path]:
             av_dir = Path(spec.origin).resolve().parent
             dirs.extend([av_dir, av_dir / "libs", av_dir.parent / "av.libs"])
     except Exception:
+        _swallowed_note("pyav_support._av_dirs")
         pass
     return _unique_paths(dirs)
 
@@ -198,6 +203,7 @@ def diagnose(*, force: bool = False) -> dict:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
             cache_file.write_text(_json.dumps(_DIAG_MEMO), encoding="utf-8")
         except Exception:
+            _swallowed_note("pyav_support.diagnose")
             pass
     return result
 

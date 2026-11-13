@@ -7,6 +7,7 @@ MPC-HC gets /new /play <url>.
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import os
 import subprocess
 import sys
@@ -76,6 +77,7 @@ def find_vlc() -> Optional[str]:
             if r.returncode == 0:
                 return r.stdout.strip().splitlines()[0]
         except Exception:
+            _swallowed_note("vlc_launcher.find_vlc")
             pass
     else:
         for name in ("vlc", "cvlc"):
@@ -84,6 +86,7 @@ def find_vlc() -> Optional[str]:
                 if r.returncode == 0:
                     return r.stdout.strip()
             except Exception:
+                _swallowed_note("vlc_launcher.find_vlc")
                 pass
     return None
 
@@ -110,6 +113,7 @@ def find_mpc_hc() -> Optional[str]:
                 if r.returncode == 0:
                     return r.stdout.strip().splitlines()[0]
             except Exception:
+                _swallowed_note("vlc_launcher.find_mpc_hc")
                 pass
     return None
 
@@ -186,6 +190,7 @@ def launch(stream_url: str, preferred: str = "vlc", title: str = "") -> dict:
         try:
             log_file.close()
         except Exception:
+            _swallowed_note("vlc_launcher.launch")
             pass
         raise
     _procs[proc.pid] = proc
@@ -195,6 +200,7 @@ def launch(stream_url: str, preferred: str = "vlc", title: str = "") -> dict:
             marker.write((f"\nArchive X launch player={name} pid={proc.pid} "
                           f"startup_ms={(time.monotonic()-launch_started)*1000:.1f}\n").encode("utf-8", "replace"))
     except Exception:
+        _swallowed_note("vlc_launcher.launch")
         pass
     if sys.platform == "win32":
         threading.Thread(target=_bring_to_front, args=(proc.pid, name), daemon=True,
@@ -208,6 +214,7 @@ def _allow_foreground():
         import ctypes
         ctypes.windll.user32.AllowSetForegroundWindow(-1)   # ASFW_ANY
     except Exception:
+        _swallowed_note("vlc_launcher._allow_foreground")
         pass
 
 
@@ -271,6 +278,7 @@ def _bring_to_front(pid: int, name: str, timeout: float = 20.0):
                 try:
                     raise_window(hwnd, visible)
                 except Exception:
+                    _swallowed_note("vlc_launcher._bring_to_front")
                     pass
             raised += 1
             time.sleep(1.5)   # the window is resized once the video starts
@@ -299,6 +307,7 @@ def status(pid: int) -> dict:
         try:
             log_file.close()
         except Exception:
+            _swallowed_note("vlc_launcher.status")
             pass
     return {"known": True, "running": False, "exit_code": int(code)}
 
@@ -309,7 +318,9 @@ def stop(pid: int) -> bool:
     if proc is None:
         if log_file is not None:
             try: log_file.close()
-            except Exception: pass
+            except Exception:
+                _swallowed_note("vlc_launcher.stop")
+                pass
         return False
     if sys.platform == "win32":
         try:
@@ -319,15 +330,18 @@ def stop(pid: int) -> bool:
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
         except Exception:
+            _swallowed_note("vlc_launcher.stop")
             pass
     else:
         try:
             proc.terminate()
         except Exception:
+            _swallowed_note("vlc_launcher.stop")
             pass
     if log_file is not None:
         try:
             log_file.close()
         except Exception:
+            _swallowed_note("vlc_launcher.stop")
             pass
     return True

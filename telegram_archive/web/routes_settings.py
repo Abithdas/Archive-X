@@ -11,6 +11,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 import re
@@ -507,6 +508,7 @@ def register_settings_routes(
                         break
                 job["activity_job_ids"] = sorted(activity_ids)
             except Exception:
+                _swallowed_note("routes_settings.register_settings_routes.get_job")
                 pass
         try:
             activity_limit = max(1, min(int(activity_limit or 500), 500))

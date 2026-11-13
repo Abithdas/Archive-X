@@ -42,8 +42,14 @@ for fp in files:
         if isinstance(n,(ast.Import,ast.ImportFrom)) and not (isinstance(n,ast.ImportFrom) and n.module=='__future__'):
             pos=n.lineno-1;break
     rel='.'.join(['']*1) 
-    pkg=p.parent.name
-    imp='from .swallowed import note as _swallowed_note' if pkg=='core' else 'from ..core.swallowed import note as _swallowed_note'
+    parts=p.resolve().relative_to(pathlib.Path(__file__).resolve().parents[1]/'telegram_archive').parts
+    depth=len(parts)-1                    # directories below telegram_archive
+    if pos is None:      # no other import: go before the first statement that is not the docstring or a __future__ import
+        for n in t2.body:
+            if isinstance(n,ast.Expr) and isinstance(getattr(n,'value',None),ast.Constant) and isinstance(n.value.value,str): continue
+            if isinstance(n,ast.ImportFrom) and n.module=='__future__': continue
+            pos=n.lineno-1;break
+    imp='from .swallowed import note as _swallowed_note' if parts[0]=='core' and depth==1 else 'from '+'.'*(depth+1)+'core.swallowed import note as _swallowed_note'
     L=s.split('\n');L.insert(pos,imp);s='\n'.join(L)
     ast.parse(s)
     p.write_text(s);total+=len(edits);print(fp,len(edits))

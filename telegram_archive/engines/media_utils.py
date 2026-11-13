@@ -7,6 +7,7 @@ Source: telegram_smart_video_router_v14_canonical_thumbnail_filename_fix.py
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import re
 import asyncio
 import io
@@ -37,6 +38,7 @@ def flood_wait_seconds(exc) -> int:
         if seconds > 0:
             return seconds
     except Exception:
+        _swallowed_note("media_utils.flood_wait_seconds")
         pass
     text = str(exc or "")
     for pattern in (
@@ -48,6 +50,7 @@ def flood_wait_seconds(exc) -> int:
             try:
                 return int(m.group(1))
             except Exception:
+                _swallowed_note("media_utils.flood_wait_seconds")
                 pass
     return 0
 
@@ -145,12 +148,14 @@ def is_video_message(message) -> bool:
             if type(attr).__name__ == "DocumentAttributeVideo":
                 return True
     except Exception:
+        _swallowed_note("media_utils.is_video_message")
         pass
 
     file_obj = None
     try:
         file_obj = getattr(message, "file", None)
     except Exception:
+        _swallowed_note("media_utils.is_video_message")
         pass
     try:
         mime = str(
@@ -161,12 +166,14 @@ def is_video_message(message) -> bool:
         if mime.startswith("video/"):
             return True
     except Exception:
+        _swallowed_note("media_utils.is_video_message")
         pass
     try:
         raw_name = str(getattr(file_obj, "name", None) or "").strip()
         if raw_name and Path(raw_name).suffix.lower() in VIDEO_EXTENSIONS:
             return True
     except Exception:
+        _swallowed_note("media_utils.is_video_message")
         pass
     return False
 
@@ -212,6 +219,7 @@ def is_image_document(message) -> bool:
         if mime.startswith("image/"):
             return True
     except Exception:
+        _swallowed_note("media_utils.is_image_document")
         pass
     try:
         name = getattr(message.file, "name", None) or ""
@@ -274,6 +282,7 @@ def media_attributes(message) -> tuple:
                     getattr(a, "duration", None),
                 )
     except Exception:
+        _swallowed_note("media_utils.media_attributes")
         pass
     return None, None, None
 
@@ -286,6 +295,7 @@ def get_video_dimensions(message) -> tuple:
         if getattr(message, "video", None):
             return int(message.video.w), int(message.video.h)
     except Exception:
+        _swallowed_note("media_utils.get_video_dimensions")
         pass
     return 0, 0
 
@@ -305,6 +315,7 @@ def streamable_status(message) -> Optional[bool]:
             if type(a).__name__ == "DocumentAttributeVideo":
                 return bool(getattr(a, "supports_streaming", False))
     except Exception:
+        _swallowed_note("media_utils.streamable_status")
         pass
     return False
 
@@ -327,6 +338,7 @@ async def forward_without_tag(client, destination, source_entity, message):
         try:
             return await client.send_message(destination, message, comment_to=None)
         except Exception:
+            _swallowed_note("media_utils.forward_without_tag")
             pass
         try:
             return await client.forward_messages(destination, message, source_entity,

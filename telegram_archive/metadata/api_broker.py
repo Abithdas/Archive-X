@@ -8,6 +8,7 @@ boundary itself when several Archive X workers miss the cache at once.
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import hashlib
 import json
 import os
@@ -130,6 +131,7 @@ def _retry_after(exc: Exception) -> float | None:
                 if value is not None:
                     candidates.append(str(value))
             except Exception:
+                _swallowed_note("api_broker._retry_after")
                 pass
     candidates.append(str(exc or ""))
     patterns = (

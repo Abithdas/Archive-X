@@ -22,6 +22,7 @@ this one governor.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -478,6 +479,7 @@ class TransferGovernor:
                 "INFO",
             )
         except Exception:
+            _swallowed_note("governor.TransferGovernor.note_file_reference_refresh")
             pass
 
     def note_channel_scan_floodwait(self, channel_id: int):
@@ -882,6 +884,7 @@ class TransferGovernor:
                 "WARN",
             )
         except Exception:
+            _swallowed_note("governor.TransferGovernor.note_upload_connection_failure")
             pass
 
     def note_upload_part_success(self, elapsed: float = 0.0) -> None:
@@ -891,6 +894,7 @@ class TransferGovernor:
                 self._upload_last_part_success_monotonic = time.monotonic()
                 self._upload_cond.notify_all()
         except Exception:
+            _swallowed_note("governor.TransferGovernor.note_upload_part_success")
             pass
 
     def note_upload_floodwait(self, seconds: float, request: str | None = None) -> None:
@@ -925,6 +929,7 @@ class TransferGovernor:
                 "WARN",
             )
         except Exception:
+            _swallowed_note("governor.TransferGovernor.note_upload_floodwait")
             pass
 
 

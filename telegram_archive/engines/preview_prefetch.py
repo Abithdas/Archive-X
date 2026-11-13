@@ -18,6 +18,7 @@ creation so page requests never need to decode the images again.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import os
 import json
@@ -362,6 +363,7 @@ def build_grid_sprite_sync(frames_dir: Path) -> bool:
                 if saved.get("version") == PREVIEW_VERSION and saved.get("frames") == signature:
                     return True
             except Exception:
+                _swallowed_note("preview_prefetch.build_grid_sprite_sync")
                 pass
         tile_w, tile_h, cols, rows = 320, 180, 6, 6
         sheet = Image.new("RGB", (tile_w * cols, tile_h * rows), "black")
@@ -650,6 +652,7 @@ def backfill_existing_local_preview_assets_sync(db) -> dict:
             "INFO", event="preview.local_backfill_complete", details=result,
         )
     except Exception:
+        _swallowed_note("preview_prefetch.backfill_existing_local_preview_assets_sync")
         pass
     return result
 
@@ -805,6 +808,7 @@ def _hydrate_media_metadata_sync(db, row, message):
         try:
             db.log(f"Playback snapshot metadata hydration {message.id}: {type(exc).__name__}: {exc}", "WARN")
         except Exception:
+            _swallowed_note("preview_prefetch._hydrate_media_metadata_sync")
             pass
         return {}
 
@@ -873,6 +877,7 @@ class SnapshotBuildControl:
         try:
             source.on_bytes = self.touch
         except Exception:
+            _swallowed_note("preview_prefetch.SnapshotBuildControl.attach")
             pass
         with self._lock:
             self._sources.append(source)
@@ -884,6 +889,7 @@ class SnapshotBuildControl:
         try:
             source.close()
         except Exception:
+            _swallowed_note("preview_prefetch.SnapshotBuildControl._close")
             pass
 
     def cancel(self):
@@ -997,6 +1003,7 @@ def _build_snapshot_body(client, msg, display_name, output_path, frames_dir, dur
         try:
             source.close()
         except Exception:
+            _swallowed_note("preview_prefetch._build_snapshot_body")
             pass
 
 def _set_state(db, cid: int, mid: int, *, status: str, path: Path, duration=0, width=0, height=0,
@@ -1045,6 +1052,7 @@ def _persist_snapshot_probe_metadata_sync(db, cid: int, mid: int, message, metad
         from ..playback import media_tools
         info.update(media_tools.browser_verdict(info, mime))
     except Exception:
+        _swallowed_note("preview_prefetch._persist_snapshot_probe_metadata_sync")
         pass
     now = _now()
     with db.lock:
@@ -1073,7 +1081,9 @@ def _persist_index_probe_sync(db, cid: int, mid: int, row=None, message=None) ->
         from ..core.playback_index_cache import read_manifest
         size = 0
         try: size = int(row["size"] or 0) if row is not None else 0
-        except Exception: pass
+        except Exception:
+            _swallowed_note("preview_prefetch._persist_index_probe_sync")
+            pass
         if not size and message is not None:
             size = int(getattr(getattr(message, "file", None), "size", 0) or 0)
         meta = read_manifest(int(cid), int(mid), size if size > 0 else None)
@@ -1086,7 +1096,9 @@ def _persist_index_probe_sync(db, cid: int, mid: int, row=None, message=None) ->
         name = str(getattr(getattr(message, "file", None), "name", "") or "")
         if row is not None:
             try: name = name or str(row["filename"] or row["title"] or "")
-            except Exception: pass
+            except Exception:
+                _swallowed_note("preview_prefetch._persist_index_probe_sync")
+                pass
         info = {"size": int(meta.get("source_size") or size or 0), "mime": mime, "name": name,
                 "vcodec": codec, "acodec": "", "width": width, "height": height,
                 "duration": duration, "fps": fps, "direct_likely": True,
@@ -1096,6 +1108,7 @@ def _persist_index_probe_sync(db, cid: int, mid: int, row=None, message=None) ->
             from ..playback import media_tools
             info.update(media_tools.browser_verdict(info, mime))
         except Exception:
+            _swallowed_note("preview_prefetch._persist_index_probe_sync")
             pass
         with db.lock:
             db.conn.execute("CREATE TABLE IF NOT EXISTS media_probe (source_channel TEXT NOT NULL,message_id INTEGER NOT NULL,info TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(source_channel,message_id))")
@@ -1187,6 +1200,7 @@ async def _run_snapshot_build(ctx, func, *args, stall_seconds: float | None = No
                 ctx.db.log("Snapshot build thread is still finishing after it was stopped; "
                            "its slot was released anyway", "WARN")
             except Exception:
+                _swallowed_note("preview_prefetch._run_snapshot_build._stop")
                 pass
         else:
             _consume(task)
@@ -1278,6 +1292,7 @@ def _probe_info_sync(db, cid: int, mid: int) -> dict:
             value = json.loads(row["info"] or "{}")
             return value if isinstance(value, dict) else {}
     except Exception:
+        _swallowed_note("preview_prefetch._probe_info_sync")
         pass
     return {}
 
@@ -1295,12 +1310,14 @@ def _ensure_playback_cache_from_message_sync(db, client, message, loop, row, cid
         from ..core.playback_index_cache import persist_telegram_location
         persist_telegram_location(cid, mid, message, size)
     except Exception:
+        _swallowed_note("preview_prefetch._ensure_playback_cache_from_message_sync")
         pass
     name = str(getattr(f, "name", "") or "")
     if not name and row is not None:
         try:
             name = str(row["filename"] or row["title"] or "")
         except Exception:
+            _swallowed_note("preview_prefetch._ensure_playback_cache_from_message_sync")
             pass
     suffix = Path(name).suffix.lower()
     requires_index = suffix in {".mp4", ".mov", ".m4v"}
@@ -1325,6 +1342,7 @@ def _ensure_playback_cache_from_message_sync(db, client, message, loop, row, cid
                     try:
                         source.close()
                     except Exception:
+                        _swallowed_note("preview_prefetch._ensure_playback_cache_from_message_sync")
                         pass
                 index_ok = _mp4_index_cache_ready(cid, mid, size, index_meta)
             if index_ok:
@@ -1485,6 +1503,7 @@ async def _build_one(ctx, row, *, message=None, frame_workers: int = 2, range_co
             await asyncio.to_thread(persist_telegram_location, cid, mid, msg,
                                     int(getattr(getattr(msg, "file", None), "size", 0) or 0))
         except Exception:
+            _swallowed_note("preview_prefetch._build_one")
             pass
         display_name = str(getattr(getattr(msg, "file", None), "name", None) or f"video {mid}")
         _job_activity(ctx, f"Telegram source resolved for snapshot extraction: {display_name}",
@@ -1536,6 +1555,7 @@ async def _build_one(ctx, row, *, message=None, frame_workers: int = 2, range_co
                                           current_item=video_name, event="telegram_snapshot.poster_ready",
                                           details={**common, "provisional": True, "frame_count": 0})
                         except Exception:
+                            _swallowed_note("preview_prefetch._build_one._publish_provisional_poster._announce_poster")
                             pass
                     loop.call_soon_threadsafe(_announce_poster)
                     return True
@@ -1544,6 +1564,7 @@ async def _build_one(ctx, row, *, message=None, frame_workers: int = 2, range_co
                         _LOG.info("Could not publish provisional snapshot poster for %s: %s: %s",
                                   video_name, type(exc).__name__, str(exc)[:240])
                     except Exception:
+                        _swallowed_note("preview_prefetch._build_one._publish_provisional_poster")
                         pass
                     return False
 
@@ -1560,6 +1581,7 @@ async def _build_one(ctx, row, *, message=None, frame_workers: int = 2, range_co
                     if getattr(ctx, "pipeline", None) is not None:
                         ctx.pipeline.heartbeat(activity=True)
                 except Exception:
+                    _swallowed_note("preview_prefetch._build_one._frame_progress._emit_frame_progress")
                     pass
             try:
                 loop.call_soon_threadsafe(_emit_frame_progress)
@@ -1638,6 +1660,7 @@ async def _build_one(ctx, row, *, message=None, frame_workers: int = 2, range_co
         try:
             await asyncio.to_thread(_persist_index_probe_sync, ctx.db, cid, mid, row, msg)
         except Exception:
+            _swallowed_note("preview_prefetch._build_one")
             pass
         _job_activity(ctx, f"Telegram snapshot generation failed for {video_name}: {type(exc).__name__}",
                       operation="Snapshots · extraction failed", current_item=video_name,
@@ -1654,6 +1677,7 @@ async def _build_one(ctx, row, *, message=None, frame_workers: int = 2, range_co
             import shutil
             shutil.rmtree(build_dir, ignore_errors=True)
         except Exception:
+            _swallowed_note("preview_prefetch._build_one")
             pass
 
 
@@ -1670,6 +1694,7 @@ async def run(ctx):
         try:
             channels.append(int(value))
         except Exception:
+            _swallowed_note("preview_prefetch.run")
             continue
     channels = list(dict.fromkeys(channels))
     message_ids = []
@@ -1677,6 +1702,7 @@ async def run(ctx):
         try:
             message_ids.append(int(value))
         except Exception:
+            _swallowed_note("preview_prefetch.run")
             continue
     message_ids = list(dict.fromkeys(message_ids))
     try:

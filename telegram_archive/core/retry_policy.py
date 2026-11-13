@@ -1,6 +1,7 @@
 """Shared transient-error classification and bounded retry delays."""
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import random
 import re
 from dataclasses import dataclass
@@ -30,6 +31,7 @@ class RetryPolicy:
             try:
                 return max(0, int(val))
             except Exception:
+                _swallowed_note("retry_policy.RetryPolicy.flood_seconds")
                 pass
         text = f"{type(exc).__name__} {exc}".upper()
         m = re.search(r"FLOOD(?:_PREMIUM)?_WAIT[_ ](\d+)", text)

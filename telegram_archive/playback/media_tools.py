@@ -28,6 +28,7 @@ http://127.0.0.1 URL of the shared playback engine.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import glob
 import io
@@ -118,6 +119,7 @@ async def _run(cmd: list[str], timeout: float, want_stdout=True) -> tuple[int, b
         try:
             await asyncio.wait_for(proc.wait(), 3)
         except Exception:
+            _swallowed_note("media_tools._run")
             pass
         raise
     return proc.returncode, out or b"", err or b""
@@ -151,6 +153,7 @@ def summarize_probe(raw: dict) -> dict:
         num, den = str((v or {}).get("avg_frame_rate") or "0/1").split("/")
         fps = float(num) / float(den) if float(den) else 0.0
     except Exception:
+        _swallowed_note("media_tools.summarize_probe")
         pass
     return {
         "duration": round(duration, 3),
@@ -558,6 +561,7 @@ async def _load_moov_playback(source: _PlaybackPreviewRangeSource):
     except asyncio.CancelledError:
         raise
     except Exception:
+        _swallowed_note("media_tools._load_moov_playback")
         pass
     for mb in (4, 8):
         window_size = min(total, mb * 1024 * 1024)
@@ -572,6 +576,7 @@ async def _load_moov_playback(source: _PlaybackPreviewRangeSource):
                 if 0 < size <= 2 * 1024 * 1024:
                     return await source.get_range(start_off, size), start_off
         except Exception:
+            _swallowed_note("media_tools._load_moov_playback")
             pass
         try:
             front = await source.get_range(0, window_size)
@@ -583,6 +588,7 @@ async def _load_moov_playback(source: _PlaybackPreviewRangeSource):
                 if 0 < size <= 2 * 1024 * 1024:
                     return await source.get_range(start_off, size), start_off
         except Exception:
+            _swallowed_note("media_tools._load_moov_playback")
             pass
     raise RuntimeError("MP4 moov atom was not found")
 
@@ -611,6 +617,7 @@ async def resolve_seek_keyframe_segment(engine, vkey, message, t: float, epoch: 
             segment_size = max(1024, int((saved_manifest or {}).get("segment_size") or config.PLAYBACK_RANGE_CHUNK_BYTES))
             return offset // segment_size
     except Exception:
+        _swallowed_note("media_tools.resolve_seek_keyframe_segment")
         pass
     with _DIRECT_PREVIEW_INDEX_LOCK:
         cached = _DIRECT_PREVIEW_INDEX_CACHE.get(key)
@@ -797,6 +804,7 @@ async def preview_frame(url: str, t: float, width: int = 480, timeout: float = 1
                 im.convert("RGB").save(out_jpg, format="JPEG", quality=75, optimize=False, progressive=False)
                 return out_jpg.getvalue()
         except Exception:
+            _swallowed_note("media_tools.preview_frame")
             pass
 
     # Hardware decoding may fail for one HEVC stream even though the machine-
@@ -885,6 +893,7 @@ def cleanup_previews(max_bytes: int = 300 * 1024 * 1024) -> dict:
         result["preview_removed"] = r["removed"]
         result["preview_bytes"] = r["bytes"]
     except Exception:
+        _swallowed_note("media_tools.cleanup_previews")
         pass
 
     # 36-frame sheets are also disposable. Keep a separate, smaller cache so a
@@ -895,6 +904,7 @@ def cleanup_previews(max_bytes: int = 300 * 1024 * 1024) -> dict:
         result["sheet_removed"] = r["removed"]
         result["sheet_bytes"] = r["bytes"]
     except Exception:
+        _swallowed_note("media_tools.cleanup_previews")
         pass
 
     # Crash leftovers from atomic writes. They are never valid published cache

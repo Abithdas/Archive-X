@@ -1,6 +1,7 @@
 """Shared helpers for performer/studio artwork synchronization."""
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import re
 from typing import Any
 from urllib.parse import urlparse
@@ -24,6 +25,7 @@ def http_image_url(value: Any) -> str:
         if parsed.scheme.lower() in {"http", "https"} and parsed.netloc:
             return url
     except Exception:
+        _swallowed_note("entity_image_utils.http_image_url")
         pass
     return ""
 

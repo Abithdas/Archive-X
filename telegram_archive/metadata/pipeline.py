@@ -21,6 +21,7 @@ already MATCHED/VERIFIED is skipped unless force=True (section 12).
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 from ..core.resource_registry import sync_message_state
 
 from datetime import datetime, timezone
@@ -493,6 +494,7 @@ async def _identify_video_core(db, *, channel_id, message_id, filename, oshash=N
             try:
                 db.log(f"Visual scene fingerprint unavailable for {channel_id}/{message_id}: {type(exc).__name__}: {exc}", "WARN")
             except Exception:
+                _swallowed_note("pipeline._identify_video_core")
                 pass
         if visual_hash and outcome.get("confidence") != "HIGH":
             visual_context = dict(context)
@@ -532,6 +534,7 @@ async def _identify_video_core(db, *, channel_id, message_id, filename, oshash=N
                 try:
                     db.log(f"Visual scene lookup failed for {channel_id}/{message_id}: {type(exc).__name__}: {exc}", "WARN")
                 except Exception:
+                    _swallowed_note("pipeline._identify_video_core")
                     pass
 
     confidence, best = outcome["confidence"], outcome["best"]
@@ -565,6 +568,7 @@ async def _identify_video_core(db, *, channel_id, message_id, filename, oshash=N
                          "reason": reason_text},
             )
         except Exception:
+            _swallowed_note("pipeline._identify_video_core")
             pass
     if (confidence == "HIGH" and best is not None and not suggest_only
             and not was_rejected_candidate(db, channel_id, message_id, best)):
@@ -653,6 +657,7 @@ async def _identify_video_core(db, *, channel_id, message_id, filename, oshash=N
             db.log(f"Scene match review {channel_id}/{message_id}: provider lookup inconclusive; errors={'; '.join(map(str, errors))[:500]}; signals={outcome.get('searched_clues') or []}", "WARN", event="metadata.scene_match_review",
                    details={"channel_id": str(channel_id), "message_id": int(message_id), "result": "provider_error", "errors": errors[:8], "searched_clues": outcome.get("searched_clues") or [], "searched_dates": outcome.get("searched_dates") or []})
         except Exception:
+            _swallowed_note("pipeline._identify_video_core")
             pass
         set_identification_state(db, channel_id, message_id, "PARTIAL")
         sync_message_state(db, channel_id, message_id, metadata="FAILED", provider="FAILED",
@@ -663,6 +668,7 @@ async def _identify_video_core(db, *, channel_id, message_id, filename, oshash=N
         db.log(f"Scene match review {channel_id}/{message_id}: no candidate; searched clues={outcome.get('searched_clues') or []}; dates={outcome.get('searched_dates') or []}; year={outcome.get('searched_year')}", "INFO", event="metadata.scene_match_review",
                details={"channel_id": str(channel_id), "message_id": int(message_id), "result": "no_match", "searched_clues": outcome.get("searched_clues") or [], "searched_dates": outcome.get("searched_dates") or [], "searched_year": outcome.get("searched_year"), "provider_searches": outcome.get("provider_searches") or {}})
     except Exception:
+        _swallowed_note("pipeline._identify_video_core")
         pass
     _mark_none(db, channel_id, message_id)
     sync_message_state(db, channel_id, message_id, metadata="COMPLETE", provider="COMPLETE", reason="PROVIDER_REQUIRED", external_access="PROVIDER")
@@ -797,6 +803,7 @@ async def _log_filename_entity_reconciliation(db, channel_id, message_id, *, pha
         try:
             db.log(f"Filename entity matching failed for {channel_id}/{message_id}: {type(exc).__name__}: {exc}", "WARN")
         except Exception:
+            _swallowed_note("pipeline._log_filename_entity_reconciliation")
             pass
         return {"videos_scanned": 0, "performer_links_added": 0, "studio_links_added": 0,
                 "unknown_links_replaced": 0, "ambiguous_entities_skipped": 0}
@@ -844,6 +851,7 @@ async def identify_video(db, *, channel_id, message_id, filename, oshash=None, f
         if row and not identity:
             identity = str(row["oshash"] or row["identity_key"] or "")
     except Exception:
+        _swallowed_note("pipeline.identify_video")
         pass
     from ..core.video_locks import video_operation_lock
     async with video_operation_lock(identity_key=identity, source_channel=channel, source_message_id=mid):
@@ -860,6 +868,7 @@ async def identify_video(db, *, channel_id, message_id, filename, oshash=None, f
                     return {"action": "skipped", "reason": "verified_delivery_already_published",
                             "source": "archive_x_delivery_ledger", "channel_id": channel, "message_id": mid}
             except Exception:
+                _swallowed_note("pipeline.identify_video")
                 pass
         return await _identify_video_unlocked(
             db, channel_id=channel_id, message_id=message_id, filename=filename, oshash=oshash,

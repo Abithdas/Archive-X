@@ -7,6 +7,7 @@ studio has no usable API image URL.
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import json
 from typing import Any
 
@@ -52,6 +53,7 @@ async def _provider_image_from_linked_media(db, studio_id: int, studio_name: str
         try:
             payload = json.loads(row["provider_payload"] or "{}")
         except Exception:
+            _swallowed_note("studio_image_sync._provider_image_from_linked_media")
             continue
         image, source, provider_id = _payload_studio_image(payload)
         payload_name = payload.get("studio") or payload.get("site")
@@ -78,6 +80,7 @@ async def _provider_image_by_filename(db, studio_id: int, studio_name: str) -> t
         try:
             result = await identify(db, oshash=None, filename=str(row["filename"] or ""))
         except Exception:
+            _swallowed_note("studio_image_sync._provider_image_by_filename")
             continue
         for match in result.get("matches") or []:
             match_name = match.get("studio") or match.get("site") or ""

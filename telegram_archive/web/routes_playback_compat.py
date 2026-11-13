@@ -9,6 +9,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import copy
 import os
@@ -101,6 +102,7 @@ def register_playback_compat_routes(
                 try:
                     await asyncio.wait_for(proc.wait(), timeout=2.0)
                 except Exception:
+                    _swallowed_note("routes_playback_compat.register_playback_compat_routes._start_compat_process")
                     pass
                 try:
                     err=(await proc.stderr.read()).decode("utf-8","ignore")[-700:]
@@ -108,9 +110,13 @@ def register_playback_compat_routes(
                     err=""
                 if proc.returncode is None:
                     try: proc.kill()
-                    except Exception: pass
+                    except Exception:
+                        _swallowed_note("routes_playback_compat.register_playback_compat_routes._start_compat_process")
+                        pass
                 try: await asyncio.wait_for(proc.wait(), timeout=2.0)
-                except Exception: pass
+                except Exception:
+                    _swallowed_note("routes_playback_compat.register_playback_compat_routes._start_compat_process")
+                    pass
                 db.log(f"Compatibility backend failed {channel_id}/{message_id}: decoder={decoder or 'software'} encoder={encoder} {err}".strip(), "WARN")
             except Exception as exc:
                 db.log(f"Compatibility backend start failed {channel_id}/{message_id}: decoder={decoder or 'software'} encoder={encoder}: {type(exc).__name__}: {exc}", "WARN")
@@ -232,6 +238,7 @@ def register_playback_compat_routes(
                 try:
                     await asyncio.wait_for(proc.wait(), timeout=3)
                 except Exception:
+                    _swallowed_note("routes_playback_compat.register_playback_compat_routes.stream_browser_compat.gen")
                     pass
                 if acquired and resources is not None:
                     await resources.release_background("conversion")
@@ -242,6 +249,7 @@ def register_playback_compat_routes(
                         if err.strip():
                             db.log(f"Compatibility stream {channel_id}/{message_id}: {err}", "WARN")
                     except Exception:
+                        _swallowed_note("routes_playback_compat.register_playback_compat_routes.stream_browser_compat.gen")
                         pass
 
         mime_type = _mse_compat_codec_type(info, plan)
@@ -401,6 +409,7 @@ def register_playback_compat_routes(
                 seen.add(key)
                 items.append((c, m, str(item.get("name") or "").replace("\r", " ").replace("\n", " ")))
             except Exception:
+                _swallowed_note("routes_playback_compat.register_playback_compat_routes.play_device_playlist_link")
                 continue
         if not items:
             raise HTTPException(400, "no videos")
@@ -410,6 +419,7 @@ def register_playback_compat_routes(
             engine = await _get_engine()
             engine.set_play_order([(c, m) for c, m, _ in items])
         except Exception:
+            _swallowed_note("routes_playback_compat.register_playback_compat_routes.play_device_playlist_link")
             pass
         playlist_dir = config.PLAYER_CACHE_DIR / "device_playlists"
         playlist_dir.mkdir(parents=True, exist_ok=True)
@@ -419,6 +429,7 @@ def register_playback_compat_routes(
                 if now - old.stat().st_mtime > 12 * 3600:
                     old.unlink()
             except Exception:
+                _swallowed_note("routes_playback_compat.register_playback_compat_routes.play_device_playlist_link")
                 pass
         playlist_id = secrets.token_hex(16)
         path = playlist_dir / f"{playlist_id}.m3u"
@@ -444,6 +455,7 @@ def register_playback_compat_routes(
                 items.append((int(item["channel_id"]), int(item["message_id"]),
                               str(item.get("name") or "").replace("\r", " ").replace("\n", " ")))
             except Exception:
+                _swallowed_note("routes_playback_compat.register_playback_compat_routes.play_device_playlist")
                 continue
         if not items:
             raise HTTPException(400, "no videos")
@@ -453,6 +465,7 @@ def register_playback_compat_routes(
             engine = await _get_engine()
             engine.set_play_order([(c, m) for c, m, _ in items])
         except Exception:
+            _swallowed_note("routes_playback_compat.register_playback_compat_routes.play_device_playlist")
             pass
         lines = ["#EXTM3U"]
         for c, m, name in items:
@@ -481,6 +494,7 @@ def register_playback_compat_routes(
             try:
                 c, m = int(item["channel_id"]), int(item["message_id"])
             except Exception:
+                _swallowed_note("routes_playback_compat.register_playback_compat_routes.play_external")
                 continue
             if (c, m) in seen:
                 continue
@@ -519,6 +533,7 @@ def register_playback_compat_routes(
                 if old.stat().st_mtime < time.time() - 86400:
                     old.unlink()
             except Exception:
+                _swallowed_note("routes_playback_compat.register_playback_compat_routes.play_external")
                 pass
         kind = "random" if len(items) > 1 else "single"
         launch_source = None
@@ -567,6 +582,7 @@ def register_playback_compat_routes(
                                   "item_count": len(items), "log_path": result.get("log_path", ""),
                                   "direct_single": len(items) == 1})
         except Exception:
+            _swallowed_note("routes_playback_compat.register_playback_compat_routes.play_external")
             pass
         return {"ok": True, **result, "random": len(items) > 1, "count": len(items),
                 "playlist": str(launch_source) if len(items) > 1 else None}
@@ -594,6 +610,7 @@ def register_playback_compat_routes(
                 if current_order == normalized_keys:
                     eng.set_play_order([])
             except Exception:
+                _swallowed_note("routes_playback_compat.register_playback_compat_routes._finish_external_playback_session")
                 pass
             for key in keys:
                 try:
@@ -604,12 +621,14 @@ def register_playback_compat_routes(
                         db.log(f"External player cleanup failed for {key}: {type(exc).__name__}: {exc}", "WARN",
                                event="playback.external.cleanup_failed", details={"pid": int(pid), "video": list(key)})
                     except Exception:
+                        _swallowed_note("routes_playback_compat.register_playback_compat_routes._finish_external_playback_session")
                         pass
         try:
             db.log(f"External player session closed ({reason}); released {released}/{len(keys)} video resource(s)",
                    "INFO", event="playback.external.closed", details={"pid": int(pid), "reason": reason,
                    "video_count": len(keys), "released_videos": released})
         except Exception:
+            _swallowed_note("routes_playback_compat.register_playback_compat_routes._finish_external_playback_session")
             pass
         return {"released_videos": released, "session_found": True}
 
@@ -634,6 +653,7 @@ def register_playback_compat_routes(
                 db.log(f"External player monitor failed for PID {pid}: {type(exc).__name__}: {exc}", "WARN",
                        event="playback.external.monitor_failed", details={"pid": int(pid)})
             except Exception:
+                _swallowed_note("routes_playback_compat.register_playback_compat_routes._monitor_external_player")
                 pass
         finally:
             current = _external_player_monitors.get(int(pid))

@@ -5,6 +5,7 @@ retries for short-lived network failures instead of marking the first timeout as
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import errno
 from typing import Any, Callable
@@ -66,6 +67,7 @@ async def retry_async(
                 try:
                     on_retry(exc, attempt, delay)
                 except Exception:
+                    _swallowed_note("preview_resolver.retry_async")
                     pass
             await asyncio.sleep(delay)
     raise RuntimeError("unreachable retry state")
@@ -96,6 +98,7 @@ def resolve_cached_thumbnail(db, channel_id: int, message_id: int) -> dict[str, 
                 return {"data": frame_bytes, "mime": "image/jpeg", "source": "playback-snapshot",
                         "width": 0, "height": 0, "visual_hash": ""}
         except Exception:
+            _swallowed_note("preview_resolver.resolve_cached_thumbnail")
             pass
         info = playback_snapshot_cached_info_sync(db, int(channel_id), int(message_id))
         if not info or not info.get("data"):

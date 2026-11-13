@@ -23,6 +23,7 @@ This avoids the false-positive restart loops common in naive watchdogs.
 #       - Evaluation loop
 # ------------------------------------------------------------------
 from __future__ import annotations
+from .swallowed import note as _swallowed_note
 from .background_tasks import retain as _retain_task
 
 import json
@@ -340,6 +341,7 @@ class EventLoopGuard:
             with path.open("a", encoding="utf-8") as fh:
                 fh.write(text + "\n")
         except Exception:
+            _swallowed_note("watchdogs.EventLoopGuard._write_stall")
             pass
 
     def _dump_loop_stack(self, age: float) -> None:
@@ -381,6 +383,7 @@ class EventLoopGuard:
                         try:
                             self._dump_loop_stack(age)
                         except Exception:
+                            _swallowed_note("watchdogs.EventLoopGuard._run")
                             pass
 
     def snapshot(self) -> dict[str, Any]:
@@ -526,6 +529,7 @@ class WatchdogManager:
                     try:
                         guardian.kill()
                     except Exception:
+                        _swallowed_note("watchdogs.WatchdogManager.stop")
                         pass
 
     def register_job(self, job_id: str, job_type: str, *, replace: bool = False) -> None:
@@ -868,6 +872,7 @@ class WatchdogManager:
             try:
                 path.unlink(missing_ok=True)
             except Exception:
+                _swallowed_note("watchdogs.WatchdogManager._configure_guardian")
                 pass
         self._report_previous_guardian_restart()
 
@@ -885,6 +890,7 @@ class WatchdogManager:
                 try:
                     item = json.loads(raw)
                 except Exception:
+                    _swallowed_note("watchdogs.WatchdogManager._report_previous_guardian_restart")
                     continue
                 if str(item.get("event") or "").startswith("watchdog.guardian_restart") or item.get("event") == "watchdog.guardian_enforcement":
                     last = item
@@ -896,6 +902,7 @@ class WatchdogManager:
                 if marker.is_file() and marker.read_text(encoding="utf-8").strip() == stamp:
                     return
             except Exception:
+                _swallowed_note("watchdogs.WatchdogManager._report_previous_guardian_restart")
                 pass
             reason = str(last.get("reason") or "unknown").replace("_", " ")
             self.manager.db.log(
@@ -906,6 +913,7 @@ class WatchdogManager:
             marker.parent.mkdir(parents=True, exist_ok=True)
             marker.write_text(stamp, encoding="utf-8")
         except Exception:
+            _swallowed_note("watchdogs.WatchdogManager._report_previous_guardian_restart")
             pass
 
     def _start_guardian_process(self) -> bool:
@@ -936,6 +944,7 @@ class WatchdogManager:
                 lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
                 tail = " | ".join(x.strip() for x in lines[-5:] if x.strip())[:600]
             except Exception:
+                _swallowed_note("watchdogs.WatchdogManager._start_guardian_process")
                 pass
             try:
                 self.manager.db.log(
@@ -944,6 +953,7 @@ class WatchdogManager:
                     "ERROR", event="watchdog.guardian_restart_backoff",
                 )
             except Exception:
+                _swallowed_note("watchdogs.WatchdogManager._start_guardian_process")
                 pass
             return False
         launches.append(now)
@@ -987,7 +997,9 @@ class WatchdogManager:
                 self._guardian_process = subprocess.Popen(args, **kwargs)
             finally:
                 try: guardian_log.close()
-                except Exception: pass
+                except Exception:
+                    _swallowed_note("watchdogs.WatchdogManager._start_guardian_process")
+                    pass
             self._guardian_started_monotonic = time.monotonic()
             # Popen success does not prove the standard-library guardian loaded
             # correctly. Give it a short bootstrap interval, verify it is alive,
@@ -1003,6 +1015,7 @@ class WatchdogManager:
                         "ERROR", event="watchdog.guardian_start_exited",
                     )
                 except Exception:
+                    _swallowed_note("watchdogs.WatchdogManager._start_guardian_process")
                     pass
                 return False
             self._guardian_status = "RUNNING"
@@ -1012,6 +1025,7 @@ class WatchdogManager:
                     "INFO", event="watchdog.guardian_started",
                 )
             except Exception:
+                _swallowed_note("watchdogs.WatchdogManager._start_guardian_process")
                 pass
             return True
         except Exception as exc:
@@ -1022,6 +1036,7 @@ class WatchdogManager:
                     "ERROR", event="watchdog.guardian_start_failed",
                 )
             except Exception:
+                _swallowed_note("watchdogs.WatchdogManager._start_guardian_process")
                 pass
             return False
 
@@ -1031,6 +1046,7 @@ class WatchdogManager:
         try:
             self._write_atomic_json(self._control_path, {"action": action, "timestamp_unix": time.time()})
         except Exception:
+            _swallowed_note("watchdogs.WatchdogManager._write_guardian_control")
             pass
 
     @staticmethod
@@ -1179,6 +1195,7 @@ class WatchdogManager:
                 try:
                     process.kill()
                 except Exception:
+                    _swallowed_note("watchdogs.WatchdogManager._restart_guardian_process")
                     pass
         self._guardian_process = None
         for path in (self._control_path, self._guardian_heartbeat_path):
@@ -1186,6 +1203,7 @@ class WatchdogManager:
                 try:
                     path.unlink(missing_ok=True)
                 except Exception:
+                    _swallowed_note("watchdogs.WatchdogManager._restart_guardian_process")
                     pass
         # A live-but-unresponsive guardian can be replaced immediately. A dead
         # guardian/start failure still respects the retry cooldown in start().
@@ -1280,12 +1298,14 @@ class WatchdogManager:
                                         event="watchdog.independent_force_stop", job_id=jid,
                                         details={"reason": reason})
                 except Exception:
+                    _swallowed_note("watchdogs.WatchdogManager._independent_stop_job_on_loop")
                     pass
         except Exception as exc:
             try:
                 self.manager.db.log(f"Independent watchdog stop failed: {type(exc).__name__}: {exc}", "ERROR",
                                     event="watchdog.independent_force_stop_failed", job_id=jid)
             except Exception:
+                _swallowed_note("watchdogs.WatchdogManager._independent_stop_job_on_loop")
                 pass
         finally:
             if not stopped:
@@ -1332,6 +1352,7 @@ class WatchdogManager:
                     self.manager.db.log("Watchdog task restarted by independent monitor", "ERROR",
                                         event="watchdog.task_restarted")
                 except Exception:
+                    _swallowed_note("watchdogs.WatchdogManager._recover_watchdog_task")
                     pass
         finally:
             with self._independent_lock:
@@ -1381,6 +1402,7 @@ class WatchdogManager:
                 if process.is_alive():
                     return False
             except Exception:
+                _swallowed_note("watchdogs.WatchdogManager._idle_for_operator")
                 pass
         runner = self._runner_snapshot()
         if runner and str(runner.get("job_id") or "") == job_id and runner.get("running"):
@@ -1474,6 +1496,7 @@ class WatchdogManager:
                                      event="watchdog.force_stop_failed", job_id=jid,
                                      details={"state": state, "elapsed_seconds": round(elapsed, 2)})
             except Exception:
+                _swallowed_note("watchdogs.WatchdogManager._enforce_unrecovered_grace")
                 pass
         return True
 
@@ -1615,6 +1638,7 @@ class WatchdogManager:
                                             event="watchdog.failed", job_id=jid,
                                             details={"job_type": job.get("job_type")})
                     except Exception:
+                        _swallowed_note("watchdogs.WatchdogManager._tick")
                         pass
                     continue
 
@@ -1632,6 +1656,7 @@ class WatchdogManager:
                             details={"watchdog": result, "pipeline": pipe or {}},
                         )
                     except Exception:
+                        _swallowed_note("watchdogs.WatchdogManager._tick")
                         pass
 
                 # Safe recovery: only automatically stop transfer runners that
@@ -1652,6 +1677,7 @@ class WatchdogManager:
                                     details={"heartbeat_age": hb_age, "reason": result["reason"]},
                                 )
                             except Exception:
+                                _swallowed_note("watchdogs.WatchdogManager._tick")
                                 pass
 
             # Run this outside the alert-only branch so a recovery to HEALTHY

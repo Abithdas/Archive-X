@@ -11,6 +11,7 @@ video. Entity recheck targets take precedence over channel-suggestion targets
 when the same video is selected by more than one scope.
 """
 from __future__ import annotations
+from ..core.swallowed import note as _swallowed_note
 from .. import config
 
 import asyncio
@@ -104,6 +105,7 @@ def _selected_entity_ids(ctx, payload: dict, key: str, table: str) -> set[int]:
             if ivalue > 0:
                 out.add(ivalue)
         except Exception:
+            _swallowed_note("suggestion_scan._selected_entity_ids")
             continue
     return out
 
@@ -221,6 +223,7 @@ async def _prefetch_source_messages(ctx, client, batch) -> dict[tuple[int, int],
         try:
             grouped.setdefault(int(row["source_channel"]), []).append(int(row["source_message_id"]))
         except Exception:
+            _swallowed_note("suggestion_scan._prefetch_source_messages")
             continue
     found: dict[tuple[int, int], object] = {}
     for channel_id, ids in grouped.items():
@@ -357,6 +360,7 @@ async def run(ctx):
                             try:
                                 source.close()
                             except Exception:
+                                _swallowed_note("suggestion_scan.run.one")
                                 pass
 
                 _activity(ctx, f"Scene matching started for {filename}",

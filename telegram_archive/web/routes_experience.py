@@ -11,6 +11,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import shutil
 from pathlib import Path
@@ -114,6 +115,7 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
                 if eng is not None:
                     eng.clear_current_video_if_idle(reason='browser_activity_false')
             except Exception:
+                _swallowed_note("routes_experience.register.play_activity")
                 pass
         return {'ok': True, 'playing': playing}
 
@@ -437,6 +439,7 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
                 try:
                     root.destroy()
                 except Exception:
+                    _swallowed_note("routes_experience.register.browse_storage_folder._pick")
                     pass
                 return str(selected or '').strip()
             except Exception as exc:

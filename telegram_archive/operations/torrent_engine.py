@@ -10,6 +10,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import faulthandler
 import hashlib
@@ -589,6 +590,7 @@ class LibtorrentEngine(DownloadEngine):
             if v2 and str(v2):
                 return str(v2).lower()
         except Exception:
+            _swallowed_note("torrent_engine.LibtorrentEngine._handle_hash")
             pass
         try:
             value = handle.info_hash()
@@ -664,6 +666,7 @@ class LibtorrentEngine(DownloadEngine):
                 if key and self._sources.get(key, "").strip().lower() == source_norm:
                     return handle
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentEngine._find_handle_for_source")
                 continue
         return None
 
@@ -726,6 +729,7 @@ class LibtorrentEngine(DownloadEngine):
                 seen.add(key)
                 out.append(handle)
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentEngine._handles_snapshot")
                 continue
         # Also discover handles that may have been added by libtorrent but aren't in our map.
         try:
@@ -740,6 +744,7 @@ class LibtorrentEngine(DownloadEngine):
                         out.append(handle)
                         seen.add(key)
         except Exception:
+            _swallowed_note("torrent_engine.LibtorrentEngine._handles_snapshot")
             pass
         return out
 
@@ -769,6 +774,7 @@ class LibtorrentEngine(DownloadEngine):
                             info.hash = target
                             return info
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentEngine._sync_get")
                 continue
         return None
 
@@ -791,6 +797,7 @@ class LibtorrentEngine(DownloadEngine):
                 seen.add(identity)
                 out.append(info)
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentEngine._sync_list")
                 continue
         # Include any valid handles discovered by libtorrent that were not in our
         # local map; this is mainly defensive for a long-lived session.
@@ -805,6 +812,7 @@ class LibtorrentEngine(DownloadEngine):
                 seen.add(identity)
                 out.append(info)
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentEngine._sync_list")
                 continue
         return out
 
@@ -835,6 +843,7 @@ class LibtorrentEngine(DownloadEngine):
                     })
                 return out
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentEngine._sync_files")
                 continue
         return []
 
@@ -866,6 +875,7 @@ class LibtorrentEngine(DownloadEngine):
                 if num_files <= 0:
                     return False
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentEngine._sync_select_video_only")
                 continue
             listing = []
             for index in range(num_files):
@@ -910,6 +920,7 @@ class LibtorrentEngine(DownloadEngine):
                     key_to_remove = key
                     break
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentEngine._sync_remove")
                 continue
         if handle is None:
             return
@@ -941,6 +952,7 @@ class LibtorrentEngine(DownloadEngine):
                 try:
                     handle.pause()
                 except Exception:
+                    _swallowed_note("torrent_engine.LibtorrentEngine._sync_close")
                     pass
         finally:
             self._handles.clear()
@@ -950,6 +962,7 @@ class LibtorrentEngine(DownloadEngine):
                 if callable(abort):
                     abort()
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentEngine._sync_close")
                 pass
             self._session = None
 
@@ -966,6 +979,7 @@ class LibtorrentEngine(DownloadEngine):
                 elif not actual and any(c is handle and k == target for k, c in self._handles.items()):
                     out.append(handle)
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentEngine._matching_handles")
                 continue
         return out
 
@@ -1003,6 +1017,7 @@ class LibtorrentEngine(DownloadEngine):
             try:
                 actual = self._handle_hash(handle).lower()
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentEngine._sync_recheck")
                 continue
             if actual != target and not target.startswith(actual) and not actual.startswith(target):
                 continue
@@ -1034,6 +1049,7 @@ class LibtorrentEngine(DownloadEngine):
             if callable(have_piece):
                 return bool(have_piece(_native_int(piece)))
         except Exception:
+            _swallowed_note("torrent_engine.LibtorrentEngine._piece_done")
             pass
         try:
             pieces = getattr(status, "pieces", None)
@@ -1069,6 +1085,7 @@ class LibtorrentEngine(DownloadEngine):
                     if 0 <= piece < num_pieces:
                         edges.add(piece)
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentEngine._selected_video_edge_pieces")
                 continue
         return edges
 
@@ -1336,6 +1353,7 @@ class QBittorrentEngine(DownloadEngine):
         except Exception:
             # The current category is always queried even if category metadata
             # is temporarily unavailable.
+            _swallowed_note("torrent_engine.QBittorrentEngine._archive_categories")
             pass
         return categories
 
@@ -1795,6 +1813,7 @@ class QBittorrentEngine(DownloadEngine):
                 if self._logged_in:
                     await self._request("POST", "auth/logout")
             except Exception:
+                _swallowed_note("torrent_engine.QBittorrentEngine.close")
                 pass
             await self._session.close()
         self._session = None
@@ -1830,6 +1849,7 @@ def _torrent_worker_process_main(conn, metadata_dir: str, listen_port: int, enab
             crash_log.write(f"\n--- worker PID={multiprocessing.current_process().pid} started ---\n")
             faulthandler.enable(file=crash_log, all_threads=True)
         except Exception:
+            _swallowed_note("torrent_engine._torrent_worker_process_main")
             pass
         engine = LibtorrentEngine(
             metadata_dir=metadata_dir,
@@ -1912,16 +1932,19 @@ def _torrent_worker_process_main(conn, metadata_dir: str, listen_port: int, enab
                 "traceback": _short_traceback(),
             })
         except Exception:
+            _swallowed_note("torrent_engine._torrent_worker_process_main")
             pass
     finally:
         try:
             conn.close()
         except Exception:
+            _swallowed_note("torrent_engine._torrent_worker_process_main")
             pass
         try:
             if crash_log is not None:
                 crash_log.close()
         except Exception:
+            _swallowed_note("torrent_engine._torrent_worker_process_main")
             pass
 
 
@@ -1978,6 +2001,7 @@ class LibtorrentWorkerEngine(DownloadEngine):
             with self._diagnostic_path.open("a", encoding="utf-8", buffering=1) as fh:
                 fh.write(json.dumps(record, ensure_ascii=True, sort_keys=True) + "\n")
         except Exception:
+            _swallowed_note("torrent_engine.LibtorrentWorkerEngine._write_parent_event")
             pass
 
     def _record_worker_exit(self, *, operation: str, process: Any, exit_code: int | None) -> None:
@@ -1993,6 +2017,7 @@ class LibtorrentWorkerEngine(DownloadEngine):
         try:
             self._last_exit_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
         except Exception:
+            _swallowed_note("torrent_engine.LibtorrentWorkerEngine._record_worker_exit")
             pass
 
     def _start_process(self) -> None:
@@ -2070,6 +2095,7 @@ class LibtorrentWorkerEngine(DownloadEngine):
                         if process is not None:
                             process.join(timeout=0.25)
                     except Exception:
+                        _swallowed_note("torrent_engine.LibtorrentWorkerEngine._rpc_sync")
                         pass
                     code = process.exitcode if process is not None else None
                     code_hex = f"0x{(int(code) & 0xFFFFFFFF):08X}" if code is not None else ""
@@ -2095,6 +2121,7 @@ class LibtorrentWorkerEngine(DownloadEngine):
                     if process is not None:
                         process.join(timeout=0.25)
                 except Exception:
+                    _swallowed_note("torrent_engine.LibtorrentWorkerEngine._rpc_sync")
                     pass
                 code = process.exitcode if process is not None else None
                 self._last_worker_error = (
@@ -2129,16 +2156,19 @@ class LibtorrentWorkerEngine(DownloadEngine):
             if conn is not None:
                 conn.close()
         except Exception:
+            _swallowed_note("torrent_engine.LibtorrentWorkerEngine._discard_worker_locked")
             pass
         if process is not None:
             try:
                 if process.is_alive():
                     process.terminate()
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentWorkerEngine._discard_worker_locked")
                 pass
             try:
                 process.join(timeout=3)
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentWorkerEngine._discard_worker_locked")
                 pass
 
     def _terminate_worker_locked(self) -> None:
@@ -2215,8 +2245,10 @@ class LibtorrentWorkerEngine(DownloadEngine):
                     try:
                         self._conn.recv()
                     except Exception:
+                        _swallowed_note("torrent_engine.LibtorrentWorkerEngine.close")
                         pass
             except Exception:
+                _swallowed_note("torrent_engine.LibtorrentWorkerEngine.close")
                 pass
             finally:
                 self._discard_worker_locked()

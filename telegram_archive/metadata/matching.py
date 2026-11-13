@@ -17,6 +17,7 @@ operator review instead of being silently applied.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import re
 import unicodedata
 import asyncio
@@ -635,6 +636,7 @@ async def identify_with_confidence(db, *, oshash: str | None, filename: str,
                     candidate["_archive_visual_error"] = str(exc)[:180]
             await asyncio.gather(*(compare_one(candidate) for candidate in matches[:5] if isinstance(candidate, dict)))
         except Exception:
+            _swallowed_note("matching.identify_with_confidence")
             pass
     method = result.get("method")
     errors = result.get("errors") or []

@@ -13,6 +13,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import collections
 import copy
@@ -453,6 +454,7 @@ def register_playback_routes(
                 if key not in keys:
                     keys.append(key)
             except Exception:
+                _swallowed_note("routes_playback.register_playback_routes.play_upcoming")
                 continue
         selected_current = None
         try:
@@ -461,6 +463,7 @@ def register_playback_routes(
             if candidate in keys:
                 selected_current = candidate
         except Exception:
+            _swallowed_note("routes_playback.register_playback_routes.play_upcoming")
             pass
         if not keys:
             return {"ok": True}
@@ -535,6 +538,7 @@ def register_playback_routes(
                             )
                         eng.scheduler.wake()
                 except Exception:
+                    _swallowed_note("routes_playback.register_playback_routes.play_telemetry_route")
                     pass
             if reason != "first-frame":
                 play_telemetry["count"] += 1
@@ -824,6 +828,7 @@ def register_playback_routes(
             record_event(event="playback.mse_client", level="WARN",
                          message=f"MSE playback {details['stage'] or 'event'} in the browser", details=details)
         except Exception:
+            _swallowed_note("routes_playback.register_playback_routes.play_mse_event")
             pass
         db.log(f"MSE browser event {details['stage']} {details['channel_id']}/{details['message_id']}: {details['error']} {json.dumps(details['mse'])[:400]}", "WARN")
         return {"ok": True}
@@ -857,6 +862,7 @@ def register_playback_routes(
                     try:
                         await asyncio.to_thread(cache._persist_manifest_sync)
                     except Exception:
+                        _swallowed_note("routes_playback.register_playback_routes.play_range_cache_keep")
                         pass
         from ..playback.stream_server import set_range_cache_kept
         return await asyncio.to_thread(set_range_cache_kept, channel_id, message_id, kept)
@@ -946,6 +952,7 @@ def register_playback_routes(
                     engine.release_video((int(channel_id), int(message_id)), reason="download_finished",
                         client_id=download_client, generation=1, token=download_token)
                 except Exception:
+                    _swallowed_note("routes_playback.register_playback_routes.play_download_original.body")
                     pass
         return StreamingResponse(body(), media_type="application/octet-stream", headers={
             "Content-Length": str(size), "Accept-Ranges": "none",
@@ -1125,6 +1132,7 @@ def register_playback_routes(
                         "completed_segments": len(completed),
                     }
             except Exception:
+                _swallowed_note("routes_playback.register_playback_routes._direct_asset_state")
                 pass
         return {"status": "idle", "kind": "direct"}
 
@@ -1445,6 +1453,7 @@ def register_playback_routes(
                 try:
                     await proc.wait()
                 except Exception:
+                    _swallowed_note("routes_playback.register_playback_routes._build_compat_asset")
                     pass
                 raise
             finally:
@@ -1473,6 +1482,7 @@ def register_playback_routes(
             try:
                 partial.unlink(missing_ok=True)
             except Exception:
+                _swallowed_note("routes_playback.register_playback_routes._build_compat_asset")
                 pass
             compat_cache_state[key] = {"status": "error", "error": f"{type(exc).__name__}: {exc}"[:800]}
             db.log(f"Web playback cache failed {cid}/{mid}: {type(exc).__name__}: {exc}", "WARN")
@@ -1574,6 +1584,7 @@ def register_playback_routes(
                         epoch=getattr(engine, "epoch", 0),
                     )
                 except Exception:
+                    _swallowed_note("routes_playback.register_playback_routes._generate_preview.run")
                     pass
             try:
                 return await media_tools.preview_frame_legacy(
@@ -1797,6 +1808,7 @@ def register_playback_routes(
                     from ..core.runtime_cleanup import cleanup_runtime_artifacts
                     cleanup_runtime_artifacts()
                 except Exception:
+                    _swallowed_note("routes_playback.register_playback_routes.play_preview._save")
                     pass
         try:
             if not path.exists():
@@ -1804,6 +1816,7 @@ def register_playback_routes(
             else:
                 jpg = await asyncio.to_thread(path.read_bytes)
         except Exception:
+            _swallowed_note("routes_playback.register_playback_routes.play_preview")
             pass
         preview_stats["generated"] += 1
         preview_stats["last_ms"] = round((time.monotonic() - started_at) * 1000.0, 1)

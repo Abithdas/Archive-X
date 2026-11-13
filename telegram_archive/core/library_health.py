@@ -1,6 +1,7 @@
 """Read-only library health checks and local-only artwork-cache repair helpers."""
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 from pathlib import Path
 from typing import Any
 
@@ -176,6 +177,7 @@ def repair_artwork_cache_from_disk(db, *, limit: int = 100) -> dict[str, Any]:
         try:
             db.log(f"Library health repaired {len(repaired)} artwork cache row(s) from verified local files")
         except Exception:
+            _swallowed_note("library_health.repair_artwork_cache_from_disk")
             pass
     return {"examined": min(len(candidates), limit), "repaired": len(repaired),
             "skipped": len(skipped), "failed": len(failures),

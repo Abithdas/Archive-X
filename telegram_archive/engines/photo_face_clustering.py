@@ -15,6 +15,7 @@ user explicitly map a group to one of Archive X's performer records.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import hashlib
 import json
@@ -78,6 +79,7 @@ def _download_checked(url: str, destination: Path, expected_sha256: str) -> None
         try:
             temp.unlink(missing_ok=True)
         except Exception:
+            _swallowed_note("photo_face_clustering._download_checked")
             pass
 
 
@@ -146,6 +148,7 @@ def _extract_faces(image_path: str, crop_dir_path: str, detector, recognizer) ->
         try:
             source.seek(0)
         except Exception:
+            _swallowed_note("photo_face_clustering._extract_faces")
             pass
         rgb = source.convert("RGB")
         # Bound memory use for very large camera/source scans while preserving
@@ -191,6 +194,7 @@ def _extract_faces(image_path: str, crop_dir_path: str, detector, recognizer) ->
             })
         except Exception:
             # A bad face crop should not make the whole photo fail.
+            _swallowed_note("photo_face_clustering._extract_faces")
             continue
     return results
 
@@ -339,6 +343,7 @@ def _load_centroids(db):
             if len(groups[gid]) < 12:
                 groups[gid].append(vector.copy())
         except Exception:
+            _swallowed_note("photo_face_clustering._load_centroids")
             continue
     return groups
 
@@ -385,6 +390,7 @@ def _store_photo_faces(db, photo_id: int, faces: list[dict[str, Any]], exemplars
             vector = vector / norm
             prepared.append((face, vector))
         except Exception:
+            _swallowed_note("photo_face_clustering._store_photo_faces")
             continue
 
     staged_exemplars: dict[int, list[Any]] = {int(g): list(values) for g, values in exemplars.items()}
@@ -637,6 +643,7 @@ def _auto_match_people(db) -> dict[str, int]:
         try:
             v = np.asarray(json.loads(r["embedding_json"]), dtype=np.float32)
         except Exception:
+            _swallowed_note("photo_face_clustering._auto_match_people")
             continue
         if v.shape == (128,) and np.isfinite(v).all() and float(np.linalg.norm(v)):
             ids.append(int(r["performer_id"])); mats.append(v / float(np.linalg.norm(v)))
@@ -655,6 +662,7 @@ def _auto_match_people(db) -> dict[str, int]:
             try:
                 v = np.asarray(json.loads(r["embedding_json"]), dtype=np.float32)
             except Exception:
+                _swallowed_note("photo_face_clustering._auto_match_people")
                 continue
             if v.shape == (128,) and np.isfinite(v).all() and float(np.linalg.norm(v)):
                 vecs.append(v / float(np.linalg.norm(v)))

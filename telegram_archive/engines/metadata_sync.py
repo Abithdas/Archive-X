@@ -8,6 +8,7 @@ Already-MATCHED/VERIFIED videos are skipped outright unless force=True,
 and provider matching uses OSHASH before filename clues, with local references as a fallback.
 """
 from __future__ import annotations
+from ..core.swallowed import note as _swallowed_note
 from .. import config
 import asyncio
 import json
@@ -65,6 +66,7 @@ async def _prefetch_messages(ctx, client, rows) -> dict:
         try:
             by_channel.setdefault(int(row["source_channel"]), []).append(int(row["source_message_id"]))
         except Exception:
+            _swallowed_note("metadata_sync._prefetch_messages")
             continue
     found: dict[tuple[int, int], object] = {}
     for channel_id, ids in by_channel.items():
@@ -83,6 +85,7 @@ async def _prefetch_messages(ctx, client, rows) -> dict:
                     ctx.db.log(f"Metadata match: batch message lookup for {channel_id} failed "
                                f"({type(exc).__name__}: {exc}); looking up one at a time", "WARN")
                 except Exception:
+                    _swallowed_note("metadata_sync._prefetch_messages")
                     pass
                 continue
             if not isinstance(messages, (list, tuple)):
@@ -121,6 +124,7 @@ def _limits(detail: str):
             operation = "Rechecking linked site videos"
             log_prefix = "Site video recheck"
     except Exception:
+        _swallowed_note("metadata_sync._limits")
         pass
     return limit, force, repair_only, media_ids, operation, log_prefix, unbounded
 
@@ -294,6 +298,7 @@ async def run(ctx):
                                     [(0, span), (max(0, fsize - span), span)],
                                 )
                         except Exception:
+                            _swallowed_note("metadata_sync.run.one")
                             pass
                         _activity(ctx, f"Source fingerprint ready for {filename}",
                                   operation="Metadata matching · fingerprint ready", current_item=filename,
@@ -313,6 +318,7 @@ async def run(ctx):
                             try:
                                 source.close()
                             except Exception:
+                                _swallowed_note("metadata_sync.run.one")
                                 pass
 
                 _activity(ctx, f"Identifying scene metadata for {filename}",
@@ -430,4 +436,5 @@ def _record_metadata_result(ctx, sources, total, stats) -> None:
         job_results.record(ctx.db, ctx.job_id, status="COMPLETED_WITH_ERRORS" if stats.get("failed") else "COMPLETED",
                            progress=progress, summary=", ".join(parts))
     except Exception:
+        _swallowed_note("metadata_sync._record_metadata_result")
         pass

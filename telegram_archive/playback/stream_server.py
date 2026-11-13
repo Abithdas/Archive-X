@@ -64,6 +64,7 @@ form the signed external-player boundary.
 #   - Signed links and local player feed
 # ------------------------------------------------------------------
 from __future__ import annotations
+from ..core.swallowed import note as _swallowed_note
 from ..core.background_tasks import retain as _retain_task
 
 from ..telegram.client_policy import configure_telethon_client, make_telegram_client, FLOOD_SLEEP_THRESHOLD_SECONDS, REQUEST_RETRIES
@@ -152,6 +153,7 @@ def _ensure_playback_log_handler() -> None:
                 try:
                     handler.close()
                 except Exception:
+                    _swallowed_note("stream_server._ensure_playback_log_handler")
                     pass
         handler = RotatingFileHandler(
             target, maxBytes=int(getattr(config, "PLAYBACK_LOG_MAX_BYTES", 5 * 1024 * 1024)),
@@ -737,6 +739,7 @@ def apply_connection_profile(engine) -> dict:
         lanes = PREMIUM_PLAYBACK_LANES if getattr(engine, "premium", False) else FREE_PLAYBACK_LANES
         engine.qos.playback_lanes = max(1, min(int(engine.max_fetch_concurrency), lanes))
     except Exception:
+        _swallowed_note("stream_server.apply_connection_profile")
         pass
     return {"profile": CONNECTION_PROFILE, "fetch": f"{vals[1]}/{vals[2]}", "sessions": f"{vals[3]}/{vals[4]}"}
 
@@ -1747,6 +1750,7 @@ class SparseVideoCache:
             if f is not None:
                 f.close()
         except Exception:
+            _swallowed_note("stream_server.SparseVideoCache.close")
             pass
         if f is not None:
             with _OPEN_RANGE_CACHE_PATHS_LOCK:
@@ -1836,6 +1840,7 @@ class SegmentTransferScheduler:
             try:
                 await asyncio.wait_for(asyncio.gather(*self.worker_tasks, return_exceptions=True), 2.0)
             except Exception:
+                _swallowed_note("stream_server.SegmentTransferScheduler.stop")
                 pass
         self.worker_tasks.clear()
         for entry in list(self.pending.values()):
@@ -2642,6 +2647,7 @@ class PlaybackEngine:
             try:
                 await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), 2.0)
             except Exception:
+                _swallowed_note("stream_server.PlaybackEngine.stop")
                 pass
         self.tracked_tasks.clear()
         self.browser_range_tasks.clear()
@@ -2652,6 +2658,7 @@ class PlaybackEngine:
         try:
             await asyncio.wait_for(self.scheduler.stop(), 3.0)
         except Exception:
+            _swallowed_note("stream_server.PlaybackEngine.stop")
             pass
         for cache in list(self.disk_caches.values()) + list(self._pending_cleanup):
             for _ in range(20):
@@ -2668,6 +2675,7 @@ class PlaybackEngine:
             try:
                 await asyncio.wait_for(tc.disconnect(), 1.0)
             except Exception:
+                _swallowed_note("stream_server.PlaybackEngine.stop")
                 pass
         self.transfer_clients.clear()
         self.connection_stats.clear()
@@ -3068,6 +3076,7 @@ class PlaybackEngine:
                 try:
                     await asyncio.wait_for(dead.disconnect(), 1.0)
                 except Exception:
+                    _swallowed_note("stream_server.PlaybackEngine._ensure_transfer_sessions")
                     pass
             if len(self.transfer_clients) >= target:
                 return
@@ -3257,6 +3266,7 @@ class PlaybackEngine:
             if value is not None:
                 return max(0, int(value))
         except Exception:
+            _swallowed_note("stream_server.PlaybackEngine._wait_seconds_from_exception")
             pass
         text = f"{type(exc).__name__} {exc}".upper()
         m = re.search(r"FLOOD(?:_PREMIUM)?_WAIT[_ ](\d+)", text)
@@ -3264,6 +3274,7 @@ class PlaybackEngine:
             try:
                 return max(0, int(m.group(1)))
             except Exception:
+                _swallowed_note("stream_server.PlaybackEngine._wait_seconds_from_exception")
                 pass
         return 0
 
@@ -3311,6 +3322,7 @@ class PlaybackEngine:
                 else:
                     self.governor.note_range_failure()
             except Exception:
+                _swallowed_note("stream_server.PlaybackEngine._note_throttle")
                 pass
         self.scheduler.wake()
 
@@ -3694,6 +3706,7 @@ class PlaybackEngine:
                     try:
                         setattr(fresh, "_archive_x_channel_id", int(getattr(message, "_archive_x_channel_id", 0) or 0))
                     except Exception:
+                        _swallowed_note("stream_server.PlaybackEngine._raw_get_file.refresh_message_reference")
                         pass
                     message = fresh
                     document = getattr(message, "document", None)
@@ -3703,9 +3716,11 @@ class PlaybackEngine:
                         if channel_value:
                             await asyncio.to_thread(_persist_message_location, channel_value, message_id, fresh)
                     except Exception:
+                        _swallowed_note("stream_server.PlaybackEngine._raw_get_file.refresh_message_reference")
                         pass
                     return fresh
             except Exception:
+                _swallowed_note("stream_server.PlaybackEngine._raw_get_file.refresh_message_reference")
                 pass
             return None
 
@@ -4826,6 +4841,7 @@ class PlaybackEngine:
                     try:
                         t.exception()
                     except Exception:
+                        _swallowed_note("stream_server.PlaybackEngine.warm_first_segment._finish_warm")
                         pass
             gathered.add_done_callback(_finish_warm)
             raise
@@ -5017,6 +5033,7 @@ class PlaybackEngine:
                     },
                 )
             except Exception:
+                _swallowed_note("stream_server.PlaybackEngine._collect_browser_range")
                 pass
             return data
         except asyncio.CancelledError:
@@ -5035,6 +5052,7 @@ class PlaybackEngine:
                     },
                 )
             except Exception:
+                _swallowed_note("stream_server.PlaybackEngine._collect_browser_range")
                 pass
             raise
 
@@ -5300,6 +5318,7 @@ class PlaybackEngine:
                         },
                     )
                 except Exception:
+                    _swallowed_note("stream_server.PlaybackEngine.handle_aiohttp")
                     pass
         return response
 
@@ -5440,6 +5459,7 @@ async def serve_local_player_feed(state: dict, tokens: StreamTokens, port: int, 
             try:
                 await runner.cleanup()
             except Exception:
+                _swallowed_note("stream_server.serve_local_player_feed")
                 pass
             runner = web.AppRunner(local_app, access_log=None)
             await runner.setup()
@@ -5449,6 +5469,7 @@ async def serve_local_player_feed(state: dict, tokens: StreamTokens, port: int, 
         try:
             await runner.cleanup()
         except Exception:
+            _swallowed_note("stream_server.serve_local_player_feed")
             pass
         raise OSError(f"Could not bind player feed on {host}:{port}-{int(port)+20}: {last_error}")
     state["player_port"] = int(chosen_port)

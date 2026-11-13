@@ -15,6 +15,7 @@ state; registry migration never requests media bytes from Telegram.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import base64
 import json
 import sqlite3
@@ -198,6 +199,7 @@ def ensure_telegram_registry(db) -> None:
         try:
             db._telegram_registry_ready = db.conn
         except Exception:
+            _swallowed_note("telegram_registry.ensure_telegram_registry")
             pass
 
 
@@ -418,6 +420,7 @@ def resolve_linked_thumbnail_message_id(db, *, channel_id: str | int, video_mess
         except Exception:
             # An absent or legacy cache table should not prevent a video move;
             # the canonical media/location associations were checked above.
+            _swallowed_note("telegram_registry.resolve_linked_thumbnail_message_id")
             pass
     return 0
 

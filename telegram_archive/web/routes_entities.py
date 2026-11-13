@@ -10,6 +10,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 import re
@@ -407,6 +408,7 @@ def register_entity_routes(
                 ).fetchall():
                     local_cache_paths.extend(str(v) for v in (cached["path"], cached["frames_path"]) if v)
             except Exception:
+                _swallowed_note("routes_entities.register_entity_routes.channel_maintenance_delete_duplicate")
                 pass
         with db.lock:
             db.conn.execute("UPDATE media SET status='SOURCE_DELETED',updated_at=? WHERE id=?", (now, int(target_row["id"])))
@@ -446,6 +448,7 @@ def register_entity_routes(
             try:
                 candidates.append(str(preview_frames_path(int(channel_key), int(message_id))))
             except Exception:
+                _swallowed_note("routes_entities.register_entity_routes.channel_maintenance_delete_duplicate._purge_local_assets")
                 pass
             removed = 0
             for raw in dict.fromkeys(candidates):
@@ -466,6 +469,7 @@ def register_entity_routes(
                 if cleanup_telegram_delivery_contact_sheet(int(channel_key), int(message_id)):
                     removed += 1
             except Exception:
+                _swallowed_note("routes_entities.register_entity_routes.channel_maintenance_delete_duplicate._purge_local_assets")
                 pass
             return removed
         try:

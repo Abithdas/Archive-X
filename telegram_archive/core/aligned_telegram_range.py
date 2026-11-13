@@ -13,6 +13,7 @@ create logins or sessions. Playback can request a reserved priority lane.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import asyncio
 import inspect
 import re
@@ -147,12 +148,14 @@ def _propagate_fresh_file_reference(original, fresh) -> None:
                 value = getattr(fresh_doc, name)
                 setattr(old_doc, name, value)
             except Exception:
+                _swallowed_note("aligned_telegram_range._propagate_fresh_file_reference")
                 pass
     try:
         migrated = int(getattr(fresh, "_archive_x_download_dc_id", 0) or 0)
         if migrated:
             setattr(original, "_archive_x_download_dc_id", migrated)
     except Exception:
+        _swallowed_note("aligned_telegram_range._propagate_fresh_file_reference")
         pass
 
 async def _refresh_message(client, message, refresh_call: RefreshCall | None):
@@ -201,6 +204,7 @@ async def _dispatch_file_request(client, request, message, request_call: Request
             try:
                 document.dc_id = int(migrated_dc)
             except Exception:
+                _swallowed_note("aligned_telegram_range._dispatch_file_request")
                 pass
         # Remember the migrated DC on the message/document for later ranges.
         setattr(message, "_archive_x_download_dc_id", int(migrated_dc)) if hasattr(message, "__dict__") else None
@@ -381,6 +385,7 @@ async def fetch_aligned_range(
                                 # every reader in the shared background lane.
                                 exc._archive_x_flood_noted = True
                         except Exception:
+                            _swallowed_note("aligned_telegram_range.fetch_aligned_range.fetch_span")
                             pass
                         max_flood_retries = 2 if message_scoped_floodwait else 1
                         if int(flood_retried) < max_flood_retries:
@@ -390,6 +395,7 @@ async def fetch_aligned_range(
                                     if inspect.isawaitable(cb):
                                         await cb
                                 except Exception:
+                                    _swallowed_note("aligned_telegram_range.fetch_aligned_range.fetch_span")
                                     pass
                             if message_scoped_floodwait:
                                 await asyncio.sleep(wait_seconds)
@@ -408,6 +414,7 @@ async def fetch_aligned_range(
                         try:
                             exc._archive_x_file_reference_retry_attempted = True
                         except Exception:
+                            _swallowed_note("aligned_telegram_range.fetch_aligned_range.fetch_span")
                             pass
                         raise
                     if _file_reference_error(exc) and not reference_refreshed:
@@ -426,12 +433,14 @@ async def fetch_aligned_range(
                                 if governor is not None and callable(getattr(governor, "note_file_reference_refresh", None)):
                                     governor.note_file_reference_refresh(channel_id=_channel_id(current_message), message_id=int(getattr(current_message, "id", 0) or 0))
                             except Exception:
+                                _swallowed_note("aligned_telegram_range.fetch_aligned_range.fetch_span")
                                 pass
                             # Rebuild the InputDocumentFileLocation from the fresh message.
                             continue
                         try:
                             exc._archive_x_file_reference_retry_attempted = True
                         except Exception:
+                            _swallowed_note("aligned_telegram_range.fetch_aligned_range.fetch_span")
                             pass
                     raise
             cursor += expected

@@ -12,6 +12,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import io
 import json
@@ -668,6 +669,7 @@ def register_telegram_routes(
             try:
                 governor.note_floodwait(seconds)
             except Exception:
+                _swallowed_note("routes_telegram.register_telegram_routes.channel_sync_to_telegram")
                 pass
             db.log(f"Telegram channel sync rate-limited for {channel_id}; wait {seconds} seconds", "WARN")
             raise HTTPException(429, f"Telegram asked Archive X to wait {seconds} seconds") from exc
@@ -878,12 +880,15 @@ def register_telegram_routes(
                     root.attributes("-topmost", True)
                     root.update()
                 except Exception:
+                    _swallowed_note("routes_telegram.register_telegram_routes.automation_pick_folder._pick_folder")
                     pass
                 try:
                     selected = filedialog.askdirectory(title=title, mustexist=must_exist, initialdir=str(initial))
                 finally:
                     try: root.destroy()
-                    except Exception: pass
+                    except Exception:
+                        _swallowed_note("routes_telegram.register_telegram_routes.automation_pick_folder._pick_folder")
+                        pass
                 return str(selected or "").strip()
             except Exception as tk_exc:
                 if sys.platform.startswith("win"):

@@ -21,6 +21,7 @@ Telegram delivery contact sheets are built from the validated local frame set.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import hashlib
 import io
@@ -599,6 +600,7 @@ def _contact_sheet_metadata(db=None, channel_id=None, message_id=None, message=N
                     if values.get(key) in (None, "", 0):
                         values[key] = row[key]
         except Exception:
+            _swallowed_note("thumbnail_cache._contact_sheet_metadata")
             pass
     if message is not None:
         file_obj = getattr(message, "file", None)
@@ -619,6 +621,7 @@ def _contact_sheet_metadata(db=None, channel_id=None, message_id=None, message=N
                         values.setdefault("height", getattr(attr, "h", 0))
                         break
             except Exception:
+                _swallowed_note("thumbnail_cache._contact_sheet_metadata")
                 pass
     if local_path is not None:
         values.setdefault("filename", Path(local_path).name)
@@ -950,6 +953,7 @@ def cleanup_local_generated_snapshot_set(db, video_path: Path) -> bool:
     try:
         shutil.rmtree(base, ignore_errors=True)
     except Exception:
+        _swallowed_note("thumbnail_cache.cleanup_local_generated_snapshot_set")
         pass
     try:
         with db.lock:
@@ -958,6 +962,7 @@ def cleanup_local_generated_snapshot_set(db, video_path: Path) -> bool:
             db.conn.execute("DELETE FROM local_playback_snapshots WHERE canonical_path=?", (canonical,))
             db.conn.commit()
     except Exception:
+        _swallowed_note("thumbnail_cache.cleanup_local_generated_snapshot_set")
         pass
     cleanup_local_delivery_artifacts(source)
     return not base.exists()
@@ -1117,6 +1122,7 @@ async def generate_local_playback_snapshot(video_path: Path, output_path: Path, 
                 if getattr(ctx, "pipeline", None) is not None:
                     ctx.pipeline.heartbeat(activity=True)
             except Exception:
+                _swallowed_note("thumbnail_cache.generate_local_playback_snapshot._native_progress._report_on_loop")
                 pass
         try:
             loop.call_soon_threadsafe(_report_on_loop)
@@ -1195,6 +1201,7 @@ async def _ensure_local_playback_assets_unlocked(db, video_path: Path, source_os
             try:
                 db.log(f"Local playback snapshot: OSHASH unavailable for {source.name}: {type(exc).__name__}: {exc}", "WARN")
             except Exception:
+                _swallowed_note("thumbnail_cache._ensure_local_playback_assets_unlocked")
                 pass
     if not force and fingerprint:
         reusable = await asyncio.to_thread(local_playback_snapshot_reusable_sync, db, source, fingerprint)
@@ -1206,6 +1213,7 @@ async def _ensure_local_playback_assets_unlocked(db, video_path: Path, source_os
                     details={"filename": source.name, "frames": 36, "source_oshash": fingerprint},
                 )
             except Exception:
+                _swallowed_note("thumbnail_cache._ensure_local_playback_assets_unlocked")
                 pass
             await _trace_local_snapshot_frames(ctx, source, meta, cache_state="reused", fingerprint=fingerprint)
             if ctx is not None:
@@ -1247,6 +1255,7 @@ async def _ensure_local_playback_assets_unlocked(db, video_path: Path, source_os
             },
         )
     except Exception:
+        _swallowed_note("thumbnail_cache._ensure_local_playback_assets_unlocked")
         pass
     if fingerprint:
         await asyncio.to_thread(record_local_playback_snapshot_sync, db, source, fingerprint, output, meta)
@@ -1399,7 +1408,9 @@ async def prefetch_entity_image(db, entity_type: str, entity_id: int, url: str |
     except Exception as exc:
         detail = f"provider artwork rejected: URL={str(url)} content_type={content_type or 'unknown'} status={status} bytes={len(data or b'')} error={type(exc).__name__}: {exc}"
         try: db.log(detail, "WARN")
-        except Exception: pass
+        except Exception:
+            _swallowed_note("thumbnail_cache.prefetch_entity_image")
+            pass
         raise RuntimeError(detail) from exc
 
 
@@ -1483,6 +1494,7 @@ def _persist_entity_image_sync(db, entity_type: str, entity_id: int, url: str, d
             try:
                 db.log(f"Initial performer smart-crop skipped for {entity_id}: {type(exc).__name__}: {exc}", "WARN")
             except Exception:
+                _swallowed_note("thumbnail_cache._persist_entity_image_sync")
                 pass
 
     with db.lock:
@@ -1547,6 +1559,7 @@ async def ensure_playback_snapshot(db, telegram, channel_id: int, message_id: in
         if row:
             identity = str(row["oshash"] or row["identity_key"] or "")
     except Exception:
+        _swallowed_note("thumbnail_cache.ensure_playback_snapshot")
         pass
     from ..core.video_locks import video_operation_lock
     async with video_operation_lock(identity_key=identity, source_channel=str(channel), source_message_id=mid):
@@ -1565,6 +1578,7 @@ async def ensure_playback_snapshot(db, telegram, channel_id: int, message_id: in
                     if hit and state.get("timeline_ready"):
                         return hit
             except Exception:
+                _swallowed_note("thumbnail_cache.ensure_playback_snapshot")
                 pass
         return await _ensure_playback_snapshot_unlocked(
             db, telegram, channel, mid, message=message, force=force, require_timeline=require_timeline,

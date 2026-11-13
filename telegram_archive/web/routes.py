@@ -12,6 +12,7 @@ v14 build; only the imports moved to reflect the new module layout.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 import re
@@ -301,6 +302,7 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                 try:
                     db.log(f"Queued Telegram caption sync failed for media_id={media_id}: {type(exc).__name__}: {exc}", "WARN")
                 except Exception:
+                    _swallowed_note("routes.build_router._sync_many_catalogue_captions")
                     pass
             if index + 1 < len(ids):
                 await asyncio.sleep(0.5)
@@ -312,6 +314,7 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                 "INFO" if not failed else "WARN",
             )
         except Exception:
+            _swallowed_note("routes.build_router._sync_many_catalogue_captions")
             pass
 
     def _queue_catalogue_caption_sync(media_ids: list[int]) -> int:
@@ -404,6 +407,7 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                 except Exception:
                     # Ignore poisoned legacy cache entries and re-fetch the
                     # provider URL below. Do not serve invalid bytes.
+                    _swallowed_note("routes.build_router._proxy_entity_image")
                     pass
 
             # Local-first recovery: if the SQLite image bytes cache is missing but
@@ -604,6 +608,7 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                 }
                 out.insert(0, current)
         except Exception:
+            _swallowed_note("routes.build_router._active_jobs_view")
             pass
         return out
 

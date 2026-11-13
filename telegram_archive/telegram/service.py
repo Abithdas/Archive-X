@@ -17,6 +17,7 @@ TelegramClient.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import base64
 import io
@@ -152,6 +153,7 @@ class TelegramService:
                 try:
                     self.db.log(f"Telegram file-operation limit refresh failed; keeping conservative limits: {type(exc).__name__}: {exc}", "WARN")
                 except Exception:
+                    _swallowed_note("service.TelegramService.refresh_download_limits")
                     pass
             return False
 
@@ -171,6 +173,7 @@ class TelegramService:
             try:
                 setattr(self.client, "_telegram_archive_account_profile", profile)
             except Exception:
+                _swallowed_note("service.TelegramService.refresh_account_profile")
                 pass
             p = profile
             self.db.log(
@@ -185,6 +188,7 @@ class TelegramService:
             try:
                 setattr(self.client, "_telegram_archive_account_profile", None)
             except Exception:
+                _swallowed_note("service.TelegramService.refresh_account_profile")
                 pass
             self.db.log(f"Telegram account profile detection failed: {type(exc).__name__}: {exc}", "WARN")
             return None
@@ -227,6 +231,7 @@ class TelegramService:
         try:
             setattr(client, "_telegram_archive_governor", self.governor)
         except Exception:
+            _swallowed_note("service.TelegramService._build_client")
             pass
         return client
 
@@ -246,6 +251,7 @@ class TelegramService:
                 if client.is_connected():
                     await client.disconnect()
             except Exception:
+                _swallowed_note("service.TelegramService._connect_with_fallback")
                 pass
             # MTProxy is itself the selected Telegram transport. The normal
             # obfuscated-TCP fallback would replace that transport and cannot
@@ -263,6 +269,7 @@ class TelegramService:
                     if fallback.is_connected():
                         await fallback.disconnect()
                 except Exception:
+                    _swallowed_note("service.TelegramService._connect_with_fallback")
                     pass
                 raise first_exc
             self.client = fallback
@@ -406,6 +413,7 @@ class TelegramService:
                     if self.client:
                         await self.client.disconnect()
                 except Exception:
+                    _swallowed_note("service.TelegramService.connect")
                     pass
                 return False
             self.status_text = f"ERROR: {e}"
@@ -482,6 +490,7 @@ class TelegramService:
                         if client is not None and client.is_connected():
                             await client.disconnect()
                     except Exception:
+                        _swallowed_note("service.TelegramService.self_test_connection")
                         pass
             detail = "Telegram API connection failed on both supported transports: " + " | ".join(errors)
             self.db.log(detail, "ERROR")
@@ -501,6 +510,7 @@ class TelegramService:
         try:
             setattr(self.client, "_archive_x_auth_priority", bool(enabled))
         except Exception:
+            _swallowed_note("service.TelegramService._set_auth_priority")
             pass
 
     @staticmethod
@@ -508,6 +518,7 @@ class TelegramService:
         try:
             setattr(client, "_archive_x_auth_priority", bool(enabled))
         except Exception:
+            _swallowed_note("service.TelegramService._set_auth_priority_on")
             pass
 
     async def send_login_code(self, phone: str):
@@ -669,6 +680,7 @@ class TelegramService:
                     if old_client is not None:
                         await old_client.disconnect()
                 except Exception:
+                    _swallowed_note("service.TelegramService._ensure_qr_rpc_initialized")
                     pass
                 self.client = None
                 await self.connect()
@@ -736,6 +748,7 @@ class TelegramService:
                     if self.client:
                         await self.client.disconnect()
                 except Exception:
+                    _swallowed_note("service.TelegramService.start_qr_login")
                     pass
             else:
                 self._qr_login_message = f"Could not start QR login: {type(exc).__name__}: {exc}"
@@ -858,6 +871,7 @@ class TelegramService:
             try:
                 await self.client.disconnect()
             except Exception:
+                _swallowed_note("service.TelegramService.set_credentials")
                 pass
             self.client = None
             self.connected = False
@@ -878,10 +892,12 @@ class TelegramService:
             try:
                 await client.disconnect()
             except Exception:
+                _swallowed_note("service.TelegramService.reset_invalid_session")
                 pass
             try:
                 setattr(client, "_telegram_archive_account_profile", None)
             except Exception:
+                _swallowed_note("service.TelegramService.reset_invalid_session")
                 pass
 
         self.client = None
@@ -947,6 +963,7 @@ class TelegramService:
                     if stale_client.is_connected():
                         await stale_client.disconnect()
                 except Exception:
+                    _swallowed_note("service.TelegramService.logout_account")
                     pass
             self.client = None
             if not self.has_credentials():
@@ -981,12 +998,14 @@ class TelegramService:
             try:
                 await client.disconnect()
             except Exception:
+                _swallowed_note("service.TelegramService.logout_account")
                 pass
 
         try:
             if client.is_connected():
                 await client.disconnect()
         except Exception:
+            _swallowed_note("service.TelegramService.logout_account")
             pass
 
         self.client = None
@@ -995,6 +1014,7 @@ class TelegramService:
         try:
             setattr(client, "_telegram_archive_account_profile", None)
         except Exception:
+            _swallowed_note("service.TelegramService.logout_account")
             pass
         self.status_text = "LOGIN REQUIRED" if self.has_credentials() else "CONFIG REQUIRED: api_id/api_hash"
         self.db.log("Telegram account logged out; API credentials retained")
@@ -1012,6 +1032,7 @@ class TelegramService:
             try:
                 setattr(self.client, "_telegram_archive_account_profile", None)
             except Exception:
+                _swallowed_note("service.TelegramService.disconnect")
                 pass
             await self.client.disconnect()
         self.connected = False

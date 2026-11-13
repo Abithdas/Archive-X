@@ -9,6 +9,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ...core.swallowed import note as _swallowed_note
 import hashlib
 import json
 import os
@@ -387,7 +388,9 @@ def create_backup(db, *, backup_type: str = "full_application", password: str | 
         return {"ok": True, "path": str(final), "size": final.stat().st_size, "manifest": manifest, "verified": True, "retention": retention}
     except Exception as exc:
         try: tmp_zip.unlink(missing_ok=True)
-        except Exception: pass
+        except Exception:
+            _swallowed_note("manager.create_backup")
+            pass
         db.set_setting("backup_last_error", f"{type(exc).__name__}: {exc}")
         raise
 

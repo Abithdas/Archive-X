@@ -12,6 +12,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 from pathlib import Path
@@ -1281,6 +1282,7 @@ def register_library_routes(
                 info = await asyncio.to_thread(inspect_cached_file, original, fallback_name=str(row["filename"] or ""))
                 await asyncio.to_thread(record_photo_cache, db, str(channel_id), int(message_id), info)
             except Exception:
+                _swallowed_note("routes_library.register_library_routes._photo_library_file_path")
                 pass
 
         if not thumbnail:
@@ -1441,6 +1443,7 @@ def register_library_routes(
                         details={"channel_id": channel_id, "message_id": message_id, "scope": scope},
                     )
                 except Exception:
+                    _swallowed_note("routes_library.register_library_routes.photo_library_delete")
                     pass
                 raise HTTPException(502, f"Telegram deletion failed; the Archive X photo was kept. {type(exc).__name__}: {exc}") from exc
 
@@ -1491,6 +1494,7 @@ def register_library_routes(
                              "telegram_deleted": telegram_deleted},
                 )
             except Exception:
+                _swallowed_note("routes_library.register_library_routes.photo_library_delete")
                 pass
             if telegram_deleted:
                 raise HTTPException(500, "Telegram deletion succeeded, but local database cleanup failed. The cached library record may still be visible; check Operations logs.") from exc
@@ -1513,6 +1517,7 @@ def register_library_routes(
                     details={"channel_id": channel_id, "message_id": message_id, "errors": cache_cleanup_errors[:10]},
                 )
             except Exception:
+                _swallowed_note("routes_library.register_library_routes.photo_library_delete")
                 pass
 
         try:
@@ -1524,6 +1529,7 @@ def register_library_routes(
                          "cache_files_removed": cache_removed, "cache_cleanup_errors": cache_cleanup_errors[:10]},
             )
         except Exception:
+            _swallowed_note("routes_library.register_library_routes.photo_library_delete")
             pass
 
         message = "Removed from Archive X; the Telegram message was left unchanged."
@@ -2337,7 +2343,9 @@ def register_library_routes(
                     try:
                         row=db.conn.execute("SELECT id FROM media WHERE source_channel=? AND source_message_id=?",(str(item.get("channel_id") or ""),int(item.get("message_id") or 0))).fetchone()
                         if row: ids.append(int(row["id"]))
-                    except Exception: pass
+                    except Exception:
+                        _swallowed_note("routes_library.register_library_routes._mapping_bulk_sync")
+                        pass
                 ids += [int(x) for x in (body.get("media_ids") or []) if str(x).isdigit()]
                 ids=list(dict.fromkeys(ids))
                 field=str(body.get("field") or "").lower().strip(); action=str(body.get("action") or "move").lower(); target=str(body.get("target_name") or "").strip(); performer_target=str(body.get("performer_name") or target).strip(); studio_target=str(body.get("studio_name") or body.get("site_name") or target).strip(); lock=bool(body.get("lock",True)); now=config.now_iso()
@@ -2439,6 +2447,7 @@ def register_library_routes(
                     row=db.conn.execute("SELECT id FROM media WHERE source_channel=? AND source_message_id=?",(str(item.get('channel_id') or ''),int(item.get('message_id') or 0))).fetchone()
                     if row: ids.append(int(row['id']))
                 except Exception:
+                    _swallowed_note("routes_library.register_library_routes._resolve_mapping_video_ids")
                     pass
         return list(dict.fromkeys(ids))
 

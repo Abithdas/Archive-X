@@ -6,6 +6,7 @@ provider filename lookup. Manual/local artwork is not synthesized here.
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import json
 from typing import Any
 
@@ -53,6 +54,7 @@ async def _provider_image_from_linked_media(db, performer_id: int, performer_nam
         try:
             payload = json.loads(row["provider_payload"] or "{}")
         except Exception:
+            _swallowed_note("performer_image_sync._provider_image_from_linked_media")
             continue
         image, source, pid = _payload_performer_image(payload, performer_name)
         if image:
@@ -78,6 +80,7 @@ async def _provider_image_by_filename(db, performer_id: int, performer_name: str
         try:
             result = await identify(db, oshash=None, filename=str(row["filename"] or ""))
         except Exception:
+            _swallowed_note("performer_image_sync._provider_image_by_filename")
             continue
         for match in result.get("matches") or []:
             details = match.get("performer_details") or []

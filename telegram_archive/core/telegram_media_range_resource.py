@@ -14,6 +14,7 @@ facade so callers retain the established import path.
 #       - Synchronous public API
 # ------------------------------------------------------------------
 from __future__ import annotations
+from .swallowed import note as _swallowed_note
 from .background_tasks import retain as _retain_task
 
 import asyncio
@@ -163,6 +164,7 @@ class DirectTelegramRangeSource:
                 self.message = fresh
                 return fresh
         except Exception:
+            _swallowed_note("telegram_media_range_resource.DirectTelegramRangeSource._refresh_message")
             pass
         return None
 
@@ -207,11 +209,13 @@ class DirectTelegramRangeSource:
                         try:
                             hook(len(data))
                         except Exception:
+                            _swallowed_note("telegram_media_range_resource.DirectTelegramRangeSource._fetch_chunk_async.fetch")
                             pass
                     if self.governor is not None:
                         try:
                             self.governor.note_range_success(len(data), elapsed)
                         except Exception:
+                            _swallowed_note("telegram_media_range_resource.DirectTelegramRangeSource._fetch_chunk_async.fetch")
                             pass
                     return data
                 # When a governor exists, let fetch_aligned_range acquire and
@@ -236,6 +240,7 @@ class DirectTelegramRangeSource:
                         if fresh is not None:
                             self.message = fresh
                     except Exception:
+                        _swallowed_note("telegram_media_range_resource.DirectTelegramRangeSource._fetch_chunk_async")
                         pass
                 wait = flood_wait_seconds(exc)
                 if wait:
@@ -246,6 +251,7 @@ class DirectTelegramRangeSource:
                         try:
                             self.governor.note_floodwait(wait, kind="range", request="GetFile")
                         except Exception:
+                            _swallowed_note("telegram_media_range_resource.DirectTelegramRangeSource._fetch_chunk_async")
                             pass
                     if attempt < 3:
                         await asyncio.sleep(wait)
@@ -257,6 +263,7 @@ class DirectTelegramRangeSource:
                     try:
                         self.governor.note_range_failure()
                     except Exception:
+                        _swallowed_note("telegram_media_range_resource.DirectTelegramRangeSource._fetch_chunk_async")
                         pass
                 if attempt < 3:
                     await asyncio.sleep(0.08 * attempt)
@@ -349,11 +356,13 @@ class DirectTelegramRangeSource:
                 try:
                     hook(len(data))
                 except Exception:
+                    _swallowed_note("telegram_media_range_resource.DirectTelegramRangeSource._fetch_precise_async.fetch")
                     pass
             if self.governor is not None:
                 try:
                     self.governor.note_range_success(len(data), elapsed)
                 except Exception:
+                    _swallowed_note("telegram_media_range_resource.DirectTelegramRangeSource._fetch_precise_async.fetch")
                     pass
             return data
         if self.governor is None:
@@ -508,12 +517,14 @@ class DirectTelegramRangeSource:
             try:
                 future.cancel()
             except Exception:
+                _swallowed_note("telegram_media_range_resource.DirectTelegramRangeSource.close")
                 pass
         if self._file_slot_context is not None and self.loop is not None and not self.loop.is_closed():
             async def release_slot():
                 try:
                     await self._release_file_slot_async()
                 except Exception:
+                    _swallowed_note("telegram_media_range_resource.DirectTelegramRangeSource.close.release_slot")
                     pass
             try:
                 running = asyncio.get_running_loop()
@@ -525,6 +536,7 @@ class DirectTelegramRangeSource:
                 try:
                     asyncio.run_coroutine_threadsafe(release_slot(), self.loop).result(timeout=10)
                 except Exception:
+                    _swallowed_note("telegram_media_range_resource.DirectTelegramRangeSource.close")
                     pass
 
 

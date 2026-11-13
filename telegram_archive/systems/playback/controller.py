@@ -1,5 +1,6 @@
 """PlaybackController: coordinates playback sessions and backends."""
 from __future__ import annotations
+from ...core.swallowed import note as _swallowed_note
 import asyncio
 from typing import Any
 from .session import PlaybackSession
@@ -75,5 +76,6 @@ class PlaybackController:
             try:
                 await self.registry.get(name).close()
             except Exception:
+                _swallowed_note("controller.PlaybackController.close")
                 pass
         async with self._lock: self.sessions.clear()

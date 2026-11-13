@@ -2,6 +2,7 @@
 repo root (see run.py, which just calls main() here).
 """
 from __future__ import annotations
+from .core.swallowed import note as _swallowed_note
 import asyncio
 import os
 import json
@@ -94,6 +95,7 @@ def remove_obsolete_files():
                 path.unlink()
                 print(f"  Removed obsolete module: {rel}")
         except Exception:
+            _swallowed_note("main.remove_obsolete_files")
             pass
     video = config.PACKAGE_DIR / "video"
     if video.exists() and not any(p.suffix == ".py" for p in video.iterdir()):

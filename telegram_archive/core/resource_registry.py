@@ -15,6 +15,7 @@ work joining without performing network I/O itself.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import asyncio
 import time
 from dataclasses import dataclass
@@ -105,6 +106,7 @@ def ensure_resource_tables(db) -> None:
         with db.lock:
             db._resource_state_synced_max = int(conn.execute("SELECT COALESCE(MAX(id),0) FROM media").fetchone()[0] or 0)
     except Exception:
+        _swallowed_note("resource_registry.ensure_resource_tables")
         pass
 
 
@@ -234,6 +236,7 @@ def _ensure_resource_schema(db) -> None:
             try:
                 db._catalogue_state_repaired = db.conn
             except Exception:
+                _swallowed_note("resource_registry._ensure_resource_schema")
                 pass
         # Published media is the strict, fully-enriched projection used by
         # workflows that require complete metadata and entity records.
@@ -560,6 +563,7 @@ def sync_media_state(db, media_id: int, *, catalogue: str | None = None,
         try:
             db.log(f"Telegram registry prepared-state sync failed for media {media_id}: {type(exc).__name__}: {exc}", "WARN")
         except Exception:
+            _swallowed_note("resource_registry.sync_media_state")
             pass
 
 

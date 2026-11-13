@@ -19,6 +19,7 @@ modules; keep cleanup and per-item transitions in this orchestration layer.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import html
 import inspect
@@ -430,6 +431,7 @@ def _ensure_schema(db) -> None:
     try:
         db._automation_schema_ready = True
     except Exception:
+        _swallowed_note("automation._ensure_schema")
         pass
 
 
@@ -488,6 +490,7 @@ def _fail_item(db, item_key: str, error: str, *, retryable: bool, retry_stage: s
         title = str((title_row["title"] if title_row else "") or item_key)
         db.log(f"Content Automation: {title}: {message}", "WARN" if should_retry else "ERROR")
     except Exception:
+        _swallowed_note("automation._fail_item")
         pass
     return message
 
@@ -787,6 +790,7 @@ async def clear_all_state(db) -> dict[str, int]:
                 try:
                     await engine.close()
                 except Exception:
+                    _swallowed_note("automation.clear_all_state")
                     pass
 
     # Clear the Content Automation download tree safely. The default Archive X
@@ -1161,6 +1165,7 @@ async def _restore_download_for_item(ctx: JobContext, engine, row: dict[str, Any
         if refreshed is not None:
             torrent = refreshed
     except Exception:
+        _swallowed_note("automation._restore_download_for_item")
         pass
 
     if getattr(torrent, "has_metadata", True):
@@ -1529,6 +1534,7 @@ async def _await_identity_preflight(ctx: JobContext, item: dict[str, Any], filen
             raise
         except Exception:
             # The worker persists its own failure state; final matching can retry.
+            _swallowed_note("automation._await_identity_preflight")
             pass
     current = _get(ctx.db, item_key) or current
     return _decode_identity_preflight(current, filename)
@@ -1562,6 +1568,7 @@ def _job_config(ctx: JobContext) -> dict[str, Any]:
         if isinstance(detail, dict) and detail.get("config"):
             return _merge_config(detail["config"])
     except Exception:
+        _swallowed_note("automation._job_config")
         pass
     return _merge_config(ctx.db.setting(CONFIG_KEY, {}))
 
@@ -1595,6 +1602,7 @@ async def resolve_destination(client, value: Any):
                     if int(getattr(dialog, "id", 0) or 0) == channel_id:
                         return dialog.entity
             except Exception:
+                _swallowed_note("automation.resolve_destination")
                 pass
             raise RuntimeError(f"Telegram destination channel {text} was not found for this account "
                                f"({type(first_error).__name__}: {first_error}). "
@@ -1675,6 +1683,7 @@ async def _wait_for_orchestrated_child(ctx: JobContext, child_id: str, *, label:
                 try:
                     manager.cancel(child_id)
                 except Exception:
+                    _swallowed_note("automation._wait_for_orchestrated_child")
                     pass
                 raise
 
@@ -1819,6 +1828,7 @@ async def _wait_for_orchestrated_child(ctx: JobContext, child_id: str, *, label:
                         try:
                             manager.cancel(child_id)
                         except Exception:
+                            _swallowed_note("automation._wait_for_orchestrated_child")
                             pass
                     raise RuntimeError(reason)
             else:
@@ -1842,6 +1852,7 @@ async def _wait_for_orchestrated_child(ctx: JobContext, child_id: str, *, label:
                 try:
                     manager.cancel(child_id)
                 except Exception:
+                    _swallowed_note("automation._wait_for_orchestrated_child")
                     pass
                 raise TimeoutError(reason)
 
@@ -1918,6 +1929,7 @@ def _require_prepared_media_library_ready(db, media_id: int) -> dict[str, Any]:
         try:
             db.log(f"Pre-upload readiness gate: withholding delivery for media_id={media_id}; Library readiness pending: {reason}", "WARN")
         except Exception:
+            _swallowed_note("automation._require_prepared_media_library_ready")
             pass
         raise RuntimeError(f"Video is not Library-ready after Metadata & Assets ({reason}); upload has been held")
     return details
@@ -3084,6 +3096,7 @@ async def _torrent_dead_or_stalled(ctx: JobContext, cfg: dict, engine, row: dict
         try:
             await engine.pause(torrent.hash)
         except Exception:
+            _swallowed_note("automation._torrent_dead_or_stalled._give_up")
             pass
         _fail_item(ctx.db, row["item_key"], message, retryable=False)
         return True
@@ -3532,6 +3545,7 @@ async def _advance_active_item(ctx: JobContext, cfg: dict, engine, row: dict, ro
                 if converted_path.exists():
                     converted_path.unlink()
             except Exception:
+                _swallowed_note("automation._advance_active_item")
                 pass
             flood_delay = _flood_wait_delay(exc)
             _fail_item(ctx.db, item_key, f"Local media preparation failed (not a network problem): {exc}", retryable=True, retry_stage="CONVERTING", retry_after_seconds=flood_delay, consume_retry_budget=(flood_delay <= 90))
@@ -3709,6 +3723,7 @@ async def pause_qbittorrent_automation_torrents(db) -> int:
         try:
             db.log(f"Content Automation: boot qBittorrent safety check skipped: {type(exc).__name__}: {exc}", "WARN")
         except Exception:
+            _swallowed_note("automation.pause_qbittorrent_automation_torrents")
             pass
         return 0
 
@@ -3807,6 +3822,7 @@ async def _cleanup_controlled_item(db, row: dict[str, Any]) -> bool:
             try:
                 await engine.close()
             except Exception:
+                _swallowed_note("automation._cleanup_controlled_item")
                 pass
     return True
 
@@ -3898,6 +3914,7 @@ async def run(ctx: JobContext) -> None:
             try:
                 await engine.close()
             except Exception:
+                _swallowed_note("automation.run")
                 pass
         raise RuntimeError(
             f"{exc} -- use Operations -> Content Automation -> Test download engine before starting the run."

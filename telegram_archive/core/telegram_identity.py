@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 
+from .swallowed import note as _swallowed_note
 def canonical_peer_id(peer_or_id) -> str:
     """Return Telethon's marked peer ID for an entity, or preserve a supplied ID.
 
@@ -19,6 +20,7 @@ def canonical_peer_id(peer_or_id) -> str:
         from telethon.utils import get_peer_id
         return str(int(get_peer_id(peer_or_id)))
     except Exception:
+        _swallowed_note("telegram_identity.canonical_peer_id")
         pass
     # Defensive fallback for lightweight adapters / test doubles when Telethon
     # cannot infer the entity class. Production Telethon entities use get_peer_id.

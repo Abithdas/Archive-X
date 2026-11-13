@@ -10,6 +10,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import base64
 import hashlib
@@ -356,6 +357,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
             body = await request.json()
             ttl = body.get("ttl_seconds", 900)
         except Exception:
+            _swallowed_note("routes_ai.register_ai_routes.ai_live_authorize")
             pass
         old = live_sessions.get(app_token)
         if old:
@@ -580,6 +582,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
                     parsed.pop("visible_cli_output", None)
                     state = json.dumps(parsed, ensure_ascii=False, indent=2)
             except Exception:
+                _swallowed_note("routes_ai.register_ai_routes.ai_evidence_client_state")
                 pass
         evidence_id = secrets.token_hex(12)
         active = db.ai_active_investigation()
@@ -718,4 +721,5 @@ def _cleanup_record(record: dict[str, Any]) -> None:
         if p.exists():
             p.unlink()
     except Exception:
+        _swallowed_note("routes_ai._cleanup_record")
         pass

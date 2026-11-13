@@ -7,6 +7,7 @@ future transfer UI without duplicating the media logic.
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 import time
@@ -181,6 +182,7 @@ async def _deliver_prepared_local_media_impl(ctx, *, destination, video_path: Pa
             if isinstance(ctx.job, dict):
                 ctx.job["detail"] = serialized
         except Exception:
+            _swallowed_note("transfer_manager._deliver_prepared_local_media_impl._save_checkpoint")
             pass
 
     progress = {"last_report": 0.0, "last_progress": time.monotonic(), "started": time.monotonic(),
@@ -261,6 +263,7 @@ async def _deliver_prepared_local_media_impl(ctx, *, destination, video_path: Pa
             ctx.db.log(message, "WARN" if wait_seconds > 0 else "INFO",
                        event="telegram_transfer.upload_wait", job_id=ctx.job_id)
         except Exception:
+            _swallowed_note("transfer_manager._deliver_prepared_local_media_impl._upload_status")
             pass
 
     async def _await_with_heartbeat(awaitable, *, reason: str, no_progress_timeout: float | None = None,
@@ -347,6 +350,7 @@ async def _deliver_prepared_local_media_impl(ctx, *, destination, video_path: Pa
                     from ..core.split_files import finalize_split_group
                     await asyncio.to_thread(finalize_split_group, ctx.db, str(split_data.get("group_id") or ""), status="INCOMPLETE")
                 except Exception:
+                    _swallowed_note("transfer_manager._deliver_prepared_local_media_impl")
                     pass
             checkpoint_invalid = True
     elif video_id and not await _known_video_is_valid(video_id, None):
@@ -620,6 +624,7 @@ async def _deliver_prepared_local_media_impl(ctx, *, destination, video_path: Pa
                 f"{type(cleanup_exc).__name__}: {cleanup_exc}", "WARN"
             )
         except Exception:
+            _swallowed_note("transfer_manager._deliver_prepared_local_media_impl")
             pass
     ctx.activity(f"Telegram transfer completed for {file_name}",
                  operation="Telegram transfer · completed and verified", current_item=file_name,

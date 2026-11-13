@@ -5,6 +5,7 @@ No cloud endpoint or API credential is accepted by this module.
 """
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import json
 import os
 import platform
@@ -269,6 +270,7 @@ class LocalAIRuntime:
                 try:
                     proc.kill()
                 except Exception:
+                    _swallowed_note("local_ai_runtime.LocalAIRuntime.stop")
                     pass
         self._started_at = 0.0
         return self.status()
@@ -288,6 +290,7 @@ class LocalAIRuntime:
         try:
             text = str(response["choices"][0]["message"].get("content") or "").strip()
         except Exception:
+            _swallowed_note("local_ai_runtime.LocalAIRuntime.test")
             pass
         return {"ok": True, "text": text, "model": str(response.get("model") or self.model_id), "latency_ms": round((time.monotonic() - started) * 1000, 1)}
 

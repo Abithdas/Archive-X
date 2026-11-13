@@ -1,6 +1,7 @@
 """Synchronous performer catalogue queries shared by web route groups."""
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import json
 import re
 
@@ -25,6 +26,7 @@ def list_performers_sync(db, query_params):
                 try:
                     payload = json.loads(media_row["provider_payload"] or "{}")
                 except Exception:
+                    _swallowed_note("performer_catalogue.list_performers_sync")
                     continue
                 for person in _performer_details(payload):
                     name = str(person.get("name") or "").strip()

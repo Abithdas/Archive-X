@@ -11,6 +11,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 
@@ -290,6 +291,7 @@ def register_job_routes(
                 try:
                     iv = int(value)
                 except Exception:
+                    _swallowed_note("routes_jobs.register_job_routes.suggestion_scan_job.parse_ids")
                     continue
                 if iv > 0 and iv not in out:
                     out.append(iv)

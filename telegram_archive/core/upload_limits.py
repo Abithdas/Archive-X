@@ -7,6 +7,7 @@ before any large transfer starts.
 """
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -123,6 +124,7 @@ async def get_upload_policy(client: Any) -> UploadPolicy:
         setattr(client, "_telegram_archive_upload_policy", policy)
         setattr(client, "_telegram_archive_upload_policy_at", time.monotonic())
     except Exception:
+        _swallowed_note("upload_limits.get_upload_policy")
         pass
     return policy
 

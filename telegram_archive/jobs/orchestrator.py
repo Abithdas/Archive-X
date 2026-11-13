@@ -7,6 +7,7 @@ owner; resource managers and TransferGovernor remain enforcement mechanisms.
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import json
 import time
 from datetime import datetime, timezone, timedelta
@@ -84,6 +85,7 @@ class JobOrchestrator:
                 congested=sum(1 for lane in lanes if int((snap.get("lanes") or {}).get(lane,{}).get("available",0))<=0)
                 effective=max(0, effective - min(5, congested))
             except Exception:
+                _swallowed_note("orchestrator.JobOrchestrator.effective_priority")
                 pass
             return min(base, effective)
         except (TypeError, ValueError):
@@ -273,6 +275,7 @@ class JobOrchestrator:
                     self.db.append_job_journal(jid, "EXECUTION_LEASE_EXPIRED", status="INTERRUPTED", operation="Execution lease expired", payload={"execution_id":job.get("execution_id"),"worker_id":job.get("worker_id")})
                     recovered.append(jid)
                 except Exception:
+                    _swallowed_note("orchestrator.JobOrchestrator.recover_expired_leases")
                     pass
         return recovered
 

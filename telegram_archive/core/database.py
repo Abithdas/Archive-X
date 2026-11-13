@@ -28,6 +28,7 @@ no module is allowed to open its own sqlite3 connection (see the project's
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import json
 import sqlite3
 import threading
@@ -217,10 +218,12 @@ class Database:
             try:
                 conn.close()
             except Exception:
+                _swallowed_note("database.Database._close_read_connections")
                 pass
         try:
             self._read_local.conn = None
         except Exception:
+            _swallowed_note("database.Database._close_read_connections")
             pass
 
     def init_schema(self):
@@ -2005,6 +2008,7 @@ class Database:
                     "WARN",
                 )
             except Exception:
+                _swallowed_note("database.Database._repair_legacy_catalogue_ids")
                 pass
         # Use the full collision-safe identity migration rather than blanket
         # UPDATEs. A previous partial repair can leave a SOURCE_DELETED legacy
@@ -2586,6 +2590,7 @@ class Database:
         try:
             self._flush_event_buffer_locked()
         except Exception:
+            _swallowed_note("database.Database._begin_immediate_locked")
             pass
         self.conn.execute("BEGIN IMMEDIATE")
 
@@ -2626,6 +2631,7 @@ class Database:
             try:
                 self.conn.rollback()
             except Exception:
+                _swallowed_note("database.Database._write_buffered_events_locked")
                 pass
             raise
         finally:
@@ -2664,6 +2670,7 @@ class Database:
                         self.conn.commit()
                     self._write_buffered_events_locked()
                 except Exception:
+                    _swallowed_note("database.Database._schedule_event_flush.flush")
                     pass
         timer = threading.Timer(self._event_commit_interval, flush)
         timer.daemon = True
@@ -2709,6 +2716,7 @@ class Database:
                 try:
                     self._flush_event_buffer_locked()
                 except Exception:
+                    _swallowed_note("database.Database.log")
                     pass
                 finally:
                     self.lock.release()
@@ -2721,6 +2729,7 @@ class Database:
             record_event(event=event, level=level, message=message, job_id=job_id or activity_job_id,
                          operation=operation, details=details, error=error)
         except Exception:
+            _swallowed_note("database.Database.log")
             pass
 
     def log_exception(self, message: str, exc: BaseException, *, level: str = "ERROR",
@@ -2897,10 +2906,12 @@ class Database:
                     self.conn.commit()
                 self._write_buffered_events_locked()
             except Exception:
+                _swallowed_note("database.Database.close")
                 pass
             try:
                 self.conn.close()
             except Exception:
+                _swallowed_note("database.Database.close")
                 pass
 
 
@@ -3124,6 +3135,7 @@ class Database:
         try:
             d["resource_requirements"] = json.loads(d.get("resource_requirements") or "{}")
         except Exception:
+            _swallowed_note("database.Database.get_job")
             pass
         return d
 

@@ -13,6 +13,7 @@ nothing about the video changes until the operator confirms it.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import json
 
 from .. import config
@@ -579,11 +580,13 @@ def confirm(db, suggestion_id: int) -> bool:
         from ..core.resource_registry import sync_message_state
         sync_message_state(db, channel_id, message_id, metadata="COMPLETE", provider="COMPLETE", reason="SUGGESTION_CONFIRMED")
     except Exception:
+        _swallowed_note("suggestions.confirm")
         pass
     try:
         from .pipeline import _upsert_reference_from_match
         _upsert_reference_from_match(db, vrow["filename"] or "", match, channel_id, message_id)
     except Exception:
+        _swallowed_note("suggestions.confirm")
         pass  # reference-DB population is best-effort; confirming the match itself must not fail on it
     return True
 

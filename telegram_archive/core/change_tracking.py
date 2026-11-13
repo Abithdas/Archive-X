@@ -10,6 +10,7 @@ so new write paths are covered automatically.
 """
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import sqlite3
 
 TABLE = "data_versions"
@@ -72,6 +73,7 @@ def ensure(db) -> None:
     try:
         db._change_tracking_checked_at = _time.monotonic()
     except Exception:
+        _swallowed_note("change_tracking.ensure")
         pass
     try:
         with db.lock:
@@ -83,6 +85,7 @@ def ensure(db) -> None:
             install(conn)
             db._change_tracking_tables = (id(conn), count)
     except Exception:
+        _swallowed_note("change_tracking.ensure")
         pass
 
 

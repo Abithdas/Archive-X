@@ -7,6 +7,7 @@ helpers used by the application's JSONL diagnostics stream.
 """
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 from collections import Counter, deque
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -139,6 +140,7 @@ def span(name: str, *, operation_id: str | None = None,
                          "component": component or _component.get()},
             )
         except Exception:
+            _swallowed_note("observability.span")
             pass
 
 
@@ -222,6 +224,7 @@ def _caller() -> dict[str, Any]:
             if "observability.py" not in name and "diagnostics.py" not in name:
                 return {"file": os.path.basename(name), "line": int(frame.lineno), "function": str(frame.function)}
     except Exception:
+        _swallowed_note("observability._caller")
         pass
     return {}
 

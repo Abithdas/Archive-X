@@ -8,6 +8,7 @@ an encode misses the target.
 """
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import asyncio, math, os, subprocess
 from pathlib import Path
 from typing import Any, Awaitable, Callable
@@ -93,6 +94,7 @@ async def _run_encode(cmd: list[str], duration: float, label: str, report: Progr
             try:
                 await asyncio.wait_for(proc.wait(), 10)
             except Exception:
+                _swallowed_note("size_optimizer._run_encode")
                 pass
         stderr_task.cancel()
         raise

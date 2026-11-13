@@ -12,6 +12,7 @@ only after normal Archive X login and expire quickly.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 import os
@@ -371,6 +372,7 @@ async def _browser_smoke(config, sess, bridge, body: dict[str, Any]) -> dict[str
                 if p not in paths:
                     paths.append(p)
             except Exception:
+                _swallowed_note("routes_test_bridge._browser_smoke")
                 continue
     cid = body.get("channel_id")
     mid = body.get("message_id")

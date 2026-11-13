@@ -4,6 +4,7 @@ level `db`/`jobs`/etc. the way the original single-file v14 did.
 """
 from __future__ import annotations
 
+from .core.swallowed import note as _swallowed_note
 from contextlib import asynccontextmanager
 from pathlib import Path
 import os
@@ -195,6 +196,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                     db.log(f"Local preview backfill failed: {type(error).__name__}: {error}", "WARN",
                            event="preview.local_backfill_failed")
                 except Exception:
+                    _swallowed_note("app.create_app.lifespan._local_preview_backfill_done")
                     pass
         local_preview_backfill.add_done_callback(_local_preview_backfill_done)
 
@@ -255,6 +257,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                 try:
                     await asyncio.wait_for(telegram.disconnect(), timeout=3.0)
                 except Exception:
+                    _swallowed_note("app.create_app.lifespan._connect_telegram_background")
                     pass
             except Exception as exc:
                 telegram.connected = False
@@ -308,6 +311,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                     try:
                         await asyncio.wait_for(old.disconnect(), timeout=3.0)
                     except Exception:
+                        _swallowed_note("app.create_app.lifespan._telegram_connect_supervisor")
                         pass
                 db.log(f"Retrying Telegram connection after: {status[:120]}", "INFO", event="telegram.reconnect_retry")
                 await _connect_telegram_background()
@@ -337,6 +341,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                 except asyncio.CancelledError:
                     raise
                 except Exception:
+                    _swallowed_note("app.create_app.lifespan._diagnostic_snapshot_watch")
                     pass
                 await asyncio.sleep(5)
         diagnostic_watch = asyncio.create_task(_diagnostic_snapshot_watch(), name="diagnostic-snapshot")
@@ -361,6 +366,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                                 external_active = True
                                 break
                         except Exception:
+                            _swallowed_note("app.create_app.lifespan._playback_resource_reconcile_watch")
                             continue
                     expected = browser_streams + (1 if external_active else 0)
                     stale = await resources.reconcile_playback(
@@ -470,6 +476,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                         try:
                             db.log(f"Playback engine background warm/reconnect failed: {type(e).__name__}: {getattr(e, 'detail', e)}", "WARN")
                         except Exception:
+                            _swallowed_note("app.create_app.lifespan._warm_engine")
                             pass
                         last_error_log = now
                     await asyncio.sleep(3.0)
@@ -485,6 +492,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                        event="startup.timing",
                        details={"total_seconds": round(total, 2), **{n: round(v, 2) for n, v in phases}})
         except Exception:
+            _swallowed_note("app.create_app.lifespan")
             pass
         yield
         warm.cancel()
@@ -514,6 +522,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
             try:
                 jobs.recovery.mark_clean_shutdown()
             except Exception:
+                _swallowed_note("app.create_app.lifespan")
                 pass
         _eng = app_state.get("engine")
         if _eng is not None:
@@ -541,6 +550,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
             try:
                 db.close()
             except Exception:
+                _swallowed_note("app.create_app.lifespan")
                 pass
             # Written after all app-owned service cleanup and the DB close. The
             # Windows shutdown guard waits for this marker before using its
@@ -549,6 +559,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                 from .core.shutdown_guard import write_shutdown_completion_marker
                 write_shutdown_completion_marker(app)
             except Exception:
+                _swallowed_note("app.create_app.lifespan")
                 pass
 
     app = FastAPI(title="Archive X", lifespan=lifespan)

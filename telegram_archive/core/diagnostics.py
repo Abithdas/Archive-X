@@ -15,6 +15,7 @@ are redacted before anything is written to a shareable report.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import json
 import os
 import platform
@@ -279,6 +280,7 @@ def _rotate_event_file_locked(path: Path) -> None:
         path.replace(path.with_name(f"{path.name}.1"))
     except Exception:
         # A diagnostic rotation failure must never affect application work.
+        _swallowed_note("diagnostics._rotate_event_file_locked")
         pass
 
 
@@ -328,9 +330,13 @@ def record_event(*, event: str, level: str = "INFO", message: str = "",
             if _DIAG_FH is None or _DIAG_FH.closed or _DIAG_PATH != path:
                 if _DIAG_FH is not None and not _DIAG_FH.closed:
                     try: _DIAG_FH.flush()
-                    except Exception: pass
+                    except Exception:
+                        _swallowed_note("diagnostics.record_event")
+                        pass
                     try: _DIAG_FH.close()
-                    except Exception: pass
+                    except Exception:
+                        _swallowed_note("diagnostics.record_event")
+                        pass
                 _DIAG_FH = path.open("a", encoding="utf-8", buffering=1)
                 _DIAG_PATH = path
                 _DIAG_LAST_FLUSH = time.monotonic()
@@ -343,6 +349,7 @@ def record_event(*, event: str, level: str = "INFO", message: str = "",
                 _DIAG_LAST_FLUSH = now
     except Exception:
         # Diagnostics must never become an application failure path.
+        _swallowed_note("diagnostics.record_event")
         pass
 
 
@@ -355,6 +362,7 @@ def flush_diagnostics() -> None:
                 _DIAG_PENDING = 0
                 _DIAG_LAST_FLUSH = time.monotonic()
     except Exception:
+        _swallowed_note("diagnostics.flush_diagnostics")
         pass
 
 
@@ -366,6 +374,7 @@ def _flush_at_exit() -> None:
             if _DIAG_FH is not None and not _DIAG_FH.closed:
                 _DIAG_FH.close()
     except Exception:
+        _swallowed_note("diagnostics._flush_at_exit")
         pass
 
 
@@ -392,7 +401,9 @@ def telegram_transfer_diagnostics(db, *, limit: int = 12) -> dict[str, Any]:
         for job in rows:
             detail = {}
             try: detail = json.loads(job.get("detail") or "{}")
-            except Exception: pass
+            except Exception:
+                _swallowed_note("diagnostics.telegram_transfer_diagnostics")
+                pass
             child_states = {}
             for name, child_id in (detail.get("preparation_jobs") or {}).items() if isinstance(detail.get("preparation_jobs"), dict) else []:
                 child = db.get_job(str(child_id))
@@ -613,6 +624,7 @@ def write_runtime_snapshot(*, db=None, jobs=None, telegram=None, governor=None,
         tmp.write_text(json.dumps(_safe(payload), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
         tmp.replace(runtime_snapshot_path())
     except Exception:
+        _swallowed_note("diagnostics.write_runtime_snapshot")
         pass
 
 
@@ -631,6 +643,7 @@ def structured_event_tail(limit: int = 500) -> list[dict[str, Any]]:
                 if isinstance(value, dict):
                     out.append(value)
             except Exception:
+                _swallowed_note("diagnostics.structured_event_tail")
                 continue
         out.sort(key=lambda x: str(x.get("ts") or ""))
         return out[-max(1, min(int(limit), 1000)):]

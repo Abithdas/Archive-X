@@ -16,6 +16,7 @@ Telegram message cannot make old ranges appear valid for a different file.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from .swallowed import note as _swallowed_note
 import base64
 import json
 import os
@@ -596,4 +597,5 @@ def remove_local_file_index_stage(file_path: str | Path) -> None:
         stage = _stem(0, _local_stage_key(path), size)
         shutil.rmtree(stage, ignore_errors=True)
     except Exception:
+        _swallowed_note("playback_index_cache.remove_local_file_index_stage")
         pass

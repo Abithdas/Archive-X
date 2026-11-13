@@ -7,6 +7,7 @@ decoding the full video. They are deliberately deterministic and cheap:
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import io
 import math
 
@@ -171,5 +172,6 @@ def compare_scene_image_to_snapshots(image_data: bytes, frames_dir) -> dict:
                 best = {"similarity": round(similarity_score, 4), "phash_distance": pd,
                         "dhash_distance": dd, "frame_index": idx - 1}
         except Exception:
+            _swallowed_note("perceptual.compare_scene_image_to_snapshots")
             continue
     return best

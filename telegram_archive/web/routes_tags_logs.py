@@ -11,6 +11,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 import os
@@ -111,6 +112,7 @@ def register_tags_logs_routes(
                 cli_lines = cli_path.read_text(encoding="utf-8", errors="replace").splitlines()[-500:]
                 lines.extend(["", "===== ARCHIVE X LAUNCHER / CLI =====", *[redact_text(x) for x in cli_lines]])
         except Exception:
+            _swallowed_note("routes_tags_logs.register_tags_logs_routes.download_log")
             pass
         content = "\n".join(lines)
         return Response(content=content.encode(), media_type="text/plain",
@@ -179,6 +181,7 @@ def register_tags_logs_routes(
             try:
                 db.log("Diagnostic report collection exceeded 15s; returned bounded fallback report", "WARN", event="diagnostics.report.timeout")
             except Exception:
+                _swallowed_note("routes_tags_logs.register_tags_logs_routes.download_diagnostics_report")
                 pass
         except Exception as exc:
             body = json.dumps({
@@ -197,6 +200,7 @@ def register_tags_logs_routes(
             try:
                 db.log(f"Diagnostic report collection failed: {type(exc).__name__}: {exc}", "WARN", event="diagnostics.report.error")
             except Exception:
+                _swallowed_note("routes_tags_logs.register_tags_logs_routes.download_diagnostics_report")
                 pass
 
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")

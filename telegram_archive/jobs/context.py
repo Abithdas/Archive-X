@@ -11,6 +11,7 @@ and never freezes the web dashboard.
 """
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import time
 from typing import Any, Callable, Optional
@@ -129,6 +130,7 @@ class JobContext:
                 self.db.set_job_transfer_telemetry(self.job_id, telemetry)
             except Exception:
                 # Telemetry is advisory and must not fail the actual scan.
+                _swallowed_note("context.JobContext._publish_stage_telemetry")
                 pass
 
     def activity(self, message: str, *, operation: Optional[str] = None,
@@ -162,6 +164,7 @@ class JobContext:
             # Progress telemetry must never turn an otherwise successful stage
             # into a failed transfer. The job's durable checkpoint remains the
             # source of truth if activity logging is temporarily unavailable.
+            _swallowed_note("context.JobContext.activity")
             pass
 
     def skip_requested(self) -> bool:
@@ -252,6 +255,7 @@ class JobContext:
                 from .manager import job_resource_category
                 category = job_resource_category(self.job)
             except Exception:
+                _swallowed_note("context.JobContext.checkpoint")
                 pass
             gate = asyncio.create_task(resources.cooperative_background_checkpoint(category=category))
             announced = False
@@ -261,6 +265,7 @@ class JobContext:
                     try:
                         playback_waits = resources.playback_blocks_category(category)
                     except Exception:
+                        _swallowed_note("context.JobContext.checkpoint")
                         pass
                     if not announced and getattr(resources, "playback_active", False) and playback_waits:
                         self.report(operation=PLAYBACK_WAIT_OPERATION, force=True)
@@ -304,6 +309,7 @@ class JobContext:
                 from .manager import job_resource_category
                 category = job_resource_category(self.job)
             except Exception:
+                _swallowed_note("context.JobContext.blocking")
                 pass
             await resources.cooperative_background_checkpoint(category=category)
         operation = (self.pipeline.blocking(func, *args, timeout=timeout, **kwargs)

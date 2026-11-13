@@ -15,6 +15,7 @@ other accumulated library data.
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from .core.swallowed import note as _swallowed_note
 import json
 import os
 import shutil
@@ -328,6 +329,7 @@ def _complete_pending_data_move() -> None:
         try:
             marker_source = str(json.loads(marker.read_text(encoding="utf-8")).get("source") or "")
         except Exception:
+            _swallowed_note("config._complete_pending_data_move")
             pass
         if not marker_source or Path(marker_source).resolve() != source:
             # If it already looks like this application's data, allow a safe
@@ -620,12 +622,14 @@ def local_ip() -> str:
         if ip and not ip.startswith("127."):
             return ip
     except Exception:
+        _swallowed_note("config.local_ip")
         pass
     try:
         for item in socket.gethostbyname_ex(socket.gethostname())[2]:
             if item and not item.startswith("127."):
                 return item
     except Exception:
+        _swallowed_note("config.local_ip")
         pass
     return "127.0.0.1"
 

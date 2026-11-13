@@ -8,6 +8,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
 import sys
@@ -117,6 +118,7 @@ def register_automation_routes(
                 try:
                     await engine.close()
                 except Exception:
+                    _swallowed_note("routes_automation.register_automation_routes.automation_test_engine")
                     pass
 
     @router.post("/api/operations/automation/connect-execute")
