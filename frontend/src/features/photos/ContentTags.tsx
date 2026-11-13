@@ -15,11 +15,13 @@ export const groupLooks = (tags: LookSummary['tags']) => tags.reduce<Record<stri
 export const TAG_CONFIRM = 'A small detector (about 12 MB) runs on this PC and looks at each photo for visible body-part regions such as breasts, buttocks, belly or feet. It records them as plain tags you can filter on. It does not identify anyone and does not judge size or shape. Photos that are not saved on this PC are fetched from Telegram first.'
 const why = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.detail : fb)
 
+export const useContentSummary = () => useQuery({ queryKey: ['content-tags'] as const, queryFn: () => api<ContentSummary>('/api/photos/content-tags'), staleTime: 15_000 })
+
 /** Filter the photos by what is visible in them; tags come from a small local detector. */
-export function ContentTags() {
+export function ContentTags({ bare = false }: { bare?: boolean } = {}) {
   const qc = useQueryClient()
   const { contentTags, setContentTags } = usePhotoStore()
-  const q = useQuery({ queryKey: ['content-tags'] as const, queryFn: () => api<ContentSummary>('/api/photos/content-tags'), staleTime: 15_000 })
+  const q = useContentSummary()
   const [ask, setAsk] = useState(false)
   const [askLooks, setAskLooks] = useState(false)
   const [busy, setBusy] = useState('')
@@ -47,8 +49,8 @@ export function ContentTags() {
   }
 
   return (
-    <section aria-label="Content tags" className="mb-4 grid gap-2">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h2 className="text-lg font-bold">Content</h2>
+    <section aria-label="Content tags" className={bare ? 'grid gap-2' : 'mb-4 grid gap-2'}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h2 className={bare ? 'text-sm font-bold' : 'text-lg font-bold'}>Content</h2>
         <span role="status" aria-live="polite" className="text-xs text-muted">{busy || tagLine(s)}</span>
         {s.available ? <button type="button" disabled={!!busy} onClick={() => setAsk(true)} className="ml-auto rounded-lg border border-line-2 px-3 py-1 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50">{s.analysed_photos >= s.total_photos ? 'Tag again' : 'Tag photos by content'}</button> : <span className="ml-auto text-xs text-muted">Needs <code>pip install nudenet</code></span>}
       </div>

@@ -108,14 +108,14 @@ describe('People page', () => {
   it('on Photos, a person filter offers Different person on a photo and can be cleared', async () => {
     usePhotoStore.setState({ selected: ['-1001'], face: { performerId: null, groupId: 2, groupIds: [2], label: 'Face group 2' } })
     const calls = mount(() => undefined, GROUPS, { total_photos: 9, analyzed_photos: 5, failed_photos: 0 }, PhotosPage)
-    expect(await screen.findByText('Face group · Face group 2')).toBeInTheDocument()
+    expect(await screen.findByText('Photos of Face group 2')).toBeInTheDocument()
     await waitFor(() => expect(calls.some((c) => c.url.startsWith('/api/photos?') && c.url.includes('face_group_ids=2'))).toBe(true))
     const card = await screen.findByRole('article', { name: 'a.jpg' })
     fireEvent.click(within(card).getByRole('menuitem', { name: /Different person/, hidden: true }))
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Different person?' })).getByRole('button', { name: 'Separate photo' }))
     await waitFor(() => expect(posts(calls)[0]).toMatchObject({ url: '/api/photos/faces/different-person', body: { photo_id: 1, group_ids: [2] } }))
-    fireEvent.click(screen.getByRole('button', { name: 'Clear group filter' }))
-    await waitFor(() => expect(screen.queryByText('Face group · Face group 2')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Show all photos' }))
+    await waitFor(() => expect(screen.queryByText('Photos of Face group 2')).not.toBeInTheDocument())
   })
   it('shows the server reason when groups cannot load', async () => {
     mount((u) => (u.startsWith('/api/photos/faces/groups') ? json({ detail: 'Face tables locked' }, 500) : undefined)); await openTab()

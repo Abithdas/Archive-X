@@ -40,28 +40,30 @@ const mount = (over: (u: string, i?: RequestInit) => Response | undefined = () =
   return calls
 }
 const photoCalls = (c: Call[]) => c.filter((x) => x.url.startsWith('/api/photos?'))
-const pickMain = async () => fireEvent.click(await screen.findByRole('button', { name: /^Main/ }))
+const openChannels = async () => { fireEvent.click(await screen.findByRole('button', { name: /^All channels/ })); return within(await screen.findByRole('group', { name: 'Channels' })) }
+const pickMain = async () => fireEvent.click((await openChannels()).getByRole('button', { name: /^Main/ }))
 
 describe('PhotosPage', () => {
-  it('lists only scanned channels and asks for a selection first', async () => {
+  it('opens on every scanned channel at once, and lists only scanned channels in the picker', async () => {
     const calls = mount()
-    expect(await screen.findByRole('button', { name: /^Main/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Alpha/ })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Never scanned/ })).not.toBeInTheDocument()
-    expect(screen.getByText('2 scanned channels')).toBeInTheDocument()
-    expect(screen.getByText(/Select channel cards to browse indexed photos/)).toBeInTheDocument()
-    expect(photoCalls(calls)).toHaveLength(0)
+    expect(await screen.findByRole('article', { name: 'IMG_1.jpg' })).toBeInTheDocument()
+    expect(photoCalls(calls)[0]!.url).toBe('/api/photos?page=0&per=48&channels=-1002%2C-1001&q=&sort=date_desc')
+    const pick = await openChannels()
+    expect(pick.getByRole('button', { name: /^Main/ })).toBeInTheDocument()
+    expect(pick.getByRole('button', { name: /^Alpha/ })).toBeInTheDocument()
+    expect(pick.queryByRole('button', { name: /Never scanned/ })).not.toBeInTheDocument()
+    expect(pick.getByRole('button', { name: /^All channels/ })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('loads the selected channels\' photos with the sort and search the server expects', async () => {
     const calls = mount()
     await pickMain()
     expect(await screen.findByRole('article', { name: 'IMG_1.jpg' })).toBeInTheDocument()
-    expect(photoCalls(calls)[0]!.url).toBe('/api/photos?page=0&per=48&channels=-1001&q=&sort=date_desc')
-    expect(screen.getByText('3 images · 1 channel')).toBeInTheDocument()
+    expect(photoCalls(calls).map((c) => c.url)).toContain('/api/photos?page=0&per=48&channels=-1001&q=&sort=date_desc')
+    expect(screen.getByText('3 images')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Sort photos'), { target: { value: 'size_desc' } })
     await waitFor(() => expect(photoCalls(calls).at(-1)!.url).toContain('sort=size_desc'))
-    fireEvent.click(screen.getByRole('button', { name: /^All/ }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Channels' })).getByRole('button', { name: /^All channels/ }))
     await waitFor(() => expect(photoCalls(calls).map((c) => c.url)).toContain('/api/photos?page=0&per=48&channels=-1002%2C-1001&q=&sort=size_desc'))
   })
 
@@ -207,7 +209,8 @@ describe('PhotoViewer', () => {
     try {
       mount(); 
       await act(async () => { await vi.advanceTimersByTimeAsync(10) })
-      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Main/ })); await vi.advanceTimersByTimeAsync(50) })
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^All channels/ })); await vi.advanceTimersByTimeAsync(50) })
+      await act(async () => { fireEvent.click(within(screen.getByRole('group', { name: 'Channels' })).getByRole('button', { name: /^Main/ })); await vi.advanceTimersByTimeAsync(50) })
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Open IMG_3.jpg' })) })
       const dlg = screen.getByRole('dialog', { name: 'Photo viewer' })
       fireEvent.click(within(dlg).getByRole('button', { name: 'Play slideshow' }))
