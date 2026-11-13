@@ -55,7 +55,7 @@ Their component pages (Magic UI, Motion-Primitives) could not be listed from the
 28. **Smart search by content** (type "beach" or "red dress"): optional local CLIP model like Immich, with a download step like the face models. L
 29. **Scrapers for more sources** and a stash-box style link for performers (existing StashDB/ThePornDB support extended with ids, aliases and merge hints). L
 30. **Multiple users** with their own favourites and hidden items, and a PIN-locked private area. L
-31. **Place and map view** only if photos keep GPS data (Telegram usually strips it, so low value). L
+31. ~~Place and map view~~ (dropped by decision).
 
 ### B3. Technical
 32. **End-to-end test suite** (Playwright) for login, Photos, People, watch, Transfers; run in CI. M
@@ -63,16 +63,16 @@ Their component pages (Magic UI, Motion-Primitives) could not be listed from the
 34. **Error boundary and a "report a problem" button** that copies the log lines. S
 
 ## Mockups
-Open `mockups/mockups.html#tray`, `#collections`, `#duplicates`, `#tags`, `#stats`, `#map` (add `?dark` for the dark theme), or see the PNGs in `mockups/`. They show: item 17 jobs tray, 21 collections, 22 photo duplicate finder, 24 tag manager, 25 statistics, 31 map view. Mockups only, nothing is built.
+Open `mockups/mockups.html#tray`, `#collections`, `#duplicates`, `#tags`, `#stats` (add `?dark` for the dark theme), or see the PNGs in `mockups/`. They show: item 17 jobs tray, 21 collections, 22 photo duplicate finder, 24 tag manager, 25 statistics. Mockups only, nothing is built.
 
 ## C. Suggested order
 - **Batch 1 (feel of Photos, 1 week):** 1, 2, 3, 5, 6, 7, 10.
 - **Batch 2 (finishing touches, 1 week):** 4, 8, 12, 14, 15, 16, 25.
 - **Batch 3 (organising, 1 to 2 weeks):** 21, 22, 23, 24, 11, 27.
 - **Batch 4 (player and media, 1 to 2 weeks):** 13, 26, 9, 17.
-- **Later / only if wanted:** 28, 29, 30, 31.
+- **Later / only if wanted:** 28, 29, 30.
 - **Alongside any batch:** 32, 33, 34, 18, 19.
 
 ## D. Not recommended
 - Decorative effects and installing UI kits wholesale (see the UI plan).
-- A map view (31) unless you confirm photos carry GPS.
+- A map view (dropped).
