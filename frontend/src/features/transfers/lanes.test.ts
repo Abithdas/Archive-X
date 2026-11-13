@@ -25,6 +25,11 @@ describe('lane naming', () => {
 })
 
 describe('toLanes', () => {
+  it('carries the server\'s reason a running lane is waiting, and is empty otherwise', () => {
+    const [a, b] = toLanes([{ id: 'j1', type: 'UPLOAD_LOCAL', status: 'RUNNING', metrics: { waiting_reason: 'FloodWait 240s left' } }, { id: 'j2', type: 'UPLOAD_LOCAL', status: 'RUNNING' }], names)
+    expect(a!.waiting).toBe('FloodWait 240s left')
+    expect(b!.waiting).toBe('')
+  })
   const names = (v: unknown) => (v ? `Chan ${String(v)}` : '')
   it('builds a titled card and clamps progress', () => {
     const [l] = toLanes([{ id: 'j1', type: 'UPLOAD_LOCAL', status: 'RUNNING', operation: 'Uploading video', current_item: 'C:\\clips\\a.mp4 · 40%', destination_channel: '5', progress: 140 }], names)

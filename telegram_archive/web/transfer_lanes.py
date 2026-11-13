@@ -5,6 +5,20 @@ import math
 TELEMETRY_MAX_AGE_SECONDS = 30
 
 
+def waiting_reason(status: str, state: str, operation: str, age: float) -> str:
+    """One plain sentence for why a running lane is not moving bytes, or '' when it is."""
+    if status in {"PAUSED", "PAUSING"}:
+        return "Paused"
+    if status not in {"RUNNING", "ACTIVE", "IN_PROGRESS"}:
+        return ""
+    if state == "paused":
+        return operation[:200] or "Waiting on Telegram"
+    if state == "stale":
+        secs = int(age) if math.isfinite(age) else 0
+        return f"No progress update for {secs} s" if secs else "No progress update yet"
+    return ""
+
+
 def transfer_lane_metrics(job, telemetry, *, now=None):
     """Shape the one-row telemetry snapshot; never infer file metrics from jobs/bandwidth."""
     now = now or datetime.now(timezone.utc)
@@ -25,6 +39,9 @@ def transfer_lane_metrics(job, telemetry, *, now=None):
         state = "warming_up"
 
     result = {"state": state}
+    reason = waiting_reason(status, state, str(job.get("current_operation") or ""), age)
+    if reason:
+        result["waiting_reason"] = reason
     if not isinstance(telemetry, dict):
         return result
     stage = str(telemetry.get("stage") or "")

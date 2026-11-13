@@ -28,6 +28,7 @@ function LaneCard({ lane, busy, onAct }: { lane: Lane; busy: boolean; onAct: (l:
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2"><strong className="truncate text-[15px]">{lane.title}</strong><span className="shrink-0 rounded-full bg-surface-3 px-2.5 py-0.5 text-[11px] font-bold capitalize text-muted">{lane.stopping ? 'stopping…' : lane.statusLabel}</span></div>
           <p className="truncate text-xs text-muted" title={lane.subtitle}>{lane.subtitle}</p>
+          {lane.waiting ? <p role="status" className="truncate text-xs font-semibold text-warn" title={lane.waiting}>{lane.waiting}</p> : null}
           {lane.detail ? <p className="truncate text-xs text-faint">{lane.detail}</p> : null}
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label={`${lane.title} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(lane.pct)}><span className="block h-full rounded-full bg-accent transition-[width]" style={{ width: `${lane.pct}%` }} /></div>
           <div className="mt-1 flex items-center justify-between gap-2"><span className="text-[11px] tabular-nums text-faint">{Math.round(lane.pct)}%</span>

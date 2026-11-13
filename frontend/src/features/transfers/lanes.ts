@@ -48,6 +48,8 @@ export interface Lane {
   statusLabel: string
   actions: Array<'pause' | 'resume' | 'cancel' | 'recover'>
   stopping: boolean
+  /** Why a running lane is not moving bytes (FloodWait, silence, paused); empty when it is. */
+  waiting: string
 }
 /** One card per lane job. `nameOf` turns channel ids into titles. */
 export function toLanes(jobs: Obj[], nameOf: (ids: unknown) => string): Lane[] {
@@ -69,7 +71,7 @@ export function toLanes(jobs: Obj[], nameOf: (ids: unknown) => string): Lane[] {
     const terminal = TERMINAL.includes(status)
     const stopping = status === 'CANCEL_REQUESTED'
     const actions: Lane['actions'] = !id || terminal || stopping ? [] : interrupted ? ['recover', 'cancel'] : paused ? ['resume', 'cancel'] : ['pause', 'cancel']
-    return { id, key: id || `${type}:${s(j.source)}:${index}`, kind, title, subtitle, detail: kind === 'metadata' ? file : '', pct: Math.max(0, Math.min(100, num(j.progress))), status, statusLabel: status.replaceAll('_', ' ').toLowerCase(), actions, stopping }
+    return { id, key: id || `${type}:${s(j.source)}:${index}`, kind, title, subtitle, detail: kind === 'metadata' ? file : '', pct: Math.max(0, Math.min(100, num(j.progress))), status, statusLabel: status.replaceAll('_', ' ').toLowerCase(), actions, stopping, waiting: s((j.metrics as Obj | undefined)?.waiting_reason) }
   })
 }
 export const jobPath = (id: string, action: 'pause' | 'resume' | 'cancel' | 'recover') => `/api/jobs/${encodeURIComponent(id)}/${action}`

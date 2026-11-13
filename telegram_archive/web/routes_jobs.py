@@ -487,41 +487,44 @@ def register_job_routes(
             "TELEGRAM_TRANSFER", "UPLOAD_LOCAL", "MEDIA_MANAGER",
             "METADATA_CHANNEL_PIPELINE", "METADATA_ASSETS", "CONTENT_AUTOMATION",
         }
-        rows = []
-        lane_jobs = [job for job in db.active_jobs() if str(job.get("job_type") or "") in relevant]
-        telemetry_by_job = db.get_job_transfer_telemetry([job["id"] for job in lane_jobs]) if lane_jobs else {}
-        with db.lock:
-            channel_names = {str(row["telegram_id"]): str(row["title"] or row["telegram_id"])
-                             for row in db.conn.execute("SELECT telegram_id,title FROM channels").fetchall()}
-        for job in lane_jobs:
-            job_type = str(job.get("job_type") or "")
-            if job_type not in relevant:
-                continue
-            detail = {}
-            try:
-                detail = json.loads(job.get("detail") or "{}")
-                if not isinstance(detail, dict): detail = {}
-            except Exception:
+        def build_rows():
+            rows = []
+            lane_jobs = [job for job in db.active_jobs() if str(job.get("job_type") or "") in relevant]
+            telemetry_by_job = db.get_job_transfer_telemetry([job["id"] for job in lane_jobs]) if lane_jobs else {}
+            with db.lock:
+                channel_names = {str(row["telegram_id"]): str(row["title"] or row["telegram_id"])
+                                 for row in db.conn.execute("SELECT telegram_id,title FROM channels").fetchall()}
+            for job in lane_jobs:
+                job_type = str(job.get("job_type") or "")
+                if job_type not in relevant:
+                    continue
                 detail = {}
-            try:
-                completed = int(job.get("completed") or 0)
-                total = int(job.get("total") or 0)
-            except (TypeError, ValueError):
-                completed, total = 0, 0
-            progress = float(job.get("progress") or (100.0 * completed / total if total else 0.0))
-            if not 0 <= progress <= 100: progress = max(0.0, min(100.0, progress))
-            rows.append({
-                "id": str(job.get("id") or ""), "type": job_type,
-                "status": str(job.get("status") or ""),
-                "operation": str(job.get("current_operation") or detail.get("stage") or "Queued"),
-                "current_item": str(job.get("current_item") or detail.get("current_item") or ""),
-                "completed": completed, "total": total, "progress": round(progress, 1),
-                "source": str(detail.get("source") or ""),
-                "workflow": str(detail.get("workflow") or ""),
-                "source_channel": channel_names.get(str(job.get("source_channel") or ""), str(job.get("source_channel") or "")),
-                "destination_channel": channel_names.get(str(job.get("destination_channel") or ""), str(job.get("destination_channel") or "")),
-                "metrics": transfer_lane_metrics(job, telemetry_by_job.get(str(job.get("id") or ""), {})),
-            })
+                try:
+                    detail = json.loads(job.get("detail") or "{}")
+                    if not isinstance(detail, dict): detail = {}
+                except Exception:
+                    detail = {}
+                try:
+                    completed = int(job.get("completed") or 0)
+                    total = int(job.get("total") or 0)
+                except (TypeError, ValueError):
+                    completed, total = 0, 0
+                progress = float(job.get("progress") or (100.0 * completed / total if total else 0.0))
+                if not 0 <= progress <= 100: progress = max(0.0, min(100.0, progress))
+                rows.append({
+                    "id": str(job.get("id") or ""), "type": job_type,
+                    "status": str(job.get("status") or ""),
+                    "operation": str(job.get("current_operation") or detail.get("stage") or "Queued"),
+                    "current_item": str(job.get("current_item") or detail.get("current_item") or ""),
+                    "completed": completed, "total": total, "progress": round(progress, 1),
+                    "source": str(detail.get("source") or ""),
+                    "workflow": str(detail.get("workflow") or ""),
+                    "source_channel": channel_names.get(str(job.get("source_channel") or ""), str(job.get("source_channel") or "")),
+                    "destination_channel": channel_names.get(str(job.get("destination_channel") or ""), str(job.get("destination_channel") or "")),
+                    "metrics": transfer_lane_metrics(job, telemetry_by_job.get(str(job.get("id") or ""), {})),
+                })
+            return rows
+        rows = await asyncio.to_thread(build_rows)   # SQLite reads and the db lock must not run on the event loop
         resource_snapshot = resources.snapshot() if resources is not None else {}
         try:
             governor_snapshot = governor.snapshot()
