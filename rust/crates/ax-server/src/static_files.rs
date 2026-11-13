@@ -20,6 +20,15 @@ use crate::proxy::Body;
 const BACKEND_PREFIXES: &[&str] = &["api", "stream", "static", "ws", "desktop", "health", "ca.crt", "app-next", "hls", "test-bridge", "openapi.json", "docs", "redoc"];
 const MIN_GZIP: usize = 1024;
 
+/// The first path segment of each page of the web app (the React router's routes). Anything else that is not a real file
+/// goes to the Python backend, which decides: it has routes this front door does not know about, such as /stream-cached/....
+const SPA_ROUTES: &[&str] = &["photos", "videos", "performers", "studios", "watch", "operations", "transfers", "settings", "ai", "people", "login"];
+
+pub fn is_spa_path(path: &str) -> bool {
+    let first = path.trim_start_matches('/').split('/').next().unwrap_or("");
+    first.is_empty() || SPA_ROUTES.contains(&first)
+}
+
 pub fn is_backend_path(path: &str) -> bool {
     let first = path.trim_start_matches('/').split('/').next().unwrap_or("");
     BACKEND_PREFIXES.contains(&first)
@@ -68,16 +77,25 @@ impl StaticFiles {
         Some(out)
     }
 
+    /// The file this path names inside the web folder, if there is one (never outside it).
+    pub async fn lookup(&self, path: &str) -> Option<PathBuf> {
+        let trimmed = path.trim_matches('/');
+        if trimmed.is_empty() {
+            return None;
+        }
+        let candidate = self.resolve(path)?;
+        match tokio::fs::canonicalize(&candidate).await {
+            Ok(real) if real.starts_with(&self.root) && real.is_file() => Some(real),
+            _ => None,
+        }
+    }
+
     pub async fn serve(&self, method: &Method, path: &str, headers: &hyper::HeaderMap, tls: bool) -> Response<Body> {
         let head = method == Method::HEAD;
-        let Some(candidate) = self.resolve(path) else { return with_security_headers(not_found(), tls) };
         let trimmed = path.trim_matches('/');
         let first = trimmed.split('/').next().unwrap_or("");
         let has_ext = Path::new(trimmed).extension().is_some();
-        let file = match tokio::fs::canonicalize(&candidate).await {
-            Ok(real) if real.starts_with(&self.root) && real.is_file() && !trimmed.is_empty() => Some(real),
-            _ => None,
-        };
+        let file = self.lookup(path).await;
         let resp = match file {
             Some(real) => {
                 let cache = if trimmed == "sw.js" || trimmed == "manifest.webmanifest" { "no-cache" } else if first == "assets" { "public, max-age=31536000, immutable" } else { "public, max-age=3600" };
@@ -161,4 +179,32 @@ pub fn with_security_headers(mut resp: Response<Body>, tls: bool) -> Response<Bo
         set("strict-transport-security", "max-age=31536000; includeSubDomains");
     }
     resp
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_apps_own_pages_are_recognised_and_backend_routes_are_not() {
+        for p in ["/", "/photos", "/photos/x", "/watch/1/2", "/login", "/performers/5"] {
+            assert!(is_spa_path(p), "{p}");
+        }
+        for p in ["/stream-cached/-1/2", "/stream-compat/-1/2", "/api/status", "/hls/1/2/index.m3u8", "/whatever"] {
+            assert!(!is_spa_path(p), "{p}");
+        }
+    }
+
+    #[test]
+    fn a_path_can_never_leave_the_web_folder() {
+        let dir = std::env::temp_dir().join(format!("ax_static_{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("assets")).unwrap();
+        std::fs::write(dir.join("assets/a.js"), "x").unwrap();
+        let files = StaticFiles::new(dir.clone());
+        for bad in ["/..%2f..%2fetc/passwd", "/%2e%2e/secret", "/assets/../../x", "/a%5c..%5cb", "/%00", "/../x", "/assets/./a.js"] {
+            assert!(files.resolve(bad).is_none(), "{bad} was accepted");
+        }
+        assert!(files.resolve("/assets/a.js").unwrap().starts_with(&files.root));
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

@@ -36,3 +36,38 @@ jobs:
         with: { workspaces: desktop }
       - run: cargo test -p archive-x-launcher-core
         working-directory: desktop
+
+  front-door:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: clippy }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: rust }
+      - run: cargo test
+        working-directory: rust
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: rust
+
+  front-door-windows:
+    # The front door ships in the Windows installer: make sure it builds there.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: rust }
+      - run: cargo build --release
+        working-directory: rust
+      - run: cargo test
+        working-directory: rust
+
+  python-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install ruff
+      - run: ruff check

@@ -8,18 +8,24 @@ Status: a plan only. Nothing has been ported. Sizes are relative (S, M, L, XL); 
 |-------|--------|
 | 0. Prove the risky parts | **Not done.** The `grammers` Telegram trial needs a real account; the `ort` face/tag checks and the Whisper speed check were not run here. SQLite shared between Python and Rust is exercised by the front door tests only indirectly (the front door does not open the database yet) |
 | 1. Safety net | **Done:** frozen API (`docs/desktop/api/`), parity harness (`tools/parity/compare.py`, 0 differences against itself and against the Rust front door on 85 routes). Not done: more backend tests, the Python clean-ups |
-| 2. Rust front door | **Done and verified here** (details below). Not done: bundling the binary in the installer and the GitHub Actions build, and a Windows run |
+| 2. Rust front door | **Done and verified here** (details below), then hardened: timeouts, connection cap, graceful shutdown, pooled connections, HTTPS/HTTP2 test, CI jobs (`front-door`, `front-door-windows`, `python-lint` in `.github/workflows/ci.yml`, not yet run on GitHub). Not done: bundling the binary in the installer and a Windows run |
 | 3 to 9 | Not started |
 
 Phase 2 results (`rust/crates/ax-server`, 12 Rust tests, clippy clean; Python side `TrustedProxyMiddleware`, 2 tests):
 
-- 85 of 85 GET routes identical through the front door (status, content type, JSON body); 14 static paths identical (status, cache and security headers, bytes), including the path-traversal attempts.
+- Parity (latest run): **248 of 248** requests identical through the front door: the 85 parameter-free GET routes, the routes with path parameters filled from real ids (`--discover`), and 38 list-route query variants (`--queries`). The status mix of that run: 205 answers of 200, 13 each of 400 and 404, 11 of 503 (Telegram not connected), the rest 307, 403, 409. Earlier: 85 of 85 GET routes identical through the front door (status, content type, JSON body); 14 static paths identical (status, cache and security headers, bytes), including the path-traversal attempts.
 - The real React app works through it: the sign-in form, all eight pages, the live WebSocket, and a 300 MB response arrives byte for byte while the front door stays at about 19 MB of memory (it streams).
 - Security: a request arriving from a non-loopback address is still treated as remote by the "only from this PC" checks, and forged `X-Forwarded-For` / peer / key headers change nothing.
 - Speed (release build, one connection, loopback): app bundle 5.7 ms to 0.9 ms and 580 KB to 186 KB on the wire (gzip); app shell 3.5 ms to 0.4 ms; a proxied API call costs about 0.55 ms more than going to Python directly (it was 1.4 ms before backend connections were reused).
 - The release binary is 4.1 MB.
 - Desktop launcher: `LaunchOptions.front_door` (opt-in); a real end-to-end test (`cargo test -p archive-x-launcher-core real_backend_with_front_door -- --ignored`) passes with the Python backend in desktop mode: health, app shell, the backend's 403 guard, the session hand-off and a graceful shutdown all work through the front door.
 - Known differences: Python counts a plain page load of `/login` against its login rate limit and the front door does not; Python advertises HTTP/3 (`alt-svc`) and the front door removes that header because it does not speak HTTP/3.
+
+### What the hardening round found (and fixed)
+
+- **Parity found a real bug:** the front door served the app shell for `/stream-cached/...` and `/stream-compat/...` (Python routes that are not under `/stream`). It now serves a path itself only when a file exists in the web folder or it is one of the app's own pages, and sends everything else to Python.
+- **A test found a real gap:** a client that connects and sends nothing was never disconnected, because the combined HTTP/1-and-2 server waits for the first bytes before applying any timeout. The protocol is now chosen up front (HTTP/2 only when TLS negotiated it).
+- Still open from the review: sessions (Step 3), the database crate (Step 4), write-route parity (run the same POST against two copies of one database and diff the response and the changed rows), bundling into the installer.
 
 ## 1. What is being migrated
 

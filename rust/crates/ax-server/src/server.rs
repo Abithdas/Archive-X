@@ -5,15 +5,29 @@ use std::sync::Arc;
 
 use hyper::service::service_fn;
 use hyper::{Method, Request, Response};
-use hyper_util::rt::{TokioExecutor, TokioIo};
-use hyper_util::server::conn::auto;
+use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
+use std::time::Duration;
+use tokio::sync::{watch, Semaphore};
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 use tracing::{info, warn};
 
 use crate::config::Config;
 use crate::proxy::{Body, Proxy};
-use crate::static_files::{is_backend_path, StaticFiles};
+use crate::static_files::{is_backend_path, is_spa_path, StaticFiles};
+
+/// Run one connection until it ends; on shutdown ask it to finish its current request first.
+macro_rules! drive {
+    ($conn:ident, $stop:ident) => {{
+        tokio::select! {
+            _ = &mut $conn => {}
+            _ = async { let _ = $stop.wait_for(|stopping| *stopping).await; } => {
+                $conn.as_mut().graceful_shutdown();
+                let _ = $conn.as_mut().await;
+            }
+        }
+    }};
+}
 
 pub struct State {
     pub proxy: Arc<Proxy>,
@@ -40,7 +54,11 @@ fn tls_acceptor(cert: &std::path::Path, key: &std::path::Path) -> Result<TlsAcce
 
 /// Decide who answers: the web app's own files here, everything else the Python backend.
 pub async fn handle(req: Request<hyper::body::Incoming>, peer: SocketAddr, tls: bool, state: Arc<State>) -> Result<Response<Body>, Infallible> {
-    let serve_static = matches!(*req.method(), Method::GET | Method::HEAD) && !is_backend_path(req.uri().path()) && !req.headers().contains_key(hyper::header::UPGRADE);
+    // Static only for what is certainly ours: a file that exists in the web folder, or one of the app's own pages.
+    // Everything else, including routes this server has never heard of, is the Python backend's to answer.
+    let path = req.uri().path();
+    let candidate = matches!(*req.method(), Method::GET | Method::HEAD) && !is_backend_path(path) && !req.headers().contains_key(hyper::header::UPGRADE);
+    let serve_static = candidate && (is_spa_path(path) || state.files.lookup(path).await.is_some());
     if serve_static {
         return Ok(state.files.serve(req.method(), req.uri().path(), req.headers(), tls).await);
     }
@@ -68,25 +86,59 @@ pub async fn serve(listener: TcpListener, cfg: Arc<Config>, shutdown: impl std::
         use std::io::Write;
         let _ = std::io::stdout().flush();
     }
+    let permits = Arc::new(Semaphore::new(cfg.limits.max_connections));
+    let (stop_tx, stop_rx) = watch::channel(false);
     loop {
         tokio::select! {
             accepted = listener.accept() => {
                 let (stream, peer) = match accepted { Ok(x) => x, Err(e) => { warn!("accept failed: {e}"); continue; } };
+                let Ok(permit) = permits.clone().try_acquire_owned() else {
+                    warn!("connection limit ({}) reached; refusing {peer}", cfg.limits.max_connections);
+                    continue; // dropping the stream closes it
+                };
                 stream.set_nodelay(true).ok();
-                let (state, acceptor) = (state.clone(), acceptor.clone());
+                let (state, acceptor, mut stop, limits) = (state.clone(), acceptor.clone(), stop_rx.clone(), cfg.limits.clone());
                 tokio::spawn(async move {
+                    let _permit = permit;
                     let service = service_fn(move |req| handle(req, peer, tls_on, state.clone()));
-                    let builder = auto::Builder::new(TokioExecutor::new());
+                    // The protocol is chosen up front (HTTP/2 only when TLS negotiated it), never sniffed from the
+                    // first bytes: sniffing waits for the client, and a silent client must not be able to hold a connection.
+                    let http1 = || {
+                        let mut b = hyper::server::conn::http1::Builder::new();
+                        b.timer(TokioTimer::new()).header_read_timeout(limits.header_read_timeout);
+                        b
+                    };
                     match acceptor {
-                        Some(a) => match a.accept(stream).await {
-                            Ok(s) => { let _ = builder.serve_connection_with_upgrades(TokioIo::new(s), service).await; }
-                            Err(e) => tracing::debug!("TLS handshake from {peer} failed: {e}"),
+                        Some(a) => match tokio::time::timeout(limits.tls_handshake_timeout, a.accept(stream)).await {
+                            Ok(Ok(s)) if s.get_ref().1.alpn_protocol() == Some(&b"h2"[..]) => {
+                                let mut b = hyper::server::conn::http2::Builder::new(TokioExecutor::new());
+                                b.timer(TokioTimer::new()).keep_alive_interval(Some(Duration::from_secs(30))).keep_alive_timeout(Duration::from_secs(20));
+                                let mut conn = std::pin::pin!(b.serve_connection(TokioIo::new(s), service));
+                                drive!(conn, stop);
+                            }
+                            Ok(Ok(s)) => {
+                                let mut conn = std::pin::pin!(http1().serve_connection(TokioIo::new(s), service).with_upgrades());
+                                drive!(conn, stop);
+                            }
+                            Ok(Err(e)) => tracing::debug!("TLS handshake from {peer} failed: {e}"),
+                            Err(_) => tracing::debug!("TLS handshake from {peer} timed out"),
                         },
-                        None => { let _ = builder.serve_connection_with_upgrades(TokioIo::new(stream), service).await; }
+                        None => {
+                            let mut conn = std::pin::pin!(http1().serve_connection(TokioIo::new(stream), service).with_upgrades());
+                            drive!(conn, stop);
+                        }
                     }
                 });
             }
-            _ = &mut shutdown => { info!("shutting down"); return Ok(()); }
+            _ = &mut shutdown => {
+                info!("shutting down; waiting up to {:?} for requests in flight", cfg.limits.shutdown_grace);
+                let _ = stop_tx.send(true); // every connection finishes its current request and then closes
+                // Each connection holds a permit; once all are back, nothing is left in flight.
+                if tokio::time::timeout(cfg.limits.shutdown_grace, permits.acquire_many(cfg.limits.max_connections as u32)).await.is_err() {
+                    warn!("some connections were still open after the grace period");
+                }
+                return Ok(());
+            }
         }
     }
 }

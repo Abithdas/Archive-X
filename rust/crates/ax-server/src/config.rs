@@ -1,9 +1,27 @@
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
+use std::time::Duration;
 
 pub const USAGE: &str = "usage: ax-server --listen 0.0.0.0:8443 --upstream 127.0.0.1:18443 --dist frontend/dist \
 [--cert cert.pem --key key.pem] [--upstream-plain] [--print-ready]\n\
 environment: ARCHIVE_X_PROXY_KEY  secret shared with the Python backend (required)";
+
+/// Protection against clients that connect and then do nothing, or that open too many connections.
+#[derive(Debug, Clone)]
+pub struct Limits {
+    /// How long a client may take to send the request line and headers (this also ends idle keep-alive connections).
+    pub header_read_timeout: Duration,
+    pub tls_handshake_timeout: Duration,
+    pub max_connections: usize,
+    /// On shutdown, requests already in flight get this long to finish.
+    pub shutdown_grace: Duration,
+}
+
+impl Default for Limits {
+    fn default() -> Self {
+        Limits { header_read_timeout: Duration::from_secs(30), tls_handshake_timeout: Duration::from_secs(10), max_connections: 2048, shutdown_grace: Duration::from_secs(10) }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -17,6 +35,7 @@ pub struct Config {
     pub proxy_key: String,
     /// Print `ARCHIVE_X_READY {"port":N,"pid":P}` once listening (how the desktop launcher learns the port).
     pub print_ready: bool,
+    pub limits: Limits,
 }
 
 impl Config {
@@ -59,7 +78,7 @@ impl Config {
         if proxy_key.len() < 16 {
             return Err("ARCHIVE_X_PROXY_KEY must be set to a random secret of at least 16 characters".into());
         }
-        Ok(Config { listen, upstream, upstream_plain, dist: PathBuf::from(dist), cert, key, proxy_key, print_ready })
+        Ok(Config { listen, upstream, upstream_plain, dist: PathBuf::from(dist), cert, key, proxy_key, print_ready, limits: Limits::default() })
     }
 }
 

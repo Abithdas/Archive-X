@@ -11,9 +11,12 @@ use std::time::Duration;
 use std::sync::Mutex;
 use hyper::client::conn::http1::SendRequest;
 
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
 use bytes::Bytes;
 use http_body_util::{combinators::BoxBody, BodyExt};
-use hyper::body::Incoming;
+use hyper::body::{Frame, Incoming, SizeHint};
 use hyper::header::{HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
@@ -111,13 +114,10 @@ impl Proxy {
     #[allow(clippy::result_large_err)] // the error is a ready-made HTTP response, returned once and sent straight back
     async fn acquire(&self, fresh: bool) -> Result<(SendRequest<Body>, bool), Response<Body>> {
         if !fresh {
-            loop {
-                let candidate = self.idle.lock().unwrap().pop();
-                match candidate {
-                    Some(s) if s.is_ready() && !s.is_closed() => return Ok((s, true)),
-                    Some(_) => continue, // still busy or closed: drop it
-                    None => break,
-                }
+            let mut idle = self.idle.lock().unwrap();
+            idle.retain(|s| !s.is_closed());
+            if let Some(i) = idle.iter().position(|s| s.is_ready()) {
+                return Ok((idle.swap_remove(i), true));
             }
         }
         let connect = async {
@@ -143,7 +143,7 @@ impl Proxy {
         sender.map(|s| (s, false)).map_err(|e| error_response(StatusCode::BAD_GATEWAY, &format!("The Archive X backend failed: {e}")))
     }
 
-    fn release(&self, sender: SendRequest<Body>) {
+    pub(crate) fn release(&self, sender: SendRequest<Body>) {
         let mut idle = self.idle.lock().unwrap();
         if idle.len() < MAX_IDLE && !sender.is_closed() {
             idle.push(sender);
@@ -178,7 +178,7 @@ impl Proxy {
         out.body(body).map_err(|e| error_response(StatusCode::BAD_GATEWAY, &format!("bad request: {e}")))
     }
 
-    pub async fn forward(&self, mut req: Request<Incoming>, peer: SocketAddr) -> Response<Body> {
+    pub async fn forward(self: &Arc<Self>, mut req: Request<Incoming>, peer: SocketAddr) -> Response<Body> {
         let wants_upgrade = req.headers().contains_key(UPGRADE);
         let client_upgrade = if wants_upgrade { Some(hyper::upgrade::on(&mut req)) } else { None };
         let (mut parts, body) = req.into_parts();
@@ -215,9 +215,8 @@ impl Proxy {
             Ok(r) => r,
             Err(e) => return error_response(StatusCode::BAD_GATEWAY, &format!("The Archive X backend failed: {e}")),
         };
-        if !wants_upgrade && resp.status() != StatusCode::SWITCHING_PROTOCOLS {
-            self.release(sender);
-        }
+        // The connection goes back to the pool when the answer has been fully read (see PoolBody), not before.
+        let reusable = if !wants_upgrade && resp.status() != StatusCode::SWITCHING_PROTOCOLS { Some((self.clone(), sender)) } else { None };
 
         // A WebSocket handshake: once the backend says 101, tunnel both directions until either side closes.
         if resp.status() == StatusCode::SWITCHING_PROTOCOLS {
@@ -240,7 +239,48 @@ impl Proxy {
         }
         // The Python server advertises HTTP/3 on its own port; the front door does not speak it, so do not send browsers there.
         rparts.headers.remove("alt-svc");
-        Response::from_parts(rparts, boxed(rbody))
+        let body = PoolBody { inner: rbody, pool: reusable };
+        Response::from_parts(rparts, body.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>).boxed())
+    }
+}
+
+/// The backend's answer, which hands its connection back to the pool once the whole answer has been read.
+/// A client that goes away mid-answer drops the connection instead, since it cannot be reused safely.
+struct PoolBody {
+    inner: Incoming,
+    pool: Option<(Arc<Proxy>, SendRequest<Body>)>,
+}
+
+impl PoolBody {
+    fn finish(&mut self) {
+        if let Some((proxy, sender)) = self.pool.take() {
+            proxy.release(sender);
+        }
+    }
+}
+
+impl hyper::body::Body for PoolBody {
+    type Data = Bytes;
+    type Error = hyper::Error;
+
+    fn poll_frame(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Frame<Bytes>, hyper::Error>>> {
+        let this = &mut *self;
+        let polled = Pin::new(&mut this.inner).poll_frame(cx);
+        match &polled {
+            Poll::Ready(None) => this.finish(),
+            // A sized answer ends with its last data frame; the server may never poll again after that.
+            Poll::Ready(Some(Ok(_))) if this.inner.is_end_stream() => this.finish(),
+            _ => {}
+        }
+        polled
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.inner.is_end_stream()
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        self.inner.size_hint()
     }
 }
 

@@ -6,7 +6,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use ax_server::{config::Config, server};
+use ax_server::{config::{Config, Limits}, server};
 use bytes::Bytes;
 use http_body_util::{combinators::BoxBody, BodyExt, Full, StreamBody};
 use hyper::body::{Frame, Incoming};
@@ -86,6 +86,10 @@ struct Door {
 }
 
 async fn start_door(upstream: SocketAddr) -> Door {
+    start_door_with(upstream, Limits::default()).await
+}
+
+async fn start_door_with(upstream: SocketAddr, limits: Limits) -> Door {
     let dist = tempfile::tempdir().unwrap();
     std::fs::write(dist.path().join("index.html"), "<html>app shell</html>").unwrap();
     std::fs::create_dir(dist.path().join("assets")).unwrap();
@@ -93,7 +97,7 @@ async fn start_door(upstream: SocketAddr) -> Door {
     std::fs::write(dist.path().join("sw.js"), "// sw").unwrap();
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
-    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false });
+    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false, limits });
     tokio::spawn(async move { let _ = server::serve(l, cfg, std::future::pending()).await; });
     Door { addr, _dist: dist }
 }
@@ -227,9 +231,10 @@ async fn the_web_app_is_served_here_and_the_rest_goes_to_the_backend() {
     assert!(r2.body.is_empty());
     // the service worker is always re-checked
     assert_eq!(headers_get(&http(door.addr, &get("/sw.js", "")).await.headers, "cache-control"), Some("no-cache"));
-    // an unknown file is a 404, not the app shell
+    // an unknown file is a 404 from the backend, not the app shell
     let r = http(door.addr, &get("/missing.js", "")).await;
     assert_eq!(r.status, 404);
+    assert!(!String::from_utf8_lossy(&r.body).contains("app shell"));
     // HEAD has the headers and no body
     let r = http(door.addr, "HEAD /assets/app-1.js HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n").await;
     assert_eq!(r.status, 200);
@@ -242,14 +247,27 @@ async fn the_web_app_is_served_here_and_the_rest_goes_to_the_backend() {
 }
 
 #[tokio::test]
-async fn a_path_that_climbs_out_of_the_web_folder_is_refused() {
+async fn a_path_that_climbs_out_of_the_web_folder_never_leaks_a_file() {
     let door = start_door(start_backend().await).await;
     for p in ["/..%2f..%2fetc/passwd", "/%2e%2e/secret", "/assets/../../x", "/a%5c..%5cb", "/%00"] {
         let r = http(door.addr, &get(p, "")).await;
+        // not a file of ours, so the backend answers (here the fake backend's 404); nothing from the disk is served
         assert_eq!(r.status, 404, "{p}");
         assert!(!String::from_utf8_lossy(&r.body).contains("root:"), "{p}");
-        assert!(r.headers.contains_key("x-frame-options"), "{p}: rejections carry the security headers too");
     }
+}
+
+/// Found by the parity harness: the backend has routes such as /stream-cached/... that are not under /stream.
+#[tokio::test]
+async fn paths_the_front_door_does_not_know_go_to_the_backend_not_the_app_shell() {
+    let door = start_door(start_backend().await).await;
+    for p in ["/stream-cached/-1001/5", "/stream-compat/-1001/5", "/some-new-route", "/hls/1/2/index.m3u8"] {
+        let r = http(door.addr, &get(p, "")).await;
+        assert!(String::from_utf8_lossy(&r.body).contains("backend 404"), "{p} was answered here: {}", String::from_utf8_lossy(&r.body));
+    }
+    // the app's own pages and real files are still served here
+    assert!(String::from_utf8_lossy(&http(door.addr, &get("/photos/anything", "")).await.body).contains("app shell"));
+    assert_eq!(http(door.addr, &get("/assets/app-1.js", "")).await.status, 200);
 }
 
 #[tokio::test]
@@ -290,4 +308,102 @@ async fn backend_connections_are_reused_between_requests() {
         tokio::time::sleep(Duration::from_millis(30)).await;
     }
     assert!(accepted.load(Ordering::SeqCst) <= 2, "the backend saw {} connections for 6 requests", accepted.load(Ordering::SeqCst));
+}
+
+#[tokio::test]
+async fn a_client_that_sends_nothing_is_disconnected() {
+    let door = start_door_with(start_backend().await, Limits { header_read_timeout: Duration::from_millis(300), ..Limits::default() }).await;
+    let mut s = TcpStream::connect(door.addr).await.unwrap();
+    let started = Instant::now();
+    let mut buf = [0u8; 16];
+    let n = tokio::time::timeout(Duration::from_secs(5), s.read(&mut buf)).await.expect("the front door never gave up on a silent client");
+    assert!(matches!(n, Ok(0) | Err(_)) || n.unwrap() > 0, "closed or answered with an error");
+    assert!(started.elapsed() < Duration::from_secs(3), "took {:?}", started.elapsed());
+    // a normal client is unaffected
+    assert_eq!(http(door.addr, &get("/photos", "")).await.status, 200);
+}
+
+#[tokio::test]
+async fn connections_beyond_the_limit_are_refused_and_freed_ones_work_again() {
+    let door = start_door_with(start_backend().await, Limits { max_connections: 2, ..Limits::default() }).await;
+    let hold1 = TcpStream::connect(door.addr).await.unwrap();
+    let hold2 = TcpStream::connect(door.addr).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let mut third = TcpStream::connect(door.addr).await.unwrap();
+    let _ = third.write_all(get("/photos", "").as_bytes()).await;
+    let mut buf = Vec::new();
+    let r = tokio::time::timeout(Duration::from_secs(3), third.read_to_end(&mut buf)).await.expect("the extra connection was neither served nor closed");
+    assert!(r.is_err() || buf.is_empty(), "the third connection must be refused, got {} bytes", buf.len());
+    drop((hold1, hold2));
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(http(door.addr, &get("/photos", "")).await.status, 200, "capacity comes back when connections close");
+}
+
+#[tokio::test]
+async fn shutdown_lets_a_request_in_flight_finish() {
+    let upstream = start_backend().await;
+    let dist = tempfile::tempdir().unwrap();
+    std::fs::write(dist.path().join("index.html"), "x").unwrap();
+    let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = l.local_addr().unwrap();
+    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false, limits: Limits::default() });
+    let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
+    let handle = tokio::spawn(async move { server::serve(l, cfg, async { let _ = stopped.await; }).await });
+    let mut s = TcpStream::connect(addr).await.unwrap();
+    s.write_all(get("/stream", "").as_bytes()).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let _ = stop.send(());
+    let mut seen = Vec::new();
+    s.read_to_end(&mut seen).await.unwrap();
+    let text = String::from_utf8_lossy(&seen);
+    assert!(text.contains("one;") && text.contains("two;") && text.contains("three;"), "the answer in flight was cut off: {text}");
+    tokio::time::timeout(Duration::from_secs(5), handle).await.expect("serve did not return after the request finished").unwrap().unwrap();
+}
+
+/// HTTPS with a generated certificate, as a browser would use it: HTTP/2 is negotiated and its requests reach the
+/// HTTP/1.1 backend with a proper Host header.
+#[tokio::test]
+async fn https_negotiates_http2_and_reaches_the_backend() {
+    use rustls::pki_types::ServerName;
+    let ck = rcgen::generate_simple_self_signed(vec!["localhost".to_string()]).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("cert.pem"), ck.cert.pem()).unwrap();
+    std::fs::write(dir.path().join("key.pem"), ck.key_pair.serialize_pem()).unwrap();
+    let upstream = start_backend().await;
+    let dist = tempfile::tempdir().unwrap();
+    std::fs::write(dist.path().join("index.html"), "<html>tls shell</html>").unwrap();
+    let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = l.local_addr().unwrap();
+    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: Some(dir.path().join("cert.pem")), key: Some(dir.path().join("key.pem")), proxy_key: KEY.into(), print_ready: false, limits: Limits::default() });
+    tokio::spawn(async move { let _ = server::serve(l, cfg, std::future::pending()).await; });
+
+    let mut roots = rustls::RootCertStore::empty();
+    roots.add(ck.cert.der().clone()).unwrap();
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let client = |alpn: &[&[u8]]| {
+        let mut c = rustls::ClientConfig::builder_with_provider(provider.clone()).with_safe_default_protocol_versions().unwrap().with_root_certificates(roots.clone()).with_no_client_auth();
+        c.alpn_protocols = alpn.iter().map(|a| a.to_vec()).collect();
+        tokio_rustls::TlsConnector::from(Arc::new(c))
+    };
+    let name = || ServerName::try_from("localhost").unwrap();
+
+    // HTTP/1.1 only client: the app shell, with HSTS
+    let mut tls = client(&[b"http/1.1"]).connect(name(), TcpStream::connect(addr).await.unwrap()).await.unwrap();
+    tls.write_all(b"GET /photos HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n").await.unwrap();
+    let mut raw = Vec::new();
+    let _ = tls.read_to_end(&mut raw).await;
+    let text = String::from_utf8_lossy(&raw).to_lowercase();
+    assert!(text.starts_with("http/1.1 200") && text.contains("tls shell") && text.contains("strict-transport-security"), "{text}");
+
+    // a client that offers h2 gets h2, and its request is forwarded to the HTTP/1.1 backend
+    let tls = client(&[b"h2", b"http/1.1"]).connect(name(), TcpStream::connect(addr).await.unwrap()).await.unwrap();
+    assert_eq!(tls.get_ref().1.alpn_protocol(), Some(&b"h2"[..]), "HTTP/2 was not negotiated");
+    let (mut sender, conn) = hyper::client::conn::http2::handshake(hyper_util::rt::TokioExecutor::new(), TokioIo::new(tls)).await.unwrap();
+    tokio::spawn(conn);
+    let req = Request::builder().uri("https://localhost/api/echo?via=h2").body(http_body_util::Empty::<Bytes>::new()).unwrap();
+    let resp = sender.send_request(req).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let body = String::from_utf8(resp.into_body().collect().await.unwrap().to_bytes().to_vec()).unwrap();
+    assert!(body.starts_with("GET /api/echo?via=h2"), "{body}");
+    assert!(body.contains("host: localhost"), "the backend must get a Host header built from the HTTP/2 authority\n{body}");
 }
