@@ -286,8 +286,11 @@ def register_entity_routes(
 
         channel_key = str(channel_id)
         keep_channel_key = str(keep_channel_id)
-        target_rows = load_channel_rows(db, channel_key)
-        keep_rows = target_rows if keep_channel_key == channel_key else load_channel_rows(db, keep_channel_key)
+        def _load_rows():
+            # Reading the saved inventory runs in a worker thread so it cannot freeze the event loop.
+            rows = load_channel_rows(db, channel_key)
+            return rows, rows if keep_channel_key == channel_key else load_channel_rows(db, keep_channel_key)
+        target_rows, keep_rows = await asyncio.to_thread(_load_rows)
         target_by_message = {int(r.get("source_message_id") or 0): r for r in target_rows}
         keep_by_message = {int(r.get("source_message_id") or 0): r for r in keep_rows}
         target_row = target_by_message.get(message_id)
@@ -349,15 +352,17 @@ def register_entity_routes(
         thumb_deleted = False
         thumb_source = ""
         warnings: list[str] = []
-        try:
-            registry_location = document_for_location(db, channel_key, message_id) or {}
-        except Exception:
-            registry_location = {}
-        thumb_id = resolve_linked_thumbnail_message_id(
-            db, channel_id=channel_key, video_message_id=message_id,
-            media_thumbnail_message_id=target_row.get("thumbnail_message_id") or target_row.get("registry_thumbnail_message_id"),
-            location=registry_location,
-        )
+        def _resolve_thumb():
+            try:
+                registry_location = document_for_location(db, channel_key, message_id) or {}
+            except Exception:
+                registry_location = {}
+            return resolve_linked_thumbnail_message_id(
+                db, channel_id=channel_key, video_message_id=message_id,
+                media_thumbnail_message_id=target_row.get("thumbnail_message_id") or target_row.get("registry_thumbnail_message_id"),
+                location=registry_location,
+            )
+        thumb_id = await asyncio.to_thread(_resolve_thumb)
         thumb_source = "saved_link" if thumb_id else ""
         if not thumb_id:
             from ..engines.safe_message_move import discover_companion_thumbnail
@@ -370,7 +375,7 @@ def register_entity_routes(
                 thumb_id = 0
             thumb_source = "companion_lookup" if thumb_id else ""
         if thumb_id > 0 and thumb_id != message_id:
-            if not thumbnail_message_is_unshared(db, channel_id=channel_key, video_message_id=message_id, thumbnail_message_id=thumb_id):
+            if not await asyncio.to_thread(thumbnail_message_is_unshared, db, channel_id=channel_key, video_message_id=message_id, thumbnail_message_id=thumb_id):
                 warnings.append(f"Associated thumbnail message {thumb_id} is shared or referenced by another video, so it was kept")
             else:
                 try:
@@ -392,52 +397,56 @@ def register_entity_routes(
             # image together; no thumbnail is inferred from filename alone.
             await telegram.client.delete_messages(source, delete_ids)
         except Exception as exc:
-            db.log(f"Channel duplicate deletion failed for {channel_key}/{message_id}: {type(exc).__name__}: {exc}", "ERROR", event="channel.duplicate_delete")
+            await asyncio.to_thread(db.log, f"Channel duplicate deletion failed for {channel_key}/{message_id}: {type(exc).__name__}: {exc}", "ERROR", event="channel.duplicate_delete")
             raise HTTPException(502, f"Telegram did not confirm deletion: {str(exc)[:200]}") from exc
 
-        now = config.now_iso()
-        ensure_telegram_registry(db)
-        # Collect locally cached thumbnail / preview-frame locations before their
-        # database rows are removed, then delete the files themselves afterwards.
-        local_cache_paths: list[str] = []
-        with db.lock:
-            try:
-                for cached in db.conn.execute(
-                    "SELECT path, frames_path FROM timeline_preview_cache WHERE source_channel=? AND video_message_id=?",
-                    (channel_key, message_id),
-                ).fetchall():
-                    local_cache_paths.extend(str(v) for v in (cached["path"], cached["frames_path"]) if v)
-            except Exception:
-                _swallowed_note("routes_entities.register_entity_routes.channel_maintenance_delete_duplicate")
-                pass
-        with db.lock:
-            db.conn.execute("UPDATE media SET status='SOURCE_DELETED',updated_at=? WHERE id=?", (now, int(target_row["id"])))
-            table_names = {str(row[0]) for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
-            if "resource_state" in table_names:
-                db.conn.execute(
-                    "UPDATE resource_state SET snapshot_state='UNKNOWN',last_reason='channel_duplicate_deleted',updated_at=? WHERE media_id=?",
-                    (now, int(target_row["id"])),
-                )
-            if "asset_registry" in table_names:
-                db.conn.execute(
-                    "UPDATE asset_registry SET state='MISSING',updated_at=? WHERE media_id=? OR (entity_type='telegram_video' AND entity_id=?)",
-                    (now, int(target_row["id"]), f"{channel_key}:{message_id}"),
-                )
-            for table in ("thumbnail_cache", "timeline_preview_cache"):
-                if table in table_names:
-                    db.conn.execute(f"DELETE FROM {table} WHERE source_channel=? AND video_message_id=?", (channel_key, message_id))
-            if "resource_events" in table_names:
-                db.conn.execute(
-                    "INSERT INTO resource_events(media_id,event_type,reason,detail,created_at) VALUES(?,?,?,?,?)",
-                    (int(target_row["id"]), "SOURCE_DELETED", "channel_duplicate_cleanup", "Deleted verified duplicate video from Channel Maintenance", now),
-                )
-            if "telegram_document_locations" in table_names:
-                for deleted_id in delete_ids:
+        def _mark_deleted():
+            now = config.now_iso()
+            ensure_telegram_registry(db)
+            # Collect locally cached thumbnail / preview-frame locations before their
+            # database rows are removed, then delete the files themselves afterwards.
+            local_cache_paths: list[str] = []
+            with db.lock:
+                try:
+                    for cached in db.conn.execute(
+                        "SELECT path, frames_path FROM timeline_preview_cache WHERE source_channel=? AND video_message_id=?",
+                        (channel_key, message_id),
+                    ).fetchall():
+                        local_cache_paths.extend(str(v) for v in (cached["path"], cached["frames_path"]) if v)
+                except Exception:
+                    _swallowed_note("routes_entities.register_entity_routes.channel_maintenance_delete_duplicate")
+                    pass
+            with db.lock:
+                db.conn.execute("UPDATE media SET status='SOURCE_DELETED',updated_at=? WHERE id=?", (now, int(target_row["id"])))
+                table_names = {str(row[0]) for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+                if "resource_state" in table_names:
                     db.conn.execute(
-                        "UPDATE telegram_document_locations SET location_state='DELETED_BY_CHANNEL_MAINTENANCE',last_seen_at=? WHERE channel_id=? AND message_id=?",
-                        (now, channel_key, int(deleted_id)),
+                        "UPDATE resource_state SET snapshot_state='UNKNOWN',last_reason='channel_duplicate_deleted',updated_at=? WHERE media_id=?",
+                        (now, int(target_row["id"])),
                     )
-            db.conn.commit()
+                if "asset_registry" in table_names:
+                    db.conn.execute(
+                        "UPDATE asset_registry SET state='MISSING',updated_at=? WHERE media_id=? OR (entity_type='telegram_video' AND entity_id=?)",
+                        (now, int(target_row["id"]), f"{channel_key}:{message_id}"),
+                    )
+                for table in ("thumbnail_cache", "timeline_preview_cache"):
+                    if table in table_names:
+                        db.conn.execute(f"DELETE FROM {table} WHERE source_channel=? AND video_message_id=?", (channel_key, message_id))
+                if "resource_events" in table_names:
+                    db.conn.execute(
+                        "INSERT INTO resource_events(media_id,event_type,reason,detail,created_at) VALUES(?,?,?,?,?)",
+                        (int(target_row["id"]), "SOURCE_DELETED", "channel_duplicate_cleanup", "Deleted verified duplicate video from Channel Maintenance", now),
+                    )
+                if "telegram_document_locations" in table_names:
+                    for deleted_id in delete_ids:
+                        db.conn.execute(
+                            "UPDATE telegram_document_locations SET location_state='DELETED_BY_CHANNEL_MAINTENANCE',last_seen_at=? WHERE channel_id=? AND message_id=?",
+                            (now, channel_key, int(deleted_id)),
+                        )
+                db.conn.commit()
+            return local_cache_paths
+
+        local_cache_paths = await asyncio.to_thread(_mark_deleted)
         def _purge_local_assets() -> int:
             """Delete this video's cached preview frames and contact sheet from disk."""
             import shutil
@@ -478,7 +487,8 @@ def register_entity_routes(
             local_assets_removed = 0
             warnings.append(f"Local cached thumbnail files could not be fully removed: {type(exc).__name__}")
 
-        db.log(
+        await asyncio.to_thread(
+            db.log,
             f"Channel maintenance deleted duplicate video {channel_key}/{message_id}; retained {keep_channel_key}/{keep_message_id}; "
             f"thumbnail_deleted={thumb_deleted} thumbnail_source={thumb_source or '-'} local_assets_removed={local_assets_removed}",
             event="channel.duplicate_delete",
