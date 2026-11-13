@@ -7,14 +7,12 @@ import type { LibraryQuery } from '@/api/types'
 import { Button } from '@/design/Button'
 import { AnimatePresence, cardMotion, motion } from '@/design/motion'
 import { SkeletonGroup } from '@/design/Skeleton'
-import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
 import { cn } from '@/design/cn'
 import { useSearch } from '@/app/search'
 import { ActiveFilters } from './ActiveFilters'
 import { ChannelEditor } from '@/features/channels/ChannelEditor'
-import { ChannelChip } from './ChannelChip'
-import { ChannelAvatar } from '@/features/channels/ChannelAvatar'
+import { ChannelMenu } from './ChannelMenu'
 import { Pagination } from './Pagination'
 import { Toolbar } from './Toolbar'
 import { collectLibrary } from './collect'
@@ -29,7 +27,7 @@ import { useLibraryStore } from './store'
 const GRID = 'grid grid-cols-1 gap-4 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4 min-[1700px]:grid-cols-5 min-[2100px]:grid-cols-6'
 
 export function LibraryPage() {
-  const { channels: selected, page, sort, favorites, filters, per, toggle, selectAll, setPage, setPer, setFavorites, resetFilters } = useLibraryStore()
+  const { channels: picked, page, sort, favorites, filters, per, toggle, clear, setPage, setPer, resetFilters } = useLibraryStore()
   const selecting = useSelection((st) => st.active)
   useEffect(() => () => useSelection.getState().exit(), [])   // leaving the page ends select mode
   const search = useDebounced(useSearch((s) => s.q).trim(), 300)
@@ -58,48 +56,20 @@ export function LibraryPage() {
       return await collectLibrary(rest, (n) => toast.loading(collecting(n), { id }))
     } finally { toast.dismiss(id) }
   }, NO_LIBRARY_VIDEOS)
-  const query: LibraryQuery = useMemo(() => ({ channels: selected, page, per, sort, favorites, q: search, ...filters }), [selected, page, per, sort, favorites, filters, search])
+  const selected = useMemo(() => (picked.length ? picked : (channels.data ?? []).map((c) => c.telegram_id)), [picked, channels.data])   // nothing picked means every channel
+  const query: LibraryQuery = useMemo(() => ({ channels: picked, page, per, sort, favorites, q: search, ...filters }), [selected, page, per, sort, favorites, filters, search])
   const library = useLibrary(query)
-  const allIds = (channels.data ?? []).map((c) => c.telegram_id)
   const pages = library.data ? Math.max(1, Math.ceil(library.data.total / per)) : 1
 
   return (
     <section className="mx-auto flex w-full max-w-[1800px] flex-1 flex-col pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead title="Videos" blurb="Browse and manage your video library" />
 
-      <Toolbar onRefresh={() => void refresh()} refreshing={refreshing} onShuffle={(pl) => void shuffleAll(pl)} shuffling={shuffle.busy} />
+      <Toolbar lead={<ChannelMenu channels={channels.data ?? []} selected={picked} onToggle={toggle} onAll={clear} onEdit={setEditChannel} />} onRefresh={() => void refresh()} refreshing={refreshing} onShuffle={(pl) => void shuffleAll(pl)} shuffling={shuffle.busy} />
 
-      <div className="mb-3 flex gap-3.5 overflow-x-auto pb-2" role="group" aria-label="Channels">
-        <ChannelChip label="All" count={channels.data?.reduce((n, c) => n + c.video_count, 0)} on={selected.length === allIds.length && allIds.length > 0} disabled={!allIds.length} onClick={() => selectAll(allIds)}>
-          <Icon name="grid" className="size-5" />
-        </ChannelChip>
-        {channels.isPending ? <span className="self-center text-sm text-muted">Loading channels…</span> : null}
-        <ChannelChip label="Favourites" on={favorites} onClick={() => setFavorites(!favorites)} tone="amber">
-          <Icon name="star" className="size-5" />
-        </ChannelChip>
-        {(channels.data ?? []).map((c) => (
-          <ChannelChip key={c.telegram_id} label={c.title} count={c.video_count} on={selected.includes(c.telegram_id)} onClick={() => toggle(c.telegram_id)}>
-            <ChannelAvatar id={c.telegram_id} title={c.title} image={c.image} />
-          </ChannelChip>
-        ))}
-      </div>
-      <div className="mb-5 flex flex-wrap items-center gap-2.5">
-        <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent">
-          {selected.length} channel{selected.length === 1 ? '' : 's'} selected
-        </span>
-        <button type="button" disabled={selected.length !== 1} onClick={() => setEditChannel(selected[0] ?? null)} title={selected.length === 1 ? 'Edit this channel' : 'Select one channel'} aria-label="Edit selected channel" className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50"><Icon name="edit" className="size-3.5" />Edit</button>
-        {editChannel ? <ChannelEditor id={editChannel} onClose={() => setEditChannel(null)} /> : null}
-      </div>
+      {editChannel ? <ChannelEditor id={editChannel} onClose={() => setEditChannel(null)} /> : null}
 
-      {!selected.length ? (
-        <div className="grid place-items-center gap-3.5 py-16 text-center">
-          <span className="grid size-14 place-items-center rounded-full bg-surface-2 text-accent"><Icon name="play" className="size-6" /></span>
-          <p className="text-[17px] font-bold">Select channels to see their videos.</p>
-          <Button variant="primary" onClick={() => selectAll(allIds)} disabled={!allIds.length}>
-            All channels
-          </Button>
-        </div>
-      ) : library.isPending ? (
+      {library.isPending ? (
         <SkeletonGroup label="Loading videos" className={GRID}>
           {Array.from({ length: 12 }, (_, i) => (
             <VideoCardSkeleton key={i} index={i} />

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { SortKey } from '@/api/types'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
@@ -24,15 +24,18 @@ const PILL = `inline-flex ${PILL_BASE}`
 const SHUFFLE = `hidden bg-accent/15 text-accent hover:bg-accent/25 md:inline-flex ${PILL_BASE}`
 
 /** Filters, sort, refresh and the ⋯ menu: the classic Videos toolbar controls that are wired to the API so far. */
-export function Toolbar({ onRefresh, refreshing, onShuffle, shuffling }: { onRefresh: () => void; refreshing: boolean; onShuffle: (player: Player) => void; shuffling: boolean }) {
+export function Toolbar({ lead, onRefresh, refreshing, onShuffle, shuffling }: { lead?: ReactNode; onRefresh: () => void; refreshing: boolean; onShuffle: (player: Player) => void; shuffling: boolean }) {
   const sort = useLibraryStore((s) => s.sort)
   const setSort = useLibraryStore((s) => s.setSort)
   const filters = useLibraryStore((s) => s.filters)
+  const favorites = useLibraryStore((s) => s.favorites)
+  const setFavorites = useLibraryStore((s) => s.setFavorites)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const count = Object.values(filters).filter(Boolean).length
   return (
     <div className="mb-5 flex flex-wrap items-center gap-2" role="toolbar" aria-label="Video library toolbar">
+      {lead}
       <button type="button" className={PILL} aria-haspopup="dialog" onClick={() => setFiltersOpen(true)}>
         <Icon name="filter" />
         Filters
@@ -48,6 +51,7 @@ export function Toolbar({ onRefresh, refreshing, onShuffle, shuffling }: { onRef
           ))}
         </select>
       </label>
+      <button type="button" aria-pressed={favorites} onClick={() => setFavorites(!favorites)} title="Show only favourite videos" className={cn(PILL, favorites && 'border-warn text-warn')}><span aria-hidden="true">{favorites ? '★' : '☆'}</span>Favourites</button>
       <button type="button" className={cn(PILL, 'w-10 justify-center px-0')} onClick={onRefresh} aria-label="Refresh channel list" title="Refresh channel list from Telegram" disabled={refreshing}>
         <Icon name="refresh" className={cn(refreshing && 'animate-spin')} />
       </button>
