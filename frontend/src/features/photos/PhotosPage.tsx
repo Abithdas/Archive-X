@@ -18,6 +18,7 @@ import { PeopleRow } from './PeopleRow'
 import { Empty } from '@/design/Empty'
 import { motion, spring } from '@/design/motion'
 import { PeopleView } from './PeopleView'
+import { FaceReview } from './FaceReview'
 import { DIFFERENT_NEEDS_GROUP, differentBody, differentCopy, filterLabel } from './faces'
 import { ChannelEditor } from '@/features/channels/ChannelEditor'
 import { PhotoCard } from './PhotoCard'
@@ -46,6 +47,7 @@ export function PhotosPage() {
   const [note, setNote] = useState('')
   const [editChannel, setEditChannel] = useState<string | null>(null)
   const sentinel = useRef<HTMLDivElement>(null)
+  const [checking, setChecking] = useState(false)
   const faces = useFaceGroups(selected, true)
   const [different, setDifferent] = useState<Photo | null>(null)
 
@@ -129,9 +131,11 @@ export function PhotosPage() {
         <div role="region" aria-label="Photos of one person" className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3">
           <button type="button" onClick={() => { setFace(null); setTab('faces') }} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg"><Icon name="arrow-left" className="size-4" />Back to People</button>
           <span className="min-w-0 text-sm font-semibold [overflow-wrap:anywhere]">{face.scope ? face.label : `Photos of ${face.label}`}</span>
+          {!face.scope ? <button type="button" onClick={() => setChecking(true)} className="inline-flex h-9 items-center rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5">Check faces</button> : null}
           <button type="button" onClick={() => setFace(null)} className="ml-auto text-xs font-semibold text-accent hover:underline">Show all photos</button>
         </div>
       ) : null}
+      {checking && face && !face.scope ? <FaceReview performerId={face.performerId} groupIds={face.groupIds.length ? face.groupIds : face.groupId && face.groupId > 0 ? [face.groupId] : []} label={face.label} onClose={() => setChecking(false)} /> : null}
       {tab === 'faces' ? <PeopleView /> : null}
       <div hidden={tab === 'faces'}>
       <div className="mb-4 flex flex-wrap items-center gap-2.5" aria-label="Photo library tools" role="group">

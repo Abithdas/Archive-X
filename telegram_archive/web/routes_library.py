@@ -851,6 +851,81 @@ def register_library_routes(
         return {"ok": True, "detection_id": int(detection_id), "new_group_id": new_group_id}
 
 
+    @router.get("/api/photos/faces/review")
+    async def photo_face_review(request: Request):
+        """Every face in one person (or face group), least similar to the rest first, so wrong ones are easy to spot."""
+        require_auth(request)
+        q = request.query_params
+        performer_id = None
+        group_ids: list[int] = []
+        try:
+            if q.get("performer_id"):
+                performer_id = int(q.get("performer_id"))
+            for value in str(q.get("group_ids", "") or q.get("group_id", "") or "").split(","):
+                if value.strip():
+                    group_ids.append(int(value))
+        except ValueError:
+            raise HTTPException(400, "performer_id and group_ids must be integers")
+        if performer_id is None and not group_ids:
+            raise HTTPException(400, "Give performer_id or group_ids")
+        limit = 600
+        def _load():
+            import numpy as _np
+            with db.reading() as rdb:
+                if performer_id is not None:
+                    rows = rdb.execute(
+                        """SELECT d.id,d.photo_id,d.group_id,d.embedding_json FROM photo_face_detections d
+                           JOIN photo_face_groups g ON g.id=d.group_id WHERE g.performer_id=? ORDER BY d.id""", (performer_id,)).fetchall()
+                else:
+                    marks = ",".join("?" for _ in group_ids)
+                    rows = rdb.execute(f"SELECT id,photo_id,group_id,embedding_json FROM photo_face_detections WHERE group_id IN ({marks}) ORDER BY id", group_ids).fetchall()
+            vecs, keep = [], []
+            for r in rows:
+                v = _photo_decode_embedding(r["embedding_json"])
+                keep.append(r)
+                vecs.append(v)
+            good = [v for v in vecs if v is not None]
+            centroid = None
+            if good:
+                m = _np.asarray(good, dtype=_np.float32).mean(axis=0)
+                n = float(_np.linalg.norm(m))
+                centroid = m / n if n else None
+            items = []
+            for r, v in zip(keep, vecs):
+                sim = float(_np.dot(_np.asarray(v, dtype=_np.float32), centroid)) if (v is not None and centroid is not None) else 0.0
+                items.append({"detection_id": int(r["id"]), "photo_id": int(r["photo_id"]), "group_id": int(r["group_id"]),
+                              "crop_url": f"/api/photos/faces/crops/{int(r['id'])}", "similarity": round(sim, 4)})
+            items.sort(key=lambda x: (x["similarity"], x["detection_id"]))
+            return items
+        items = await asyncio.to_thread(_load)
+        return {"ok": True, "total": len(items), "items": items[:limit]}
+
+    @router.post("/api/photos/faces/detections/move")
+    async def photo_face_detections_move(request: Request):
+        """Take the chosen faces out of their group together. They land in one new group, optionally already named after a performer."""
+        require_auth(request)
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(400, "Request body must be valid JSON")
+        if not isinstance(body, dict) or not isinstance(body.get("detection_ids"), list):
+            raise HTTPException(400, "detection_ids must be an array")
+        try:
+            ids = [int(v) for v in body["detection_ids"]]
+            performer_id = int(body["performer_id"]) if body.get("performer_id") not in (None, "", 0, "0") else None
+        except (TypeError, ValueError):
+            raise HTTPException(400, "detection_ids and performer_id must be integers")
+        if len(ids) > 2000:
+            raise HTTPException(413, "Move at most 2000 faces at a time")
+        from ..engines.photo_face_clustering import _move_detections
+        try:
+            result = await asyncio.to_thread(_move_detections, db, ids, performer_id)
+        except ValueError as exc:
+            raise HTTPException(404 if "not found" in str(exc).lower() else 400, str(exc))
+        db.log(f"Moved {result['moved']} face(s) to face group {result['group_id']}" + (f" (performer {performer_id})" if performer_id else ""), "SUCCESS",
+               event="photo_library.faces_moved", details={"performer_id": performer_id, **result})
+        return {"ok": True, **result}
+
     @router.post("/api/photos/faces/different-person")
     async def photo_face_different_person(request: Request):
         """Remove a photo's detections from the active group(s), keeping photo bytes and Telegram untouched."""

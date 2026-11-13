@@ -44,3 +44,26 @@ def test_auto_match_names_only_clear_matches(tmp_path):
     assert out["matched"] == 1
     assert rows[1] == 1          # Ava's face group is named
     assert rows[2] is None       # an unrelated face is left unnamed
+
+
+def test_move_detections_makes_one_group_and_can_name_it(tmp_path):
+    rng = random.Random(9)
+    db = make(tmp_path)
+    now = "2025-01-01T00:00:00"
+    with db.lock:
+        db.conn.execute("INSERT INTO performers(name) VALUES('Ava')")
+        db.conn.execute("INSERT INTO photo_face_groups(id,label,created_at,updated_at) VALUES(1,'g1',?,?)", (now, now))
+        for i in range(1, 6):
+            db.conn.execute("INSERT INTO photo_face_detections(photo_id,face_index,group_id,embedding_json,created_at,updated_at) VALUES(?,?,?,?,?,?)", (i, 0, 1, json.dumps(vec(rng)), now, now))
+        db.conn.commit()
+    out = pf._move_detections(db, [2, 3, 4], performer_id=1)
+    assert out["moved"] == 3
+    rows = db.conn.execute("SELECT group_id,COUNT(*) n FROM photo_face_detections GROUP BY group_id").fetchall()
+    assert sorted(r["n"] for r in rows) == [2, 3]
+    named = db.conn.execute("SELECT performer_id FROM photo_face_groups WHERE id=?", (out["group_id"],)).fetchone()
+    assert named["performer_id"] == 1
+    import pytest
+    with pytest.raises(ValueError):
+        pf._move_detections(db, [], None)
+    with pytest.raises(ValueError):
+        pf._move_detections(db, [1], performer_id=99)

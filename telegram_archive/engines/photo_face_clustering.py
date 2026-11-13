@@ -520,6 +520,33 @@ def _split_face_detection(db, detection_id: int) -> int:
             raise
 
 
+def _move_detections(db, detection_ids: list[int], performer_id: int | None = None) -> dict[str, int]:
+    """Move many face detections together into ONE fresh group (named after `performer_id` when given). Nothing is deleted."""
+    ids = list(dict.fromkeys(int(v) for v in detection_ids if int(v) > 0))
+    if not ids:
+        raise ValueError("No faces selected")
+    now = _now()
+    marks = ",".join("?" for _ in ids)
+    with db.lock:
+        try:
+            db.conn.execute("BEGIN IMMEDIATE")
+            found = [int(r["id"]) for r in db.conn.execute(f"SELECT id FROM photo_face_detections WHERE id IN ({marks})", ids).fetchall()]
+            if not found:
+                raise ValueError("Face detections not found")
+            if performer_id is not None and not db.conn.execute("SELECT 1 FROM performers WHERE id=?", (int(performer_id),)).fetchone():
+                raise ValueError("Performer not found")
+            gid = _insert_group(db.conn, now)
+            if performer_id is not None:
+                db.conn.execute("UPDATE photo_face_groups SET performer_id=? WHERE id=?", (int(performer_id), gid))
+            fm = ",".join("?" for _ in found)
+            db.conn.execute(f"UPDATE photo_face_detections SET group_id=?,updated_at=? WHERE id IN ({fm})", [gid, now, *found])
+            db.conn.commit()
+            return {"group_id": gid, "moved": len(found)}
+        except Exception:
+            db.conn.rollback()
+            raise
+
+
 def _separate_photo_detections(db, photo_id: int, group_ids: list[int]) -> list[dict[str, int]]:
     """Move this photo's detections out of the selected group(s) without deleting the photo."""
     ids = list(dict.fromkeys(int(value) for value in group_ids if int(value) > 0))

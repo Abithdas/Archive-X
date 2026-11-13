@@ -121,3 +121,6 @@ The Name box in People now searches your library first, then the performers avai
 
 ## Photos without a named person
 `/api/photos` takes `face_scope` = named | unnamed | no_face | pending, and `/api/photos/faces/groups` returns `photo_scopes` counts (they add up to the number of indexed photos). People shows "Photos without a named person" with a link per group (faces nobody has named, no face found, not analysed yet) that opens the gallery filtered to exactly those photos. Naming a face with a performer who already has a tile joins that tile (the list merges by performer) and says so.
+
+## Check faces (fixing a person in bulk)
+"Check faces" (on a named person's tile and in the banner over their photos) shows all faces of that person at once, least similar to the person's average face first (`GET /api/photos/faces/review`). One click ticks the 10 least alike or every face below 0.4 similarity; "Not X" takes all ticked faces out together into one new unnamed group, and "Move to someone else" puts them straight under the right performer (`POST /api/photos/faces/detections/move`). Nothing is deleted. Tested with synthetic embeddings.
