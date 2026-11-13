@@ -233,9 +233,14 @@ export function Shell(): ReactNode {
       <nav className="flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Main">
         {phone.map((n) =>
           (
-            <Link key={n.to} to={n.to} activeOptions={{ exact: n.to === '/' }} className="flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[10.5px] font-semibold text-muted" activeProps={{ className: '!text-accent' }}>
-              <Icon name={n.icon} />
-              <span className="truncate">{n.label}</span>
+            <Link key={n.to} to={n.to} activeOptions={{ exact: n.to === '/' }} className="relative flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[10.5px] font-semibold text-muted" activeProps={{ className: '!text-accent' }}>
+              {({ isActive }) => (
+                <>
+                  {isActive ? <motion.span layoutId="phone-nav-marker" transition={spring} aria-hidden="true" className="absolute inset-x-4 top-0 h-[3px] rounded-b-full bg-accent" /> : null}
+                  <Icon name={n.icon} />
+                  <span className="truncate">{n.label}</span>
+                </>
+              )}
             </Link>
           ),
         )}
