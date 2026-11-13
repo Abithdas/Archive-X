@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { PhotosPage } from './PhotosPage'
-import { peopleSections } from './faces'
+import { findStage, peopleSections } from './faces'
 import { usePhotoStore } from './store'
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }), Toaster: () => null }))
@@ -26,6 +26,8 @@ const mount = () => {
     if (url === '/api/source-channels') return json([{ telegram_id: '-1001', title: 'Main' }])
     if (url === '/api/photos/channels') return json([{ telegram_id: '-1001', photo_count: 9, photo_scan_status: 'COMPLETE' }])
     if (url.startsWith('/api/photos/faces/groups') && !init?.method) return json({ ok: true, groups: GROUPS, analysis: { total_photos: 9, analyzed_photos: 9, failed_photos: 0 } })
+    if (url === '/api/photos/faces/analyze') return json({ ok: true, id: 'job1' })
+    if (url.startsWith('/api/photos/scan-status/')) return json({ ok: true, status: 'RUNNING', progress: 80, current_item: '', operation: 'Matching faces with performer pictures' })
     if (url.startsWith('/api/photos/faces/performers')) return json({ items: [{ id: 7, name: 'Zoe Ray' }] })
     return json({ ok: true })
   }))
@@ -37,6 +39,13 @@ describe('peopleSections', () => {
   it('splits into named, guessed, to-name and rare faces', () => {
     const s = peopleSections(GROUPS as never)
     expect([s.named.length, s.guesses.length, s.toName.length, s.rare.length]).toEqual([1, 1, 1, 1])
+  })
+})
+
+describe('findStage', () => {
+  it('maps what the job reports to the four steps', () => {
+    expect([findStage('Downloading performer pictures · 3/9'), findStage('Reading faces in performer profile pictures'), findStage('Image-based face analysis · 4/9 photos'), findStage('Matching faces with performer pictures')]).toEqual([0, 1, 2, 3])
+    expect(findStage('anything', 'COMPLETED')).toBe(4)
   })
 })
 
@@ -75,5 +84,13 @@ describe('People inside Photos', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Find people' }))
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Find people?' })).getByRole('button', { name: 'Find people' }))
     await waitFor(() => expect(calls.find((c) => c.url === '/api/photos/faces/analyze')?.body).toEqual({ channel_ids: [], match_performers: true }))
+  })
+  it('shows the four steps and where the job is while finding people', async () => {
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: 'Find people' }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Find people?' })).getByRole('button', { name: 'Find people' }))
+    const card = await screen.findByRole('region', { name: 'Finding people' })
+    await waitFor(() => expect(within(card).getByRole('progressbar', { name: 'Progress' })).toHaveAttribute('aria-valuenow', '80'), { timeout: 4000 })
+    expect(within(card).getByText('Match faces to performers').closest('li')).toHaveAttribute('aria-current', 'step')
   })
 })

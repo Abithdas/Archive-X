@@ -1,4 +1,4 @@
-import { fadeThrough, motion } from '@/design/motion'
+import { fadeThrough, motion, spring } from '@/design/motion'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
@@ -41,20 +41,20 @@ const GROUPS: { title: string; items: NavDef[] }[] = [
 const PHONE_NAV = ['/photos', '/videos', '/performers', '/studios', '/transfers']
 const RAIL_KEY = 'ax_next_sidebar_rail'
 
-const SIDE_ITEM = 'flex h-11 w-full items-center rounded-xl text-[15px] font-medium text-muted transition-colors hover:bg-fg/5 hover:text-fg'
-const SIDE_ACTIVE = '!bg-accent/15 !text-fg [&_svg]:text-accent'
+const SIDE_ITEM = 'relative flex h-11 w-full items-center rounded-xl text-[15px] font-medium text-muted transition-colors hover:bg-fg/5 hover:text-fg'
+const SIDE_ACTIVE = '!text-fg [&_svg]:text-accent'
 
 function SideItem({ n, rail }: { n: NavDef; rail: boolean }) {
   const layout = rail ? 'justify-center' : 'gap-3 px-3'
-  const body = (
-    <>
-      <Icon name={n.icon} />
-      <span className={cn(rail && 'sr-only')}>{n.label}</span>
-    </>
-  )
   return (
     <Link to={n.to} activeOptions={{ exact: n.to === '/' }} className={cn(SIDE_ITEM, layout)} title={rail ? n.label : undefined} activeProps={{ className: SIDE_ACTIVE }}>
-      {body}
+      {({ isActive }) => (
+        <>
+          {isActive ? <motion.span layoutId="side-pill" transition={spring} aria-hidden="true" className="absolute inset-0 rounded-xl bg-accent/15" /> : null}
+          <Icon name={n.icon} className="relative" />
+          <span className={cn('relative', rail && 'sr-only')}>{n.label}</span>
+        </>
+      )}
     </Link>
   )
 }

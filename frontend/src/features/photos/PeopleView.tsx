@@ -7,7 +7,7 @@ import { Icon } from '@/design/Icon'
 import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
 import { FaceGroups, useFaceGroups } from './FaceGroups'
-import { analyzeBody, analyzeCopy, assignBody, bestGuess, findPeopleHint, groupLabel, jobDone, jobEndText, jobStatusText, peopleSections, rejectBody, suggestionBody, viewFilter, type FaceGroup, type Suggestion } from './faces'
+import { FIND_STEPS, analyzeBody, analyzeCopy, assignBody, bestGuess, findPeopleHint, findStage, groupLabel, jobDone, jobEndText, jobStatusText, peopleSections, rejectBody, suggestionBody, viewFilter, type FaceGroup, type Suggestion } from './faces'
 import { usePhotoStore } from './store'
 
 const BTN = 'h-8 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50'
@@ -70,6 +70,24 @@ function Card({ g, busy, onOpen, onYes, onNo, onName }: { g: FaceGroup; busy: bo
   )
 }
 
+/** Where "Find people" is: four steps with the current one marked, a bar, and the job's own words. */
+function FindProgress({ stage, progress, text }: { stage: number; progress: number; text: string }) {
+  return (
+    <section aria-label="Finding people" className="grid gap-3 rounded-2xl border border-line bg-surface p-4">
+      <ol className="grid gap-2 sm:grid-cols-4">
+        {FIND_STEPS.map((label, n) => (
+          <li key={label} aria-current={n === stage ? 'step' : undefined} className={cn('flex items-center gap-2 text-sm', n < stage ? 'text-fg' : n === stage ? 'font-semibold text-fg' : 'text-faint')}>
+            <span aria-hidden="true" className={cn('grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-bold', n < stage ? 'bg-good text-white' : n === stage ? 'bg-accent text-accent-fg' : 'bg-surface-2 text-muted')}>{n < stage ? '✓' : n + 1}</span>
+            {label}
+          </li>
+        ))}
+      </ol>
+      <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)} aria-label="Progress" className="h-1.5 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${Math.max(3, Math.min(100, progress))}%` }} /></div>
+      <p className="text-xs text-muted [overflow-wrap:anywhere]">{text}</p>
+    </section>
+  )
+}
+
 /** People inside Photos: faces found in your photos, in plain groups; click a person to see their photos. */
 export function PeopleView() {
   const qc = useQueryClient()
@@ -78,7 +96,7 @@ export function PeopleView() {
   const groups = q.data?.groups ?? []
   const sec = peopleSections(groups)
   const [busy, setBusy] = useState(false)
-  const [finding, setFinding] = useState('')
+  const [finding, setFinding] = useState<null | { stage: number; progress: number; text: string }>(null)
   const [ask, setAsk] = useState(false)
   const [showRare, setShowRare] = useState(false)
   const alive = useRef(true)
@@ -100,20 +118,20 @@ export function PeopleView() {
   }
 
   const find = async () => {
-    setAsk(false); setFinding('Starting…')
+    setAsk(false); setFinding({ stage: 0, progress: 0, text: 'Starting…' })
     try {
       const r = await api<{ id?: string; detail?: string }>('/api/photos/faces/analyze', { method: 'POST', json: analyzeBody([]) })
       if (!r?.id) throw new ApiError(0, r?.detail || 'Could not start.')
       for (let i = 0; i < 7200 && alive.current; i++) {
         await new Promise((res) => setTimeout(res, 2000))
-        let s: { status?: string; progress?: number; current_item?: string } | null = null
+        let s: { status?: string; progress?: number; current_item?: string; operation?: string } | null = null
         try { s = await api(`/api/photos/scan-status/${encodeURIComponent(r.id)}`) } catch { continue }
         if (!s || !alive.current) continue
         const status = String(s.status || '').toUpperCase()
-        setFinding(jobStatusText(status, s.progress, s.current_item).replace('Image-based face analysis', 'Finding people'))
+        setFinding({ stage: findStage(s.operation, status), progress: Number(s.progress || 0), text: s.operation || jobStatusText(status, s.progress, s.current_item) })
         if (jobDone(status)) { toast(jobEndText(status)); await changed(); break }
       }
-    } catch (e) { toast.error(why(e, 'Could not start finding people.')) } finally { if (alive.current) setFinding('') }
+    } catch (e) { toast.error(why(e, 'Could not start finding people.')) } finally { if (alive.current) setFinding(null) }
   }
 
   const grid = (list: FaceGroup[]) => <div className="flex flex-wrap gap-3">{list.map((g) => <Card key={g.id} g={g} busy={busy} onOpen={() => open(g)} onYes={(s) => yes(g, s)} onNo={(s) => void no(g, s)} onName={(p) => name(g, p)} />)}</div>
@@ -121,9 +139,10 @@ export function PeopleView() {
   return (
     <section aria-label="People" className="grid gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p role="status" aria-live="polite" className="max-w-2xl text-sm text-muted">{finding || (q.isSuccess ? findPeopleHint(groups, q.data?.analysis) : '')}</p>
+        <p role="status" aria-live="polite" className="max-w-2xl text-sm text-muted">{finding ? '' : (q.isSuccess ? findPeopleHint(groups, q.data?.analysis) : '')}</p>
         <button type="button" disabled={!!finding} onClick={() => setAsk(true)} className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60"><Icon name="images" className="size-4" />{finding ? 'Finding people…' : 'Find people'}</button>
       </div>
+      {finding ? <FindProgress {...finding} /> : null}
 
       {q.isPending ? <div role="status" aria-label="Loading people" className="flex flex-wrap gap-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-52 w-[190px] rounded-2xl" />)}</div>
         : q.isError ? <button type="button" onClick={() => void q.refetch()} className={cn(PRIMARY, 'w-fit')}>Could not load people. Retry</button>

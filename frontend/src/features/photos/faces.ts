@@ -148,3 +148,16 @@ export const findPeopleHint = (groups: readonly FaceGroup[], analysis?: Analysis
   if (!groups.length) return done ? 'No faces were found in your photos.' : 'Press Find people to look for faces in your photos.'
   return `${groups.length.toLocaleString()} ${groups.length === 1 ? 'person' : 'people'} found in ${done.toLocaleString()} analysed photos.`
 }
+
+/** The steps "Find people" goes through, in order. */
+export const FIND_STEPS = ['Download performer pictures', 'Read the faces in those pictures', 'Find faces in your photos', 'Match faces to performers'] as const
+/** Which step the running job is on, from the operation text it reports (0 = not started yet). */
+export function findStage(operation: string | undefined | null, status = ''): number {
+  if (jobDone(status)) return FIND_STEPS.length
+  const t = String(operation ?? '').toLowerCase()
+  if (/matching faces/.test(t)) return 3
+  if (/face analysis|photos ·|analyzing|detect/.test(t)) return 2
+  if (/reading faces|preparing local face|models/.test(t)) return 1
+  if (/downloading performer|performer picture/.test(t)) return 0
+  return 0
+}

@@ -48,6 +48,9 @@ The scanner was not run: the sandbox declined to run third-party code from npm. 
 ## Status
 Batch 1 done: items 1 (page fade), 2 (sliding pill in Segmented and the Photos | People switch; sidebar not done), 3 (animated Operations jobs, Transfers lanes, Up next), 4 (counts on channel chips; job percentages not yet), 5 (shared Empty component used in Photos, performer/studio pages, directories and People), 12 (spring, fade-through and list presets in `design/motion.tsx`) and the two `transition-all` uses in item 13.
 
+Batch 2 done: item 2 (sliding highlight now also in the sidebar), 6 (Ctrl-K palette: grouped Go to / Actions, performer and studio name search, recent choices), 11 (Find people progress card with four steps; `/api/photos/scan-status` now returns the job's `operation`).
+Still open: 7, 8, 9, 10, 13 (rest of the audit), 14, 15, and job percentages in item 4.
+
 ## Suggested first batch
 Items 1, 2, 3, 4, 5 and 12: about a day of work, no new dependency, and the visible result is a calmer, smoother app.
 

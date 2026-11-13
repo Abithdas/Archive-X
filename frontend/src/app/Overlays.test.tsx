@@ -20,10 +20,11 @@ describe('CommandPalette', () => {
     act(() => useUi.getState().setPalette(true))
     return screen.findByRole('combobox', { name: 'Search commands' })
   }
-  it('lists the nine classic commands', async () => {
+  it('lists pages and actions in groups', async () => {
     await open()
-    expect(screen.getAllByRole('option')).toHaveLength(9)
-    expect(screen.getByRole('option', { name: /Browse videos/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getAllByRole('option')).toHaveLength(12)
+    expect(screen.getByText('Go to')).toBeInTheDocument(); expect(screen.getByText('Actions')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Open Photos/ })).toHaveAttribute('aria-selected', 'true')
   })
   it('filters as you type and says so when nothing matches', async () => {
     const box = await open()
@@ -37,9 +38,25 @@ describe('CommandPalette', () => {
     fireEvent.keyDown(box, { key: 'ArrowUp' })
     expect(screen.getByRole('option', { name: /Refresh library/ })).toHaveAttribute('aria-selected', 'true')
     fireEvent.keyDown(box, { key: 'ArrowDown' })
-    expect(screen.getByRole('option', { name: /Browse videos/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('option', { name: /Open Photos/ })).toHaveAttribute('aria-selected', 'true')
     fireEvent.keyDown(box, { key: 'Enter' })
     await waitFor(() => expect(useUi.getState().palette).toBe(false))
+  })
+  it('finds performers and studios by name once you type, and remembers what you opened', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => json(url.startsWith('/api/performers') ? [{ id: 4, name: 'Ava Stone', video_count: 3 }, { id: 5, name: 'Zoe Ray', video_count: 9 }] : url.startsWith('/api/studios') ? [{ id: 8, name: 'Avalon Films', video_count: 2 }] : [])))
+    localStorage.removeItem('archive-x:palette-recent')
+    const box = await open()
+    fireEvent.change(box, { target: { value: 'ava' } })
+    expect(await screen.findByRole('option', { name: /Ava Stone/ })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Avalon Films/ })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Zoe Ray/ })).toBeNull()
+    expect(screen.getByText('Performers')).toBeInTheDocument(); expect(screen.getByText('Studios')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('option', { name: /Ava Stone/ }).querySelector('button')!)
+    await waitFor(() => expect(useUi.getState().palette).toBe(false))
+    expect(localStorage.getItem('archive-x:palette-recent')).toContain('performers:4:Ava Stone')
+    act(() => useUi.getState().setPalette(true))
+    expect(await screen.findByText('Recent')).toBeInTheDocument()
+    expect(screen.getAllByRole('option')[0]).toHaveTextContent('Ava Stone')
   })
   it('"Open Notifications" opens the panel', async () => {
     const box = await open()

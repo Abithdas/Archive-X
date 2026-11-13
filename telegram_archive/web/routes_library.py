@@ -961,6 +961,7 @@ def register_library_routes(
         return {"ok": True, "id": str(job.get("id") or job_id), "status": str(job.get("status") or "UNKNOWN"),
                 "progress": float(job.get("progress") or 0), "current_item": str(job.get("current_item") or ""),
                 "error": str(job.get("error") or ""), "job_type": str(job.get("job_type") or ""),
+                "operation": str(job.get("current_operation") or ""),
                 "updated_at": str(job.get("updated_at") or "")}
 
 
