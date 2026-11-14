@@ -3,8 +3,8 @@ import { toast } from 'sonner'
 import { Dialog } from '@/design/Dialog'
 import { formatBytes, formatDuration } from '@/features/library/format'
 import { FRACTIONS, INCOMPLETE_NOTICE, framePercent, incomplete, liveSrc, previewQuestion, snapshotIndex, snapshotSrc, type FrameState } from './suggestpreview'
-import type { Kind, Suggested } from './studioextras'
-import { suggestionTitle, yesLabel } from './studioextras'
+import type { Kind, Suggested } from './studioExtrasLogic'
+import { suggestionTitle, yesLabel } from './studioExtrasLogic'
 
 function Tile({ s, frac, label, onState }: { s: Suggested; frac: number; label: number; onState: (i: number, st: FrameState) => void }) {
   const cid = String(s.channel_id), mid = Number(s.message_id), idx = snapshotIndex(frac)

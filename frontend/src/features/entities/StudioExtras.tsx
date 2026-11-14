@@ -9,7 +9,7 @@ import { SuggestionPreview } from './SuggestionPreview'
 import { PosterGrid, StudioPoster } from './PosterCard'
 import { cn } from '@/design/cn'
 import { formatBytes, formatDuration } from '@/features/library/format'
-import { SIMILAR_EMPTY, SUGGEST_EMPTY, brandIcon, confirmBody, confirmPath, failedConfirm, failedReject, linkedText, pending, rejectPath, rejectedText, succeeded, suggestionQuestion, suggestionTitle, suggestionToolbar, yesLabel, type Kind, type Related, type SocialLink, type Suggested } from './studioextras'
+import { SIMILAR_EMPTY, SUGGEST_EMPTY, brandIcon, confirmBody, confirmPath, failedConfirm, failedReject, linkedText, pending, rejectPath, rejectedText, succeeded, suggestionQuestion, suggestionTitle, suggestionToolbar, yesLabel, type Kind, type Related, type SocialLink, type Suggested } from './studioExtrasLogic'
 import { Empty } from '@/design/Empty'
 
 export function SocialPanel({ links, loading, label = 'Website and social links' }: { links: SocialLink[]; loading: boolean; label?: string }) {

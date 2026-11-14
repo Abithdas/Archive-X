@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { brandIcon, careerRows, confirmBody, detailRows, metaRecords, metaText, providerBio, relatedList, similarStudios, socialLinks, succeeded, suggestionTitle } from './studioextras'
+import { brandIcon, careerRows, confirmBody, detailRows, metaRecords, metaText, providerBio, relatedList, similarStudios, socialLinks, succeeded, suggestionTitle } from './studioExtrasLogic'
 
 const provider = (details: Record<string, unknown>, extra: Record<string, unknown> = {}, name = 'stashdb') => ({ provider: name, normalized: JSON.stringify({ details, ...extra }) })
 describe('studio extras', () => {

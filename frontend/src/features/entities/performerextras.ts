@@ -1,5 +1,5 @@
 /** Pure logic for the performer page's Details card, Studios and Similar Performers tabs (mirrors the classic page). */
-import { careerRows, metaRecords, metaText, type Metadata } from './studioextras'
+import { careerRows, metaRecords, metaText, type Metadata } from './studioExtrasLogic'
 
 const COMPLETE = /^(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{4}|[A-Za-z]{3,}\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+[A-Za-z]{3,}\s+\d{4})/
 /** The birth date as the provider wrote it, with the age added only when the date is complete and plausible. */
