@@ -1,0 +1,33 @@
+# Changelog
+
+One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
+
+## Unreleased (after 30.2.2)
+
+- **Native player:** the video's own window is the default layer (the one that showed the picture on a real PC); Back no longer freezes the app; less lag from the on-screen check; a quicker start on network streams; jumps show where they are going.
+- **Playback:** jumping into the middle of an MP4 that the browser plays through the in-browser remux now works; the player offers the native player when the browser cannot decode a file; leaving a video releases its server job.
+- **Performers and studios:** missing pictures are fetched in the background (and with a "Fetch now" button); SVG logos with a standard editor doctype are accepted; a button restores genders that editing a picture used to wipe; searching accepts part of a name in any order.
+- **People:** the name search can be cancelled and only one is open at a time.
+- **Performance and stability:** the performer page no longer freezes the whole app; the AI page no longer looks empty while it loads; the watchdog guardian, which could not start in the installed app, is off there; reopening the app straight after closing it works.
+- **Housekeeping:** one command runs every test; one version number; unused frontend code removed; a counter records which API routes are used (for the clean-up); documents reorganised under `docs/`.
+
+## 30.2.2 (2026-11-14)
+
+- Native player: a switch between three video layers (in front, behind, own window) and a self-diagnosing report (frames drawn, what is on screen, window order).
+- Performer name list kept on the PC (StashDB and ThePornDB), refreshed in the background, searched instantly (Rust).
+- Face learning (Rust): remembers faces taken out of a person, shows the faces that look out of place, suggests look-alikes in other groups.
+- Fixes: editing a performer's picture no longer clears their gender; Filters "Reset" applies at once; the "Advanced: merge, split and review groups" section is gone; the Windows reopen race; security updates (Pillow 13, cryptography 50, rusqlite 0.42, vitest 5.1, GitHub Actions pinned to commits).
+
+## 30.2.1 (2026-11-14)
+
+- Native player: the video window in front of the page by default, with a switch; the window's real state shown on the page.
+- Download logs: one zip of every log and diagnostic, named with the date and time (Operations, Recent activity).
+
+## 30.2.0 (2026-11-14)
+
+- Native video player built from MPC-HC's decoding parts (LAV Filters and the Enhanced Video Renderer) with Windows hardware decoding: audio worked; the picture did not show on the first real-PC test.
+- Fixes: live-caption lag after skipping; seek preview drift on a zoomed page; face-review tiles no longer overlap; the Videos page loads every channel on a fresh start; the Transfers page layout.
+
+## 30.1.1 and 30.1.0 (2026-11-14)
+
+- The Windows installer builds on GitHub Actions; the Rust front door is on by default; in-app updates through GitHub Releases (they work once the repository is public); the library list query is about 4.7 times faster.
