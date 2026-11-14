@@ -20,6 +20,7 @@ import { SceneMatchCard } from './SceneMatchCard'
 import { ChannelDuplicateCard } from './ChannelDuplicates'
 import { ResourceControls } from './ResourceControls'
 import { idOf } from './jobs'
+import { downloadLogBundle, folderOf } from './logBundle'
 import { attention, diagnosticTiles, filterJobs, filterLog, healthTiles, jobCounts, laneRows, policyLine, resourceCards, telemetryTiles, type JobFilter, type LogLevel, type Tile, type Tone } from './ops'
 
 type Obj = Record<string, unknown>
@@ -103,6 +104,7 @@ function ActivityLog({ events }: { events: unknown[] }) {
   const [module, setModule] = useState('')
   const [outcome, setOutcome] = useState('')
   const [query, setQuery] = useState('')
+  const [bundling, setBundling] = useState(false)
   const rows = useMemo(() => filterLog(events, { level, module, outcome, query }), [events, level, module, outcome, query])
   const box = useRef<HTMLUListElement>(null)
   const atEnd = useRef(true)
@@ -113,7 +115,26 @@ function ActivityLog({ events }: { events: unknown[] }) {
   }, [rows])
   return (
     <section aria-label="Recent activity" className={CARD}>
-      <h3 className="mb-3.5 text-lg font-extrabold">Recent activity</h3>
+      <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-extrabold">Recent activity</h3>
+        <button
+          type="button"
+          disabled={bundling}
+          onClick={() => {
+            setBundling(true)
+            downloadLogBundle()
+              .then((r) => (r.kind === 'saved'
+                ? toast.success(`Saved ${r.name}`, { description: `In ${folderOf(r.path)} (${r.files} files: logs, activity and diagnostics)`, duration: 15000 })
+                : toast.success(`Downloaded ${r.name}`)))
+              .catch((e: unknown) => toast.error(`Could not make the log bundle: ${e instanceof ApiError ? e.detail || `error ${e.status}` : e instanceof Error ? e.message : 'unknown error'}`))
+              .finally(() => setBundling(false))
+          }}
+          title="Every log and diagnostic in one zip named with today's date and time, with passwords and tokens blanked. Send it when reporting a problem."
+          className="inline-flex h-9 items-center gap-2 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-60"
+        >
+          {bundling ? 'Preparing…' : 'Download logs (.zip)'}
+        </button>
+      </div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Segmented label="Log level" value={level} onChange={setLevel} options={LEVEL_TABS} />
         <select aria-label="Log source" value={module} onChange={(e) => setModule(e.target.value)} className={SELECT}><option value="">All modules</option>{MODULES.map((m) => <option key={m}>{m}</option>)}</select>

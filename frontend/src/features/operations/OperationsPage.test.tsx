@@ -82,4 +82,25 @@ describe('OperationsPage', () => {
     expect(f.mock.calls.some((c) => String(c[0]).includes('/metrics/reset'))).toBe(false)
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
   })
+  it('offers the logs and diagnostics as one zip from Recent activity', async () => {
+    const calls: string[] = []
+    const base = vi.fn(async (url: string) => {
+      calls.push(url)
+      if (url === '/api/diagnostics/logs.zip') return new Response(new Blob(['PK']), { status: 200, headers: { 'Content-Disposition': 'attachment; filename="archive-x-logs-2026-11-14_08-12-45.zip"' } })
+      if (url === '/api/status') return json(status)
+      if (url === '/api/diagnostics/summary') return json({ levels: {}, diagnostic_health: { state: 'OK' } })
+      if (url === '/api/operations/resources') return json({ resources: { background_capacity: 2, control: { mode_label: 'Automatic' }, category_active: {} } })
+      return json({})
+    })
+    vi.stubGlobal('fetch', base)
+    Object.assign(URL, { createObjectURL: () => 'blob:logs', revokeObjectURL: vi.fn() })
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+    withRouter(<OperationsPage />)
+    const log = await screen.findByRole('region', { name: 'Recent activity' })
+    fireEvent.click(within(log).getByRole('button', { name: 'Download logs (.zip)' }))
+    await waitFor(() => expect(click).toHaveBeenCalled())
+    expect(calls).toContain('/api/diagnostics/logs.zip')
+    await waitFor(() => expect(within(log).getByRole('button', { name: 'Download logs (.zip)' })).toBeEnabled())   // ready for another one
+    click.mockRestore()
+  })
 })

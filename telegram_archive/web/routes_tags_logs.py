@@ -119,6 +119,61 @@ def register_tags_logs_routes(
         return Response(content=content.encode(), media_type="text/plain",
                         headers={"Content-Disposition": "attachment; filename=telegram-archive-log.txt"})
 
+    @router.get("/api/diagnostics/logs.zip")
+    async def download_log_bundle(request: Request, save: int = 0):
+        """One zip with every log and diagnostic, secrets blanked, named with the date and time (archive-x-logs-2026-11-14_08-12-45.zip).
+
+        ?save=1, from this PC only, saves it into the Downloads folder instead and answers with where it went (the desktop app uses this: a
+        window cannot always show a save dialog). Parts that fail or take too long are noted inside the zip instead of losing the rest.
+        """
+        require_auth(request)
+        import shutil
+        import tempfile
+        from concurrent.futures import ThreadPoolExecutor
+        from concurrent.futures import TimeoutError as FutureTimeout
+        from fastapi.responses import FileResponse
+        from starlette.background import BackgroundTask
+        from ..core import log_bundle
+        from ..core.ai_evidence import collect_diagnostics
+        from ..core.diagnostics import flush_diagnostics
+        from ..playback.media_tools import find_ffmpeg
+
+        on_this_pc = (request.client.host if request.client else "") in ("127.0.0.1", "::1", "localhost")
+        if save and not on_this_pc:
+            raise HTTPException(403, "Saving to a folder is only available on the PC that runs Archive X")
+        items = ["PLAYBACK_LOG", "PLAYBACK_STATUS", "APPLICATION_LOGS", "CLI_LAUNCHER_LOG", "APPLICATION_EVENTS", "RUNTIME_SNAPSHOT", "ENVIRONMENT",
+                 "CORRELATION_INDEX", "PROCESS_TOPOLOGY", "BROWSER_DIAGNOSTICS", "METADATA_ASSETS"]
+
+        def report() -> str:
+            # The canonical report can touch slow Windows diagnostics: bound it so it cannot hold the whole bundle.
+            pool = ThreadPoolExecutor(max_workers=1)
+            try:
+                out = pool.submit(collect_diagnostics, db=db, launch_id=None, requested_items=items, max_chars=180_000).result(timeout=25)
+                return str(out.get("text") or "")
+            except FutureTimeout:
+                raise TimeoutError("the diagnostic report took longer than 25 s and was left out") from None
+            finally:
+                pool.shutdown(wait=False)
+
+        folder = log_bundle.downloads_dir(config) if save else Path(tempfile.mkdtemp(prefix="archive-x-logs-"))
+
+        def build():
+            flush_diagnostics()
+            extras = log_bundle.collect_extras(config=config, db=db, report=report, ffmpeg=find_ffmpeg())
+            return log_bundle.build_to_file(folder, log_dir=Path(config.LOG_DIR), extras=extras, app_version=str(getattr(config, "APP_VERSION", "")))
+
+        try:
+            path, manifest = await asyncio.wait_for(asyncio.to_thread(build), timeout=90)
+        except Exception as exc:
+            if not save:
+                shutil.rmtree(folder, ignore_errors=True)
+            raise HTTPException(500, f"Could not make the log bundle: {type(exc).__name__}: {exc}") from exc
+        if save:
+            return {"ok": True, "name": path.name, "path": str(path), "bytes": path.stat().st_size,
+                    "files": len(manifest["files"]), "skipped": len(manifest["skipped"])}
+        return FileResponse(path, media_type="application/zip", filename=path.name, headers={"Cache-Control": "no-store"},
+                            background=BackgroundTask(shutil.rmtree, folder, ignore_errors=True))
+
     @router.get("/api/diagnostics/report")
     async def download_diagnostics_report(request: Request, scope: str = "current"):
         """Download a redacted diagnostic report without depending on job workers.
