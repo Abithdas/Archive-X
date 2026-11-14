@@ -91,7 +91,7 @@ export function EntityEditor({ kind, id, onDone }: { kind: Kind; id: number; onD
     e.preventDefault()
     const bad = nameProblem(name)
     if (bad) return void setNameMsg(bad)
-    const form = { kind, name, manualUrl: url, reset, profile, bio, gender, imageData, provider: picked }
+    const form = { kind, name, manualUrl: url, reset, profile, bio, gender: data ? gender : undefined, imageData, provider: picked }
     setSaving(true)
     try {
       const r = await api<{ ok?: boolean; detail?: string }>(editUrl(kind, id), { method: 'POST', json: saveBody(form) })

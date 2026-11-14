@@ -648,7 +648,7 @@ def register_entity_routes(
         require_auth(request)
         def _read_performer():
             with db.reading() as rdb:
-                row = rdb.execute("SELECT id,name,image,profile,bio,provider_ids,image_source,image_locked,name_locked,profile_locked FROM performers WHERE id=?", (performer_id,)).fetchone()
+                row = rdb.execute("SELECT id,name,image,profile,bio,gender,provider_ids,image_source,image_locked,name_locked,profile_locked FROM performers WHERE id=?", (performer_id,)).fetchone()
                 return dict(row) if row else None
         row = await asyncio.to_thread(_read_performer)
         if not row:
