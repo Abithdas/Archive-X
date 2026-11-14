@@ -1,0 +1,4772 @@
+{
+ "ai_chat_messages": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "conversation_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "role",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "content",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "response_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "investigation_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  }
+ ],
+ "ai_evidence_history": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "evidence_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "investigation_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "kind",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "reason",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "scope",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_page",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "sha256",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "summary_json",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "ai_investigations": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "title",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "stage",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "local_session_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "summary",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "ai_observations": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "kind",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "content",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "investigation_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  }
+ ],
+ "api_cache_stats": [
+  {
+   "name": "provider",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "hits",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "misses",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "throttled",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "errors",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "last_request_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "archive_x_deliveries": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "source_kind",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_channel",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_message_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "source_media_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "destination_channel",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "destination_video_message_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "destination_thumbnail_message_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "identity_key",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "filename",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "file_size",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "duration",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "width",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "height",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "fps",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "bitrate",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "codec",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "audio_codec",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "caption",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "action",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "verified_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "library_media_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "error",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "asset_registry": [
+  {
+   "name": "asset_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "media_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "entity_type",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "entity_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "asset_type",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "path",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "sha256",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "size_bytes",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "content_revision",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "automation_delivery_fingerprints": [
+  {
+   "name": "destination_channel",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "destination_video_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "item_key",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "raw_oshash",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "original_filename",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "automation_items": [
+  {
+   "name": "item_key",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_url",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "guid",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "title",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "published_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "torrent_url",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "torrent_hash",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "local_path",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "resolution",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "download_progress",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "download_state",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "download_rate",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "eta_seconds",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "enclosure_size",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "retry_count",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "next_retry_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "failure_kind",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "retry_stage",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "raw_oshash",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "destination_channel",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "destination_video_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "destination_thumbnail_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "error",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "channel_image_cache": [
+  {
+   "name": "telegram_id",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "url",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "mime",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "data",
+   "notnull": true,
+   "pk": false,
+   "type": "BLOB"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "channels": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "telegram_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "title",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "username",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "image",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "image_source",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "title_locked",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "image_locked",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "role",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "data_versions": [
+  {
+   "name": "scope",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "version",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  }
+ ],
+ "entity_artwork_state": [
+  {
+   "name": "entity_type",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "entity_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "last_success_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_attempt_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "image_url",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "error",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "entity_favorites": [
+  {
+   "name": "entity_type",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "entity_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "entity_merge_audit": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "entity_type",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "canonical_key",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "survivor_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "merged_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "survivor_name",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "merged_name",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "reason",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "entity_metadata": [
+  {
+   "name": "entity_type",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "entity_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "provider",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "payload",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "normalized",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "fetched_at",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "entity_refresh_state": [
+  {
+   "name": "entity_type",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "entity_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "last_success_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_attempt_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "error",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "events": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "level",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "message",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "execution_lane_slots": [
+  {
+   "name": "slot_id",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "lane_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "job_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "execution_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "lease_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "acquired_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "expires_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_heartbeat",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "job_activity_events": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "job_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "level",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "event",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "operation",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "message",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "details",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "job_checkpoints": [
+  {
+   "name": "job_id",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "stage",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "item_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "item_index",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "total_items",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "current_operation",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_completed_operation",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "input_fingerprint",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "output_fingerprint",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "retry_count",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "payload",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "job_dependencies": [
+  {
+   "name": "job_id",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "depends_on_job_id",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "dependency_type",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "job_executions": [
+  {
+   "name": "execution_id",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "job_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "attempt",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "worker_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "lease_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "started_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "heartbeat_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "lease_expires_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "ended_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "failure_class",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "job_journal": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "event_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "job_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "sequence",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "event_type",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "from_status",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "checkpoint",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "operation",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "detail",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "payload",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "error_type",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "retry_count",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "launch_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "job_transfer_telemetry": [
+  {
+   "name": "job_id",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "telemetry",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "jobs": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "job_type",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_channel",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "destination_channel",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "progress",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "current_item",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "detail",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "error",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "destructive",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "admission_state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "admission_reason",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "next_run_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "priority",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "attempt",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "admission_updated_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "execution_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "worker_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "lease_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "lease_expires_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_heartbeat_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "worker_state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "retry_count",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "max_retries",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "failure_class",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "deadline_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "resource_requirements",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "dry_run",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "completed",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "total",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "current_operation",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "local_playback_snapshot_frames": [
+  {
+   "name": "canonical_path",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_oshash",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "frame_index",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "timestamp",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "path",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "width",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "height",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "local_playback_snapshots": [
+  {
+   "name": "canonical_path",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_oshash",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "snapshot_path",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_size",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "duration",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "width",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "height",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "codec",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "fps",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "frame_count",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "frames_path",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "representative_path",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "local_video_performers": [
+  {
+   "name": "video_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "performer_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "media": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "source_channel",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_message_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "filename",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "title",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "size",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "duration",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "width",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "height",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "fps",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "bitrate",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "codec",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "audio_codec",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "orientation",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "resolution_category",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "streamable",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "thumbnail_message_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "thumbnail_status",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "caption",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "identity_key",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "oshash",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "upload_date",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "release_date",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "favorite",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "status",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "metadata_source",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_scene_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_updated_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "metadata_synced_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "scene_type",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "site_name",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "site_url",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_url",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_payload",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "identification_state",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "video_phash",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "uploaded_oshash",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "uploaded_probe_json",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "media_fts": [
+  {
+   "name": "title",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  },
+  {
+   "name": "filename",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  },
+  {
+   "name": "caption",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "media_fts_config": [
+  {
+   "name": "k",
+   "notnull": true,
+   "pk": true,
+   "type": ""
+  },
+  {
+   "name": "v",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "media_fts_content": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "c0",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  },
+  {
+   "name": "c1",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  },
+  {
+   "name": "c2",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "media_fts_data": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "block",
+   "notnull": false,
+   "pk": false,
+   "type": "BLOB"
+  }
+ ],
+ "media_fts_docsize": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "sz",
+   "notnull": false,
+   "pk": false,
+   "type": "BLOB"
+  }
+ ],
+ "media_fts_idx": [
+  {
+   "name": "segid",
+   "notnull": true,
+   "pk": true,
+   "type": ""
+  },
+  {
+   "name": "term",
+   "notnull": true,
+   "pk": true,
+   "type": ""
+  },
+  {
+   "name": "pgno",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "metadata_cache": [
+  {
+   "name": "provider",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "query_key",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "response",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "fetched_at",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  }
+ ],
+ "metadata_entity_suggestion_decisions": [
+  {
+   "name": "video_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "entity_type",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "entity_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "decision",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "metadata_mapping_history": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "video_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "field",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "old_value",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "new_value",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "action",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "metadata_mapping_locks": [
+  {
+   "name": "video_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "field",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "locked",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "reason",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "metadata_suggestion_performers": [
+  {
+   "name": "suggestion_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "performer_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  }
+ ],
+ "metadata_suggestion_studios": [
+  {
+   "name": "suggestion_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "studio_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  }
+ ],
+ "metadata_suggestions": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "video_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "provider",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_record_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "suggested_performer_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "suggested_performer_name",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "confidence",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "score",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "reason",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "payload",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "pending_actions": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "action_type",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "media_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "source_channel",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "message_ids",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "destination_channel",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "reason",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "evidence",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "proposed_by_job",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "decided_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "result",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "performer_face_embeddings": [
+  {
+   "name": "performer_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "image_key",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "embedding_json",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "performer_fts": [
+  {
+   "name": "name",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  },
+  {
+   "name": "aliases",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "performer_fts_config": [
+  {
+   "name": "k",
+   "notnull": true,
+   "pk": true,
+   "type": ""
+  },
+  {
+   "name": "v",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "performer_fts_content": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "c0",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  },
+  {
+   "name": "c1",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "performer_fts_data": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "block",
+   "notnull": false,
+   "pk": false,
+   "type": "BLOB"
+  }
+ ],
+ "performer_fts_docsize": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "sz",
+   "notnull": false,
+   "pk": false,
+   "type": "BLOB"
+  }
+ ],
+ "performer_fts_idx": [
+  {
+   "name": "segid",
+   "notnull": true,
+   "pk": true,
+   "type": ""
+  },
+  {
+   "name": "term",
+   "notnull": true,
+   "pk": true,
+   "type": ""
+  },
+  {
+   "name": "pgno",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "performer_image_cache": [
+  {
+   "name": "performer_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "url",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "mime",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "data",
+   "notnull": false,
+   "pk": false,
+   "type": "BLOB"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "performers": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "name",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "image",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "profile",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_ids",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "bio",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "gender",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "normalized_name",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "canonical_key",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "aliases",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "image_source",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "image_locked",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "image_crop_version",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "name_locked",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "profile_locked",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  }
+ ],
+ "photo_content_analysis": [
+  {
+   "name": "photo_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "error",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "photo_content_tags": [
+  {
+   "name": "photo_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "tag",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "score",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "regions",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  }
+ ],
+ "photo_face_analysis": [
+  {
+   "name": "photo_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "face_count",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "error",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "analyzed_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "photo_face_detections": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "photo_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "face_index",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "group_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "bbox_json",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "embedding_json",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "crop_path",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "photo_face_groups": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "label",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "performer_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "photo_face_suggestion_feedback": [
+  {
+   "name": "group_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "performer_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "source",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "similarity_score",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "reason",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "photo_library_items": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "channel_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "message_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "filename",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "caption",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "mime_type",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "size",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "width",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "height",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "message_date",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_kind",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "content_hash",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "local_path",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "local_sha256",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "cached_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "photo_library_scan_state": [
+  {
+   "name": "channel_id",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_scan_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "messages_scanned",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "photos_found",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "last_error",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "photo_look_analysis": [
+  {
+   "name": "photo_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "error",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "provider_field_sources": [
+  {
+   "name": "media_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "field",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_record_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "value_hash",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "confidence",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "is_effective",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "provider_sync_state": [
+  {
+   "name": "provider",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "entity_type",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "cursor",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "etag",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_sync_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "next_sync_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "error",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "request_count",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "last_latency_ms",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "rate_remaining",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "rate_reset_at",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "reference_aliases": [
+  {
+   "name": "canonical_key",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "normalized_filename",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "original_filename",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_channel",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_message_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "reference_keys": [
+  {
+   "name": "canonical_key",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "title",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "performer_names",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "studio_name",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "site_name",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "release_date",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_record_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_url",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "metadata_hash",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "resource_events": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "media_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "event_type",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "reason",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "detail",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "resource_leases": [
+  {
+   "name": "resource_key",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "job_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "owner_launch_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "acquired_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "lease_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "execution_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "resource_class",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "resource_type",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "reserved_amount",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "actual_amount",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "created_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "expires_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_heartbeat",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "resource_state": [
+  {
+   "name": "media_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "catalogue_state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "metadata_state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "fingerprint_state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "snapshot_state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "entity_state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "content_revision",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "metadata_revision",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "last_reason",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_external_access",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "scan_checkpoints": [
+  {
+   "name": "channel_id",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_message_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "scene_markers": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "media_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "position",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "title",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "note",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "tag",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_marker_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "settings": [
+  {
+   "name": "key",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "value",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "split_file_groups": [
+  {
+   "name": "group_id",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "destination_channel",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "logical_filename",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "primary_message_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "thumbnail_message_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "total_size",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "part_count",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "mime_type",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "duration",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "width",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "height",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "fps",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "bitrate",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "codec",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "audio_codec",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "caption",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "identity_key",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "split_file_parts": [
+  {
+   "name": "group_id",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "part_index",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "destination_channel",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "message_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "logical_filename",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "telegram_filename",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "size_bytes",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "studio_fts": [
+  {
+   "name": "name",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "studio_fts_config": [
+  {
+   "name": "k",
+   "notnull": true,
+   "pk": true,
+   "type": ""
+  },
+  {
+   "name": "v",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "studio_fts_content": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "c0",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "studio_fts_data": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "block",
+   "notnull": false,
+   "pk": false,
+   "type": "BLOB"
+  }
+ ],
+ "studio_fts_docsize": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "sz",
+   "notnull": false,
+   "pk": false,
+   "type": "BLOB"
+  }
+ ],
+ "studio_fts_idx": [
+  {
+   "name": "segid",
+   "notnull": true,
+   "pk": true,
+   "type": ""
+  },
+  {
+   "name": "term",
+   "notnull": true,
+   "pk": true,
+   "type": ""
+  },
+  {
+   "name": "pgno",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "studio_image_cache": [
+  {
+   "name": "studio_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "url",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "mime",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "data",
+   "notnull": false,
+   "pk": false,
+   "type": "BLOB"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "studios": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "name",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_ids",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "normalized_name",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "canonical_key",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "aliases",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "image",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "image_source",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "image_locked",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "name_locked",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  }
+ ],
+ "tag_fts": [
+  {
+   "name": "name",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "tag_fts_config": [
+  {
+   "name": "k",
+   "notnull": true,
+   "pk": true,
+   "type": ""
+  },
+  {
+   "name": "v",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "tag_fts_content": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "c0",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "tag_fts_data": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "block",
+   "notnull": false,
+   "pk": false,
+   "type": "BLOB"
+  }
+ ],
+ "tag_fts_docsize": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "sz",
+   "notnull": false,
+   "pk": false,
+   "type": "BLOB"
+  }
+ ],
+ "tag_fts_idx": [
+  {
+   "name": "segid",
+   "notnull": true,
+   "pk": true,
+   "type": ""
+  },
+  {
+   "name": "term",
+   "notnull": true,
+   "pk": true,
+   "type": ""
+  },
+  {
+   "name": "pgno",
+   "notnull": false,
+   "pk": false,
+   "type": ""
+  }
+ ],
+ "tags": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "name",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "normalized_name",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "telegram_channel_registry_state": [
+  {
+   "name": "channel_id",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "high_water_mark",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "last_scan_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_scan_status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_scan_detail",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "telegram_document_locations": [
+  {
+   "name": "channel_id",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "message_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "registry_key",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "access_hash",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "file_reference_b64",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "thumbnail_message_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "message_date",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "caption",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "location_state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_seen_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "telegram_document_registry": [
+  {
+   "name": "registry_key",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "document_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "identity_kind",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "access_hash",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "filename",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "size_bytes",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "duration",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "width",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "height",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "mime_type",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "caption",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "message_date",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "grouped_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "companion_message_ids_json",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "known_state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "prepared_state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "prepared_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "prepared_json",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "oshash",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "phash",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "media_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "telegram_move_cleanup": [
+  {
+   "name": "source_channel",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_message_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "destination_channel",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "destination_message_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "document_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "retry_count",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "last_error",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "next_attempt_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "thumbnail_cache": [
+  {
+   "name": "source_channel",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "video_message_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "thumbnail_message_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "mime",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "width",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "height",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "data",
+   "notnull": true,
+   "pk": false,
+   "type": "BLOB"
+  },
+  {
+   "name": "source",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "visual_hash",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "timeline_preview_cache": [
+  {
+   "name": "source_channel",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "video_message_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "path",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "duration",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "width",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "height",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "frame_count",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "version",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "error",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "frame_times",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "frames_path",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "transfer_locations": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "identity_key",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_channel",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source_message_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "destination_channel",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "destination_message_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "destination_thumbnail_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "action",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "transferred_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "video_performers": [
+  {
+   "name": "video_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "performer_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "confidence",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  }
+ ],
+ "video_studios": [
+  {
+   "name": "video_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "studio_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "confidence",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  }
+ ],
+ "video_tags": [
+  {
+   "name": "video_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "tag_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "confidence",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  }
+ ],
+ "watch_history": [
+  {
+   "name": "media_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "position",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "duration",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "play_count",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "total_watch_seconds",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "last_played_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "completed",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "web_sessions": [
+  {
+   "name": "token_hash",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "username",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "expires",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  }
+ ],
+ "work_registry": [
+  {
+   "name": "work_key",
+   "notnull": false,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "work_type",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "media_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "reason",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "started_at",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "completed_at",
+   "notnull": false,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  }
+ ]
+}

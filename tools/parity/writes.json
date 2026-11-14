@@ -1,0 +1,189 @@
+[
+ {
+  "name": "quick edit: set a title",
+  "method": "POST",
+  "path": "/api/media/quick-edit",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 1001,
+   "title": "Parity title"
+  }
+ },
+ {
+  "name": "quick edit: a video that does not exist",
+  "method": "POST",
+  "path": "/api/media/quick-edit",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 999999,
+   "title": "x"
+  }
+ },
+ {
+  "name": "quick edit: no channel",
+  "method": "POST",
+  "path": "/api/media/quick-edit",
+  "body": {
+   "title": "x"
+  }
+ },
+ {
+  "name": "mapping: lock the title of two videos",
+  "method": "POST",
+  "path": "/api/mapping/bulk",
+  "body": {
+   "media_ids": [
+    1,
+    2
+   ],
+   "field": "title",
+   "lock": true
+  }
+ },
+ {
+  "name": "mapping: unlock one",
+  "method": "POST",
+  "path": "/api/mapping/bulk",
+  "body": {
+   "media_ids": [
+    1
+   ],
+   "field": "title",
+   "lock": false
+  }
+ },
+ {
+  "name": "favourite a video",
+  "method": "POST",
+  "path": "/api/library/3/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite the same video again",
+  "method": "POST",
+  "path": "/api/library/3/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite a performer",
+  "method": "POST",
+  "path": "/api/entities/performer/2/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite a studio",
+  "method": "POST",
+  "path": "/api/entities/studio/1/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite a performer who does not exist",
+  "method": "POST",
+  "path": "/api/entities/performer/99999/favorite",
+  "body": {}
+ },
+ {
+  "name": "un-favourite the performer",
+  "method": "POST",
+  "path": "/api/entities/performer/2/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite an unknown kind",
+  "method": "POST",
+  "path": "/api/entities/nonsense/2/favorite",
+  "body": {}
+ },
+ {
+  "name": "add a marker",
+  "method": "POST",
+  "path": "/api/media/3/markers",
+  "body": {
+   "position": 12.5,
+   "title": "Parity marker",
+   "note": "a note",
+   "tag": "t"
+  }
+ },
+ {
+  "name": "settings: experience",
+  "method": "POST",
+  "path": "/api/settings/experience",
+  "body": {}
+ },
+ {
+  "name": "faces: merge two groups",
+  "method": "POST",
+  "path": "/api/photos/faces/groups/merge",
+  "body": {
+   "group_ids": [
+    1,
+    2
+   ]
+  }
+ },
+ {
+  "name": "faces: merge needs two",
+  "method": "POST",
+  "path": "/api/photos/faces/groups/merge",
+  "body": {
+   "group_ids": [
+    3
+   ]
+  }
+ },
+ {
+  "name": "faces: name a group",
+  "method": "POST",
+  "path": "/api/photos/faces/groups/3/assign",
+  "body": {
+   "performer_id": 2,
+   "group_ids": [
+    3
+   ]
+  }
+ },
+ {
+  "name": "faces: clear the name",
+  "method": "POST",
+  "path": "/api/photos/faces/groups/3/assign",
+  "body": {
+   "performer_id": null,
+   "group_ids": [
+    3
+   ]
+  }
+ },
+ {
+  "name": "delete without confirmation",
+  "method": "POST",
+  "path": "/api/library/delete",
+  "body": {
+   "channel_id": -1002,
+   "message_id": 1001
+  }
+ },
+ {
+  "name": "delete with Telegram not connected",
+  "method": "POST",
+  "path": "/api/library/delete",
+  "body": {
+   "channel_id": -1002,
+   "message_id": 1001,
+   "confirm_delete": true
+  }
+ },
+ {
+  "name": "a body that is not JSON",
+  "method": "POST",
+  "path": "/api/media/quick-edit",
+  "raw": "this is not json"
+ },
+ {
+  "name": "a cross-site POST is refused",
+  "method": "POST",
+  "path": "/api/library/3/favorite",
+  "body": {},
+  "origin": "https://evil.example"
+ }
+]

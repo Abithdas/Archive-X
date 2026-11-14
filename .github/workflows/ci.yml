@@ -26,6 +26,9 @@ jobs:
         with: { python-version: "3.12", cache: pip }
       - run: pip install -r requirements.txt websockets
       - run: python tools/tests/test_desktop_mode.py
+      # The Rust side reads this database and copies this guard: they must not drift apart unnoticed.
+      - run: python tools/parity/dump_schema.py --check
+      - run: python tools/parity/gen_origin_vectors.py --check
 
   launcher:
     runs-on: ubuntu-latest

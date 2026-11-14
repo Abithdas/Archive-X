@@ -68,7 +68,7 @@ fn boxed(b: Incoming) -> Body {
 }
 
 /// A JSON string body for `detail`, escaped by hand (quotes, backslashes and control characters).
-fn json_escape(text: &str) -> String {
+pub fn json_escape(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 2);
     out.push('"');
     for c in text.chars() {

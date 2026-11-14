@@ -67,3 +67,44 @@ The frozen API description is `docs/desktop/api/openapi.json` (routes: `docs/des
 `launcher-core` can start `ax-server` in front of the backend (`LaunchOptions.front_door`). The Tauri shell does it only when
 `ARCHIVE_X_RUST_FRONT_DOOR=1` and the binary and web app can be found; otherwise it starts exactly as before. A failure to
 start the front door falls back to the plain backend.
+
+## ax-db, sessions and the cross-site guard (steps 3 and 4)
+
+Building blocks for the routes Rust will answer itself; **nothing in the front door uses them yet** (every route is still
+answered by Python), so they cannot change behaviour today.
+
+- **`ax-db`** opens the same SQLite file **read-only** (`query_only`, WAL, 5 s busy timeout) in a small pool and runs every
+  query on a blocking thread. Python stays the only writer. It never creates a database.
+- **Sessions** (`ax-db/src/sessions.rs`, `ax-server/src/auth.rs`): the `session` cookie is hashed with SHA-256 and looked up in the
+  `web_sessions` table Python writes. A live session is let in; anything else gets Python's exact answer,
+  `401 {"detail":"Authentication required"}`; a database that cannot be read gives `503`, never a pass. Python ends a session by
+  deleting its row, so a logout takes effect in Rust at once. Python slides a session's expiry forward on every use but writes it to the
+  database only every 10 minutes, so Rust can refuse a session in its last minutes a little early, and requests that Rust
+  answers alone do not slide it: when the first route moves, the front door must tell Python about activity (a cheap authenticated
+  call at most every 10 minutes per session).
+- **Cross-site guard** (`ax-server/src/guard.rs`): a port of Python's `BrowserMutationGuardMiddleware`, checked against
+  `tests/origin_vectors.json` (7,938 cases produced by the real Python middleware).
+- **Schema contract.** `ax-db/schema/schema.json` is a snapshot of the 102 tables Python creates (`tools/parity/dump_schema.py`);
+  `REQUIRED_COLUMNS` lists what the Rust code reads and a test checks it against the snapshot. When Python changes a table the
+  snapshot check (Python test and CI step) fails, and the diff shows what moved.
+
+## Tools in tools/parity
+
+| Script | Use |
+|--------|-----|
+| `compare.py` | GET routes against two servers (see above) |
+| `compare_writes.py` | the POST scenarios in `writes.json` against two servers that each have their own copy of the same database: compares the answers **and the rows each request added or removed, per table** (time columns ignored) |
+| `seed_fixture.py` | builds the small deterministic database both need: 72 videos, 32 photos, 3 face groups (two builds are identical) |
+| `dump_schema.py` | writes or checks the schema snapshot |
+| `gen_origin_vectors.py` | writes or checks the guard test vectors |
+
+Comparing two servers on fresh copies of the fixture:
+
+```bash
+python tools/parity/seed_fixture.py --data-dir /tmp/A
+python tools/parity/seed_fixture.py --data-dir /tmp/B
+# start one server per folder (ARCHIVE_X_DATA_DIR, TELEGRAM_ARCHIVE_PORT, TELEGRAM_ARCHIVE_PLAYER_PORT), set up the
+# same login on both with POST /api/auth/setup {"username","password","confirmation"}, and run seed_fixture.py again
+# once the servers are up (they re-create the library views at start, which hides the videos until the seed runs again)
+python tools/parity/compare_writes.py --a https://127.0.0.1:18450 --a-data /tmp/A --b https://127.0.0.1:18451 --b-data /tmp/B --user admin --password ...
+```

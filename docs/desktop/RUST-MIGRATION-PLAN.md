@@ -9,7 +9,8 @@ Status: a plan only. Nothing has been ported. Sizes are relative (S, M, L, XL); 
 | 0. Prove the risky parts | **Not done.** The `grammers` Telegram trial needs a real account; the `ort` face/tag checks and the Whisper speed check were not run here. SQLite shared between Python and Rust is exercised by the front door tests only indirectly (the front door does not open the database yet) |
 | 1. Safety net | **Done:** frozen API (`docs/desktop/api/`), parity harness (`tools/parity/compare.py`, 0 differences against itself and against the Rust front door on 85 routes). Not done: more backend tests, the Python clean-ups |
 | 2. Rust front door | **Done and verified here** (details below), then hardened: timeouts, connection cap, graceful shutdown, pooled connections, HTTPS/HTTP2 test, CI jobs (`front-door`, `front-door-windows`, `python-lint` in `.github/workflows/ci.yml`, not yet run on GitHub). Not done: bundling the binary in the installer and a Windows run |
-| 3 to 9 | Not started |
+| 3. Database and read-only routes | **Started:** `ax-db` (read-only pool), the session lookup, the cross-site guard and the 401 behaviour exist and are tested, but no route is answered by Rust yet. See the round-3 results below |
+| 4 to 9 | Not started |
 
 Phase 2 results (`rust/crates/ax-server`, 12 Rust tests, clippy clean; Python side `TrustedProxyMiddleware`, 2 tests):
 
@@ -20,6 +21,16 @@ Phase 2 results (`rust/crates/ax-server`, 12 Rust tests, clippy clean; Python si
 - The release binary is 4.1 MB.
 - Desktop launcher: `LaunchOptions.front_door` (opt-in); a real end-to-end test (`cargo test -p archive-x-launcher-core real_backend_with_front_door -- --ignored`) passes with the Python backend in desktop mode: health, app shell, the backend's 403 guard, the session hand-off and a graceful shutdown all work through the front door.
 - Known differences: Python counts a plain page load of `/login` against its login rate limit and the front door does not; Python advertises HTTP/3 (`alt-svc`) and the front door removes that header because it does not speak HTTP/3.
+
+### Round 3: database, sessions, guard, write parity (results)
+
+- **Sessions are in SQLite already** (`web_sessions`, hashed tokens), so Rust can check logins without any change to Python. Verified against the real backend: the cookie Python issued is accepted (valid 30 days), a changed one is refused, and after Python's logout the same cookie is refused at once.
+- **Rust reads while Python writes** (the Phase 0 SQLite item): 8 concurrent readers against a writer committing constantly, in WAL mode: no "database is locked", counts never go backwards, and after the writer stops the readers see every row.
+- **The cross-site guard** agrees with Python's middleware on all 7,938 generated cases; deliberately breaking either of two rules makes the test fail (so the test is not vacuous).
+- **Schema contract:** 102 tables snapshotted; Python test and CI step fail when the Python schema changes without the snapshot being reviewed.
+- **Write parity harness** (`compare_writes.py`) with 22 scenarios (quick edit, bulk mapping, favourites, markers, face merge/naming, refusal cases, a body that is not JSON, a cross-site POST): two independent Python servers on fresh fixtures give identical answers and identical row changes (one quick edit alone changes 44 rows in 24 tables). This is the check every ported write route has to pass.
+- `tools/parity/seed_fixture.py` makes the comparison database reproducible (two builds are identical).
+- Not done: a Rust-side route (Step 6), the session "touch" for requests Rust answers alone, bundling, Windows.
 
 ### What the hardening round found (and fixed)
 
