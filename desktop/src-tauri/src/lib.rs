@@ -28,11 +28,12 @@ fn locate_backend(app: &tauri::AppHandle) -> Result<(PathBuf, Option<PathBuf>), 
     Ok((exe, tools.is_dir().then_some(tools)))
 }
 
-/// Opt-in (ARCHIVE_X_RUST_FRONT_DOOR=1): the Rust front door in front of the backend. It needs the `ax-server` binary
+/// On by default (ARCHIVE_X_RUST_FRONT_DOOR=0 turns it off): the Rust front door in front of the backend. It needs the `ax-server` binary
 /// (ARCHIVE_X_FRONT_DOOR_EXE, or `rust/ax-server` in the resource directory) and the built web app (ARCHIVE_X_DIST, or
 /// `web` in the resource directory). When anything is missing the app simply starts without it.
 fn locate_front_door(app: &tauri::AppHandle) -> Option<FrontDoorOptions> {
-    if std::env::var("ARCHIVE_X_RUST_FRONT_DOOR").map(|v| v != "1").unwrap_or(true) {
+    // On by default since the Windows build proved it end to end; ARCHIVE_X_RUST_FRONT_DOOR=0 turns it off.
+    if std::env::var("ARCHIVE_X_RUST_FRONT_DOOR").map(|v| v == "0").unwrap_or(false) {
         return None;
     }
     let res = app.path().resource_dir().ok();

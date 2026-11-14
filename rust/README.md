@@ -64,8 +64,8 @@ The frozen API description is `docs/desktop/api/openapi.json` (routes: `docs/des
 
 ## Desktop app
 
-`launcher-core` can start `ax-server` in front of the backend (`LaunchOptions.front_door`). The Tauri shell does it only when
-`ARCHIVE_X_RUST_FRONT_DOOR=1` and the binary and web app can be found; otherwise it starts exactly as before. A failure to
+`launcher-core` can start `ax-server` in front of the backend (`LaunchOptions.front_door`). The Tauri shell does it by default whenever
+the binary and web app can be found (set `ARCHIVE_X_RUST_FRONT_DOOR=0` to turn it off); otherwise it starts exactly as before. A failure to
 start the front door falls back to the plain backend.
 
 ## ax-db, sessions and the cross-site guard (steps 3 and 4)
