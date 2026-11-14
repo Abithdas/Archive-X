@@ -36,8 +36,9 @@ jobs:
         run: |
           V="$INPUT_VERSION"
           if [ -z "$V" ] && [[ "$GITHUB_REF" == refs/tags/desktop-v* ]]; then V="${GITHUB_REF#refs/tags/desktop-v}"; fi
+          # One place records the version, for the backend and the desktop shell (tools/release/write_version.py); a plain build says "dev".
+          python3 tools/release/write_version.py "${V:-dev}" "$GITHUB_SHA"
           if [ -n "$V" ]; then
-            python3 -c "import json,sys;p='desktop/src-tauri/tauri.conf.json';c=json.load(open(p));c['version']=sys.argv[1];json.dump(c,open(p,'w'),indent=2)" "$V"
             echo "release=true" >> "$GITHUB_OUTPUT"
             echo "version=$V" >> "$GITHUB_OUTPUT"
             echo "Releasing version $V"

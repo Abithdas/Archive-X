@@ -197,7 +197,7 @@ _SECRET_ENV = re.compile(r"(KEY|SECRET|TOKEN|PASSWORD|HASH|COOKIE|SESSION)", re.
 
 def system_text(config: Any, ffmpeg: str | None) -> str:
     lines = [
-        f"app version : {getattr(config, 'APP_VERSION', '?')}",
+        f"app version : {getattr(config, 'APP_VERSION', '?')}" + (f" ({config.APP_COMMIT})" if getattr(config, 'APP_COMMIT', '') else ""),
         f"time        : {datetime.now().astimezone().isoformat(timespec='seconds')}",
         f"os          : {platform.platform()}  ({platform.machine()})",
         f"python      : {sys.version.split()[0]}  {sys.executable}",

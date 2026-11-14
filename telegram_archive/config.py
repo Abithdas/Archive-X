@@ -547,7 +547,7 @@ def is_secret_key(key: str) -> bool:
 
 HOST = os.getenv("TELEGRAM_ARCHIVE_HOST", "0.0.0.0")
 # Canonical release identifier for the current application build. Keep in sync with tests/_version.py.
-APP_VERSION = "v29.5.400"
+from ._version import COMMIT as APP_COMMIT, VERSION as APP_VERSION   # one source for the version: telegram_archive/_version.py
 
 # V29.4.20–V29.4.25 execution-lane policy. JobOrchestrator remains the admission authority.
 EXECUTION_LANE_CAPACITIES = {
