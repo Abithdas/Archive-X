@@ -38,5 +38,6 @@ src="$(dirname "$video")"
 rm -rf "$out"; mkdir -p "$out"
 cp "$src"/*.ax "$out"/
 cp "$src"/*.dll "$out"/ 2>/dev/null || true
+cp "$src"/*.manifest "$out"/   # LAVFilters.Dependencies.manifest: Windows needs it beside the filters to find their helper DLLs (error 0x800736B1 without it)
 for f in $(find "$tmp/x" -maxdepth 2 -iname 'COPYING*' -o -maxdepth 2 -iname 'LICENSE*' | head -n 3); do cp "$f" "$out"/; done
 echo "LAV $TAG ready in $out:"; ls -la "$out"
