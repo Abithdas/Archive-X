@@ -10,7 +10,7 @@ import { PageHead } from '@/design/PageHead'
 import { Segmented } from '@/design/Segmented'
 import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
-import { CARD, Check, Stepper, detail, videosHint } from './parts'
+import { CARD, CHANNEL_LIST, Check, Stepper, detail, videosHint } from './parts'
 import { AutomationWorkflow } from './AutomationWorkflow'
 import { TransferWorkflow } from './TransferWorkflow'
 import { AnimatePresence, listItem, motion } from '@/design/motion'
@@ -214,8 +214,8 @@ function MetadataWorkflow() {
           <div className="mb-2 flex gap-2"><input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search channels…" aria-label="Search channels" className="h-10 min-w-0 flex-1 rounded-xl border border-line-2 bg-bg px-3 text-sm" />
             <button type="button" onClick={() => setPicked((channels.data ?? []).map((c) => c.telegram_id))} className="h-10 rounded-xl border border-line-2 px-3 text-xs font-bold">Select all</button>
             <button type="button" onClick={() => setPicked([])} className="h-10 rounded-xl border border-line-2 px-3 text-xs font-bold">Clear</button></div>
-          <div role="group" aria-label="Metadata and Assets channels" className="max-h-56 overflow-auto rounded-xl border border-line bg-bg p-1">
-            {channels.isPending ? <p className="p-3 text-sm text-muted">Loading channels…</p> : list.length ? list.map((c) => <Check key={c.telegram_id} checked={picked.includes(c.telegram_id)} onChange={() => toggle(c.telegram_id)} title={c.title} icon={<ChannelAvatar id={c.telegram_id} title={c.title} image={c.image} />} hint={videosHint(libraryCount.get(c.telegram_id) ?? c.video_count)} />) : <p className="p-3 text-sm text-muted">No channels match.</p>}
+          <div role="group" aria-label="Metadata and Assets channels" className={CHANNEL_LIST}>
+            {channels.isPending ? <p className="col-span-full p-3 text-sm text-muted">Loading channels…</p> : list.length ? list.map((c) => <Check key={c.telegram_id} checked={picked.includes(c.telegram_id)} onChange={() => toggle(c.telegram_id)} title={c.title} icon={<ChannelAvatar id={c.telegram_id} title={c.title} image={c.image} />} hint={videosHint(libraryCount.get(c.telegram_id) ?? c.video_count)} />) : <p className="col-span-full p-3 text-sm text-muted">No channels match.</p>}
           </div>
           <p className="mt-2 text-xs text-muted" aria-live="polite">Selected: {picked.length} channel{picked.length === 1 ? '' : 's'}</p>
         </div>
