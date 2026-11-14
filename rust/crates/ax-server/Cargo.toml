@@ -25,5 +25,5 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tempfile = "3"
 tokio-stream = "0.1"
 flate2 = "1"
-rcgen = "0.13"
+rcgen = "0.14"
 webpki-roots = "0.26"
