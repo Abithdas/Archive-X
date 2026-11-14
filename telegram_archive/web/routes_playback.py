@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
 import asyncio
+from .video_lists import name_lists_sql
 import collections
 import copy
 import json
@@ -101,15 +102,8 @@ def register_playback_routes(
                 "SELECT m.*, 1 AS library_ready, 'Ready' AS library_state, "
                 "'COMPLETE' AS library_catalogue_state, 'COMPLETE' AS library_metadata_state, "
                 "'COMPLETE' AS library_entity_state, 'READY' AS library_snapshot_state, "
-                "GROUP_CONCAT(DISTINCT p.name) performers, "
-                "GROUP_CONCAT(DISTINCT lp.name) local_performers, "
-                "GROUP_CONCAT(DISTINCT s.name) studios, "
-                "GROUP_CONCAT(DISTINCT t.name) tags "
-                 "FROM media m "
-                "LEFT JOIN video_performers vp ON vp.video_id=m.id LEFT JOIN performers p ON p.id=vp.performer_id "
-                "LEFT JOIN local_video_performers lvp ON lvp.video_id=m.id LEFT JOIN performers lp ON lp.id=lvp.performer_id "
-                "LEFT JOIN video_studios vs ON vs.video_id=m.id LEFT JOIN studios s ON s.id=vs.studio_id "
-                "LEFT JOIN video_tags vt ON vt.video_id=m.id LEFT JOIN tags t ON t.id=vt.tag_id "
+                + name_lists_sql() +
+                " FROM media m "
                 "WHERE m.source_channel=? GROUP BY m.id ORDER BY m.upload_date DESC",
                 (str(channel_id),)).fetchall()
         result=[]

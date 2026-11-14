@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
 import asyncio
+from .video_lists import name_lists_sql
 import json
 import os
 import secrets
@@ -73,7 +74,7 @@ def register_tags_logs_routes(
                 tag = rdb.execute("SELECT * FROM tags WHERE id=?", (tag_id,)).fetchone()
                 if not tag:
                     return None, []
-                rows = rdb.execute("SELECT m.*, GROUP_CONCAT(DISTINCT p.name) performers, GROUP_CONCAT(DISTINCT lp.name) local_performers, GROUP_CONCAT(DISTINCT s.name) studios, GROUP_CONCAT(DISTINCT t2.name) tags FROM archive_x_library_media m LEFT JOIN video_performers vp ON vp.video_id=m.id LEFT JOIN performers p ON p.id=vp.performer_id LEFT JOIN local_video_performers lvp ON lvp.video_id=m.id LEFT JOIN performers lp ON lp.id=lvp.performer_id LEFT JOIN video_studios vs ON vs.video_id=m.id LEFT JOIN studios s ON s.id=vs.studio_id LEFT JOIN video_tags vt2 ON vt2.video_id=m.id LEFT JOIN tags t2 ON t2.id=vt2.tag_id WHERE EXISTS(SELECT 1 FROM video_tags vt WHERE vt.video_id=m.id AND vt.tag_id=?) GROUP BY m.id ORDER BY m.upload_date DESC", (tag_id,)).fetchall()
+                rows = rdb.execute("SELECT m.*, " + name_lists_sql() + " FROM archive_x_library_media m WHERE EXISTS(SELECT 1 FROM video_tags vt WHERE vt.video_id=m.id AND vt.tag_id=?) GROUP BY m.id ORDER BY m.upload_date DESC", (tag_id,)).fetchall()
                 return dict(tag), [dict(r) for r in rows]
         tag, rows = await asyncio.to_thread(_read_tag_videos)
         if not tag:

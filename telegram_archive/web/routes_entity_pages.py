@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
 import asyncio
+from .video_lists import name_lists_sql
 import json
 import time
 
@@ -139,14 +140,9 @@ def register_entity_page_routes(
                 "same AS (SELECT id FROM performers WHERE id=? OR lower(trim(name))=(SELECT n FROM me) "
                 "OR (COALESCE(normalized_name,'')<>'' AND normalized_name=(SELECT nn FROM me))) "
                 "SELECT m.*, c.title channel_title, "
-                "GROUP_CONCAT(DISTINCT s.name) studios, GROUP_CONCAT(DISTINCT t.name) tags, "
-                "GROUP_CONCAT(DISTINCT p2.name) performers, GROUP_CONCAT(DISTINCT lp.name) local_performers "
-                "FROM archive_x_library_media m "
+                + name_lists_sql() +
+                " FROM archive_x_library_media m "
                 "LEFT JOIN channels c ON c.telegram_id=m.source_channel "
-                "LEFT JOIN video_studios vs ON vs.video_id=m.id LEFT JOIN studios s ON s.id=vs.studio_id "
-                "LEFT JOIN video_tags vt ON vt.video_id=m.id LEFT JOIN tags t ON t.id=vt.tag_id "
-                "LEFT JOIN video_performers vp2 ON vp2.video_id=m.id LEFT JOIN performers p2 ON p2.id=vp2.performer_id "
-                "LEFT JOIN local_video_performers lvp2 ON lvp2.video_id=m.id LEFT JOIN performers lp ON lp.id=lvp2.performer_id "
                 "WHERE (EXISTS (SELECT 1 FROM video_performers vp WHERE vp.video_id=m.id AND vp.performer_id IN (SELECT id FROM same)) "
                 "   OR EXISTS (SELECT 1 FROM local_video_performers lvp WHERE lvp.video_id=m.id AND lvp.performer_id IN (SELECT id FROM same))) "
                  + (" AND EXISTS (SELECT 1 FROM video_studios rvs WHERE rvs.video_id=m.id AND rvs.studio_id=?) " if studio_id else "")
@@ -769,16 +765,9 @@ def register_entity_page_routes(
             studio["favorite"] = bool(_rdb.execute("SELECT 1 FROM entity_favorites WHERE entity_type='studio' AND entity_id=?", (studio_id,)).fetchone())
             rows = _rdb.execute(
                 "SELECT m.*, c.title AS channel_title, "
-                "GROUP_CONCAT(DISTINCT p.name) performers, "
-                "GROUP_CONCAT(DISTINCT lp.name) local_performers, "
-                "GROUP_CONCAT(DISTINCT s2.name) studios, "
-                "GROUP_CONCAT(DISTINCT t.name) tags "
-                 "FROM archive_x_library_media m "
+                + name_lists_sql() +
+                " FROM archive_x_library_media m "
                 "LEFT JOIN channels c ON c.telegram_id=m.source_channel "
-                "LEFT JOIN video_performers vp ON vp.video_id=m.id LEFT JOIN performers p ON p.id=vp.performer_id "
-                "LEFT JOIN local_video_performers lvp ON lvp.video_id=m.id LEFT JOIN performers lp ON lp.id=lvp.performer_id "
-                "LEFT JOIN video_studios vs2 ON vs2.video_id=m.id LEFT JOIN studios s2 ON s2.id=vs2.studio_id "
-                "LEFT JOIN video_tags vt ON vt.video_id=m.id LEFT JOIN tags t ON t.id=vt.tag_id "
                 "WHERE EXISTS (SELECT 1 FROM video_studios vs WHERE vs.video_id=m.id AND vs.studio_id=?) "
                 + ("AND (EXISTS (SELECT 1 FROM video_performers rvp WHERE rvp.video_id=m.id AND rvp.performer_id=?) "
                    "OR EXISTS (SELECT 1 FROM local_video_performers rlv WHERE rlv.video_id=m.id AND rlv.performer_id=?)) " if performer_id else "")

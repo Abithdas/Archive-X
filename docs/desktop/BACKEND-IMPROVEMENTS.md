@@ -63,3 +63,11 @@ Found by scanning all 187 Python files (about 100,000 lines) of `telegram_archiv
 4. A2 and A3 once A1 is in.
 5. B1 to B3 in small steps, one route group at a time, with D1 tests written first.
 6. C3, C4, D2, D3.
+
+### Video lists: sub-queries instead of a four-way join (done)
+
+The channel, tag, studio and performer video lists joined performers, local performers, studios and tags to every video and grouped
+afterwards, which multiplies rows (136,965 rows for 18 videos, 125 ms). They now use `web/video_lists.py::name_lists_sql()`, one
+correlated sub-query per list. `tools/tests/test_video_lists_sql.py` proves the lists and their order are identical on random data.
+Old code against new code on the big fixture: 197 of 209 routes identical, and the 12 that differ are paths, launch ids and log
+lines of the two data folders. The channel video list went from about 190 ms to about 10 ms.
