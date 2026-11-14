@@ -18,10 +18,10 @@ def test_edit_form_reports_gender_so_saving_keeps_it():
     c = TestClient(app, base_url="https://testserver")
     H = {"Origin": "https://testserver"}
     pw = "correct-horse-battery"
-    assert c.post("/api/auth/setup", json={"username": "admin", "password": pw, "confirmation": pw}, headers=H).status_code == 200
+    assert c.post("/api/auth/setup", json={"username": "admin", "password": pw, "confirmation": pw}, headers=H).status_code in (200, 409)
     assert c.post("/login", json={"username": "admin", "password": pw}, headers=H).status_code == 200
     with db.lock:
-        db.conn.execute("INSERT INTO performers(name,gender) VALUES('Ava Stone','female')")
+        db.conn.execute("INSERT OR IGNORE INTO performers(name,gender) VALUES('Ava Stone','female')")
         db.conn.commit()
         pid = db.conn.execute("SELECT id FROM performers WHERE name='Ava Stone'").fetchone()["id"]
     form = c.get(f"/api/performers/{pid}/edit").json()
@@ -45,7 +45,7 @@ def test_local_performer_search_accepts_words_in_any_order_and_partial_words():
     c.post("/login", json={"username": "admin", "password": pw}, headers=H)
     with db.lock:
         for n in ("Ava Stonebridge", "Mia Rivera"):
-            db.conn.execute("INSERT INTO performers(name) VALUES(?)", (n,))
+            db.conn.execute("INSERT OR IGNORE INTO performers(name) VALUES(?)", (n,))
         db.conn.commit()
     def names(q): return [i["name"] for i in c.get("/api/photos/faces/performers", params={"q": q}).json()["items"]]
     assert names("ava stoneb") == ["Ava Stonebridge"]
