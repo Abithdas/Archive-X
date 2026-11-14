@@ -1,24 +1,45 @@
-# Proposes updates for everything the app is built from (docs/security/SCA-REPORT.md). Security updates are opened as soon as an advisory is
-# published; the rest weekly. Nothing is merged without CI (tests, dependency scan) passing.
+# Keeps everything the app is built from current (docs/security/SCA-REPORT.md). Deliberately quiet: one pull request per ecosystem and month,
+# minor and patch updates grouped together, and no major-version jumps (those are decided by a person: av 14 to 19, OpenCV 4 to 5 and the like
+# can break the app). Security fixes do not wait for the schedule: the weekly "Dependency scan (SCA)" workflow fails when a known vulnerability appears.
 version: 2
 updates:
   - package-ecosystem: pip
     directory: "/"
-    schedule: { interval: weekly }
-    open-pull-requests-limit: 5
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 2
+    groups:
+      python-minor-and-patch: { update-types: [minor, patch] }
+    ignore:
+      - { dependency-name: "*", update-types: ["version-update:semver-major"] }
   - package-ecosystem: npm
     directory: "/frontend"
-    schedule: { interval: weekly }
-    open-pull-requests-limit: 5
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 2
+    groups:
+      npm-minor-and-patch: { update-types: [minor, patch] }
+    ignore:
+      - { dependency-name: "*", update-types: ["version-update:semver-major"] }
   - package-ecosystem: cargo
     directory: "/rust"
-    schedule: { interval: weekly }
-    open-pull-requests-limit: 5
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 2
+    groups:
+      rust-minor-and-patch: { update-types: [minor, patch] }
+    ignore:
+      - { dependency-name: "*", update-types: ["version-update:semver-major"] }
   - package-ecosystem: cargo
     directory: "/desktop"
-    schedule: { interval: weekly }
-    open-pull-requests-limit: 5
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 2
+    groups:
+      desktop-minor-and-patch: { update-types: [minor, patch] }
+    ignore:
+      - { dependency-name: "*", update-types: ["version-update:semver-major"] }
   - package-ecosystem: github-actions
     directory: "/"
-    schedule: { interval: weekly }
-    open-pull-requests-limit: 5
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 2
+    groups:
+      actions-minor-and-patch: { update-types: [minor, patch] }
+    ignore:
+      - { dependency-name: "*", update-types: ["version-update:semver-major"] }
