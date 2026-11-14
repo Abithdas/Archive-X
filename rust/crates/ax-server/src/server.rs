@@ -12,6 +12,7 @@ use tokio_rustls::TlsAcceptor;
 use tracing::{info, warn};
 
 use crate::config::Config;
+use crate::names::Names;
 use crate::native::Native;
 use crate::proxy::{Body, Proxy};
 use crate::static_files::{is_backend_path, is_spa_path, StaticFiles};
@@ -32,6 +33,7 @@ macro_rules! drive {
 pub struct State {
     pub proxy: Arc<Proxy>,
     pub native: Option<Native>,
+    pub names: Option<Arc<Names>>,
     pub files: StaticFiles,
 }
 
@@ -63,6 +65,19 @@ pub async fn handle(req: Request<hyper::body::Incoming>, peer: SocketAddr, tls: 
         r.headers_mut().insert("x-served-by", hyper::header::HeaderValue::from_static(who));
         r
     };
+    // `/internal/...` is for the front door's own calls to the backend, never for a client.
+    if req.uri().path().starts_with("/internal/") {
+        return Ok(served_by(crate::auth::json_error(hyper::StatusCode::NOT_FOUND, "Not Found"), "rust"));
+    }
+    // The performer name list (see names.rs).
+    if let Some(names) = &state.names {
+        if let Some(route) = names.route_for(req.method(), req.uri().path()) {
+            let host = req.headers().get(hyper::header::HOST).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
+            if let Some(resp) = names.handle(route, req.uri().query(), req.headers(), peer, &host).await {
+                return Ok(served_by(crate::static_files::with_security_headers(resp, tls), "rust"));
+            }
+        }
+    }
     // Routes switched on in --native-routes are answered here (see native.rs).
     if let Some(native) = &state.native {
         if let Some(route) = native.route_for(req.method(), req.uri().path()) {
@@ -90,17 +105,30 @@ pub async fn run(cfg: Arc<Config>) -> Result<(), String> {
 
 /// Serve on an already-bound listener until `shutdown` completes.
 pub async fn serve(listener: TcpListener, cfg: Arc<Config>, shutdown: impl std::future::Future<Output = ()>) -> Result<(), String> {
+    serve_with_fetch(listener, cfg, shutdown, None).await
+}
+
+/// `serve`, with the way the performer name list reaches the providers replaceable (tests use a fake).
+pub async fn serve_with_fetch(listener: TcpListener, cfg: Arc<Config>, shutdown: impl std::future::Future<Output = ()>, fetch: Option<Arc<dyn ax_names::Fetch>>) -> Result<(), String> {
     let acceptor = match (&cfg.cert, &cfg.key) {
         (Some(c), Some(k)) => Some(tls_acceptor(c, k)?),
         _ => None,
     };
     tokio::pin!(shutdown);
     let proxy = Proxy::new(&cfg);
-    let native = Native::new(&cfg.native_routes, cfg.db.as_deref(), proxy.clone(), cfg.session_touch_interval)?;
+    let database_routes: Vec<String> = cfg.native_routes.iter().filter(|r| !crate::names::ROUTES.contains(&r.as_str())).cloned().collect();
+    let native = Native::new(&database_routes, cfg.db.as_deref(), proxy.clone(), cfg.session_touch_interval)?;
+    let names = match fetch {
+        Some(f) => Names::with_fetch(&cfg.native_routes, proxy.clone(), f, std::time::Duration::ZERO),
+        None => Names::new(&cfg.native_routes, proxy.clone()),
+    };
+    if let Some(n) = &names {
+        n.clone().spawn_loop(std::time::Duration::from_secs(120), std::time::Duration::from_secs(6 * 3600));
+    }
     if let Some(n) = &native {
         info!("answering these routes itself: {}", n.names().join(", "));
     }
-    let state = Arc::new(State { proxy, native, files: StaticFiles::new(cfg.dist.clone()) });
+    let state = Arc::new(State { proxy, native, names, files: StaticFiles::new(cfg.dist.clone()) });
     info!("front door on {}{} -> backend {}{}", if acceptor.is_some() { "https://" } else { "http://" }, listener.local_addr().map(|a| a.to_string()).unwrap_or_default(), if cfg.upstream_plain { "http://" } else { "https://" }, cfg.upstream);
     let tls_on = acceptor.is_some();
     if cfg.print_ready {

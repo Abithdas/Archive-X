@@ -444,6 +444,19 @@ def register_system_routes(
         set_session_cookie(resp, request)
         return resp
 
+    # Read by the Rust front door (never by a browser; the front door refuses /internal/ from clients): the provider keys it needs to keep the
+    # local performer name list fresh, and where the data lives. Needs the secret shared at launch and a loopback caller.
+    @router.get("/internal/provider-keys")
+    async def internal_provider_keys(request: Request):
+        import hmac
+        expected = os.getenv("ARCHIVE_X_PROXY_KEY", "").strip().encode()
+        presented = request.headers.get("x-archive-x-internal", "").encode()
+        host = request.client.host if request.client else ""
+        if not expected or not presented or not hmac.compare_digest(presented, expected) or host not in ("127.0.0.1", "::1"):
+            raise HTTPException(404, "Not Found")
+        return JSONResponse({"stashdb": str(db.setting("stashdb_api_key") or ""), "tpdb": str(db.setting("tpdb_api_token") or ""),
+                             "data_dir": str(config.DATABASE_DIR)}, headers={"Cache-Control": "no-store"})
+
     @router.get("/api/app/ping")
     async def app_ping(request: Request):
         """Lightweight authenticated liveness probe used by the Exit app status screen."""

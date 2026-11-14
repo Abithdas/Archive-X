@@ -199,3 +199,12 @@ If the goals are speed and stability rather than "no Python", most of the benefi
 1. Phase 0 item 1 (the `grammers` trial). It decides the shape of everything else.
 2. Phase 1 items 1 and 2 (frozen API + comparison harness).
 3. Phase 2 (the Rust front door), shipped on its own.
+
+### Round 8: the performer name list, written in Rust from the start
+
+From here new backend features are written in Rust rather than Python.
+
+- **`ax-names`** (new crate): keeps the id, name, aliases and picture link of every performer StashDB and ThePornDB know, in its own SQLite file (`performer_names.db` next to the Python database; Python's database is not touched). Search matches part of a name, any word order, aliases and accents, exact names first. StashDB is refreshed incrementally (`updated_at` greater than the last run, 40 per page); ThePornDB, which has no "changed since", is re-read in full about weekly. Both resume at the page they stopped on, record a failure and retry later. 11 tests with a fake provider.
+- **Front door routes** (`--native-routes name_search,name_list`, on by default in the desktop app): `GET /api/photos/faces/performers/provider-search` answers from the local copy and hands unknown names to Python's live search; `GET .../name-list` reports size and last refresh; `POST .../name-list/sync` refreshes now (same-site check like Python's). A refresh runs two minutes after start and then every six hours. 5 integration tests.
+- **No second login system, no secrets stored here:** who is signed in is asked of the backend (`/api/app/ping`), and the provider keys and data folder come from the backend's `/internal/provider-keys`, which needs the launch secret and a loopback caller. The front door answers `/internal/...` from clients with 404 and never forwards the secret header.
+- **Not verified:** the StashDB and ThePornDB request shapes (`queryPerformers` with `updated_at`/`sort`, ThePornDB `performers?page=&per_page=`) follow the providers' documented APIs but have not been run against the live services from here.

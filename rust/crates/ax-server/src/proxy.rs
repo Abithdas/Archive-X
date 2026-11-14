@@ -31,7 +31,7 @@ use crate::config::Config;
 pub type Body = BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync>>;
 
 const HOP_BY_HOP: &[&str] = &["connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade", "proxy-connection"];
-const NEVER_FORWARD: &[&str] = &["x-forwarded-for", "x-archive-x-peer", "x-archive-x-proxy-key", "forwarded", "x-real-ip"];
+const NEVER_FORWARD: &[&str] = &["x-forwarded-for", "x-archive-x-peer", "x-archive-x-proxy-key", "x-archive-x-internal", "forwarded", "x-real-ip"];
 
 /// Accepts the backend's own certificate. Safe only because the upstream address is checked to be loopback (config.rs).
 #[derive(Debug)]
@@ -146,22 +146,49 @@ impl Proxy {
     /// One cheap authenticated call to the backend with the client's session cookie, so the backend sees the session as in
     /// use (see native.rs). The answer is read and thrown away.
     pub async fn touch(self: &Arc<Self>, cookie: &str, peer: SocketAddr) -> Result<(), String> {
+        let (status, _) = self.call(hyper::Method::GET, "/api/app/ping", Some(cookie), Some(peer.ip().to_string()), false).await?;
+        if status.is_success() { Ok(()) } else { Err(format!("the backend answered {status}")) }
+    }
+
+    /// Is this cookie a signed-in session? Asks the backend (which also counts it as use), so routes that need no database of their own
+    /// still honour exactly the backend's login rules.
+    pub async fn signed_in(self: &Arc<Self>, cookie: &str, peer: SocketAddr) -> Result<bool, String> {
+        let (status, _) = self.call(hyper::Method::GET, "/api/app/ping", Some(cookie), Some(peer.ip().to_string()), false).await?;
+        match status {
+            s if s.is_success() => Ok(true),
+            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => Ok(false),
+            s => Err(format!("the backend answered {s}")),
+        }
+    }
+
+    /// What only the front door may ask the backend for (`/internal/...`): proved by the secret they share, from this PC.
+    pub async fn internal_json(self: &Arc<Self>, path: &str) -> Result<serde_json::Value, String> {
+        let (status, body) = self.call(hyper::Method::GET, path, None, Some("127.0.0.1".into()), true).await?;
+        if !status.is_success() {
+            return Err(format!("the backend answered {status}"));
+        }
+        serde_json::from_slice(&body).map_err(|e| e.to_string())
+    }
+
+    async fn call(self: &Arc<Self>, method: hyper::Method, path: &str, cookie: Option<&str>, peer: Option<String>, internal: bool) -> Result<(StatusCode, Bytes), String> {
         let empty: Body = http_body_util::Empty::new().map_err(|n| match n {}).boxed();
-        let req = Request::builder()
-            .method(hyper::Method::GET)
-            .uri("/api/app/ping")
-            .header(HOST, "127.0.0.1")
-            .header(hyper::header::COOKIE, cookie)
-            .header(HeaderName::from_static("x-archive-x-peer"), peer.ip().to_string())
-            .header(HeaderName::from_static("x-archive-x-proxy-key"), self.key.clone())
-            .body(empty)
-            .map_err(|e| e.to_string())?;
+        let mut b = Request::builder().method(method).uri(path).header(HOST, "127.0.0.1").header(HeaderName::from_static("x-archive-x-proxy-key"), self.key.clone());
+        if let Some(c) = cookie {
+            b = b.header(hyper::header::COOKIE, c);
+        }
+        if let Some(p) = peer {
+            b = b.header(HeaderName::from_static("x-archive-x-peer"), p);
+        }
+        if internal {
+            b = b.header(HeaderName::from_static("x-archive-x-internal"), self.key.clone());
+        }
+        let req = b.body(empty).map_err(|e| e.to_string())?;
         let (mut sender, _) = self.acquire(false).await.map_err(|r| format!("backend not reachable ({})", r.status()))?;
         let resp = sender.send_request(req).await.map_err(|e| e.to_string())?;
         let status = resp.status();
-        resp.into_body().collect().await.map_err(|e| e.to_string())?;
+        let body = resp.into_body().collect().await.map_err(|e| e.to_string())?.to_bytes();
         self.release(sender);
-        if status.is_success() { Ok(()) } else { Err(format!("the backend answered {status}")) }
+        Ok((status, body))
     }
 
     pub(crate) fn release(&self, sender: SendRequest<Body>) {

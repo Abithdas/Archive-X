@@ -2,7 +2,7 @@
 # Kept apart from the desktop workspace so the Tauri build is unaffected until this is ready to ship.
 [workspace]
 resolver = "2"
-members = ["crates/ax-server", "crates/ax-db"]
+members = ["crates/ax-server", "crates/ax-db", "crates/ax-names"]
 
 [profile.release]
 opt-level = 3

@@ -52,3 +52,18 @@ def test_local_performer_search_accepts_words_in_any_order_and_partial_words():
     assert names("stonebridge ava") == ["Ava Stonebridge"]
     assert names("riv mi") == ["Mia Rivera"]
     assert names("zzz") == []
+
+
+def test_internal_provider_keys_are_for_the_front_door_only(monkeypatch):
+    monkeypatch.setenv("ARCHIVE_X_PROXY_KEY", "0123456789abcdef0123456789abcdef")
+    from fastapi.testclient import TestClient
+    from telegram_archive.app import create_app
+    from telegram_archive.core.database import Database
+    db = Database()
+    c = TestClient(create_app(db=db), base_url="https://testserver", client=("127.0.0.1", 5000))
+    assert c.get("/internal/provider-keys").status_code == 404
+    assert c.get("/internal/provider-keys", headers={"x-archive-x-internal": "wrong"}).status_code == 404
+    r = c.get("/internal/provider-keys", headers={"x-archive-x-internal": "0123456789abcdef0123456789abcdef"})
+    assert r.status_code == 200 and set(r.json()) == {"stashdb", "tpdb", "data_dir"}
+    remote = TestClient(create_app(db=db), base_url="https://testserver", client=("203.0.113.9", 5000))
+    assert remote.get("/internal/provider-keys", headers={"x-archive-x-internal": "0123456789abcdef0123456789abcdef"}).status_code == 404
