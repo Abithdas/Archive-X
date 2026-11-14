@@ -60,9 +60,11 @@ jobs:
           python desktop/axplayer/test/range_server.py clips 8777 2> server.log &
           sleep 2
           status=0
-          for clip in h264_aac.mp4 hevc10_ac3.mkv mpeg4_mp3.avi; do
-            echo "=== $clip"
-            "$exe" "$lav" "http://127.0.0.1:8777/$clip" --duration 8 --width 640 --height 360 || status=1
+          for hw in 0 3; do   # 0: software decoding; 3: ask for DXVA2 hardware decoding (this runner has no graphics card, so it must fall back to software)
+            for clip in h264_aac.mp4 hevc10_ac3.mkv mpeg4_mp3.avi; do
+              echo "=== $clip (hardware option $hw)"
+              "$exe" "$lav" "http://127.0.0.1:8777/$clip" --hw $hw --duration 8 --width 640 --height 360 || status=1
+            done
           done
           echo "--- requests the test server saw:"; sort server.log | uniq -c | sort -rn | head -n 12
           exit $status

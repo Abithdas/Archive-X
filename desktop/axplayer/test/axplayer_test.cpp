@@ -80,7 +80,8 @@ int main(int argc, char **argv) {
     check(ax_seek(p, target) == 0, "seek", ax_last_error(p));
     check(ax_play(p) == 0, "resume");
     check(wait_for(p, 20, [target](const AxState &x) { return x.position >= target + 0.5; }), "playback continues from the new place");
-    check(ax_set_rate(p, 2.0) == 0 || true, "set speed (not required to succeed on every graph)");
+    ax_set_rate(p, 2.0);   // speed: not every graph supports it, so only the result is shown
+    std::printf("INFO  speed 2x %s\n", state(p).error == 0 ? "accepted" : "refused");
     check(wait_for(p, 40, [](const AxState &x) { return x.ended != 0; }), "the end is reported");
     check(state(p).error == 0, "no playback error", ax_last_error(p));
 

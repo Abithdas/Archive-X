@@ -71,6 +71,9 @@ void free_media_type(AM_MEDIA_TYPE *mt) {
     CoTaskMemFree(mt);
 }
 
+// DirectShow reports success with S_OK (0) or S_FALSE (1, for example "still starting"); the API promises 0 for every success.
+int rc(HRESULT hr) { return SUCCEEDED(hr) ? 0 : static_cast<int>(hr); }
+
 std::string narrow(const std::wstring &w) {
     if (w.empty()) return {};
     int n = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int)w.size(), nullptr, 0, nullptr, nullptr);
@@ -537,18 +540,18 @@ AXAPI int ax_play(AxPlayer *p) {
         { std::lock_guard<std::mutex> g(p->state_mu); if (p->state.ended) p->state.ended = 0; }
         HRESULT hr = p->control->Run();
         if (FAILED(hr)) p->set_error("starting playback", hr);
-        return static_cast<int>(hr);
+        return rc(hr);
     });
 }
 
 AXAPI int ax_pause(AxPlayer *p) {
     if (!p || !p->thread.joinable()) return E_POINTER;
-    return p->call([=] { return p->control ? static_cast<int>(p->control->Pause()) : static_cast<int>(E_FAIL); });
+    return p->call([=] { return p->control ? rc(p->control->Pause()) : static_cast<int>(E_FAIL); });
 }
 
 AXAPI int ax_stop(AxPlayer *p) {
     if (!p || !p->thread.joinable()) return E_POINTER;
-    return p->call([=] { return p->control ? static_cast<int>(p->control->Stop()) : static_cast<int>(E_FAIL); });
+    return p->call([=] { return p->control ? rc(p->control->Stop()) : static_cast<int>(E_FAIL); });
 }
 
 AXAPI int ax_seek(AxPlayer *p, double seconds) {
@@ -559,13 +562,13 @@ AXAPI int ax_seek(AxPlayer *p, double seconds) {
         HRESULT hr = p->seeking->SetPositions(&pos, AM_SEEKING_AbsolutePositioning, nullptr, AM_SEEKING_NoPositioning);
         if (SUCCEEDED(hr)) { std::lock_guard<std::mutex> g(p->state_mu); p->state.ended = 0; p->state.position = seconds; }
         else p->set_error("seeking", hr);
-        return static_cast<int>(hr);
+        return rc(hr);
     });
 }
 
 AXAPI int ax_set_rate(AxPlayer *p, double rate) {
     if (!p || !p->thread.joinable()) return E_POINTER;
-    return p->call([=] { return p->seeking ? static_cast<int>(p->seeking->SetRate(rate)) : static_cast<int>(E_FAIL); });
+    return p->call([=] { return p->seeking ? rc(p->seeking->SetRate(rate)) : static_cast<int>(E_FAIL); });
 }
 
 AXAPI int ax_set_volume(AxPlayer *p, int percent) {
@@ -626,7 +629,7 @@ AXAPI int ax_select_audio_track(AxPlayer *p, int index) {
         HRESULT hr = p->splitter->QueryInterface(IID_IAMStreamSelect, ss.put_void());
         if (SUCCEEDED(hr)) hr = ss->Enable(l[static_cast<size_t>(index)].first, AMSTREAMSELECTENABLE_ENABLE);
         if (FAILED(hr)) p->set_error("choosing the audio track", hr);
-        return static_cast<int>(hr);
+        return rc(hr);
     });
 }
 
