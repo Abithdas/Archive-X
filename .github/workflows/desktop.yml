@@ -61,7 +61,7 @@ jobs:
         env: { ARCHIVE_X_BACKEND_EXE: "${{ github.workspace }}\\desktop\\backend\\dist\\archive-x-backend\\archive-x-backend.exe" }
         run: |
           cargo test -p archive-x-launcher-core
-          cargo test -p archive-x-launcher-core --test launcher -- --ignored --nocapture
+          cargo test -p archive-x-launcher-core --test launcher -- --ignored --nocapture real_frozen_backend
       - name: Launcher test with the Rust front door in front
         working-directory: desktop
         env:
