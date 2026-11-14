@@ -17,6 +17,7 @@ import { gridReady, gridTimes } from './grid'
 import { MarkersSection } from './MarkersSection'
 import { QuickEditDialog } from './QuickEditDialog'
 import { Player } from './Player'
+import { hasNativeBridge, native } from './nativeBridge'
 import { useResume } from './useResume'
 import { frameIndexFor, normaliseChapters, toSegments } from './timelineLogic'
 import { withWidth } from '@/design/responsive'
@@ -110,6 +111,14 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const resume = useResume({ cid, mid, name: item?.name ?? '', duration: item?.duration ?? 0, enabled: exp.resume_prompt, settled: Boolean(item) && !expQuery.isPending, autoplay: exp.autoplay, frameFor })
   const idOf = (list: Array<{ id: number; name: string }> | undefined, name: string) => list?.find((e) => e.name.toLowerCase() === name.toLowerCase())?.id
 
+  // The desktop app's native player (LAV decoders), when the engine is installed: an extra way to play, never the default.
+  const [nativeOk, setNativeOk] = useState(false)
+  useEffect(() => {
+    if (!hasNativeBridge()) return
+    let dead = false
+    native.available().then((a) => { if (!dead) setNativeOk(a.available) }).catch(() => undefined)
+    return () => { dead = true }
+  }, [])
   if (video.isPending) return <Skel />
   if (video.isError || !item) {
     const missing = video.error instanceof ApiError && video.error.status === 404
@@ -214,6 +223,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={vlc} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="brand-vlc" />Open in VLC</button>
             <button type="button" onClick={mpc} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="play" />Open in MPC-HC</button>
+            {nativeOk ? <button type="button" onClick={() => void navigate({ to: '/native/$cid/$mid', params: { cid: String(item._cid), mid: String(item.id) } })} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="play" />Native player (experimental)</button> : null}
             <button type="button" aria-pressed={Boolean(item.favorite)} disabled={fav.isPending} onClick={() => fav.mutate({ mediaId: item.media_id, favorite: !item.favorite }, { onError: () => toast.error('Could not update favourite') })} className={cn('inline-flex h-10 items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold hover:bg-fg/5', item.favorite ? 'border-warn/60 text-warn' : 'border-line-2')}>
               <Icon name="star" />{item.favorite ? 'Favourited' : 'Favourite'}
             </button>

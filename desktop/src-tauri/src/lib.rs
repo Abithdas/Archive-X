@@ -12,6 +12,7 @@ use archive_x_launcher_core::{backend_exe_in, tools_dir_in, Backend, FrontDoorOp
 use tauri::{Manager, RunEvent, Url};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
+mod native;
 mod updates;
 
 struct BackendState(Mutex<Option<Backend>>);
@@ -126,6 +127,15 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BackendState(Mutex::new(None)))
+        .manage(native::NativeState::default())
+        .invoke_handler(tauri::generate_handler![
+            native::native_available,
+            native::native_open,
+            native::native_command,
+            native::native_rect,
+            native::native_state,
+            native::native_tracks
+        ])
         .setup(|app| {
             let handle = app.handle().clone();
             std::thread::spawn(move || start_backend(handle));
@@ -137,6 +147,7 @@ pub fn run() {
 
     app.run(|handle, event| {
         if let RunEvent::ExitRequested { .. } = event {
+            native::shutdown(handle);
             stop_backend(handle);
         }
     });

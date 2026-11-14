@@ -40,6 +40,8 @@
       "../backend/dist/archive-x-backend": "backend",
       "resources/ffmpeg": "ffmpeg",
       "resources/rust": "rust",
+      "resources/lav": "lav",
+      "resources/axplayer": "axplayer",
       "resources/web": "web"
     },
     "windows": {

@@ -28,3 +28,5 @@ desktop/src-tauri/resources/web/*
 desktop/src-tauri/resources/lav/*
 !desktop/src-tauri/resources/lav/.gitkeep
 desktop/axplayer/third_party/
+desktop/src-tauri/resources/axplayer/*
+!desktop/src-tauri/resources/axplayer/.gitkeep

@@ -257,6 +257,12 @@ struct AxPlayer {
         decoder.clear();
     }
 
+    // Position the video window; by default at the bottom of its siblings, so the web page (a sibling above it) can show through.
+    void place(int x, int y, int w, int h) {
+        if (!window) return;
+        SetWindowPos(window, opt.video_on_top ? HWND_TOP : HWND_BOTTOM, x, y, std::max(w, 1), std::max(h, 1), SWP_NOACTIVATE);
+    }
+
     HRESULT make_window(HWND parent, int x, int y, int w, int h) {
         if (!class_registered) {
             WNDCLASSW wc{};
@@ -271,6 +277,7 @@ struct AxPlayer {
         window = CreateWindowExW(0, kVideoClass, L"", style, x, y, std::max(w, 1), std::max(h, 1), parent, nullptr, GetModuleHandleW(nullptr), nullptr);
         if (!window) return HRESULT_FROM_WIN32(GetLastError());
         own_window = true;
+        place(x, y, w, h);
         return S_OK;
     }
 
@@ -584,7 +591,7 @@ AXAPI int ax_set_muted(AxPlayer *p, int muted) {
 AXAPI int ax_set_rect(AxPlayer *p, int x, int y, int w, int h) {
     if (!p || !p->thread.joinable()) return E_POINTER;
     return p->call([=] {
-        if (p->window) SetWindowPos(p->window, nullptr, x, y, std::max(w, 1), std::max(h, 1), SWP_NOZORDER | SWP_NOACTIVATE);
+        p->place(x, y, w, h);
         if (p->display) {
             RECT rc{0, 0, std::max(w, 1), std::max(h, 1)};
             p->display->SetVideoPosition(nullptr, &rc);

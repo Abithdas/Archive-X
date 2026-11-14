@@ -84,6 +84,17 @@ jobs:
           cp rust/target/release/ax-server.exe desktop/src-tauri/resources/rust/ax-server.exe
           cp -r frontend/dist/. desktop/src-tauri/resources/web/
 
+      - name: Fetch LAV Filters and build the native player engine
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          bash desktop/scripts/fetch-lav.sh
+          bash desktop/scripts/fetch-lav.sh --headers
+          cmake -S desktop/axplayer -B build-axplayer -A x64
+          cmake --build build-axplayer --config Release
+          mkdir -p desktop/src-tauri/resources/axplayer
+          cp build-axplayer/Release/axplayer.dll desktop/src-tauri/resources/axplayer/
+
       - name: Launcher tests against the frozen backend
         working-directory: desktop
         env: { ARCHIVE_X_BACKEND_EXE: "${{ github.workspace }}\\desktop\\backend\\dist\\archive-x-backend\\archive-x-backend.exe" }

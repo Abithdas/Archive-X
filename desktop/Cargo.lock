@@ -52,6 +52,8 @@ name = "archive-x-desktop"
 version = "0.1.0"
 dependencies = [
  "archive-x-launcher-core",
+ "archive-x-native-player",
+ "serde",
  "serde_json",
  "tauri",
  "tauri-build",

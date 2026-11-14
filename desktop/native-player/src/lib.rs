@@ -27,11 +27,13 @@ pub struct Options {
     pub hw_accel: HwAccel,
     /// No window and no sound device (null renderers): for automated tests.
     pub headless: bool,
+    /// false (default): the video window sits behind the web page, which shows the video through its transparent areas; true: in front.
+    pub video_on_top: bool,
 }
 
 impl Default for Options {
     fn default() -> Self {
-        Options { hw_accel: HwAccel::Dxva2CopyBack, headless: false }
+        Options { hw_accel: HwAccel::Dxva2CopyBack, headless: false, video_on_top: false }
     }
 }
 
@@ -160,6 +162,7 @@ mod tests {
         let o = Options::default();
         assert_eq!(o.hw_accel, HwAccel::Dxva2CopyBack);
         assert!(!o.headless);
+        assert!(!o.video_on_top);
         assert_eq!(HwAccel::D3d11 as i32, 5);
     }
 }

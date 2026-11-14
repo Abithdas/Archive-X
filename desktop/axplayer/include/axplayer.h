@@ -44,6 +44,8 @@ enum {
 typedef struct AxOptions {
     int hw_accel;   /* one of AX_HW_*; software decoding is used whenever the hardware cannot do the video */
     int headless;   /* 1: no window and no sound device (null renderers), for automated tests */
+    int video_on_top; /* 0 (default): the video window sits BEHIND the other child windows of the parent (the web page, which can then draw over the
+                         video through its transparent areas); 1: in front of them */
 } AxOptions;
 
 typedef struct AxState {

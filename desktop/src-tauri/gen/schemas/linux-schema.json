@@ -177,6 +177,78 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Enables the native_available command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-native-available",
+          "markdownDescription": "Enables the native_available command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the native_command command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-native-command",
+          "markdownDescription": "Enables the native_command command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the native_open command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-native-open",
+          "markdownDescription": "Enables the native_open command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the native_rect command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-native-rect",
+          "markdownDescription": "Enables the native_rect command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the native_state command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-native-state",
+          "markdownDescription": "Enables the native_state command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the native_tracks command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-native-tracks",
+          "markdownDescription": "Enables the native_tracks command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the native_available command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-native-available",
+          "markdownDescription": "Denies the native_available command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the native_command command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-native-command",
+          "markdownDescription": "Denies the native_command command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the native_open command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-native-open",
+          "markdownDescription": "Denies the native_open command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the native_rect command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-native-rect",
+          "markdownDescription": "Denies the native_rect command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the native_state command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-native-state",
+          "markdownDescription": "Denies the native_state command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the native_tracks command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-native-tracks",
+          "markdownDescription": "Denies the native_tracks command without any pre-configured scope."
+        },
+        {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",
           "type": "string",
           "const": "core:default",

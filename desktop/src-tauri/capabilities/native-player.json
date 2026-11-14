@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "native-player",
+  "description": "The Archive X page, served from the local backend on this PC, may drive the native video player and nothing else: no files, no shell, no other windows.",
+  "windows": ["main"],
+  "remote": { "urls": ["http://127.0.0.1:*", "https://127.0.0.1:*"] },
+  "permissions": [
+    "allow-native-available",
+    "allow-native-open",
+    "allow-native-command",
+    "allow-native-rect",
+    "allow-native-state",
+    "allow-native-tracks"
+  ]
+}

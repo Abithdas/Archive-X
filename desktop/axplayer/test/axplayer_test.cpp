@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
     }
     std::wstring lav = wide(argv[1]), url = wide(argv[2]);
 
-    AxOptions opt{hw, 1};
+    AxOptions opt{hw, 1, 0};
     AxPlayer *p = nullptr;
     int hr = ax_create(lav.c_str(), &opt, &p);
     check(hr == 0 && p, "create the player and find the LAV filters", p ? ax_last_error(p) : "");

@@ -23,7 +23,7 @@ fn wait_for(p: &Player, secs: u64, f: impl Fn(&archive_x_native_player::State) -
 }
 
 fn headless() -> Options {
-    Options { hw_accel: HwAccel::None, headless: true }
+    Options { hw_accel: HwAccel::None, headless: true, video_on_top: false }
 }
 
 #[test]

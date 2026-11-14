@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-native-tracks"
+description = "Enables the native_tracks command without any pre-configured scope."
+commands.allow = ["native_tracks"]
+
+[[permission]]
+identifier = "deny-native-tracks"
+description = "Denies the native_tracks command without any pre-configured scope."
+commands.deny = ["native_tracks"]

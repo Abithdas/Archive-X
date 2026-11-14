@@ -4,8 +4,23 @@ Goal: play every video MPC-HC can play, with Windows hardware decoding and no la
 MPC-HC's code. MPC-HC itself is a shell around DirectShow filters; the decoding is done by the **LAV Filters** (LAV Splitter, LAV Video
 Decoder, LAV Audio Decoder, built on FFmpeg) and a video renderer. Those are separate components any Windows program can load.
 
-Status: **plan only, nothing built.** Nothing here can be tested in the Linux sandbox; every phase ends with a check on the Windows PC.
-Items marked *(verify)* are from memory and must be checked against the component's source before coding.
+## Status (updated as phases land)
+
+| Phase | State |
+|---|---|
+| 0. LAV alone plays the stream | **Superseded by the engine test below** (done by machine, not by hand): LAV 0.83 plays H.264, 10-bit HEVC with AC3 audio and MPEG-4 with MP3 from a web address on a Windows runner |
+| 1. Video window inside the app | **Built, not yet seen.** Engine + Tauri commands + a full-window page exist; whether the page can show the video through a transparent area (arrangement A) is only answered on a real PC. `ARCHIVE_X_NATIVE_VIDEO_ON_TOP=1` switches to arrangement B |
+| 2. Complete engine | **Done and tested on Windows CI** (`.github/workflows/native-player.yml`): open, play, pause, seek, speed, volume, mute, audio tracks, end and error events, decoder name; the hardware option falls back to software. Not testable there: hardware decoding, the video window, sound |
+| 3. Ship LAV with the app | **Done in the build** (`desktop.yml` fetches LAV 0.83, builds `axplayer.dll`, bundles both); the filters are loaded from the app folder, never registered. Untested: a PC with no LAV installed (the CI runner has none, and the engine test uses the bundled copy) |
+| 4. Connect the page | **Built:** `nativeBridge.ts`, `NativePlayerPage.tsx` (route `/native/$cid/$mid`), a "Native player (experimental)" button on the watch page that appears only in the app when the engine is installed. The page may call six commands, from the loopback address only |
+| 5. Captions, preview, markers on the native video | Not started; waits for the arrangement A/B answer |
+| 6. Fallback rules, setting, polish | Not started |
+
+Verified facts (from LAV's source and the CI run): the three class ids, `ILAVVideoSettings::SetRuntimeConfig` and `SetHWAccel`, the
+`IURLSourceFilterLAV::LoadURL` call, that the filters need `LAVFilters.Dependencies.manifest` beside them (error `0x800736B1` without it), and
+that `IMediaControl::Run()` returns `S_FALSE` while starting (a success).
+
+Everything below is the original plan; items marked *(verify)* in it have since been checked against LAV's source.
 
 ## 1. How it fits together
 

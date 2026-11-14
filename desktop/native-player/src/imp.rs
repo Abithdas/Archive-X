@@ -11,6 +11,7 @@ use crate::{AudioTrack, Error, Options, Rect, State};
 struct AxOptions {
     hw_accel: i32,
     headless: i32,
+    video_on_top: i32,
 }
 
 #[repr(C)]
@@ -129,7 +130,7 @@ unsafe impl Sync for Player {}
 
 impl Player {
     pub fn create(lib: Arc<Library>, lav_dir: &Path, options: Options) -> Result<Player, Error> {
-        let opt = AxOptions { hw_accel: options.hw_accel as i32, headless: options.headless as i32 };
+        let opt = AxOptions { hw_accel: options.hw_accel as i32, headless: options.headless as i32, video_on_top: options.video_on_top as i32 };
         let dir = wide_path(lav_dir);
         let mut handle: Handle = ptr::null_mut();
         // SAFETY: pointers are valid for the call; `handle` receives the new player (even when creating failed, so its message can be read).
