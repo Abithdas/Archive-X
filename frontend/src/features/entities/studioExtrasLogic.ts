@@ -1,7 +1,6 @@
 /** Pure logic for the studio page's Details card, social links, Similar Studios and Suggestions (mirrors the classic page). */
-import { plural } from './studio'
 
-export interface ProviderRow { provider?: string; normalized?: unknown }
+interface ProviderRow { provider?: string; normalized?: unknown }
 export interface Metadata { providers?: ProviderRow[]; career_counts?: Array<{ provider?: string; count?: number }> }
 export interface Rec { provider: string; normalized: Record<string, unknown>; details: Record<string, unknown> }
 export interface SiteLike { id: number; name: string; bio?: string | null; aliases?: unknown; country?: unknown; parent?: unknown; founded_year?: unknown; provider_ids?: unknown; site_url?: string | null; url?: string | null; profile?: unknown }
@@ -156,10 +155,7 @@ export const rejectPath = (sid: number) => `/api/suggestions/${sid}/reject-entit
 export const yesLabel = (kind: Kind) => (kind === 'studio' ? 'Yes, link studio' : 'Yes, link performer')
 export const linkedText = (kind: Kind) => (kind === 'studio' ? 'Studio linked to video.' : 'Performer linked to video.')
 export const rejectedText = (kind: Kind) => (kind === 'studio' ? 'Not linked to this studio. Kept available for full scene review.' : 'Not linked to this performer. Kept available for full scene review.')
-export const LINKED = linkedText('studio')
-export const REJECTED = rejectedText('studio')
 export const failedConfirm = (why: string) => `Could not confirm: ${why}`
 export const failedReject = (why: string) => `Could not reject: ${why}`
 export const succeeded = (r: { ok?: boolean; _ok?: boolean } | null | undefined) => !!r && r._ok !== false && r.ok !== false
-export const suggestionsTab = (n: number) => (n ? `Suggestions ${n}` : 'Suggestions')
-export { plural }
+

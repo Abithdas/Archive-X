@@ -1,9 +1,9 @@
 /** Hover preview on a video card: its 36 cached snapshots play through, and moving the mouse across the picture scrubs them (as the classic cards did). Local cache only. */
 export const FRAME_COUNT = 36
 export const FRAME_MS = 300
-export const HYSTERESIS_PX = 10
+const HYSTERESIS_PX = 10
 
-export const clampIndex = (i: number) => Math.max(0, Math.min(FRAME_COUNT - 1, Math.floor(Number(i) || 0)))
+const clampIndex = (i: number) => Math.max(0, Math.min(FRAME_COUNT - 1, Math.floor(Number(i) || 0)))
 export const ratioFromPointer = (clientX: number, rect: { left: number; width: number }) =>
   rect.width > 0 ? Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) : 0
 export const indexFromPointer = (clientX: number, rect: { left: number; width: number }) => clampIndex(ratioFromPointer(clientX, rect) * FRAME_COUNT)

@@ -4,8 +4,8 @@ type Obj = Record<string, unknown>
 const TERMINAL = ['COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED', 'CANCELLED']
 export const statusOf = (j: Obj) => String(j.status ?? '').trim().toUpperCase()
 export const isTerminal = (st: string) => TERMINAL.includes(st)
-export const isInterrupted = (st: string) => st === 'INTERRUPTED' || st === 'RECOVERING'
-export const isPaused = (st: string) => st === 'PAUSED' || st === 'PAUSING'
+const isInterrupted = (st: string) => st === 'INTERRUPTED' || st === 'RECOVERING'
+const isPaused = (st: string) => st === 'PAUSED' || st === 'PAUSING'
 
 export type Primary = 'recover' | 'retry-recovery' | 'resume' | 'pause'
 export type Controls = { kind: 'playback' } | { kind: 'job'; primary: Primary }

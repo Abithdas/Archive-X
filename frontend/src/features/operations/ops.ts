@@ -155,7 +155,7 @@ export function resourceCards(res: Obj, st: Obj): ResourceCard[] {
   ]
 }
 
-export const LANES = [['metadata', 'Metadata'], ['thumbnail', 'Thumbnail'], ['preview', 'Preview'], ['conversion', 'Conversion'], ['upload', 'Upload']] as const
+const LANES = [['metadata', 'Metadata'], ['thumbnail', 'Thumbnail'], ['preview', 'Preview'], ['conversion', 'Conversion'], ['upload', 'Upload']] as const
 export function laneRows(res: Obj) {
   const active = o(res.category_active)
   const limits = o(o(res.control).effective_limits)

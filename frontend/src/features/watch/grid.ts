@@ -1,6 +1,6 @@
 /** The 36-frame snapshot grid shown before playback. Layout and cropping ported from the classic canvas module. */
 export const FRAME_COUNT = 36
-export const SPRITE_COLS = 6   // the prebuilt sprite is 6 × 6 frames
+const SPRITE_COLS = 6   // the prebuilt sprite is 6 × 6 frames
 
 export interface GridManifest { frames_ready?: boolean; frame_count?: number; frame_times?: number[]; sprite_ready?: boolean; frame_width?: number; frame_height?: number; revision?: string; updated_at?: string | number | null }
 

@@ -3,7 +3,7 @@ export interface Named { id: number; name: string }
 export interface MergeState { active: boolean; keepId: number | null; mergeIds: number[]; busy: boolean }
 export const IDLE: MergeState = { active: false, keepId: null, mergeIds: [], busy: false }
 
-export const ENTER_HINT = 'Select one performer to keep, then select every duplicate to merge into it.'
+const ENTER_HINT = 'Select one performer to keep, then select every duplicate to merge into it.'
 export const modeLabel = (active: boolean) => (active ? 'Cancel merge' : 'Merge duplicates')
 export const commitLabel = (n: number) => `Merge selected (${n})`
 export const canCommit = (s: MergeState, list: readonly Named[]) => s.active && !s.busy && s.keepId !== null && s.mergeIds.length > 0 && list.some((p) => p.id === s.keepId)

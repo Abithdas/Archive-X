@@ -85,7 +85,7 @@ export interface Entity {
 }
 export type EntityKind = 'performers' | 'studios'
 
-export interface PerformerProfile {
+interface PerformerProfile {
   id: number
   name: string
   image: string | null

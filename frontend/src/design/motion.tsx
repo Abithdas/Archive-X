@@ -9,14 +9,9 @@ export function MotionProvider({ children }: { children: ReactNode }) {
 }
 
 /** Shared timings so every animation in the app feels like one system. */
-export const timing = { fast: 0.12, base: 0.2, slow: 0.32 } as const
-export const ease = [0.2, 0.75, 0.25, 1] as const
+const timing = { fast: 0.12, base: 0.2, slow: 0.32 } as const
+const ease = [0.2, 0.75, 0.25, 1] as const
 
-export const fadeUp = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0, transition: { duration: timing.base, ease } },
-  exit: { opacity: 0, y: -4, transition: { duration: timing.fast } },
-} as const
 
 /** Card grid item: enters with a short stagger, leaves by collapsing, neighbours reflow via `layout`. */
 export const cardMotion = (index: number) =>

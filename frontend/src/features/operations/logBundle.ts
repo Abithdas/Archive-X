@@ -1,7 +1,7 @@
 import { ApiError, api } from '@/api/client'
 import { hasNativeBridge } from '@/features/watch/nativeBridge'
 
-export const LOG_BUNDLE_URL = '/api/diagnostics/logs.zip'
+const LOG_BUNDLE_URL = '/api/diagnostics/logs.zip'
 
 export type LogBundleResult =
   | { kind: 'saved'; name: string; path: string; files: number }   // the desktop app: written to the Downloads folder

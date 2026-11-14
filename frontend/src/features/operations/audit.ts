@@ -1,5 +1,4 @@
 /** Duplicate performer audit: read-only review, then explicit merges. Ported from the classic Operations page. */
-type Obj = Record<string, unknown>
 const s = (v: unknown) => (v == null ? '' : String(v))
 const n = (v: unknown) => Number(v) || 0
 
@@ -13,13 +12,13 @@ export interface Audit {
   unmatched_performer_count?: number; suggestions_truncated?: boolean; suggestion_groups_returned?: number; detail?: string
 }
 
-export const KINDS: Record<string, { title: string; treatment: string; note: string }> = {
+const KINDS: Record<string, { title: string; treatment: string; note: string }> = {
   strong_merge: { title: 'Same canonical name and compatible provider IDs', treatment: 'Eligible for automatic cleanup', note: 'Normalized canonical names match, with no conflicting provider IDs.' },
   candidate_merge: { title: 'Different spelling with a shared alias or provider ID', treatment: 'Depends on evidence', note: 'An identical namespaced provider ID can be auto-merged; alias-only evidence stays in review.' },
   review: { title: 'Conflicting identity evidence', treatment: 'Keep in review', note: 'Different confirmed provider IDs may indicate different people. Do not merge automatically.' },
   suggest_review: { title: 'Similar but not identical names', treatment: 'Suggest for review only', note: 'Name similarity alone is not proof of identity. Keep separate until confirmed.' },
 }
-export const HEADINGS: Record<string, string> = { strong_merge: 'Strong candidates', candidate_merge: 'Alias / provider candidates', review: 'Review before merging', suggest_review: 'Similar-name suggestions', junk_fragment: 'Likely filename/title fragments' }
+const HEADINGS: Record<string, string> = { strong_merge: 'Strong candidates', candidate_merge: 'Alias / provider candidates', review: 'Review before merging', suggest_review: 'Similar-name suggestions', junk_fragment: 'Likely filename/title fragments' }
 export const headingFor = (kind: string) => HEADINGS[kind] ?? 'Candidates'
 export const kindInfo = (kind: string) => KINDS[kind] ?? KINDS.review!
 
@@ -97,4 +96,4 @@ export const AUDITING = 'Auditing the entire performer catalogue…'
 export const AUDIT_NOTE = 'Reading performer identities, aliases, provider IDs and video links. The audit itself is read-only; automatic merges require a separate explicit confirmation.'
 export const NO_GROUPS_TITLE = 'No likely duplicate groups found.'
 export const NO_GROUPS_NOTE = 'No strong name, provider-ID, alias, or review-only similarity candidates were found. No records were changed.'
-export type { Obj }
+

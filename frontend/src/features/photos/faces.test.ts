@@ -60,7 +60,7 @@ describe('reference review', () => {
 
 describe('face groups address', () => {
   it('can leave out the suggestion work', async () => {
-    const { faceGroupsUrl } = await import('./FaceGroups')
+    const { faceGroupsUrl } = await import('./useFaceGroups')
     expect(faceGroupsUrl([])).toBe('/api/photos/faces/groups'); expect(faceGroupsUrl(['-1', '-2'], false)).toBe('/api/photos/faces/groups?channels=-1%2C-2&suggestions=0'); expect(faceGroupsUrl([], false)).toBe('/api/photos/faces/groups?suggestions=0'); expect(faceGroupsUrl([], false, 24)).toBe('/api/photos/faces/groups?suggestions=0&top=24')
   })
 })

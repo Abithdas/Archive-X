@@ -32,8 +32,8 @@ export function laneKind(type: unknown, workflow: unknown): LaneKind {
   return ['METADATA_ASSETS', 'METADATA_CHANNEL_PIPELINE', 'MEDIA_MANAGER'].includes(t) ? 'metadata' : 'transfer'
 }
 
-export const ACTIVE = ['RUNNING', 'PAUSING', 'PAUSED', 'WAITING', 'CANCEL_REQUESTED']
-export const TERMINAL = ['COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED', 'CANCELLED', 'ERROR']
+const ACTIVE = ['RUNNING', 'PAUSING', 'PAUSED', 'WAITING', 'CANCEL_REQUESTED']
+const TERMINAL = ['COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED', 'CANCELLED', 'ERROR']
 export const activeLaneCount = (jobs: Obj[]) => jobs.filter((j) => ACTIVE.includes(s(j.status).toUpperCase())).length
 
 export interface Lane {

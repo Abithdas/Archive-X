@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 import { api } from '@/api/client'
 import { useExperienceSettings } from './queries'
 import type { CustomTheme } from '@/theme/custom'
-import { SCALE_KEY, applyCustom, applyScale, applyTheme, densityFor, normalizeMode, normalizePreset, normalizeScale, storedScale, storedTheme } from '@/theme/themes'
+import { applyCustom, applyScale, applyTheme, densityFor, normalizeMode, normalizePreset, normalizeScale, storedScale, storedTheme } from '@/theme/themes'
 
 const listeners = new Set<() => void>()
 let snapshot = { ...storedTheme(), scale: storedScale() }
@@ -57,7 +57,7 @@ export function useAppearanceSync() {
     emit()
   }, [exp.data])
 }
-export { SCALE_KEY }
+
 
 /** Header/menu light-dark switch: keeps the chosen theme family, flips the mode, and saves it like any other appearance change. */
 export function toggleThemeMode() {

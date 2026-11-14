@@ -10,9 +10,8 @@ export interface ReviewPage {
   unresolved_items?: Unresolved[]; unresolved_count?: number; unresolved_has_more?: boolean; unresolved_offset?: number
   unresolved_channels?: Array<{ channel_id: string | number; title?: string }>; detail?: string
 }
-export const PAGE_SIZE = 24
+const PAGE_SIZE = 24
 export const MAX_SELECTION = 500
-export const FRAMES = [0, 11, 23, 35] as const
 export const DEFAULT_THRESHOLD = 95
 
 export interface Filters { channel: string; field: 'all' | 'performer' | 'studio' }

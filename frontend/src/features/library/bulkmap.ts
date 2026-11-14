@@ -1,6 +1,6 @@
 /** Bulk performer / studio mapping rules, ported from the classic pickers (pk, sk and the combined psmap dialog). */
 import type { Picked } from './selection'
-import { studioChoices, type StudioChoice, type StudioHit } from './mapping'
+import { type StudioChoice, type StudioHit } from './mapping'
 
 export type MapMode = 'performer' | 'site' | 'both' | 'all'
 
@@ -10,7 +10,7 @@ export interface PerformerChoice {
   name: string; id: number | null; count: number; image: string | null; kind: 'local' | 'provider'
   provider?: string; provider_id?: string; profile?: string | null; exact?: boolean; alias_exact?: boolean
 }
-export const providerLabel = (p?: string) => (p === 'stashdb' ? 'StashDB' : 'ThePornDB')
+const providerLabel = (p?: string) => (p === 'stashdb' ? 'StashDB' : 'ThePornDB')
 
 /** Local performers first, then provider ("API") matches that carry an id, de-duplicated; at most 28 rows. */
 export function performerChoices(local: readonly PerformerHit[], provider: readonly ProviderHit[]): PerformerChoice[] {
@@ -71,4 +71,4 @@ export const heading = (mode: MapMode) => ({ performer: 'Select performer', site
 export const hint = (mode: MapMode) => (mode === 'all' ? 'Change any of: title, performer, studio. Empty parts are left as they are.' : 'Choose both values, then save once.')
 export const saveLabel = (mode: MapMode) => (mode === 'all' ? 'Apply to selected videos' : 'Save performer + studio')
 export const studioHits = (hits: unknown): StudioHit[] => (Array.isArray(hits) ? (hits as StudioHit[]) : [])
-export { studioChoices }
+

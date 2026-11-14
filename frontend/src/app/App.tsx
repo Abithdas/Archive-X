@@ -8,7 +8,7 @@ import { AppToaster } from '@/design/toast'
 import { LoginGate } from '@/features/auth/LoginGate'
 import { router } from './router'
 
-export const queryClient = new QueryClient({
+const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
 })
 

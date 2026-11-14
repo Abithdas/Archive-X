@@ -13,19 +13,12 @@ export type Source = 'metadata' | 'confirmed_assignment' | 'profile_image'
 export type Tone = '' | 'success' | 'error'
 
 export const LOAD_FAILED = 'Could not load face groups.'
-export const EMPTY_TITLE = 'No face groups yet'
-export const EMPTY_BODY = 'Archive X groups similar faces from indexed image pixels, not filenames. Run Image scan in Metadata & Assets Manager first; groups stay anonymous until you confirm an assignment.'
-export const INTRO = 'People are built from image pixels. Find people downloads every performer picture, groups the faces in your photos and names clear matches automatically; the rest are suggestions (profile picture, source text, or your earlier confirmations). Suggestions need your confirmation.'
-export const UNANALYZED = 'Face analysis has not been run yet. Run Image scan in Metadata & Assets Manager first so channel images are indexed.'
-export const NEEDS_PERFORMER = 'Search and select a local performer before saving this assignment.'
-export const JOB_END = ['COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED', 'CANCELLED', 'INTERRUPTED']
+const JOB_END = ['COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED', 'CANCELLED', 'INTERRUPTED']
 
 export const groupLabel = (g: Pick<FaceGroup, 'id' | 'label' | 'performer_name'>) => String(g.performer_name || g.label || `Face group ${g.id}`)
 export const clusterIds = (g: Pick<FaceGroup, 'id' | 'cluster_ids'>) => (g.cluster_ids?.length ? g.cluster_ids : [g.id]).map(Number).filter((n) => Number.isInteger(n) && n > 0)
 export const isAssigned = (g: Pick<FaceGroup, 'performer_id'>) => Boolean(g.performer_id)
 export const assignedText = (g: FaceGroup) => (isAssigned(g) ? `Assigned · ${g.performer_name || 'Performer'}` : 'Needs performer review')
-export const countsLine = (g: FaceGroup) => `${Number(g.face_count || 0).toLocaleString()} face detections · ${Number(g.photo_count || 0).toLocaleString()} images`
-export const photosLabel = (g: FaceGroup) => `${Number(g.photo_count || 0).toLocaleString()} photos`
 
 export interface Status { text: string; tone: Tone; analyzeLabel: string; analyzeDisabled: boolean }
 export function analysisStatus(groups: readonly FaceGroup[], a: Analysis, selectedCount: number, watching: boolean): Status {
@@ -52,25 +45,16 @@ export const jobEndText = (status: string) => (status === 'COMPLETED' || status 
 
 export const mergeCopy = (n: number) => ({ title: 'Merge face clusters?', ok: 'Merge clusters', text: `Merge ${n} selected visual clusters? Their detected faces and performer assignment will be combined. This can be corrected later by separating individual face detections.` })
 export const mergeBody = (ids: readonly number[]) => ({ group_ids: ids.filter((n) => Number.isInteger(n) && n > 0) })
-export const mergedText = (n: number, target: unknown) => `Merged ${n} visual clusters into group ${target}.`
-export const MERGE_NEEDS_TWO = 'Select at least two face clusters to merge.'
-export const splitCopy = { title: 'Separate face detection?', ok: 'Separate face', text: 'Separate this representative face detection into a new anonymous cluster? The other photos in the current cluster will remain unchanged.' }
-export const splitText = (newId: unknown) => `Face detection moved to new cluster ${newId}.`
 export const firstDetection = (g: FaceGroup) => (g.detection_ids?.length ? Number(g.detection_ids[0]) : 0)
 
 export const assignBody = (g: FaceGroup, performerId: number | null) => ({ performer_id: performerId, group_ids: clusterIds(g) })
-export const assignedStatus = (name: string) => `Assigned ${name} to this face group.`
-export const CLEARED = 'Performer assignment cleared.'
 export const suggestionBody = (g: FaceGroup, s: Suggestion, source: Source, basis: string) => ({
   performer_id: s.id, group_ids: clusterIds(g), suggestion_source: source,
   suggestion_score: s.similarity_score == null || !Number.isFinite(Number(s.similarity_score)) ? null : Number(s.similarity_score),
   suggestion_reason: source === 'confirmed_assignment' ? 'Confirmed from a previously assigned visual group' : source === 'profile_image' ? 'Confirmed from a face match with the performer profile picture' : `Confirmed from source metadata: ${basis || 'text match'}`,
 })
-export const confirmedText = (name: string) => `Confirmed ${name} for this face group. Future suggestions can learn from this confirmation.`
 export const rejectBody = (g: FaceGroup, s: Suggestion, source: Source) => ({ group_ids: clusterIds(g), performer_id: s.id, source, similarity_score: s.similarity_score == null || !Number.isFinite(Number(s.similarity_score)) ? null : Number(s.similarity_score), reason: 'Rejected by user in Image Analysis' })
-export const REJECTED = 'Suggestion rejected and remembered; it will stay hidden on future refreshes.'
 export const scoreText = (s: Suggestion) => (s.similarity_score != null && Number.isFinite(Number(s.similarity_score)) ? `Embedding similarity ${Number(s.similarity_score).toFixed(2)} · not a probability` : '')
-export const suggestionReason = (s: Suggestion, source: Source) => String(s.reason || (source === 'metadata' ? 'Source text match' : source === 'profile_image' ? "Face resembles this performer's profile picture" : 'Similar to a previously confirmed group'))
 export const suggestionsFor = (g: FaceGroup) => (isAssigned(g) ? { confirmed: [], metadata: [], profile: [] } : { profile: (g.profile_image_suggestions ?? []).slice(0, 3), confirmed: (g.confirmed_assignment_suggestions ?? []).slice(0, 3), metadata: (g.metadata_suggestions ?? []).slice(0, 3) })
 
 /** Selecting a group to view photos: an assigned group filters by performer, others by their cluster ids. */
@@ -78,7 +62,6 @@ export function viewFilter(g: FaceGroup): { filter: FaceFilter; channels: string
   const performerId = g.performer_id ? Number(g.performer_id) : null
   return { filter: { performerId, groupId: Number(g.id), groupIds: performerId ? [] : clusterIds(g), label: groupLabel(g) }, channels: (g.channel_ids ?? []).map(String) }
 }
-export const filterLabel = (f: FaceFilter) => `Face group · ${f.label}`
 export const differentCopy = "Remove this photo's face detection(s) from the current group?\n\nArchive X will move those detections into new unassigned group(s). The photo and its Telegram message will not be deleted."
 export function differentBody(photoId: number, f: FaceFilter, groups: readonly FaceGroup[]) {
   const active = groups.find((g) => Number(g.id) === Number(f.groupId))
@@ -89,16 +72,9 @@ export const DIFFERENT_NEEDS_GROUP = 'Open a face-group gallery first, then use 
 
 /** Side-by-side review of a face group against a performer's saved profile and provider images. */
 export interface Candidate { url?: string; provider?: string; width?: number; height?: number }
-export interface Candidates { ok?: boolean; detail?: string; candidates?: Candidate[]; has_more?: boolean }
 export const REVIEW_PAGE = 10
-export const REVIEW_TITLE = 'Review performer images'
-export const REVIEW_NOTE = 'Card suggestions come from exact source-text matches or face groups you previously confirmed. Profile and provider images are shown for your own review; no new assignment is saved without your confirmation.'
 export const REVIEW_CHOOSE = 'Choose a performer to display its saved profile and provider image options next to this face group.'
-export const REVIEW_SEARCH_HINT = 'Search for a performer above. Candidate suggestions on the group card, when available, are based on caption, filename, or channel text only.'
-export const REVIEW_LOADING = 'Loading saved/provider images…'
-export const FOCUS_HINT = 'Select a provider image to inspect it larger.'
 export const reviewSubtitle = (name: string | null) => (name ? `Compare the selected face group with ${name}'s saved profile and provider images.` : REVIEW_CHOOSE)
-export const reviewMeta = (g: FaceGroup) => `${Number(g.photo_count || 0).toLocaleString()} photos · ${Number(g.face_count || 0).toLocaleString()} face detections · anonymous cluster`
 export const saveLabel = (name: string | null) => `Map group to ${name || 'selected performer'}`
 export const candidatesUrl = (performerId: number, offset: number) => `/api/performers/${performerId}/image-candidates?limit=${REVIEW_PAGE}&offset=${offset}`
 export const providerName = (c: Candidate) => String(c.provider || 'Provider').replace(/[^a-z0-9 _-]/gi, '')
@@ -110,8 +86,6 @@ export const loadedText = (list: readonly Candidate[]) => {
   const summary = [...counts].map(([k, v]) => `${k}: ${v}`).join(' · ')
   return `${list.length} provider reference image(s) loaded${summary ? ` · ${summary}` : ''}. Choose one to inspect, then assign the group manually.`
 }
-export const NO_PROVIDER = 'No provider images were returned. The saved profile image is still available on the left.'
-export const lookupFailed = (m: string) => `Provider image lookup unavailable: ${m}. You can still compare with the saved profile picture and assign manually.`
 
 /** The people shown across the top of Photos (like the People row in Google/Apple Photos): named people first, then the faces seen most often; one-off faces are left out. */
 export function peopleRow(groups: readonly FaceGroup[], max = 24): FaceGroup[] {

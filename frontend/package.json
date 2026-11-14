@@ -12,10 +12,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "gen:api": "openapi-typescript http://127.0.0.1:8443/openapi.json -o src/api/openapi.d.ts",
-    "check:size": "node scripts/check-size.mjs"
+    "check:size": "node scripts/check-size.mjs",
+    "unused": "knip --no-progress"
   },
   "dependencies": {
-    "@radix-ui/react-dialog": "^1.1.0",
     "@tanstack/react-query": "^5.0.0",
     "@tanstack/react-router": "^1.0.0",
     "hls.js": "^1.5.20",
@@ -36,6 +36,7 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.0",
     "jsdom": "^26.0.0",
+    "knip": "^5.88.1",
     "openapi-typescript": "^7.0.0",
     "tailwindcss": "^4.1.0",
     "typescript": "~5.8.3",

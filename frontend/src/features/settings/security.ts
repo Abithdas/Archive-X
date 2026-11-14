@@ -1,5 +1,5 @@
 /** Dashboard login rules, ported from saveWL (classic UI). Order matters: the first problem is the one shown. */
-export const MIN_PASSWORD = 12
+const MIN_PASSWORD = 12
 export interface LoginForm { username: string; current: string; password: string; repeat: string }
 export const EMPTY_LOGIN: LoginForm = { username: '', current: '', password: '', repeat: '' }
 

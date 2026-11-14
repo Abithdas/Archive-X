@@ -19,7 +19,7 @@ export interface DupScan {
   indexed_video_count?: number; indexed_channel_count?: number; complete_channel_count?: number; hashes_computed?: number
   groups?: DupGroup[]; warning?: string; fingerprint_warnings?: string[]; fingerprint_warnings_truncated?: boolean
 }
-export interface Target { group: DupGroup; row: Candidate; key: string }
+interface Target { group: DupGroup; row: Candidate; key: string }
 
 export const candidateKey = (r: Candidate) => `${String(r.channel_id ?? '')}:${Number(r.message_id ?? 0)}`
 
@@ -76,7 +76,7 @@ export function findKeeper(group: DupGroup, target: Candidate, selected: Readonl
   return (group.candidates ?? []).find((c) => candidateKey(c) !== tk && !selected.has(candidateKey(c)) && sharesIdentity(target, c)) ?? null
 }
 
-export function selectedTargets(groups: readonly DupGroup[], keys: ReadonlySet<string>): Target[] {
+function selectedTargets(groups: readonly DupGroup[], keys: ReadonlySet<string>): Target[] {
   return groups.flatMap((group) => (group.candidates ?? []).filter((r) => keys.has(candidateKey(r))).map((row) => ({ group, row, key: candidateKey(row) })))
 }
 

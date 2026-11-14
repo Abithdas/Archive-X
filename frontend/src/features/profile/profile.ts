@@ -2,7 +2,7 @@
 export interface Profile { name: string; username?: string; custom_name?: string; telegram_name?: string; has_custom_image?: boolean; image_version?: string }
 export const NAME_MAX = 64
 export const PHOTO_MAX_BYTES = 8 * 1024 * 1024
-export const PHOTO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+const PHOTO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 export const INTRO = 'Choose the name and photo Archive X shows in the header and Settings. This only changes Archive X; your real Telegram profile is not touched.'
 export const READY = 'Change the name, the photo, or both.'
 export const SAVED = 'Profile updated.'

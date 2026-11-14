@@ -8,7 +8,7 @@ export const TABS: Array<{ value: AiTab; label: string; blurb: string }> = [
 ]
 
 export interface Message { role: string; content?: string; created_at?: string }
-export interface Runtime {
+interface Runtime {
   runtime?: { path?: string; exists?: boolean }; model?: { path?: string; exists?: boolean }
   server?: { endpoint?: string; reachable?: boolean; context?: number; gpu_layers?: number }; ready?: boolean
 }

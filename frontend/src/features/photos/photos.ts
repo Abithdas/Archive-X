@@ -1,7 +1,7 @@
 /** Pure logic for the Photos page and viewer (mirrors the classic photo library). */
 
 export const FAVORITES_KEY = 'archive-x-photo-favorites-v1'
-export const PER_PAGE = 48
+const PER_PAGE = 48
 export type PhotoSort = 'date_desc' | 'date_asc' | 'name_asc' | 'size_desc'
 export const SORTS: Array<{ value: PhotoSort; label: string }> = [
   { value: 'date_desc', label: 'Newest first' }, { value: 'date_asc', label: 'Oldest first' },
@@ -15,7 +15,6 @@ export interface PhotoPage { ok?: boolean; detail?: string; items: Photo[]; tota
 
 export const NO_CHANNELS_SAVED = 'No saved Telegram channels found. Open Videos and refresh the Telegram channel list first.'
 export const NO_SCANNED = 'No channels have a completed Image scan yet. Open Transfers → Metadata & Assets Manager → Processing Stages → Advanced options, enable Image scan, select channels, and run it.'
-export const SELECT_PROMPT = 'Select channel cards to browse indexed photos. To index channel history, use Metadata & Assets Manager → Processing Stages → Advanced options → Image scan.'
 export const EMPTY_INDEX = 'No photos indexed in these channels yet. Run Image scan in Metadata & Assets Manager → Processing Stages → Advanced options.'
 export const LOAD_FAILED = 'Could not load photo records.'
 
@@ -44,8 +43,6 @@ export const channelAvatar = (c: PhotoChannel) => {
   return String(c.image || '').startsWith('manual-upload:') ? `/api/channels/${id}/image?v=${v}&w=160` : `/api/channels/${id}/telegram-photo?v=${v}`
 }
 export const scanTitle = (c: PhotoChannel) => `${c.photo_last_scan_at ? `Last completed image scan ${new Date(c.photo_last_scan_at).toLocaleString()}` : 'Image scan complete'} · ${Number(c.photo_count || 0).toLocaleString()} photos`
-export const channelSummary = (n: number) => `${n.toLocaleString()} scanned channels`
-export const selectedLabel = (n: number) => `${n} channel${n === 1 ? '' : 's'} selected`
 
 export function toggleId(selected: readonly string[], id: string): string[] { return selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id] }
 export const allSelected = (channels: readonly PhotoChannel[], selected: readonly string[]) => channels.length > 0 && channels.every((c) => selected.includes(String(c.telegram_id)))
@@ -53,7 +50,7 @@ export const toggleAll = (channels: readonly PhotoChannel[], selected: readonly 
 /** Selection limited to channels that still exist (a removed channel can't stay selected). */
 export const pruneSelection = (selected: readonly string[], channels: readonly PhotoChannel[]) => selected.filter((id) => channels.some((c) => String(c.telegram_id) === id))
 
-export type FaceScope = 'named' | 'unnamed' | 'no_face' | 'pending'
+type FaceScope = 'named' | 'unnamed' | 'no_face' | 'pending'
 export interface FaceFilter { performerId: number | null; groupIds: number[]; groupId: number | null; label: string; scope?: FaceScope }
 export interface PhotoQuery { channels: readonly string[]; q: string; sort: PhotoSort; favorites: boolean; favoriteIds: ReadonlySet<string>; page: number; per?: number; face?: FaceFilter | null; contentTags?: readonly string[] }
 export function photoParams(q: PhotoQuery): URLSearchParams {
@@ -105,8 +102,8 @@ export function hud(p: Photo): Hud {
 }
 export const counterText = (index: number, total: number) => `${Math.max(0, index) + 1} / ${Math.max(1, total)}`
 
-export const ZOOM_STEP = 1.25
-export const MAX_ZOOM = 8
+const ZOOM_STEP = 1.25
+const MAX_ZOOM = 8
 /** How far below the fitted size the photo may be shrunk (a tenth of it). */
 export const MIN_REL = 0.1
 /** Fit scale for an image shown inside a stage, accounting for 90° rotations. Never upscales past 1. */
@@ -133,7 +130,7 @@ export function stepIndex(i: number, delta: number, total: number, wrap = false)
   if (t >= 0 && t < total) return t
   return wrap ? (t < 0 ? total - 1 : 0) : null
 }
-export const STRIP_WINDOW = 24
+const STRIP_WINDOW = 24
 /** The filmstrip shows a window of thumbnails centred on the current photo. */
 export function stripRange(index: number, total: number, size = STRIP_WINDOW): [number, number] {
   const start = Math.max(0, Math.min(index - Math.floor(size / 2), total - size))
@@ -173,8 +170,8 @@ export function wheelSteps(deltaX: number, deltaY: number): number {
 }
 export const clampScale = (scale: number, fit: number) => Math.min(MAX_ZOOM, Math.max(fit * MIN_REL, scale))
 /** Space kept clear around a fitted photo: top and bottom, and the sides. */
-export const PAD_Y = 20
-export const PAD_X = 16
+const PAD_Y = 20
+const PAD_X = 16
 export const paddedBox = (box: { w: number; h: number }) => ({ w: Math.max(1, box.w - 2 * PAD_X), h: Math.max(1, box.h - 2 * PAD_Y) })
 /** Two-finger pinch: the scale follows how far the fingers moved apart or together. */
 export const pinchScale = (startScale: number, startDistance: number, distance: number) => (startDistance > 0 ? startScale * (distance / startDistance) : startScale)

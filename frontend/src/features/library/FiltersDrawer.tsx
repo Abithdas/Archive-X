@@ -14,7 +14,7 @@ export const RESOLUTIONS = [
   { value: '720', label: '720p' },
   { value: '480', label: '<720p' },
 ] as const
-export const QUICK_RANGES = [
+const QUICK_RANGES = [
   { days: 7, label: '7 days' },
   { days: 30, label: '30 days' },
   { days: 365, label: '1 year' },

@@ -2,9 +2,9 @@
  *  Replaces the classic engine's MP4 pipeline, which put every track's initialisation segment into a single SourceBuffer (so any file with sound failed). */
 import type { SmartOptions, SmartPipeline } from './smartstream'
 
-export const AHEAD_SECONDS = 60          // stop reading when this much is buffered ahead of the playhead
-export const KEEP_BEHIND_SECONDS = 30    // drop older data when the browser's buffer is under pressure
-export const SAMPLES_PER_SEGMENT = 60
+const AHEAD_SECONDS = 60          // stop reading when this much is buffered ahead of the playhead
+const KEEP_BEHIND_SECONDS = 30    // drop older data when the browser's buffer is under pressure
+const SAMPLES_PER_SEGMENT = 60
 const SLICE = 256 * 1024                 // bytes handed to the parser at a time
 
 export interface Mp4Track { id: number; codec: string; video?: unknown; audio?: unknown; type?: string; timescale?: number; nb_samples?: number }

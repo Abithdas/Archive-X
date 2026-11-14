@@ -1,8 +1,8 @@
 /** Editing a channel's name and photo: saved here first, pushed to Telegram only after a separate confirmation. */
 export interface ChannelRow { telegram_id: string | number; title?: string | null; image?: string | null; updated_at?: string | null }
 export const TITLE_MAX = 255
-export const PHOTO_MAX_BYTES = 8 * 1024 * 1024
-export const PHOTO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+const PHOTO_MAX_BYTES = 8 * 1024 * 1024
+const PHOTO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 export const INTRO = 'Edit the channel name and profile photo. Changes are saved locally first; sending them to Telegram requires a separate confirmation.'
 export const READY = 'Change the name, choose a profile photo, or do both. Save locally first, then explicitly choose whether to sync changes to Telegram.'
 export const NEED_NAME = 'Channel name is required.'

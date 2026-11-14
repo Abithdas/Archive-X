@@ -3,7 +3,7 @@ type Obj = Record<string, unknown>
 const o = (v: unknown): Obj => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Obj) : {})
 const s = (v: unknown) => String(v ?? '')
 
-export type Tone = 'ok' | 'warn' | 'bad' | ''
+type Tone = 'ok' | 'warn' | 'bad' | ''
 export interface StatusRow { icon: string; title: string; sub: string; tone: Tone; label: string; go?: PanelId }
 
 export const PANELS = [

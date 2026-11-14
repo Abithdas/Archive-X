@@ -1,14 +1,14 @@
 /** Pure logic for the Telegram Job Manager console (the live CLI view of a Media Manager / Telegram transfer job). */
 
-export interface ConsoleLine { n: number; t: string }
+interface ConsoleLine { n: number; t: string }
 export interface ConsoleState {
   running?: boolean; error?: string | null; seq?: number; lines?: ConsoleLine[]; live?: string; prompt?: string; mode_name?: string
   completed?: number | null; total?: number | null; operation?: string
 }
 export const MAX_CHARS = 400_000
-export const POLL_RUNNING_MS = 700
-export const POLL_IDLE_MS = 2500
-export const CONSOLE_JOB_TYPES = ['MEDIA_MANAGER', 'TELEGRAM_TRANSFER']
+const POLL_RUNNING_MS = 700
+const POLL_IDLE_MS = 2500
+const CONSOLE_JOB_TYPES = ['MEDIA_MANAGER', 'TELEGRAM_TRANSFER']
 export const hasConsole = (j: { type?: unknown }) => CONSOLE_JOB_TYPES.includes(String(j.type ?? ''))
 
 export const STOP_COPY = { title: 'Stop Telegram job', ok: 'Stop job', text: 'Stop the Telegram job? Work already verified is kept; it can resume after you choose Resume.' }

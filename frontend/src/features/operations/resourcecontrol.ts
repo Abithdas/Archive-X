@@ -12,7 +12,7 @@ export const LANE_LABELS: Record<Lane, string> = { metadata: 'Metadata', thumbna
 export const DEFAULT_LIMITS: Record<Lane, number> = { metadata: 3, thumbnail: 1, preview: 1, conversion: 2, upload: 2 }
 export const EXPIRIES: ReadonlyArray<{ value: number; label: string }> = [{ value: 0, label: 'Until changed' }, { value: 900, label: '15 minutes' }, { value: 1800, label: '30 minutes' }, { value: 3600, label: '1 hour' }]
 
-export const control = (res: Obj) => o(res.control)
+const control = (res: Obj) => o(res.control)
 export const modeOf = (res: Obj): Mode => { const m = String(control(res).mode ?? 'automatic').toLowerCase(); return MODES.some((x) => x.value === m) ? (m as Mode) : 'automatic' }
 export const modeLabel = (res: Obj) => String(control(res).mode_label ?? '') || MODES.find((x) => x.value === modeOf(res))!.label
 export const isPaused = (res: Obj) => Boolean(res.background_paused || control(res).background_paused)

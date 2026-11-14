@@ -2,7 +2,7 @@
 export type Mode = 'dark' | 'light'
 export const STORE_KEY = 'ax_custom_themes_v1'
 export const ACTIVE_KEY = 'ax_active_custom_theme'
-export const MAX_THEMES = 100
+const MAX_THEMES = 100
 export const NAME_MAX = 40
 
 export type PaletteKey = 'bg' | 'surface' | 'primary' | 'secondary' | 'text' | 'subtext' | 'border' | 'hover'

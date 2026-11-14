@@ -88,7 +88,7 @@ export function pickPerformer(current: readonly Person[], x: Item): Person[] {
 export const pickStudio = (x: Item): Studio => (x.create ? { name: x.name.trim(), id: null, provider: null, provider_id: null, kind: 'local' } : { name: x.name, id: x.id ?? null, provider: x.provider, provider_id: x.provider_id, image: x.image, kind: x.kind })
 
 // ── provider video-data matches ──
-export interface PerformerDetail { name?: string; id?: string | number | null; provider?: string | null; provider_id?: string | number | null; image?: string | null; image_url?: string | null; profile?: string | null; url?: string | null; aliases?: unknown[] }
+interface PerformerDetail { name?: string; id?: string | number | null; provider?: string | null; provider_id?: string | number | null; image?: string | null; image_url?: string | null; profile?: string | null; url?: string | null; aliases?: unknown[] }
 export interface Match { title?: string; date?: string; release_date?: string; production_date?: string; performers?: Array<string | PerformerDetail>; performer_details?: Array<string | PerformerDetail>; studio?: string; site?: string; studio_id?: number | string | null; studio_image?: string; provider?: string; source?: string; thumbnail?: string; image?: string; poster?: string; score_percent?: number | string; confidence_percent?: number | string; confidence?: number | string; _archive_confidence?: number | string }
 export interface CandidateView { title: string; detail: string; cast: string; thumb: string; confidence: string; tone: 'good' | 'warn' | 'bad' | 'neutral' }
 export const safeHttpUrl = (u: unknown) => { try { const x = new URL(String(u ?? '')); return x.protocol === 'http:' || x.protocol === 'https:' ? x.href : '' } catch { return '' } }

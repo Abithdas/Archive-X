@@ -4,7 +4,6 @@ import { create } from 'zustand'
 interface InstallEvent extends Event { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> }
 export const useInstall = create<{ offer: InstallEvent | null; set: (e: InstallEvent | null) => void }>((set) => ({ offer: null, set: (offer) => set({ offer }) }))
 
-export const isInstalled = () => typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true)
 
 export async function install(): Promise<boolean> {
   const offer = useInstall.getState().offer

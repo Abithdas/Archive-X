@@ -2,11 +2,11 @@ import { THEMES, type Mode, type Palette, type ThemeFamily } from './palettes'
 import { ACTIVE_KEY, customTokens, findTheme, activeId, toRgb, type CustomPalette, type CustomTheme } from './custom'
 
 export { THEMES, type Mode, type Palette, type ThemeFamily }
-export const DEFAULT_PRESET = 'nord'
-export const PRESET_KEY = 'ax_theme_preset'
-export const MODE_KEY = 'ax_theme_mode'
-export const SCALE_KEY = 'ax_ui_scale'
-export const GRID_KEY = 'ax_grid_density'
+const DEFAULT_PRESET = 'nord'
+const PRESET_KEY = 'ax_theme_preset'
+const MODE_KEY = 'ax_theme_mode'
+const SCALE_KEY = 'ax_ui_scale'
+const GRID_KEY = 'ax_grid_density'
 
 /** Unknown or retired ids (and the classic "custom" theme) fall back to the default, like the classic normaliser. */
 export const normalizePreset = (id: unknown): string => (THEMES.some((t) => t.id === id) ? String(id) : DEFAULT_PRESET)
@@ -27,9 +27,9 @@ const read = (key: string): string | null => { try { return localStorage.getItem
 const write = (key: string, value: string) => { try { localStorage.setItem(key, value) } catch { /* private mode */ } }
 
 const store = (): Storage | null => { try { return window.localStorage } catch { return null } }
-export const CUSTOM = 'custom'
+const CUSTOM = 'custom'
 /** The custom theme chosen in this browser, if one is active and still stored. */
-export const activeCustom = (): CustomTheme | null => { const s = store(); const id = activeId(s); return id ? findTheme(s, id) : null }
+const activeCustom = (): CustomTheme | null => { const s = store(); const id = activeId(s); return id ? findTheme(s, id) : null }
 
 export function storedTheme(): { preset: string; mode: Mode } {
   const preset = read(PRESET_KEY) === CUSTOM && activeCustom() ? CUSTOM : normalizePreset(read(PRESET_KEY))

@@ -8,7 +8,6 @@ export function zoomOf(el: Element | null | undefined): number {
   return Number.isFinite(z) && z > 0 ? z : 1
 }
 /** Screen pixels → positioning pixels for an element that lives in the same zoom as `ref`. */
-export const local = (px: number, ref: Element | null | undefined) => px / zoomOf(ref)
 
 /** Left, top and maximum height for a menu `w`×`h` (positioning pixels) opened from `anchor`: below the button when it fits, else above, else on the roomier side
  *  with a limited height (so it scrolls) instead of covering the button or leaving the screen. */

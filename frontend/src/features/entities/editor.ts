@@ -7,7 +7,7 @@ export const saveLabel = (k: Kind) => (isPerformer(k) ? 'Save profile picture' :
 export const editUrl = (k: Kind, id: number) => `/api/${k}/${id}/edit`
 export const candidatesUrl = (k: Kind, id: number, offset: number, limit = PAGE) => `/api/${k}/${id}/image-candidates?limit=${limit}&offset=${offset}`
 export const imageUrl = (k: Kind, id: number, v: string | number | null | undefined) => `/api/${k}/${id}/image?v=${encodeURIComponent(String(v ?? ''))}`
-export const PAGE = 10
+const PAGE = 10
 
 export interface Candidate { url: string; provider?: string; width?: number; height?: number; current?: boolean }
 const LABELS: ReadonlyArray<[string, string]> = [['theporndb', 'ThePornDB'], ['stashdb', 'STASHDB']]
@@ -27,9 +27,9 @@ export function providerSummary(cands: readonly Candidate[], hasMore: boolean): 
 export const footerFor = (n: number) => (n ? 'Select an image, then save.' : 'You can use a manual image URL or file.')
 export const LOADING = 'Loading provider images…'
 export const lookupFailed = (m: string) => `Provider image lookup failed: ${m}`
-export const providerLabel = (p: string | undefined) => String(p || 'provider').toUpperCase()
+const providerLabel = (p: string | undefined) => String(p || 'provider').toUpperCase()
 
-export const MAX_BYTES = 8 * 1024 * 1024
+const MAX_BYTES = 8 * 1024 * 1024
 export const fileProblem = (size: number) => (size > MAX_BYTES ? 'Image must be 8 MiB or smaller.' : '')
 export const initialState = (locked: boolean) => (locked ? 'Locked current choice' : 'Current provider image')
 export const STATE_LOCAL = 'Local image selected — save to apply'

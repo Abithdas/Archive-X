@@ -7,7 +7,7 @@ import { MoreActions } from './MoreActions'
 import type { Player } from './shuffle'
 import { useLibraryStore } from './store'
 
-export const SORTS: { value: SortKey; label: string }[] = [
+const SORTS: { value: SortKey; label: string }[] = [
   { value: 'date_desc', label: 'Newest first' },
   { value: 'date_asc', label: 'Oldest first' },
   { value: 'size_desc', label: 'Largest first' },

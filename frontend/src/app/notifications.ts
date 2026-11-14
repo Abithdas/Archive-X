@@ -15,7 +15,7 @@ export interface Notice {
 type Row = Record<string, unknown>
 const DAY = 86_400_000
 
-export function parseTime(value: unknown): { date: Date; time: string } {
+function parseTime(value: unknown): { date: Date; time: string } {
   const n = typeof value === 'number' ? value : Number(value)
   const stamp = typeof value === 'number' || (String(value ?? '').trim() && Number.isFinite(n)) ? (n < 1e12 ? n * 1000 : n) : value ? Date.parse(String(value)) : NaN
   if (!Number.isFinite(stamp)) return { date: new Date(), time: '' }
@@ -114,7 +114,7 @@ export function eventToNotice(e: Row, now = Date.now()): Notice | null {
 const ACTIVE = /^(RUNNING|ACTIVE|PAUSED|RECOVERING|RETRYING|RESUMING|STARTING)$/i
 const FAILED = /^(FAILED|ERROR|CANCELLED)$/i
 
-export function jobToNotice(j: Row, now = Date.now()): (Notice & { sourceName: string }) | null {
+function jobToNotice(j: Row, now = Date.now()): (Notice & { sourceName: string }) | null {
   const status = String(j.status ?? '').toUpperCase()
   if (!ACTIVE.test(status) && !FAILED.test(status)) return null
   const t = parseTime(j.updated_at ?? j.finished_at ?? j.created_at ?? j.started_at ?? j.ts)

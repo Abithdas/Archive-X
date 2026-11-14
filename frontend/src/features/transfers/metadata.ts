@@ -1,7 +1,7 @@
 /** Metadata & Assets run options → API payloads (ported from runUnifiedMetadataAssets / processPendingLibraryItems). */
 export type Stage = 'inventory' | 'metadata' | 'performers' | 'channel_data' | 'snapshots'
-export const ENTITY_STAGES: Stage[] = ['metadata', 'performers', 'channel_data']
-export const STAGE_ORDER: Stage[] = ['inventory', 'metadata', 'performers', 'channel_data', 'snapshots']
+const ENTITY_STAGES: Stage[] = ['metadata', 'performers', 'channel_data']
+const STAGE_ORDER: Stage[] = ['inventory', 'metadata', 'performers', 'channel_data', 'snapshots']
 const LABELS: Record<Stage, string> = { inventory: 'Inventory', metadata: 'Metadata & Entity Data', performers: 'Metadata & Entity Data', channel_data: 'Metadata & Entity Data', snapshots: 'Build snapshots' }
 
 export interface RunOptions {

@@ -11,8 +11,8 @@ export interface ReviewFace { detection_id: number; photo_id: number; group_id: 
 export interface Lookalike { detection_id: number; photo_id: number; group_id: number; crop_url: string; score: number; strong: boolean }
 interface Learned { items?: Array<{ detection_id: number; score: number; different?: boolean }> }
 /** A face this far below the rest of the person's faces is flagged as looking different. */
-export const DIFFERENT_BELOW = 0.4
-export const LEAST_SIMILAR_COUNT = 10
+const DIFFERENT_BELOW = 0.4
+const LEAST_SIMILAR_COUNT = 10
 export const differentFaces = (items: readonly ReviewFace[]) => items.filter((f) => f.different ?? (f.different ?? f.similarity < DIFFERENT_BELOW))
 /** Put what has been learned about the person (the desktop app's face learning) over the plain review: its score and its own line for "looks different", least alike first. */
 export function withLearned(items: readonly ReviewFace[], learned: Learned | null | undefined): ReviewFace[] {
@@ -21,7 +21,7 @@ export function withLearned(items: readonly ReviewFace[], learned: Learned | nul
   const byId = new Map(list.map((l) => [l.detection_id, l]))
   return items.map((f) => { const l = byId.get(f.detection_id); return l ? { ...f, similarity: l.score, different: Boolean(l.different) } : f }).sort((a, b) => a.similarity - b.similarity || a.detection_id - b.detection_id)
 }
-export const learnedUrl = (kind: 'outliers' | 'suggestions', performerId: number) => `/api/photos/faces/learning/${kind}?performer_id=${performerId}`
+const learnedUrl = (kind: 'outliers' | 'suggestions', performerId: number) => `/api/photos/faces/learning/${kind}?performer_id=${performerId}`
 export const reviewUrl = (performerId: number | null | undefined, groupIds: readonly number[]) => performerId ? `/api/photos/faces/review?performer_id=${performerId}` : `/api/photos/faces/review?group_ids=${groupIds.join(',')}`
 const why = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.detail : fb)
 

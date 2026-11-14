@@ -4,7 +4,6 @@ import { cn } from '@/design/cn'
 const MenuCtx = createContext<() => void>(() => undefined)
 
 export const Divider = () => <span aria-hidden="true" className="mx-0.5 hidden h-3.5 w-px shrink-0 bg-fg/15 @lg:block" />
-export const Kbd = ({ children }: { children: ReactNode }) => <kbd className="ml-auto rounded border border-line-2 px-1 text-[10px] font-semibold text-muted">{children}</kbd>
 export const MenuHead = ({ children }: { children: ReactNode }) => <div className="px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-muted">{children}</div>
 export const MenuRow = ({ k, v, good }: { k: string; v: string; good?: boolean }) => (
   <div className="flex justify-between gap-6 px-2.5 py-1 text-xs"><span className="text-muted">{k}</span><span className={cn('font-semibold', good && 'text-emerald-400')}>{v}</span></div>

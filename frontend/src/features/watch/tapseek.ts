@@ -1,5 +1,5 @@
 /** YouTube-style double-tap skipping: a second tap on the left/right third skips 10 s, and every further tap in quick succession adds another 10 s. */
-export const SKIP_STEP = 10
+const SKIP_STEP = 10
 export const DOUBLE_TAP_MS = 280
 export const KEEP_SKIPPING_MS = 700
 

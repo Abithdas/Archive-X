@@ -1,16 +1,16 @@
 /** Library health check: local previews, artwork caches and stalled jobs (read-only; only artwork repair changes anything, and only locally). */
-export interface Finding { code?: string; severity?: string; count?: number; message?: string }
+interface Finding { code?: string; severity?: string; count?: number; message?: string }
 export interface HealthReport { checked_at?: string; summary?: Record<string, unknown>; findings?: Finding[]; detail?: string }
 export interface Summary { videos?: number; performers?: number; studios?: number; detail?: string }
 export const LAST_KEY = 'ax-library-health-last-checked'
 export const HEALTH_URL = '/api/operations/library-health?limit=100&stale_job_hours=24'
 export const REPAIR_URL = '/api/operations/library-health/repair-artwork'
-export const NOT_CHECKED = 'Run a check to review local previews, artwork caches and background jobs.'
+const NOT_CHECKED = 'Run a check to review local previews, artwork caches and background jobs.'
 export const NOT_CHECKED_DETAIL = 'Not checked. Scan for missing snapshots, empty artwork caches, and stale jobs.'
 export const CHECKING = 'Checking local previews, artwork caches and background jobs…'
-export const CHECK_FAILED_OVERVIEW = 'The check could not finish. Open the details for the error and try again.'
+const CHECK_FAILED_OVERVIEW = 'The check could not finish. Open the details for the error and try again.'
 export const REPAIRING = 'Repairing artwork cache from matching local files only…'
-export const num = (v: unknown) => Number(v || 0)
+const num = (v: unknown) => Number(v || 0)
 
 export type HealthState = 'unchecked' | 'checking' | 'healthy' | 'review' | 'error'
 export const findingCount = (r: HealthReport) => num(r.summary?.finding_count ?? (r.findings ?? []).length)

@@ -16,9 +16,9 @@ import { CaptionOverlay } from './CaptionOverlay'
 import { DEFAULT_STYLE, SIZE_STEP, clampSize, loadStyle, saveStyle, sizeLabel, type CaptionBg } from './captionStyle'
 import { useAltAudio, useTracks, type MediaRef } from './useTracks'
 
-export const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const
+const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const
 export const nextRate = (r: number) => RATES[(RATES.findIndex((x) => x === r) + 1) % RATES.length] ?? 1
-export const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) && dur > 0 ? Math.min(dur, t) : t)
+const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) && dur > 0 ? Math.min(dur, t) : t)
 const clock = (s: number) => formatDuration(s) || '0:00'
 
 const BTN = 'grid size-8 shrink-0 place-items-center rounded-md text-fg/85 transition-[background-color,color,transform] hover:bg-fg/10 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent active:scale-95 disabled:opacity-35 disabled:hover:bg-transparent'
@@ -28,7 +28,7 @@ const BTN = 'grid size-8 shrink-0 place-items-center rounded-md text-fg/85 trans
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
 /** Tell the server the viewer left this video. Best effort: a failure only means its cache is cleared a little later. */
-export function releasePlayback(channelId: string, messageId: number, reason = 'viewer_left') {
+function releasePlayback(channelId: string, messageId: number, reason = 'viewer_left') {
   const id = Number(channelId)
   if (!Number.isFinite(id) || !Number.isFinite(messageId)) return
   try {

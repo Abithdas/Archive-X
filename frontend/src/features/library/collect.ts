@@ -1,7 +1,7 @@
 import { api, libraryUrl } from '@/api/client'
 import type { LibraryItem, LibraryPage, LibraryQuery } from '@/api/types'
 
-export const SERVER_PAGE = 48   // the library endpoint never returns more than 48 per request
+const SERVER_PAGE = 48   // the library endpoint never returns more than 48 per request
 export const pageCount = (total: number, per = SERVER_PAGE) => Math.max(1, Math.ceil(Math.max(0, total) / per))
 
 /** Every video matching a Library query (all pages), fetched a few pages at a time. Used by "shuffle everything". */
