@@ -5,7 +5,7 @@
 # LAV_TAG picks the release (default below). LAV_SHA256, when set, must match the downloaded zip, so a changed upstream file cannot slip in;
 # without it the checksum is only printed (copy it into the workflow to pin it). Needs the gh command (GH_TOKEN) for the download.
 set -euo pipefail
-TAG="${LAV_TAG:-0.9}"
+TAG="${LAV_TAG:-0.83}"
 REPO="Nevcairiel/LAVFilters"
 here="$(cd "$(dirname "$0")" && pwd)"
 
