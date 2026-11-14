@@ -1,0 +1,103 @@
+name: Dependency scan (SCA)
+
+# Known vulnerabilities and license policy for every dependency the app is built from: Python (requirements.txt, resolved fresh as the installer
+# does), the frontend (npm), both Rust workspaces, and the workflow files themselves. Runs weekly (new advisories appear without any change of ours),
+# on every change to a dependency list, and on demand. What it cannot see: native libraries inside wheels, LAV Filters and ffmpeg (docs/security/SCA-REPORT.md).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+  push:
+    paths:
+      - "requirements.txt"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "rust/Cargo.toml"
+      - "rust/Cargo.lock"
+      - "rust/crates/*/Cargo.toml"
+      - "desktop/Cargo.toml"
+      - "desktop/Cargo.lock"
+      - "desktop/*/Cargo.toml"
+      - "desktop/src-tauri/Cargo.toml"
+      - "tools/sca/**"
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: { python-version: "3.12" }
+      - run: pip install pip-audit
+      - name: Known vulnerabilities (any one fails the job)
+        run: pip-audit -r requirements.txt --progress-spinner off -f json -o pip-audit.json
+      - name: Licenses
+        if: always()
+        run: python tools/sca/licenses.py python pip-audit.json --report "$GITHUB_STEP_SUMMARY"
+      - name: Software bill of materials (CycloneDX)
+        if: always()
+        continue-on-error: true
+        run: pip-audit -r requirements.txt --progress-spinner off -f cyclonedx-json -o sbom-python.cdx.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with: { name: sbom-python, path: sbom-python.cdx.json, if-no-files-found: ignore }
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - name: Known vulnerabilities, shipped packages (moderate and above fail)
+        run: npm audit --omit=dev --audit-level=moderate
+      - name: Known vulnerabilities, build and test tools (high and above fail)
+        run: npm audit --audit-level=high
+      - name: Licenses
+        if: always()
+        run: python3 ../tools/sca/licenses.py npm . --report "$GITHUB_STEP_SUMMARY"
+      - name: Software bill of materials (CycloneDX, shipped packages)
+        if: always()
+        run: npm sbom --sbom-format cyclonedx --omit dev > sbom-npm.cdx.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with: { name: sbom-npm, path: frontend/sbom-npm.cdx.json, if-no-files-found: ignore }
+
+  rust:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [rust, desktop]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with: { toolchain: stable }
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: cargo-audit-${{ runner.os }}-v0.23
+      - name: Install cargo-audit
+        run: command -v cargo-audit || cargo install cargo-audit --locked
+      - name: Known vulnerabilities (any one fails the job; warnings about unmaintained crates are shown)
+        working-directory: ${{ matrix.workspace }}
+        run: cargo audit
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: { python-version: "3.12" }
+      - name: Licenses
+        if: always()
+        run: python tools/sca/licenses.py rust ${{ matrix.workspace }} --report "$GITHUB_STEP_SUMMARY"
+
+  workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Every action is pinned to a commit
+        run: python3 tools/sca/check_action_pins.py
