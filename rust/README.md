@@ -131,3 +131,25 @@ ARCHIVE_X_PROXY_KEY=<secret> target/release/ax-server ... \
 - **Still works when Python is down:** native routes and the web app keep answering; everything else gets a clear `502`.
 - To add a route: write the handler in `native.rs`, add its name to `ROUTES` and `route_for`, add the tables and columns it reads to
   `ax_db::REQUIRED_COLUMNS`, add a test next to `tests/native_route.rs`, then run `compare.py` (and `compare_writes.py` for a write route) with the route on.
+
+### Routes that can decline a request
+
+A native route may hand a particular request back to Python (`handle` returns `None`), which then answers it exactly as if the route were off.
+`performers_list` (`GET /api/performers`) is the example: Rust answers the plain catalogue (no search text, a `limit` that is plain digits or
+letters, a non-empty table) and leaves to Python anything where Python's behaviour is subtle or where it writes: a search (`q=`, FTS and LIKE
+fallbacks), `limit` written as `-3`, `1_000`, ` 7`, `+7` or `1.5` (Python's `int()` accepts several of these), a repeated parameter, an empty
+catalogue (Python fills it in from old data) and an empty answer (Python re-checks on its main connection). Python's rule that an answer over
+2 MiB is sent untouched (no ETag, no gzip, no Cache-Control) is copied, so the full 4.4 MB performer list is byte-identical too.
+
+### Finding what to port: `compare.py --timing` and `seed_load.py`
+
+`tools/parity/seed_load.py` adds a big library on top of the fixture (4,000 performers, 1,200 studios, 40,000 photos, 600 face groups). With
+`compare.py --timing` it prints the slowest routes. On the small fixture everything takes under 10 ms and nothing stands out; on the big one:
+
+| Route | Python |
+|-------|--------|
+| `/api/performers/duplicate-audit` | **33,000 ms** |
+| `/api/photos/faces/groups` (default, with suggestions) | 1,200 ms |
+| `/api/channels/{id}/videos`, `/api/studios/{id}/videos`, `/api/tags/{id}/videos` | 140 to 195 ms |
+| `/api/performers`, `/api/library` (no channels) | 150 to 170 ms |
+| `/api/library?channels=...` | 70 to 80 ms |

@@ -104,4 +104,9 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
     ("channels", &["telegram_id", "title", "username", "image", "updated_at"]),
     ("photo_library_items", &["id", "channel_id"]),
     ("photo_library_scan_state", &["channel_id", "status", "last_scan_at", "messages_scanned", "photos_found", "last_error"]),
+    ("performers", &["id", "name", "gender", "image"]),
+    ("video_performers", &["performer_id", "video_id"]),
+    ("local_video_performers", &["performer_id", "video_id"]),
+    ("performer_image_cache", &["performer_id", "data"]),
+    ("media", &["id"]),
 ];

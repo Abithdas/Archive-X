@@ -11,6 +11,7 @@ Status: a plan only. Nothing has been ported. Sizes are relative (S, M, L, XL); 
 | 2. Rust front door | **Done and verified here** (details below), then hardened: timeouts, connection cap, graceful shutdown, pooled connections, HTTPS/HTTP2 test, CI jobs (`front-door`, `front-door-windows`, `python-lint` in `.github/workflows/ci.yml`, not yet run on GitHub). Not done: bundling the binary in the installer and a Windows run |
 | 3. Database and read-only routes | **Started:** `ax-db` (read-only pool), the session lookup, the cross-site guard and the 401 behaviour exist and are tested, but no route is answered by Rust yet. See the round-3 results below |
 | 3 (first route) | **Done for one route:** `GET /api/photos/channels` is answered by Rust when switched on (off by default); see "Round 4" below |
+| 3 (second route) | **Done:** `GET /api/performers`, with the pattern for routes that decline unusual requests; see "Round 5" |
 | 4 to 9 | Not started |
 
 Phase 2 results (`rust/crates/ax-server`, 12 Rust tests, clippy clean; Python side `TrustedProxyMiddleware`, 2 tests):
@@ -22,6 +23,14 @@ Phase 2 results (`rust/crates/ax-server`, 12 Rust tests, clippy clean; Python si
 - The release binary is 4.1 MB.
 - Desktop launcher: `LaunchOptions.front_door` (opt-in); a real end-to-end test (`cargo test -p archive-x-launcher-core real_backend_with_front_door -- --ignored`) passes with the Python backend in desktop mode: health, app shell, the backend's 403 guard, the session hand-off and a graceful shutdown all work through the front door.
 - Known differences: Python counts a plain page load of `/login` against its login rate limit and the front door does not; Python advertises HTTP/3 (`alt-svc`) and the front door removes that header because it does not speak HTTP/3.
+
+### Round 5: measuring on a big library, and the second route
+
+- **Method:** the fixture is tiny, so every route looked fast. `tools/parity/seed_load.py` builds a big library (4,013 performers, 1,207 studios, 40,032 photos, 603 face groups, 8,409 faces) and `compare.py --timing` ranks the routes by Python's cost: see the table in `rust/README.md`. The ranking found `/api/performers/duplicate-audit` at 33 seconds (a maintenance route, not on the normal page loads) and `/api/photos/faces/groups` at 1.2 s (the People page).
+- **`GET /api/performers`** (the Performers page and the pickers) is now answerable by Rust (`--native-routes performers_list`). Byte-identical to Python on the 4,013-performer library for 10 request forms, including the 4.4 MB full list, the brief list, every kind of `limit`, and the cases Rust passes back to Python. 6 new Rust tests (47 in all).
+- **Speed, one client:** full list 162 ms to 58 ms (2.8 times), brief list 105 to 56 ms (1.9 times), `limit=50` 14.7 to 13.7 ms (no change). Most of the time is SQLite running the same query, so the single-request gain is modest.
+- **Speed, concurrent clients (the real result):** with 8 parallel clients asking for the brief list, Python managed 1.1 requests per second with a median of 7.6 seconds per request; the Rust route managed 35 requests per second with a median of 217 ms: about 32 times the throughput. Python's requests queue behind its single process and database lock; the Rust readers do not. (The 16-client run was stopped because Python was too slow to finish it in reasonable time.)
+- Corollary for the plan: the case for porting read routes rests on concurrency and on keeping the app responsive while Python is busy (a running upload, a scan), more than on single-request speed.
 
 ### Round 4: the first route answered by Rust (results)
 

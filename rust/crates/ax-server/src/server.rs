@@ -63,8 +63,10 @@ pub async fn handle(req: Request<hyper::body::Incoming>, peer: SocketAddr, tls: 
     // Routes switched on in --native-routes are answered here (see native.rs).
     if let Some(native) = &state.native {
         if let Some(route) = native.route_for(req.method(), req.uri().path()) {
-            let resp = native.handle(route, req.headers(), peer).await;
-            return Ok(served_by(crate::static_files::with_security_headers(resp, tls), "rust"));
+            if let Some(resp) = native.handle(route, req.uri().query(), req.headers(), peer).await {
+                return Ok(served_by(crate::static_files::with_security_headers(resp, tls), "rust"));
+            }
+            // otherwise this request is one the route does not handle: it goes on to Python like any other
         }
     }
     // Static only for what is certainly ours: a file that exists in the web folder, or one of the app's own pages.

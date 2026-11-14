@@ -21,7 +21,7 @@ use crate::optimize::json_response;
 use crate::proxy::{Body, Proxy};
 
 /// Every route that can be answered here, by name.
-pub const ROUTES: &[&str] = &["photos_channels"];
+pub const ROUTES: &[&str] = &["photos_channels", "performers_list"];
 
 pub struct Native {
     enabled: HashSet<&'static str>,
@@ -65,20 +65,30 @@ impl Native {
     pub fn route_for(&self, method: &Method, path: &str) -> Option<&'static str> {
         let name = match (method, path) {
             (&Method::GET, "/api/photos/channels") => "photos_channels",
+            (&Method::GET, "/api/performers") => "performers_list",
             _ => return None,
         };
         self.enabled.get(name).copied()
     }
 
-    pub async fn handle(&self, route: &str, headers: &HeaderMap, peer: SocketAddr) -> Response<Body> {
+    /// `None` means "not for me, ask Python": the route is on, but this particular request is one the Rust version does not
+    /// handle (a search, an unusual parameter, a case where Python writes to the database), so it is forwarded as if the route were off.
+    pub async fn handle(&self, route: &str, query: Option<&str>, headers: &HeaderMap, peer: SocketAddr) -> Option<Response<Body>> {
         let session = match self.auth.require(headers).await {
             Ok(s) => s,
-            Err(resp) => return resp,
+            Err(resp) => return Some(resp),
         };
-        self.keep_session_alive(headers, peer, &session.username);
         match route {
-            "photos_channels" => self.photos_channels(headers).await,
-            _ => json_error(StatusCode::NOT_FOUND, "Not Found"),
+            "photos_channels" => {
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(self.photos_channels(headers).await)
+            }
+            "performers_list" => {
+                let resp = self.performers_list(query, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            _ => Some(json_error(StatusCode::NOT_FOUND, "Not Found")),
         }
     }
 
@@ -177,4 +187,82 @@ fn photos_channels_rows(conn: &Connection) -> ax_db::rusqlite::Result<Vec<Map<St
         out.push(item);
     }
     Ok(out)
+}
+
+/// The query string as Starlette's `query_params` sees it, or `None` when a name is repeated (the Rust side then declines the request).
+fn query_params(query: Option<&str>) -> Option<HashMap<String, String>> {
+    let mut out = HashMap::new();
+    for pair in query.unwrap_or("").split('&').filter(|p| !p.is_empty()) {
+        let (k, v) = pair.split_once('=').unwrap_or((pair, ""));
+        let dec = |s: &str| percent_encoding::percent_decode_str(&s.replace('+', " ")).decode_utf8().map(|c| c.into_owned()).ok();
+        if out.insert(dec(k)?, dec(v)?).is_some() {
+            return None;
+        }
+    }
+    Some(out)
+}
+
+const PERFORMER_COLUMNS: &str = "SELECT p.*, COUNT(DISTINCT combined.video_id) video_count, \
+    EXISTS(SELECT 1 FROM performer_image_cache pic WHERE pic.performer_id=p.id \
+    AND pic.data IS NOT NULL AND length(pic.data)>0) AS has_cached_image FROM performers p \
+    LEFT JOIN (SELECT performer_id, video_id FROM video_performers \
+    WHERE video_id IN (SELECT id FROM archive_x_library_media) \
+    UNION SELECT performer_id, video_id FROM local_video_performers \
+    WHERE video_id IN (SELECT id FROM archive_x_library_media)) combined \
+    ON combined.performer_id=p.id ";
+
+impl Native {
+    /// GET /api/performers (performer_catalogue.list_performers_sync), the plain catalogue: no search text, a limit that is a plain
+    /// number. Anything else, an empty catalogue (Python then fills it in), or an empty answer is left to Python.
+    async fn performers_list(&self, query: Option<&str>, request: &HeaderMap) -> Option<Response<Body>> {
+        let params = query_params(query)?;
+        if !params.get("q").map(|q| q.trim().is_empty()).unwrap_or(true) {
+            return None; // searching: FTS and LIKE fallbacks stay in Python for now
+        }
+        let limit = match params.get("limit") {
+            None => 5000,
+            Some(l) if !l.is_empty() && l.len() <= 6 && l.bytes().all(|b| b.is_ascii_digit()) => l.parse::<i64>().ok()?.clamp(1, 5000),
+            Some(l) if l.bytes().all(|b| b.is_ascii_alphabetic()) && !l.is_empty() => 5000, // Python: int() fails, so the default
+            Some(_) => return None, // signs, spaces, underscores, other digits: let Python's int() decide
+        };
+        let brief = params.get("brief").map(|b| b == "1").unwrap_or(false);
+        let rows = self
+            .db
+            .read(move |c| {
+                let total: i64 = c.query_row("SELECT COUNT(*) FROM performers", [], |r| r.get(0))?;
+                if total == 0 {
+                    return Ok(None);
+                }
+                let sql = format!("{PERFORMER_COLUMNS}GROUP BY p.id HAVING video_count > 0 OR p.name='Unknown Performer' ORDER BY (p.name='Unknown Performer') DESC, video_count DESC,p.name LIMIT {limit}");
+                let rows = rows_as_maps(c, &sql)?;
+                Ok(if rows.is_empty() { None } else { Some(rows) })
+            })
+            .await;
+        let rows = match rows {
+            Ok(Some(rows)) => rows,
+            Ok(None) => return None,
+            Err(e) => {
+                tracing::error!("performers: {e}");
+                return Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The performer catalogue could not be read"));
+            }
+        };
+        let out: Vec<Map<String, Value>> = rows
+            .into_iter()
+            .map(|mut p| {
+                let gender = p.get("gender").and_then(Value::as_str).unwrap_or("").trim().to_lowercase();
+                let normal = if gender.contains("trans") { "trans".to_string() } else if gender == "male" || gender == "female" { gender } else { String::new() };
+                p.insert("gender".to_string(), Value::String(normal));
+                if brief {
+                    let mut b = Map::new();
+                    for key in ["id", "name", "video_count", "image", "gender", "favorite", "has_cached_image"] {
+                        b.insert(key.to_string(), p.get(key).cloned().unwrap_or(Value::Null));
+                    }
+                    b
+                } else {
+                    p
+                }
+            })
+            .collect();
+        Some(json_response(request, serde_json::to_vec(&out).unwrap_or_default()))
+    }
 }

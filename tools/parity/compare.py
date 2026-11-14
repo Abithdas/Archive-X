@@ -157,9 +157,10 @@ def main():
     ap.add_argument("--password", default="")
     ap.add_argument("--routes", help="file with extra GET paths, one per line")
     ap.add_argument("--discover", action="store_true", help="also request routes with path parameters, filled with ids found on server A")
+    ap.add_argument("--timing", action="store_true", help="print how long each server took per route (mean of 5 requests), slowest first")
     ap.add_argument("--queries", action="store_true", help="also request the list-route query variants in tools/parity/queries.txt")
     ap.add_argument("--ignore", default="", help="extra JSON keys to ignore, comma separated")
-    ap.add_argument("--skip", default="/api/exit,/openapi.json,/api/diagnostics/metrics,/api/diagnostics/metrics/export,/api/diagnostics/report,/api/diagnostics/summary", help="paths not to request")
+    ap.add_argument("--skip", default="/api/exit,/openapi.json,/api/diagnostics/metrics,/api/diagnostics/metrics/export,/api/diagnostics/report,/api/diagnostics/summary,/api/log/download", help="paths not to request")
     args = ap.parse_args()
     ignore = DEFAULT_IGNORE | {k for k in args.ignore.split(",") if k}
     skip = set(args.skip.split(","))
@@ -182,11 +183,20 @@ def main():
     bad = same = 0
     statuses = {}
     served = {}
+    timings = []
     for p in paths:
         try:
             sa, ha, da = a.request("GET", p)
             sb, hb, db_ = b.request("GET", p)
             statuses[sa] = statuses.get(sa, 0) + 1
+            if args.timing and sa == 200:
+                import time as _t
+                def _mean(client):
+                    t0 = _t.perf_counter()
+                    for _ in range(5):
+                        client.request("GET", p)
+                    return (_t.perf_counter() - t0) / 5 * 1000
+                timings.append((_mean(a), _mean(b), p))
             who = dict((k.lower(), v) for k, v in hb).get("x-served-by", "-")
             served[who] = served.get(who, 0) + 1
         except Exception as e:
@@ -214,6 +224,10 @@ def main():
         else:
             same += 1
     print(f"\nanswers by status (server A): {dict(sorted(statuses.items()))}")
+    if timings:
+        print("\nslowest routes on server A (ms, mean of 5):          A       B")
+        for ta, tb, path in sorted(timings, reverse=True)[:18]:
+            print(f"  {path[:62]:62s} {ta:7.1f} {tb:7.1f}")
     print(f"answered by (server B, X-Served-By): {dict(sorted(served.items()))}")
     print(f"{same} identical, {bad} different, {len(paths)} routes checked")
     sys.exit(1 if bad else 0)
