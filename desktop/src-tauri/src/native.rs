@@ -3,10 +3,11 @@
 //! The web page drives it with the commands below. Only the app's own page may call them: capabilities/native-player.json allows exactly
 //! these commands for the loopback address and nothing else (no files, no shell, no other windows).
 //!
-//! Layout: the video is a child window of the app window, IN FRONT of the web view by default (the page keeps its controls above and below
-//! the video area, so nothing is lost). The experimental alternative puts it BEHIND the web view, whose background is then made transparent
-//! so the page can draw over the picture; Windows often does not show a video window behind a web view ("airspace"). The page can switch
-//! between the two while a video plays (commands "front" and "back"); `ARCHIVE_X_NATIVE_VIDEO_BEHIND=1` makes behind the starting layer.
+//! Layout: by default the video is its own borderless window owned by the app window: it sits exactly over the page's stage area, follows the
+//! app when it moves, resizes, minimises or hides, and the page keeps its controls above and below it. On a real PC this is the one layer
+//! that shows the picture; the alternatives are a child window in front of the web view or behind it (the web view is then made transparent
+//! so the page could draw over the picture), and Windows often hides those ("airspace"). The page can switch layer while a video plays
+//! (commands "front", "back" and "popup"); `ARCHIVE_X_NATIVE_VIDEO_FRONT=1` or `ARCHIVE_X_NATIVE_VIDEO_BEHIND=1` change the starting layer.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -62,15 +63,17 @@ fn hw_from(code: Option<i32>) -> HwAccel {
     }
 }
 
-/// In front of the page unless ARCHIVE_X_NATIVE_VIDEO_BEHIND=1 (behind) or ARCHIVE_X_NATIVE_VIDEO_POPUP=1 (own window above).
+/// The video's own window above the app, unless ARCHIVE_X_NATIVE_VIDEO_FRONT=1 (a child window in front of the page) or
+/// ARCHIVE_X_NATIVE_VIDEO_BEHIND=1 (behind it). The own window is the default because it is the one layer that shows the picture on a
+/// real PC: the web view paints over, or hides, a child window placed in the same window.
 fn start_layer() -> VideoLayer {
     let on = |name: &str| std::env::var(name).map(|v| v == "1").unwrap_or(false);
-    if on("ARCHIVE_X_NATIVE_VIDEO_POPUP") {
-        VideoLayer::Popup
-    } else if on("ARCHIVE_X_NATIVE_VIDEO_BEHIND") {
+    if on("ARCHIVE_X_NATIVE_VIDEO_BEHIND") {
         VideoLayer::Behind
-    } else {
+    } else if on("ARCHIVE_X_NATIVE_VIDEO_FRONT") {
         VideoLayer::Front
+    } else {
+        VideoLayer::Popup
     }
 }
 

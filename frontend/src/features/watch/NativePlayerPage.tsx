@@ -29,7 +29,7 @@ export function NativePlayerPage({ cid, mid }: { cid: string; mid: number }) {
   const [muted, setMuted] = useState(false)
   const [rate, setRate] = useState(1)
   const [seeking, setSeeking] = useState<number | null>(null)
-  const [layer, setLayer] = useState<VideoLayer>('front')   // the video window: in front of the page (default), behind it, or its own window above
+  const [layer, setLayer] = useState<VideoLayer>('popup')   // the video window: its own window above the app (default; the one that shows the picture), in front of the page, or behind it
   const [report, setReport] = useState('')
   const [copied, setCopied] = useState(false)
   const sentReport = useRef(false)

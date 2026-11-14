@@ -159,3 +159,10 @@ run Phase 0 and the Phase 1 spike for both and pick the one that passes arrangem
 1. Phase 0 on the PC (no code): confirm LAV alone plays the stream address and the three problem videos with hardware decoding.
 2. Phase 1 spike build: video window inside the app, and the answer to A or B.
 3. Decide: continue with LAV + EVR, or switch the engine to libmpv, based on the spike.
+
+
+## Result from the second real-PC test (30.2.2)
+
+- The video **plays in its own window** (the "own window" layer: a borderless window owned by the app, placed over the stage). The picture shows. So the decoding and rendering chain works end to end on a real PC; what failed earlier was only where the window sat. A child window in front of or behind the web view is hidden or painted over by it (the "airspace" problem).
+- The own window is now the default layer.
+- What it cannot do: the page cannot draw over the picture, so captions, the seek preview and markers cannot be web elements on top of it. They need to be drawn by the player itself (an overlay window or the renderer's own text), which is the next step (phase 5).
