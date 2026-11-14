@@ -45,7 +45,10 @@ export function NamePicker({ onPick, onCancel }: { onPick: (p: { id: number; nam
   const none = text.trim().length >= 2 && !searching && !local.length && !remote.length
   return (
     <div className="grid w-full gap-1">
-      <input autoFocus type="search" value={text} onChange={(e) => type(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onCancel()} placeholder="Type a performer name…" aria-label="Performer name" className="h-9 w-full rounded-lg border border-line-2 bg-bg px-3 text-sm outline-none focus:border-accent/60" />
+      <div className="flex items-center gap-1.5">
+        <input autoFocus type="search" value={text} onChange={(e) => type(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onCancel()} placeholder="Type a performer name…" aria-label="Performer name" className="h-9 min-w-0 flex-1 rounded-lg border border-line-2 bg-bg px-3 text-sm outline-none focus:border-accent/60" />
+        <button type="button" onClick={onCancel} aria-label="Cancel naming" title="Cancel (Esc)" className="grid size-9 shrink-0 place-items-center rounded-lg border border-line-2 text-sm font-semibold hover:bg-fg/10">✕</button>
+      </div>
       {local.length || remote.length || searching || none ? (
         <div role="listbox" aria-label="Performers" className="grid max-h-60 overflow-y-auto rounded-lg border border-line bg-surface p-1 text-left">
           {local.length ? <div className="px-2 pb-0.5 pt-1 text-[10.5px] font-bold uppercase tracking-wider text-faint">In your library</div> : null}

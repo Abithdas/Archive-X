@@ -77,6 +77,22 @@ describe('People inside Photos', () => {
     fireEvent.click(await screen.findByRole('option', { name: /Zoe Ray/ }))
     await waitFor(() => expect(calls.find((c) => c.method === 'POST' && c.url.endsWith('/assign'))).toMatchObject({ url: '/api/photos/faces/groups/3/assign', body: { performer_id: 7 } }))
   })
+  it('the name search can be cancelled, and opening it on another card closes the first one', async () => {
+    mount()
+    const guess = (await screen.findByRole('region', { name: 'Is this the right person?' })).querySelector('article') as HTMLElement
+    const toName = (await screen.findByRole('region', { name: 'Faces to name' })).querySelector('article') as HTMLElement
+    fireEvent.click(within(guess).getByRole('button', { name: 'Someone else' }))
+    fireEvent.change(within(guess).getByRole('searchbox', { name: 'Performer name' }), { target: { value: 'zoe' } })
+    expect(within(guess).queryByRole('button', { name: 'Yes, this is Mia Rivera' })).toBeNull()
+    fireEvent.click(within(toName).getByRole('button', { name: 'Name' }))
+    expect(screen.getAllByRole('searchbox', { name: 'Performer name' })).toHaveLength(1)
+    expect(within(guess).getByRole('button', { name: 'Yes, this is Mia Rivera' })).toBeInTheDocument()
+    fireEvent.click(within(toName).getByRole('button', { name: 'Cancel naming' }))
+    expect(screen.queryByRole('searchbox', { name: 'Performer name' })).toBeNull()
+    expect(within(toName).getByRole('button', { name: 'Name' })).toBeInTheDocument()
+    fireEvent.click(within(guess).getByRole('button', { name: 'Someone else' }))
+    expect((within(guess).getByRole('searchbox', { name: 'Performer name' }) as HTMLInputElement).value).toBe('')
+  })
   it('clicking a person opens their photos in the gallery', async () => {
     mount()
     fireEvent.click(await screen.findByRole('button', { name: 'Show photos of Ava Stone' }))

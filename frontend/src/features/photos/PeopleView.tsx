@@ -32,9 +32,8 @@ function Circle({ g, size = 'size-24' }: { g: FaceGroup; size?: string }) {
   )
 }
 
-function Card({ g, busy, onOpen, onCheck, onYes, onNo, onName }: { g: FaceGroup; busy: boolean; onOpen: () => void; onCheck: () => void; onYes: (s: Suggestion) => void; onNo: (s: Suggestion) => void; onName: (p: { id: number; name: string }) => void }) {
+function Card({ g, busy, naming, setNaming, onOpen, onCheck, onYes, onNo, onName }: { g: FaceGroup; busy: boolean; naming: boolean; setNaming: (on: boolean) => void; onOpen: () => void; onCheck: () => void; onYes: (s: Suggestion) => void; onNo: (s: Suggestion) => void; onName: (p: { id: number; name: string }) => void }) {
   const guess = bestGuess(g)
-  const [naming, setNaming] = useState(false)
   const named = Boolean(g.performer_id)
   return (
     <article aria-label={groupLabel(g)} className={cn('grid shrink-0 content-start justify-items-center gap-2 rounded-2xl border border-line bg-surface p-3 text-center transition-[width] duration-200', naming ? 'w-[280px]' : 'w-[190px]')}>
@@ -87,6 +86,7 @@ export function PeopleView() {
   const [ask, setAsk] = useState(false)
   const [showRare, setShowRare] = useState(false)
   const [checking, setChecking] = useState<FaceGroup | null>(null)
+  const [namingId, setNamingId] = useState<number | null>(null)   // only one card has its name search open at a time
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
@@ -124,7 +124,7 @@ export function PeopleView() {
     } catch (e) { toast.error(why(e, 'Could not start finding people.')) } finally { if (alive.current) setFinding(null) }
   }
 
-  const grid = (list: FaceGroup[]) => <div className="flex flex-wrap gap-3">{list.map((g) => <Card key={g.id} g={g} busy={busy} onOpen={() => open(g)} onCheck={() => setChecking(g)} onYes={(s) => yes(g, s)} onNo={(s) => void no(g, s)} onName={(p) => name(g, p)} />)}</div>
+  const grid = (list: FaceGroup[]) => <div className="flex flex-wrap gap-3">{list.map((g) => <Card key={g.id} g={g} busy={busy} naming={namingId === g.id} setNaming={(on) => setNamingId(on ? g.id : null)} onOpen={() => open(g)} onCheck={() => setChecking(g)} onYes={(s) => yes(g, s)} onNo={(s) => void no(g, s)} onName={(p) => name(g, p)} />)}</div>
   const C = analyzeCopy(0)
   return (
     <section aria-label="People" className="grid gap-6">
