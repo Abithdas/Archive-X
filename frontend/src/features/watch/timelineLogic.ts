@@ -72,3 +72,13 @@ export function keyStep(key: string, t: number, duration: number): number | null
     default: return null
   }
 }
+
+/** Where the pointer is along the bar, in the bar's own (layout) pixels, for placing the preview with a CSS `left`.
+ *  The screen position (clientX - left) is in screen pixels; inside a zoomed page (html zoom on wide windows, the interface zoom setting) a CSS
+ *  length is scaled again by that zoom, so the preview would sit further from the pointer the further along the bar it is. The zoom is the bar's
+ *  on-screen width over its layout width; with no layout width (a test, a hidden bar) there is nothing to correct. */
+export function layoutX(clientX: number, left: number, screenWidth: number, layoutWidth: number): number {
+  const zoom = layoutWidth > 0 && screenWidth > 0 ? screenWidth / layoutWidth : 1
+  const width = screenWidth / zoom
+  return Math.max(0, Math.min(width, (clientX - left) / zoom))
+}

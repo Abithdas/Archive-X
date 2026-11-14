@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bucketSecond, choosePreview, frameIndexFor, keyStep, normaliseChapters, segmentAt, timeAt, toSegments } from './timelineLogic'
+import { layoutX, bucketSecond, choosePreview, frameIndexFor, keyStep, normaliseChapters, segmentAt, timeAt, toSegments } from './timelineLogic'
 
 describe('normaliseChapters', () => {
   it('sorts, drops duplicates and positions outside the video, and fills missing titles', () => {
@@ -71,5 +71,26 @@ describe('seek bubble: the picture and the time always agree', () => {
   it('uses the snapshots alone when there is no live preview', () => {
     expect(choosePreview(700, 1000, undefined, times, false)).toEqual({ kind: 'snapshot', time: 660, frame: 2 })
     expect(choosePreview(700, 1000, undefined, undefined, false)).toEqual({ kind: 'none', time: 700, frame: -1 })
+  })
+})
+
+describe('layoutX (where the preview sits along the bar)', () => {
+  it('is the plain distance when the page is not zoomed', () => {
+    expect(layoutX(300, 100, 800, 800)).toBe(200)
+  })
+  it('divides out a page zoom, so a CSS left puts the preview under the pointer at every distance', () => {
+    // zoom 1.15: the 800 px bar is 920 px on screen; 460 px along it on screen is 400 px in the bar's own pixels, which zoom turns back into 460
+    expect(layoutX(100 + 460, 100, 920, 800)).toBeCloseTo(400, 6)
+    expect(layoutX(100 + 92, 100, 920, 800) * 1.15).toBeCloseTo(92, 6)
+    expect(layoutX(100 + 920, 100, 920, 800) * 1.15).toBeCloseTo(920, 6)
+  })
+  it('works with both zooms stacked (the page zoom and the interface zoom setting)', () => {
+    const zoom = 1.15 * 1.25
+    expect(layoutX(50 + 700, 50, 1000 * zoom, 1000) * zoom).toBeCloseTo(700, 6)
+  })
+  it('stays on the bar and tolerates a bar with no layout width', () => {
+    expect(layoutX(-50, 100, 920, 800)).toBe(0)
+    expect(layoutX(5000, 100, 920, 800)).toBeCloseTo(800, 6)
+    expect(layoutX(300, 100, 800, 0)).toBe(200)
   })
 })

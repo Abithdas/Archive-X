@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/design/cn'
 import { formatDuration } from '@/features/library/format'
-import { bucketSecond, choosePreview, keyStep, segmentAt, timeAt, type LiveStatus, type Segment } from './timelineLogic'
+import { bucketSecond, choosePreview, keyStep, layoutX, segmentAt, timeAt, type LiveStatus, type Segment } from './timelineLogic'
 
 /** `url`/`times`: the 36 stored snapshots. `live`: a frame taken at exactly the requested second (made on demand by the server). */
 export interface PreviewInfo { url: (frame: number) => string; times: number[]; live?: (second: number) => string }
@@ -24,7 +24,7 @@ export function Timeline({ time, duration, buffered, segments, preview, onSeek }
 
   const read = (e: { clientX: number }) => {
     const r = track.current!.getBoundingClientRect()
-    return { t: timeAt(e.clientX, r.left, r.width, duration), x: Math.max(0, Math.min(r.width, e.clientX - r.left)), w: r.width }
+    return { t: timeAt(e.clientX, r.left, r.width, duration), x: layoutX(e.clientX, r.left, r.width, track.current!.offsetWidth), w: r.width }
   }
   const shown = drag ?? time
   const pct = (t: number) => (duration > 0 ? Math.min(100, (t / duration) * 100) : 0)
