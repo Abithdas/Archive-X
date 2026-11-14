@@ -7,7 +7,7 @@ export const FIELD = 'h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg 
 export const detail = (e: unknown, fallback: string) => (e instanceof ApiError ? e.detail || fallback : fallback)
 
 /** Channel picker box: columns instead of one thin column, and tall enough to use the free space beside and below it. auto-rows-min keeps rows as tall as their content while the box scrolls. */
-export const CHANNEL_LIST = 'grid max-h-[min(30rem,60vh)] auto-rows-min grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] content-start gap-0.5 overflow-auto rounded-xl border border-line bg-bg p-1'
+export const CHANNEL_LIST = 'grid max-h-[min(30rem,60vh)] auto-rows-min grid-cols-[repeat(auto-fill,minmax(11.5rem,1fr))] content-start gap-0.5 overflow-auto rounded-xl border border-line bg-bg p-1'
 
 export function Check({ checked, onChange, title, hint, disabled, icon }: { checked: boolean; onChange: (v: boolean) => void; title: string; hint?: string; disabled?: boolean; icon?: ReactNode }) {
   return (
