@@ -235,6 +235,7 @@
         initSegReceived = true;
         feedNextSegment();
         mp4box.start();
+        if (pendingSeek !== null) { const t = pendingSeek; pendingSeek = null; seekTo(t); }
       };
 
       mp4box.onSegment = function(id, user, buffer, sampleNum, isLast) {
@@ -258,14 +259,24 @@
         if (!destroyed) opts.onError?.('MP4Box parse error: ' + e);
       };
 
-      // Stream the raw bytes from the Telegram byte-range endpoint
-      fetchController = new AbortController();
-      fetch(streamUrl, { signal: fetchController.signal, credentials: 'include' })
+      fetchFrom(0);
+    }
+
+    /** Read the file from byte `offset` on (a range request; the first read starts at 0). Whatever was being read before is dropped. */
+    function fetchFrom(offset) {
+      try { fetchController?.abort(); } catch (_) {}
+      const controller = new AbortController();
+      fetchController = controller;
+      fileOffset = offset;
+      const init = { signal: controller.signal, credentials: 'include' };
+      if (offset > 0) init.headers = { Range: 'bytes=' + offset + '-' };
+      fetch(streamUrl, init)
         .then(response => {
           if (!response.ok) throw new Error('Stream HTTP ' + response.status);
+          if (offset > 0 && response.status !== 206) throw new Error('The server did not honour the range request');
           if (!response.body) throw new Error('No readable stream');
           const reader = response.body.getReader();
-          return pump(reader);
+          return pump(reader, controller);
         })
         .catch(e => {
           if (!destroyed && e.name !== 'AbortError') {
@@ -274,9 +285,35 @@
         });
     }
 
-    function pump(reader) {
+    /** Is the moment already buffered (with a little to play)? Then the browser can seek on its own. */
+    function isBuffered(time) {
+      try {
+        const b = sourceBuffer.buffered;
+        for (let i = 0; i < b.length; i++) if (time >= b.start(i) - 0.05 && time < b.end(i) - 0.5) return true;
+      } catch (_) {}
+      return false;
+    }
+
+    let pendingSeek = null;
+    /** Jump to a moment that is not buffered: ask the file where that moment starts (the keyframe before it) and read from there. */
+    function seekTo(time) {
+      if (destroyed) return;
+      if (!mp4box || !sourceBuffer || !initSegReceived) { pendingSeek = time; return; }
+      if (isBuffered(time)) return;
+      try {
+        mp4box.stop();
+        pendingSegments = [];
+        const where = mp4box.seek(time, true);
+        mp4box.start();
+        fetchFrom(Math.max(0, Number(where && where.offset) || 0));
+      } catch (e) {
+        opts.onError?.('Seek error: ' + (e && e.message));
+      }
+    }
+
+    function pump(reader, controller) {
       return reader.read().then(({ done, value }) => {
-        if (destroyed) { reader.cancel(); return; }
+        if (destroyed || controller !== fetchController) { try { reader.cancel(); } catch (_) {} return; }   // a newer read (after a seek) took over
         if (done) {
           if (mp4box) { mp4box.flush(); }
           return;
@@ -294,15 +331,8 @@
           reader.cancel();
           return;
         }
-        return pump(reader);
+        return pump(reader, controller);
       });
-    }
-
-    function seekTo(time) {
-      if (!mp4box || destroyed) return;
-      try {
-        mp4box.seek(time, true);
-      } catch (_) {}
     }
 
     function destroy() {

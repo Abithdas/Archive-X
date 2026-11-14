@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { SMART_FAILED, TRYING, initialMode, isDecodeFailure, loadSmartStream, shouldFallBack, type Mode, type PlayInfo, type SmartApi } from './smartstream'
+import { SMART_FAILED, TRYING, initialMode, isDecodeFailure, loadSmartStream, shouldFallBack, type Mode, type PlayInfo, type SmartApi, type SmartPipeline } from './smartstream'
 import { Icon } from '@/design/Icon'
 import { BufferIcon, ChevronIcon, FullscreenIcon, GearIcon, NextIcon, PauseIcon, PipIcon, PlayIcon, PrevIcon, VolumeIcon } from './PlayerIcons'
 import { Divider, MenuHead, MenuItem, MenuRow, PopMenu, VolumeBar } from './PlayerParts'
@@ -42,6 +42,7 @@ export function releasePlayback(channelId: string, messageId: number, reason = '
 export function Player({ media, info, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative }: { media?: MediaRef; info?: PlayInfo | null; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void; onOpenNative?: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
+  const smartPipeline = useRef<SmartPipeline | null>(null)   // while the smart (in-browser remux) path owns the video
   const pendingStart = useRef<number | null>(null)
   const [started, setStarted] = useState(false)
   // Leaving the video (Back, another page, another video, closing the tab) tells the server to stop that video's downloads and clear its
@@ -208,7 +209,8 @@ export function Player({ media, info, infoPending = false, src, poster, duration
       onError: (msg) => { console.warn('[SmartStream] error:', msg); if (toHls(video.current?.currentTime ?? 0)) return; setFailText(SMART_FAILED); setFailed(true); setLoading(false) },
     })
     if (!pipeline) { triedSmart.current = true; setMode('direct'); return }
-    return () => { try { pipeline.destroy() } catch { /* already gone */ } }
+    smartPipeline.current = pipeline
+    return () => { smartPipeline.current = null; try { pipeline.destroy() } catch { /* already gone */ } }
   }, [committed, mode, smart, info, src, attempt]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -259,6 +261,8 @@ export function Player({ media, info, infoPending = false, src, poster, duration
           onPlay={(e) => { routeThroughApp(e.currentTarget); resumeAudio(); setPlaying(true); setStarted(true); onPlayed?.() }}
           onPause={() => setPlaying(false)}
           onWaiting={() => setLoading(true)}
+          // The in-browser remux path reads the file from the start; a jump to a moment it has not read yet makes it read from there instead.
+          onSeeking={(e) => { if (smartPipeline.current?.type === 'mse-mp4box') smartPipeline.current.seekTo?.(e.currentTarget.currentTime) }}
           onPlaying={() => { resumeAudio(); setLoading(false) }}
           onCanPlay={() => setLoading(false)}
           onLoadedMetadata={(e) => {

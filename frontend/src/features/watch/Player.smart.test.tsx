@@ -40,6 +40,23 @@ describe('Player smart playback', () => {
     expect(video(container).hasAttribute('src')).toBe(false)
     unmount(); expect(destroy).toHaveBeenCalled()
   })
+  it('a jump in the video makes the in-browser remux read from there (and leaves other kinds alone)', async () => {
+    const seekTo = vi.fn()
+    const { api, start } = mkSmart({ start: vi.fn(() => ({ destroy: vi.fn(), seekTo, type: 'mse-mp4box' })) as never }); loader.load.mockResolvedValue(api)
+    const { container } = render(<Player info={NEEDS} src="/stream/-1/1" onOpenVlc={() => {}} />)
+    await waitFor(() => expect(api.start).toHaveBeenCalled())
+    const v = video(container); v.currentTime = 700; fireEvent.seeking(v)
+    expect(seekTo).toHaveBeenCalledWith(700)
+    void start
+  })
+  it('does not call seekTo for the kinds of remux that seek on their own', async () => {
+    const seekTo = vi.fn()
+    const { api } = mkSmart({ start: vi.fn(() => ({ destroy: vi.fn(), seekTo, type: 'mse-mpegts' })) as never }); loader.load.mockResolvedValue(api)
+    const { container } = render(<Player info={NEEDS} src="/stream/-1/1" onOpenVlc={() => {}} />)
+    await waitFor(() => expect(api.start).toHaveBeenCalled())
+    fireEvent.seeking(video(container))
+    expect(seekTo).not.toHaveBeenCalled()
+  })
   it('converts on the PC (HLS) when the engine reports an error, and says so if that fails too', async () => {
     const { api, start } = mkSmart(); loader.load.mockResolvedValue(api)
     render(<Player info={NEEDS} src="/stream/-1/1" onOpenVlc={() => {}} />)

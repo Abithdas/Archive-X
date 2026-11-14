@@ -1,7 +1,7 @@
 /** Client-side smart playback (MSE) for files the browser cannot play directly. The engine itself is the classic UI's smart-stream.js; this file loads it and holds the decisions around it. */
 
 export interface PlayInfo { direct_likely?: boolean; name?: string; format?: string; mime?: string; vcodec?: string; acodec?: string }
-export interface SmartPipeline { destroy: () => void; seekTo?: (t: number) => void }
+export interface SmartPipeline { destroy: () => void; seekTo?: (t: number) => void; type?: string }
 export interface SmartOptions { onError?: (message: string) => void; onProgress?: (loaded: number, total: number) => void; onComplete?: () => void; startTime?: number }
 export interface SmartApi {
   canPlay: (info: PlayInfo) => boolean
