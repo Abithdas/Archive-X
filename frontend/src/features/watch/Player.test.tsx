@@ -116,6 +116,19 @@ describe('Player', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry original' }))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
+  it('offers the native player first when the browser cannot play the file (desktop app)', () => {
+    const native = vi.fn()
+    const { container } = render(<Player src="/stream/-1/1" durationHint={120} onOpenVlc={() => {}} onOpenNative={native} />)
+    fireEvent.error(container.querySelector('video')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Play with the native player' }))
+    expect(native).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Retry original' })).toBeInTheDocument()
+  })
+  it('does not mention the native player where there is none (browser)', () => {
+    const { container } = render(<Player src="/stream/-1/1" durationHint={120} onOpenVlc={() => {}} />)
+    fireEvent.error(container.querySelector('video')!)
+    expect(screen.queryByRole('button', { name: 'Play with the native player' })).toBeNull()
+  })
   it('disables previous and next when there is nothing to go to', () => {
     render(<Player src="/stream/-1/1" onOpenVlc={() => {}} />)
     expect(screen.getByRole('button', { name: 'Previous video' })).toBeDisabled()

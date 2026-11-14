@@ -39,7 +39,7 @@ export function releasePlayback(channelId: string, messageId: number, reason = '
   } catch { /* nothing to do */ }
 }
 
-export function Player({ media, info, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc }: { media?: MediaRef; info?: PlayInfo | null; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
+export function Player({ media, info, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative }: { media?: MediaRef; info?: PlayInfo | null; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void; onOpenNative?: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
   const pendingStart = useRef<number | null>(null)
@@ -313,9 +313,10 @@ export function Player({ media, info, infoPending = false, src, poster, duration
             <p className="max-w-lg text-sm font-bold leading-snug sm:text-lg">
               {failText ? failText : <><span className="sm:hidden">This video could not be played here.</span><span className="hidden sm:inline">This video could not be played from the original stream (the browser cannot decode this file, or Telegram is not connected).</span></>}
             </p>
-            <p className="hidden max-w-lg text-xs text-zinc-400 sm:block">You can retry the original stream or open it in VLC.</p>
+            <p className="hidden max-w-lg text-xs text-zinc-400 sm:block">{onOpenNative ? 'The browser cannot decode every file (some HEVC, 10-bit and MKV videos). The native player can.' : 'You can retry the original stream or open it in VLC.'}</p>
             <div className="flex flex-wrap justify-center gap-2">
-              <button type="button" onClick={() => setAttempt(attempt + 1)} className="h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg sm:h-10 sm:px-4">Retry original</button>
+              {onOpenNative ? <button type="button" onClick={onOpenNative} className="h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg sm:h-10 sm:px-4">Play with the native player</button> : null}
+              <button type="button" onClick={() => setAttempt(attempt + 1)} className={onOpenNative ? 'h-9 rounded-xl border border-white/20 bg-white/10 px-3 text-sm font-bold sm:h-10 sm:px-4' : 'h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg sm:h-10 sm:px-4'}>Retry original</button>
               <button type="button" onClick={onOpenVlc} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 text-sm font-bold sm:h-10 sm:px-4"><Icon name="brand-vlc" />Open in VLC</button>
             </div>
           </div>
