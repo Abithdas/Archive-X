@@ -21,6 +21,8 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
+from .video_lists import name_lists_sql
+
 
 def register_settings_routes(
     router: APIRouter,
@@ -648,24 +650,16 @@ def register_settings_routes(
                 if ids:
                     placeholders = ",".join("?" for _ in ids)
                     rows = _rdb.execute(
-                        f"SELECT m.*, c.title AS channel_title, GROUP_CONCAT(DISTINCT p.name) performers, GROUP_CONCAT(DISTINCT lp.name) local_performers, GROUP_CONCAT(DISTINCT s.name) studios, GROUP_CONCAT(DISTINCT t.name) tags"
+                        f"SELECT m.*, c.title AS channel_title, " + name_lists_sql() +
                         f" FROM archive_x_library_media m LEFT JOIN channels c ON c.telegram_id=m.source_channel"
-                        f" LEFT JOIN video_performers vp ON vp.video_id=m.id LEFT JOIN performers p ON p.id=vp.performer_id"
-                        f" LEFT JOIN local_video_performers lvp ON lvp.video_id=m.id LEFT JOIN performers lp ON lp.id=lvp.performer_id"
-                        f" LEFT JOIN video_studios vs ON vs.video_id=m.id LEFT JOIN studios s ON s.id=vs.studio_id"
-                        f" LEFT JOIN video_tags vt ON vt.video_id=m.id LEFT JOIN tags t ON t.id=vt.tag_id"
                         f" WHERE m.id IN ({placeholders}) GROUP BY m.id ORDER BY {order}",
                         ids).fetchall()
                 else:
                     rows = []
             else:
                 rows = _rdb.execute(
-                    f"SELECT m.*, c.title AS channel_title, GROUP_CONCAT(DISTINCT p.name) performers, GROUP_CONCAT(DISTINCT lp.name) local_performers, GROUP_CONCAT(DISTINCT s.name) studios, GROUP_CONCAT(DISTINCT t.name) tags"
+                    f"SELECT m.*, c.title AS channel_title, " + name_lists_sql() +
                     f" FROM archive_x_library_media m LEFT JOIN channels c ON c.telegram_id=m.source_channel"
-                    f" LEFT JOIN video_performers vp ON vp.video_id=m.id LEFT JOIN performers p ON p.id=vp.performer_id"
-                    f" LEFT JOIN local_video_performers lvp ON lvp.video_id=m.id LEFT JOIN performers lp ON lp.id=lvp.performer_id"
-                    f" LEFT JOIN video_studios vs ON vs.video_id=m.id LEFT JOIN studios s ON s.id=vs.studio_id"
-                    f" LEFT JOIN video_tags vt ON vt.video_id=m.id LEFT JOIN tags t ON t.id=vt.tag_id"
                     f" WHERE {w} GROUP BY m.id ORDER BY {order} LIMIT ? OFFSET ?",
                     params + [per, page*per]).fetchall()
 

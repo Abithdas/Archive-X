@@ -71,3 +71,7 @@ afterwards, which multiplies rows (136,965 rows for 18 videos, 125 ms). They now
 correlated sub-query per list. `tools/tests/test_video_lists_sql.py` proves the lists and their order are identical on random data.
 Old code against new code on the big fixture: 197 of 209 routes identical, and the 12 that differ are paths, launch ids and log
 lines of the two data folders. The channel video list went from about 190 ms to about 10 ms.
+
+`GET /api/library` (the main video list) got the same change in its second query, the one that adds the names to a page of at most
+48 videos. Old code against new code on the seeded fixture: 19 query variants (every sort, search, favourites, paging, with and
+without a channel list), all answers identical; total time 1,402 ms to 299 ms.
