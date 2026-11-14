@@ -5,7 +5,7 @@ python-socks[asyncio]>=2.5,<3
 aiohttp>=3.9,<4
 # Pillow 13 fixes 42 advisories (image decoders read untrusted images from Telegram); 12.x is not fixed. See docs/security/SCA-REPORT.md
 Pillow>=13,<14
-qrcode[pil]>=7.4,<9
+qrcode[pil]>=8.2,<9
 av==14.2.0
 # cryptography 50 fixes the certificate-chain, PKCS7 and bundled-OpenSSL advisories of 46.x; it needs pyopenssl>=26.4 (HTTP/3), which pip picks
 cryptography>=50,<51
