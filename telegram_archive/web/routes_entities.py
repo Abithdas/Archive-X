@@ -57,6 +57,22 @@ def register_entity_routes(
             db.log(f"Studio provider search failed for {q!r}: {type(exc).__name__}: {exc}", "WARN")
             return []
 
+    @router.get("/api/performer-gender/missing")
+    async def performers_missing_gender(request: Request):
+        """How many performers have no gender (they are hidden from the Female, Male and Trans lists)."""
+        require_auth(request)
+        from ..metadata.gender_repair import missing_gender_count
+        return {"ok": True, "count": await asyncio.to_thread(missing_gender_count, db)}
+
+    @router.post("/api/performer-gender/restore")
+    async def performers_restore_gender(request: Request):
+        """Fill in blank genders from the provider details stored with each performer's videos."""
+        require_auth(request)
+        from ..metadata.gender_repair import restore_missing_genders
+        result = await asyncio.to_thread(restore_missing_genders, db)
+        db.log(f"Restored missing performer genders: {result['restored']} of {result['checked']}")
+        return {"ok": True, **result}
+
     @router.get("/api/performers/{performer_id}/image-candidates")
     async def performer_image_candidates(performer_id: int, request: Request):
         """Return alternative provider artwork without changing the performer."""
