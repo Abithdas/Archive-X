@@ -35,6 +35,7 @@ def test_tags_are_stored_replaced_and_counted(tmp_path):
 def test_real_detector_runs_and_finds_no_exposed_regions_in_an_ordinary_portrait():
     from nudenet import NudeDetector
     from PIL import Image
+    pytest.importorskip("skimage")   # a test-only package; the check is skipped where it is not installed
     from skimage import data
     p = Path(tempfile.mkdtemp()) / "a.jpg"
     Image.fromarray(data.astronaut()).save(p)
