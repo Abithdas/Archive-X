@@ -2,10 +2,16 @@
 # Fetch LAV Filters (the decoding parts MPC-HC uses).
 #   fetch-lav.sh            the official x64 binaries -> desktop/src-tauri/resources/lav/  (bundled by Tauri)
 #   fetch-lav.sh --headers  the LAV source's include folder -> desktop/axplayer/third_party/lavfilters (to build axplayer against)
-# LAV_TAG picks the release (default below). LAV_SHA256, when set, must match the downloaded zip, so a changed upstream file cannot slip in;
-# without it the checksum is only printed (copy it into the workflow to pin it). Needs the gh command (GH_TOKEN) for the download.
+# LAV_TAG picks the release (default below, with its checksum). The downloaded zip must match the checksum, so a changed upstream file cannot slip in.
+# Needs the gh command (GH_TOKEN) for the download.
 set -euo pipefail
-TAG="${LAV_TAG:-0.83}"
+# The release this app is built and tested with, and the SHA-256 of its x64 zip (the same in every CI run). To move to another release, set LAV_TAG and
+# LAV_SHA256 together (the first run without a checksum prints it); an unlisted download is refused when a checksum is known.
+DEFAULT_TAG="0.83"
+DEFAULT_SHA256="0126982f47157bb86a6dbb43c4f332f7f98beba9ad552c19b65f9db2e7d4f186"
+DEFAULT_COMMIT="fefb6987994ed56e4525e8a125f5fbb53707bc52"   # the commit tag 0.83 points to (a tag can be moved, a commit cannot)
+TAG="${LAV_TAG:-$DEFAULT_TAG}"
+if [ -z "${LAV_SHA256:-}" ] && [ "$TAG" = "$DEFAULT_TAG" ]; then LAV_SHA256="$DEFAULT_SHA256"; fi
 REPO="Nevcairiel/LAVFilters"
 here="$(cd "$(dirname "$0")" && pwd)"
 
@@ -13,6 +19,10 @@ if [ "${1:-}" = "--headers" ]; then
   dest="$here/../axplayer/third_party/lavfilters"
   rm -rf "$dest"
   git clone --quiet --depth 1 --branch "$TAG" "https://github.com/$REPO" "$dest"
+  if [ "$TAG" = "$DEFAULT_TAG" ] && [ "$(git -C "$dest" rev-parse HEAD)" != "$DEFAULT_COMMIT" ]; then
+    echo "LAV tag $TAG no longer points at $DEFAULT_COMMIT: refusing to build against changed headers" >&2
+    exit 1
+  fi
   echo "LAV headers $TAG: $(ls "$dest/include" | wc -l) files in $dest/include"
   exit 0
 fi
