@@ -12,8 +12,13 @@ use archive_x_launcher_core::{backend_exe_in, tools_dir_in, Backend, FrontDoorOp
 use tauri::{Manager, RunEvent, Url};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
+mod lifecycle;
 mod native;
 mod updates;
+
+use lifecycle::{ExitDecision, Lifecycle, SecondLaunch, RELAUNCH_ENV};
+
+static LIFECYCLE: Lifecycle = Lifecycle::new();
 
 struct BackendState(Mutex<Option<Backend>>);
 
@@ -114,14 +119,35 @@ fn stop_backend(app: &tauri::AppHandle) {
     }
 }
 
+/// Start a fresh copy of the app (the old one is about to exit; see lifecycle.rs).
+fn start_new_copy() {
+    let Ok(exe) = std::env::current_exe() else { return };
+    let mut cmd = std::process::Command::new(exe);
+    cmd.env(RELAUNCH_ENV, "1").stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0008); // no console window, detached from this process
+    }
+    let _ = cmd.spawn();
+}
+
 pub fn run() {
+    // A copy started to replace one that was closing: wait for the old one to let go of the single-instance lock.
+    if std::env::var(RELAUNCH_ENV).is_ok() {
+        std::thread::sleep(Duration::from_millis(1500));
+    }
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.unminimize();
-                let _ = w.show();
-                let _ = w.set_focus();
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| match LIFECYCLE.second_launch() {
+            SecondLaunch::ShowWindow => {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.unminimize();
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
             }
+            // The app is closing: nothing to show; a new copy starts as soon as it has finished.
+            SecondLaunch::RelaunchAfterShutdown => {}
         }))
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
@@ -147,9 +173,29 @@ pub fn run() {
         .expect("error while building the Archive X desktop app");
 
     app.run(|handle, event| {
-        if let RunEvent::ExitRequested { .. } = event {
-            native::shutdown(handle);
-            stop_backend(handle);
+        if let RunEvent::ExitRequested { api, .. } = event {
+            match LIFECYCLE.exit_requested() {
+                ExitDecision::Exit => {}
+                ExitDecision::Wait => api.prevent_exit(),
+                ExitDecision::BeginShutdown => {
+                    // The window goes at once; stopping the backend takes as long as it takes, on its own thread, so the app can still
+                    // hear a second launch meanwhile.
+                    api.prevent_exit();
+                    for window in handle.webview_windows().values() {
+                        let _ = window.hide();
+                    }
+                    let handle = handle.clone();
+                    std::thread::spawn(move || {
+                        native::shutdown(&handle);
+                        stop_backend(&handle);
+                        let relaunch = LIFECYCLE.shutdown_finished();
+                        if relaunch {
+                            start_new_copy();
+                        }
+                        handle.exit(0);
+                    });
+                }
+            }
         }
     });
 }

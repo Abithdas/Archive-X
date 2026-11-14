@@ -511,12 +511,12 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
         # Teardown is best-effort per component so one failed service cannot
         # skip job recovery markers or leave the database connection open.
         try:
-            await page_enricher.stop()
+            await asyncio.wait_for(page_enricher.stop(), timeout=5)
         except Exception as exc:
             db.log(f"Page enricher shutdown error: {type(exc).__name__}: {exc}", "WARN")
         try:
             # Interrupted work is persisted; Upload Local resumes only after explicit operator choice.
-            await jobs.stop()
+            await asyncio.wait_for(jobs.stop(), timeout=10)   # a slow job must not hold the window shut: its checkpoint is what the next start resumes from
         except Exception as exc:
             db.log(f"Job manager shutdown error: {type(exc).__name__}: {exc}", "ERROR", event="shutdown.jobs_failed")
             try:
@@ -527,7 +527,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
         _eng = app_state.get("engine")
         if _eng is not None:
             try:
-                await _eng.stop()
+                await asyncio.wait_for(_eng.stop(), timeout=6)
             except Exception as exc:
                 db.log(f"Playback engine shutdown error: {type(exc).__name__}: {exc}", "WARN")
             app_state["engine"] = None
@@ -538,7 +538,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
             except Exception as exc:
                 db.log(f"Local AI shutdown error: {type(exc).__name__}: {exc}", "WARN", event="ai.runtime.shutdown")
         try:
-            await telegram.disconnect()
+            await asyncio.wait_for(telegram.disconnect(), timeout=5)   # a dead connection can take far longer than this to give up
         except Exception as exc:
             db.log(f"Telegram shutdown error: {type(exc).__name__}: {exc}", "WARN")
         from .core.http_client import close_async_sessions
