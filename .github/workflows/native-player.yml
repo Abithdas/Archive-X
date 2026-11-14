@@ -1,0 +1,68 @@
+name: Native player engine (Windows)
+
+# Builds desktop/axplayer (the native video engine: LAV Filters + Windows renderers) and plays generated test videos through it with no
+# window and no sound device. Proves the graph builds, decodes (software here: the runner has no graphics card), pauses, seeks and ends.
+# What it cannot prove: hardware decoding, the video window, sound. Those are tried on a real PC (docs/desktop/NATIVE-PLAYER-PLAN.md).
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ["desktop/axplayer/**", "desktop/scripts/fetch-lav.sh", ".github/workflows/native-player.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  engine:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: "${{ github.token }}"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      - name: Fetch LAV Filters (binaries and headers)
+        shell: bash
+        run: |
+          bash desktop/scripts/fetch-lav.sh
+          bash desktop/scripts/fetch-lav.sh --headers
+
+      - name: Build axplayer
+        run: |
+          cmake -S desktop/axplayer -B build-axplayer -A x64
+          cmake --build build-axplayer --config Release
+
+      - name: Fetch ffmpeg (to make test videos)
+        shell: bash
+        env: { FFMPEG_FROM_BTBN: "1" }
+        run: bash desktop/scripts/fetch-ffmpeg.sh
+
+      - name: Make test videos
+        shell: bash
+        run: |
+          mkdir -p clips
+          ff=desktop/src-tauri/resources/ffmpeg/ffmpeg.exe
+          src="-f lavfi -i testsrc=duration=8:size=640x360:rate=25 -f lavfi -i sine=frequency=440:duration=8"
+          # the ordinary case
+          $ff -v error -y $src -c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart clips/h264_aac.mp4
+          # what a browser cannot play: 10-bit HEVC with AC3 audio in Matroska
+          $ff -v error -y $src -c:v libx265 -pix_fmt yuv420p10le -x265-params log-level=error -c:a ac3 clips/hevc10_ac3.mkv
+          # an old one: MPEG-4 part 2 with MP3 audio in AVI
+          $ff -v error -y $src -c:v mpeg4 -c:a libmp3lame clips/mpeg4_mp3.avi
+          ls -la clips
+
+      - name: Play the test videos through the engine
+        shell: bash
+        run: |
+          lav="$(cd desktop/src-tauri/resources/lav && pwd -W)"
+          exe="build-axplayer/Release/axplayer_test.exe"
+          python desktop/axplayer/test/range_server.py clips 8777 2> server.log &
+          sleep 2
+          status=0
+          for clip in h264_aac.mp4 hevc10_ac3.mkv mpeg4_mp3.avi; do
+            echo "=== $clip"
+            "$exe" "$lav" "http://127.0.0.1:8777/$clip" --duration 8 --width 640 --height 360 || status=1
+          done
+          echo "--- requests the test server saw:"; sort server.log | uniq -c | sort -rn | head -n 12
+          exit $status

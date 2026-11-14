@@ -23,3 +23,8 @@ desktop/src-tauri/resources/rust/*
 !desktop/src-tauri/resources/rust/.gitkeep
 desktop/src-tauri/resources/web/*
 !desktop/src-tauri/resources/web/.gitkeep
+
+# fetched by desktop/scripts/fetch-lav.sh
+desktop/src-tauri/resources/lav/*
+!desktop/src-tauri/resources/lav/.gitkeep
+desktop/axplayer/third_party/
