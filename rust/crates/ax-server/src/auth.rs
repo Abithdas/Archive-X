@@ -33,6 +33,8 @@ impl Auth {
     }
 
     /// The signed-in session behind these request headers, or the 401 to send back.
+    // The Err value is the finished 401/503 answer, sent straight back to the client, so boxing it would only add noise.
+    #[allow(clippy::result_large_err)]
     pub async fn require(&self, headers: &HeaderMap) -> Result<Session, Response<Body>> {
         // HTTP/2 may carry the cookies in several headers; they are one list.
         let cookie = headers.get_all(COOKIE).iter().filter_map(|v| v.to_str().ok()).collect::<Vec<_>>().join("; ");
