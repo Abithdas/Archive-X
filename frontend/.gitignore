@@ -1,0 +1,6 @@
+
+# tsc -b emits JS next to the sources if run without --noEmit; never commit it
+src/**/*.js
+vite.config.js
+*.tsbuildinfo
+!src/features/watch/vendor/*.js
