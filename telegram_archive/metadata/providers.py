@@ -1856,13 +1856,16 @@ async def search_performer_providers(db, name: str, limit: int = 8) -> list[dict
     if len(target) < 2:
         return []
     limit = max(1, min(10, int(limit or 8)))
+    # Ask each provider for more than will be shown, then rank here: a provider's own order puts famous namesakes first, which can bury the
+    # person being typed ("stacy" returning eight other Stacys before Stacy Cruz).
+    fetch = max(limit * 3, 20)
 
     async def stash_candidates():
         """Search StashDB for performer candidates."""
         api_key = db.setting("stashdb_api_key")
         if not api_key:
             return []
-        key = f"entity-search:performer:{_norm_entity_name(target)}:{limit}"
+        key = f"entity-search:performer:{_norm_entity_name(target)}:{fetch}"
         cached, hit = _cache_get(db, "stashdb", key, max_age=30 * 86400)
         if hit:
             rows = cached or []
@@ -1870,10 +1873,11 @@ async def search_performer_providers(db, name: str, limit: int = 8) -> list[dict
             await _throttle("stashdb")
             data = await asyncio.to_thread(
                 _stashdb_graphql, db, api_key, _STASHDB_PERFORMER_SEARCH_QUERY,
-                {"term": target, "limit": limit},
+                {"term": target, "limit": fetch},
             )
             rows = _stashdb_rows(data, "searchPerformers")
-            _cache_put(db, "stashdb", key, rows)
+            if rows:
+                _cache_put(db, "stashdb", key, rows)
         out = []
         wanted = _norm_entity_name(target)
         for idx, row in enumerate(rows):
@@ -1904,16 +1908,17 @@ async def search_performer_providers(db, name: str, limit: int = 8) -> list[dict
         token = db.setting("tpdb_api_token")
         if not token:
             return []
-        key = f"entity-search:performer:{_norm_entity_name(target)}:{limit}"
+        key = f"entity-search:performer:{_norm_entity_name(target)}:{fetch}"
         cached, hit = _cache_get(db, "tpdb", key, max_age=30 * 86400)
         if hit:
             rows = cached or []
         else:
             await _throttle("tpdb")
-            q = urllib.parse.urlencode({"q": target, "limit": limit})
+            q = urllib.parse.urlencode({"q": target, "limit": fetch})
             data = await asyncio.to_thread(_tpdb_get, db, token, f"performers?{q}")
             rows = _provider_entity_rows(data, ("data", "performers", "results"))
-            _cache_put(db, "tpdb", key, rows)
+            if rows:
+                _cache_put(db, "tpdb", key, rows)
         out = []
         wanted = _norm_entity_name(target)
         for idx, row in enumerate(rows):
@@ -1946,14 +1951,30 @@ async def search_performer_providers(db, name: str, limit: int = 8) -> list[dict
             continue
         merged.extend(item)
 
-    # Deduplicate exact same provider entity and prefer exact/alias matches.
+    # Best matches first: the exact name or alias, then names whose words start with what was typed, then names containing every typed word,
+    # then the provider's own order.
+    import re as _re
+
+    def spaced(value: object) -> str:
+        return _re.sub(r"[^a-z0-9]+", " ", str(value or "").casefold()).strip()
+
+    words = spaced(target).split()
+
+    def closeness(item: dict) -> int:
+        names = [spaced(item.get("name"))] + [spaced(a) for a in item.get("aliases") or []]
+        if item.get("exact") or item.get("alias_exact"):
+            return 0
+        if any(n.startswith(" ".join(words)) for n in names if n):
+            return 1
+        if any(words and all(any(tok.startswith(w) for tok in n.split()) for w in words) for n in names if n):
+            return 2
+        if any(words and all(w in n for w in words) for n in names if n):
+            return 3
+        return 4
+
     seen = set()
     unique = []
-    for item in sorted(
-        merged,
-        key=lambda x: (not x.get("exact"), not x.get("alias_exact"), x.get("rank", 999),
-                       0 if x.get("provider") == "stashdb" else 1),
-    ):
+    for item in sorted(merged, key=lambda x: (closeness(x), x.get("rank", 999), 0 if x.get("provider") == "stashdb" else 1)):
         key = (item.get("provider"), item.get("provider_id"))
         if not key[1] or key in seen:
             continue
