@@ -97,3 +97,12 @@ describe('AiPage', () => {
     expect(screen.getByText('Reachable')).toBeInTheDocument()
   })
 })
+
+describe('AiPage while it loads', () => {
+  it('says the conversation is loading instead of showing an empty page', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => (url === '/api/ai/history' ? new Promise<Response>(() => {}) : Promise.resolve(json({ ok: true })))))
+    withRouter(<AiPage />)
+    expect(await screen.findByText('Loading the conversation…')).toBeInTheDocument()
+    expect(screen.getByText('Checking local model…')).toBeInTheDocument()
+  })
+})

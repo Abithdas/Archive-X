@@ -49,6 +49,7 @@ class LocalAIRuntime:
         self.db = db
         self._process: subprocess.Popen | None = None
         self._started_at = 0.0
+        self._reach_cache = None
 
     @property
     def endpoint(self) -> str:
@@ -130,7 +131,8 @@ class LocalAIRuntime:
         if gpu_layers is not None:
             value = max(0, min(128, int(gpu_layers)))
             self.db.set_setting("ai_local_gpu_layers", value)
-        return self.status()
+        self._reach_cache = None
+        return self.status(fresh=True)
 
     def _request(self, method: str, path: str, payload: dict | None = None, timeout: float = 8.0) -> dict[str, Any]:
         url = self.endpoint + (path if path.startswith("/") else "/" + path)
@@ -160,22 +162,33 @@ class LocalAIRuntime:
         except json.JSONDecodeError as exc:
             raise LocalAIError(f"Local AI returned invalid JSON: {exc}") from exc
 
-    def _reachable(self) -> tuple[bool, dict[str, Any] | None, str | None]:
+    # Asking the model server "are you there?" when it is not running is slow on Windows (a refused connection to this PC can take a second or two
+    # to give up), and the AI page asks on every visit. A recent answer is reused for a few seconds, and a first look does not wait the full time;
+    # anything that starts, stops or configures the server asks afresh.
+    _REACH_TTL = 5.0
+    _reach_cache: tuple[float, tuple[bool, dict[str, Any] | None, str | None]] | None = None
+
+    def _reachable(self, fresh: bool = False) -> tuple[bool, dict[str, Any] | None, str | None]:
+        cached = self._reach_cache
+        if not fresh and cached and time.monotonic() - cached[0] < self._REACH_TTL:
+            return cached[1]
         try:
-            result = self._request("GET", "/models", timeout=2.5)
+            result = self._request("GET", "/models", timeout=2.5 if fresh else 1.0)
             model = None
             data = result.get("data") if isinstance(result, dict) else None
             if isinstance(data, list) and data:
                 model = data[0] if isinstance(data[0], dict) else None
-            return True, model, None
+            answer: tuple[bool, dict[str, Any] | None, str | None] = (True, model, None)
         except Exception as exc:
-            return False, None, str(exc)
+            answer = (False, None, str(exc))
+        self._reach_cache = (time.monotonic(), answer)
+        return answer
 
-    def status(self) -> dict[str, Any]:
+    def status(self, fresh: bool = False) -> dict[str, Any]:
         """Report runtime and model files, process state and reachability."""
         runtime = self.runtime_path
         model = self.model_path
-        reachable, loaded_model, error = self._reachable()
+        reachable, loaded_model, error = self._reachable(fresh=fresh)
         process_alive = bool(self._process and self._process.poll() is None)
         if self._process and not process_alive:
             self._process = None
@@ -218,7 +231,7 @@ class LocalAIRuntime:
         }
 
     def start(self) -> dict[str, Any]:
-        state = self.status()
+        state = self.status(fresh=True)
         if state["server"]["reachable"]:
             return state
         runtime = self.runtime_path
@@ -244,9 +257,9 @@ class LocalAIRuntime:
             if self._process.poll() is not None:
                 self._process = None
                 raise LocalAIError("llama-server exited during startup")
-            reachable, _, _ = self._reachable()
+            reachable, _, _ = self._reachable(fresh=True)
             if reachable:
-                return self.status()
+                return self.status(fresh=True)
             time.sleep(0.35)
         self.stop()
         raise LocalAIError("llama-server did not become ready within 30 seconds")
@@ -273,7 +286,8 @@ class LocalAIRuntime:
                     _swallowed_note("local_ai_runtime.LocalAIRuntime.stop")
                     pass
         self._started_at = 0.0
-        return self.status()
+        self._reach_cache = None
+        return self.status(fresh=True)
 
     def test(self) -> dict[str, Any]:
         started = time.monotonic()

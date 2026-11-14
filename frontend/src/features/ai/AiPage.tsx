@@ -95,7 +95,7 @@ export function AiPage() {
               <div className={CARD}>
                 <Head title="Archive X Assistant" blurb="Uses only local model inference and controlled Archive X read-only tools."><span className="rounded-full bg-good/15 px-2.5 py-1 text-[11px] font-bold text-good">LOCAL ONLY</span></Head>
                 <div ref={log} role="log" aria-label="Assistant conversation" className="mb-3 grid max-h-[50vh] min-h-40 content-start gap-2 overflow-y-auto">
-                  {!rows.length ? <Empty>{EMPTY_HISTORY}</Empty> : rows.map((m, i) => (
+                  {!rows.length ? <Empty>{history.isPending ? 'Loading the conversation…' : EMPTY_HISTORY}</Empty> : rows.map((m, i) => (
                     <div key={i} className={cn('rounded-xl p-3 text-left text-sm', m.role === 'user' ? 'ml-6 bg-accent/10' : 'mr-6 bg-surface-2')}>
                       <div className="mb-1 text-[11px] text-muted">{m.role === 'user' ? messageTime(m) : `Archive X Local AI${m.created_at ? ` · ${m.created_at}` : ''}`}</div>
                       <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{m.content}</div>
