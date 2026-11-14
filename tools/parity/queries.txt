@@ -26,6 +26,17 @@
 /api/photos/faces/groups
 /api/photos/faces/groups?suggestions=0&top=24
 /api/photos/faces/groups?channels={channels}&suggestions=0&top=24
+/api/photos/faces/groups?suggestions=0
+/api/photos/faces/groups?suggestions=0&top=5
+/api/photos/faces/groups?suggestions=0&top=0
+/api/photos/faces/groups?suggestions=0&top=abc
+/api/photos/faces/groups?suggestions=0&top=-1
+/api/photos/faces/groups?suggestions=0&top=1_0
+/api/photos/faces/groups?suggestions=0&channels={channels}
+/api/photos/faces/groups?suggestions=0&channels=-1001&top=2
+/api/photos/faces/groups?suggestions=0&channels=-9999
+/api/photos/faces/groups?suggestions=1&top=3
+/api/photos/faces/groups?top=3
 /api/photos/content-tags
 /api/performers?page=0&per=50
 /api/performers?page=0&per=50&q=a

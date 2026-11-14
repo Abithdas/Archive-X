@@ -21,7 +21,7 @@ use crate::optimize::json_response;
 use crate::proxy::{Body, Proxy};
 
 /// Every route that can be answered here, by name.
-pub const ROUTES: &[&str] = &["photos_channels", "performers_list"];
+pub const ROUTES: &[&str] = &["photos_channels", "performers_list", "face_groups_fast"];
 
 pub struct Native {
     enabled: HashSet<&'static str>,
@@ -66,6 +66,7 @@ impl Native {
         let name = match (method, path) {
             (&Method::GET, "/api/photos/channels") => "photos_channels",
             (&Method::GET, "/api/performers") => "performers_list",
+            (&Method::GET, "/api/photos/faces/groups") => "face_groups_fast",
             _ => return None,
         };
         self.enabled.get(name).copied()
@@ -85,6 +86,11 @@ impl Native {
             }
             "performers_list" => {
                 let resp = self.performers_list(query, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "face_groups_fast" => {
+                let resp = self.face_groups_fast(query, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }
@@ -264,5 +270,145 @@ impl Native {
             })
             .collect();
         Some(json_response(request, serde_json::to_vec(&out).unwrap_or_default()))
+    }
+}
+
+const FACE_SCOPES: &[(&str, &str)] = &[
+    ("named", "EXISTS (SELECT 1 FROM photo_face_detections fd JOIN photo_face_groups fg ON fg.id=fd.group_id WHERE fd.photo_id=p.id AND fg.performer_id IS NOT NULL)"),
+    ("unnamed", "(EXISTS (SELECT 1 FROM photo_face_detections fd WHERE fd.photo_id=p.id) AND NOT EXISTS (SELECT 1 FROM photo_face_detections fd JOIN photo_face_groups fg ON fg.id=fd.group_id WHERE fd.photo_id=p.id AND fg.performer_id IS NOT NULL))"),
+    ("no_face", "(EXISTS (SELECT 1 FROM photo_face_analysis a WHERE a.photo_id=p.id AND a.status='COMPLETE') AND NOT EXISTS (SELECT 1 FROM photo_face_detections fd WHERE fd.photo_id=p.id))"),
+    ("pending", "(NOT EXISTS (SELECT 1 FROM photo_face_analysis a WHERE a.photo_id=p.id AND a.status='COMPLETE'))"),
+];
+
+/// Python's `str.casefold()` for the letters that differ from lower-casing in everyday names (the full table is much longer).
+fn casefold(s: &str) -> String {
+    s.chars().flat_map(|c| c.to_lowercase()).collect::<String>().replace('\u{df}', "ss").replace('\u{3c2}', "\u{3c3}").replace('\u{17f}', "s")
+}
+
+fn ints(csv: &Value) -> Vec<Value> {
+    csv.as_str().unwrap_or("").split(',').filter(|v| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit())).filter_map(|v| v.parse::<i64>().ok()).map(Value::from).collect()
+}
+
+impl Native {
+    /// GET /api/photos/faces/groups?suggestions=0 (routes_library._face_groups_payload without the suggestion work): the people of the
+    /// Photos page. The full form (guessing who an unnamed group might be) stays in Python.
+    async fn face_groups_fast(&self, query: Option<&str>, request: &HeaderMap) -> Option<Response<Body>> {
+        let params = query_params(query)?;
+        if params.get("suggestions").map(String::as_str) != Some("0") {
+            return None;
+        }
+        let top = match params.get("top").map(String::as_str) {
+            None | Some("") => 0,
+            Some(t) if t.len() <= 6 && t.bytes().all(|b| b.is_ascii_digit()) => t.parse::<i64>().ok()?.min(500),
+            Some(t) if t.bytes().all(|b| b.is_ascii_alphabetic()) => 0, // Python's int() fails: no cut
+            Some(_) => return None,
+        } as usize;
+        let mut channels: Vec<String> = Vec::new();
+        for c in params.get("channels").map(String::as_str).unwrap_or("").split(',').map(str::trim).filter(|c| !c.is_empty()) {
+            if !channels.iter().any(|x| x == c) {
+                channels.push(c.to_string());
+            }
+        }
+        channels.truncate(250);
+        let result = self
+            .db
+            .read(move |c| {
+                let marks = vec!["?"; channels.len()].join(",");
+                let clause = if channels.is_empty() { String::new() } else { format!(" WHERE pi.channel_id IN ({marks})") };
+                let groups_sql = format!(
+                    "SELECT CASE WHEN g.performer_id IS NOT NULL THEN -g.performer_id ELSE g.id END AS id,
+                            CASE WHEN g.performer_id IS NOT NULL THEN COALESCE(pr.name,MIN(g.label)) ELSE MIN(g.label) END AS label,
+                            g.performer_id,COALESCE(pr.name,'') AS performer_name,
+                            GROUP_CONCAT(DISTINCT g.id) AS cluster_ids,
+                            MIN(d.id) AS representative_detection_id,
+                            COUNT(DISTINCT d.photo_id) AS photo_count,COUNT(d.id) AS face_count,
+                            GROUP_CONCAT(DISTINCT pi.channel_id) AS channel_ids,
+                            COALESCE(MAX(g.updated_at),'') AS updated_at,
+                            GROUP_CONCAT(DISTINCT d.id) AS detection_ids
+                     FROM photo_face_groups g
+                     JOIN photo_face_detections d ON d.group_id=g.id
+                     JOIN photo_library_items pi ON pi.id=d.photo_id
+                     LEFT JOIN performers pr ON pr.id=g.performer_id
+                     {clause}
+                     GROUP BY CASE WHEN g.performer_id IS NOT NULL THEN -g.performer_id ELSE g.id END,g.performer_id,pr.name
+                     ORDER BY CASE WHEN COALESCE(pr.name,'')<>'' THEN pr.name ELSE MIN(g.label) END COLLATE NOCASE,MIN(g.id)"
+                );
+                let mut stmt = c.prepare(&groups_sql)?;
+                let names: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
+                let rows = stmt
+                    .query_map(ax_db::rusqlite::params_from_iter(channels.iter()), |row| {
+                        let mut m = Map::new();
+                        for (i, name) in names.iter().enumerate() {
+                            m.insert(name.clone(), json_value(row.get_ref(i)?));
+                        }
+                        Ok(m)
+                    })?
+                    .collect::<ax_db::rusqlite::Result<Vec<_>>>()?;
+                let analysis_sql = format!(
+                    "SELECT COUNT(*) AS total,
+                            SUM(CASE WHEN a.status='COMPLETE' THEN 1 ELSE 0 END) AS analyzed,
+                            SUM(CASE WHEN a.status='FAILED' THEN 1 ELSE 0 END) AS failed
+                     FROM photo_library_items p LEFT JOIN photo_face_analysis a ON a.photo_id=p.id{}",
+                    if channels.is_empty() { String::new() } else { format!(" WHERE p.channel_id IN ({marks})") }
+                );
+                let (total, analyzed, failed): (i64, Option<i64>, Option<i64>) =
+                    c.query_row(&analysis_sql, ax_db::rusqlite::params_from_iter(channels.iter()), |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+                let mut scopes = Map::new();
+                for (name, cond) in FACE_SCOPES {
+                    let n: i64 = c.query_row(&format!("SELECT COUNT(*) AS n FROM photo_library_items p WHERE {cond}"), [], |r| r.get(0))?;
+                    scopes.insert(name.to_string(), Value::from(n));
+                }
+                Ok((rows, scopes, total, analyzed.unwrap_or(0), failed.unwrap_or(0)))
+            })
+            .await;
+        let (rows, scopes, total, analyzed, failed) = match result {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::error!("face groups: {e}");
+                return Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The face groups could not be read"));
+            }
+        };
+        let mut groups: Vec<Map<String, Value>> = rows
+            .into_iter()
+            .map(|mut item| {
+                let get_i = |item: &Map<String, Value>, k: &str| item.get(k).and_then(Value::as_i64).unwrap_or(0);
+                item.insert("photo_count".into(), Value::from(get_i(&item, "photo_count")));
+                item.insert("face_count".into(), Value::from(get_i(&item, "face_count")));
+                let cluster_ids = ints(item.get("cluster_ids").unwrap_or(&Value::Null));
+                item.insert("cluster_ids".into(), Value::Array(cluster_ids));
+                let rep = get_i(&item, "representative_detection_id");
+                item.insert("representative_url".into(), Value::from(format!("/api/photos/faces/crops/{rep}")));
+                let channel_ids: Vec<Value> = item.get("channel_ids").and_then(Value::as_str).unwrap_or("").split(',').filter(|v| !v.is_empty()).map(Value::from).collect();
+                item.insert("channel_ids".into(), Value::Array(channel_ids));
+                let detections = ints(item.get("detection_ids").unwrap_or(&Value::Null));
+                item.insert("detection_ids".into(), Value::Array(detections));
+                let performer = item.get("performer_id").and_then(Value::as_i64).unwrap_or(0);
+                item.insert("performer_image_url".into(), Value::from(if performer != 0 { format!("/api/performers/{performer}/image") } else { String::new() }));
+                for k in ["metadata_suggestions", "confirmed_assignment_suggestions", "profile_image_suggestions"] {
+                    item.insert(k.into(), Value::Array(vec![]));
+                }
+                item
+            })
+            .collect();
+        if top > 0 && groups.len() > top {
+            // the busiest people only, named ones first (the Photos page shows a row of them, not all)
+            groups.sort_by(|a, b| {
+                let key = |g: &Map<String, Value>| (g.get("performer_id").and_then(Value::as_i64).unwrap_or(0) == 0, -g.get("photo_count").and_then(Value::as_i64).unwrap_or(0), casefold(g.get("label").and_then(Value::as_str).unwrap_or("")));
+                key(a).cmp(&key(b))
+            });
+            groups.truncate(top);
+        }
+        let mut analysis = Map::new();
+        analysis.insert("total_photos".into(), Value::from(total));
+        analysis.insert("analyzed_photos".into(), Value::from(analyzed));
+        analysis.insert("failed_photos".into(), Value::from(failed));
+        let mut out = Map::new();
+        out.insert("ok".into(), Value::Bool(true));
+        out.insert("groups".into(), Value::Array(groups.into_iter().map(Value::Object).collect()));
+        out.insert("photo_scopes".into(), Value::Object(scopes));
+        out.insert("analysis".into(), Value::Object(analysis));
+        out.insert("cosine_threshold".into(), Value::from(0.42));
+        out.insert("grouping_mode".into(), Value::from("image_embedding_cluster"));
+        Some(json_response(request, serde_json::to_vec(&Value::Object(out)).unwrap_or_default()))
     }
 }

@@ -153,3 +153,12 @@ catalogue (Python fills it in from old data) and an empty answer (Python re-chec
 | `/api/channels/{id}/videos`, `/api/studios/{id}/videos`, `/api/tags/{id}/videos` | 140 to 195 ms |
 | `/api/performers`, `/api/library` (no channels) | 150 to 170 ms |
 | `/api/library?channels=...` | 70 to 80 ms |
+
+### Read settings matter more than the language (found by benchmarking)
+
+The first Rust version of the face-groups route was **8 times slower than Python under 4 parallel clients** (4.1 against 30 requests per second) because
+the Rust read connections used SQLite's defaults while Python's read connections (core/database.py) use a 32 MB page cache, a 256 MB memory map and
+in-memory temporary tables. A heavy query over a big library re-reads pages again and again with the small defaults. `ax-db` now sets the same three
+pragmas. After that the route is on par or slightly ahead (1.0 to 1.3 times), because the same SQLite queries dominate either way; the performer
+list keeps its large advantage under concurrency (15 to 32 times with 4 to 8 clients) because Python serialises those requests on its database lock.
+Lesson for every route that follows: measure single and concurrent requests on the big library before calling a port finished.

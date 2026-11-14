@@ -12,6 +12,7 @@ Status: a plan only. Nothing has been ported. Sizes are relative (S, M, L, XL); 
 | 3. Database and read-only routes | **Started:** `ax-db` (read-only pool), the session lookup, the cross-site guard and the 401 behaviour exist and are tested, but no route is answered by Rust yet. See the round-3 results below |
 | 3 (first route) | **Done for one route:** `GET /api/photos/channels` is answered by Rust when switched on (off by default); see "Round 4" below |
 | 3 (second route) | **Done:** `GET /api/performers`, with the pattern for routes that decline unusual requests; see "Round 5" |
+| 3 (third route) | **Done:** `GET /api/photos/faces/groups?suggestions=0` (the People row of the Photos page); see "Round 6" |
 | 4 to 9 | Not started |
 
 Phase 2 results (`rust/crates/ax-server`, 12 Rust tests, clippy clean; Python side `TrustedProxyMiddleware`, 2 tests):
@@ -23,6 +24,14 @@ Phase 2 results (`rust/crates/ax-server`, 12 Rust tests, clippy clean; Python si
 - The release binary is 4.1 MB.
 - Desktop launcher: `LaunchOptions.front_door` (opt-in); a real end-to-end test (`cargo test -p archive-x-launcher-core real_backend_with_front_door -- --ignored`) passes with the Python backend in desktop mode: health, app shell, the backend's 403 guard, the session hand-off and a graceful shutdown all work through the front door.
 - Known differences: Python counts a plain page load of `/login` against its login rate limit and the front door does not; Python advertises HTTP/3 (`alt-svc`) and the front door removes that header because it does not speak HTTP/3.
+
+### Round 6: the People row, and a performance trap found by measuring
+
+- **`GET /api/photos/faces/groups?suggestions=0[&top=N][&channels=...]`** is answered by Rust (`--native-routes face_groups_fast`); the full form that guesses who an unnamed group might be (`suggestions` missing or not `0`) stays in Python, as do odd `top` values.
+- **Byte-identical to Python** on the big library (602 groups) for 17 request forms (cut sizes, channel lists with repeats and blanks, an unknown channel, odd numbers); 5 new Rust tests (52 in all) with a hand-checkable dataset (two clusters of one performer shown as one person with the negative performer id, scope counts that ignore the channel filter, SUM of nothing being 0).
+- **The real Photos page** on the big library loads both its channel list and its people row from Rust (`200 rust` for both), no errors.
+- **The trap:** the first measurement showed Rust **slower** than Python (0.8 times with one client and 0.1 times with 4 to 8). Cause: Rust's read connections used SQLite's default 2 MB cache; Python's use a 32 MB cache and a 256 MB memory map. With the same three pragmas in `ax-db`: 1.2 times (1 client), 1.0 (4), 1.3 (8). This route is dominated by four COUNT queries over 40,000 photos that SQLite runs identically for both, so there is little to win except not blocking Python. Performer list re-measured with the pragmas: still 15 to 32 times with 4 to 8 clients.
+- A possible later optimisation (not done, it changes behaviour): cache those four counts until the database changes (`PRAGMA data_version`).
 
 ### Round 5: measuring on a big library, and the second route
 

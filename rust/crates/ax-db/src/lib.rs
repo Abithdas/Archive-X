@@ -57,6 +57,12 @@ fn connect(path: &Path) -> Result<Connection, DbError> {
     conn.busy_timeout(BUSY_TIMEOUT)?;
     // Belt and braces: even a bug in a query can never write through this connection.
     conn.pragma_update(None, "query_only", "ON")?;
+    // The same read settings as the Python side (core/database.py): a 32 MB page cache, 256 MB of memory-mapped file and temporary
+    // tables in memory. With SQLite's small defaults a heavy query over a big library re-reads pages again and again, and was several
+    // times slower than Python's under load.
+    conn.pragma_update(None, "temp_store", "MEMORY")?;
+    conn.pragma_update(None, "cache_size", -32768)?;
+    conn.pragma_update(None, "mmap_size", 268_435_456_i64)?;
     Ok(conn)
 }
 
@@ -109,4 +115,7 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
     ("local_video_performers", &["performer_id", "video_id"]),
     ("performer_image_cache", &["performer_id", "data"]),
     ("media", &["id"]),
+    ("photo_face_groups", &["id", "label", "performer_id", "updated_at"]),
+    ("photo_face_detections", &["id", "group_id", "photo_id"]),
+    ("photo_face_analysis", &["photo_id", "status"]),
 ];
