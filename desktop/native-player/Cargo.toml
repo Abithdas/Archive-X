@@ -1,0 +1,8 @@
+[package]
+name = "archive-x-native-player"
+version = "0.1.0"
+edition = "2021"
+description = "Rust wrapper for axplayer.dll, the native video engine (LAV Filters + Windows renderers). Loads the DLL at run time; compiles everywhere, plays on Windows only."
+
+[dependencies]
+libloading = "0.8"

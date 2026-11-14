@@ -37,7 +37,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: desktop }
-      - run: cargo test -p archive-x-launcher-core
+      - run: cargo test -p archive-x-launcher-core -p archive-x-native-player
         working-directory: desktop
 
   front-door:

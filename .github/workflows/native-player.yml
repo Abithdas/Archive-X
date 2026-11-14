@@ -68,3 +68,17 @@ jobs:
           done
           echo "--- requests the test server saw:"; sort server.log | uniq -c | sort -rn | head -n 12
           exit $status
+
+      - name: Rust wrapper against the engine (desktop/native-player)
+        shell: bash
+        run: |
+          export AXPLAYER_DLL="$(pwd -W)/build-axplayer/Release/axplayer.dll"
+          export AXPLAYER_LAV="$(cd desktop/src-tauri/resources/lav && pwd -W)"
+          python desktop/axplayer/test/range_server.py clips 8778 2> server2.log &
+          sleep 2
+          status=0
+          for clip in h264_aac.mp4 hevc10_ac3.mkv mpeg4_mp3.avi; do
+            echo "=== $clip"
+            AXPLAYER_URL="http://127.0.0.1:8778/$clip" cargo test --manifest-path desktop/Cargo.toml -p archive-x-native-player -- --ignored --test-threads=1 || status=1
+          done
+          exit $status

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["launcher-core", "src-tauri"]
+members = ["launcher-core", "native-player", "src-tauri"]
 
 [profile.release]
 opt-level = 3
