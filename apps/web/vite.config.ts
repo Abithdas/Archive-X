@@ -25,5 +25,8 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     css: false,
     globals: true,
+    // About one full run in three, one of the timing-dependent tests on the Transfers page fails when the machine is busy (a different one each
+    // time, never on its own). CI retries a failed test twice so that does not hide a real regression behind a re-run of the whole job.
+    retry: process.env.CI ? 2 : 0,
   },
 })
