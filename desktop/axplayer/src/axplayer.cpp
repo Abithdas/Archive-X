@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "axplayer.h"
+#include "LAVSplitterSettings.h"   // ILAVFSettings
 #include "LAVVideoSettings.h"   // from the LAV Filters source (the build fetches it); interface ILAVVideoSettings / ILAVVideoStatus
 
 // LAV Splitter Source opens a web address itself; its header (IURLSourceFilterLAV.h) is one method, declared here to keep the build small.
@@ -425,6 +426,14 @@ struct AxPlayer {
             }
         }
 
+        // LAV Splitter: our own settings too (nothing read from the registry), and a shorter look at the start of a network stream before it
+        // is shown (its default is a full second; the container's own header already says which streams there are).
+        Com<ILAVFSettings> splitter_settings;
+        if (SUCCEEDED(splitter->QueryInterface(IID_ILAVFSettings, splitter_settings.put_void()))) {
+            splitter_settings->SetRuntimeConfig(TRUE);
+            splitter_settings->SetNetworkStreamAnalysisDuration(400);
+        }
+
         // Open the address (LAV Splitter does the web request itself).
         Com<IAxUrlSource> src;
         if (SUCCEEDED(splitter->QueryInterface(kIidUrlSource, src.put_void()))) {
@@ -532,7 +541,7 @@ struct AxPlayer {
         }
         follow_parent();
         if (GetTickCount64() >= next_sample) {
-            next_sample = GetTickCount64() + 1000;
+            next_sample = GetTickCount64() + 3000;
             sample_renderer();
         }
         int visible = 0, ww = 0, wh = 0;
@@ -556,7 +565,7 @@ struct AxPlayer {
         state.screen_luma_range = screen_luma_range;
     }
 
-    // Once a second: what the renderer says it drew, and what is actually on screen where the video window is.
+    // Every few seconds: what the renderer says it drew, and what is actually on screen where the video window is.
     void sample_renderer() {
         frames_drawn = frames_dropped = -1;
         if (video_out) {
@@ -574,21 +583,39 @@ struct AxPlayer {
         GetWindowRect(window, &rc);
         int w = rc.right - rc.left, h = rc.bottom - rc.top;
         if (w < 32 || h < 32) return;
+        // One shrink-copy of the screen area into a 16 x 9 bitmap. (144 separate GetPixel calls on the composed desktop took long enough to make
+        // playback and seeking stutter, because this runs on the thread that also handles every player command.)
         HDC dc = GetDC(nullptr);
         if (!dc) return;
         std::set<unsigned> colours;
         int lo = 255, hi = 0;
-        for (int gy = 1; gy <= 9; ++gy) {
-            for (int gx = 1; gx <= 16; ++gx) {
-                COLORREF c = GetPixel(dc, rc.left + w * gx / 17, rc.top + h * gy / 10);
-                if (c == CLR_INVALID) continue;
-                int r = GetRValue(c), g = GetGValue(c), b = GetBValue(c);
-                int luma = (r * 30 + g * 59 + b * 11) / 100;
-                lo = std::min(lo, luma);
-                hi = std::max(hi, luma);
-                colours.insert(((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4));
+        HDC mem = CreateCompatibleDC(dc);
+        BITMAPINFO bi{};
+        bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bi.bmiHeader.biWidth = 16;
+        bi.bmiHeader.biHeight = -9;
+        bi.bmiHeader.biPlanes = 1;
+        bi.bmiHeader.biBitCount = 32;
+        bi.bmiHeader.biCompression = BI_RGB;
+        void *bits = nullptr;
+        HBITMAP bmp = mem ? CreateDIBSection(dc, &bi, DIB_RGB_COLORS, &bits, nullptr, 0) : nullptr;
+        if (bmp && bits) {
+            HGDIOBJ old = SelectObject(mem, bmp);
+            SetStretchBltMode(mem, COLORONCOLOR);
+            if (StretchBlt(mem, 0, 0, 16, 9, dc, rc.left, rc.top, w, h, SRCCOPY)) {
+                const unsigned char *px = static_cast<const unsigned char *>(bits);
+                for (int i = 0; i < 16 * 9; ++i) {
+                    int b = px[i * 4], g = px[i * 4 + 1], r = px[i * 4 + 2];
+                    int luma = (r * 30 + g * 59 + b * 11) / 100;
+                    lo = std::min(lo, luma);
+                    hi = std::max(hi, luma);
+                    colours.insert(((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4));
+                }
             }
+            SelectObject(mem, old);
         }
+        if (bmp) DeleteObject(bmp);
+        if (mem) DeleteDC(mem);
         ReleaseDC(nullptr, dc);
         screen_distinct = static_cast<int>(colours.size());
         screen_luma_range = hi >= lo ? hi - lo : 0;

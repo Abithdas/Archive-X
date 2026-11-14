@@ -29,6 +29,8 @@ export function NativePlayerPage({ cid, mid }: { cid: string; mid: number }) {
   const [muted, setMuted] = useState(false)
   const [rate, setRate] = useState(1)
   const [seeking, setSeeking] = useState<number | null>(null)
+  // After a jump the engine takes a moment (it has to fetch the new place); until the position arrives, show the target and say so.
+  const [jump, setJump] = useState<{ to: number; at: number } | null>(null)
   const [layer, setLayer] = useState<VideoLayer>('popup')   // the video window: its own window above the app (default; the one that shows the picture), in front of the page, or behind it
   const [report, setReport] = useState('')
   const [copied, setCopied] = useState(false)
@@ -94,10 +96,15 @@ export function NativePlayerPage({ cid, mid }: { cid: string; mid: number }) {
     return () => clearInterval(t)
   }, [phase])
 
+  useEffect(() => {
+    if (!jump || !snap) return
+    if (Math.abs(snap.position - jump.to) <= 2.5 || Date.now() - jump.at > 15_000) setJump(null)
+  }, [snap, jump])
+
   const send = (command: Parameters<typeof native.command>[0], value?: number) => { void native.command(command, value).catch((e: unknown) => setMessage(e instanceof Error ? e.message : '')) }
   const playing = snap?.playing ?? false
   const duration = snap?.duration || opened?.duration || 0
-  const position = seeking ?? snap?.position ?? 0
+  const position = seeking ?? jump?.to ?? snap?.position ?? 0
   // The picture goes at once; closing the player itself follows when the page is left (it can take a moment).
   const back = () => { void native.command('hide').catch(() => undefined); router.history.back() }
   const NEXT: Record<VideoLayer, VideoLayer> = { front: 'popup', popup: 'behind', behind: 'front' }
@@ -131,7 +138,7 @@ export function NativePlayerPage({ cid, mid }: { cid: string; mid: number }) {
         <button type="button" className={BTN} onClick={back}>← Back</button>
         <span className="font-semibold">Native player</span>
         <span className="text-muted" role="status">
-          {phase === 'checking' ? 'Checking…' : phase === 'opening' ? 'Opening the video…' : phase === 'unavailable' ? message : phase === 'failed' ? `Could not play: ${message}` : snap?.buffering ? 'Buffering…' : ''}
+          {phase === 'checking' ? 'Checking…' : phase === 'opening' ? 'Opening the video…' : phase === 'unavailable' ? message : phase === 'failed' ? `Could not play: ${message}` : snap?.buffering ? 'Buffering…' : jump ? 'Jumping…' : ''}
         </span>
       </div>
 
@@ -163,8 +170,8 @@ export function NativePlayerPage({ cid, mid }: { cid: string; mid: number }) {
         <input
           type="range" aria-label="Seek" className="min-w-40 flex-1" min={0} max={Math.max(1, Math.floor(duration))} step={1} value={Math.floor(position)} disabled={phase !== 'ready' || !duration}
           onChange={(e) => setSeeking(Number(e.target.value))}
-          onPointerUp={() => { if (seeking !== null) { send('seek', seeking); setSeeking(null) } }}
-          onKeyUp={() => { if (seeking !== null) { send('seek', seeking); setSeeking(null) } }}
+          onPointerUp={() => { if (seeking !== null) { send('seek', seeking); setJump({ to: seeking, at: Date.now() }); setSeeking(null) } }}
+          onKeyUp={() => { if (seeking !== null) { send('seek', seeking); setJump({ to: seeking, at: Date.now() }); setSeeking(null) } }}
         />
         <label className="flex items-center gap-2">Volume
           <input type="range" aria-label="Volume" min={0} max={100} value={volume} disabled={phase !== 'ready'} onChange={(e) => { const v = Number(e.target.value); setVolume(v); send('volume', v) }} />

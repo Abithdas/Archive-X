@@ -99,6 +99,20 @@ describe('NativePlayerPage', () => {
     expect(sent('native_command').find((c) => c.args?.command === 'seek')?.args).toMatchObject({ command: 'seek', value: 60 })
   })
 
+  it('shows the place that was jumped to, and says so, until the player gets there', async () => {
+    mount()
+    await ready()
+    const bar = screen.getByRole('slider', { name: 'Seek' })
+    fireEvent.change(bar, { target: { value: '90' } })
+    fireEvent.pointerUp(bar)
+    expect(screen.getByText(/1:30 \/ 2:00/)).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('Jumping…')
+    state = { ...state, position: 91 }
+    await act(async () => { await new Promise((r) => setTimeout(r, 400)) })
+    await waitFor(() => expect(screen.queryByText('Jumping…')).toBeNull())
+    expect(screen.getByText(/1:31 \/ 2:00/)).toBeInTheDocument()
+  })
+
   it('follows the player: a paused video offers Play', async () => {
     mount()
     await ready()
