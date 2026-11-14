@@ -91,7 +91,7 @@ These cannot be seen by the tools above. They are the real residual risk.
   unmodified; changes to those files would have to be shared.
 - **Not in the dependency metadata, but shipped:** LAV Filters (GPL-2.0-or-later), the BtbN ffmpeg build (GPL), FFmpeg inside the `av` and
   OpenCV wheels (LGPL). Fine for personal use. Before making the repository or installers public, the installer needs the licence texts and a
-  source offer for these (see `docs/desktop/NATIVE-PLAYER-PLAN.md`, section 5).
+  source offer for these (see `docs/native-player.md`, section 5).
 - **`UNLICENSED`** appears once: the project itself (`archive-x-frontend`, private). Choose a licence for the project before publishing it.
 
 ## How to repeat it

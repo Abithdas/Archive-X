@@ -2,7 +2,7 @@
 
     python tools/parity/compare.py --a https://127.0.0.1:8443 --b https://127.0.0.1:9443 --user admin --password ...
 
-By default it tests every GET route of docs/desktop/api/openapi.json that has no path parameter. Extra routes
+By default it tests every GET route of docs/api/openapi.json that has no path parameter. Extra routes
 (one per line, e.g. /api/library?page=0&per=3) can be added with --routes FILE. Status codes and JSON bodies must
 match; keys named in --ignore (volatile values such as timestamps) are removed before comparing.
 Exit code 0 only when nothing differs.
@@ -140,12 +140,12 @@ def expand(path, seeds):
 
 
 def routes_with_params():
-    spec = json.loads((ROOT / "docs/desktop/api/openapi.json").read_text())
+    spec = json.loads((ROOT / "docs/api/openapi.json").read_text())
     return [p for p, ops in spec["paths"].items() if "get" in ops and "{" in p]
 
 
 def routes_from_openapi():
-    spec = json.loads((ROOT / "docs/desktop/api/openapi.json").read_text())
+    spec = json.loads((ROOT / "docs/api/openapi.json").read_text())
     return [p for p, ops in spec["paths"].items() if "get" in ops and "{" not in p]
 
 

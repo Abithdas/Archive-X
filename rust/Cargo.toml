@@ -1,4 +1,4 @@
-# The Rust side of the backend migration (docs/desktop/RUST-MIGRATION-PLAN.md).
+# The Rust side of the backend migration (docs/rust-migration-history.md).
 # Kept apart from the desktop workspace so the Tauri build is unaffected until this is ready to ship.
 [workspace]
 resolver = "2"

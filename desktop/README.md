@@ -1,7 +1,7 @@
 # Archive X desktop app
 
 A native desktop window (Tauri 2) around a frozen copy of the Archive X Python backend. No Python, no `.bat`, no
-browser tab. See `docs/desktop/Archive-X-MIGRATION-PLAN.md` section 9 for the full plan.
+browser tab. See `docs/archive/Archive-X-MIGRATION-PLAN.md` section 9 for the full plan.
 
 ```
 desktop/

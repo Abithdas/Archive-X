@@ -2,14 +2,14 @@
 
 Status: a plan only. Nothing has been ported. Sizes are relative (S, M, L, XL); I have not estimated calendar time because it depends on who does the work.
 
-> **The current working plan is `REWRITE-AND-CLEANUP-PLAN.md`** (clean-up, reorganisation, and the phase order from here). This file is kept as the record of what was done and measured.
+> **The current working plan is `plan.md`** (clean-up, reorganisation, and the phase order from here). This file is kept as the record of what was done and measured.
 
 ## 0. Progress
 
 | Phase | Status |
 |-------|--------|
 | 0. Prove the risky parts | **Not done.** The `grammers` Telegram trial needs a real account; the `ort` face/tag checks and the Whisper speed check were not run here. SQLite shared between Python and Rust is exercised by the front door tests only indirectly (the front door does not open the database yet) |
-| 1. Safety net | **Done:** frozen API (`docs/desktop/api/`), parity harness (`tools/parity/compare.py`, 0 differences against itself and against the Rust front door on 85 routes). Not done: more backend tests, the Python clean-ups |
+| 1. Safety net | **Done:** frozen API (`docs/api/`), parity harness (`tools/parity/compare.py`, 0 differences against itself and against the Rust front door on 85 routes). Not done: more backend tests, the Python clean-ups |
 | 2. Rust front door | **Done and verified here** (details below), then hardened: timeouts, connection cap, graceful shutdown, pooled connections, HTTPS/HTTP2 test, CI jobs (`front-door`, `front-door-windows`, `python-lint` in `.github/workflows/ci.yml`, not yet run on GitHub). Not done: bundling the binary in the installer and a Windows run |
 | 3. Database and read-only routes | **Started:** `ax-db` (read-only pool), the session lookup, the cross-site guard and the 401 behaviour exist and are tested, but no route is answered by Rust yet. See the round-3 results below |
 | 3 (first route) | **Done for one route:** `GET /api/photos/channels` is answered by Rust when switched on (off by default); see "Round 4" below |

@@ -2,7 +2,7 @@
 
 React 19, TypeScript (strict), Vite 7, Tailwind CSS 4, Motion, TanStack Query and Router, Zustand, Sonner, Radix.
 Served by the backend at `/` (see `telegram_archive/web/routes_frontend.py`) and bundled into the desktop app.
-Migration plan: `docs/desktop/Archive-X-MIGRATION-PLAN.md`; page-by-page checklists: `docs/desktop/Archive-X-UI-PARITY-CHECKLISTS.md`.
+Migration plan: `docs/archive/Archive-X-MIGRATION-PLAN.md`; page-by-page checklists: `docs/archive/Archive-X-UI-PARITY-CHECKLISTS.md`.
 
 ```bash
 npm install

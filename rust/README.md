@@ -1,6 +1,6 @@
 # Archive X: Rust side of the backend migration
 
-See `docs/desktop/RUST-MIGRATION-PLAN.md`. This workspace is separate from `desktop/` so the Tauri build is unaffected.
+See `docs/rust-migration-history.md`. This workspace is separate from `desktop/` so the Tauri build is unaffected.
 
 ## ax-server (phase 2: the front door)
 
@@ -60,7 +60,7 @@ python tools/parity/compare.py --a https://127.0.0.1:18443 --b https://127.0.0.1
 - A summary of the status codes server A gave shows how much of the run is real answers and how much is errors.
 - Python rate-limits `/login` (30 per minute), so do not run it many times in a row.
 
-The frozen API description is `docs/desktop/api/openapi.json` (routes: `docs/desktop/api/routes.tsv`).
+The frozen API description is `docs/api/openapi.json` (routes: `docs/api/routes.tsv`).
 
 ## Desktop app
 

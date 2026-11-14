@@ -3,7 +3,7 @@ name: Desktop app (Windows)
 # Builds the standalone installer: frontend -> frozen Python backend -> Tauri bundle (NSIS + MSI).
 # A plain run (no release_version) just uploads the installers as a build artifact.
 # A run with release_version (or a pushed tag desktop-vX.Y.Z) also publishes a GitHub Release with the signed installer and
-# latest.json, which installed apps read to offer the update (docs/desktop/UPDATES.md).
+# latest.json, which installed apps read to offer the update (docs/updates.md).
 # Repository settings:
 #   secrets.TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD   update signing key (needed for a release)
 #   vars.FFMPEG_URL / vars.FFMPEG_SHA256   optional pinned ffmpeg build (otherwise BtbN's current one, checked against its checksums)

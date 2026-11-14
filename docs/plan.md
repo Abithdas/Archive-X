@@ -4,6 +4,19 @@ Written 14 November 2026, at commit `21182e0`. This is the working plan from her
 
 How to read it: Part 1 says where the code stands, with numbers measured for this plan. Part 2 is the rules. Part 3 is the clean-up, Part 4 the reorganisation, Part 5 the migration. Part 6 is the order to do it all in. Part 7 lists the decisions only you can make. Every step says **what** to do, **why**, **how**, and **done when**.
 
+## Progress
+
+| Step | State |
+|------|-------|
+| C1 one command runs every test, in CI | **Done** (`pytest tools/tests`, `justfile`, `backend-tests` job; first run in CI pending) |
+| C2 remove the old start-up path | Waiting for your answer to question 1 |
+| C3 part 1 route counter | **Done**, ships in the next release; part 2 (delete routes) waits for a week of its data |
+| C4 remove unused Python | Waits for C3 part 2 and question 1 |
+| C5 unused frontend code | **Done** (`knip` in CI) |
+| C6 one version number | **Done** (`tools/release/write_version.py`, written by the release workflow) |
+| C7 prune the documents | **Done** (`docs/README.md` is the index) |
+| R1 to R6 reorganisation, Phase 0 onward | Not started |
+
 ---
 
 ## 1. Where the code stands
@@ -104,7 +117,7 @@ Do this before more porting. Everything deleted here is code that will not have 
   2. Use the app normally for a week, then send a logs zip. The counter is in it.
   3. A route with no caller in the code **and** no hits is deleted, with its handler and anything only it used. A route with hits stays and gets a note saying who calls it.
   4. Likely whole groups to go: the test bridge (`routes_test_bridge.py`), the AI "evidence" and "investigations" routes the React page does not use, the old-prefix redirects in `routes_frontend.py`.
-- **Done when:** every remaining route has a known caller, the frozen API file in `docs/desktop/api/` is regenerated, and the parity run still passes.
+- **Done when:** every remaining route has a known caller, the frozen API file in `docs/api/` is regenerated, and the parity run still passes.
 
 ### Step C4. Remove unused Python
 
@@ -128,8 +141,8 @@ Do this before more porting. Everything deleted here is code that will not have 
 
 ### Step C7. Prune the documents
 
-- **What:** `docs/desktop/` has 14 documents, several describing finished or abandoned work (`BRANCH-STATUS.md`, `Archive-X-MIGRATION-PLAN.md`, `Archive-X-UI-PARITY-CHECKLISTS.md`, `UI-IMPROVEMENT-PLAN.md`, `mockups/`).
-- **How:** move finished plans to `docs/archive/`, delete what is wrong, keep what describes the app as it is. Strip the 122 `V29.4.x` tags from comments (git history has them).
+- **What:** `docs/desktop/` had 14 documents, several describing finished or abandoned work (`BRANCH-STATUS.md`, `Archive-X-MIGRATION-PLAN.md`, `Archive-X-UI-PARITY-CHECKLISTS.md`, `UI-IMPROVEMENT-PLAN.md`, `mockups/`).
+- **How:** move finished plans to `docs/archive/`, delete what is wrong, keep what describes the app as it is. (The 122 old `V29.4.x` tags in Python comments are left alone: they are in code that will be deleted, and rule 5 says not to tidy it.)
 - **Done when:** `docs/README.md` lists every document in one line each, and none describes something that no longer exists.
 
 ---

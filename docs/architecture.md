@@ -7,7 +7,7 @@ database plus on-disk caches. It is built for a Windows PC on a home LAN, with p
 devices as clients.
 
 Size: about 165k lines (182 Python files, 58 JS, 178 CSS). Source is under `telegram_archive/`.
-The diagram is in `Archive-X-architecture.svg`.
+The diagram is in `archive/Archive-X-architecture.svg`.
 
 ## 1. Runtime shape
 

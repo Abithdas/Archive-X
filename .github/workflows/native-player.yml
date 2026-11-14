@@ -2,7 +2,7 @@ name: Native player engine (Windows)
 
 # Builds desktop/axplayer (the native video engine: LAV Filters + Windows renderers) and plays generated test videos through it with no
 # window and no sound device. Proves the graph builds, decodes (software here: the runner has no graphics card), pauses, seeks and ends.
-# What it cannot prove: hardware decoding, the video window, sound. Those are tried on a real PC (docs/desktop/NATIVE-PLAYER-PLAN.md).
+# What it cannot prove: hardware decoding, the video window, sound. Those are tried on a real PC (docs/native-player.md).
 
 on:
   workflow_dispatch:
