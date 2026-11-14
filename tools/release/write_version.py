@@ -16,7 +16,7 @@ def write(version: str, commit: str = "", root: Path = ROOT) -> None:
     (root / "telegram_archive" / "_version.py").write_text(
         '"""The version of this build, written by tools/release/write_version.py."""\n'
         f"VERSION = {version!r}\nCOMMIT = {commit[:12]!r}\n", encoding="utf-8")
-    conf = root / "desktop" / "src-tauri" / "tauri.conf.json"
+    conf = root / "apps" / "desktop" / "src-tauri" / "tauri.conf.json"
     if version != "dev" and conf.is_file():
         data = json.loads(conf.read_text(encoding="utf-8"))
         data["version"] = version

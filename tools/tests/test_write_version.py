@@ -8,8 +8,8 @@ import write_version
 
 def _tree(tmp_path):
     (tmp_path / "telegram_archive").mkdir()
-    (tmp_path / "desktop" / "src-tauri").mkdir(parents=True)
-    (tmp_path / "desktop" / "src-tauri" / "tauri.conf.json").write_text(json.dumps({"version": "0.0.0", "productName": "x"}))
+    (tmp_path / "apps" / "desktop" / "src-tauri").mkdir(parents=True)
+    (tmp_path / "apps" / "desktop" / "src-tauri" / "tauri.conf.json").write_text(json.dumps({"version": "0.0.0", "productName": "x"}))
     return tmp_path
 
 
@@ -19,13 +19,13 @@ def test_a_release_number_goes_into_the_backend_and_the_desktop_shell(tmp_path):
     ns: dict = {}
     exec((root / "telegram_archive" / "_version.py").read_text(), ns)
     assert (ns["VERSION"], ns["COMMIT"]) == ("30.2.3", "0123456789ab")
-    assert json.loads((root / "desktop" / "src-tauri" / "tauri.conf.json").read_text()) == {"version": "30.2.3", "productName": "x"}
+    assert json.loads((root / "apps" / "desktop" / "src-tauri" / "tauri.conf.json").read_text()) == {"version": "30.2.3", "productName": "x"}
 
 
 def test_a_plain_build_says_dev_and_leaves_the_shell_alone(tmp_path):
     root = _tree(tmp_path)
     write_version.write("dev", "abc", root)
-    assert json.loads((root / "desktop" / "src-tauri" / "tauri.conf.json").read_text())["version"] == "0.0.0"
+    assert json.loads((root / "apps" / "desktop" / "src-tauri" / "tauri.conf.json").read_text())["version"] == "0.0.0"
 
 
 def test_nonsense_is_refused(tmp_path):

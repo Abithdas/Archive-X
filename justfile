@@ -17,13 +17,13 @@ test-rust:
     cargo test --workspace --lib --tests
 
 test-web:
-    cd frontend && npm test
+    cd apps/web && npm test
 
 # Type checks and lints.
 lint:
     cargo clippy --workspace --all-targets -- -D warnings
-    cd frontend && npm run typecheck
+    cd apps/web && npm run typecheck
 
 # The web app, built.
 build-web:
-    cd frontend && npm run build
+    cd apps/web && npm run build

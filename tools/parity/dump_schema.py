@@ -1,6 +1,6 @@
 """Write the database schema the Python backend creates, as JSON.
 
-    python tools/parity/dump_schema.py            # rewrite rust/crates/ax-db/schema/schema.json
+    python tools/parity/dump_schema.py            # rewrite crates/ax-db/schema/schema.json
     python tools/parity/dump_schema.py --check    # exit 1 if the committed snapshot is out of date
 
 The Rust code reads the same database, so any change to a table must be looked at on the Rust side too: the snapshot
@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-SNAPSHOT = ROOT / "rust/crates/ax-db/schema/schema.json"
+SNAPSHOT = ROOT / "crates/ax-db/schema/schema.json"
 
 
 def current_schema() -> dict:

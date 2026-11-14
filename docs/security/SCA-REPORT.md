@@ -72,7 +72,7 @@ These cannot be seen by the tools above. They are the real residual risk.
 1. **Native libraries inside Python wheels.** `av` and `opencv-python-headless` bundle their own FFmpeg; `onnxruntime`, `ctranslate2` and
    others bundle native code. `pip-audit` sees the Python package version, not the C libraries inside. Keep these packages current.
 2. **LAV Filters 0.83** carries its own FFmpeg libraries (`avcodec-lav-63.dll` and others). Nothing here scans them; follow LAV releases and
-   update the pinned version and checksum together (`desktop/scripts/fetch-lav.sh`).
+   update the pinned version and checksum together (`packaging/scripts/fetch-lav.sh`).
 3. **ffmpeg.exe (BtbN)** is fetched from the rolling `latest` release and checked against the checksum published beside it. That catches a damaged
    download, not a compromised release. For a release build, pin `FFMPEG_URL` and `FFMPEG_SHA256` as repository variables.
 4. **Loose Python version ranges.** The installer build installs the newest versions inside the ranges, so what ships can differ from what was

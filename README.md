@@ -6,10 +6,12 @@ A private media archive for Telegram: browse, search and play the videos and pho
 
 | Folder | What it is | Language |
 |--------|------------|----------|
-| `frontend/` | The web app the desktop window shows | TypeScript, React 19, Vite, Tailwind |
+| `apps/web/` | The web app the desktop window shows | TypeScript, React 19, Vite, Tailwind |
 | `telegram_archive/` | The backend: Telegram, database, jobs, streaming, metadata | Python (being rewritten in Rust) |
-| `rust/` | The Rust front door and the new backend features (`ax-server`, `ax-db`, `ax-names`, `ax-faces`) | Rust |
-| `desktop/` | The Tauri shell, the backend launcher, the native video player | Rust, C++ |
+| `crates/` | Rust libraries and the front door: `ax-server`, `ax-db`, `ax-names`, `ax-faces`, `launcher-core`, `native-player` | Rust |
+| `apps/desktop/` | The Tauri desktop shell | Rust |
+| `native/axplayer/` | The native video engine (DirectShow, LAV Filters) | C++ |
+| `packaging/` | Freezing the Python backend (PyInstaller) and the scripts that fetch ffmpeg and LAV Filters for the installer | Python, shell |
 | `tools/` | Tests for the Python backend, parity checks against the Rust front door, release and dependency-scan scripts | Python |
 | `docs/` | Plans, architecture, logs, security reports (start at [docs/README.md](docs/README.md)) | Markdown |
 
@@ -30,7 +32,7 @@ Without `just`:
 python -m pip install -r requirements.txt pytest httpx websockets
 python -m pytest tools/tests -q
 cargo test --workspace
-(cd frontend && npm ci && npm test && npm run typecheck && npm run unused)
+(cd apps/web && npm ci && npm test && npm run typecheck && npm run unused)
 ```
 
 The Windows installer is built by the **Desktop** workflow in GitHub Actions (`.github/workflows/desktop.yml`). Run it with a version number to publish a release.

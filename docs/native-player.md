@@ -66,7 +66,7 @@ Each phase is a separate installer build tried on the PC. Stop and reassess if a
 - **Pass**: all play and seek. **Fail**: note which and why (that is what MPC-HC adds beyond LAV; plan changes).
 
 ### Phase 1. Spike: a video window inside the app (S)
-1. New folder `desktop/axplayer/` (CMake, MSVC): `axplayer.dll` with `ax_open(hwnd_parent, url)`, `ax_play`, `ax_pause`, `ax_close`.
+1. New folder `native/axplayer/` (CMake, MSVC): `axplayer.dll` with `ax_open(hwnd_parent, url)`, `ax_play`, `ax_pause`, `ax_close`.
    It builds the graph with the *installed* LAV (by CLSID *(verify)*: LAV Splitter Source `{B98D13E7-55DB-4385-A33D-09FD1BA26338}`,
    LAV Video `{EE30215D-164F-4A92-A4EB-9D4C13390F9F}`, LAV Audio `{E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491}`), EVR and the default audio
    renderer, and gives EVR a child window of the Tauri window (`IMFVideoDisplayControl::SetVideoWindow` / `SetVideoPosition`).
@@ -95,8 +95,8 @@ buffering state (`EC_BUFFERING_DATA`); a log line saying which decoder is active
   advances, seek lands, and the end event fires (needs LAV on the runner: Phase 3 makes that possible).
 
 ### Phase 3. Ship LAV with the app, no system install (S)
-1. `desktop/scripts/fetch-lav.sh`: download the LAV x64 zip from its GitHub release, **pinned by SHA-256** like ffmpeg, into
-   `desktop/src-tauri/resources/lav/`.
+1. `packaging/scripts/fetch-lav.sh`: download the LAV x64 zip from its GitHub release, **pinned by SHA-256** like ffmpeg, into
+   `apps/desktop/src-tauri/resources/lav/`.
 2. Load the filters **without registering them**: load `LAVSplitter.ax`, `LAVVideo.ax`, `LAVAudio.ax` from that folder and create the
    filters through each file's `DllGetClassObject` (this is how MPC-HC uses its own bundled copy). The user's system and other
    players are untouched.

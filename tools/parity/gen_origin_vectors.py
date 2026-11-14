@@ -1,9 +1,9 @@
 """Test vectors for the cross-site guard, produced by the real Python middleware (BrowserMutationGuardMiddleware).
 
-    python tools/parity/gen_origin_vectors.py            # rewrite rust/crates/ax-server/tests/origin_vectors.json
+    python tools/parity/gen_origin_vectors.py            # rewrite crates/ax-server/tests/origin_vectors.json
     python tools/parity/gen_origin_vectors.py --check    # exit 1 if the committed file is out of date
 
-The Rust implementation (rust/crates/ax-server/src/guard.rs) must give the same answer for every vector.
+The Rust implementation (crates/ax-server/src/guard.rs) must give the same answer for every vector.
 """
 import asyncio
 import json
@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-OUT = ROOT / "rust/crates/ax-server/tests/origin_vectors.json"
+OUT = ROOT / "crates/ax-server/tests/origin_vectors.json"
 
 METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 PATHS = ["/api/status", "/api/", "/api", "/apix", "/login", "/logout", "/login/", "/photos", "/API/status"]

@@ -22,12 +22,12 @@ A failed check (no network, no release yet, repository still private) is written
    (for example `30.1.0`). Or push a tag `desktop-v30.1.0`.
 2. The workflow sets that version in `tauri.conf.json`, builds everything, signs the installer with the update key, and publishes a
    GitHub Release `desktop-v30.1.0` with `Archive-X_30.1.0_x64-setup.exe`, its `.sig`, the `.msi` and `latest.json`
-   (`desktop/scripts/make_latest_json.py`; the last five commit subjects become the "what's new" text).
+   (`packaging/scripts/make_latest_json.py`; the last five commit subjects become the "what's new" text).
 3. Installed apps see it at their next check. A run without release_version only uploads the installers as a build artifact.
 
 ## Setup (once)
 
-- The update key pair was made with `tauri signer generate`. The **public** key is in `desktop/src-tauri/tauri.conf.json`
+- The update key pair was made with `tauri signer generate`. The **public** key is in `apps/desktop/src-tauri/tauri.conf.json`
   (`plugins.updater.pubkey`); the app installs only updates signed by the matching private key.
 - Repository secrets (Settings → Secrets and variables → Actions): `TAURI_SIGNING_PRIVATE_KEY` (the whole key file text) and
   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Without them a plain build still works and a release stops with a clear message.

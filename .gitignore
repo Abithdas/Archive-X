@@ -6,28 +6,26 @@ __pycache__/
 node_modules/
 # Rust / Tauri
 target/
-desktop/src-tauri/target/
-desktop/target/
+apps/desktop/src-tauri/target/
 # Frozen backend build output
-desktop/backend/build/
-desktop/backend/dist/
-desktop/src-tauri/binaries/
+packaging/backend/build/
+packaging/backend/dist/
+apps/desktop/src-tauri/binaries/
 # Local data / tooling output
 graphify-out/
 shots/
 *.log
 .archive-x-data/
-rust/target/
 
 # staged by .github/workflows/desktop.yml
-desktop/src-tauri/resources/rust/*
-!desktop/src-tauri/resources/rust/.gitkeep
-desktop/src-tauri/resources/web/*
-!desktop/src-tauri/resources/web/.gitkeep
+apps/desktop/src-tauri/resources/rust/*
+!apps/desktop/src-tauri/resources/rust/.gitkeep
+apps/desktop/src-tauri/resources/web/*
+!apps/desktop/src-tauri/resources/web/.gitkeep
 
-# fetched by desktop/scripts/fetch-lav.sh
-desktop/src-tauri/resources/lav/*
-!desktop/src-tauri/resources/lav/.gitkeep
-desktop/axplayer/third_party/
-desktop/src-tauri/resources/axplayer/*
-!desktop/src-tauri/resources/axplayer/.gitkeep
+# fetched by packaging/scripts/fetch-lav.sh
+apps/desktop/src-tauri/resources/lav/*
+!apps/desktop/src-tauri/resources/lav/.gitkeep
+native/axplayer/third_party/
+apps/desktop/src-tauri/resources/axplayer/*
+!apps/desktop/src-tauri/resources/axplayer/.gitkeep

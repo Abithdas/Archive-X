@@ -24,7 +24,7 @@ def test_a_short_sha_is_not_enough(tmp_path):
 
 
 def test_the_lav_download_is_checksum_and_commit_pinned():
-    script = (ROOT / "desktop" / "scripts" / "fetch-lav.sh").read_text()
+    script = (ROOT / "packaging" / "scripts" / "fetch-lav.sh").read_text()
     assert re.search(r'DEFAULT_SHA256="[0-9a-f]{64}"', script)
     assert re.search(r'DEFAULT_COMMIT="[0-9a-f]{40}"', script)
     assert "checksum mismatch" in script.lower()

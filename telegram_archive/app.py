@@ -628,5 +628,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
     # The catch-all that serves the React app must come after every other route (including the two added above),
     # or it would answer 404 to their GET requests.
     from .web.routes_frontend import register_frontend_routes
-    register_frontend_routes(app.router, dist_dir=Path(__file__).resolve().parents[1] / "frontend" / "dist")
+    _root = Path(__file__).resolve().parents[1]
+    # The web app's build: apps/web/dist from a checkout, frontend/dist inside the frozen backend (see packaging/backend/archive_x_backend.spec).
+    register_frontend_routes(app.router, dist_dir=_root / "apps" / "web" / "dist" if (_root / "apps" / "web" / "dist").is_dir() else _root / "frontend" / "dist")
     return app

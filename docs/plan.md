@@ -16,7 +16,8 @@ How to read it: Part 1 says where the code stands, with numbers measured for thi
 | C6 one version number | **Done** (`tools/release/write_version.py`, written by the release workflow) |
 | C7 prune the documents | **Done** (`docs/README.md` is the index) |
 | R2 one Cargo workspace | **Done** (root `Cargo.toml`, one `Cargo.lock`, one `target/`); the Windows installer build under it is checked by the next Desktop run |
-| R1, R3 to R6, Phase 0 onward | Not started |
+| R1 folder layout | **Done in a reduced form**: `apps/web`, `apps/desktop`, `crates/` (all Rust libraries and the front door), `native/axplayer`, `packaging/`. The Python tree (`telegram_archive/`, `run.py`, `requirements.txt`) was **not** moved: it is being deleted, and moving it would touch every test for no lasting benefit |
+| R3 to R6, Phase 0 onward | Not started |
 
 ---
 
@@ -157,7 +158,7 @@ Do this after the clean-up (less to move) and in one sitting per step (moves tha
 ```
 Archive-X/
   apps/
-    desktop/        Tauri shell (today desktop/src-tauri, desktop/ui)
+    desktop/        Tauri shell (today apps/desktop/src-tauri, apps/desktop/ui)
     web/            React app (today frontend/)
   crates/           every Rust library and the server
     ax-server/  ax-db/  ax-names/  ax-faces/

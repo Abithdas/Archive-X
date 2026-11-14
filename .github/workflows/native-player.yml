@@ -1,13 +1,13 @@
 name: Native player engine (Windows)
 
-# Builds desktop/axplayer (the native video engine: LAV Filters + Windows renderers) and plays generated test videos through it with no
+# Builds native/axplayer (the native video engine: LAV Filters + Windows renderers) and plays generated test videos through it with no
 # window and no sound device. Proves the graph builds, decodes (software here: the runner has no graphics card), pauses, seeks and ends.
 # What it cannot prove: hardware decoding, the video window, sound. Those are tried on a real PC (docs/native-player.md).
 
 on:
   workflow_dispatch:
   push:
-    paths: ["desktop/axplayer/**", "desktop/scripts/fetch-lav.sh", ".github/workflows/native-player.yml"]
+    paths: ["native/axplayer/**", "packaging/scripts/fetch-lav.sh", ".github/workflows/native-player.yml"]
 
 permissions:
   contents: read
@@ -25,24 +25,24 @@ jobs:
       - name: Fetch LAV Filters (binaries and headers)
         shell: bash
         run: |
-          bash desktop/scripts/fetch-lav.sh
-          bash desktop/scripts/fetch-lav.sh --headers
+          bash packaging/scripts/fetch-lav.sh
+          bash packaging/scripts/fetch-lav.sh --headers
 
       - name: Build axplayer
         run: |
-          cmake -S desktop/axplayer -B build-axplayer -A x64
+          cmake -S native/axplayer -B build-axplayer -A x64
           cmake --build build-axplayer --config Release
 
       - name: Fetch ffmpeg (to make test videos)
         shell: bash
         env: { FFMPEG_FROM_BTBN: "1" }
-        run: bash desktop/scripts/fetch-ffmpeg.sh
+        run: bash packaging/scripts/fetch-ffmpeg.sh
 
       - name: Make test videos
         shell: bash
         run: |
           mkdir -p clips
-          ff=desktop/src-tauri/resources/ffmpeg/ffmpeg.exe
+          ff=apps/desktop/src-tauri/resources/ffmpeg/ffmpeg.exe
           src="-f lavfi -i testsrc=duration=8:size=640x360:rate=25 -f lavfi -i sine=frequency=440:duration=8"
           # the ordinary case
           $ff -v error -y $src -c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart clips/h264_aac.mp4
@@ -55,9 +55,9 @@ jobs:
       - name: Play the test videos through the engine
         shell: bash
         run: |
-          lav="$(cd desktop/src-tauri/resources/lav && pwd -W)"
+          lav="$(cd apps/desktop/src-tauri/resources/lav && pwd -W)"
           exe="build-axplayer/Release/axplayer_test.exe"
-          python desktop/axplayer/test/range_server.py clips 8777 2> server.log &
+          python native/axplayer/test/range_server.py clips 8777 2> server.log &
           sleep 2
           status=0
           for hw in 0 3; do   # 0: software decoding; 3: ask for DXVA2 hardware decoding (this runner has no graphics card, so it must fall back to software)
@@ -69,12 +69,12 @@ jobs:
           echo "--- requests the test server saw:"; sort server.log | uniq -c | sort -rn | head -n 12
           exit $status
 
-      - name: Rust wrapper against the engine (desktop/native-player)
+      - name: Rust wrapper against the engine (crates/native-player)
         shell: bash
         run: |
           export AXPLAYER_DLL="$(pwd -W)/build-axplayer/Release/axplayer.dll"
-          export AXPLAYER_LAV="$(cd desktop/src-tauri/resources/lav && pwd -W)"
-          python desktop/axplayer/test/range_server.py clips 8778 2> server2.log &
+          export AXPLAYER_LAV="$(cd apps/desktop/src-tauri/resources/lav && pwd -W)"
+          python native/axplayer/test/range_server.py clips 8778 2> server2.log &
           sleep 2
           status=0
           for clip in h264_aac.mp4 hevc10_ac3.mkv mpeg4_mp3.avi; do

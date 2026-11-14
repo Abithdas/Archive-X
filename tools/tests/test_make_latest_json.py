@@ -1,4 +1,4 @@
-"""desktop/scripts/make_latest_json.py writes what the Tauri updater expects."""
+"""packaging/scripts/make_latest_json.py writes what the Tauri updater expects."""
 import datetime
 import json
 import subprocess
@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "desktop" / "scripts"))
+sys.path.insert(0, str(ROOT / "packaging" / "scripts"))
 from make_latest_json import build  # noqa: E402
 
 NOW = datetime.datetime(2026, 11, 14, 6, 0, 0, tzinfo=datetime.timezone.utc)
@@ -41,10 +41,10 @@ def test_command_line_writes_the_file(tmp_path):
     sig = tmp_path / "a.sig"
     sig.write_text("abc123\n")
     out = tmp_path / "latest.json"
-    r = subprocess.run([sys.executable, str(ROOT / "desktop/scripts/make_latest_json.py"), "--version", "2.0.0", "--repo", "o/r", "--tag", "desktop-v2.0.0",
+    r = subprocess.run([sys.executable, str(ROOT / "packaging/scripts/make_latest_json.py"), "--version", "2.0.0", "--repo", "o/r", "--tag", "desktop-v2.0.0",
                         "--installer", "A_2.0.0_x64-setup.exe", "--signature", str(sig), "--out", str(out)], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     assert json.loads(out.read_text())["platforms"]["windows-x86_64"]["signature"] == "abc123"
-    bad = subprocess.run([sys.executable, str(ROOT / "desktop/scripts/make_latest_json.py"), "--version", "x", "--repo", "o/r", "--tag", "t",
+    bad = subprocess.run([sys.executable, str(ROOT / "packaging/scripts/make_latest_json.py"), "--version", "x", "--repo", "o/r", "--tag", "t",
                           "--installer", "A.exe", "--signature", str(sig), "--out", str(out)], capture_output=True, text=True)
     assert bad.returncode == 1 and "not a version" in bad.stderr
