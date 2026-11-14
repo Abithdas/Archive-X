@@ -6,6 +6,8 @@ import { CAPTION_WINDOW, activeText, initialChoice, loadPrefs, mergeCues, parseV
 export interface MediaRef { cid: string; mid: number }
 export type LiveState = 'idle' | 'working' | 'error'
 type ModelState = 'idle' | 'preparing' | 'ready' | 'error'
+const HEARTBEAT_MS = 2000
+const REQUEST_GIVE_UP_MS = 90_000
 
 const getJson = async <T,>(url: string, signal?: AbortSignal): Promise<T> => {
   const r = await fetch(url, { credentials: 'same-origin', cache: 'no-store', signal })
@@ -26,8 +28,10 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
   const [liveError, setLiveError] = useState('')
   const fetched = useRef(new Set<number>())
   const inflight = useRef(new Map<number, AbortController>())
+  const askedAt = useRef(new Map<number, number>())   // when each request in flight was sent, to give up on one that never answers
   const gen = useRef(0)
   const [retry, setRetry] = useState(0)
+  const [tick, setTick] = useState(0)   // a slow heartbeat while live captions run: whatever is missing gets asked for again even if nothing else changed
   const key = media ? `${media.cid}/${media.mid}` : ''
 
   // Track list, once per video. What the viewer chose last time carries over at once: live captions keep going on the next video
@@ -86,35 +90,43 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
   useEffect(() => {
     gen.current++
     for (const c of inflight.current.values()) c.abort()
-    inflight.current.clear(); fetched.current = new Set()
+    inflight.current.clear(); askedAt.current.clear(); fetched.current = new Set()
     if (sub.kind === 'live') setCues([])
   }, [sub.kind, sub.kind === 'live' && sub.original, audio, key])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!media || sub.kind !== 'live' || model !== 'ready') return
+    const beat = setInterval(() => setTick((n) => n + 1), HEARTBEAT_MS)
+    return () => clearInterval(beat)
+  }, [media, sub.kind, model])
+  useEffect(() => {
+    if (!media || sub.kind !== 'live' || model !== 'ready') return
+    for (const [start, c] of inflight.current) {   // a request that has not been answered for far too long is lost: ask again
+      if (Date.now() - (askedAt.current.get(start) ?? Date.now()) > REQUEST_GIVE_UP_MS) { c.abort(); inflight.current.delete(start); askedAt.current.delete(start); fetched.current.delete(start) }
+    }
     const w = windowStart(time)
-    for (const [start, c] of inflight.current) if (Math.abs(start - w) > CAPTION_WINDOW) { c.abort(); inflight.current.delete(start); fetched.current.delete(start) }   // the viewer left that place
+    for (const [start, c] of inflight.current) if (Math.abs(start - w) > CAPTION_WINDOW) { c.abort(); inflight.current.delete(start); askedAt.current.delete(start); fetched.current.delete(start) }   // the viewer left that place
     const wanted = [w, w + CAPTION_WINDOW].filter((s) => !fetched.current.has(s))
     if (!wanted.length) return
     const s = wanted[0]!
     const mine = gen.current
     const ac = new AbortController()
-    fetched.current.add(s); inflight.current.set(s, ac)
+    fetched.current.add(s); inflight.current.set(s, ac); askedAt.current.set(s, Date.now())
     setLive('working')
-    getJson<{ cues: Cue[]; preparing?: boolean; skipped?: boolean }>(`/api/play/captions/${encodeURIComponent(media.cid)}/${media.mid}?start=${s}${audio !== null ? `&track=${audio}` : ''}${sub.original ? '&task=transcribe' : ''}`, ac.signal)
+    getJson<{ cues: Cue[]; preparing?: boolean; skipped?: boolean }>(`/api/play/captions/${encodeURIComponent(media.cid)}/${media.mid}?start=${s}&at=${Math.floor(time)}${audio !== null ? `&track=${audio}` : ''}${sub.original ? '&task=transcribe' : ''}`, ac.signal)
       .then((r) => {
         if (mine !== gen.current) return
-        inflight.current.delete(s)
+        inflight.current.delete(s); askedAt.current.delete(s)
         if (r.preparing) { fetched.current.delete(s); setModel('preparing'); setLive('idle'); return }
         if (r.skipped) { fetched.current.delete(s); setLive('idle'); setTimeout(() => { if (mine === gen.current) setRetry((n) => n + 1) }, 1000); return }   // the server skipped it as out of date; ask again for where we are now
         setCues((c) => mergeCues(c, r.cues)); setLive('idle'); setLiveError('')
       })
       .catch((e: unknown) => {
         if (mine !== gen.current || (e instanceof DOMException && e.name === 'AbortError')) return
-        inflight.current.delete(s); fetched.current.delete(s)
+        inflight.current.delete(s); askedAt.current.delete(s); fetched.current.delete(s)
         setLive('error'); setLiveError(e instanceof Error ? e.message : '')
         setTimeout(() => { if (mine === gen.current) setRetry((n) => n + 1) }, 4000)   // try that window again
       })
-  }, [media, sub.kind, sub.kind === 'live' && sub.original, audio, Math.floor(time / 5), playing, model, retry])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [media, sub.kind, sub.kind === 'live' && sub.original, audio, Math.floor(time / 5), playing, model, retry, tick])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Alternate audio: ask the server to build it, poll until it is ready.
   useEffect(() => {
