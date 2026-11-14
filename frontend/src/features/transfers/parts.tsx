@@ -8,7 +8,7 @@ export const detail = (e: unknown, fallback: string) => (e instanceof ApiError ?
 
 export function Check({ checked, onChange, title, hint, disabled, icon }: { checked: boolean; onChange: (v: boolean) => void; title: string; hint?: string; disabled?: boolean; icon?: ReactNode }) {
   return (
-    <label className={cn('flex cursor-pointer items-start gap-3 rounded-xl p-2 hover:bg-fg/5', !!icon && 'items-center', !!icon && checked && 'bg-good/10', disabled && 'cursor-not-allowed opacity-50')}>
+    <label className={cn('relative flex cursor-pointer items-start gap-3 rounded-xl p-2 hover:bg-fg/5', !!icon && 'items-center', !!icon && checked && 'bg-good/10', disabled && 'cursor-not-allowed opacity-50')}>
       <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className={icon ? 'peer sr-only' : 'mt-1 size-4 shrink-0 accent-[var(--color-accent)]'} />
       {icon ? (
         // Channels: no checkbox; a small green tick on the picture shows what is selected.
