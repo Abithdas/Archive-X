@@ -3,6 +3,7 @@
 // Prints one line per check and exits 0 only when every check passed.
 #include <windows.h>
 #include <cstdio>
+#include <cwchar>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -70,6 +71,12 @@ int main(int argc, char **argv) {
     check(ax_play(p) == 0, "start playback", ax_last_error(p));
     check(wait_for(p, 20, [](const AxState &x) { return x.position >= 1.5; }), "position advances while playing");
 
+    {
+        static wchar_t report[8192];
+        int n = ax_diagnostics(p, report, 8192);
+        std::printf("INFO  report:\n%ls\n", report);
+        check(n > 0 && std::wcsstr(report, L"filters in the graph") != nullptr, "diagnostics report lists the graph");
+    }
     check(ax_pause(p) == 0, "pause");
     Sleep(400);
     double held = state(p).position;

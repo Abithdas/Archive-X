@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api } from '@/api/client'
 import { formatDuration } from '@/features/library/format'
-import { native, pixelRect, type NativeTrack, type Opened, type Snapshot } from './nativeBridge'
+import { native, pixelRect, type NativeTrack, type Opened, type Snapshot, type VideoLayer } from './nativeBridge'
 
 const clock = (s: number) => (s > 0 ? formatDuration(s) : '0:00')
 const SPEEDS = [0.5, 1, 1.25, 1.5, 2]
@@ -29,7 +29,10 @@ export function NativePlayerPage({ cid, mid }: { cid: string; mid: number }) {
   const [muted, setMuted] = useState(false)
   const [rate, setRate] = useState(1)
   const [seeking, setSeeking] = useState<number | null>(null)
-  const [onTop, setOnTop] = useState(true)   // the video window in front of the page (the default) or behind it
+  const [layer, setLayer] = useState<VideoLayer>('front')   // the video window: in front of the page (default), behind it, or its own window above
+  const [report, setReport] = useState('')
+  const [copied, setCopied] = useState(false)
+  const sentReport = useRef(false)
 
   // While this page is open nothing of the rest of the app may paint (it would cover the video), and the page itself is see-through.
   useEffect(() => {
@@ -61,7 +64,7 @@ export function NativePlayerPage({ cid, mid }: { cid: string; mid: number }) {
       const o = await native.open(link.url, rect())
       if (dead) { void native.command('close').catch(() => undefined); return }
       setOpened(o)
-      setOnTop(o.videoOnTop)
+      setLayer(o.layer)
       setPhase('ready')
       await native.command('play')
       setTracks(await native.tracks().catch(() => []))
@@ -96,7 +99,30 @@ export function NativePlayerPage({ cid, mid }: { cid: string; mid: number }) {
   const duration = snap?.duration || opened?.duration || 0
   const position = seeking ?? snap?.position ?? 0
   const back = () => router.history.back()
-  const flipLayer = () => { const next = !onTop; setOnTop(next); send(next ? 'front' : 'back') }
+  const NEXT: Record<VideoLayer, VideoLayer> = { front: 'popup', popup: 'behind', behind: 'front' }
+  const COMMAND = { front: 'front', popup: 'popup', behind: 'back' } as const
+  const flipLayer = () => { const next = NEXT[layer]; setLayer(next); sentReport.current = false; send(COMMAND[next]) }
+  const LABEL: Record<VideoLayer, string> = { front: 'Video: in front', popup: 'Video: own window', behind: 'Video: behind page' }
+
+  const refreshReport = useCallback(async () => {
+    const text = await native.diagnostics().catch((e: unknown) => `Could not read the report: ${e instanceof Error ? e.message : ''}`)
+    setReport(text)
+    return text
+  }, [])
+  // A few seconds into playback, and again whenever the layer changes, take the report and keep a copy in the app's logs (Operations → Download logs).
+  const playingNow = snap?.playing ?? false
+  useEffect(() => {
+    if (phase !== 'ready' || !playingNow || sentReport.current) return
+    const t = setTimeout(() => {
+      sentReport.current = true
+      void refreshReport().then((text) => api('/api/diagnostics/client', { method: 'POST', json: { events: [{ level: 'WARN', source: 'native-player', message: `Native player report (${layer})`, details: text, ts: Date.now() }] } }).catch(() => undefined))
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [phase, playingNow, layer, refreshReport])
+  const copyReport = async () => {
+    const text = report || await refreshReport()
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch { /* the text stays selectable in the panel */ }
+  }
 
   const body = (
     <div className="fixed inset-0 z-[2000] grid grid-rows-[auto_1fr_auto]" data-testid="native-player">
@@ -113,11 +139,19 @@ export function NativePlayerPage({ cid, mid }: { cid: string; mid: number }) {
           <div className="pointer-events-none absolute left-3 top-3 max-w-[80%] rounded-lg bg-black/70 px-3 py-2 text-xs text-white">
             If you can read this over the picture, controls and captions can sit on top of the video.
             <div className="mt-1 opacity-80">
-              {opened?.decoder ? `decoder ${opened.decoder} · ` : ''}{snap?.width || opened?.width}×{snap?.height || opened?.height} · {onTop ? 'video in front' : 'video behind the page'}
+              {opened?.decoder ? `decoder ${opened.decoder} · ` : ''}{snap?.width || opened?.width}×{snap?.height || opened?.height} · {layer === 'front' ? 'video in front' : layer === 'popup' ? 'video in its own window' : 'video behind the page'}
               {snap ? ` · video window ${snap.windowVisible ? 'shown' : 'HIDDEN'} ${snap.windowWidth}×${snap.windowHeight}` : ''}
               {snap?.error ? ` · error 0x${(snap.error >>> 0).toString(16)}` : ''}
+              {snap ? ` · frames drawn ${snap.framesDrawn} · on screen ${snap.screenDistinct <= 2 ? 'FLAT (no picture seen)' : 'picture seen'}` : ''}
             </div>
           </div>
+        ) : null}
+        {phase === 'ready' ? (
+          <details className="absolute bottom-3 left-3 max-w-[90%] rounded-lg bg-black/80 px-3 py-2 text-xs text-white" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) void refreshReport() }}>
+            <summary className="cursor-pointer select-none">Details for support</summary>
+            <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap" data-testid="report">{report || 'Reading…'}</pre>
+            <button type="button" className={`${BTN} mt-2`} onClick={() => void copyReport()}>{copied ? 'Copied' : 'Copy report'}</button>
+          </details>
         ) : null}
         {phase === 'unavailable' || phase === 'failed' ? <p className="m-6 max-w-xl rounded-xl bg-bg p-4 text-sm" role="alert">{message}</p> : null}
       </div>
@@ -135,8 +169,8 @@ export function NativePlayerPage({ cid, mid }: { cid: string; mid: number }) {
           <input type="range" aria-label="Volume" min={0} max={100} value={volume} disabled={phase !== 'ready'} onChange={(e) => { const v = Number(e.target.value); setVolume(v); send('volume', v) }} />
         </label>
         <button type="button" className={BTN} aria-pressed={muted} disabled={phase !== 'ready'} onClick={() => { send('mute', muted ? 0 : 1); setMuted(!muted) }}>{muted ? 'Unmute' : 'Mute'}</button>
-        <button type="button" className={BTN} aria-label="Video layer" aria-pressed={onTop} disabled={phase !== 'ready'} onClick={flipLayer} title="If the picture does not show, try the other layer">
-          {onTop ? 'Video: in front' : 'Video: behind page'}
+        <button type="button" className={BTN} aria-label="Video layer" disabled={phase !== 'ready'} onClick={flipLayer} title="If the picture does not show, try the next layer">
+          {LABEL[layer]}
         </button>
         <label className="flex items-center gap-2">Speed
           <select aria-label="Speed" className="h-9 rounded-xl border border-line-2 bg-bg px-2" value={rate} disabled={phase !== 'ready'} onChange={(e) => { const v = Number(e.target.value); setRate(v); send('rate', v) }}>

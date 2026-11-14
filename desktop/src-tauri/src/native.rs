@@ -11,7 +11,7 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use archive_x_native_player::{Engine, HwAccel, Options, Player, Rect};
+use archive_x_native_player::{Engine, HwAccel, Options, Player, Rect, VideoLayer};
 use serde::Serialize;
 use tauri::window::Color;
 use tauri::{AppHandle, Manager, State, WebviewWindow};
@@ -62,9 +62,29 @@ fn hw_from(code: Option<i32>) -> HwAccel {
     }
 }
 
-/// In front of the page unless ARCHIVE_X_NATIVE_VIDEO_BEHIND=1.
-fn video_on_top() -> bool {
-    std::env::var("ARCHIVE_X_NATIVE_VIDEO_BEHIND").map(|v| v != "1").unwrap_or(true)
+/// In front of the page unless ARCHIVE_X_NATIVE_VIDEO_BEHIND=1 (behind) or ARCHIVE_X_NATIVE_VIDEO_POPUP=1 (own window above).
+fn start_layer() -> VideoLayer {
+    let on = |name: &str| std::env::var(name).map(|v| v == "1").unwrap_or(false);
+    if on("ARCHIVE_X_NATIVE_VIDEO_POPUP") {
+        VideoLayer::Popup
+    } else if on("ARCHIVE_X_NATIVE_VIDEO_BEHIND") {
+        VideoLayer::Behind
+    } else {
+        VideoLayer::Front
+    }
+}
+
+/// Only the behind layer needs the web view to be see-through.
+fn background_for(layer: VideoLayer) -> Option<Color> {
+    Some(if layer == VideoLayer::Behind { TRANSPARENT } else { PAGE_BACKGROUND })
+}
+
+fn layer_name(layer: VideoLayer) -> &'static str {
+    match layer {
+        VideoLayer::Behind => "behind",
+        VideoLayer::Front => "front",
+        VideoLayer::Popup => "popup",
+    }
 }
 
 #[derive(Serialize)]
@@ -82,7 +102,7 @@ pub struct Opened {
     width: i32,
     height: i32,
     decoder: String,
-    video_on_top: bool,
+    layer: &'static str,
 }
 
 #[derive(Serialize)]
@@ -103,7 +123,14 @@ pub struct Snapshot {
     window_visible: bool,
     window_width: i32,
     window_height: i32,
-    video_on_top: bool,
+    /// "behind", "front" or "popup".
+    layer: &'static str,
+    /// Frames the renderer says it drew and dropped (-1: unknown).
+    frames_drawn: i32,
+    frames_dropped: i32,
+    /// What is really on screen where the video window is: distinct colours (1 or 2 = flat) and brightness range.
+    screen_distinct: i32,
+    screen_luma_range: i32,
 }
 
 #[derive(Serialize)]
@@ -132,23 +159,23 @@ pub async fn native_open(app: AppHandle, window: WebviewWindow, state: State<'_,
         inner.engine = Some(Engine::load(&dll).map_err(|e| e.to_string())?);
     }
     let engine = inner.engine.clone().ok_or("the engine is not loaded")?;
-    let on_top = video_on_top();
+    let layer = start_layer();
     let player = engine
-        .create_player(&lav, Options { hw_accel: hw_from(hw), headless: false, video_on_top: on_top })
+        .create_player(&lav, Options { hw_accel: hw_from(hw), headless: false, video_layer: layer })
         .map_err(|e| e.to_string())?;
     #[cfg(windows)]
     let parent = window.hwnd().ok().map(|h| h.0 as isize);
     #[cfg(not(windows))]
     let parent: Option<isize> = None;
     player.open(&url, "Archive X", parent, Rect { x, y, w, h }).map_err(|e| e.to_string())?;
-    let _ = window.set_background_color(Some(if on_top { PAGE_BACKGROUND } else { TRANSPARENT }));
+    let _ = window.set_background_color(background_for(layer));
     let s = player.state();
-    let opened = Opened { duration: s.duration, width: s.video_width, height: s.video_height, decoder: player.decoder(), video_on_top: on_top };
+    let opened = Opened { duration: s.duration, width: s.video_width, height: s.video_height, decoder: player.decoder(), layer: layer_name(layer) };
     inner.player = Some(player);
     Ok(opened)
 }
 
-/// play, pause, stop, seek (seconds), rate (1.0 = normal), volume (0 to 100), mute (1 or 0), audio (track number), front, back, close.
+/// play, pause, stop, seek (seconds), rate (1.0 = normal), volume (0 to 100), mute (1 or 0), audio (track number), front, back, popup, close.
 #[tauri::command]
 pub async fn native_command(window: WebviewWindow, state: State<'_, NativeState>, command: String, value: Option<f64>) -> Result<(), String> {
     let mut inner = state.0.lock().map_err(|_| "the player is busy".to_string())?;
@@ -168,14 +195,14 @@ pub async fn native_command(window: WebviewWindow, state: State<'_, NativeState>
         "volume" => p.set_volume(v.clamp(0.0, 100.0) as u8),
         "mute" => p.set_muted(v != 0.0),
         "audio" => p.select_audio_track(v.max(0.0) as usize),
-        "front" => {
-            let r = p.set_video_on_top(true);
-            let _ = window.set_background_color(Some(PAGE_BACKGROUND));
-            r
-        }
-        "back" => {
-            let r = p.set_video_on_top(false);
-            let _ = window.set_background_color(Some(TRANSPARENT));
+        "front" | "back" | "popup" => {
+            let layer = match command.as_str() {
+                "front" => VideoLayer::Front,
+                "back" => VideoLayer::Behind,
+                _ => VideoLayer::Popup,
+            };
+            let r = p.set_video_layer(layer);
+            let _ = window.set_background_color(background_for(layer));
             r
         }
         other => return Err(format!("unknown command: {other}")),
@@ -212,8 +239,20 @@ pub async fn native_state(state: State<'_, NativeState>) -> Result<Snapshot, Str
         window_visible: s.window_visible,
         window_width: s.window_width,
         window_height: s.window_height,
-        video_on_top: s.video_on_top,
+        layer: layer_name(s.video_layer),
+        frames_drawn: s.frames_drawn,
+        frames_dropped: s.frames_dropped,
+        screen_distinct: s.screen_distinct,
+        screen_luma_range: s.screen_luma_range,
     })
+}
+
+/// A plain-text report of the player's windows, renderer counters and what is on screen, for the page to show and send to support.
+#[tauri::command]
+pub async fn native_diagnostics(state: State<'_, NativeState>) -> Result<String, String> {
+    let inner = state.0.lock().map_err(|_| "the player is busy".to_string())?;
+    let p = inner.player.as_ref().ok_or("no video is open")?;
+    Ok(p.diagnostics())
 }
 
 #[tauri::command]
@@ -234,7 +273,7 @@ pub fn shutdown(app: &AppHandle) {
 
 /// The command names; build.rs keeps its own copy (it cannot use this module) and the test below checks they agree.
 #[cfg(test)]
-const COMMANDS: &[&str] = &["native_available", "native_open", "native_command", "native_rect", "native_state", "native_tracks"];
+const COMMANDS: &[&str] = &["native_available", "native_open", "native_command", "native_rect", "native_state", "native_tracks", "native_diagnostics"];
 
 #[cfg(test)]
 mod tests {

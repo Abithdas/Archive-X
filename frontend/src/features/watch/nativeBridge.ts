@@ -7,12 +7,16 @@ const invoke = (): Invoke | undefined => (window as unknown as { __TAURI_INTERNA
 
 export const hasNativeBridge = () => typeof invoke() === 'function'
 
+/** Where the video window sits: in front of the page, behind it, or in its own window above the app. */
+export type VideoLayer = 'front' | 'behind' | 'popup'
 export interface Availability { available: boolean; reason: string }
-export interface Opened { duration: number; width: number; height: number; decoder: string; videoOnTop: boolean }
+export interface Opened { duration: number; width: number; height: number; decoder: string; layer: VideoLayer }
 export interface Snapshot {
   position: number; duration: number; playing: boolean; ended: boolean; buffering: boolean; width: number; height: number; error: number; opened: boolean; message: string
-  /** The video window: shown, its real size in pixels, and whether it is in front of the page. */
-  windowVisible: boolean; windowWidth: number; windowHeight: number; videoOnTop: boolean
+  /** The video window: shown, its real size in pixels, and its layer. */
+  windowVisible: boolean; windowWidth: number; windowHeight: number; layer: VideoLayer
+  /** What the renderer says it drew and dropped (-1: unknown), and what is really on screen there: distinct colours (1 or 2 = flat) and brightness range. */
+  framesDrawn: number; framesDropped: number; screenDistinct: number; screenLumaRange: number
 }
 export interface NativeTrack { name: string; selected: boolean }
 /** Where the video goes, in device pixels of the app window. */
@@ -28,7 +32,7 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
   }
 }
 
-export type NativeCommand = 'play' | 'pause' | 'stop' | 'seek' | 'rate' | 'volume' | 'mute' | 'audio' | 'front' | 'back' | 'close'
+export type NativeCommand = 'play' | 'pause' | 'stop' | 'seek' | 'rate' | 'volume' | 'mute' | 'audio' | 'front' | 'back' | 'popup' | 'close'
 
 export const native = {
   available: () => call<Availability>('native_available'),
@@ -37,6 +41,7 @@ export const native = {
   rect: (rect: PixelRect) => call<void>('native_rect', { ...rect }),
   state: () => call<Snapshot>('native_state'),
   tracks: () => call<NativeTrack[]>('native_tracks'),
+  diagnostics: () => call<string>('native_diagnostics'),
 }
 
 /** An element's place in device pixels. getBoundingClientRect is in the page's own pixels, zoom included (the app zooms wide windows), so only

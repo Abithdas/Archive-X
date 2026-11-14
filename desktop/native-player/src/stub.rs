@@ -23,7 +23,8 @@ impl Player {
     pub fn set_volume(&self, _p: u8) -> Result<(), Error> { Err(Error::Unsupported) }
     pub fn set_muted(&self, _m: bool) -> Result<(), Error> { Err(Error::Unsupported) }
     pub fn set_rect(&self, _r: Rect) -> Result<(), Error> { Err(Error::Unsupported) }
-    pub fn set_video_on_top(&self, _on_top: bool) -> Result<(), Error> { Err(Error::Unsupported) }
+    pub fn set_video_layer(&self, _layer: crate::VideoLayer) -> Result<(), Error> { Err(Error::Unsupported) }
+    pub fn diagnostics(&self) -> String { String::new() }
     pub fn audio_tracks(&self) -> Result<Vec<AudioTrack>, Error> { Err(Error::Unsupported) }
     pub fn select_audio_track(&self, _i: usize) -> Result<(), Error> { Err(Error::Unsupported) }
     pub fn state(&self) -> State { State::default() }

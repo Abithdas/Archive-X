@@ -134,7 +134,8 @@ pub fn run() {
             native::native_command,
             native::native_rect,
             native::native_state,
-            native::native_tracks
+            native::native_tracks,
+            native::native_diagnostics
         ])
         .setup(|app| {
             let handle = app.handle().clone();

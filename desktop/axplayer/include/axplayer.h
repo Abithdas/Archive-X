@@ -41,11 +41,17 @@ enum {
     AX_HW_D3D11 = 5
 };
 
+/* Where the video window sits. */
+enum {
+    AX_LAYER_BEHIND = 0, /* a child window behind the other child windows (the web page can draw over the video through transparent areas) */
+    AX_LAYER_FRONT = 1,  /* a child window in front of them */
+    AX_LAYER_POPUP = 2   /* its own borderless window owned by the parent: always above it, follows it when it moves, resizes or hides */
+};
+
 typedef struct AxOptions {
     int hw_accel;   /* one of AX_HW_*; software decoding is used whenever the hardware cannot do the video */
     int headless;   /* 1: no window and no sound device (null renderers), for automated tests */
-    int video_on_top; /* 0 (default): the video window sits BEHIND the other child windows of the parent (the web page, which can then draw over the
-                         video through its transparent areas); 1: in front of them */
+    int video_layer;  /* where the video window goes (AX_LAYER_*): in front of the page's windows (default), behind them, or as its own window above */
 } AxOptions;
 
 typedef struct AxState {
@@ -61,7 +67,11 @@ typedef struct AxState {
     int win_visible;     /* 1 when the video window exists and is shown */
     int win_width;       /* the video window's real size in pixels (0 when there is none) */
     int win_height;
-    int on_top;          /* 1: the video window is in front of the page, 0: behind it */
+    int layer;           /* AX_LAYER_* the video window is in */
+    int frames_drawn;    /* frames the renderer says it has drawn (-1 when it does not tell) */
+    int frames_dropped;  /* frames it dropped (-1 when unknown) */
+    int screen_distinct; /* distinct colours among 144 points of the screen where the video window is: a black or flat area gives 1 or 2 */
+    int screen_luma_range; /* brightest minus darkest of those points, 0 to 255 */
 } AxState;
 
 /* Creates a player. lav_dir is the folder with LAVSplitter.ax, LAVVideo.ax, LAVAudio.ax (and the DLLs next to them). */
@@ -81,8 +91,11 @@ AXAPI int ax_set_rate(AxPlayer *p, double rate);          /* 1.0 normal */
 AXAPI int ax_set_volume(AxPlayer *p, int percent);        /* 0 to 100 */
 AXAPI int ax_set_muted(AxPlayer *p, int muted);
 AXAPI int ax_set_rect(AxPlayer *p, int x, int y, int w, int h);
-/* Puts the video window in front of (1) or behind (0) the other child windows of its parent, while playing. */
-AXAPI int ax_set_layer(AxPlayer *p, int on_top);
+/* Moves the video window to another layer (AX_LAYER_*), while playing. */
+AXAPI int ax_set_layer(AxPlayer *p, int layer);
+/* A plain-text report for support: the windows involved and their order, the renderer's counters, the graph's media types, the decoder, and what
+ * is really on screen where the video should be. Returns the number of characters written. */
+AXAPI int ax_diagnostics(AxPlayer *p, wchar_t *buffer, int chars);
 
 /* Audio tracks (LAV Splitter's streams). */
 AXAPI int ax_audio_track_count(AxPlayer *p);

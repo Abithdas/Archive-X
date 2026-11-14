@@ -27,13 +27,35 @@ pub struct Options {
     pub hw_accel: HwAccel,
     /// No window and no sound device (null renderers): for automated tests.
     pub headless: bool,
-    /// false (default): the video window sits behind the web page, which shows the video through its transparent areas; true: in front.
-    pub video_on_top: bool,
+    /// Where the video window goes.
+    pub video_layer: VideoLayer,
+}
+
+/// Where the video window sits relative to the page.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum VideoLayer {
+    /// A child window behind the page, which shows the video through its transparent areas.
+    Behind = 0,
+    /// A child window in front of the page.
+    #[default]
+    Front = 1,
+    /// Its own borderless window above the app window, following it.
+    Popup = 2,
+}
+
+impl VideoLayer {
+    pub fn from_code(code: i32) -> VideoLayer {
+        match code {
+            0 => VideoLayer::Behind,
+            2 => VideoLayer::Popup,
+            _ => VideoLayer::Front,
+        }
+    }
 }
 
 impl Default for Options {
     fn default() -> Self {
-        Options { hw_accel: HwAccel::Dxva2CopyBack, headless: false, video_on_top: false }
+        Options { hw_accel: HwAccel::Dxva2CopyBack, headless: false, video_layer: VideoLayer::Front }
     }
 }
 
@@ -63,7 +85,13 @@ pub struct State {
     pub window_visible: bool,
     pub window_width: i32,
     pub window_height: i32,
-    pub video_on_top: bool,
+    pub video_layer: VideoLayer,
+    /// Frames the renderer says it drew and dropped (-1: it does not say).
+    pub frames_drawn: i32,
+    pub frames_dropped: i32,
+    /// Distinct colours and brightness range measured on screen where the video window is (a flat area: 1 or 2, range 0).
+    pub screen_distinct: i32,
+    pub screen_luma_range: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -138,7 +166,9 @@ impl Player {
     pub fn set_muted(&self, muted: bool) -> Result<(), Error> { self.0.set_muted(muted) }
     pub fn set_rect(&self, rect: Rect) -> Result<(), Error> { self.0.set_rect(rect) }
     /// Video window in front of the page (true) or behind it (false).
-    pub fn set_video_on_top(&self, on_top: bool) -> Result<(), Error> { self.0.set_video_on_top(on_top) }
+    pub fn set_video_layer(&self, layer: VideoLayer) -> Result<(), Error> { self.0.set_video_layer(layer) }
+    /// A plain-text report for support (windows, renderer counters, media types, what is on screen).
+    pub fn diagnostics(&self) -> String { self.0.diagnostics() }
     pub fn audio_tracks(&self) -> Result<Vec<AudioTrack>, Error> { self.0.audio_tracks() }
     pub fn select_audio_track(&self, index: usize) -> Result<(), Error> { self.0.select_audio_track(index) }
     pub fn state(&self) -> State { self.0.state() }
@@ -169,7 +199,7 @@ mod tests {
         let o = Options::default();
         assert_eq!(o.hw_accel, HwAccel::Dxva2CopyBack);
         assert!(!o.headless);
-        assert!(!o.video_on_top);
+        assert_eq!(o.video_layer, VideoLayer::Front);
         assert_eq!(HwAccel::D3d11 as i32, 5);
     }
 }

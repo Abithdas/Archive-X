@@ -189,6 +189,12 @@
           "markdownDescription": "Enables the native_command command without any pre-configured scope."
         },
         {
+          "description": "Enables the native_diagnostics command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-native-diagnostics",
+          "markdownDescription": "Enables the native_diagnostics command without any pre-configured scope."
+        },
+        {
           "description": "Enables the native_open command without any pre-configured scope.",
           "type": "string",
           "const": "allow-native-open",
@@ -223,6 +229,12 @@
           "type": "string",
           "const": "deny-native-command",
           "markdownDescription": "Denies the native_command command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the native_diagnostics command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-native-diagnostics",
+          "markdownDescription": "Denies the native_diagnostics command without any pre-configured scope."
         },
         {
           "description": "Denies the native_open command without any pre-configured scope.",

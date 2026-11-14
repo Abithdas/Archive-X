@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use archive_x_native_player::{Engine, Error, HwAccel, Options, Player, Rect};
+use archive_x_native_player::{Engine, Error, HwAccel, Options, Player, Rect, VideoLayer};
 
 fn env(name: &str) -> PathBuf {
     PathBuf::from(std::env::var(name).unwrap_or_else(|_| panic!("set {name}")))
@@ -23,7 +23,7 @@ fn wait_for(p: &Player, secs: u64, f: impl Fn(&archive_x_native_player::State) -
 }
 
 fn headless() -> Options {
-    Options { hw_accel: HwAccel::None, headless: true, video_on_top: false }
+    Options { hw_accel: HwAccel::None, headless: true, video_layer: VideoLayer::Front }
 }
 
 #[test]

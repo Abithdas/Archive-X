@@ -9,12 +9,12 @@ let state: Record<string, unknown>
 let overrides: Record<string, () => unknown>
 
 const SIGNED = 'http://127.0.0.1:18570/video/5?c=-1001&t=abc'
-const OPENED = { duration: 120, width: 1920, height: 1080, decoder: 'avcodec', videoOnTop: true }
+const OPENED = { duration: 120, width: 1920, height: 1080, decoder: 'avcodec', layer: 'front' }
 
 beforeEach(() => {
   calls = []
   overrides = {}
-  state = { position: 12, duration: 120, playing: true, ended: false, buffering: false, width: 1920, height: 1080, error: 0, opened: true, message: '', windowVisible: true, windowWidth: 1280, windowHeight: 720, videoOnTop: true }
+  state = { position: 12, duration: 120, playing: true, ended: false, buffering: false, width: 1920, height: 1080, error: 0, opened: true, message: '', windowVisible: true, windowWidth: 1280, windowHeight: 720, layer: 'front', framesDrawn: 300, framesDropped: 0, screenDistinct: 40, screenLumaRange: 180 }
   document.body.innerHTML = '<div id="root"></div>'
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} unobserve() {} })
   vi.stubGlobal('fetch', vi.fn(async (url: string) => (String(url).includes('/api/play/device-link/') ? new Response(JSON.stringify({ url: SIGNED }), { status: 200 }) : new Response('{}', { status: 404 }))))
@@ -26,6 +26,7 @@ beforeEach(() => {
         case 'native_available': return { available: true, reason: '' }
         case 'native_open': return OPENED
         case 'native_state': return state
+        case 'native_diagnostics': return 'layer: front'
         case 'native_tracks': return [{ name: 'English', selected: true }, { name: 'Spanish', selected: false }]
         default: return undefined
       }
@@ -107,17 +108,27 @@ describe('NativePlayerPage', () => {
     expect(screen.getByText('0:30 / 2:00')).toBeInTheDocument()
   })
 
-  it('lets the viewer switch the video between in front of the page and behind it, while it plays', async () => {
+  it('lets the viewer step the video through front, own window and behind the page, while it plays', async () => {
     mount()
     await ready()
     const layer = screen.getByRole('button', { name: 'Video layer' })
     expect(layer).toHaveTextContent('Video: in front')
     fireEvent.click(layer)
+    expect(layer).toHaveTextContent('Video: own window')
+    expect(sent('native_command').some((c) => c.args?.command === 'popup')).toBe(true)
+    fireEvent.click(layer)
     expect(layer).toHaveTextContent('Video: behind page')
     expect(sent('native_command').some((c) => c.args?.command === 'back')).toBe(true)
     expect(screen.getByText(/video behind the page/)).toBeInTheDocument()
     fireEvent.click(layer)
-    expect(sent('native_command').some((c) => c.args?.command === 'front')).toBe(true)
+    expect(sent('native_command').filter((c) => c.args?.command === 'front').length).toBeGreaterThan(0)
+  })
+
+  it('says when nothing but a flat colour is seen where the video is', async () => {
+    state = { ...state, screenDistinct: 1, screenLumaRange: 0 }
+    mount()
+    await ready()
+    expect(await screen.findByText(/FLAT \(no picture seen\)/)).toBeInTheDocument()
   })
 
   it('says when the video window is hidden, so a missing picture can be explained', async () => {

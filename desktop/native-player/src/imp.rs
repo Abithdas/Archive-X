@@ -5,13 +5,13 @@ use std::path::Path;
 use std::ptr;
 use std::sync::Arc;
 
-use crate::{AudioTrack, Error, Options, Rect, State};
+use crate::{AudioTrack, Error, Options, Rect, State, VideoLayer};
 
 #[repr(C)]
 struct AxOptions {
     hw_accel: i32,
     headless: i32,
-    video_on_top: i32,
+    video_layer: i32,
 }
 
 #[repr(C)]
@@ -29,7 +29,11 @@ struct AxState {
     win_visible: i32,
     win_width: i32,
     win_height: i32,
-    on_top: i32,
+    layer: i32,
+    frames_drawn: i32,
+    frames_dropped: i32,
+    screen_distinct: i32,
+    screen_luma_range: i32,
 }
 
 type Handle = *mut c_void;
@@ -62,6 +66,7 @@ struct Fns {
     set_muted: IntFn,
     set_rect: RectFn,
     set_layer: IntFn,
+    diagnostics: DecoderFn,
     track_count: CountFn,
     track_name: NameFn,
     select_track: IntFn,
@@ -100,6 +105,7 @@ impl Library {
                 set_muted: sym!("ax_set_muted", IntFn),
                 set_rect: sym!("ax_set_rect", RectFn),
                 set_layer: sym!("ax_set_layer", IntFn),
+                diagnostics: sym!("ax_diagnostics", DecoderFn),
                 track_count: sym!("ax_audio_track_count", CountFn),
                 track_name: sym!("ax_audio_track_name", NameFn),
                 select_track: sym!("ax_select_audio_track", IntFn),
@@ -136,7 +142,7 @@ unsafe impl Sync for Player {}
 
 impl Player {
     pub fn create(lib: Arc<Library>, lav_dir: &Path, options: Options) -> Result<Player, Error> {
-        let opt = AxOptions { hw_accel: options.hw_accel as i32, headless: options.headless as i32, video_on_top: options.video_on_top as i32 };
+        let opt = AxOptions { hw_accel: options.hw_accel as i32, headless: options.headless as i32, video_layer: options.video_layer as i32 };
         let dir = wide_path(lav_dir);
         let mut handle: Handle = ptr::null_mut();
         // SAFETY: pointers are valid for the call; `handle` receives the new player (even when creating failed, so its message can be read).
@@ -169,7 +175,14 @@ impl Player {
     pub fn set_volume(&self, percent: u8) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_volume)(self.handle, percent as i32) }) }
     pub fn set_muted(&self, muted: bool) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_muted)(self.handle, muted as i32) }) }
     pub fn set_rect(&self, r: Rect) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_rect)(self.handle, r.x, r.y, r.w, r.h) }) }
-    pub fn set_video_on_top(&self, on_top: bool) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_layer)(self.handle, on_top as i32) }) }
+    pub fn set_video_layer(&self, layer: VideoLayer) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_layer)(self.handle, layer as i32) }) }
+
+    pub fn diagnostics(&self) -> String {
+        let mut buf = vec![0u16; 8192];
+        // SAFETY: the buffer is 8192 wide characters and the engine is told so.
+        let n = unsafe { (self.lib.f.diagnostics)(self.handle, buf.as_mut_ptr(), buf.len() as i32) };
+        String::from_utf16_lossy(&buf[..(n.max(0) as usize).min(buf.len())])
+    }
 
     pub fn audio_tracks(&self) -> Result<Vec<AudioTrack>, Error> {
         let count = unsafe { (self.lib.f.track_count)(self.handle) };
@@ -207,7 +220,11 @@ impl Player {
             window_visible: s.win_visible != 0,
             window_width: s.win_width,
             window_height: s.win_height,
-            video_on_top: s.on_top != 0,
+            video_layer: VideoLayer::from_code(s.layer),
+            frames_drawn: s.frames_drawn,
+            frames_dropped: s.frames_dropped,
+            screen_distinct: s.screen_distinct,
+            screen_luma_range: s.screen_luma_range,
         }
     }
 

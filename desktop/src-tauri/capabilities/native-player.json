@@ -10,6 +10,7 @@
     "allow-native-command",
     "allow-native-rect",
     "allow-native-state",
-    "allow-native-tracks"
+    "allow-native-tracks",
+    "allow-native-diagnostics"
   ]
 }

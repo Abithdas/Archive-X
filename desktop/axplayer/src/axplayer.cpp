@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <objbase.h>
 #include <initguid.h>
+#include <climits>
 #include <dshow.h>
 #include <control.h>
 #include <evcode.h>
@@ -22,6 +23,8 @@
 #include <future>
 #include <memory>
 #include <mutex>
+#include <set>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -165,7 +168,11 @@ struct AxPlayer {
     Com<IMFVideoDisplayControl> display;
     HWND window = nullptr;
     bool own_window = false;
-    int last_x = 0, last_y = 0, last_w = 1, last_h = 1;   // where the video window was last put
+    HWND parent_hwnd = nullptr;
+    int last_x = 0, last_y = 0, last_w = 1, last_h = 1;   // where the video window was last put (in the parent window)
+    int popup_x = INT_MIN, popup_y = INT_MIN;               // where the popup window is on screen
+    ULONGLONG next_sample = 0;                              // when the renderer counters and the on-screen check run next
+    int frames_drawn = -1, frames_dropped = -1, screen_distinct = 0, screen_luma_range = 0;
     int volume = 100;
     bool muted = false;
     bool class_registered = false;
@@ -258,18 +265,55 @@ struct AxPlayer {
         decoder.clear();
     }
 
-    // Position the video window; by default at the bottom of its siblings, so the web page (a sibling above it) can show through.
+    bool popup() const { return opt.video_layer == AX_LAYER_POPUP && parent_hwnd != nullptr; }
+
+    // Position the video window. A child window goes to the front or the back of its siblings; the popup is placed over the same area on screen.
     void place(int x, int y, int w, int h) {
         last_x = x; last_y = y; last_w = std::max(w, 1); last_h = std::max(h, 1);
         if (!window) return;
-        SetWindowPos(window, opt.video_on_top ? HWND_TOP : HWND_BOTTOM, x, y, last_w, last_h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
-        if (opt.video_on_top) RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        if (popup()) {
+            POINT pt{x, y};
+            ClientToScreen(parent_hwnd, &pt);
+            popup_x = pt.x; popup_y = pt.y;
+            SetWindowPos(window, nullptr, pt.x, pt.y, last_w, last_h, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        } else {
+            SetWindowPos(window, opt.video_layer ? HWND_TOP : HWND_BOTTOM, x, y, last_w, last_h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        }
+        if (opt.video_layer) RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
 
-    void set_layer(bool on_top) {
-        opt.video_on_top = on_top ? 1 : 0;
-        place(last_x, last_y, last_w, last_h);
-        if (display) display->RepaintVideo();
+    // The popup follows its parent: moved with it, hidden while it is minimised or hidden.
+    void follow_parent() {
+        if (!window || !popup()) return;
+        bool want = IsWindowVisible(parent_hwnd) && !IsIconic(parent_hwnd);
+        if (want != (IsWindowVisible(window) != 0)) ShowWindow(window, want ? SW_SHOWNOACTIVATE : SW_HIDE);
+        if (!want) return;
+        POINT pt{last_x, last_y};
+        ClientToScreen(parent_hwnd, &pt);
+        if (pt.x != popup_x || pt.y != popup_y) {
+            popup_x = pt.x; popup_y = pt.y;
+            SetWindowPos(window, nullptr, pt.x, pt.y, last_w, last_h, SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+    }
+
+    void set_layer(int layer) {
+        layer = std::min<int>(AX_LAYER_POPUP, std::max<int>(AX_LAYER_BEHIND, layer));
+        bool was_popup = popup();
+        opt.video_layer = layer;
+        if (window && own_window && was_popup != popup()) {
+            // A child window and a popup are different kinds of window: make the other kind and point the renderer at it.
+            HWND old = window;
+            window = nullptr;
+            if (SUCCEEDED(make_window(parent_hwnd, last_x, last_y, last_w, last_h)) && display) display->SetVideoWindow(window);
+            DestroyWindow(old);
+        } else {
+            place(last_x, last_y, last_w, last_h);
+        }
+        if (display) {
+            RECT rc{0, 0, last_w, last_h};
+            display->SetVideoPosition(nullptr, &rc);
+            display->RepaintVideo();
+        }
     }
 
     HRESULT make_window(HWND parent, int x, int y, int w, int h) {
@@ -282,8 +326,17 @@ struct AxPlayer {
             RegisterClassW(&wc);   // already registered is fine
             class_registered = true;
         }
-        DWORD style = parent ? (WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN) : (WS_POPUP | WS_CLIPCHILDREN);
-        window = CreateWindowExW(0, kVideoClass, L"", style, x, y, std::max(w, 1), std::max(h, 1), parent, nullptr, GetModuleHandleW(nullptr), nullptr);
+        parent_hwnd = parent;
+        HINSTANCE inst = GetModuleHandleW(nullptr);
+        if (popup()) {
+            POINT pt{x, y};
+            ClientToScreen(parent, &pt);
+            // Borderless, never takes focus, not in the taskbar; owned by the app window so it always stays above it.
+            window = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, kVideoClass, L"", WS_POPUP | WS_CLIPCHILDREN, pt.x, pt.y, std::max(w, 1), std::max(h, 1), parent, nullptr, inst, nullptr);
+        } else {
+            DWORD style = parent ? (WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN) : (WS_POPUP | WS_CLIPCHILDREN);
+            window = CreateWindowExW(0, kVideoClass, L"", style, x, y, std::max(w, 1), std::max(h, 1), parent, nullptr, inst, nullptr);
+        }
         if (!window) return HRESULT_FROM_WIN32(GetLastError());
         own_window = true;
         place(x, y, w, h);
@@ -467,6 +520,11 @@ struct AxPlayer {
             OAFilterState fs;
             if (control->GetState(0, &fs) == S_OK && fs == State_Running) running = 1;
         }
+        follow_parent();
+        if (GetTickCount64() >= next_sample) {
+            next_sample = GetTickCount64() + 1000;
+            sample_renderer();
+        }
         int visible = 0, ww = 0, wh = 0;
         if (window) {
             RECT rc{};
@@ -481,7 +539,170 @@ struct AxPlayer {
         state.win_visible = visible;
         state.win_width = ww;
         state.win_height = wh;
-        state.on_top = opt.video_on_top ? 1 : 0;
+        state.layer = opt.video_layer;
+        state.frames_drawn = frames_drawn;
+        state.frames_dropped = frames_dropped;
+        state.screen_distinct = screen_distinct;
+        state.screen_luma_range = screen_luma_range;
+    }
+
+    // Once a second: what the renderer says it drew, and what is actually on screen where the video window is.
+    void sample_renderer() {
+        frames_drawn = frames_dropped = -1;
+        if (video_out) {
+            Com<IQualProp> q;
+            if (SUCCEEDED(video_out->QueryInterface(IID_IQualProp, q.put_void()))) {
+                int n = 0;
+                if (SUCCEEDED(q->get_FramesDrawn(&n))) frames_drawn = n;
+                if (SUCCEEDED(q->get_FramesDroppedInRenderer(&n))) frames_dropped = n;
+            }
+        }
+        screen_distinct = 0;
+        screen_luma_range = 0;
+        if (!window || !IsWindowVisible(window)) return;
+        RECT rc{};
+        GetWindowRect(window, &rc);
+        int w = rc.right - rc.left, h = rc.bottom - rc.top;
+        if (w < 32 || h < 32) return;
+        HDC dc = GetDC(nullptr);
+        if (!dc) return;
+        std::set<unsigned> colours;
+        int lo = 255, hi = 0;
+        for (int gy = 1; gy <= 9; ++gy) {
+            for (int gx = 1; gx <= 16; ++gx) {
+                COLORREF c = GetPixel(dc, rc.left + w * gx / 17, rc.top + h * gy / 10);
+                if (c == CLR_INVALID) continue;
+                int r = GetRValue(c), g = GetGValue(c), b = GetBValue(c);
+                int luma = (r * 30 + g * 59 + b * 11) / 100;
+                lo = std::min(lo, luma);
+                hi = std::max(hi, luma);
+                colours.insert(((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4));
+            }
+        }
+        ReleaseDC(nullptr, dc);
+        screen_distinct = static_cast<int>(colours.size());
+        screen_luma_range = hi >= lo ? hi - lo : 0;
+    }
+
+    static std::wstring fourcc_or_guid(const GUID &g) {
+        wchar_t buf[64];
+        if (g.Data2 == 0 && g.Data3 == 0x0010 && g.Data4[0] == 0x80) {   // a subtype made from a four-character code
+            char c[5] = {static_cast<char>(g.Data1 & 0xFF), static_cast<char>((g.Data1 >> 8) & 0xFF), static_cast<char>((g.Data1 >> 16) & 0xFF), static_cast<char>((g.Data1 >> 24) & 0xFF), 0};
+            bool printable = true;
+            for (int i = 0; i < 4; ++i) if (c[i] < 32 || c[i] > 126) printable = false;
+            if (printable) { std::swprintf(buf, 64, L"%hs", c); return buf; }
+        }
+        std::swprintf(buf, 64, L"{%08lX-%04X-%04X}", static_cast<unsigned long>(g.Data1), g.Data2, g.Data3);
+        return buf;
+    }
+
+    static std::wstring pin_type(IPin *pin) {
+        AM_MEDIA_TYPE mt{};
+        if (FAILED(pin->ConnectionMediaType(&mt))) return L"(not connected)";
+        std::wstringstream o;
+        o << fourcc_or_guid(mt.subtype);
+        if (mt.pbFormat && IsEqualGUID(mt.formattype, FORMAT_VideoInfo2) && mt.cbFormat >= sizeof(VIDEOINFOHEADER2)) {
+            auto *vi = reinterpret_cast<VIDEOINFOHEADER2 *>(mt.pbFormat);
+            o << L" " << vi->bmiHeader.biWidth << L"x" << std::abs(vi->bmiHeader.biHeight);
+        } else if (mt.pbFormat && IsEqualGUID(mt.formattype, FORMAT_VideoInfo) && mt.cbFormat >= sizeof(VIDEOINFOHEADER)) {
+            auto *vi = reinterpret_cast<VIDEOINFOHEADER *>(mt.pbFormat);
+            o << L" " << vi->bmiHeader.biWidth << L"x" << std::abs(vi->bmiHeader.biHeight);
+        }
+        if (mt.cbFormat && mt.pbFormat) CoTaskMemFree(mt.pbFormat);
+        if (mt.pUnk) mt.pUnk->Release();
+        return o.str();
+    }
+
+    static std::wstring window_line(HWND h) {
+        wchar_t cls[96] = L"?";
+        GetClassNameW(h, cls, 96);
+        RECT rc{};
+        GetWindowRect(h, &rc);
+        LONG style = GetWindowLongW(h, GWL_STYLE);
+        std::wstringstream o;
+        o << L"0x" << std::hex << reinterpret_cast<uintptr_t>(h) << std::dec << L" " << cls << L" " << (IsWindowVisible(h) ? L"shown" : L"hidden") << L" screen "
+          << rc.left << L"," << rc.top << L" " << (rc.right - rc.left) << L"x" << (rc.bottom - rc.top)
+          << ((style & WS_CLIPSIBLINGS) ? L" clip-siblings" : L"") << ((GetWindowLongW(h, GWL_EXSTYLE) & WS_EX_LAYERED) ? L" layered" : L"");
+        return o.str();
+    }
+
+    std::wstring diagnostics_text() {
+        sample_renderer();
+        std::wstringstream o;
+        static const wchar_t *names[] = {L"behind the page (child window, bottom)", L"in front of the page (child window, top)", L"own window above the app (popup)"};
+        o << L"layer: " << names[std::min(2, std::max(0, opt.video_layer))] << L"\n";
+        o << L"hardware option asked: " << opt.hw_accel << L"   headless: " << opt.headless << L"\n";
+        if (parent_hwnd) {
+            RECT cr{}; GetClientRect(parent_hwnd, &cr);
+            o << L"app window: " << window_line(parent_hwnd) << L"  client " << (cr.right - cr.left) << L"x" << (cr.bottom - cr.top) << (IsIconic(parent_hwnd) ? L"  MINIMISED" : L"") << L"\n";
+        } else {
+            o << L"app window: none given\n";
+        }
+        if (window) {
+            RECT cr{}; GetClientRect(window, &cr);
+            o << L"video window: " << window_line(window) << L"  client " << (cr.right - cr.left) << L"x" << (cr.bottom - cr.top)
+              << L"  asked for " << last_x << L"," << last_y << L" " << last_w << L"x" << last_h << L" in the app window\n";
+        } else {
+            o << L"video window: none\n";
+        }
+        if (parent_hwnd) {
+            o << L"windows inside the app window, front to back:\n";
+            int i = 0;
+            for (HWND h = GetWindow(parent_hwnd, GW_CHILD); h && i < 12; h = GetWindow(h, GW_HWNDNEXT), ++i)
+                o << L"  " << i << L". " << window_line(h) << (h == window ? L"   <== the video" : L"") << L"\n";
+        }
+        if (display) {
+            SIZE sz{}, ar{};
+            MFVideoNormalizedRect src{};
+            RECT dst{};
+            DWORD mode = 0;
+            if (SUCCEEDED(display->GetNativeVideoSize(&sz, &ar))) o << L"renderer: native size " << sz.cx << L"x" << sz.cy << L", aspect " << ar.cx << L":" << ar.cy << L"\n";
+            if (SUCCEEDED(display->GetVideoPosition(&src, &dst))) o << L"renderer: draws into " << dst.left << L"," << dst.top << L" " << (dst.right - dst.left) << L"x" << (dst.bottom - dst.top) << L" of the video window\n";
+            if (SUCCEEDED(display->GetAspectRatioMode(&mode))) o << L"renderer: aspect mode " << mode << L"\n";
+        } else {
+            o << L"renderer: no display control (" << (opt.headless ? L"headless" : L"EVR did not give one") << L")\n";
+        }
+        o << L"frames drawn: " << frames_drawn << L"   dropped: " << frames_dropped << L"   (-1 = the renderer does not say)\n";
+        o << L"on screen where the video is: " << screen_distinct << L" distinct colours, brightness range " << screen_luma_range
+          << (screen_distinct <= 2 && window ? L"   <== looks flat: no picture is visible there" : L"") << L"\n";
+        if (graph) {
+            o << L"filters in the graph:\n";
+            Com<IEnumFilters> en;
+            if (SUCCEEDED(graph->EnumFilters(en.put()))) {
+                Com<IBaseFilter> f;
+                while (en->Next(1, f.put(), nullptr) == S_OK) {
+                    FILTER_INFO fi{};
+                    if (SUCCEEDED(f->QueryFilterInfo(&fi))) {
+                        o << L"  " << fi.achName;
+                        if (fi.pGraph) fi.pGraph->Release();
+                    }
+                    Com<IEnumPins> pins;
+                    if (SUCCEEDED(f->EnumPins(pins.put()))) {
+                        Com<IPin> pin;
+                        while (pins->Next(1, pin.put(), nullptr) == S_OK) {
+                            Com<IPin> peer;
+                            if (pin->ConnectedTo(peer.put()) == S_OK) {
+                                PIN_DIRECTION d;
+                                pin->QueryDirection(&d);
+                                o << L"  [" << (d == PINDIR_INPUT ? L"in " : L"out ") << pin_type(pin.get()) << L"]";
+                            }
+                        }
+                    }
+                    o << L"\n";
+                }
+            }
+        }
+        if (video_dec) {
+            Com<ILAVVideoStatus> st;
+            if (SUCCEEDED(video_dec->QueryInterface(IID_ILAVVideoStatus, st.put_void()))) {
+                if (LPCWSTR n = st->GetActiveDecoderName()) o << L"decoder: " << n << L"\n";
+                BSTR dev = nullptr;
+                if (SUCCEEDED(st->GetHWAccelActiveDevice(&dev)) && dev) { o << L"hardware device: " << dev << L"\n"; SysFreeString(dev); }
+            }
+        }
+        std::lock_guard<std::mutex> g(state_mu);
+        o << L"last message: " << std::wstring(error.begin(), error.end()) << L"\n";
+        return o.str();
     }
 
     int audio_streams(std::vector<std::pair<DWORD, std::wstring>> &list, int *selected_index) {
@@ -622,9 +843,24 @@ AXAPI int ax_set_rect(AxPlayer *p, int x, int y, int w, int h) {
     });
 }
 
-AXAPI int ax_set_layer(AxPlayer *p, int on_top) {
+AXAPI int ax_set_layer(AxPlayer *p, int layer) {
     if (!p || !p->thread.joinable()) return E_POINTER;
-    return p->call([=] { p->set_layer(on_top != 0); return 0; });
+    return p->call([=] { p->set_layer(layer); return 0; });
+}
+
+AXAPI int ax_diagnostics(AxPlayer *p, wchar_t *buffer, int chars) {
+    if (!p || !buffer || chars <= 0) return 0;
+    buffer[0] = L'\0';
+    if (!p->thread.joinable()) return 0;
+    int written = 0;
+    p->call([&] {
+        std::wstring text = p->diagnostics_text();
+        std::wcsncpy(buffer, text.c_str(), static_cast<size_t>(chars) - 1);
+        buffer[chars - 1] = L'\0';
+        written = static_cast<int>(std::wcslen(buffer));
+        return 0;
+    });
+    return written;
 }
 
 AXAPI int ax_audio_track_count(AxPlayer *p) {
