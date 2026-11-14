@@ -819,7 +819,7 @@ def register_media_routes(
         """GET /api/performers/{performer_id}/suggested: Performer suggested videos."""
         require_auth(request)
         from ..metadata.suggestions import list_for_performer, candidate_display_fields
-        rows = list_for_performer(db, performer_id, status="PENDING")
+        rows = await asyncio.to_thread(list_for_performer, db, performer_id, status="PENDING")   # off the event loop: it waits on the database lock
         out = []
         for r in rows:
             def _read_media():

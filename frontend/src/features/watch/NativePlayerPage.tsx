@@ -115,7 +115,7 @@ export function NativePlayerPage({ cid, mid }: { cid: string; mid: number }) {
     if (phase !== 'ready' || !playingNow || sentReport.current) return
     const t = setTimeout(() => {
       sentReport.current = true
-      void refreshReport().then((text) => api('/api/diagnostics/client', { method: 'POST', json: { events: [{ level: 'WARN', source: 'native-player', message: `Native player report (${layer})`, details: text, ts: Date.now() }] } }).catch(() => undefined))
+      void refreshReport().then((text) => api('/api/diagnostics/client', { method: 'POST', json: { events: [{ type: 'native-player.report', level: 'WARN', message: `Native player report (${layer})`, data: { layer, report: text.slice(0, 6000) } }] } }).catch(() => undefined))
     }, 3000)
     return () => clearTimeout(t)
   }, [phase, playingNow, layer, refreshReport])

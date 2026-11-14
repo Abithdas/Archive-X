@@ -19,3 +19,18 @@ def test_the_script_has_no_top_level_relative_import_outside_a_fallback():
     tree = ast.parse(GUARDIAN.read_text(encoding="utf-8"))
     bare = [n.lineno for n in tree.body if isinstance(n, ast.ImportFrom) and n.level > 0]
     assert bare == [], f"relative import(s) at the top level of a file that runs as a script: lines {bare}"
+
+
+def test_guardian_is_off_in_the_desktop_app_and_can_be_forced():
+    import subprocess, sys, os
+    root = str(Path(__file__).resolve().parents[2])
+    def enabled(**env):
+        e = {k: v for k, v in os.environ.items() if not k.startswith("ARCHIVE_X_")}
+        e.update(env)
+        out = subprocess.run([sys.executable, "-c", "import telegram_archive.config as c; print(c.WATCHDOG_GUARDIAN_ENABLED)"], cwd=root, env=e, capture_output=True, text=True, timeout=60)
+        assert out.returncode == 0, out.stderr[-400:]
+        return out.stdout.strip().splitlines()[-1] == "True"
+    assert enabled() is True
+    assert enabled(ARCHIVE_X_DESKTOP="1") is False
+    assert enabled(ARCHIVE_X_DESKTOP="1", ARCHIVE_X_WATCHDOG_GUARDIAN="1") is True
+    assert enabled(ARCHIVE_X_WATCHDOG_GUARDIAN="0") is False

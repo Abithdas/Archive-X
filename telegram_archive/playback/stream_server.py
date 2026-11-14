@@ -737,7 +737,8 @@ def apply_connection_profile(engine) -> dict:
     try:
         engine._adapt_best_concurrency = int(engine.fetch_concurrency)
         lanes = PREMIUM_PLAYBACK_LANES if getattr(engine, "premium", False) else FREE_PLAYBACK_LANES
-        engine.qos.playback_lanes = max(1, min(int(engine.max_fetch_concurrency), lanes))
+        if hasattr(engine, "qos"):   # not there yet while the engine is still being built; it sets its own lanes at the end of __init__
+            engine.qos.playback_lanes = max(1, min(int(engine.max_fetch_concurrency), lanes))
     except Exception:
         _swallowed_note("stream_server.apply_connection_profile")
         pass

@@ -127,46 +127,49 @@ def register_entity_page_routes(
         require_auth(request)
         from ..core.resource_registry import ensure_unknown_performer_local_profile
         await asyncio.to_thread(ensure_unknown_performer_local_profile, db)
-        with db.reading() as _rdb:
-            p = _rdb.execute("SELECT * FROM performers WHERE id=?", (performer_id,)).fetchone()
-            if not p:
-                raise HTTPException(404, "Not found")
-            p = dict(p)
-            p["favorite"] = bool(_rdb.execute("SELECT 1 FROM entity_favorites WHERE entity_type='performer' AND entity_id=?", (performer_id,)).fetchone())
-            rows = _rdb.execute(
-                # Duplicate performer rows that differ only in case/accents
-                # (e.g. one from the API, one typed locally) are one person.
-                "WITH me AS (SELECT lower(trim(name)) n, COALESCE(normalized_name,'') nn FROM performers WHERE id=?), "
-                "same AS (SELECT id FROM performers WHERE id=? OR lower(trim(name))=(SELECT n FROM me) "
-                "OR (COALESCE(normalized_name,'')<>'' AND normalized_name=(SELECT nn FROM me))) "
-                "SELECT m.*, c.title channel_title, "
-                + name_lists_sql() +
-                " FROM archive_x_library_media m "
-                "LEFT JOIN channels c ON c.telegram_id=m.source_channel "
-                "WHERE (EXISTS (SELECT 1 FROM video_performers vp WHERE vp.video_id=m.id AND vp.performer_id IN (SELECT id FROM same)) "
-                "   OR EXISTS (SELECT 1 FROM local_video_performers lvp WHERE lvp.video_id=m.id AND lvp.performer_id IN (SELECT id FROM same))) "
-                 + (" AND EXISTS (SELECT 1 FROM video_studios rvs WHERE rvs.video_id=m.id AND rvs.studio_id=?) " if studio_id else "")
-                 + " AND COALESCE(m.status,'')<>'SOURCE_DELETED' "
-                 + " AND (CAST(m.source_channel AS TEXT) GLOB '-[0-9]*' OR (CAST(m.source_channel AS TEXT)<>'' AND CAST(m.source_channel AS TEXT) NOT GLOB '*[^0-9]*')) "
-                + " GROUP BY m.id ORDER BY m.upload_date DESC",
-                (performer_id, performer_id, studio_id) if studio_id else (performer_id, performer_id)).fetchall()
-        videos=[]
-        for r in rows:
-            d=dict(r)
-            if not d.get("provider_url"):
-                d["provider_url"] = _provider_page_url(r)
-            d["performers"]=list(dict.fromkeys([x for x in (d.get("performers") or "").split(",") if x] + [x for x in (d.get("local_performers") or "").split(",") if x]))
-            d["local_performers"]=[x for x in (d.get("local_performers") or "").split(",") if x]
-            d["studios"]=[x for x in (d.get("studios") or "").split(",") if x]
-            d["studio"]=d["studios"][0] if d["studios"] else ""
-            d["tags"]=[x for x in (d.get("tags") or "").split(",") if x]
-            d["media_id"]=d.get("id")   # SQLite row id, needed for favourites and other row-level actions
-            d["_cid"]=d.get("source_channel")
-            d["id"]=d.get("source_message_id")
-            d["name"]=d.get("filename") or d.get("title") or f"video {d['id']}"
-            d["thumbnail_id"]=d.get("thumbnail_message_id") or d.get("source_message_id")
-            videos.append(d)
-        return {"performer": dict(p), "videos": videos}
+        # The whole read (it can take seconds on a big library) runs off the event loop, so the rest of the app, playback included, keeps answering.
+        def _load():
+            with db.reading() as _rdb:
+                p = _rdb.execute("SELECT * FROM performers WHERE id=?", (performer_id,)).fetchone()
+                if not p:
+                    raise HTTPException(404, "Not found")
+                p = dict(p)
+                p["favorite"] = bool(_rdb.execute("SELECT 1 FROM entity_favorites WHERE entity_type='performer' AND entity_id=?", (performer_id,)).fetchone())
+                rows = _rdb.execute(
+                    # Duplicate performer rows that differ only in case/accents
+                    # (e.g. one from the API, one typed locally) are one person.
+                    "WITH me AS (SELECT lower(trim(name)) n, COALESCE(normalized_name,'') nn FROM performers WHERE id=?), "
+                    "same AS (SELECT id FROM performers WHERE id=? OR lower(trim(name))=(SELECT n FROM me) "
+                    "OR (COALESCE(normalized_name,'')<>'' AND normalized_name=(SELECT nn FROM me))) "
+                    "SELECT m.*, c.title channel_title, "
+                    + name_lists_sql() +
+                    " FROM archive_x_library_media m "
+                    "LEFT JOIN channels c ON c.telegram_id=m.source_channel "
+                    "WHERE (EXISTS (SELECT 1 FROM video_performers vp WHERE vp.video_id=m.id AND vp.performer_id IN (SELECT id FROM same)) "
+                    "   OR EXISTS (SELECT 1 FROM local_video_performers lvp WHERE lvp.video_id=m.id AND lvp.performer_id IN (SELECT id FROM same))) "
+                     + (" AND EXISTS (SELECT 1 FROM video_studios rvs WHERE rvs.video_id=m.id AND rvs.studio_id=?) " if studio_id else "")
+                     + " AND COALESCE(m.status,'')<>'SOURCE_DELETED' "
+                     + " AND (CAST(m.source_channel AS TEXT) GLOB '-[0-9]*' OR (CAST(m.source_channel AS TEXT)<>'' AND CAST(m.source_channel AS TEXT) NOT GLOB '*[^0-9]*')) "
+                    + " GROUP BY m.id ORDER BY m.upload_date DESC",
+                    (performer_id, performer_id, studio_id) if studio_id else (performer_id, performer_id)).fetchall()
+            videos=[]
+            for r in rows:
+                d=dict(r)
+                if not d.get("provider_url"):
+                    d["provider_url"] = _provider_page_url(r)
+                d["performers"]=list(dict.fromkeys([x for x in (d.get("performers") or "").split(",") if x] + [x for x in (d.get("local_performers") or "").split(",") if x]))
+                d["local_performers"]=[x for x in (d.get("local_performers") or "").split(",") if x]
+                d["studios"]=[x for x in (d.get("studios") or "").split(",") if x]
+                d["studio"]=d["studios"][0] if d["studios"] else ""
+                d["tags"]=[x for x in (d.get("tags") or "").split(",") if x]
+                d["media_id"]=d.get("id")   # SQLite row id, needed for favourites and other row-level actions
+                d["_cid"]=d.get("source_channel")
+                d["id"]=d.get("source_message_id")
+                d["name"]=d.get("filename") or d.get("title") or f"video {d['id']}"
+                d["thumbnail_id"]=d.get("thumbnail_message_id") or d.get("source_message_id")
+                videos.append(d)
+            return {"performer": dict(p), "videos": videos}
+        return await asyncio.to_thread(_load)
 
     async def _queue_entity_data_sync(data: dict, *, scope_override: str | None = None):
         """Submit an entity data job for the chosen scope."""

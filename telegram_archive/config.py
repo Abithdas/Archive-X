@@ -18,6 +18,7 @@ from __future__ import annotations
 from .core.swallowed import note as _swallowed_note
 import json
 import os
+import sys
 import shutil
 import socket
 from datetime import datetime, timedelta, timezone
@@ -164,7 +165,12 @@ PLAYBACK_FOREGROUND_MAX_SEGMENTS = 4
 WATCHDOG_SUPERVISOR_INTERVAL_SECONDS = 1.0
 # The asyncio job watchdog is backed by an independent thread and a separate
 # enforcer process. These controls are internal reliability safeguards.
-WATCHDOG_GUARDIAN_ENABLED = True
+# The guardian is started as `python watchdog_guardian.py ...`. The installed backend has no separate Python to run it with (its "python" is
+# the app itself, so the call started a second copy of the app, which refused with "already running", three times every ten minutes), and the
+# desktop shell already watches the backend and reports if it stops. So it is off in the installed app and in desktop mode, and on elsewhere.
+# ARCHIVE_X_WATCHDOG_GUARDIAN=1 or 0 overrides.
+_guardian_choice = (os.getenv("ARCHIVE_X_WATCHDOG_GUARDIAN") or "").strip()
+WATCHDOG_GUARDIAN_ENABLED = (_guardian_choice == "1") if _guardian_choice in {"0", "1"} else not (getattr(sys, "frozen", False) or os.getenv("ARCHIVE_X_DESKTOP") == "1")
 WATCHDOG_GUARDIAN_POLL_SECONDS = 0.5
 WATCHDOG_GUARDIAN_PUBLISH_SECONDS = 0.5
 WATCHDOG_EVENT_LOOP_STALE_SECONDS = 6.0
