@@ -15,7 +15,11 @@ this process may terminate/restart the app only after a sustained liveness breac
 # ------------------------------------------------------------------
 from __future__ import annotations
 
-from .swallowed import note as _swallowed_note
+try:
+    from .swallowed import note as _swallowed_note
+except ImportError:   # started as a plain script (python watchdog_guardian.py), outside the package: nothing to report to
+    def _swallowed_note(where: str) -> None:
+        return None
 import argparse
 import base64
 import json
