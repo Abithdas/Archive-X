@@ -38,4 +38,11 @@ describe('FiltersDrawer', () => {
     expect(f.dateTo).toBe(isoDay(new Date()))
     expect(f.dateFrom).not.toBe('')
   })
+  it('Reset clears the applied filters at once, without pressing Apply', () => {
+    useLibraryStore.setState({ filters: { ...NO_FILTERS, resolution: '1080', studio: 'Northlight' } })
+    mount()
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(useLibraryStore.getState().filters).toEqual(NO_FILTERS)
+    expect(screen.getByPlaceholderText('Any studio…')).toHaveValue('')
+  })
 })

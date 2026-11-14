@@ -46,6 +46,8 @@ export function FiltersDrawer({ open, onClose }: { open: boolean; onClose: () =>
     setFilters({ ...draft, studio: draft.studio.trim(), performer: draft.performer.trim(), tag: draft.tag.trim() })
     onClose()
   }
+  // Reset takes effect at once: clear what is applied (the list reloads) as well as the form.
+  const reset = () => { setDraft(NO_FILTERS); setFilters(NO_FILTERS) }
   const text = (k: 'studio' | 'performer' | 'tag', label: string, icon: string, ph: string, list: string[] | undefined) => (
     <label className="grid gap-1.5">
       <Label icon={icon}>{label}</Label>
@@ -59,7 +61,7 @@ export function FiltersDrawer({ open, onClose }: { open: boolean; onClose: () =>
       onClose={onClose}
       title="Filters"
       side="right"
-      actions={<button type="button" onClick={() => setDraft(NO_FILTERS)} className="h-9 rounded-xl border border-line-2 px-3 text-[13px] font-semibold">Reset</button>}
+      actions={<button type="button" onClick={reset} className="h-9 rounded-xl border border-line-2 px-3 text-[13px] font-semibold">Reset</button>}
       footer={<button type="submit" form="filters-form" className="h-12 w-full rounded-xl bg-accent text-[15px] font-bold text-accent-fg hover:brightness-105">Apply filters</button>}
     >
       <form id="filters-form" className="grid gap-4" onSubmit={(e) => { e.preventDefault(); apply() }}>
