@@ -26,6 +26,10 @@ struct AxState {
     video_height: i32,
     error: i32,
     opened: i32,
+    win_visible: i32,
+    win_width: i32,
+    win_height: i32,
+    on_top: i32,
 }
 
 type Handle = *mut c_void;
@@ -57,6 +61,7 @@ struct Fns {
     set_volume: IntFn,
     set_muted: IntFn,
     set_rect: RectFn,
+    set_layer: IntFn,
     track_count: CountFn,
     track_name: NameFn,
     select_track: IntFn,
@@ -94,6 +99,7 @@ impl Library {
                 set_volume: sym!("ax_set_volume", IntFn),
                 set_muted: sym!("ax_set_muted", IntFn),
                 set_rect: sym!("ax_set_rect", RectFn),
+                set_layer: sym!("ax_set_layer", IntFn),
                 track_count: sym!("ax_audio_track_count", CountFn),
                 track_name: sym!("ax_audio_track_name", NameFn),
                 select_track: sym!("ax_select_audio_track", IntFn),
@@ -163,6 +169,7 @@ impl Player {
     pub fn set_volume(&self, percent: u8) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_volume)(self.handle, percent as i32) }) }
     pub fn set_muted(&self, muted: bool) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_muted)(self.handle, muted as i32) }) }
     pub fn set_rect(&self, r: Rect) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_rect)(self.handle, r.x, r.y, r.w, r.h) }) }
+    pub fn set_video_on_top(&self, on_top: bool) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_layer)(self.handle, on_top as i32) }) }
 
     pub fn audio_tracks(&self) -> Result<Vec<AudioTrack>, Error> {
         let count = unsafe { (self.lib.f.track_count)(self.handle) };
@@ -197,6 +204,10 @@ impl Player {
             video_height: s.video_height,
             error: s.error,
             opened: s.opened != 0,
+            window_visible: s.win_visible != 0,
+            window_width: s.win_width,
+            window_height: s.win_height,
+            video_on_top: s.on_top != 0,
         }
     }
 

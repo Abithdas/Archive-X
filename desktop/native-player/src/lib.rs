@@ -59,6 +59,11 @@ pub struct State {
     /// 0, or the HRESULT of a failure that stopped playback.
     pub error: i32,
     pub opened: bool,
+    /// The video window is shown, its real size, and whether it is in front of the page.
+    pub window_visible: bool,
+    pub window_width: i32,
+    pub window_height: i32,
+    pub video_on_top: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -132,6 +137,8 @@ impl Player {
     pub fn set_volume(&self, percent: u8) -> Result<(), Error> { self.0.set_volume(percent.min(100)) }
     pub fn set_muted(&self, muted: bool) -> Result<(), Error> { self.0.set_muted(muted) }
     pub fn set_rect(&self, rect: Rect) -> Result<(), Error> { self.0.set_rect(rect) }
+    /// Video window in front of the page (true) or behind it (false).
+    pub fn set_video_on_top(&self, on_top: bool) -> Result<(), Error> { self.0.set_video_on_top(on_top) }
     pub fn audio_tracks(&self) -> Result<Vec<AudioTrack>, Error> { self.0.audio_tracks() }
     pub fn select_audio_track(&self, index: usize) -> Result<(), Error> { self.0.select_audio_track(index) }
     pub fn state(&self) -> State { self.0.state() }

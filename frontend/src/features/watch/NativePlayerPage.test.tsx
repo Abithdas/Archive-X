@@ -9,12 +9,12 @@ let state: Record<string, unknown>
 let overrides: Record<string, () => unknown>
 
 const SIGNED = 'http://127.0.0.1:18570/video/5?c=-1001&t=abc'
-const OPENED = { duration: 120, width: 1920, height: 1080, decoder: 'avcodec', videoOnTop: false }
+const OPENED = { duration: 120, width: 1920, height: 1080, decoder: 'avcodec', videoOnTop: true }
 
 beforeEach(() => {
   calls = []
   overrides = {}
-  state = { position: 12, duration: 120, playing: true, ended: false, buffering: false, width: 1920, height: 1080, error: 0, opened: true, message: '' }
+  state = { position: 12, duration: 120, playing: true, ended: false, buffering: false, width: 1920, height: 1080, error: 0, opened: true, message: '', windowVisible: true, windowWidth: 1280, windowHeight: 720, videoOnTop: true }
   document.body.innerHTML = '<div id="root"></div>'
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} unobserve() {} })
   vi.stubGlobal('fetch', vi.fn(async (url: string) => (String(url).includes('/api/play/device-link/') ? new Response(JSON.stringify({ url: SIGNED }), { status: 200 }) : new Response('{}', { status: 404 }))))
@@ -46,7 +46,8 @@ describe('NativePlayerPage', () => {
     expect(open.args).toMatchObject({ url: SIGNED })
     expect(typeof open.args!.w).toBe('number')
     expect(await screen.findByText(/decoder avcodec/)).toBeInTheDocument()
-    expect(screen.getByText(/video behind the page/)).toBeInTheDocument()
+    expect(screen.getByText(/video in front/)).toBeInTheDocument()
+    expect(await screen.findByText(/video window shown 1280×720/)).toBeInTheDocument()
     expect(screen.getByText('0:12 / 2:00')).toBeInTheDocument()
   })
 
@@ -104,5 +105,25 @@ describe('NativePlayerPage', () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 400)) })
     expect(await screen.findByRole('button', { name: 'Play' })).toBeInTheDocument()
     expect(screen.getByText('0:30 / 2:00')).toBeInTheDocument()
+  })
+
+  it('lets the viewer switch the video between in front of the page and behind it, while it plays', async () => {
+    mount()
+    await ready()
+    const layer = screen.getByRole('button', { name: 'Video layer' })
+    expect(layer).toHaveTextContent('Video: in front')
+    fireEvent.click(layer)
+    expect(layer).toHaveTextContent('Video: behind page')
+    expect(sent('native_command').some((c) => c.args?.command === 'back')).toBe(true)
+    expect(screen.getByText(/video behind the page/)).toBeInTheDocument()
+    fireEvent.click(layer)
+    expect(sent('native_command').some((c) => c.args?.command === 'front')).toBe(true)
+  })
+
+  it('says when the video window is hidden, so a missing picture can be explained', async () => {
+    state = { ...state, windowVisible: false, windowWidth: 0, windowHeight: 0 }
+    mount()
+    await ready()
+    expect(await screen.findByText(/video window HIDDEN 0×0/)).toBeInTheDocument()
   })
 })

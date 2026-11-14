@@ -58,6 +58,10 @@ typedef struct AxState {
     int video_height;
     int error;           /* 0, or the HRESULT of a failure that stopped playback */
     int opened;          /* 1 once a video is loaded */
+    int win_visible;     /* 1 when the video window exists and is shown */
+    int win_width;       /* the video window's real size in pixels (0 when there is none) */
+    int win_height;
+    int on_top;          /* 1: the video window is in front of the page, 0: behind it */
 } AxState;
 
 /* Creates a player. lav_dir is the folder with LAVSplitter.ax, LAVVideo.ax, LAVAudio.ax (and the DLLs next to them). */
@@ -77,6 +81,8 @@ AXAPI int ax_set_rate(AxPlayer *p, double rate);          /* 1.0 normal */
 AXAPI int ax_set_volume(AxPlayer *p, int percent);        /* 0 to 100 */
 AXAPI int ax_set_muted(AxPlayer *p, int muted);
 AXAPI int ax_set_rect(AxPlayer *p, int x, int y, int w, int h);
+/* Puts the video window in front of (1) or behind (0) the other child windows of its parent, while playing. */
+AXAPI int ax_set_layer(AxPlayer *p, int on_top);
 
 /* Audio tracks (LAV Splitter's streams). */
 AXAPI int ax_audio_track_count(AxPlayer *p);

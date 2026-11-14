@@ -165,6 +165,7 @@ struct AxPlayer {
     Com<IMFVideoDisplayControl> display;
     HWND window = nullptr;
     bool own_window = false;
+    int last_x = 0, last_y = 0, last_w = 1, last_h = 1;   // where the video window was last put
     int volume = 100;
     bool muted = false;
     bool class_registered = false;
@@ -259,8 +260,16 @@ struct AxPlayer {
 
     // Position the video window; by default at the bottom of its siblings, so the web page (a sibling above it) can show through.
     void place(int x, int y, int w, int h) {
+        last_x = x; last_y = y; last_w = std::max(w, 1); last_h = std::max(h, 1);
         if (!window) return;
-        SetWindowPos(window, opt.video_on_top ? HWND_TOP : HWND_BOTTOM, x, y, std::max(w, 1), std::max(h, 1), SWP_NOACTIVATE);
+        SetWindowPos(window, opt.video_on_top ? HWND_TOP : HWND_BOTTOM, x, y, last_w, last_h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        if (opt.video_on_top) RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
+
+    void set_layer(bool on_top) {
+        opt.video_on_top = on_top ? 1 : 0;
+        place(last_x, last_y, last_w, last_h);
+        if (display) display->RepaintVideo();
     }
 
     HRESULT make_window(HWND parent, int x, int y, int w, int h) {
@@ -458,9 +467,21 @@ struct AxPlayer {
             OAFilterState fs;
             if (control->GetState(0, &fs) == S_OK && fs == State_Running) running = 1;
         }
+        int visible = 0, ww = 0, wh = 0;
+        if (window) {
+            RECT rc{};
+            GetClientRect(window, &rc);
+            ww = rc.right - rc.left;
+            wh = rc.bottom - rc.top;
+            visible = IsWindowVisible(window) ? 1 : 0;
+        }
         std::lock_guard<std::mutex> g(state_mu);
         state.position = position;
         if (!state.ended) state.playing = running;
+        state.win_visible = visible;
+        state.win_width = ww;
+        state.win_height = wh;
+        state.on_top = opt.video_on_top ? 1 : 0;
     }
 
     int audio_streams(std::vector<std::pair<DWORD, std::wstring>> &list, int *selected_index) {
@@ -599,6 +620,11 @@ AXAPI int ax_set_rect(AxPlayer *p, int x, int y, int w, int h) {
         }
         return 0;
     });
+}
+
+AXAPI int ax_set_layer(AxPlayer *p, int on_top) {
+    if (!p || !p->thread.joinable()) return E_POINTER;
+    return p->call([=] { p->set_layer(on_top != 0); return 0; });
 }
 
 AXAPI int ax_audio_track_count(AxPlayer *p) {

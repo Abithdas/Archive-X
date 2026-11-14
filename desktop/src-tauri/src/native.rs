@@ -3,9 +3,10 @@
 //! The web page drives it with the commands below. Only the app's own page may call them: capabilities/native-player.json allows exactly
 //! these commands for the loopback address and nothing else (no files, no shell, no other windows).
 //!
-//! Layout: the video is a child window placed BEHIND the web view. While a video is open the web view's background is made transparent, so
-//! the page shows the video through its transparent areas and can draw controls and captions over it. If a PC does not show the video
-//! that way, `ARCHIVE_X_NATIVE_VIDEO_ON_TOP=1` puts the video window in front instead (the page then keeps its controls outside the video).
+//! Layout: the video is a child window of the app window, IN FRONT of the web view by default (the page keeps its controls above and below
+//! the video area, so nothing is lost). The experimental alternative puts it BEHIND the web view, whose background is then made transparent
+//! so the page can draw over the picture; Windows often does not show a video window behind a web view ("airspace"). The page can switch
+//! between the two while a video plays (commands "front" and "back"); `ARCHIVE_X_NATIVE_VIDEO_BEHIND=1` makes behind the starting layer.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -61,8 +62,9 @@ fn hw_from(code: Option<i32>) -> HwAccel {
     }
 }
 
+/// In front of the page unless ARCHIVE_X_NATIVE_VIDEO_BEHIND=1.
 fn video_on_top() -> bool {
-    std::env::var("ARCHIVE_X_NATIVE_VIDEO_ON_TOP").map(|v| v == "1").unwrap_or(false)
+    std::env::var("ARCHIVE_X_NATIVE_VIDEO_BEHIND").map(|v| v != "1").unwrap_or(true)
 }
 
 #[derive(Serialize)]
@@ -97,6 +99,11 @@ pub struct Snapshot {
     error: i32,
     opened: bool,
     message: String,
+    /// The video window: shown, its real size in pixels, and whether it is in front of the page.
+    window_visible: bool,
+    window_width: i32,
+    window_height: i32,
+    video_on_top: bool,
 }
 
 #[derive(Serialize)]
@@ -134,17 +141,14 @@ pub async fn native_open(app: AppHandle, window: WebviewWindow, state: State<'_,
     #[cfg(not(windows))]
     let parent: Option<isize> = None;
     player.open(&url, "Archive X", parent, Rect { x, y, w, h }).map_err(|e| e.to_string())?;
-    if !on_top {
-        // The page shows the video through its transparent areas.
-        let _ = window.set_background_color(Some(TRANSPARENT));
-    }
+    let _ = window.set_background_color(Some(if on_top { PAGE_BACKGROUND } else { TRANSPARENT }));
     let s = player.state();
     let opened = Opened { duration: s.duration, width: s.video_width, height: s.video_height, decoder: player.decoder(), video_on_top: on_top };
     inner.player = Some(player);
     Ok(opened)
 }
 
-/// play, pause, stop, seek (seconds), rate (1.0 = normal), volume (0 to 100), mute (1 or 0), audio (track number), close.
+/// play, pause, stop, seek (seconds), rate (1.0 = normal), volume (0 to 100), mute (1 or 0), audio (track number), front, back, close.
 #[tauri::command]
 pub async fn native_command(window: WebviewWindow, state: State<'_, NativeState>, command: String, value: Option<f64>) -> Result<(), String> {
     let mut inner = state.0.lock().map_err(|_| "the player is busy".to_string())?;
@@ -164,6 +168,16 @@ pub async fn native_command(window: WebviewWindow, state: State<'_, NativeState>
         "volume" => p.set_volume(v.clamp(0.0, 100.0) as u8),
         "mute" => p.set_muted(v != 0.0),
         "audio" => p.select_audio_track(v.max(0.0) as usize),
+        "front" => {
+            let r = p.set_video_on_top(true);
+            let _ = window.set_background_color(Some(PAGE_BACKGROUND));
+            r
+        }
+        "back" => {
+            let r = p.set_video_on_top(false);
+            let _ = window.set_background_color(Some(TRANSPARENT));
+            r
+        }
         other => return Err(format!("unknown command: {other}")),
     };
     result.map_err(|e| e.to_string())
@@ -195,6 +209,10 @@ pub async fn native_state(state: State<'_, NativeState>) -> Result<Snapshot, Str
         error: s.error,
         opened: s.opened,
         message: p.last_error(),
+        window_visible: s.window_visible,
+        window_width: s.window_width,
+        window_height: s.window_height,
+        video_on_top: s.video_on_top,
     })
 }
 

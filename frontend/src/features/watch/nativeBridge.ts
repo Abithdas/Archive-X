@@ -9,7 +9,11 @@ export const hasNativeBridge = () => typeof invoke() === 'function'
 
 export interface Availability { available: boolean; reason: string }
 export interface Opened { duration: number; width: number; height: number; decoder: string; videoOnTop: boolean }
-export interface Snapshot { position: number; duration: number; playing: boolean; ended: boolean; buffering: boolean; width: number; height: number; error: number; opened: boolean; message: string }
+export interface Snapshot {
+  position: number; duration: number; playing: boolean; ended: boolean; buffering: boolean; width: number; height: number; error: number; opened: boolean; message: string
+  /** The video window: shown, its real size in pixels, and whether it is in front of the page. */
+  windowVisible: boolean; windowWidth: number; windowHeight: number; videoOnTop: boolean
+}
 export interface NativeTrack { name: string; selected: boolean }
 /** Where the video goes, in device pixels of the app window. */
 export interface PixelRect { x: number; y: number; w: number; h: number }
@@ -24,7 +28,7 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
   }
 }
 
-export type NativeCommand = 'play' | 'pause' | 'stop' | 'seek' | 'rate' | 'volume' | 'mute' | 'audio' | 'close'
+export type NativeCommand = 'play' | 'pause' | 'stop' | 'seek' | 'rate' | 'volume' | 'mute' | 'audio' | 'front' | 'back' | 'close'
 
 export const native = {
   available: () => call<Availability>('native_available'),
