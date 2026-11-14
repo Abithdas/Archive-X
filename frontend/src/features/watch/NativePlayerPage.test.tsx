@@ -138,3 +138,12 @@ describe('NativePlayerPage', () => {
     expect(await screen.findByText(/video window HIDDEN 0×0/)).toBeInTheDocument()
   })
 })
+
+describe('leaving the native player', () => {
+  it('hides the picture at once when Back is pressed, then goes back', async () => {
+    mount()
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: /Back/ }))
+    expect(sent('native_command').some((c) => c.args?.command === 'hide')).toBe(true)
+  })
+})

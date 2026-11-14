@@ -67,6 +67,7 @@ struct Fns {
     set_rect: RectFn,
     set_layer: IntFn,
     diagnostics: DecoderFn,
+    hide: VoidFn,
     track_count: CountFn,
     track_name: NameFn,
     select_track: IntFn,
@@ -106,6 +107,7 @@ impl Library {
                 set_rect: sym!("ax_set_rect", RectFn),
                 set_layer: sym!("ax_set_layer", IntFn),
                 diagnostics: sym!("ax_diagnostics", DecoderFn),
+                hide: sym!("ax_hide", VoidFn),
                 track_count: sym!("ax_audio_track_count", CountFn),
                 track_name: sym!("ax_audio_track_name", NameFn),
                 select_track: sym!("ax_select_audio_track", IntFn),
@@ -176,6 +178,12 @@ impl Player {
     pub fn set_muted(&self, muted: bool) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_muted)(self.handle, muted as i32) }) }
     pub fn set_rect(&self, r: Rect) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_rect)(self.handle, r.x, r.y, r.w, r.h) }) }
     pub fn set_video_layer(&self, layer: VideoLayer) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_layer)(self.handle, layer as i32) }) }
+
+    /// Hide the video window now, without waiting for the engine (which may be busy stopping a stream).
+    pub fn hide(&self) {
+        // SAFETY: the engine posts the request to the window's own thread and does not wait; the handle is valid until Drop.
+        unsafe { (self.lib.f.hide)(self.handle) }
+    }
 
     pub fn diagnostics(&self) -> String {
         let mut buf = vec![0u16; 8192];

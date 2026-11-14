@@ -98,7 +98,8 @@ export function NativePlayerPage({ cid, mid }: { cid: string; mid: number }) {
   const playing = snap?.playing ?? false
   const duration = snap?.duration || opened?.duration || 0
   const position = seeking ?? snap?.position ?? 0
-  const back = () => router.history.back()
+  // The picture goes at once; closing the player itself follows when the page is left (it can take a moment).
+  const back = () => { void native.command('hide').catch(() => undefined); router.history.back() }
   const NEXT: Record<VideoLayer, VideoLayer> = { front: 'popup', popup: 'behind', behind: 'front' }
   const COMMAND = { front: 'front', popup: 'popup', behind: 'back' } as const
   const flipLayer = () => { const next = NEXT[layer]; setLayer(next); sentReport.current = false; send(COMMAND[next]) }

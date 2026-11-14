@@ -32,7 +32,7 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
   }
 }
 
-export type NativeCommand = 'play' | 'pause' | 'stop' | 'seek' | 'rate' | 'volume' | 'mute' | 'audio' | 'front' | 'back' | 'popup' | 'close'
+export type NativeCommand = 'play' | 'pause' | 'stop' | 'seek' | 'rate' | 'volume' | 'mute' | 'audio' | 'front' | 'back' | 'popup' | 'hide' | 'close'
 
 export const native = {
   available: () => call<Availability>('native_available'),

@@ -157,7 +157,7 @@ pub async fn native_available(app: AppHandle) -> Availability {
 pub async fn native_open(app: AppHandle, window: WebviewWindow, state: State<'_, NativeState>, url: String, x: i32, y: i32, w: i32, h: i32, hw: Option<i32>) -> Result<Opened, String> {
     let (dll, lav) = locate(&app)?;
     let mut inner = state.0.lock().map_err(|_| "the player is busy".to_string())?;
-    inner.player = None; // a new video gets a new player (this closes the old one)
+    retire(inner.player.take()); // a new video gets a new player (this closes the old one)
     if inner.engine.is_none() {
         inner.engine = Some(Engine::load(&dll).map_err(|e| e.to_string())?);
     }
@@ -178,12 +178,28 @@ pub async fn native_open(app: AppHandle, window: WebviewWindow, state: State<'_,
     Ok(opened)
 }
 
-/// play, pause, stop, seek (seconds), rate (1.0 = normal), volume (0 to 100), mute (1 or 0), audio (track number), front, back, popup, close.
+/// Take a player down without making anybody wait: the picture goes at once, and the rest (stopping the stream can take seconds when the
+/// source is slow) happens on its own thread. Waiting here froze the app's window, which shares an input queue with the video window.
+fn retire(player: Option<Player>) {
+    let Some(player) = player else { return };
+    player.hide();
+    std::thread::spawn(move || {
+        let _held = player; // dropped here, on this thread
+    });
+}
+
+/// play, pause, stop, seek (seconds), rate (1.0 = normal), volume (0 to 100), mute (1 or 0), audio (track number), front, back, popup, hide, close.
 #[tauri::command]
 pub async fn native_command(window: WebviewWindow, state: State<'_, NativeState>, command: String, value: Option<f64>) -> Result<(), String> {
     let mut inner = state.0.lock().map_err(|_| "the player is busy".to_string())?;
+    if command == "hide" {
+        if let Some(p) = inner.player.as_ref() {
+            p.hide();
+        }
+        return Ok(());
+    }
     if command == "close" {
-        inner.player = None;
+        retire(inner.player.take());
         let _ = window.set_background_color(Some(PAGE_BACKGROUND));
         return Ok(());
     }

@@ -25,6 +25,7 @@ impl Player {
     pub fn set_rect(&self, _r: Rect) -> Result<(), Error> { Err(Error::Unsupported) }
     pub fn set_video_layer(&self, _layer: crate::VideoLayer) -> Result<(), Error> { Err(Error::Unsupported) }
     pub fn diagnostics(&self) -> String { String::new() }
+    pub fn hide(&self) {}
     pub fn audio_tracks(&self) -> Result<Vec<AudioTrack>, Error> { Err(Error::Unsupported) }
     pub fn select_audio_track(&self, _i: usize) -> Result<(), Error> { Err(Error::Unsupported) }
     pub fn state(&self) -> State { State::default() }

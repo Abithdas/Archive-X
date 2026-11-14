@@ -167,6 +167,8 @@ impl Player {
     pub fn set_rect(&self, rect: Rect) -> Result<(), Error> { self.0.set_rect(rect) }
     /// Video window in front of the page (true) or behind it (false).
     pub fn set_video_layer(&self, layer: VideoLayer) -> Result<(), Error> { self.0.set_video_layer(layer) }
+    /// Hide the video window at once, from any thread. Do this before dropping a player: stopping a stream can take seconds.
+    pub fn hide(&self) { self.0.hide() }
     /// A plain-text report for support (windows, renderer counters, media types, what is on screen).
     pub fn diagnostics(&self) -> String { self.0.diagnostics() }
     pub fn audio_tracks(&self) -> Result<Vec<AudioTrack>, Error> { self.0.audio_tracks() }

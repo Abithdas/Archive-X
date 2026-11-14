@@ -91,6 +91,9 @@ AXAPI int ax_set_rate(AxPlayer *p, double rate);          /* 1.0 normal */
 AXAPI int ax_set_volume(AxPlayer *p, int percent);        /* 0 to 100 */
 AXAPI int ax_set_muted(AxPlayer *p, int muted);
 AXAPI int ax_set_rect(AxPlayer *p, int x, int y, int w, int h);
+/* Hides the video window at once, from any thread, without waiting for the engine's worker (which may be busy stopping a stream). Use it
+ * before closing or destroying a player, so the picture never lingers over the page while the graph shuts down. */
+AXAPI void ax_hide(AxPlayer *p);
 /* Moves the video window to another layer (AX_LAYER_*), while playing. */
 AXAPI int ax_set_layer(AxPlayer *p, int layer);
 /* A plain-text report for support: the windows involved and their order, the renderer's counters, the graph's media types, the decoder, and what

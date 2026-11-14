@@ -21,6 +21,7 @@
 #include <deque>
 #include <functional>
 #include <future>
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -169,6 +170,7 @@ struct AxPlayer {
     HWND window = nullptr;
     bool own_window = false;
     HWND parent_hwnd = nullptr;
+    std::atomic<HWND> hide_target{nullptr};                  // the video window, readable from any thread (see ax_hide)
     int last_x = 0, last_y = 0, last_w = 1, last_h = 1;   // where the video window was last put (in the parent window)
     int popup_x = INT_MIN, popup_y = INT_MIN;               // where the popup window is on screen
     ULONGLONG next_sample = 0;                              // when the renderer counters and the on-screen check run next
@@ -242,6 +244,13 @@ struct AxPlayer {
     }
 
     void close_graph() {
+        // The window goes first. It is tied to the app's window (as a child, or as an owned window), and the two threads then share an input
+        // queue: while this thread waits for a stream to let go in Stop(), the app's own window must not wait on it.
+        hide_target.store(nullptr);
+        if (window) {
+            ShowWindow(window, SW_HIDE);
+            if (popup()) SetWindowLongPtrW(window, GWLP_HWNDPARENT, 0);
+        }
         if (control) control->Stop();
         display.reset();
         audio.reset(); events.reset(); seeking.reset(); control.reset();
@@ -339,6 +348,7 @@ struct AxPlayer {
         }
         if (!window) return HRESULT_FROM_WIN32(GetLastError());
         own_window = true;
+        hide_target.store(window);
         place(x, y, w, h);
         return S_OK;
     }
@@ -776,6 +786,14 @@ AXAPI int ax_open(AxPlayer *p, const wchar_t *url, const wchar_t *user_agent, vo
     std::wstring u = url, ua = user_agent ? user_agent : L"";
     HWND hp = static_cast<HWND>(parent);
     return p->call([=] { return p->open(u, ua, hp, x, y, w, h); });
+}
+
+AXAPI void ax_hide(AxPlayer *p) {
+    if (!p) return;
+    if (HWND w = p->hide_target.load()) {
+        // ASYNCWINDOWPOS posts the request to the window's thread instead of waiting for it.
+        SetWindowPos(w, nullptr, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
+    }
 }
 
 AXAPI void ax_close(AxPlayer *p) {
