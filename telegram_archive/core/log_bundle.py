@@ -273,6 +273,11 @@ def collect_extras(*, config: Any, db: Any, report: Callable[[], str] | None = N
         }
     part("diagnostics/playback-and-events.json", playback)
 
+    def route_usage() -> Any:
+        from .route_usage import RouteUsage
+        return RouteUsage(config.LOG_DIR / "route-usage.json").snapshot()
+    part("diagnostics/route-usage.json", route_usage)
+
     if report is not None:
         part("diagnostics/report.txt", report)
 

@@ -499,6 +499,10 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
         yield
         warm.cancel()
         feed.cancel()
+        try:
+            route_usage.flush()
+        except Exception:
+            pass
         prefetch_watch.cancel()
         missing_images_watch.cancel()
         diagnostic_watch.cancel()
@@ -574,6 +578,10 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
         from fastapi.responses import JSONResponse
         return JSONResponse({"detail": "Request body must be valid JSON"}, status_code=400)
     app.state.archive_x_hardware = hardware_profile
+    from .core.route_usage import RouteUsage, RouteUsageMiddleware
+    route_usage = RouteUsage(config.LOG_DIR / "route-usage.json")
+    app.state.route_usage = route_usage
+    app.add_middleware(RouteUsageMiddleware, usage=route_usage)   # innermost, so the route is known when it answers
     app.add_middleware(RequestCorrelationMiddleware)
     app.add_middleware(APIRateLimitMiddleware)
     app.add_middleware(BrowserMutationGuardMiddleware)
