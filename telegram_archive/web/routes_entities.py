@@ -57,6 +57,23 @@ def register_entity_routes(
             db.log(f"Studio provider search failed for {q!r}: {type(exc).__name__}: {exc}", "WARN")
             return []
 
+    @router.get("/api/entity-images/missing")
+    async def entity_images_missing(request: Request):
+        """How many performers and studios have no stored picture, and whether a fetch is running."""
+        require_auth(request)
+        from ..engines import missing_images
+        return {"ok": True, **await asyncio.to_thread(missing_images.counts, db), "running": missing_images.is_running()}
+
+    @router.post("/api/entity-images/fetch-missing")
+    async def entity_images_fetch_missing(request: Request):
+        """Start fetching the missing pictures now (in the background)."""
+        require_auth(request)
+        from ..engines import missing_images
+        if missing_images.is_running():
+            return {"ok": True, "started": False, "detail": "Already fetching"}
+        asyncio.get_running_loop().create_task(missing_images.run_once(db, limit=200))
+        return {"ok": True, "started": True}
+
     @router.get("/api/performer-gender/missing")
     async def performers_missing_gender(request: Request):
         """How many performers have no gender (they are hidden from the Female, Male and Trans lists)."""

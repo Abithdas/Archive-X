@@ -12,6 +12,7 @@ import { useSearch } from '@/app/search'
 import { SkeletonGroup } from '@/design/Skeleton'
 import { EntityCard, EntityCardSkeleton } from './EntityCard'
 import { MissingGender } from './MissingGender'
+import { MissingPictures } from './MissingPictures'
 import { Pagination } from '@/features/library/Pagination'
 import { filterEntities, pageCount, type GenderFilter } from './filter'
 import { FAILED, IDLE, NEED_SELECTION, SORTS, canCommit, commitLabel, confirmation, duplicatesOf, hint, mergeBody, modeLabel, pick, sortBy, successMessage, toggleMode, type MergeState, type SortKey } from './merge'
@@ -68,6 +69,7 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
     <section className="mx-auto flex w-full max-w-[1800px] flex-1 flex-col pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead title={copy.title} blurb={copy.blurb} />
       {kind === 'performers' ? <MissingGender /> : null}
+      <MissingPictures kind={kind} />
       <div className="mb-5 flex flex-wrap items-center gap-2.5">
         {kind === 'performers' ? (
           <Segmented

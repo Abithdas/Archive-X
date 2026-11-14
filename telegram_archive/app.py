@@ -436,6 +436,8 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                 await asyncio.sleep(15 if page_enricher.pending() or page_enricher.snapshot_pending() else 60)
 
         prefetch_watch = asyncio.create_task(_asset_prefetch_watch(), name="asset-prefetch-watch")
+        from .engines import missing_images as _missing_images
+        missing_images_watch = asyncio.create_task(_missing_images.refresh_loop(db), name="missing-entity-pictures")
 
         async def _player_feed_task():
             # Signed-link feed for VLC/MPC-HC (this PC and LAN devices).
@@ -498,11 +500,12 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
         warm.cancel()
         feed.cancel()
         prefetch_watch.cancel()
+        missing_images_watch.cancel()
         diagnostic_watch.cancel()
         playback_resource_watch.cancel()
         telegram_connect_task.cancel()
         await asyncio.gather(
-            warm, feed, prefetch_watch,
+            warm, feed, prefetch_watch, missing_images_watch,
             diagnostic_watch, playback_resource_watch, telegram_connect_task,
             return_exceptions=True,
         )

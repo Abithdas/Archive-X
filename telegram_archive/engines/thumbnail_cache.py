@@ -1414,6 +1414,38 @@ async def prefetch_entity_image(db, entity_type: str, entity_id: int, url: str |
         raise RuntimeError(detail) from exc
 
 
+def sanitize_provider_svg(data: bytes) -> bytes:
+    """Check a provider's SVG artwork and return a cleaned copy; raises ValueError for anything unsafe.
+
+    SVG is rendered by browsers, so scripts, foreign objects, event handlers and external references are refused. Editors such as Illustrator
+    and Inkscape put the plain standard `<!DOCTYPE svg PUBLIC ...>` line at the top of a perfectly harmless logo; that line is dropped. A DOCTYPE
+    with its own declarations in square brackets, or any ENTITY, is still refused (that is how entity-expansion attacks are written)."""
+    import re
+    import xml.etree.ElementTree as ET
+    text = bytes(data).decode("utf-8-sig", errors="strict")
+    text = re.sub(r"<!DOCTYPE[^>\[]*>", "", text, count=1, flags=re.I)   # a plain one: no "[" subset before its closing ">"
+    if re.search(r"<!DOCTYPE|<!ENTITY", text, re.I):
+        raise ValueError("SVG DOCTYPE/entity declarations are not allowed")
+    root = ET.fromstring(text)
+    if root.tag.split("}")[-1].lower() != "svg":
+        raise ValueError("root element is not svg")
+    for elem in root.iter():
+        tag = elem.tag.split("}")[-1].lower()
+        if tag in {"script", "foreignobject", "iframe", "object", "embed", "audio", "video"}:
+            raise ValueError(f"unsafe SVG element: {tag}")
+        for attr, value in elem.attrib.items():
+            name = attr.split("}")[-1].lower()
+            val = str(value or "").strip().lower()
+            if name.startswith("on") or (name in {"href", "src"} and val and not val.startswith(("#", "data:image/"))):
+                raise ValueError(f"unsafe SVG attribute: {name}")
+            if "url(" in val and not re.search(r"url\(\s*#[^)]+\)", val):
+                raise ValueError("external SVG CSS references are not allowed")
+        style_text = str(elem.text or "") if tag == "style" else ""
+        if re.search(r"@import|url\(\s*(?:https?:|//|file:|javascript:)", style_text, re.I):
+            raise ValueError("external SVG stylesheet references are not allowed")
+    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
 def _persist_entity_image_sync(db, entity_type: str, entity_id: int, url: str, data: bytes,
                                *, smart_crop_initial: bool = False, content_type: str = "") -> bool:
     """Validate and store raster or safely-sanitized SVG provider artwork."""
@@ -1429,27 +1461,7 @@ def _persist_entity_image_sync(db, entity_type: str, entity_id: int, url: str, d
         # SVG is rendered by browsers, so reject scripts, foreign objects, event
         # handlers, and external references before it enters the image cache.
         try:
-            text = bytes(data).decode("utf-8-sig", errors="strict")
-            if re.search(r"<!DOCTYPE|<!ENTITY", text, re.I):
-                raise ValueError("SVG DOCTYPE/entity declarations are not allowed")
-            root = ET.fromstring(text)
-            if root.tag.split("}")[-1].lower() != "svg":
-                raise ValueError("root element is not svg")
-            for elem in root.iter():
-                tag = elem.tag.split("}")[-1].lower()
-                if tag in {"script", "foreignobject", "iframe", "object", "embed", "audio", "video"}:
-                    raise ValueError(f"unsafe SVG element: {tag}")
-                for attr, value in elem.attrib.items():
-                    name = attr.split("}")[-1].lower()
-                    val = str(value or "").strip().lower()
-                    if name.startswith("on") or (name in {"href", "src"} and val and not val.startswith(("#", "data:image/"))):
-                        raise ValueError(f"unsafe SVG attribute: {name}")
-                    if "url(" in val and not re.search(r"url\(\s*#[^)]+\)", val):
-                        raise ValueError("external SVG CSS references are not allowed")
-                style_text = str(elem.text or "") if tag == "style" else ""
-                if re.search(r"@import|url\(\s*(?:https?:|//|file:|javascript:)", style_text, re.I):
-                    raise ValueError("external SVG stylesheet references are not allowed")
-            data = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+            data = sanitize_provider_svg(bytes(data))
         except Exception as exc:
             raise RuntimeError(f"provider artwork is not a valid safe SVG: {type(exc).__name__}: {exc}") from exc
     else:
