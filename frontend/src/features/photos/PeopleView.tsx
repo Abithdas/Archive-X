@@ -7,7 +7,7 @@ import { Icon } from '@/design/Icon'
 import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
 import { BlurImg } from '@/design/BlurImg'
-import { FaceGroups, useFaceGroups } from './FaceGroups'
+import { useFaceGroups } from './FaceGroups'
 import { clusterIds, FIND_STEPS, scopeChips, analyzeBody, analyzeCopy, assignBody, bestGuess, findPeopleHint, findStage, groupLabel, jobDone, jobEndText, jobStatusText, peopleSections, rejectBody, suggestionBody, viewFilter, type FaceGroup, type Suggestion } from './faces'
 import { usePhotoStore } from './store'
 import { FaceReview } from './FaceReview'
@@ -156,10 +156,6 @@ export function PeopleView() {
         </section>
       ) : null}
 
-      <details className="rounded-2xl border border-line p-3">
-        <summary className="cursor-pointer text-sm font-bold">Advanced: merge, split and review groups</summary>
-        <div className="mt-3"><FaceGroups onView={() => setTab('library')} /></div>
-      </details>
       {checking ? <FaceReview performerId={checking.performer_id ? Number(checking.performer_id) : null} groupIds={clusterIds(checking)} label={groupLabel(checking)} onClose={() => setChecking(null)} /> : null}
       {ask ? <Confirm title={C.title} text={C.text} ok={C.ok} onCancel={() => setAsk(false)} onOk={() => void find()} /> : null}
     </section>
