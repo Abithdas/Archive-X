@@ -99,4 +99,9 @@ impl Db {
 
 /// The tables and columns the Rust code reads, per table. A test checks these against the committed snapshot of the
 /// schema the Python side creates (schema/schema.json), so a rename on the Python side cannot silently break Rust.
-pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[("web_sessions", &["token_hash", "username", "expires"])];
+pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
+    ("web_sessions", &["token_hash", "username", "expires"]),
+    ("channels", &["telegram_id", "title", "username", "image", "updated_at"]),
+    ("photo_library_items", &["id", "channel_id"]),
+    ("photo_library_scan_state", &["channel_id", "status", "last_scan_at", "messages_scanned", "photos_found", "last_error"]),
+];

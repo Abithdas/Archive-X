@@ -143,6 +143,27 @@ impl Proxy {
         sender.map(|s| (s, false)).map_err(|e| error_response(StatusCode::BAD_GATEWAY, &format!("The Archive X backend failed: {e}")))
     }
 
+    /// One cheap authenticated call to the backend with the client's session cookie, so the backend sees the session as in
+    /// use (see native.rs). The answer is read and thrown away.
+    pub async fn touch(self: &Arc<Self>, cookie: &str, peer: SocketAddr) -> Result<(), String> {
+        let empty: Body = http_body_util::Empty::new().map_err(|n| match n {}).boxed();
+        let req = Request::builder()
+            .method(hyper::Method::GET)
+            .uri("/api/app/ping")
+            .header(HOST, "127.0.0.1")
+            .header(hyper::header::COOKIE, cookie)
+            .header(HeaderName::from_static("x-archive-x-peer"), peer.ip().to_string())
+            .header(HeaderName::from_static("x-archive-x-proxy-key"), self.key.clone())
+            .body(empty)
+            .map_err(|e| e.to_string())?;
+        let (mut sender, _) = self.acquire(false).await.map_err(|r| format!("backend not reachable ({})", r.status()))?;
+        let resp = sender.send_request(req).await.map_err(|e| e.to_string())?;
+        let status = resp.status();
+        resp.into_body().collect().await.map_err(|e| e.to_string())?;
+        self.release(sender);
+        if status.is_success() { Ok(()) } else { Err(format!("the backend answered {status}")) }
+    }
+
     pub(crate) fn release(&self, sender: SendRequest<Body>) {
         let mut idle = self.idle.lock().unwrap();
         if idle.len() < MAX_IDLE && !sender.is_closed() {

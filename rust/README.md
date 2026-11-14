@@ -70,8 +70,7 @@ start the front door falls back to the plain backend.
 
 ## ax-db, sessions and the cross-site guard (steps 3 and 4)
 
-Building blocks for the routes Rust will answer itself; **nothing in the front door uses them yet** (every route is still
-answered by Python), so they cannot change behaviour today.
+Building blocks for the routes Rust answers itself. They are used only by routes you switch on (next section).
 
 - **`ax-db`** opens the same SQLite file **read-only** (`query_only`, WAL, 5 s busy timeout) in a small pool and runs every
   query on a blocking thread. Python stays the only writer. It never creates a database.
@@ -108,3 +107,27 @@ python tools/parity/seed_fixture.py --data-dir /tmp/B
 # once the servers are up (they re-create the library views at start, which hides the videos until the seed runs again)
 python tools/parity/compare_writes.py --a https://127.0.0.1:18450 --a-data /tmp/A --b https://127.0.0.1:18451 --b-data /tmp/B --user admin --password ...
 ```
+
+## Routes answered by Rust (step 6)
+
+Off by default: with no `--native-routes`, every request that is not a web-app file goes to Python exactly as before.
+
+```bash
+ARCHIVE_X_PROXY_KEY=<secret> target/release/ax-server ... \
+  --db <data>/database/archive.db --native-routes photos_channels      # or ARCHIVE_X_DB / ARCHIVE_X_NATIVE_ROUTES
+```
+
+- **Switching a route back to Python** needs no rebuild: remove its name from `--native-routes` (or use `none`) and restart the front door.
+  An unknown name stops the start with the list of valid names (`native::ROUTES`).
+- **`X-Served-By`** on every answer says who produced it: `rust` (a native route or a web-app file) or `python` (forwarded). It is also
+  how `compare.py` reports how many of its requests Rust answered: `answered by (server B, X-Served-By): {...}`.
+- **Same answer as Python.** The first route, `GET /api/photos/channels`, runs the same two SQL queries, produces the same compact JSON in the
+  same column order, and is finished the way Python's response middleware finishes it: ETag (Adler-32 of the body), `304` on a matching
+  `If-None-Match`, gzip from 1,024 bytes, `Cache-Control: private, no-cache` (`ax-server/src/optimize.rs`). Verified byte for byte against the
+  running backend, including photos whose channel is not saved.
+- **Login:** the same session rules as above (`401` with Python's text; `503` if the database cannot be read).
+- **Session keep-alive:** a session used only on native routes would stop sliding (Python extends it on every request it answers). So, at most
+  every 5 minutes per session, the front door makes one cheap call (`GET /api/app/ping`) to Python with the session cookie and the signed client address.
+- **Still works when Python is down:** native routes and the web app keep answering; everything else gets a clear `502`.
+- To add a route: write the handler in `native.rs`, add its name to `ROUTES` and `route_for`, add the tables and columns it reads to
+  `ax_db::REQUIRED_COLUMNS`, add a test next to `tests/native_route.rs`, then run `compare.py` (and `compare_writes.py` for a write route) with the route on.

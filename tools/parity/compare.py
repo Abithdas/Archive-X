@@ -181,11 +181,14 @@ def main():
         paths += extra
     bad = same = 0
     statuses = {}
+    served = {}
     for p in paths:
         try:
             sa, ha, da = a.request("GET", p)
             sb, hb, db_ = b.request("GET", p)
             statuses[sa] = statuses.get(sa, 0) + 1
+            who = dict((k.lower(), v) for k, v in hb).get("x-served-by", "-")
+            served[who] = served.get(who, 0) + 1
         except Exception as e:
             print(f"ERROR {p}: {type(e).__name__}: {e}")
             bad += 1
@@ -211,6 +214,7 @@ def main():
         else:
             same += 1
     print(f"\nanswers by status (server A): {dict(sorted(statuses.items()))}")
+    print(f"answered by (server B, X-Served-By): {dict(sorted(served.items()))}")
     print(f"{same} identical, {bad} different, {len(paths)} routes checked")
     sys.exit(1 if bad else 0)
 

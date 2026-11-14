@@ -10,6 +10,7 @@ Status: a plan only. Nothing has been ported. Sizes are relative (S, M, L, XL); 
 | 1. Safety net | **Done:** frozen API (`docs/desktop/api/`), parity harness (`tools/parity/compare.py`, 0 differences against itself and against the Rust front door on 85 routes). Not done: more backend tests, the Python clean-ups |
 | 2. Rust front door | **Done and verified here** (details below), then hardened: timeouts, connection cap, graceful shutdown, pooled connections, HTTPS/HTTP2 test, CI jobs (`front-door`, `front-door-windows`, `python-lint` in `.github/workflows/ci.yml`, not yet run on GitHub). Not done: bundling the binary in the installer and a Windows run |
 | 3. Database and read-only routes | **Started:** `ax-db` (read-only pool), the session lookup, the cross-site guard and the 401 behaviour exist and are tested, but no route is answered by Rust yet. See the round-3 results below |
+| 3 (first route) | **Done for one route:** `GET /api/photos/channels` is answered by Rust when switched on (off by default); see "Round 4" below |
 | 4 to 9 | Not started |
 
 Phase 2 results (`rust/crates/ax-server`, 12 Rust tests, clippy clean; Python side `TrustedProxyMiddleware`, 2 tests):
@@ -21,6 +22,17 @@ Phase 2 results (`rust/crates/ax-server`, 12 Rust tests, clippy clean; Python si
 - The release binary is 4.1 MB.
 - Desktop launcher: `LaunchOptions.front_door` (opt-in); a real end-to-end test (`cargo test -p archive-x-launcher-core real_backend_with_front_door -- --ignored`) passes with the Python backend in desktop mode: health, app shell, the backend's 403 guard, the session hand-off and a graceful shutdown all work through the front door.
 - Known differences: Python counts a plain page load of `/login` against its login rate limit and the front door does not; Python advertises HTTP/3 (`alt-svc`) and the front door removes that header because it does not speak HTTP/3.
+
+### Round 4: the first route answered by Rust (results)
+
+- **`GET /api/photos/channels`**, the channel list the Photos page loads on every visit. Off by default (`--native-routes photos_channels` turns it on); every answer has `X-Served-By`.
+- **Identical to Python:** same body byte for byte (1,617 bytes in the check, including an orphan channel), same ETag, same gzip and `Vary`, same `304`, same `401`; 41 Rust tests (8 new for this route: exact body, login rules, switch, caching, session keep-alive, unreadable database, empty library, unknown route name).
+- **The real Photos page** loads its channel list from the Rust route with no console errors.
+- **Speed:** 0.63 ms against 2.08 ms (3.3 times faster) on the small fixture, one connection; the gap should widen under load because Python's single process and database lock are not involved.
+- **Resilience:** with the Python backend stopped, this route and the app shell still answer; other routes give a clear `502`.
+- **Session keep-alive** (the open item from round 3): implemented and tested against a fake backend (the call carries the cookie and the signed address, at most once per interval). Not yet watched over a real 10-minute window against Python's slow database write.
+- A test setup mistake was caught on the way and is worth remembering: SQLite's `COLLATE NOCASE` folds only ASCII letters, so a title starting with an accented capital sorts after `Z`; Rust and Python agree because both run the same SQL on the same engine.
+- Small known imperfection: when the front door itself answers `502` for a stopped backend, it is labelled `X-Served-By: python`.
 
 ### Round 3: database, sessions, guard, write parity (results)
 

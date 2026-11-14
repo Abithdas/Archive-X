@@ -97,7 +97,7 @@ async fn start_door_with(upstream: SocketAddr, limits: Limits) -> Door {
     std::fs::write(dist.path().join("sw.js"), "// sw").unwrap();
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
-    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false, limits });
+    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false, limits, db: None, native_routes: vec![], session_touch_interval: Duration::from_secs(300) });
     tokio::spawn(async move { let _ = server::serve(l, cfg, std::future::pending()).await; });
     Door { addr, _dist: dist }
 }
@@ -346,7 +346,7 @@ async fn shutdown_lets_a_request_in_flight_finish() {
     std::fs::write(dist.path().join("index.html"), "x").unwrap();
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
-    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false, limits: Limits::default() });
+    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false, limits: Limits::default(), db: None, native_routes: vec![], session_touch_interval: Duration::from_secs(300) });
     let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
     let handle = tokio::spawn(async move { server::serve(l, cfg, async { let _ = stopped.await; }).await });
     let mut s = TcpStream::connect(addr).await.unwrap();
@@ -374,7 +374,7 @@ async fn https_negotiates_http2_and_reaches_the_backend() {
     std::fs::write(dist.path().join("index.html"), "<html>tls shell</html>").unwrap();
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
-    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: Some(dir.path().join("cert.pem")), key: Some(dir.path().join("key.pem")), proxy_key: KEY.into(), print_ready: false, limits: Limits::default() });
+    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: Some(dir.path().join("cert.pem")), key: Some(dir.path().join("key.pem")), proxy_key: KEY.into(), print_ready: false, limits: Limits::default(), db: None, native_routes: vec![], session_touch_interval: Duration::from_secs(300) });
     tokio::spawn(async move { let _ = server::serve(l, cfg, std::future::pending()).await; });
 
     let mut roots = rustls::RootCertStore::empty();

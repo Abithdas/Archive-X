@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 pub const USAGE: &str = "usage: ax-server --listen 0.0.0.0:8443 --upstream 127.0.0.1:18443 --dist frontend/dist \
-[--cert cert.pem --key key.pem] [--upstream-plain] [--print-ready]\n\
+[--cert cert.pem --key key.pem] [--upstream-plain] [--print-ready] [--db archive.db --native-routes photos_channels|all]\n\
 environment: ARCHIVE_X_PROXY_KEY  secret shared with the Python backend (required)";
 
 /// Protection against clients that connect and then do nothing, or that open too many connections.
@@ -36,6 +36,13 @@ pub struct Config {
     /// Print `ARCHIVE_X_READY {"port":N,"pid":P}` once listening (how the desktop launcher learns the port).
     pub print_ready: bool,
     pub limits: Limits,
+    /// The database file, needed by routes answered here (`--db`, or ARCHIVE_X_DB).
+    pub db: Option<PathBuf>,
+    /// Routes answered here instead of by Python: names from `native::ROUTES`, or `all`. Empty by default, so nothing moves unless asked.
+    pub native_routes: Vec<String>,
+    /// How often a session used only on routes answered here is reported to Python, so it keeps sliding (Python writes the new expiry
+    /// to its database at most every 10 minutes).
+    pub session_touch_interval: Duration,
 }
 
 impl Config {
@@ -46,6 +53,8 @@ impl Config {
         let (mut cert, mut key) = (None, None);
         let mut upstream_plain = false;
         let mut print_ready = false;
+        let mut db = std::env::var("ARCHIVE_X_DB").ok().filter(|v| !v.is_empty()).map(PathBuf::from);
+        let mut native = std::env::var("ARCHIVE_X_NATIVE_ROUTES").unwrap_or_default();
         let mut args = args.peekable();
         while let Some(a) = args.next() {
             let mut value = |name: &str| args.next().ok_or_else(|| format!("{name} needs a value"));
@@ -57,6 +66,8 @@ impl Config {
                 "--key" => key = Some(PathBuf::from(value("--key")?)),
                 "--upstream-plain" => upstream_plain = true,
                 "--print-ready" => print_ready = true,
+                "--db" => db = Some(PathBuf::from(value("--db")?)),
+                "--native-routes" => native = value("--native-routes")?,
                 "-h" | "--help" => return Err("help".into()),
                 other => return Err(format!("unknown option {other}")),
             }
@@ -78,7 +89,11 @@ impl Config {
         if proxy_key.len() < 16 {
             return Err("ARCHIVE_X_PROXY_KEY must be set to a random secret of at least 16 characters".into());
         }
-        Ok(Config { listen, upstream, upstream_plain, dist: PathBuf::from(dist), cert, key, proxy_key, print_ready, limits: Limits::default() })
+        let native_routes: Vec<String> = native.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty() && s != "none").collect();
+        if !native_routes.is_empty() && db.is_none() {
+            return Err("--native-routes needs --db (the database file the routes read)".into());
+        }
+        Ok(Config { listen, upstream, upstream_plain, dist: PathBuf::from(dist), cert, key, proxy_key, print_ready, limits: Limits::default(), db, native_routes, session_touch_interval: Duration::from_secs(300) })
     }
 }
 

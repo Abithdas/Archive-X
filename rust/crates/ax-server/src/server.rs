@@ -13,6 +13,7 @@ use tokio_rustls::TlsAcceptor;
 use tracing::{info, warn};
 
 use crate::config::Config;
+use crate::native::Native;
 use crate::proxy::{Body, Proxy};
 use crate::static_files::{is_backend_path, is_spa_path, StaticFiles};
 
@@ -31,6 +32,7 @@ macro_rules! drive {
 
 pub struct State {
     pub proxy: Arc<Proxy>,
+    pub native: Option<Native>,
     pub files: StaticFiles,
 }
 
@@ -54,15 +56,26 @@ fn tls_acceptor(cert: &std::path::Path, key: &std::path::Path) -> Result<TlsAcce
 
 /// Decide who answers: the web app's own files here, everything else the Python backend.
 pub async fn handle(req: Request<hyper::body::Incoming>, peer: SocketAddr, tls: bool, state: Arc<State>) -> Result<Response<Body>, Infallible> {
+    let served_by = |mut r: Response<Body>, who: &'static str| {
+        r.headers_mut().insert("x-served-by", hyper::header::HeaderValue::from_static(who));
+        r
+    };
+    // Routes switched on in --native-routes are answered here (see native.rs).
+    if let Some(native) = &state.native {
+        if let Some(route) = native.route_for(req.method(), req.uri().path()) {
+            let resp = native.handle(route, req.headers(), peer).await;
+            return Ok(served_by(crate::static_files::with_security_headers(resp, tls), "rust"));
+        }
+    }
     // Static only for what is certainly ours: a file that exists in the web folder, or one of the app's own pages.
     // Everything else, including routes this server has never heard of, is the Python backend's to answer.
     let path = req.uri().path();
     let candidate = matches!(*req.method(), Method::GET | Method::HEAD) && !is_backend_path(path) && !req.headers().contains_key(hyper::header::UPGRADE);
     let serve_static = candidate && (is_spa_path(path) || state.files.lookup(path).await.is_some());
     if serve_static {
-        return Ok(state.files.serve(req.method(), req.uri().path(), req.headers(), tls).await);
+        return Ok(served_by(state.files.serve(req.method(), req.uri().path(), req.headers(), tls).await, "rust"));
     }
-    Ok(state.proxy.forward(req, peer).await)
+    Ok(served_by(state.proxy.forward(req, peer).await, "python"))
 }
 
 pub async fn run(cfg: Arc<Config>) -> Result<(), String> {
@@ -77,7 +90,12 @@ pub async fn serve(listener: TcpListener, cfg: Arc<Config>, shutdown: impl std::
         _ => None,
     };
     tokio::pin!(shutdown);
-    let state = Arc::new(State { proxy: Proxy::new(&cfg), files: StaticFiles::new(cfg.dist.clone()) });
+    let proxy = Proxy::new(&cfg);
+    let native = Native::new(&cfg.native_routes, cfg.db.as_deref(), proxy.clone(), cfg.session_touch_interval)?;
+    if let Some(n) = &native {
+        info!("answering these routes itself: {}", n.names().join(", "));
+    }
+    let state = Arc::new(State { proxy, native, files: StaticFiles::new(cfg.dist.clone()) });
     info!("front door on {}{} -> backend {}{}", if acceptor.is_some() { "https://" } else { "http://" }, listener.local_addr().map(|a| a.to_string()).unwrap_or_default(), if cfg.upstream_plain { "http://" } else { "https://" }, cfg.upstream);
     let tls_on = acceptor.is_some();
     if cfg.print_ready {
