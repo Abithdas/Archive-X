@@ -151,7 +151,7 @@ impl Backend {
         let stdout = child.stdout.take().expect("piped stdout");
         let stderr = child.stderr.take().expect("piped stderr");
         let log_out = log.clone();
-        thread::spawn(move || {
+        let out_reader = thread::spawn(move || {
             let mut sent = false;
             for line in BufReader::new(stdout).lines().map_while(Result::ok) {
                 if !sent {
@@ -165,12 +165,13 @@ impl Backend {
             }
         });
         let log_err = log.clone();
-        thread::spawn(move || {
+        let err_reader = thread::spawn(move || {
             for line in BufReader::new(stderr).lines().map_while(Result::ok) {
                 push_log(&log_err, line);
             }
         });
 
+        let readers = [out_reader, err_reader];
         let deadline = Instant::now() + timeout;
         loop {
             match rx.recv_timeout(Duration::from_millis(100)) {
@@ -195,12 +196,12 @@ impl Backend {
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
                     let status = child.wait().ok().and_then(|s| s.code());
+                    drain(&readers);
                     return Err(LaunchError::Exited(status, snapshot(&log)));
                 }
             }
             if let Ok(Some(status)) = child.try_wait() {
-                // Give the reader threads a moment to drain the last lines.
-                thread::sleep(Duration::from_millis(150));
+                drain(&readers);
                 return Err(LaunchError::Exited(status.code(), snapshot(&log)));
             }
             if Instant::now() >= deadline {
@@ -350,6 +351,15 @@ fn push_log(log: &std::sync::Arc<std::sync::Mutex<Vec<String>>>, line: String) {
         if len > 200 {
             v.drain(0..len - 200);
         }
+    }
+}
+
+/// After the child has exited, wait until both output readers have stored the last lines (they stop at end of file), so an error
+/// message is never empty because the reader was a moment behind. Capped, in case a stray child process keeps a pipe open.
+fn drain(readers: &[thread::JoinHandle<()>]) {
+    let end = Instant::now() + Duration::from_secs(2);
+    while Instant::now() < end && !readers.iter().all(|h| h.is_finished()) {
+        thread::sleep(Duration::from_millis(5));
     }
 }
 

@@ -38,6 +38,18 @@ mod fake {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
 
+    /// Backend::spawn, retried while Linux says "Text file busy" (ETXTBSY): another test thread that forks at the moment a script is
+    /// written holds the file open for a moment, and running it then fails. Not a launcher problem.
+    fn spawn(opts: &LaunchOptions) -> Result<Backend, LaunchError> {
+        for _ in 0..40 {
+            match Backend::spawn(opts) {
+                Err(LaunchError::Spawn(e)) if e.raw_os_error() == Some(26) => std::thread::sleep(Duration::from_millis(25)),
+                other => return other,
+            }
+        }
+        Backend::spawn(opts)
+    }
+
     fn script(dir: &tempfile::TempDir, name: &str, body: &str) -> std::path::PathBuf {
         let p = dir.path().join(name);
         std::fs::write(&p, format!("#!/bin/sh\n{body}\n")).unwrap();
@@ -50,7 +62,7 @@ mod fake {
         let dir = tempfile::tempdir().unwrap();
         // Prints the environment it received so the test can see it, then the ready line, then lingers.
         let exe = script(&dir, "ok.sh", r#"echo "booting"; echo "ARCHIVE_X_READY {\"port\": 4242, \"pid\": $$, \"version\": \"t\"}"; sleep 30"#);
-        let mut b = Backend::spawn(&LaunchOptions { exe, ready_timeout: Some(Duration::from_secs(10)), ..Default::default() }).unwrap();
+        let mut b = spawn(&LaunchOptions { exe, ready_timeout: Some(Duration::from_secs(10)), ..Default::default() }).unwrap();
         assert_eq!(b.port(), 4242);
         assert!(b.session_url().starts_with("http://127.0.0.1:4242/desktop/session?token="));
         assert_eq!(b.session_url().split("token=").nth(1).unwrap().len(), 64);
@@ -74,7 +86,7 @@ mod fake {
                 out.display()
             ),
         );
-        let _b = Backend::spawn(&LaunchOptions {
+        let _b = spawn(&LaunchOptions {
             exe,
             data_dir: Some("/tmp/axdata".into()),
             tools_dir: Some("/tmp/axtools".into()),
@@ -97,7 +109,7 @@ mod fake {
     fn backend_that_exits_early_reports_its_output() {
         let dir = tempfile::tempdir().unwrap();
         let exe = script(&dir, "crash.sh", r#"echo "Traceback: boom" >&2; exit 3"#);
-        match Backend::spawn(&LaunchOptions { exe, ready_timeout: Some(Duration::from_secs(10)), ..Default::default() }) {
+        match spawn(&LaunchOptions { exe, ready_timeout: Some(Duration::from_secs(10)), ..Default::default() }) {
             Err(LaunchError::Exited(code, log)) => {
                 assert_eq!(code, Some(3));
                 assert!(log.iter().any(|l| l.contains("boom")), "log was {log:?}");
@@ -111,14 +123,14 @@ mod fake {
         let dir = tempfile::tempdir().unwrap();
         let exe = script(&dir, "hang.sh", "echo starting; sleep 60");
         let t = Instant::now();
-        let res = Backend::spawn(&LaunchOptions { exe, ready_timeout: Some(Duration::from_millis(700)), ..Default::default() });
+        let res = spawn(&LaunchOptions { exe, ready_timeout: Some(Duration::from_millis(700)), ..Default::default() });
         assert!(matches!(res, Err(LaunchError::Timeout(..))));
         assert!(t.elapsed() < Duration::from_secs(8));
     }
 
     #[test]
     fn missing_executable_is_a_clear_error() {
-        let res = Backend::spawn(&LaunchOptions { exe: "/nonexistent/archive-x-backend".into(), ..Default::default() });
+        let res = spawn(&LaunchOptions { exe: "/nonexistent/archive-x-backend".into(), ..Default::default() });
         assert!(matches!(res, Err(LaunchError::Spawn(_))));
     }
 
@@ -130,7 +142,7 @@ mod fake {
         let backend = script(&dir, "backend.sh", &format!(r#"echo "$ARCHIVE_X_PROXY_KEY" > {k}; echo "ARCHIVE_X_READY {{\"port\": 4242, \"pid\": $$, \"version\": \"t\"}}"; sleep 5"#, k = keys.display()));
         let front = script(&dir, "front.sh", &format!(r#"echo "$ARCHIVE_X_PROXY_KEY" >> {k}; echo "$@" > {a}; echo "ARCHIVE_X_READY {{\"port\": 5151, \"pid\": $$}}"; sleep 5"#, k = keys.display(), a = args.display()));
         let dist = dir.path().join("dist");
-        let mut b = Backend::spawn(&LaunchOptions {
+        let mut b = spawn(&LaunchOptions {
             exe: backend,
             ready_timeout: Some(Duration::from_secs(10)),
             front_door: Some(FrontDoorOptions { exe: front, dist_dir: dist.clone() }),
@@ -158,7 +170,7 @@ mod fake {
     fn without_a_front_door_nothing_changes() {
         let dir = tempfile::tempdir().unwrap();
         let exe = script(&dir, "plain.sh", r#"[ -z "$ARCHIVE_X_PROXY_KEY" ] || echo "UNEXPECTED KEY" >&2; echo "ARCHIVE_X_READY {\"port\": 4343, \"pid\": $$}"; sleep 3"#);
-        let mut b = Backend::spawn(&LaunchOptions { exe, ready_timeout: Some(Duration::from_secs(10)), ..Default::default() }).unwrap();
+        let mut b = spawn(&LaunchOptions { exe, ready_timeout: Some(Duration::from_secs(10)), ..Default::default() }).unwrap();
         assert_eq!(b.port(), 4343);
         std::thread::sleep(Duration::from_millis(200));
         assert!(!b.log_tail().iter().any(|l| l.contains("UNEXPECTED KEY")), "the backend must not be given a proxy key");
@@ -170,7 +182,7 @@ mod fake {
         let dir = tempfile::tempdir().unwrap();
         let backend = script(&dir, "backend.sh", r#"echo "ARCHIVE_X_READY {\"port\": 4444, \"pid\": $$}"; sleep 3"#);
         for (name, front) in [("missing", dir.path().join("nope")), ("exits", script(&dir, "dies.sh", "echo broken >&2; exit 3"))] {
-            let mut b = Backend::spawn(&LaunchOptions {
+            let mut b = spawn(&LaunchOptions {
                 exe: backend.clone(),
                 ready_timeout: Some(Duration::from_secs(10)),
                 front_door: Some(FrontDoorOptions { exe: front, dist_dir: dir.path().to_path_buf() }),
