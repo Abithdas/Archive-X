@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
 import asyncio
+import re
 import json
 from pathlib import Path
 
@@ -633,11 +634,17 @@ def register_library_routes(
         except ValueError: limit = 12
         if len(query) < 2:
             return {"ok": True, "items": []}
+        # Every typed word only has to appear somewhere in the name or an alias, in any order ("stone ava" finds "Ava Stone").
+        words = [w for w in re.split(r"[\s,]+", query) if w][:6]
+        clause = " AND ".join("(name LIKE ? COLLATE NOCASE OR COALESCE(aliases,'') LIKE ? COLLATE NOCASE)" for _ in words)
+        args: list = []
+        for w in words:
+            args += [f"%{w}%", f"%{w}%"]
         with db.reading() as rdb:
             rows = rdb.execute(
-                "SELECT id,name,image FROM performers WHERE name LIKE ? COLLATE NOCASE "
+                f"SELECT id,name,image FROM performers WHERE {clause} "
                 "ORDER BY CASE WHEN name LIKE ? COLLATE NOCASE THEN 0 ELSE 1 END,name COLLATE NOCASE LIMIT ?",
-                (f"%{query}%", f"{query}%", limit),
+                (*args, f"{query}%", limit),
             ).fetchall()
         items = [{"id": int(row["id"]), "name": str(row["name"] or ""),
                   "image_url": f"/api/performers/{int(row['id'])}/image" if row["id"] else ""}

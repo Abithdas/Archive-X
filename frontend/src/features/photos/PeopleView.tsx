@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { Confirm } from '@/design/Confirm'
@@ -9,6 +9,8 @@ import { cn } from '@/design/cn'
 import { BlurImg } from '@/design/BlurImg'
 import { useFaceGroups } from './FaceGroups'
 import { clusterIds, FIND_STEPS, scopeChips, analyzeBody, analyzeCopy, assignBody, bestGuess, findPeopleHint, findStage, groupLabel, jobDone, jobEndText, jobStatusText, peopleSections, rejectBody, suggestionBody, viewFilter, type FaceGroup, type Suggestion } from './faces'
+import { useSearch } from '@/app/search'
+import { nameMatches } from '@/features/entities/filter'
 import { usePhotoStore } from './store'
 import { FaceReview } from './FaceReview'
 import { NamePicker } from './NamePicker'
@@ -75,7 +77,9 @@ export function PeopleView() {
   const { setFace, setSelected, setTab } = usePhotoStore()
   const channels = usePhotoChannels()
   const groups = q.data?.groups ?? []
-  const sec = peopleSections(groups)
+  const search = useSearch((s) => s.q)
+  const shown = useMemo(() => (search.trim() ? groups.filter((g) => nameMatches(groupLabel(g), search)) : groups), [groups, search])
+  const sec = peopleSections(shown)
   const [busy, setBusy] = useState(false)
   const [finding, setFinding] = useState<null | { stage: number; progress: number; text: string }>(null)
   const [ask, setAsk] = useState(false)

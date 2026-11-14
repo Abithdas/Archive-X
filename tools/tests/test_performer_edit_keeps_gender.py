@@ -29,3 +29,26 @@ def test_edit_form_reports_gender_so_saving_keeps_it():
     r = c.post(f"/api/performers/{pid}/edit", headers=H, json={"name": "Ava Stone", "image_url": "https://example.com/a.jpg", "gender": form["gender"]})
     assert r.status_code == 200, r.text
     assert r.json()["performer"]["gender"] == "female"
+
+
+def test_local_performer_search_accepts_words_in_any_order_and_partial_words():
+    from fastapi.testclient import TestClient
+    from telegram_archive.app import create_app
+    from telegram_archive.core.auth import ensure_web_credentials
+    from telegram_archive.core.database import Database
+
+    db = Database(); ensure_web_credentials(db)
+    c = TestClient(create_app(db=db), base_url="https://testserver")
+    H = {"Origin": "https://testserver"}
+    pw = "correct-horse-battery"
+    c.post("/api/auth/setup", json={"username": "admin", "password": pw, "confirmation": pw}, headers=H)
+    c.post("/login", json={"username": "admin", "password": pw}, headers=H)
+    with db.lock:
+        for n in ("Ava Stonebridge", "Mia Rivera"):
+            db.conn.execute("INSERT INTO performers(name) VALUES(?)", (n,))
+        db.conn.commit()
+    def names(q): return [i["name"] for i in c.get("/api/photos/faces/performers", params={"q": q}).json()["items"]]
+    assert names("ava stoneb") == ["Ava Stonebridge"]
+    assert names("stonebridge ava") == ["Ava Stonebridge"]
+    assert names("riv mi") == ["Mia Rivera"]
+    assert names("zzz") == []
