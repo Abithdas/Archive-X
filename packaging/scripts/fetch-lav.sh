@@ -16,7 +16,7 @@ REPO="Nevcairiel/LAVFilters"
 here="$(cd "$(dirname "$0")" && pwd)"
 
 if [ "${1:-}" = "--headers" ]; then
-  dest="$here/../axplayer/third_party/lavfilters"
+  dest="$here/../../native/axplayer/third_party/lavfilters"
   rm -rf "$dest"
   git clone --quiet --depth 1 --branch "$TAG" "https://github.com/$REPO" "$dest"
   if [ "$TAG" = "$DEFAULT_TAG" ] && [ "$(git -C "$dest" rev-parse HEAD)" != "$DEFAULT_COMMIT" ]; then
@@ -27,7 +27,7 @@ if [ "${1:-}" = "--headers" ]; then
   exit 0
 fi
 
-out="$here/../src-tauri/resources/lav"
+out="$here/../../apps/desktop/src-tauri/resources/lav"
 tmp="$(mktemp -d)"
 gh release download "$TAG" --repo "$REPO" --pattern '*.zip' --dir "$tmp"
 echo "downloaded:"; ls -la "$tmp"
