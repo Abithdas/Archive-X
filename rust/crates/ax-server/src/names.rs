@@ -102,6 +102,8 @@ impl Names {
         Ok(slot.get_or_insert(opened).clone())
     }
 
+    // The Err value is the finished 401/503 answer, sent straight back to the client, so boxing it would only add noise.
+    #[allow(clippy::result_large_err)]
     async fn allowed(&self, headers: &HeaderMap, peer: SocketAddr) -> Result<(), Response<Body>> {
         let cookie = headers.get_all(hyper::header::COOKIE).iter().filter_map(|v| v.to_str().ok()).collect::<Vec<_>>().join("; ");
         match self.proxy.signed_in(&cookie, peer).await {
