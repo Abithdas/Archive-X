@@ -178,7 +178,7 @@ impl Names {
     async fn refresh(&self, force: bool) -> Result<(), String> {
         let store = self.store().await?;
         self.keys.lock().unwrap().take(); // use the keys as they are now
-        let keys = self.keys().await;
+        let keys = self.config().await?.0;   // a failed ask is an error to report, not "no keys, nothing to do"
         if keys.stashdb.is_none() && keys.tpdb.is_none() {
             return Ok(());
         }

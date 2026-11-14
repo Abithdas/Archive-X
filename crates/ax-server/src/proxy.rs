@@ -171,24 +171,37 @@ impl Proxy {
     }
 
     async fn call(self: &Arc<Self>, method: hyper::Method, path: &str, cookie: Option<&str>, peer: Option<String>, internal: bool) -> Result<(StatusCode, Bytes), String> {
-        let empty: Body = http_body_util::Empty::new().map_err(|n| match n {}).boxed();
-        let mut b = Request::builder().method(method).uri(path).header(HOST, "127.0.0.1").header(HeaderName::from_static("x-archive-x-proxy-key"), self.key.clone());
-        if let Some(c) = cookie {
-            b = b.header(hyper::header::COOKIE, c);
+        let build = || -> Result<Request<Body>, String> {
+            let empty: Body = http_body_util::Empty::new().map_err(|n| match n {}).boxed();
+            let mut b = Request::builder().method(method.clone()).uri(path).header(HOST, "127.0.0.1").header(HeaderName::from_static("x-archive-x-proxy-key"), self.key.clone());
+            if let Some(c) = cookie {
+                b = b.header(hyper::header::COOKIE, c);
+            }
+            if let Some(p) = &peer {
+                b = b.header(HeaderName::from_static("x-archive-x-peer"), p.clone());
+            }
+            if internal {
+                b = b.header(HeaderName::from_static("x-archive-x-internal"), self.key.clone());
+            }
+            b.body(empty).map_err(|e| e.to_string())
+        };
+        // A kept connection may have been closed by the backend while it sat idle; the request then fails before anything was processed. These
+        // calls only read, so the first failure on a reused connection is tried again once on a fresh one (as `forward` does).
+        let mut last = String::new();
+        for attempt in 0..2 {
+            let (mut sender, reused) = self.acquire(attempt > 0).await.map_err(|r| format!("backend not reachable ({})", r.status()))?;
+            match sender.send_request(build()?).await {
+                Ok(resp) => {
+                    let status = resp.status();
+                    let body = resp.into_body().collect().await.map_err(|e| e.to_string())?.to_bytes();
+                    self.release(sender);
+                    return Ok((status, body));
+                }
+                Err(e) if reused && attempt == 0 => last = e.to_string(),
+                Err(e) => return Err(e.to_string()),
+            }
         }
-        if let Some(p) = peer {
-            b = b.header(HeaderName::from_static("x-archive-x-peer"), p);
-        }
-        if internal {
-            b = b.header(HeaderName::from_static("x-archive-x-internal"), self.key.clone());
-        }
-        let req = b.body(empty).map_err(|e| e.to_string())?;
-        let (mut sender, _) = self.acquire(false).await.map_err(|r| format!("backend not reachable ({})", r.status()))?;
-        let resp = sender.send_request(req).await.map_err(|e| e.to_string())?;
-        let status = resp.status();
-        let body = resp.into_body().collect().await.map_err(|e| e.to_string())?.to_bytes();
-        self.release(sender);
-        Ok((status, body))
+        Err(last)
     }
 
     pub(crate) fn release(&self, sender: SendRequest<Body>) {
