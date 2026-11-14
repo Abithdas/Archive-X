@@ -13,6 +13,7 @@ Status: a plan only. Nothing has been ported. Sizes are relative (S, M, L, XL); 
 | 3 (first route) | **Done for one route:** `GET /api/photos/channels` is answered by Rust when switched on (off by default); see "Round 4" below |
 | 3 (second route) | **Done:** `GET /api/performers`, with the pattern for routes that decline unusual requests; see "Round 5" |
 | 3 (third route) | **Done:** `GET /api/photos/faces/groups?suggestions=0` (the People row of the Photos page); see "Round 6" |
+| 3 (routes 4 to 6) | **Done:** the channel, studio and tag video lists; see "Round 7" |
 | 4 to 9 | Not started |
 
 Phase 2 results (`rust/crates/ax-server`, 12 Rust tests, clippy clean; Python side `TrustedProxyMiddleware`, 2 tests):
@@ -24,6 +25,13 @@ Phase 2 results (`rust/crates/ax-server`, 12 Rust tests, clippy clean; Python si
 - The release binary is 4.1 MB.
 - Desktop launcher: `LaunchOptions.front_door` (opt-in); a real end-to-end test (`cargo test -p archive-x-launcher-core real_backend_with_front_door -- --ignored`) passes with the Python backend in desktop mode: health, app shell, the backend's 403 guard, the session hand-off and a graceful shutdown all work through the front door.
 - Known differences: Python counts a plain page load of `/login` against its login rate limit and the front door does not; Python advertises HTTP/3 (`alt-svc`) and the front door removes that header because it does not speak HTTP/3.
+
+### Round 7: the video lists, and a query that multiplies rows
+
+- **`/api/channels/{id}/videos`, `/api/studios/{id}/videos`, `/api/tags/{id}/videos`** answered by Rust (`channel_videos`, `studio_videos`, `tag_videos`); the performer list and the studio list with `performer_id` stay in Python.
+- **22 requests byte-identical to Python** on the big library (found, not found, odd forms), 6 new Rust tests (58 in all), full read parity run: see the result in the README.
+- **The real finding is a Python query problem:** the four-way join multiplies rows (136,965 intermediate rows for 18 videos); separate sub-queries give the same lists in 2.4 ms instead of 125 ms, and 32 times faster end to end for the channel list (191 ms to 6 ms; 54 times at 8 clients). The same rewrite can be applied in Python.
+- **A measurement caveat found on the way:** the server re-creates the `archive_x_library_media` view itself, and the cost of reading through it changed between runs (Python 175 ms, later 2 ms). The tag and studio list speed-ups are therefore reported as a range; parity (the thing that matters for correctness) held in both states.
 
 ### Round 6: the People row, and a performance trap found by measuring
 

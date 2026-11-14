@@ -21,7 +21,13 @@ use crate::optimize::json_response;
 use crate::proxy::{Body, Proxy};
 
 /// Every route that can be answered here, by name.
-pub const ROUTES: &[&str] = &["photos_channels", "performers_list", "face_groups_fast"];
+pub const ROUTES: &[&str] = &["photos_channels", "performers_list", "face_groups_fast", "channel_videos", "studio_videos", "tag_videos"];
+
+/// A request that belongs to an enabled native route.
+pub struct Match {
+    pub name: &'static str,
+    pub id: Option<i64>,
+}
 
 pub struct Native {
     enabled: HashSet<&'static str>,
@@ -61,20 +67,40 @@ impl Native {
         v
     }
 
-    /// The enabled route this request is for, if any.
-    pub fn route_for(&self, method: &Method, path: &str) -> Option<&'static str> {
-        let name = match (method, path) {
-            (&Method::GET, "/api/photos/channels") => "photos_channels",
-            (&Method::GET, "/api/performers") => "performers_list",
-            (&Method::GET, "/api/photos/faces/groups") => "face_groups_fast",
-            _ => return None,
+    /// The enabled route this request is for, with the number in its path if it has one.
+    pub fn route_for(&self, method: &Method, path: &str) -> Option<Match> {
+        if method != Method::GET {
+            return None;
+        }
+        let (name, id) = match path {
+            "/api/photos/channels" => ("photos_channels", None),
+            "/api/performers" => ("performers_list", None),
+            "/api/photos/faces/groups" => ("face_groups_fast", None),
+            _ => {
+                let rest = path.strip_prefix("/api/")?;
+                let (kind, tail) = rest.split_once('/')?;
+                let (id, tail) = tail.split_once('/')?;
+                let name = match (kind, tail) {
+                    ("channels", "videos") => "channel_videos",
+                    ("studios", "videos") => "studio_videos",
+                    ("tags", "videos") => "tag_videos",
+                    _ => return None,
+                };
+                // FastAPI's `int` accepts more forms (signs, spaces, other digits); only plain integers are handled here, the rest goes to Python.
+                let digits = id.strip_prefix('-').unwrap_or(id);
+                if digits.is_empty() || digits.len() > 18 || !digits.bytes().all(|b| b.is_ascii_digit()) {
+                    return None;
+                }
+                (name, Some(id.parse::<i64>().ok()?))
+            }
         };
-        self.enabled.get(name).copied()
+        self.enabled.get(name).map(|n| Match { name: n, id })
     }
 
     /// `None` means "not for me, ask Python": the route is on, but this particular request is one the Rust version does not
     /// handle (a search, an unusual parameter, a case where Python writes to the database), so it is forwarded as if the route were off.
-    pub async fn handle(&self, route: &str, query: Option<&str>, headers: &HeaderMap, peer: SocketAddr) -> Option<Response<Body>> {
+    pub async fn handle(&self, m: &Match, query: Option<&str>, headers: &HeaderMap, peer: SocketAddr) -> Option<Response<Body>> {
+        let route = m.name;
         let session = match self.auth.require(headers).await {
             Ok(s) => s,
             Err(resp) => return Some(resp),
@@ -91,6 +117,11 @@ impl Native {
             }
             "face_groups_fast" => {
                 let resp = self.face_groups_fast(query, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "channel_videos" | "studio_videos" | "tag_videos" => {
+                let resp = self.video_list(route, m.id?, query, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }
@@ -411,4 +442,258 @@ impl Native {
         out.insert("grouping_mode".into(), Value::from("image_embedding_cluster"));
         Some(json_response(request, serde_json::to_vec(&Value::Object(out)).unwrap_or_default()))
     }
+}
+
+// ---- the video lists of a channel, a studio and a tag --------------------------------------------------------------------------------
+
+/// What Python's `x or y` thinks is true.
+fn truthy(v: Option<&Value>) -> bool {
+    match v {
+        None | Some(Value::Null) => false,
+        Some(Value::Bool(b)) => *b,
+        Some(Value::Number(n)) => n.as_f64().map(|f| f != 0.0).unwrap_or(true),
+        Some(Value::String(s)) => !s.is_empty(),
+        Some(Value::Array(a)) => !a.is_empty(),
+        Some(Value::Object(o)) => !o.is_empty(),
+    }
+}
+
+/// `[x for x in (value or "").split(",") if x]`
+fn csv_list(v: Option<&Value>) -> Vec<String> {
+    v.and_then(Value::as_str).unwrap_or("").split(',').filter(|x| !x.is_empty()).map(str::to_string).collect()
+}
+
+fn strings(v: Vec<String>) -> Value {
+    Value::Array(v.into_iter().map(Value::String).collect())
+}
+
+/// `str(value)` for a number or text, as it appears inside an f-string.
+fn py_str(v: Option<&Value>) -> String {
+    match v {
+        None | Some(Value::Null) => "None".to_string(),
+        Some(Value::String(s)) => s.clone(),
+        Some(other) => other.to_string(),
+    }
+}
+
+/// performers = unique(performers + local performers), keeping order.
+fn merged_performers(d: &Map<String, Value>) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for name in csv_list(d.get("performers")).into_iter().chain(csv_list(d.get("local_performers"))) {
+        if !out.contains(&name) {
+            out.push(name);
+        }
+    }
+    out
+}
+
+/// `d.get(a) or d.get(b) or f"video {id}"` (or with the first two swapped) and `thumbnail_message_id or source_message_id`.
+fn display_name_and_thumbnail(d: &mut Map<String, Value>) {
+    let id = d.get("id").cloned();
+    let name = if truthy(d.get("title")) { d["title"].clone() } else if truthy(d.get("filename")) { d["filename"].clone() } else { Value::String(format!("video {}", py_str(id.as_ref()))) };
+    d.insert("name".into(), name);
+    let thumb = if truthy(d.get("thumbnail_message_id")) { d["thumbnail_message_id"].clone() } else { d.get("source_message_id").cloned().unwrap_or(Value::Null) };
+    d.insert("thumbnail_id".into(), thumb);
+}
+
+impl Native {
+    /// GET /api/channels/{id}/videos, /api/studios/{id}/videos and /api/tags/{id}/videos: the three video lists of the detail pages.
+    /// The studio list with a `performer_id` filter and the performer list (which writes the Unknown Performer profile) stay in Python.
+    async fn video_list(&self, route: &'static str, id: i64, query: Option<&str>, request: &HeaderMap) -> Option<Response<Body>> {
+        let params = query_params(query)?;
+        if route == "studio_videos" && params.contains_key("performer_id") {
+            return None;
+        }
+        let read = self.db.read(move |c| video_list_rows(c, route, id)).await;
+        let found = match read {
+            Ok(found) => found,
+            Err(e) => {
+                tracing::error!("{route}: {e}");
+                return Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The video list could not be read"));
+            }
+        };
+        match found {
+            Some(payload) => Some(json_response(request, serde_json::to_vec(&payload).unwrap_or_default())),
+            None => Some(json_error(
+                StatusCode::NOT_FOUND,
+                match route {
+                    "channel_videos" => "Channel not found",
+                    "studio_videos" => "Site not found",
+                    _ => "Tag not found",
+                },
+            )),
+        }
+    }
+}
+
+/// The four name lists of a video, each from its own sub-query. The original queries join performers, local performers, studios and tags
+/// to every video in one go, which multiplies the rows (a video with 113 performers, 26 studios and 3 tags produced 8,000 rows before the
+/// grouping: 125 ms for 18 videos against 2.4 ms for these). The lists come out the same, in the same order, on every database tried
+/// (SQLite does not promise an order for GROUP_CONCAT(DISTINCT ...); the parity harness checks it on the big library).
+fn name_lists(performers: &str, studios: &str, tags: &str) -> String {
+    format!(
+        "(SELECT GROUP_CONCAT(DISTINCT p.name) FROM video_performers vp JOIN performers p ON p.id=vp.performer_id WHERE vp.video_id=m.id) AS {performers}, \
+         (SELECT GROUP_CONCAT(DISTINCT lp.name) FROM local_video_performers lvp JOIN performers lp ON lp.id=lvp.performer_id WHERE lvp.video_id=m.id) AS local_performers, \
+         (SELECT GROUP_CONCAT(DISTINCT s2.name) FROM video_studios vs2 JOIN studios s2 ON s2.id=vs2.studio_id WHERE vs2.video_id=m.id) AS {studios}, \
+         (SELECT GROUP_CONCAT(DISTINCT t2.name) FROM video_tags vt2 JOIN tags t2 ON t2.id=vt2.tag_id WHERE vt2.video_id=m.id) AS {tags}"
+    )
+}
+
+const ENTITY_GLOB: &str = "AND COALESCE(m.status,'')<>'SOURCE_DELETED' AND (CAST(m.source_channel AS TEXT) GLOB '-[0-9]*' OR (CAST(m.source_channel AS TEXT)<>'' AND CAST(m.source_channel AS TEXT) NOT GLOB '*[^0-9]*')) ";
+
+/// `None` when the channel, studio or tag does not exist.
+fn video_list_rows(c: &Connection, route: &str, id: i64) -> ax_db::rusqlite::Result<Option<Value>> {
+    use ax_db::rusqlite::params;
+    match route {
+        "tag_videos" => {
+            let Some(tag) = one_row(c, "SELECT * FROM tags WHERE id=?", params![id])? else { return Ok(None) };
+            let sql = format!(
+                "SELECT m.*, {} FROM archive_x_library_media m WHERE EXISTS(SELECT 1 FROM video_tags vt WHERE vt.video_id=m.id AND vt.tag_id=?) GROUP BY m.id ORDER BY m.upload_date DESC",
+                name_lists("performers", "studios", "tags")
+            );
+            let rows = rows_with(c, &sql, params![id])?;
+            let videos: Vec<Value> = rows
+                .into_iter()
+                .map(|mut d| {
+                    let performers = merged_performers(&d);
+                    d.insert("performers".into(), strings(performers));
+                    let studios = csv_list(d.get("studios"));
+                    d.insert("studios".into(), strings(studios.clone()));
+                    let tags = csv_list(d.get("tags"));
+                    d.insert("tags".into(), strings(tags));
+                    d.insert("studio".into(), Value::String(studios.first().cloned().unwrap_or_default()));
+                    let sm = d.get("source_message_id").cloned().unwrap_or(Value::Null);
+                    d.insert("id".into(), sm);
+                    let sc = d.get("source_channel").cloned().unwrap_or(Value::Null);
+                    d.insert("_cid".into(), sc);
+                    display_name_and_thumbnail(&mut d);
+                    Value::Object(d)
+                })
+                .collect();
+            let mut out = Map::new();
+            out.insert("tag".into(), Value::Object(tag));
+            out.insert("videos".into(), Value::Array(videos));
+            Ok(Some(Value::Object(out)))
+        }
+        "studio_videos" => {
+            let Some(mut studio) = one_row(c, "SELECT s.*, (SELECT MAX(sic.updated_at) FROM studio_image_cache sic WHERE sic.studio_id=s.id) AS image_cache_updated_at FROM studios s WHERE s.id=?", params![id])? else { return Ok(None) };
+            let favorite: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM entity_favorites WHERE entity_type='studio' AND entity_id=?)", params![id], |r| r.get(0))?;
+            studio.insert("favorite".into(), Value::Bool(favorite));
+            let sql = format!(
+                "SELECT m.*, c.title AS channel_title, {} \
+                 FROM archive_x_library_media m LEFT JOIN channels c ON c.telegram_id=m.source_channel \
+                 WHERE EXISTS (SELECT 1 FROM video_studios vs WHERE vs.video_id=m.id AND vs.studio_id=?) {ENTITY_GLOB}GROUP BY m.id ORDER BY m.upload_date DESC",
+                name_lists("performers", "studios", "tags")
+            );
+            let rows = rows_with(c, &sql, params![id])?;
+            let site_url: Option<String> = {
+                let mut st = c.prepare("SELECT site_url FROM media WHERE site_url IS NOT NULL AND TRIM(site_url)<>'' AND id IN (SELECT video_id FROM video_studios WHERE studio_id=?) ORDER BY updated_at DESC LIMIT 1")?;
+                let mut it = st.query(params![id])?;
+                match it.next()? {
+                    Some(r) => Some(r.get::<_, Option<String>>(0)?.unwrap_or_default()),
+                    None => None,
+                }
+            };
+            let videos: Vec<Value> = rows
+                .into_iter()
+                .map(|mut d| {
+                    let performers = merged_performers(&d);
+                    d.insert("performers".into(), strings(performers));
+                    let local = csv_list(d.get("local_performers"));
+                    d.insert("local_performers".into(), strings(local));
+                    let studios = csv_list(d.get("studios"));
+                    d.insert("studios".into(), strings(studios.clone()));
+                    d.insert("studio".into(), Value::String(studios.first().cloned().unwrap_or_default()));
+                    let tags = csv_list(d.get("tags"));
+                    d.insert("tags".into(), strings(tags));
+                    let row_id = d.get("id").cloned().unwrap_or(Value::Null);
+                    d.insert("media_id".into(), row_id);
+                    let sc = d.get("source_channel").cloned().unwrap_or(Value::Null);
+                    d.insert("_cid".into(), sc);
+                    let sm = d.get("source_message_id").cloned().unwrap_or(Value::Null);
+                    d.insert("id".into(), sm);
+                    display_name_and_thumbnail(&mut d);
+                    Value::Object(d)
+                })
+                .collect();
+            let mut out = Map::new();
+            out.insert("site".into(), Value::Object(studio));
+            out.insert("videos".into(), Value::Array(videos));
+            out.insert("site_url".into(), Value::String(site_url.unwrap_or_default().trim().to_string()));
+            Ok(Some(Value::Object(out)))
+        }
+        _ => {
+            // channel_videos
+            let key = id.to_string();
+            let channel = one_row(c, "SELECT * FROM channels WHERE telegram_id=?", params![key])?;
+            let title = match channel {
+                Some(ch) => ch.get("title").cloned().unwrap_or(Value::Null),
+                None => {
+                    let known: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM archive_x_published_media WHERE source_channel=? LIMIT 1)", params![key], |r| r.get(0))?;
+                    if !known {
+                        return Ok(None);
+                    }
+                    Value::from("Unknown channel")
+                }
+            };
+            let sql = format!(
+                "SELECT m.*, 1 AS library_ready, 'Ready' AS library_state, 'COMPLETE' AS library_catalogue_state, 'COMPLETE' AS library_metadata_state, 'COMPLETE' AS library_entity_state, 'READY' AS library_snapshot_state, {} FROM media m WHERE m.source_channel=? GROUP BY m.id ORDER BY m.upload_date DESC",
+                name_lists("performers", "studios", "tags")
+            );
+            let rows = rows_with(c, &sql, params![key])?;
+            let videos: Vec<Value> = rows
+                .into_iter()
+                .map(|mut d| {
+                    let performers = merged_performers(&d);
+                    d.insert("performers".into(), strings(performers));
+                    let local = csv_list(d.get("local_performers"));
+                    d.insert("local_performers".into(), strings(local));
+                    let studios = csv_list(d.get("studios"));
+                    d.insert("studios".into(), strings(studios.clone()));
+                    d.insert("studio".into(), Value::String(studios.first().cloned().unwrap_or_default()));
+                    let tags = csv_list(d.get("tags"));
+                    d.insert("tags".into(), strings(tags));
+                    d.insert("channel_id".into(), Value::String(key.clone()));
+                    d.insert("_cid".into(), Value::String(key.clone()));
+                    let sm = d.get("source_message_id").cloned().unwrap_or(Value::Null);
+                    d.insert("id".into(), sm);
+                    // channel list: the name prefers the title, and the telegram filename is the file name or empty
+                    let name = if truthy(d.get("title")) { d["title"].clone() } else if truthy(d.get("filename")) { d["filename"].clone() } else { Value::String(format!("video {}", py_str(d.get("id")))) };
+                    d.insert("name".into(), name);
+                    let fname = if truthy(d.get("filename")) { d["filename"].clone() } else { Value::String(String::new()) };
+                    d.insert("telegram_filename".into(), fname);
+                    let thumb = if truthy(d.get("thumbnail_message_id")) { d["thumbnail_message_id"].clone() } else { d.get("source_message_id").cloned().unwrap_or(Value::Null) };
+                    d.insert("thumbnail_id".into(), thumb);
+                    Value::Object(d)
+                })
+                .collect();
+            let ready = videos.iter().filter(|v| truthy(v.get("library_ready"))).count();
+            let mut out = Map::new();
+            out.insert("channel_id".into(), Value::from(id));
+            out.insert("title".into(), title);
+            out.insert("count".into(), Value::from(videos.len()));
+            out.insert("ready_count".into(), Value::from(ready));
+            out.insert("videos".into(), Value::Array(videos));
+            out.insert("catalogued_only".into(), Value::Bool(false));
+            out.insert("published_only".into(), Value::Bool(true));
+            Ok(Some(Value::Object(out)))
+        }
+    }
+}
+
+fn rows_with(conn: &Connection, sql: &str, params: impl ax_db::rusqlite::Params) -> ax_db::rusqlite::Result<Vec<Map<String, Value>>> {
+    let mut stmt = conn.prepare(sql)?;
+    let names: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
+    let rows = stmt.query_map(params, |row| {
+        let mut m = Map::new();
+        for (i, name) in names.iter().enumerate() {
+            m.insert(name.clone(), json_value(row.get_ref(i)?));
+        }
+        Ok(m)
+    })?;
+    rows.collect()
+}
+
+fn one_row(conn: &Connection, sql: &str, params: impl ax_db::rusqlite::Params) -> ax_db::rusqlite::Result<Option<Map<String, Value>>> {
+    Ok(rows_with(conn, sql, params)?.into_iter().next())
 }

@@ -162,3 +162,23 @@ in-memory temporary tables. A heavy query over a big library re-reads pages agai
 pragmas. After that the route is on par or slightly ahead (1.0 to 1.3 times), because the same SQLite queries dominate either way; the performer
 list keeps its large advantage under concurrency (15 to 32 times with 4 to 8 clients) because Python serialises those requests on its database lock.
 Lesson for every route that follows: measure single and concurrent requests on the big library before calling a port finished.
+
+### The video lists (channel, studio, tag) and a slow query worth fixing in Python too
+
+`GET /api/channels/{id}/videos`, `/api/studios/{id}/videos` and `/api/tags/{id}/videos` are answerable by Rust (`channel_videos`, `studio_videos`,
+`tag_videos`). Ids must be plain integers (`-001001` is fine, `+5`, ` 5`, `1_0` go to Python, as does `performer_id=` on the studio list); the
+performer list stays in Python (it writes the Unknown Performer profile and builds a provider URL with Python logic). Each list has its own small
+differences in what it adds to every video (`media_id`, `local_performers` as a list or as raw text, the name preferring the title or the file name,
+`channel_title`, `library_ready`), and these are copied exactly and tested.
+
+**The finding.** The original queries join performers, local performers, studios and tags to every video in one statement, so the rows multiply:
+on the big library, 18 videos produced **136,965 rows before grouping** (113 performers x 26 studios x 3 tags per video) and the channel list
+took 190 ms. The Rust routes fetch each of the four lists with its own sub-query: the same query part takes **2.4 ms**. The lists are identical
+(and in the same order) for all 72 videos on both test databases; SQLite does not promise an order for `GROUP_CONCAT(DISTINCT ...)`, so this
+rests on observed behaviour and on the parity harness, not on a guarantee. **The same rewrite would fix the Python routes** (and `/api/library`)
+with no Rust at all: `native.rs::name_lists` has the SQL.
+
+Measured on the big library, one client: channel list 191 ms to 6 ms (32 times), 8 clients 7 to 385 requests per second (54 times). Caution
+about the tag and studio lists: they read the `archive_x_library_media` view, which the server re-creates itself, and the cost of that view changed
+between my measurements (Python took 175 ms, then 2 ms, with no change by me), so there is no reliable single number for them; in the slow state
+Rust was 1.8 to 2.9 times faster, in the fast state about 2 times. The byte-for-byte parity held in both states.

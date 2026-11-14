@@ -118,4 +118,12 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
     ("photo_face_groups", &["id", "label", "performer_id", "updated_at"]),
     ("photo_face_detections", &["id", "group_id", "photo_id"]),
     ("photo_face_analysis", &["photo_id", "status"]),
+    ("channels", &["id", "telegram_id", "title"]),
+    ("studios", &["id", "name", "image"]),
+    ("tags", &["id", "name"]),
+    ("entity_favorites", &["entity_type", "entity_id"]),
+    ("studio_image_cache", &["studio_id", "updated_at"]),
+    ("video_studios", &["video_id", "studio_id"]),
+    ("video_tags", &["video_id", "tag_id"]),
+    ("media", &["id", "source_channel", "source_message_id", "title", "filename", "status", "upload_date", "thumbnail_message_id", "site_url", "updated_at"]),
 ];
