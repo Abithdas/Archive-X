@@ -27,11 +27,33 @@ const BTN = 'grid size-8 shrink-0 place-items-center rounded-md text-fg/85 trans
  * Native <video> with the classic player's control bar: seek, play, previous/next, ±30 s, speed, mute and volume,
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
+/** Tell the server the viewer left this video. Best effort: a failure only means its cache is cleared a little later. */
+export function releasePlayback(channelId: string, messageId: number, reason = 'viewer_left') {
+  const id = Number(channelId)
+  if (!Number.isFinite(id) || !Number.isFinite(messageId)) return
+  try {
+    void fetch('/api/play/release', {
+      method: 'POST', keepalive: true, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ channel_id: id, message_id: messageId, reason }),
+    }).catch(() => undefined)
+  } catch { /* nothing to do */ }
+}
+
 export function Player({ media, info, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc }: { media?: MediaRef; info?: PlayInfo | null; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
   const pendingStart = useRef<number | null>(null)
   const [started, setStarted] = useState(false)
+  // Leaving the video (Back, another page, another video, closing the tab) tells the server to stop that video's downloads and clear its
+  // temporary cache, so only the video on screen has a playback job. `keepalive` lets the request finish even while the page unloads.
+  const mediaCid = media?.cid
+  const mediaMid = media?.mid
+  useEffect(() => {
+    if (!mediaCid || !Number.isFinite(mediaMid)) return
+    const release = () => releasePlayback(mediaCid, Number(mediaMid))
+    window.addEventListener('pagehide', release)
+    return () => { window.removeEventListener('pagehide', release); release() }
+  }, [mediaCid, mediaMid])
   useEffect(() => { startApplied.current = false; pendingStart.current = null; setStarted(false); setRes('') }, [src])   // a new video may have its own start position
   const box = useRef<HTMLDivElement>(null)
   const [playing, setPlaying] = useState(false)

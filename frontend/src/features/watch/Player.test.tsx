@@ -31,6 +31,33 @@ describe('Player seek requests (scene-marker chips)', () => {
   })
 })
 
+describe('Player releases the video when the viewer leaves', () => {
+  const calls = (f: ReturnType<typeof vi.fn>) => f.mock.calls as unknown as Array<[string, RequestInit]>
+  const releases = (f: ReturnType<typeof vi.fn>) => calls(f).filter((c) => c[0] === '/api/play/release').map((c) => JSON.parse(String(c[1].body)))
+  it('tells the server when the page is left, when another video starts, and when the tab closes', () => {
+    const f = vi.fn(async () => new Response('{}'))
+    vi.stubGlobal('fetch', f)
+    const media = (mid: number) => ({ cid: '-1001', mid })
+    const { rerender, unmount } = render(<Player media={media(5)} src="/stream/-1001/5" durationHint={60} onOpenVlc={() => {}} />)
+    expect(releases(f)).toEqual([])
+    rerender(<Player media={media(6)} src="/stream/-1001/6" durationHint={60} onOpenVlc={() => {}} />)
+    expect(releases(f)).toEqual([{ channel_id: -1001, message_id: 5, reason: 'viewer_left' }])
+    window.dispatchEvent(new Event('pagehide'))
+    expect(releases(f).length).toBe(2)
+    unmount()
+    expect(releases(f).map((r) => r.message_id)).toEqual([5, 6, 6])
+    expect(calls(f).at(-1)![1].keepalive).toBe(true)
+    vi.unstubAllGlobals()
+  })
+  it('does nothing for a video that is not from Telegram', () => {
+    const f = vi.fn(async () => new Response('{}'))
+    vi.stubGlobal('fetch', f)
+    render(<Player src="/stream/x/1" durationHint={60} onOpenVlc={() => {}} />).unmount()
+    expect(releases(f)).toEqual([])
+    vi.unstubAllGlobals()
+  })
+})
+
 describe('Player resume hooks', () => {
   const metadata = (video: HTMLVideoElement, duration: number) => {
     Object.defineProperty(video, 'duration', { value: duration, configurable: true })
