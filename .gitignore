@@ -5,6 +5,7 @@ __pycache__/
 # Node / frontend
 node_modules/
 # Rust / Tauri
+target/
 desktop/src-tauri/target/
 desktop/target/
 # Frozen backend build output

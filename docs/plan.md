@@ -15,7 +15,8 @@ How to read it: Part 1 says where the code stands, with numbers measured for thi
 | C5 unused frontend code | **Done** (`knip` in CI) |
 | C6 one version number | **Done** (`tools/release/write_version.py`, written by the release workflow) |
 | C7 prune the documents | **Done** (`docs/README.md` is the index) |
-| R1 to R6 reorganisation, Phase 0 onward | Not started |
+| R2 one Cargo workspace | **Done** (root `Cargo.toml`, one `Cargo.lock`, one `target/`); the Windows installer build under it is checked by the next Desktop run |
+| R1, R3 to R6, Phase 0 onward | Not started |
 
 ---
 

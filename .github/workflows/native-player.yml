@@ -79,6 +79,6 @@ jobs:
           status=0
           for clip in h264_aac.mp4 hevc10_ac3.mkv mpeg4_mp3.avi; do
             echo "=== $clip"
-            AXPLAYER_URL="http://127.0.0.1:8778/$clip" cargo test --manifest-path desktop/Cargo.toml -p archive-x-native-player -- --ignored --test-threads=1 || status=1
+            AXPLAYER_URL="http://127.0.0.1:8778/$clip" cargo test -p archive-x-native-player -- --ignored --test-threads=1 || status=1
           done
           exit $status

@@ -14,16 +14,14 @@ test-py:
     python -m pytest tools/tests -q
 
 test-rust:
-    cd rust && cargo test --workspace
-    cd desktop && cargo test -p archive-x-launcher-core -p archive-x-native-player -p archive-x-desktop --lib
+    cargo test --workspace --lib --tests
 
 test-web:
     cd frontend && npm test
 
 # Type checks and lints.
 lint:
-    cd rust && cargo clippy --workspace --all-targets -- -D warnings
-    cd desktop && cargo clippy --all-targets -- -D warnings
+    cargo clippy --workspace --all-targets -- -D warnings
     cd frontend && npm run typecheck
 
 # The web app, built.

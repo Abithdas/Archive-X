@@ -48,9 +48,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with: { toolchain: stable }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-        with: { workspaces: desktop }
       - run: cargo test -p archive-x-launcher-core -p archive-x-native-player
-        working-directory: desktop
 
   front-door:
     runs-on: ubuntu-latest
@@ -59,11 +57,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with: { toolchain: stable, components: clippy }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-        with: { workspaces: rust }
-      - run: cargo test
-        working-directory: rust
-      - run: cargo clippy --all-targets -- -D warnings
-        working-directory: rust
+      # The desktop shell (archive-x-desktop) needs the Linux web-view libraries, so it is built and tested on Windows in desktop.yml.
+      - run: cargo test -p ax-server -p ax-db -p ax-names -p ax-faces
+      - run: cargo clippy -p ax-server -p ax-db -p ax-names -p ax-faces -p archive-x-launcher-core -p archive-x-native-player --all-targets -- -D warnings
 
   front-door-windows:
     # The front door ships in the Windows installer: make sure it builds there.
@@ -73,11 +69,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with: { toolchain: stable }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-        with: { workspaces: rust }
-      - run: cargo build --release
-        working-directory: rust
-      - run: cargo test
-        working-directory: rust
+      - run: cargo build --release -p ax-server
+      - run: cargo test -p ax-server -p ax-db -p ax-names -p ax-faces
 
   python-lint:
     runs-on: ubuntu-latest

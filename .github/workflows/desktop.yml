@@ -53,7 +53,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with: { toolchain: stable }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-        with: { workspaces: desktop }
 
       - name: Build the React frontend
         working-directory: frontend
@@ -76,14 +75,13 @@ jobs:
         run: bash desktop/scripts/fetch-ffmpeg.sh
 
       - name: Build the Rust front door
-        working-directory: rust
         run: cargo build --release -p ax-server
 
       - name: Stage the front door and the web files for the installer
         shell: bash
         run: |
           mkdir -p desktop/src-tauri/resources/rust desktop/src-tauri/resources/web
-          cp rust/target/release/ax-server.exe desktop/src-tauri/resources/rust/ax-server.exe
+          cp target/release/ax-server.exe desktop/src-tauri/resources/rust/ax-server.exe
           cp -r frontend/dist/. desktop/src-tauri/resources/web/
 
       - name: Fetch LAV Filters and build the native player engine
@@ -98,16 +96,14 @@ jobs:
           cp build-axplayer/Release/axplayer.dll desktop/src-tauri/resources/axplayer/
 
       - name: Launcher tests against the frozen backend
-        working-directory: desktop
         env: { ARCHIVE_X_BACKEND_EXE: "${{ github.workspace }}\\desktop\\backend\\dist\\archive-x-backend\\archive-x-backend.exe" }
         run: |
           cargo test -p archive-x-launcher-core
           cargo test -p archive-x-launcher-core --test launcher -- --ignored --nocapture real_frozen_backend
       - name: Launcher test with the Rust front door in front
-        working-directory: desktop
         env:
           ARCHIVE_X_BACKEND_EXE: "${{ github.workspace }}\\desktop\\backend\\dist\\archive-x-backend\\archive-x-backend.exe"
-          ARCHIVE_X_FRONT_DOOR_EXE: "${{ github.workspace }}\\rust\\target\\release\\ax-server.exe"
+          ARCHIVE_X_FRONT_DOOR_EXE: "${{ github.workspace }}\\target\\release\\ax-server.exe"
           ARCHIVE_X_DIST: "${{ github.workspace }}\\frontend\\dist"
         run: cargo test -p archive-x-launcher-core --test launcher -- --ignored --nocapture real_backend_with_front_door
 
@@ -129,8 +125,8 @@ jobs:
         with:
           name: archive-x-windows
           path: |
-            desktop/target/release/bundle/nsis/*.exe
-            desktop/target/release/bundle/msi/*.msi
+            target/release/bundle/nsis/*.exe
+            target/release/bundle/msi/*.msi
 
       - name: Publish the release (installer, MSI, latest.json)
         if: steps.ver.outputs.release == 'true'
@@ -141,7 +137,7 @@ jobs:
           SIGNING_KEY: "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
         run: |
           [ -n "$SIGNING_KEY" ] || { echo "::error::Set the repository secret TAURI_SIGNING_PRIVATE_KEY: a release needs signed update files"; exit 1; }
-          bundle="$GITHUB_WORKSPACE/desktop/target/release/bundle"
+          bundle="$GITHUB_WORKSPACE/target/release/bundle"
           out="$RUNNER_TEMP/release"; mkdir -p "$out"
           setup="$(ls "$bundle"/nsis/*-setup.exe | head -n 1)"
           [ -f "$setup.sig" ] || { echo "::error::No .sig next to $setup (was the signing key used in the build step?)"; exit 1; }

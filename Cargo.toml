@@ -1,0 +1,19 @@
+# One Cargo workspace for all the Rust in the repository (docs/plan.md, step R2): the front door and the new backend crates under rust/,
+# and the desktop shell, launcher and native-player wrapper under desktop/. One lock file, one build folder (target/).
+[workspace]
+resolver = "2"
+members = [
+    "rust/crates/ax-server",
+    "rust/crates/ax-db",
+    "rust/crates/ax-names",
+    "rust/crates/ax-faces",
+    "desktop/launcher-core",
+    "desktop/native-player",
+    "desktop/src-tauri",
+]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = "symbols"

@@ -33,12 +33,12 @@ python tools/tests/test_desktop_mode.py
 python tools/tests/test_desktop_mode.py desktop/backend/dist/archive-x-backend/archive-x-backend
 
 # 3. test the launcher, including against the real frozen backend
-cd desktop && cargo test -p archive-x-launcher-core
-ARCHIVE_X_BACKEND_EXE=$PWD/backend/dist/archive-x-backend/archive-x-backend \
+cargo test -p archive-x-launcher-core
+ARCHIVE_X_BACKEND_EXE=$PWD/desktop/backend/dist/archive-x-backend/archive-x-backend \
   cargo test -p archive-x-launcher-core --test launcher -- --ignored --nocapture
 
 # 4. run the app from the build tree
-ARCHIVE_X_BACKEND_EXE=$PWD/backend/dist/archive-x-backend/archive-x-backend cargo run -p archive-x-desktop
+ARCHIVE_X_BACKEND_EXE=$PWD/desktop/backend/dist/archive-x-backend/archive-x-backend cargo run -p archive-x-desktop
 ```
 Linux build prerequisites: `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf`.
 Windows needs the WebView2 runtime (the installer embeds its bootstrapper) and the MSVC build tools.

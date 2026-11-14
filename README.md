@@ -29,8 +29,7 @@ Without `just`:
 ```bash
 python -m pip install -r requirements.txt pytest httpx websockets
 python -m pytest tools/tests -q
-(cd rust && cargo test --workspace)
-(cd desktop && cargo test -p archive-x-launcher-core -p archive-x-native-player -p archive-x-desktop --lib)
+cargo test --workspace
 (cd frontend && npm ci && npm test && npm run typecheck && npm run unused)
 ```
 

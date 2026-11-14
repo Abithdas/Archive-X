@@ -1,6 +1,6 @@
 # Archive X: Rust side of the backend migration
 
-See `docs/rust-migration-history.md`. This workspace is separate from `desktop/` so the Tauri build is unaffected.
+See `docs/rust-migration-history.md`. These crates are members of the single Cargo workspace at the repository root (with the desktop crates); build and test from the root.
 
 ## ax-server (phase 2: the front door)
 
@@ -8,11 +8,10 @@ Serves the built web app (`frontend/dist`) itself and forwards every other reque
 can move to Rust one at a time.
 
 ```bash
-cd rust
-cargo test                       # 12 tests: config, static files, proxying, WebSocket, streaming, connection reuse
-cargo build --release            # about 4 MB
+cargo test -p ax-server          # config, static files, proxying, WebSocket, streaming, connection reuse, native routes
+cargo build --release -p ax-server   # about 4 MB
 ARCHIVE_X_PROXY_KEY=<random secret, 16+ chars> \
-  target/release/ax-server --listen 0.0.0.0:8443 --upstream 127.0.0.1:18443 --dist ../frontend/dist \
+  target/release/ax-server --listen 0.0.0.0:8443 --upstream 127.0.0.1:18443 --dist frontend/dist \
   --cert <data>/auth/cert/cert.pem --key <data>/auth/cert/key.pem
 ```
 
