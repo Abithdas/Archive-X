@@ -6,8 +6,8 @@ export const CARD = 'flex flex-col rounded-[18px] border border-line bg-surface 
 export const FIELD = 'h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3 text-sm text-fg outline-none placeholder:text-faint focus:border-accent/60'
 export const detail = (e: unknown, fallback: string) => (e instanceof ApiError ? e.detail || fallback : fallback)
 
-/** Channel picker box: columns instead of one thin column, and tall enough to use the free space beside and below it. auto-rows-min keeps rows as tall as their content while the box scrolls. */
-export const CHANNEL_LIST = 'grid max-h-[min(30rem,60vh)] auto-rows-min grid-cols-[repeat(auto-fill,minmax(11.5rem,1fr))] content-start gap-0.5 overflow-auto rounded-xl border border-line bg-bg p-1'
+/** Channel picker box: two columns and about three rows tall (the rest scrolls). auto-rows-min keeps rows as tall as their content while the box scrolls. */
+export const CHANNEL_LIST = 'grid max-h-[12.5rem] auto-rows-min grid-cols-2 content-start gap-0.5 overflow-auto rounded-xl border border-line bg-bg p-1'
 
 export function Check({ checked, onChange, title, hint, disabled, icon }: { checked: boolean; onChange: (v: boolean) => void; title: string; hint?: string; disabled?: boolean; icon?: ReactNode }) {
   return (

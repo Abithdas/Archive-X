@@ -1,0 +1,1 @@
+import{r as i,j as n,c as u}from"./index-FK4G1WCY.js";function m({className:a,onLoad:e,...o}){const[s,r]=i.useState(!1);return n.jsx("img",{...o,ref:t=>{t?.complete&&t.naturalWidth>0&&r(!0)},onLoad:t=>{r(!0),e?.(t)},className:u("transition-[filter,opacity] duration-300 ease-out motion-reduce:transition-none",s?"opacity-100 blur-0":"opacity-0 blur-md",a)})}export{m as B};
