@@ -12,6 +12,8 @@ use archive_x_launcher_core::{backend_exe_in, tools_dir_in, Backend, FrontDoorOp
 use tauri::{Manager, RunEvent, Url};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
+mod updates;
+
 struct BackendState(Mutex<Option<Backend>>);
 
 /// Backend executable: ARCHIVE_X_BACKEND_EXE (development), otherwise the bundled one in the resource directory.
@@ -122,10 +124,12 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BackendState(Mutex::new(None)))
         .setup(|app| {
             let handle = app.handle().clone();
             std::thread::spawn(move || start_backend(handle));
+            updates::spawn_checks(app.handle().clone(), stop_backend);
             Ok(())
         })
         .build(tauri::generate_context!())

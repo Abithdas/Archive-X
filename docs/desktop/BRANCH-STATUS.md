@@ -39,7 +39,7 @@ Executes the first parts of `Archive-X-MIGRATION-PLAN.md` as a separate line of 
   `build.ps1`, and the Windows CI workflow (`desktop.yml`) have **never been run**. Expect fixes on the first run.
 - **ffmpeg is not bundled yet.** `desktop/scripts/fetch-ffmpeg.sh` needs a pinned URL and SHA-256 (CI variables).
   The backend already honours `ARCHIVE_X_TOOLS_DIR`.
-- **Code signing and auto-update** (plan phase D3): no Authenticode certificate, no updater key, no `latest.json`.
+- **Code signing** (plan phase D3): no Authenticode certificate. **Auto-update** is built (`docs/desktop/UPDATES.md`): the app checks GitHub Releases and installs signed updates; it needs the two signing-key secrets in the repository and a public repository before an installed app can see a release. Not yet tried end to end on Windows.
 - **Tray / close-to-tray, LAN opt-in setting, data-folder migration for existing installs** (phases D1/D2).
 - **Installed size.** 313 MB frozen (181-225 MB `.deb`); PyAV, OpenCV and numpy dominate. Making face clustering an
   optional download is the main lever; Nuitka has not been evaluated.
