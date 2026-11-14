@@ -57,7 +57,7 @@ export function LibraryPage() {
     } finally { toast.dismiss(id) }
   }, NO_LIBRARY_VIDEOS)
   const selected = useMemo(() => (picked.length ? picked : (channels.data ?? []).map((c) => c.telegram_id)), [picked, channels.data])   // nothing picked means every channel
-  const query: LibraryQuery = useMemo(() => ({ channels: picked, page, per, sort, favorites, q: search, ...filters }), [selected, page, per, sort, favorites, filters, search])
+  const query: LibraryQuery = useMemo(() => ({ channels: selected, page, per, sort, favorites, q: search, ...filters }), [selected, page, per, sort, favorites, filters, search])
   const library = useLibrary(query)
   const pages = library.data ? Math.max(1, Math.ceil(library.data.total / per)) : 1
 
