@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/design/cn'
 import { formatDuration } from '@/features/library/format'
-import { bucketSecond, choosePreview, keyStep, segmentAt, timeAt, type LiveStatus, type Segment } from './timeline'
+import { bucketSecond, choosePreview, keyStep, segmentAt, timeAt, type LiveStatus, type Segment } from './timelineLogic'
 
 /** `url`/`times`: the 36 stored snapshots. `live`: a frame taken at exactly the requested second (made on demand by the server). */
 export interface PreviewInfo { url: (frame: number) => string; times: number[]; live?: (second: number) => string }

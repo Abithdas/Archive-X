@@ -18,7 +18,7 @@ import { MarkersSection } from './MarkersSection'
 import { QuickEditDialog } from './QuickEditDialog'
 import { Player } from './Player'
 import { useResume } from './useResume'
-import { frameIndexFor, normaliseChapters, toSegments } from './timeline'
+import { frameIndexFor, normaliseChapters, toSegments } from './timelineLogic'
 import { withWidth } from '@/design/responsive'
 import { AnimatePresence, listItem, motion } from '@/design/motion'
 

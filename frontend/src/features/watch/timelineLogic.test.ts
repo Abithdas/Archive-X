@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bucketSecond, choosePreview, frameIndexFor, keyStep, normaliseChapters, segmentAt, timeAt, toSegments } from './timeline'
+import { bucketSecond, choosePreview, frameIndexFor, keyStep, normaliseChapters, segmentAt, timeAt, toSegments } from './timelineLogic'
 
 describe('normaliseChapters', () => {
   it('sorts, drops duplicates and positions outside the video, and fills missing titles', () => {

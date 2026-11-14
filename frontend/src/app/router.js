@@ -1,0 +1,66 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { Link, createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router';
+import { lazy } from 'react';
+const LibraryPage = lazy(() => import('@/features/library/LibraryPage').then((m) => ({ default: m.LibraryPage })));
+const EntityDirectory = lazy(() => import('@/features/entities/EntityDirectory').then((m) => ({ default: m.EntityDirectory })));
+const StudioPage = lazy(() => import('@/features/entities/StudioPage').then((m) => ({ default: m.StudioPage })));
+const PerformerPage = lazy(() => import('@/features/entities/PerformerPage').then((m) => ({ default: m.PerformerPage })));
+const WatchPage = lazy(() => import('@/features/watch/WatchPage').then((m) => ({ default: m.WatchPage })));
+const OperationsPage = lazy(() => import('@/features/operations/OperationsPage').then((m) => ({ default: m.OperationsPage })));
+const TransfersPage = lazy(() => import('@/features/transfers/TransfersPage').then((m) => ({ default: m.TransfersPage })));
+const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const PhotosPage = lazy(() => import('@/features/photos/PhotosPage').then((m) => ({ default: m.PhotosPage })));
+const AiPage = lazy(() => import('@/features/ai/AiPage').then((m) => ({ default: m.AiPage })));
+import { usePhotoStore } from '@/features/photos/store';
+import { ErrorScreen } from './ErrorScreen';
+import { Shell } from './Shell';
+const root = createRootRoute({ component: Shell });
+// The app opens on Photos; the video library lives at /videos.
+const index = createRoute({ getParentRoute: () => root, path: '/', beforeLoad: () => { throw redirect({ to: '/photos', replace: true }); } });
+// Signed in already: /login (the address the server prints) just goes home. Signed out, the sign-in screen is shown before any page.
+const login = createRoute({ getParentRoute: () => root, path: '/login', beforeLoad: () => { throw redirect({ to: '/photos', replace: true }); } });
+const videos = createRoute({ getParentRoute: () => root, path: '/videos', component: LibraryPage });
+const performer = createRoute({
+    getParentRoute: () => root,
+    path: '/performers/$id',
+    component: function PerformerRoute() {
+        const { id } = performer.useParams();
+        return _jsx(PerformerPage, { id: Number(id) });
+    },
+});
+const studio = createRoute({
+    getParentRoute: () => root,
+    path: '/studios/$id',
+    component: function StudioRoute() {
+        const { id } = studio.useParams();
+        return _jsx(StudioPage, { id: Number(id) });
+    },
+});
+const watch = createRoute({
+    getParentRoute: () => root,
+    path: '/watch/$cid/$mid',
+    component: function WatchRoute() {
+        const { cid, mid } = watch.useParams();
+        return _jsx(WatchPage, { cid: cid, mid: Number(mid) }, `${cid}:${mid}`);
+    },
+});
+const routeTree = root.addChildren([
+    index,
+    login,
+    videos,
+    createRoute({ getParentRoute: () => root, path: '/performers', component: () => _jsx(EntityDirectory, { kind: "performers" }) }),
+    performer,
+    studio,
+    watch,
+    createRoute({ getParentRoute: () => root, path: '/studios', component: () => _jsx(EntityDirectory, { kind: "studios" }) }),
+    createRoute({ getParentRoute: () => root, path: '/photos', component: PhotosPage }),
+    // People lives inside Photos; an old /people link opens that view.
+    createRoute({ getParentRoute: () => root, path: '/people', beforeLoad: () => { usePhotoStore.getState().setTab('faces'); throw redirect({ to: '/photos', replace: true }); } }),
+    createRoute({ getParentRoute: () => root, path: '/ai', component: AiPage }),
+    createRoute({ getParentRoute: () => root, path: '/operations', component: OperationsPage }),
+    createRoute({ getParentRoute: () => root, path: '/transfers', component: TransfersPage }),
+    createRoute({ getParentRoute: () => root, path: '/settings', component: SettingsPage }),
+]);
+// The backend serves the app at the site root.
+const NotFound = () => (_jsxs("div", { className: "grid justify-items-center gap-3 py-24 text-center", children: [_jsx("h1", { className: "text-xl font-bold", children: "Page not found" }), _jsx(Link, { to: "/photos", className: "font-semibold text-accent underline", children: "Go to Photos" })] }));
+export const router = createRouter({ routeTree, defaultPreload: 'intent', defaultNotFoundComponent: NotFound, defaultErrorComponent: ({ error, reset }) => _jsx(ErrorScreen, { error: error, reset: reset }) });

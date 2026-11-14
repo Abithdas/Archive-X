@@ -1,0 +1,16 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+/** The player's control icons: one family, drawn to match the minimal player design (fills for transport, 2px strokes for the rest). */
+const Stroke = ({ children, cls = 'size-[18px]' }) => (_jsx("svg", { viewBox: "0 0 24 24", "aria-hidden": "true", focusable: "false", className: cls, fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: children }));
+export const PlayIcon = ({ cls = 'size-5' }) => _jsx("svg", { viewBox: "0 0 24 24", "aria-hidden": "true", focusable: "false", className: cls, fill: "currentColor", children: _jsx("path", { d: "M8 5v14l11-7z" }) });
+export const PauseIcon = ({ cls = 'size-5' }) => _jsx(Stroke, { cls: cls, children: _jsx("path", { d: "M8 5v14M16 5v14", strokeWidth: "2.4" }) });
+export const NextIcon = () => _jsx("svg", { viewBox: "0 0 24 24", "aria-hidden": "true", focusable: "false", className: "size-[18px]", fill: "currentColor", children: _jsx("path", { d: "M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" }) });
+export const PrevIcon = () => _jsx("svg", { viewBox: "0 0 24 24", "aria-hidden": "true", focusable: "false", className: "size-[18px]", fill: "currentColor", children: _jsx("path", { d: "M18 18l-8.5-6L18 6v12zM8 6v12H6V6h2z" }) });
+export const BufferIcon = () => _jsxs(Stroke, { cls: "size-3.5", children: [_jsx("ellipse", { cx: "12", cy: "5", rx: "9", ry: "3" }), _jsx("path", { d: "M21 12c0 1.66-4 3-9 3s-9-1.34-9-3M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" })] });
+export const ChevronIcon = () => _jsx(Stroke, { cls: "size-2.5", children: _jsx("path", { d: "M6 9l6 6 6-6", strokeWidth: "2.4" }) });
+export const VolumeIcon = ({ muted }) => (muted
+    ? _jsx(Stroke, { children: _jsx("path", { d: "M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6" }) })
+    : _jsx(Stroke, { children: _jsx("path", { d: "M11 5L6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" }) }));
+export const PipIcon = () => _jsxs(Stroke, { children: [_jsx("rect", { x: "2", y: "4", width: "20", height: "16", rx: "3" }), _jsx("rect", { x: "12", y: "11", width: "8", height: "6", rx: "1.5", fill: "currentColor" })] });
+export const GearIcon = () => _jsxs(Stroke, { children: [_jsx("circle", { cx: "12", cy: "12", r: "3" }), _jsx("path", { d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" })] });
+export const FullscreenIcon = () => _jsx(Stroke, { children: _jsx("path", { d: "M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4", strokeWidth: "2.2" }) });
+export const CcIcon = () => _jsxs(Stroke, { children: [_jsx("rect", { x: "2.5", y: "5", width: "19", height: "14", rx: "3" }), _jsx("path", { d: "M10 10.2a2.4 2.4 0 1 0 0 3.6M17 10.2a2.4 2.4 0 1 0 0 3.6" })] });

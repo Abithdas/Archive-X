@@ -1,0 +1,147 @@
+import { jsx as _jsx } from "react/jsx-runtime";
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { toast } from 'sonner';
+import { withRouter } from '@/test/withRouter';
+import { PhotosPage } from './PhotosPage';
+import { findStage, peopleSections } from './faces';
+import { usePhotoStore } from './store';
+vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }), Toaster: () => null }));
+beforeAll(() => { HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); }; HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); }; });
+beforeEach(() => usePhotoStore.setState({ selected: [], tab: 'faces', face: null }));
+afterEach(() => vi.unstubAllGlobals());
+const json = (b, code = 200) => new Response(JSON.stringify(b), { status: code });
+const G = (id, o = {}) => ({ id, label: `Face group ${id}`, performer_id: null, performer_name: '', photo_count: 5, face_count: 5, cluster_ids: [id], detection_ids: [id * 10], channel_ids: ['-1001'], representative_url: `/c/${id}`, ...o });
+const GROUPS = [
+    G(1, { performer_id: 3, performer_name: 'Ava Stone' }),
+    G(2, { profile_image_suggestions: [{ id: 5, name: 'Mia Rivera', source: 'profile_image', similarity_score: 0.8, basis: 'profile picture' }] }),
+    G(3),
+    G(4, { photo_count: 1 }),
+];
+const mount = () => {
+    const calls = [];
+    vi.stubGlobal('fetch', vi.fn(async (url, init) => {
+        calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : undefined });
+        if (url === '/api/source-channels')
+            return json([{ telegram_id: '-1001', title: 'Main' }]);
+        if (url === '/api/photos/channels')
+            return json([{ telegram_id: '-1001', photo_count: 9, photo_scan_status: 'COMPLETE' }]);
+        if (url.startsWith('/api/photos/faces/groups') && !init?.method)
+            return json({ ok: true, groups: GROUPS, photo_scopes: { named: 5, unnamed: 7, no_face: 2, pending: 0 }, analysis: { total_photos: 9, analyzed_photos: 9, failed_photos: 0 } });
+        if (url.startsWith('/api/photos?'))
+            return json({ ok: true, items: [], total: 0, page: 0, per: 60 });
+        if (url === '/api/photos/faces/analyze')
+            return json({ ok: true, id: 'job1' });
+        if (url.startsWith('/api/photos/scan-status/'))
+            return json({ ok: true, status: 'RUNNING', progress: 80, current_item: '', operation: 'Matching faces with performer pictures' });
+        if (url.startsWith('/api/photos/faces/performers/provider-search'))
+            return json({ ok: true, configured: true, items: [{ provider: 'stashdb', provider_id: 'abc', name: 'Nova Online', image: 'https://img/x.jpg' }] });
+        if (url === '/api/photos/faces/performers/import')
+            return json({ ok: true, id: 55, name: 'Nova Online', picture_saved: true });
+        if (url.startsWith('/api/photos/faces/performers'))
+            return json({ items: [{ id: 7, name: 'Zoe Ray' }, { id: 3, name: 'Ava Stone' }] });
+        return json({ ok: true });
+    }));
+    withRouter(_jsx(PhotosPage, {}));
+    return calls;
+};
+describe('peopleSections', () => {
+    it('splits into named, guessed, to-name and rare faces', () => {
+        const s = peopleSections(GROUPS);
+        expect([s.named.length, s.guesses.length, s.toName.length, s.rare.length]).toEqual([1, 1, 1, 1]);
+    });
+});
+describe('findStage', () => {
+    it('maps what the job reports to the four steps', () => {
+        expect([findStage('Downloading performer pictures · 3/9'), findStage('Reading faces in performer profile pictures'), findStage('Image-based face analysis · 4/9 photos'), findStage('Matching faces with performer pictures')]).toEqual([0, 1, 2, 3]);
+        expect(findStage('anything', 'COMPLETED')).toBe(4);
+    });
+});
+describe('People inside Photos', () => {
+    it('shows people in plain groups, with one clear question per unknown face', async () => {
+        mount();
+        const pv = await screen.findByRole('region', { name: 'Is this the right person?' });
+        expect(within(pv).getByText('Is this Mia Rivera?')).toBeInTheDocument();
+        expect(within(screen.getByRole('region', { name: 'Named people' })).getByText('Ava Stone')).toBeInTheDocument();
+        expect(within(screen.getByRole('region', { name: 'Faces to name' })).getByText('Who is this?')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Show 1 faces seen only once or twice/ })).toBeInTheDocument();
+    });
+    it('Yes names the person with the evidence; No rejects the guess', async () => {
+        const calls = mount();
+        fireEvent.click(await screen.findByRole('button', { name: 'Yes, this is Mia Rivera' }));
+        await waitFor(() => expect(calls.find((c) => c.method === 'POST')).toMatchObject({ url: '/api/photos/faces/groups/2/assign', body: { performer_id: 5, suggestion_source: 'profile_image' } }));
+        fireEvent.click(screen.getByRole('button', { name: 'No, this is not Mia Rivera' }));
+        await waitFor(() => expect(calls.some((c) => c.url === '/api/photos/faces/suggestions/reject')).toBe(true));
+    });
+    it('Name lets you search a performer and saves it', async () => {
+        const calls = mount();
+        const card = (await screen.findByRole('region', { name: 'Faces to name' })).querySelector('article');
+        fireEvent.click(within(card).getByRole('button', { name: 'Name' }));
+        fireEvent.change(screen.getByRole('searchbox', { name: 'Performer name' }), { target: { value: 'zoe' } });
+        fireEvent.click(await screen.findByRole('option', { name: /Zoe Ray/ }));
+        await waitFor(() => expect(calls.find((c) => c.method === 'POST' && c.url.endsWith('/assign'))).toMatchObject({ url: '/api/photos/faces/groups/3/assign', body: { performer_id: 7 } }));
+    });
+    it('clicking a person opens their photos in the gallery', async () => {
+        mount();
+        fireEvent.click(await screen.findByRole('button', { name: 'Show photos of Ava Stone' }));
+        expect(usePhotoStore.getState().tab).toBe('library');
+        expect(usePhotoStore.getState().face?.performerId).toBe(3);
+    });
+    it('Find people asks first, then starts the job that downloads pictures and matches', async () => {
+        const calls = mount();
+        fireEvent.click(await screen.findByRole('button', { name: 'Find people' }));
+        fireEvent.click(within(await screen.findByRole('dialog', { name: 'Find people?' })).getByRole('button', { name: 'Find people' }));
+        await waitFor(() => expect(calls.find((c) => c.url === '/api/photos/faces/analyze')?.body).toEqual({ channel_ids: [], match_performers: true }));
+    });
+    it('shows the four steps and where the job is while finding people', async () => {
+        mount();
+        fireEvent.click(await screen.findByRole('button', { name: 'Find people' }));
+        fireEvent.click(within(await screen.findByRole('dialog', { name: 'Find people?' })).getByRole('button', { name: 'Find people' }));
+        const card = await screen.findByRole('region', { name: 'Finding people' });
+        await waitFor(() => expect(within(card).getByRole('progressbar', { name: 'Progress' })).toHaveAttribute('aria-valuenow', '80'), { timeout: 4000 });
+        expect(within(card).getByText('Match faces to performers').closest('li')).toHaveAttribute('aria-current', 'step');
+    });
+});
+describe('getting back from a person', () => {
+    it('a banner on that person\'s photos leads back to People, and "Show all photos" drops the filter', async () => {
+        usePhotoStore.setState({ tab: 'library', selected: ['-1001'], face: { performerId: 3, groupId: 1, groupIds: [], label: 'Ava Stone' } });
+        mount();
+        const bar = await screen.findByRole('region', { name: 'Photos of one person' });
+        expect(bar).toHaveTextContent('Photos of Ava Stone');
+        fireEvent.click(within(bar).getByRole('button', { name: 'Show all photos' }));
+        await waitFor(() => expect(usePhotoStore.getState().face).toBeNull());
+        act(() => usePhotoStore.setState({ tab: 'library', face: { performerId: 3, groupId: 1, groupIds: [], label: 'Ava Stone' } }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Back to People' }));
+        await waitFor(() => expect(usePhotoStore.getState().tab).toBe('faces'));
+        expect(usePhotoStore.getState().face).toBeNull();
+        expect(await screen.findByRole('region', { name: 'Named people' })).toBeInTheDocument();
+    });
+    it('a performer who is only available through the APIs can be found, is added with its picture, and named', async () => {
+        const calls = mount();
+        const card = (await screen.findByRole('region', { name: 'Faces to name' })).querySelector('article');
+        fireEvent.click(within(card).getByRole('button', { name: 'Name' }));
+        fireEvent.change(screen.getByRole('searchbox', { name: 'Performer name' }), { target: { value: 'nova' } });
+        fireEvent.click(await screen.findByRole('option', { name: /Nova Online/ }));
+        await waitFor(() => expect(calls.find((c) => c.url === '/api/photos/faces/performers/import')?.body).toMatchObject({ provider: 'stashdb', provider_id: 'abc', name: 'Nova Online', image: 'https://img/x.jpg' }));
+        await waitFor(() => expect(calls.find((c) => c.url.endsWith('/assign'))).toMatchObject({ body: { performer_id: 55 } }));
+    });
+    it('says how many photos have no named person, and opens exactly those photos', async () => {
+        mount();
+        const sec = await screen.findByRole('region', { name: 'Photos without a named person' });
+        expect(within(sec).getByRole('button', { name: /7 photos with faces nobody has named/ })).toBeInTheDocument();
+        expect(within(sec).getByRole('button', { name: /2 photos where no face was found/ })).toBeInTheDocument();
+        expect(within(sec).queryByText(/not analysed yet/)).toBeNull(); // none pending, so no line
+        fireEvent.click(within(sec).getByRole('button', { name: /7 photos with faces nobody has named/ }));
+        await waitFor(() => expect(usePhotoStore.getState().face?.scope).toBe('unnamed'));
+        expect(usePhotoStore.getState().tab).toBe('library');
+    });
+    it('naming a face with someone who already has a tile says it joined the existing person', async () => {
+        const calls = mount();
+        const card = (await screen.findByRole('region', { name: 'Faces to name' })).querySelector('article');
+        fireEvent.click(within(card).getByRole('button', { name: 'Name' }));
+        fireEvent.change(screen.getByRole('searchbox', { name: 'Performer name' }), { target: { value: 'ava' } });
+        fireEvent.click(await screen.findByRole('option', { name: /Ava Stone/ })); // Ava already has a tile in People
+        await waitFor(() => expect(calls.some((c) => c.url.endsWith('/assign'))).toBe(true));
+        await waitFor(() => expect(vi.mocked(toast)).toHaveBeenCalledWith('Added to the existing Ava Stone'));
+    });
+});
