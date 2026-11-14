@@ -178,7 +178,7 @@ fn json_value(v: ValueRef<'_>) -> Value {
 
 fn rows_as_maps(conn: &Connection, sql: &str) -> ax_db::rusqlite::Result<Vec<Map<String, Value>>> {
     let mut stmt = conn.prepare(sql)?;
-    let names: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
+    let names: Vec<String> = stmt.column_names().map(|s| s.to_string()).collect();
     let rows = stmt.query_map([], |row| {
         let mut m = Map::new();
         for (i, name) in names.iter().enumerate() {
@@ -365,7 +365,7 @@ impl Native {
                      ORDER BY CASE WHEN COALESCE(pr.name,'')<>'' THEN pr.name ELSE MIN(g.label) END COLLATE NOCASE,MIN(g.id)"
                 );
                 let mut stmt = c.prepare(&groups_sql)?;
-                let names: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
+                let names: Vec<String> = stmt.column_names().map(|s| s.to_string()).collect();
                 let rows = stmt
                     .query_map(ax_db::rusqlite::params_from_iter(channels.iter()), |row| {
                         let mut m = Map::new();
@@ -683,7 +683,7 @@ fn video_list_rows(c: &Connection, route: &str, id: i64) -> ax_db::rusqlite::Res
 
 fn rows_with(conn: &Connection, sql: &str, params: impl ax_db::rusqlite::Params) -> ax_db::rusqlite::Result<Vec<Map<String, Value>>> {
     let mut stmt = conn.prepare(sql)?;
-    let names: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
+    let names: Vec<String> = stmt.column_names().map(|s| s.to_string()).collect();
     let rows = stmt.query_map(params, |row| {
         let mut m = Map::new();
         for (i, name) in names.iter().enumerate() {

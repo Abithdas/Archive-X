@@ -1,5 +1,4 @@
 use std::convert::Infallible;
-use std::io::BufReader;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -37,12 +36,16 @@ pub struct State {
 }
 
 fn tls_acceptor(cert: &std::path::Path, key: &std::path::Path) -> Result<TlsAcceptor, String> {
-    let certs = rustls_pemfile::certs(&mut BufReader::new(std::fs::File::open(cert).map_err(|e| format!("cannot read {}: {e}", cert.display()))?))
+    use rustls::pki_types::{pem::Error as PemError, pem::PemObject, CertificateDer, PrivateKeyDer};
+    // rustls-pki-types reads the PEM files itself (rustls-pemfile, used before, is no longer maintained).
+    let certs = CertificateDer::pem_file_iter(cert)
+        .map_err(|e| format!("cannot read {}: {e}", cert.display()))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| format!("bad certificate file: {e}"))?;
-    let key = rustls_pemfile::private_key(&mut BufReader::new(std::fs::File::open(key).map_err(|e| format!("cannot read {}: {e}", key.display()))?))
-        .map_err(|e| format!("bad key file: {e}"))?
-        .ok_or("no private key found in the key file")?;
+    let key = PrivateKeyDer::from_pem_file(key).map_err(|e| match e {
+        PemError::NoItemsFound => "no private key found in the key file".to_string(),
+        other => format!("bad key file {}: {other}", key.display()),
+    })?;
     let provider = Arc::new(rustls::crypto::ring::default_provider());
     let mut cfg = rustls::ServerConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
