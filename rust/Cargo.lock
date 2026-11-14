@@ -35,6 +35,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ax-faces"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "ax-names"
 version = "0.1.0"
 dependencies = [
@@ -50,6 +57,7 @@ name = "ax-server"
 version = "0.1.0"
 dependencies = [
  "ax-db",
+ "ax-faces",
  "ax-names",
  "bytes",
  "flate2",

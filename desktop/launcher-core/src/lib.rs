@@ -294,7 +294,7 @@ impl Drop for Backend {
 /// Start the front door in front of the backend and wait for it to say which port it bound.
 fn start_front_door(opts: &FrontDoorOptions, key: &str, backend_port: u16, log: &std::sync::Arc<std::sync::Mutex<Vec<String>>>) -> Result<FrontDoor, String> {
     let mut cmd = Command::new(&opts.exe);
-    cmd.args(["--listen", "127.0.0.1:0", "--upstream", &format!("127.0.0.1:{backend_port}"), "--upstream-plain", "--print-ready", "--native-routes", "name_search,name_list", "--dist"])
+    cmd.args(["--listen", "127.0.0.1:0", "--upstream", &format!("127.0.0.1:{backend_port}"), "--upstream-plain", "--print-ready", "--native-routes", "name_search,name_list,face_learning", "--dist"])
         .arg(&opts.dist_dir)
         .env("ARCHIVE_X_PROXY_KEY", key)
         .stdin(Stdio::null())

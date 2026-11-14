@@ -6,11 +6,22 @@ import { Dialog } from '@/design/Dialog'
 import { cn } from '@/design/cn'
 import { NamePicker } from './NamePicker'
 
-export interface ReviewFace { detection_id: number; photo_id: number; group_id: number; crop_url: string; similarity: number }
+export interface ReviewFace { detection_id: number; photo_id: number; group_id: number; crop_url: string; similarity: number; different?: boolean }
+/** A face from another group that the learned profile says looks like this person. */
+export interface Lookalike { detection_id: number; photo_id: number; group_id: number; crop_url: string; score: number; strong: boolean }
+interface Learned { items?: Array<{ detection_id: number; score: number; different?: boolean }> }
 /** A face this far below the rest of the person's faces is flagged as looking different. */
 export const DIFFERENT_BELOW = 0.4
 export const LEAST_SIMILAR_COUNT = 10
-export const differentFaces = (items: readonly ReviewFace[]) => items.filter((f) => f.similarity < DIFFERENT_BELOW)
+export const differentFaces = (items: readonly ReviewFace[]) => items.filter((f) => f.different ?? (f.different ?? f.similarity < DIFFERENT_BELOW))
+/** Put what has been learned about the person (the desktop app's face learning) over the plain review: its score and its own line for "looks different", least alike first. */
+export function withLearned(items: readonly ReviewFace[], learned: Learned | null | undefined): ReviewFace[] {
+  const list = learned?.items
+  if (!Array.isArray(list) || !list.length) return [...items]
+  const byId = new Map(list.map((l) => [l.detection_id, l]))
+  return items.map((f) => { const l = byId.get(f.detection_id); return l ? { ...f, similarity: l.score, different: Boolean(l.different) } : f }).sort((a, b) => a.similarity - b.similarity || a.detection_id - b.detection_id)
+}
+export const learnedUrl = (kind: 'outliers' | 'suggestions', performerId: number) => `/api/photos/faces/learning/${kind}?performer_id=${performerId}`
 export const reviewUrl = (performerId: number | null | undefined, groupIds: readonly number[]) => performerId ? `/api/photos/faces/review?performer_id=${performerId}` : `/api/photos/faces/review?group_ids=${groupIds.join(',')}`
 const why = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.detail : fb)
 
@@ -23,12 +34,19 @@ export function FaceReview({ performerId, groupIds = [], label, onClose }: { per
   const [busy, setBusy] = useState(false)
   const [moving, setMoving] = useState(false)
   const [failed, setFailed] = useState('')
+  const [like, setLike] = useState<Lookalike[]>([])
+  const [likePicked, setLikePicked] = useState<Set<number>>(new Set())
 
   const load = useCallback(async () => {
     setFailed('')
     try {
       const r = await api<{ items?: ReviewFace[]; total?: number }>(reviewUrl(performerId, groupIds))
-      setItems(r.items ?? []); setTotal(r.total ?? r.items?.length ?? 0)
+      // What has been learned about this person (only in the desktop app, only for a named person); the plain review stands without it.
+      const [learned, suggested] = performerId
+        ? await Promise.all([api<Learned>(learnedUrl('outliers', performerId)).catch(() => null), api<{ items?: Lookalike[] }>(learnedUrl('suggestions', performerId)).catch(() => null)])
+        : [null, null]
+      setItems(withLearned(r.items ?? [], learned)); setTotal(r.total ?? r.items?.length ?? 0)
+      setLike(Array.isArray(suggested?.items) ? suggested.items : []); setLikePicked(new Set())
     } catch (e) { setFailed(why(e, 'Could not load the faces.')); setItems([]) }
   }, [performerId, groupIds.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [load])
@@ -52,6 +70,20 @@ export function FaceReview({ performerId, groupIds = [], label, onClose }: { per
     } catch (e) { toast.error(why(e, 'Could not move those faces.')) } finally { setBusy(false) }
   }
 
+  const addLookalikes = async () => {
+    const ids = [...likePicked]
+    if (!ids.length || !performerId) return
+    setBusy(true)
+    try {
+      const r = await api<{ ok?: boolean; moved?: number; detail?: string }>('/api/photos/faces/detections/move', { method: 'POST', json: { detection_ids: ids, performer_id: performerId } })
+      if (!r?.ok) throw new ApiError(0, r?.detail || '')
+      toast(`Added ${r.moved ?? ids.length} faces to ${label}`)
+      await Promise.all([qc.invalidateQueries({ queryKey: ['face-groups'] }), qc.invalidateQueries({ queryKey: ['photos'] }), qc.invalidateQueries({ queryKey: ['face-learning'] })])
+      await load()
+    } catch (e) { toast.error(why(e, 'Could not add those faces.')) } finally { setBusy(false) }
+  }
+  const toggleLike = (id: number) => setLikePicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+
   const BTN = 'h-9 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
   return (
     <Dialog wide open onClose={onClose} title={`Check faces: ${label}`}>
@@ -68,8 +100,8 @@ export function FaceReview({ performerId, groupIds = [], label, onClose }: { per
           {(items ?? []).map((f) => {
             const on = picked.has(f.detection_id)
             return (
-              <button key={f.detection_id} type="button" role="checkbox" aria-checked={on} aria-label={`Face ${f.detection_id}${f.similarity < DIFFERENT_BELOW ? ', looks different' : ''}`} onClick={() => toggle(f.detection_id)}
-                className={cn('relative aspect-square shrink-0 overflow-hidden rounded-xl bg-surface-2 outline-none ring-2 ring-offset-2 ring-offset-surface transition focus-visible:ring-accent', on ? 'ring-bad' : f.similarity < DIFFERENT_BELOW ? 'ring-warn/60' : 'ring-transparent')}>
+              <button key={f.detection_id} type="button" role="checkbox" aria-checked={on} aria-label={`Face ${f.detection_id}${(f.different ?? f.similarity < DIFFERENT_BELOW) ? ', looks different' : ''}`} onClick={() => toggle(f.detection_id)}
+                className={cn('relative aspect-square shrink-0 overflow-hidden rounded-xl bg-surface-2 outline-none ring-2 ring-offset-2 ring-offset-surface transition focus-visible:ring-accent', on ? 'ring-bad' : (f.different ?? f.similarity < DIFFERENT_BELOW) ? 'ring-warn/60' : 'ring-transparent')}>
                 <img src={f.crop_url} alt="" loading="lazy" decoding="async" className={cn('size-full object-cover transition', on && 'opacity-70')} onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
                 {on ? <span aria-hidden="true" className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-bad text-xs font-bold text-white">✕</span> : null}
               </button>
@@ -77,6 +109,28 @@ export function FaceReview({ performerId, groupIds = [], label, onClose }: { per
           })}
         </div>
         {items && !items.length && !failed ? <p className="text-sm text-muted">No faces here.</p> : null}
+        {like.length ? (
+          <section aria-label="Faces that look like this person" className="grid gap-2 border-t border-line pt-3">
+            <p className="text-sm text-muted"><b className="text-fg">{like.length.toLocaleString()} faces in other groups look like {label}.</b> Tick the ones that are, then add them.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className={BTN} onClick={() => setLikePicked(new Set(like.filter((f) => f.strong).map((f) => f.detection_id)))} disabled={!like.some((f) => f.strong)}>Tick the strong matches ({like.filter((f) => f.strong).length})</button>
+              <button type="button" className={BTN} onClick={() => setLikePicked(new Set())} disabled={!likePicked.size}>Clear</button>
+              <button type="button" className="h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg disabled:opacity-50" disabled={!likePicked.size || busy} onClick={() => void addLookalikes()}>{likePicked.size ? `Add ${likePicked.size} to ${label}` : `Add to ${label}`}</button>
+            </div>
+            <div role="group" aria-label="Look-alike faces" className="grid max-h-[26vh] auto-rows-min content-start grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2 overflow-y-auto p-1">
+              {like.map((f) => {
+                const on = likePicked.has(f.detection_id)
+                return (
+                  <button key={f.detection_id} type="button" role="checkbox" aria-checked={on} aria-label={`Look-alike ${f.detection_id}${f.strong ? ', strong match' : ''}`} onClick={() => toggleLike(f.detection_id)}
+                    className={cn('relative aspect-square overflow-hidden rounded-lg bg-surface-2 outline-none ring-2 ring-offset-2 ring-offset-surface focus-visible:ring-accent', on ? 'ring-good' : 'ring-transparent')}>
+                    <img src={f.crop_url} alt="" loading="lazy" decoding="async" className="size-full object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
+                    {on ? <span aria-hidden="true" className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-good text-xs font-bold text-white">✓</span> : null}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        ) : null}
         {total > (items?.length ?? 0) ? <p className="text-xs text-muted">Showing the {items?.length.toLocaleString()} least alike of {total.toLocaleString()}.</p> : null}
         <div className="flex flex-wrap items-start gap-2 border-t border-line pt-3">
           <button type="button" disabled={!picked.size || busy} onClick={() => void move()} className="h-9 rounded-xl bg-bad px-3 text-sm font-bold text-white disabled:opacity-50">{picked.size ? `Not ${label} (${picked.size})` : `Not ${label}`}</button>

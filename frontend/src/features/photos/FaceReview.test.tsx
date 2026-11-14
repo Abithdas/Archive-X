@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { toast } from 'sonner'
 import { withRouter } from '@/test/withRouter'
-import { FaceReview, differentFaces, reviewUrl } from './FaceReview'
+import { FaceReview, differentFaces, reviewUrl, withLearned } from './FaceReview'
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }), Toaster: () => null }))
 beforeAll(() => { HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }; HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') } })
@@ -56,5 +56,49 @@ describe('Check faces', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: 'Performer name' }), { target: { value: 'zoe' } })
     fireEvent.click(await screen.findByRole('option', { name: /Zoe Ray/ }))
     await waitFor(() => expect(calls.find((c) => c.url === '/api/photos/faces/detections/move')?.body).toEqual({ detection_ids: [2, 3], performer_id: 9 }))
+  })
+})
+
+describe('Check faces with what the app has learned', () => {
+  const LEARNED = { items: FACES.map((f) => ({ detection_id: f.detection_id, score: f.detection_id === 20 ? 0.1 : 0.7, different: f.detection_id === 20 })) }
+  const LIKE = { items: [{ detection_id: 101, photo_id: 5, group_id: 8, crop_url: '/c/101', score: 0.7, strong: true }, { detection_id: 102, photo_id: 6, group_id: 9, crop_url: '/c/102', score: 0.5, strong: false }] }
+  const mountLearned = (learned: unknown, like: unknown) => {
+    const calls: Call[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : undefined })
+      if (url.startsWith('/api/photos/faces/review')) return json({ ok: true, total: FACES.length, items: FACES })
+      if (url.startsWith('/api/photos/faces/learning/outliers')) return learned ? json(learned) : new Response('{}', { status: 404 })
+      if (url.startsWith('/api/photos/faces/learning/suggestions')) return like ? json(like) : new Response('{}', { status: 404 })
+      return json({ ok: true, moved: 1, group_id: 99 })
+    }))
+    withRouter(<FaceReview performerId={3} label="Ava Stone" onClose={() => {}} />)
+    return calls
+  }
+  it('puts the learned scores over the plain ones, so the face the app doubts comes first and is the one flagged', () => {
+    const merged = withLearned(FACES, LEARNED)
+    expect(merged[0]?.detection_id).toBe(20)
+    expect(differentFaces(merged).map((f) => f.detection_id)).toEqual([20])
+    expect(withLearned(FACES, null)).toEqual(FACES)
+    expect(withLearned(FACES, {})).toEqual(FACES)
+  })
+  it('flags the faces the app doubts, and keeps the plain review when nothing was learned', async () => {
+    mountLearned(LEARNED, null)
+    await screen.findByRole('checkbox', { name: 'Face 20, looks different' })
+    expect(screen.getByRole('button', { name: /Tick all that look different \(1\)/ })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Look-alike faces' })).toBeNull()
+  })
+  it('works as before when the learning routes are not there', async () => {
+    mountLearned(null, null)
+    await screen.findByRole('button', { name: /Tick all that look different \(4\)/ })
+  })
+  it('offers faces from other groups that look like the person and adds the ticked ones to them', async () => {
+    const calls = mountLearned(LEARNED, LIKE)
+    const group = await screen.findByRole('group', { name: 'Look-alike faces' })
+    expect(screen.getByText(/2 faces in other groups look like Ava Stone/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Tick the strong matches \(1\)/ }))
+    expect(within(group).getByRole('checkbox', { name: 'Look-alike 101, strong match' })).toHaveAttribute('aria-checked', 'true')
+    expect(within(group).getByRole('checkbox', { name: 'Look-alike 102' })).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(screen.getByRole('button', { name: 'Add 1 to Ava Stone' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/photos/faces/detections/move')?.body).toEqual({ detection_ids: [101], performer_id: 3 }))
   })
 })

@@ -518,6 +518,7 @@ def _split_face_detection(db, detection_id: int) -> int:
             ).fetchone()
             if not row:
                 raise ValueError("Face detection not found")
+            _note_not_this_person(db.conn, [int(detection_id)], None, now)
             new_group = _insert_group(db.conn, now)
             db.conn.execute("UPDATE photo_face_detections SET group_id=?,updated_at=? WHERE id=?",
                             (new_group, now, int(detection_id)))
@@ -543,6 +544,7 @@ def _move_detections(db, detection_ids: list[int], performer_id: int | None = No
                 raise ValueError("Face detections not found")
             if performer_id is not None and not db.conn.execute("SELECT 1 FROM performers WHERE id=?", (int(performer_id),)).fetchone():
                 raise ValueError("Performer not found")
+            _note_not_this_person(db.conn, found, performer_id, now)
             gid = _insert_group(db.conn, now)
             if performer_id is not None:
                 db.conn.execute("UPDATE photo_face_groups SET performer_id=? WHERE id=?", (int(performer_id), gid))
@@ -553,6 +555,36 @@ def _move_detections(db, detection_ids: list[int], performer_id: int | None = No
         except Exception:
             db.conn.rollback()
             raise
+
+
+def ensure_negatives_table(conn) -> None:
+    """Faces a person has said are NOT a given performer. The Rust face-learning code reads this table (it never writes to it)."""
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS photo_face_negatives ("
+        "detection_id INTEGER NOT NULL, performer_id INTEGER NOT NULL, created_at TEXT NOT NULL, "
+        "PRIMARY KEY(detection_id, performer_id))"
+    )
+
+
+def _note_not_this_person(conn, detection_ids: list[int], new_performer_id: int | None, now: str) -> int:
+    """Called inside the transaction that moves faces: each face taken out of a group named after performer P becomes a 'not P' example,
+    unless it is moving to P itself. A face moved TO a performer stops being a 'not' example for that performer (the person changed their mind)."""
+    if not detection_ids:
+        return 0
+    ensure_negatives_table(conn)
+    marks = ",".join("?" for _ in detection_ids)
+    rows = conn.execute(
+        f"SELECT d.id AS detection_id,g.performer_id FROM photo_face_detections d JOIN photo_face_groups g ON g.id=d.group_id "
+        f"WHERE d.id IN ({marks}) AND g.performer_id IS NOT NULL", [int(v) for v in detection_ids]).fetchall()
+    noted = 0
+    for r in rows:
+        if new_performer_id is not None and int(r["performer_id"]) == int(new_performer_id):
+            continue
+        conn.execute("INSERT OR IGNORE INTO photo_face_negatives(detection_id,performer_id,created_at) VALUES(?,?,?)", (int(r["detection_id"]), int(r["performer_id"]), now))
+        noted += 1
+    if new_performer_id is not None:
+        conn.execute(f"DELETE FROM photo_face_negatives WHERE performer_id=? AND detection_id IN ({marks})", [int(new_performer_id), *[int(v) for v in detection_ids]])
+    return noted
 
 
 def _separate_photo_detections(db, photo_id: int, group_ids: list[int]) -> list[dict[str, int]]:
@@ -574,6 +606,7 @@ def _separate_photo_detections(db, photo_id: int, group_ids: list[int]) -> list[
             ).fetchall()
             if not detections:
                 raise ValueError("No face detections from this group are attached to this photo")
+            _note_not_this_person(db.conn, [int(d["id"]) for d in detections], None, now)
             moved: list[dict[str, int]] = []
             for detection in detections:
                 new_group = _insert_group(db.conn, now)

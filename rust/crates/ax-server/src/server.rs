@@ -12,6 +12,7 @@ use tokio_rustls::TlsAcceptor;
 use tracing::{info, warn};
 
 use crate::config::Config;
+use crate::learning::Learning;
 use crate::names::Names;
 use crate::native::Native;
 use crate::proxy::{Body, Proxy};
@@ -34,6 +35,7 @@ pub struct State {
     pub proxy: Arc<Proxy>,
     pub native: Option<Native>,
     pub names: Option<Arc<Names>>,
+    pub learning: Option<Arc<Learning>>,
     pub files: StaticFiles,
 }
 
@@ -78,6 +80,14 @@ pub async fn handle(req: Request<hyper::body::Incoming>, peer: SocketAddr, tls: 
             }
         }
     }
+    // Face learning (see learning.rs).
+    if let Some(learning) = &state.learning {
+        if let Some(route) = learning.route_for(req.method(), req.uri().path()) {
+            if let Some(resp) = learning.handle(route, req.uri().query(), req.headers(), peer).await {
+                return Ok(served_by(crate::static_files::with_security_headers(resp, tls), "rust"));
+            }
+        }
+    }
     // Routes switched on in --native-routes are answered here (see native.rs).
     if let Some(native) = &state.native {
         if let Some(route) = native.route_for(req.method(), req.uri().path()) {
@@ -116,19 +126,20 @@ pub async fn serve_with_fetch(listener: TcpListener, cfg: Arc<Config>, shutdown:
     };
     tokio::pin!(shutdown);
     let proxy = Proxy::new(&cfg);
-    let database_routes: Vec<String> = cfg.native_routes.iter().filter(|r| !crate::names::ROUTES.contains(&r.as_str())).cloned().collect();
+    let database_routes: Vec<String> = cfg.native_routes.iter().filter(|r| !crate::names::ROUTES.contains(&r.as_str()) && !crate::learning::ROUTES.contains(&r.as_str())).cloned().collect();
     let native = Native::new(&database_routes, cfg.db.as_deref(), proxy.clone(), cfg.session_touch_interval)?;
     let names = match fetch {
         Some(f) => Names::with_fetch(&cfg.native_routes, proxy.clone(), f, std::time::Duration::ZERO),
         None => Names::new(&cfg.native_routes, proxy.clone()),
     };
+    let learning = Learning::new(&cfg.native_routes, proxy.clone());
     if let Some(n) = &names {
         n.clone().spawn_loop(std::time::Duration::from_secs(120), std::time::Duration::from_secs(6 * 3600));
     }
     if let Some(n) = &native {
         info!("answering these routes itself: {}", n.names().join(", "));
     }
-    let state = Arc::new(State { proxy, native, names, files: StaticFiles::new(cfg.dist.clone()) });
+    let state = Arc::new(State { proxy, native, names, learning, files: StaticFiles::new(cfg.dist.clone()) });
     info!("front door on {}{} -> backend {}{}", if acceptor.is_some() { "https://" } else { "http://" }, listener.local_addr().map(|a| a.to_string()).unwrap_or_default(), if cfg.upstream_plain { "http://" } else { "https://" }, cfg.upstream);
     let tls_on = acceptor.is_some();
     if cfg.print_ready {

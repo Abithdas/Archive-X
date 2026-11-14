@@ -19,6 +19,7 @@ percent-encoding = "2"
 tracing = "0.1"
 ax-db = { path = "../ax-db" }
 ax-names = { path = "../ax-names" }
+ax-faces = { path = "../ax-faces" }
 serde_json = { version = "1", features = ["preserve_order"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 

@@ -91,7 +91,7 @@ impl Config {
         }
         let native_routes: Vec<String> = native.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty() && s != "none").collect();
         // The performer-name routes keep their own small database and ask the backend who is signed in; only the others read the main database.
-        if native_routes.iter().any(|r| !crate::names::ROUTES.contains(&r.as_str())) && db.is_none() {
+        if native_routes.iter().any(|r| !crate::names::ROUTES.contains(&r.as_str()) && !crate::learning::ROUTES.contains(&r.as_str())) && db.is_none() {
             return Err("--native-routes needs --db (the database file the routes read)".into());
         }
         Ok(Config { listen, upstream, upstream_plain, dist: PathBuf::from(dist), cert, key, proxy_key, print_ready, limits: Limits::default(), db, native_routes, session_touch_interval: Duration::from_secs(300) })

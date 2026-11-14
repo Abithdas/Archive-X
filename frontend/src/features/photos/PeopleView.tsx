@@ -15,6 +15,7 @@ import { usePhotoStore } from './store'
 import { FaceReview } from './FaceReview'
 import { NamePicker } from './NamePicker'
 import { NameListStatus } from './NameListStatus'
+import { FaceLearningStatus } from './FaceLearningStatus'
 import { usePhotoChannels } from '@/api/hooks'
 
 const BTN = 'h-8 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50'
@@ -133,6 +134,7 @@ export function PeopleView() {
       </div>
       {finding ? <FindProgress {...finding} /> : null}
       <NameListStatus />
+      <FaceLearningStatus />
 
       {q.isPending ? <div role="status" aria-label="Loading people" className="flex flex-wrap gap-3">{[0, 1, 2, 3].map((i) => <div key={i} className="grid h-[236px] w-[190px] content-start justify-items-center gap-3 rounded-2xl border border-line bg-surface p-3"><Skeleton className="size-24 rounded-full" /><Skeleton className="h-4 w-28" /><Skeleton className="h-3 w-16" /><Skeleton className="h-8 w-32 rounded-lg" /></div>)}</div>
         : q.isError ? <button type="button" onClick={() => void q.refetch()} className={cn(PRIMARY, 'w-fit')}>Could not load people. Retry</button>

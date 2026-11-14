@@ -455,7 +455,7 @@ def register_system_routes(
         if not expected or not presented or not hmac.compare_digest(presented, expected) or host not in ("127.0.0.1", "::1"):
             raise HTTPException(404, "Not Found")
         return JSONResponse({"stashdb": str(db.setting("stashdb_api_key") or ""), "tpdb": str(db.setting("tpdb_api_token") or ""),
-                             "data_dir": str(config.DATABASE_DIR)}, headers={"Cache-Control": "no-store"})
+                             "data_dir": str(config.DATABASE_DIR), "db_path": str(config.DB_PATH)}, headers={"Cache-Control": "no-store"})
 
     @router.get("/api/app/ping")
     async def app_ping(request: Request):

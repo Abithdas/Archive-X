@@ -2,6 +2,7 @@
 pub mod auth;
 pub mod config;
 pub mod guard;
+pub mod learning;
 pub mod names;
 pub mod native;
 pub mod optimize;
