@@ -17,3 +17,9 @@ shots/
 *.log
 .archive-x-data/
 rust/target/
+
+# staged by .github/workflows/desktop.yml
+desktop/src-tauri/resources/rust/*
+!desktop/src-tauri/resources/rust/.gitkeep
+desktop/src-tauri/resources/web/*
+!desktop/src-tauri/resources/web/.gitkeep

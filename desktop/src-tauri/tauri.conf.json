@@ -38,7 +38,9 @@
     ],
     "resources": {
       "../backend/dist/archive-x-backend": "backend",
-      "resources/ffmpeg": "ffmpeg"
+      "resources/ffmpeg": "ffmpeg",
+      "resources/rust": "rust",
+      "resources/web": "web"
     },
     "windows": {
       "webviewInstallMode": {

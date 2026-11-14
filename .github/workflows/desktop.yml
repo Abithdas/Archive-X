@@ -45,12 +45,30 @@ jobs:
         env: { FFMPEG_URL: "${{ vars.FFMPEG_URL }}", FFMPEG_SHA256: "${{ vars.FFMPEG_SHA256 }}", FFMPEG_FROM_BTBN: "1" }
         run: bash desktop/scripts/fetch-ffmpeg.sh
 
+      - name: Build the Rust front door
+        working-directory: rust
+        run: cargo build --release -p ax-server
+
+      - name: Stage the front door and the web files for the installer
+        shell: bash
+        run: |
+          mkdir -p desktop/src-tauri/resources/rust desktop/src-tauri/resources/web
+          cp rust/target/release/ax-server.exe desktop/src-tauri/resources/rust/ax-server.exe
+          cp -r frontend/dist/. desktop/src-tauri/resources/web/
+
       - name: Launcher tests against the frozen backend
         working-directory: desktop
         env: { ARCHIVE_X_BACKEND_EXE: "${{ github.workspace }}\\desktop\\backend\\dist\\archive-x-backend\\archive-x-backend.exe" }
         run: |
           cargo test -p archive-x-launcher-core
           cargo test -p archive-x-launcher-core --test launcher -- --ignored --nocapture
+      - name: Launcher test with the Rust front door in front
+        working-directory: desktop
+        env:
+          ARCHIVE_X_BACKEND_EXE: "${{ github.workspace }}\\desktop\\backend\\dist\\archive-x-backend\\archive-x-backend.exe"
+          ARCHIVE_X_FRONT_DOOR_EXE: "${{ github.workspace }}\\rust\\target\\release\\ax-server.exe"
+          ARCHIVE_X_DIST: "${{ github.workspace }}\\frontend\\dist"
+        run: cargo test -p archive-x-launcher-core --test launcher -- --ignored --nocapture real_backend_with_front_door
 
       - name: Build the installers (NSIS + MSI)
         working-directory: desktop
