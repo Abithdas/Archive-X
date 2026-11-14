@@ -64,13 +64,13 @@ export function FaceReview({ performerId, groupIds = [], label, onClose }: { per
           <button type="button" className={BTN} disabled={!picked.size} onClick={() => setPicked(new Set())}>Clear</button>
           <span role="status" aria-live="polite" className="ml-auto text-sm font-semibold">{picked.size ? `${picked.size} ticked` : ''}</span>
         </div>
-        <div role="group" aria-label="Faces" className="grid max-h-[46vh] grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-2 overflow-y-auto p-1">
+        <div role="group" aria-label="Faces" className="grid max-h-[46vh] auto-rows-min content-start grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-3 overflow-y-auto p-2">
           {(items ?? []).map((f) => {
             const on = picked.has(f.detection_id)
             return (
               <button key={f.detection_id} type="button" role="checkbox" aria-checked={on} aria-label={`Face ${f.detection_id}${f.similarity < DIFFERENT_BELOW ? ', looks different' : ''}`} onClick={() => toggle(f.detection_id)}
-                className={cn('relative aspect-square overflow-hidden rounded-xl bg-surface-2 outline-none ring-2 ring-offset-2 ring-offset-surface transition focus-visible:ring-accent', on ? 'ring-bad' : f.similarity < DIFFERENT_BELOW ? 'ring-warn/60' : 'ring-transparent')}>
-                <img src={f.crop_url} alt="" loading="lazy" decoding="async" className={cn('size-full object-cover transition', on && 'opacity-50')} onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
+                className={cn('relative aspect-square shrink-0 overflow-hidden rounded-xl bg-surface-2 outline-none ring-2 ring-offset-2 ring-offset-surface transition focus-visible:ring-accent', on ? 'ring-bad' : f.similarity < DIFFERENT_BELOW ? 'ring-warn/60' : 'ring-transparent')}>
+                <img src={f.crop_url} alt="" loading="lazy" decoding="async" className={cn('size-full object-cover transition', on && 'opacity-70')} onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
                 {on ? <span aria-hidden="true" className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-bad text-xs font-bold text-white">✕</span> : null}
               </button>
             )
