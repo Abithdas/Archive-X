@@ -10,4 +10,5 @@
 | [logs.md](logs.md) | The log bundle: what is in it and what is left out |
 | [security/SCA-REPORT.md](security/SCA-REPORT.md) | Dependency scan of 14 November 2026 and what was fixed |
 | [api/](api/) | The frozen API description (`openapi.json`, `routes.tsv`) that the parity checks compare against |
+| [adr/](adr/README.md) | One short page per architecture decision (front door, one writer per table, native player window, desktop only, layout) |
 | [archive/](archive/) | Finished or superseded documents, kept as history: the React migration plan and checklists, the code review, the old roadmaps, UI mock-ups, Replit notes |
