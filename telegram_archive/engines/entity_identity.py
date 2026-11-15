@@ -257,6 +257,37 @@ def _free_key(db, table: str, key: str, provider: str, provider_id, own_id: int 
 
 
 
+def _log_lookalike_created(db, table: str, name: str, key: str, norm: str, provider: str, provider_id) -> None:
+    """Say why a new record is about to be created although one with the same name exists.
+
+    This is the moment a duplicate card is born. It is deliberate in two cases (the same provider gave the existing record another id, so
+    it may be a different person; or several existing records match and none can be chosen), and the log line names which one, with the
+    ids and provider ids involved, so a duplicate can be traced to its cause instead of guessed at. Never raises.
+    """
+    try:
+        rows = [dict(r) for r in db.conn.execute(
+            f"SELECT id,name,provider_ids FROM {table} WHERE canonical_key=? OR normalized_name=? OR name=? COLLATE NOCASE ORDER BY id",
+            (key, norm, name),
+        ).fetchall()]
+        if not rows:
+            return
+        conflicting = [r for r in rows if _conflicting_provider_id(r, provider, provider_id)]
+        if len(conflicting) == len(rows):
+            reason = f"{provider} gave this person the id {provider_id}, the existing record(s) have another {provider} id"
+        elif len(rows) - len(conflicting) > 1:
+            reason = "more than one existing record matches, so none could be chosen"
+        else:
+            reason = "an existing record matches but was not chosen"
+        found = "; ".join(f"#{r['id']} {r['name']!r} provider_ids={r.get('provider_ids') or '{}'}" for r in rows[:5])
+        db.log(
+            f"Created a second {table[:-1]} record for {name!r} ({provider or 'local'} id {provider_id or '-'}) although {len(rows)} with the same name exist: {reason}. Existing: {found}",
+            "WARN", event=f"{table[:-1]}.lookalike_created",
+            details={"name": name, "provider": provider, "provider_id": str(provider_id or ""), "existing_ids": [int(r["id"]) for r in rows], "reason": reason},
+        )
+    except Exception:
+        pass
+
+
 # ==============================================================================
 # SECTION: Upsert
 # Generic entity upsert.
@@ -310,6 +341,7 @@ def upsert_entity(db, table: str, name: str, *, provider: str = "",
             db.conn.execute(f"UPDATE {table} SET {', '.join(fields)} WHERE id=?", vals)
             return pid
 
+        _log_lookalike_created(db, table, clean, key, norm, provider, provider_id)
         shown = _free_name(db, table, clean)
         columns = ["name", "canonical_key", "normalized_name", "aliases", "provider_ids"]
         values = [shown, _free_key(db, table, key, provider, provider_id), norm,
