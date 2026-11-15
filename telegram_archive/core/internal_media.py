@@ -1142,8 +1142,11 @@ def _native_direct_mode() -> bool:
 
 
 def _worker_cmd(operation: str, payload: dict) -> list[str]:
-    return [sys.executable, "-m", "telegram_archive.core.native_media_worker",
-            operation, json.dumps(payload, separators=(",", ":"))]
+    args = [operation, json.dumps(payload, separators=(",", ":"))]
+    if getattr(sys, "frozen", False):
+        # The installed backend ignores "-m" and would start a second copy of the app; entry.py answers this flag instead.
+        return [sys.executable, "--ax-native-worker", *args]
+    return [sys.executable, "-m", "telegram_archive.core.native_media_worker", *args]
 
 
 _WORKER_TIMEOUTS = {"probe": 120, "thumbnail": 300, "snapshot_frames": 900}

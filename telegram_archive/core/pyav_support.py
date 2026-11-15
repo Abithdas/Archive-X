@@ -208,6 +208,16 @@ def diagnose(*, force: bool = False) -> dict:
     return result
 
 
+def diagnostic_main() -> int:
+    """What the disposable child runs: import PyAV and its bitstream module, then say so as one JSON line."""
+    import json
+    av = import_pyav()
+    from av import bitstream  # noqa: F401  (the import itself is the check)
+    print(json.dumps({"ok": True, "version": str(getattr(av, "__version__", "") or ""),
+                      "architecture": "64-bit" if sys.maxsize > 2**32 else "32-bit"}))
+    return 0
+
+
 def _diagnose_uncached() -> dict:
     """Check PyAV in a disposable child process.
 
@@ -218,19 +228,15 @@ def _diagnose_uncached() -> dict:
     import json
     import subprocess
 
-    code = (
-        "import json; "
-        "from telegram_archive.core.pyav_support import import_pyav; "
-        "av=import_pyav(); "
-        "from av import bitstream; "
-        "print(json.dumps({'ok':True,'version':str(getattr(av,'__version__','') or ''),"
-        "'architecture':'64-bit' if __import__('sys').maxsize>2**32 else '32-bit'}))"
-    )
+    code = "from telegram_archive.core.pyav_support import diagnostic_main; raise SystemExit(diagnostic_main())"
+    # The installed backend is a frozen program: it ignores "-c" and would start the whole app (which then stops at the
+    # one-instance lock, so PyAV looked missing on every install). packaging/backend/entry.py answers this flag instead.
+    cmd = [sys.executable, "--ax-pyav-diagnostic"] if getattr(sys, "frozen", False) else [sys.executable, "-c", code]
     env = os.environ.copy()
     env["TELEGRAM_ARCHIVE_PYAV_DIAGNOSTIC"] = "1"
     creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
     try:
-        r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+        r = subprocess.run(cmd, capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=25,
                            env=env, creationflags=creationflags)
         if r.returncode == 0:

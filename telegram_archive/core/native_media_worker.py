@@ -55,9 +55,16 @@ def main() -> int:
     return 0
 
 
-if __name__ == "__main__":
+def run() -> None:
+    """Run one operation from sys.argv (operation, JSON payload); also what the frozen backend calls for --ax-native-worker."""
     try:
         raise SystemExit(main())
+    except SystemExit as exc:
+        if not exc.code:
+            raise                      # a normal finish is not an error
+        emit({"type": "worker_error", "operation": sys.argv[1] if len(sys.argv) > 1 else "unknown",
+              "error_type": "SystemExit", "error": str(exc.code), "traceback": ""})
+        raise
     except BaseException as exc:
         # If Python catches the failure, return a non-zero status. A hard
         # Windows access violation still kills only this child process.
@@ -66,3 +73,7 @@ if __name__ == "__main__":
               "traceback": "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))[-8000:]})
         print(f"{type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
         raise
+
+
+if __name__ == "__main__":
+    run()
