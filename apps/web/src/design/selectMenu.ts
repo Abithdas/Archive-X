@@ -4,13 +4,15 @@
  * unchanged: choosing an item sets the select's value and fires its normal `change` event.
  * Multi-selects and list boxes (size > 1) are left alone.
  */
-const PANEL = 'fixed m-0 overflow-y-auto rounded-[14px] border border-line-2 bg-surface p-1.5 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]'
+const PANEL = 't-menu fixed m-0 rounded-[14px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]'
 const ROW = 'flex w-full cursor-pointer items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm font-medium hover:bg-fg/5 focus-visible:bg-fg/5 focus-visible:outline-none'
 const ON = 'bg-accent/15 text-accent font-semibold'
 
-import { zoomOf } from './placement'
+import { limitMenu, openHeight, zoomOf } from './placement'
 
 let open: { close: () => void } | null = null
+/** A little longer than --acc-collapse (250 ms): the menu folds shut before it is taken out of the page. */
+const CLOSE_MS = 300
 
 export function openSelectMenu(select: HTMLSelectElement): void {
   open?.close()
@@ -21,6 +23,9 @@ export function openSelectMenu(select: HTMLSelectElement): void {
   panel.setAttribute('role', 'listbox')
   panel.setAttribute('aria-label', select.getAttribute('aria-label') || select.labels?.[0]?.textContent?.trim() || 'Options')
   panel.className = PANEL
+  const inner = document.createElement('div')
+  inner.className = 't-acc-panel-inner p-1.5'
+  panel.append(inner)
   const rows: HTMLButtonElement[] = []
   options.forEach((o, i) => {
     const b = document.createElement('button')
@@ -40,7 +45,7 @@ export function openSelectMenu(select: HTMLSelectElement): void {
       close()
     }
     rows.push(b)
-    panel.append(b)
+    inner.append(b)
   })
   // Inside a modal dialog everything outside it is inert, so the menu must live in the dialog to be clickable.
   const host = select.closest('dialog') ?? document.body
@@ -54,12 +59,12 @@ export function openSelectMenu(select: HTMLSelectElement): void {
   const gap = 6
   panel.style.minWidth = `${Math.min(Math.max(rect.width / z, 180), sw - 16)}px`
   panel.style.maxWidth = `${sw - 16}px`
-  const h = panel.getBoundingClientRect().height / z
+  const h = openHeight(panel)   // the height it will have once open; the box is still growing now
   const below = sh - bottom0 - gap - 8
   const above = top0 - gap - 8
   const up = h > below && above > below
   const room = Math.max(120, up ? above : below)
-  panel.style.maxHeight = `${room}px`
+  limitMenu(panel, room)
   const used = Math.min(h, room)
   panel.style.top = `${up ? top0 - gap - used : bottom0 + gap}px`
   panel.style.left = `${Math.max(8, Math.min(left0, sw - panel.offsetWidth - 8))}px`
@@ -86,7 +91,7 @@ export function openSelectMenu(select: HTMLSelectElement): void {
     window.removeEventListener('scroll', onScroll, true)
     if (open?.close === close) open = null
     try { panel.hidePopover() } catch { /* already hidden */ }
-    panel.remove()
+    setTimeout(() => panel.remove(), CLOSE_MS)   // it folds shut first
     if (document.activeElement === document.body || panel.contains(document.activeElement)) select.focus({ preventScroll: true })
   }
   const onScroll = (e: Event) => { if (!panel.contains(e.target as Node)) close() }

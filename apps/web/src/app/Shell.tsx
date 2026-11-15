@@ -2,11 +2,14 @@ import { fadeThrough, motion, spring } from '@/design/motion'
 import { installGlow } from '@/design/glow'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorBoundary } from './ErrorScreen'
-import { useStatus, useStorage } from '@/api/hooks'
+import { useEntities, useStatus, useStorage } from '@/api/hooks'
 import { useLiveStatus } from '@/api/live'
 import { Bell } from '@/design/Bell'
+import { SearchField } from './SearchField'
+import { suggest } from './searchSuggest'
+import { ThemeToggle } from '@/design/ThemeToggle'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { formatBytes } from '@/design/format'
@@ -16,7 +19,7 @@ import { CommandPalette } from './CommandPalette'
 import { MoreSheet } from './MoreSheet'
 import { NotificationsPanel, useNotices } from './NotificationsPanel'
 import { useSearch } from './search'
-import { toggleTheme } from './theme'
+import { toggleTheme, useTheme } from './theme'
 import { useUi } from './ui'
 import { useAppearance, useAppearanceActions, useAppearanceSync } from '@/features/settings/useAppearance'
 import { scaleForKey } from '@/theme/themes'
@@ -132,6 +135,12 @@ function Header({ live }: { live: string }) {
   const path = useRouterState({ select: (s) => s.location.pathname })
   const input = useRef<HTMLInputElement>(null)
   const notices = useNotices().length
+  const theme = useTheme()
+  const navigate = useNavigate()
+  const [loadLists, setLoadLists] = useState(false)   // the lists the suggestions come from are fetched the first time the box is used
+  const performers = useEntities('performers', loadLists)
+  const studios = useEntities('studios', loadLists)
+  const suggestions = useMemo(() => suggest(performers.data ?? [], studios.data ?? [], q), [performers.data, studios.data, q])
   const placeholder = path.startsWith('/performers') ? 'Search performer…' : path.startsWith('/studios') ? 'Search studio…' : 'Search videos, performers, studios…'
   useEffect(() => set(''), [path.split('/')[1], set])
   useEffect(() => {
@@ -140,31 +149,21 @@ function Header({ live }: { live: string }) {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-bg/85 px-4 backdrop-blur-md sm:px-10">
       <img src="/static/icons/archive-x.png" alt="" className="size-8 rounded-full md:hidden" />
-      <label className="flex h-11 min-w-0 max-w-[407px] flex-1 items-center gap-2.5 rounded-[14px] border border-line bg-surface pl-3.5 pr-2.5 text-faint focus-within:border-accent/50">
-        <Icon name="search" />
-        <input
-          ref={input}
-          type="search"
-          value={q}
-          onChange={(e) => set(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              set('')
-              input.current?.blur()
-            }
-          }}
-          placeholder={placeholder}
-          aria-label="Search"
-          className="min-w-0 flex-1 bg-transparent text-base text-fg outline-none placeholder:text-faint [&::-webkit-search-cancel-button]:hidden"
-        />
-        <kbd className="hidden rounded-md border border-line-2 px-1.5 py-0.5 font-sans text-[11px] font-semibold sm:block">Ctrl K</kbd>
-      </label>
+      <SearchField
+        value={q}
+        onChange={set}
+        placeholder={placeholder}
+        suggestions={suggestions}
+        onFirstUse={() => setLoadLists(true)}
+        onPick={(s) => {
+          set('')
+          void navigate(s.kind === 'performers' ? { to: '/performers/$id', params: { id: String(s.entityId) } } : { to: '/studios/$id', params: { id: String(s.entityId) } })
+        }}
+        inputRef={input}
+      />
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
         <TelegramPill />
-        <button type="button" onClick={toggleTheme} aria-label="Toggle light and dark theme" title="Toggle theme" className={cn(ICON_BTN, 'hidden sm:grid')}>
-          <Icon name="moon" className="[[data-theme=light]_&]:hidden" />
-          <Icon name="sun" className="hidden [[data-theme=light]_&]:block" />
-        </button>
+        <ThemeToggle theme={theme} onToggle={toggleTheme} className={cn(ICON_BTN, 'hidden sm:grid')} />
         <button type="button" onClick={() => useUi.getState().setNotifications(true)} aria-label={notices ? `Notifications, ${notices} shown` : 'Notifications'} title="Notifications" className={cn(ICON_BTN, 'relative')}>
           <Bell count={notices} />
         </button>

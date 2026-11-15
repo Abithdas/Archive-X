@@ -1,4 +1,5 @@
 import { zoomOf } from '@/design/placement'
+import { ErrorField } from '@/design/ErrorField'
 import { useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
@@ -31,9 +32,11 @@ function BarMenu({ label, children, disabled }: { label: string; children: (clos
   }
   return (
     <>
-      <button ref={btn} type="button" popoverTarget={id} aria-haspopup="menu" disabled={disabled} onClick={place} className={cn(BAR_BTN, 'inline-flex items-center gap-1.5')}>{label}<Icon name="chevron-down" className="size-3.5" /></button>
-      <div ref={pop} id={id} popover="auto" role="menu" aria-label={label} className="fixed m-0 w-56 rounded-2xl border border-line-2 bg-surface-2 p-1.5 text-fg shadow-[0_18px_40px_-8px_rgb(0_0_0/0.6)] [inset:auto]">
+      <button ref={btn} type="button" popoverTarget={id} aria-haspopup="menu" disabled={disabled} onClick={place} className={cn(BAR_BTN, 'inline-flex items-center gap-1.5')}>{label}<span className="t-chev"><Icon name="chevron-down" className="size-3.5" /></span></button>
+      <div ref={pop} id={id} popover="auto" role="menu" aria-label={label} className="t-menu fixed m-0 w-56 rounded-2xl border border-line-2 bg-surface-2 text-fg shadow-[0_18px_40px_-8px_rgb(0_0_0/0.6)] [inset:auto]">
+        <div className="t-acc-panel-inner p-1.5">
         {children(() => pop.current?.hidePopover?.())}
+      </div>
       </div>
     </>
   )
@@ -119,8 +122,7 @@ export function SelectionBar({ visible }: { visible: readonly LibraryItem[] }) {
         <Dialog open onClose={() => setAsk(null)} title="Correct video title">
           <form className="grid grid-cols-[minmax(0,1fr)] gap-4" onSubmit={(e) => { e.preventDefault(); submitTitle() }}>
             <p className="text-sm text-muted">Enter the corrected video title.</p>
-            <input value={title} onChange={(e) => { setTitle(e.target.value); setTitleMsg('') }} placeholder="Video title" aria-label="Video title" autoFocus className="h-12 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5 text-[15px] outline-none placeholder:text-faint focus:border-accent/60" />
-            {titleMsg ? <p role="alert" className="text-sm text-warn">{titleMsg}</p> : null}
+            <ErrorField message={titleMsg}><input value={title} onChange={(e) => { setTitle(e.target.value); setTitleMsg('') }} placeholder="Video title" aria-label="Video title" autoFocus className="h-12 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5 text-[15px] outline-none placeholder:text-faint focus:border-accent/60" /></ErrorField>
             <div className="flex flex-wrap justify-end gap-2">
               <button type="button" onClick={() => setAsk(null)} className="h-11 rounded-xl border border-line-2 px-4 text-sm font-semibold">Cancel</button>
               <button type="submit" className="h-11 rounded-xl bg-accent px-5 text-sm font-bold text-accent-fg">Apply value</button>

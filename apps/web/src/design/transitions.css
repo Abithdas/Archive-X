@@ -155,6 +155,204 @@
   .t-icon-swap .t-icon { transition: none !important; }
 }
 
+
+/* Error state shake (tokens, then the snippet) */
+:root {
+  --shake-distance: 6px;
+  --shake-overshoot: 4px;
+  --shake-dur-a: 80ms;
+  --shake-dur-b: 60ms;
+  --shake-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --revert-hold: 3000ms;
+  --revert-dur: 280ms;
+}
+
+/* Border-color tween. Define your input's default / focused
+   / error border-color in your own component CSS — this rule
+   only owns the interpolation. Use a constant border-width
+   across states so the tween never shifts inner content. */
+.t-input {
+  transition: border-color 150ms ease-out;
+  will-change: transform;
+}
+.t-input.is-error {
+  /* Error border auto-reverts on the hold timer, so the
+     fade-out uses the slower revert duration (matches the
+     message fade). */
+  transition: border-color var(--revert-dur, 280ms) ease-out;
+}
+
+/* Error message reveal. Visibility is delayed by --revert-dur
+   on hide so the message stays painted for the full opacity
+   fade-out. Entering .is-error drops the delay to 0 so the
+   message becomes visible immediately. */
+.t-error-msg {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity    var(--revert-dur, 280ms) ease-out,
+    visibility 0s linear var(--revert-dur, 280ms);
+}
+.t-input-wrap.is-error .t-error-msg {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity    var(--revert-dur, 280ms) ease-out,
+    visibility 0s linear 0s;
+}
+
+/* Multi-segment keyframe with per-stop easing so each leg
+   of the shake follows its own cubic-bezier independently.
+   %-stops are cumulative durations as a fraction of the
+   total (80, 60, 80, 60 = 280ms): 28.57%, 57.14%, 78.57%,
+   100%. Recompute if any segment duration changes. */
+.t-input.is-shaking {
+  animation: t-input-shake calc(
+      var(--shake-dur-a) * 2 + var(--shake-dur-b) * 2
+    ) linear;
+}
+@keyframes t-input-shake {
+  0%      { transform: translateX(0);                                 animation-timing-function: var(--shake-ease); }
+  28.57%  { transform: translateX(var(--shake-distance));             animation-timing-function: var(--shake-ease); }
+  57.14%  { transform: translateX(calc(var(--shake-distance) * -1)); animation-timing-function: var(--shake-ease); }
+  78.57%  { transform: translateX(var(--shake-overshoot));            animation-timing-function: var(--shake-ease); }
+  100%    { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-input { animation: none !important; transform: none !important; }
+}
+
+
+/* Input clear with dissolve (tokens, then the snippet) */
+:root {
+  --clear-dur: 1000ms;
+  --clear-out-dur: 400ms;
+  --clear-in-dur: 400ms;
+  --clear-out-fly: 12px;
+  --clear-in-fly: 12px;
+  --clear-out-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --clear-in-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --clear-blur: 2px;
+  --glow-delay: 50ms;
+  --glow-peak-at: 0.15;
+  --glow-opacity: 0.42;
+  --glow-spread: 1.5;
+}
+
+/* The wrap clips the glow to its rounded box. The hairline
+   border is `inset` so it sits inside that clip — when the
+   glow's mix-blend-mode darkens its area, the border
+   underneath darkens with it. Bring your own width / height /
+   border-radius / surface color. */
+.t-clear {
+  position: relative;
+  overflow: hidden;
+}
+.t-clear-mirror,
+.t-clear-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  z-index: 2;
+}
+.t-clear-mirror { opacity: 0; }
+.t-clear.has-value .t-clear-mirror,
+.t-clear.is-clearing .t-clear-mirror { opacity: 1; }
+/* Hide the input's own glyphs while the mirror owns them so
+   the cleared text doesn't double-render with the fly-up. */
+.t-clear.has-value > input,
+.t-clear.is-clearing > input {
+  -webkit-text-fill-color: transparent;
+}
+.t-clear.has-value .t-clear-placeholder { opacity: 0; }
+/* The streak overlay: empty by default; JS writes a stack of
+   `radial-gradient(...)` layers into background during a clear,
+   then animates opacity. mix-blend-mode: multiply darkens the
+   underlying input + hairline; flip to `screen` in dark mode
+   so the same alpha values lighten instead of vanish. */
+.t-clear-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 3;
+  mix-blend-mode: multiply;
+}
+
+/* The transitions live in JS (per-frame transform/opacity/
+   filter writes), so this stylesheet only owns the resting
+   state + the variables that JS reads. Read them with
+   `parseFloat(getComputedStyle(root).getPropertyValue(...))`
+   so live tweaks apply on the next clear without a reload. */
+
+@media (prefers-reduced-motion: reduce) {
+  .t-clear-glow { opacity: 0 !important; }
+}
+
+
+/* Accordion (tokens, then the snippet) */
+:root {
+  --acc-expand: 250ms;
+  --acc-collapse: 250ms;
+  --acc-chevron: 250ms;
+  --acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* grid-template-rows 0fr → 1fr gives a clean height animation
+   with no JS measurement; the inner element clips overflow. */
+.t-acc-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--acc-collapse) var(--acc-ease);
+}
+.t-acc[data-open="true"] .t-acc-panel {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--acc-expand) var(--acc-ease);
+}
+.t-acc-panel-inner {
+  overflow: hidden;
+  opacity: 0;
+  filter: blur(2px);
+  transition:
+    opacity var(--acc-collapse) var(--acc-ease),
+    filter var(--acc-collapse) var(--acc-ease);
+}
+.t-acc[data-open="true"] .t-acc-panel-inner {
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity var(--acc-expand) var(--acc-ease),
+    filter var(--acc-expand) var(--acc-ease);
+}
+/* Flip the chevron vertically to turn the "v" into a "^".
+   scaleY(-1) about the centre passes through a flat line at
+   the midpoint (same look as a `d:` path morph) but animates
+   in every browser, unlike CSS `d:` morphing (Chromium only).
+   The chevron path is symmetric about the 16x16 viewBox
+   centre, so the flip lands exactly on the "^"; non-scaling
+   -stroke keeps the stroke width constant through the flip. */
+.t-acc-chevron {
+  display: inline-flex;
+  transform: scaleY(1);
+  transform-origin: center;
+  transition: transform var(--acc-chevron) var(--acc-ease);
+}
+.t-acc-chevron path { vector-effect: non-scaling-stroke; }
+.t-acc[data-open="true"] .t-acc-chevron {
+  transform: scaleY(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-acc-panel, .t-acc-panel-inner, .t-acc-chevron {
+    transition: none !important;
+  }
+}
+
 /* ── Archive X additions ────────────────────────────────────────
    A card that is already liked when the page loads must not play the pop: the animation is only for a change you make. */
 .t-like[data-still] .t-like-icon { animation: none; }
@@ -168,3 +366,58 @@
   box-shadow: 0 0 0 2px var(--color-bg);
 }
 .ax-rail-toggle .t-icon-swap { width: 20px; height: 20px; }
+
+/* ── Error state: the app's own colours; the shake and the message fade are the snippets above.
+   The field keeps its own border, so the error is a ring around it (no layout shift) that fades in and out with the message. */
+.t-input { border-radius: 14px; box-shadow: 0 0 0 0 transparent; transition: box-shadow var(--revert-dur, 280ms) ease-out; }
+.t-input.is-error { box-shadow: 0 0 0 1.5px var(--color-bad); transition: box-shadow var(--revert-dur, 280ms) ease-out; }
+.t-error-msg { color: var(--color-bad); }
+
+/* ── Header search box ───────────────────────────────────────────
+   The real <input> keeps the text, the selection and the keyboard; its glyphs are transparent and the same letters are drawn one by one
+   on top (.ax-live) so each new one can spring in. Kerning is off in both so the two always line up with the caret. */
+.ax-field { font-kerning: none; font-feature-settings: "liga" 0, "clig" 0; }
+.ax-field input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; outline: 0; background: transparent;
+  font: inherit; font-kerning: none; color: transparent; -webkit-text-fill-color: transparent; caret-color: transparent;
+}
+.ax-field input::selection { background: color-mix(in srgb, var(--color-accent) 35%, transparent); }
+.ax-live { position: absolute; inset: 0; display: flex; align-items: center; overflow: hidden; white-space: pre; pointer-events: none; z-index: 2; }
+.ax-live-inner { display: flex; }
+.ax-search.is-clearing .ax-live { opacity: 0; }
+.ax-char { display: inline-block; white-space: pre; }
+.ax-char-in { animation: ax-char-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: calc(var(--i, 0) * 16ms); }
+@keyframes ax-char-in { from { opacity: 0; transform: translateY(6px) scale(0.6); filter: blur(2px); } to { opacity: 1; transform: none; filter: blur(0); } }
+.ax-caret { position: absolute; left: 0; top: 50%; width: 2px; height: 20px; margin-top: -10px; border-radius: 2px; background: var(--color-accent); pointer-events: none; z-index: 3; opacity: 0; }
+.ax-field:focus-within .ax-caret[data-show="true"] { opacity: 1; animation: ax-caret-blink 1.06s steps(1) infinite; }
+@keyframes ax-caret-blink { 50% { opacity: 0; } }
+.ax-search .t-clear-placeholder { color: var(--color-faint); }
+.ax-search .t-clear-glow { mix-blend-mode: screen; }
+html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
+@media (prefers-reduced-motion: reduce) { .ax-char-in, .ax-caret { animation: none !important; } }
+
+/* ── Menus: the accordion, driven by the popover's open state ────
+   The published accordion toggles data-open; a menu opens and closes through the popover API, so the same grid-rows, blur and fade are keyed
+   on :popover-open, with @starting-style for the opening frame and display/overlay transitions so it also animates closed. */
+.t-menu {
+  display: none; grid-template-rows: 0fr; overflow: hidden;
+  transition: grid-template-rows var(--acc-collapse) var(--acc-ease), display var(--acc-collapse) allow-discrete, overlay var(--acc-collapse) allow-discrete;
+}
+.t-menu:popover-open {
+  display: grid; grid-template-rows: 1fr;
+  transition: grid-template-rows var(--acc-expand) var(--acc-ease), display var(--acc-expand) allow-discrete, overlay var(--acc-expand) allow-discrete;
+}
+@starting-style { .t-menu:popover-open { grid-template-rows: 0fr; } }
+.t-menu > .t-acc-panel-inner {
+  overflow-y: auto; opacity: 0; filter: blur(2px);
+  transition: opacity var(--acc-collapse) var(--acc-ease), filter var(--acc-collapse) var(--acc-ease);
+}
+.t-menu:popover-open > .t-acc-panel-inner {
+  opacity: 1; filter: blur(0);
+  transition: opacity var(--acc-expand) var(--acc-ease), filter var(--acc-expand) var(--acc-ease);
+}
+@starting-style { .t-menu:popover-open > .t-acc-panel-inner { opacity: 0; filter: blur(2px); } }
+/* A trigger's chevron flips like the accordion's while its menu is open (the menu is the trigger's next sibling). */
+.t-chev { display: inline-flex; transition: transform var(--acc-chevron) var(--acc-ease); }
+:has(+ .t-menu:popover-open) > .t-chev { transform: scaleY(-1); }
+@media (prefers-reduced-motion: reduce) { .t-menu, .t-menu > .t-acc-panel-inner, .t-chev { transition: none !important; } }

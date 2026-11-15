@@ -18,7 +18,8 @@ BUNDLED = [
     ("LAV Filters (splitter, video and audio decoders)", "GPL-2.0-or-later (LGPL parts)", "https://github.com/Nevcairiel/LAVFilters", "packaging/scripts/fetch-lav.sh, pinned by tag and SHA-256; loaded by the native player"),
     ("FFmpeg (static GPL build)", "GPL-3.0-or-later", "https://github.com/BtbN/FFmpeg-Builds", "packaging/scripts/fetch-ffmpeg.sh, pinned by SHA-256; run as a separate program"),
     ("Python runtime", "PSF-2.0", "https://www.python.org/", "inside the packaged backend"),
-    ("Transitions.dev motion (like button, notification badge, icon swap)", "Transitions.dev License (free for personal and commercial use, no redistribution of the library itself)", "https://github.com/Jakubantalik/transitions.dev", "apps/web/src/design/transitions.css, the published CSS copied unchanged"),
+    ("SmoothUI theme toggle and favicon search (adapted)", "MIT, Copyright (c) 2024 Eduardo Calvo", "https://github.com/educlopez/smoothui", "apps/web/src/design/ThemeToggle.tsx and apps/web/src/app/SearchField.tsx, adapted to the app"),
+    ("Transitions.dev motion (like button, notification badge, icon swap, error shake, input clear, accordion)", "Transitions.dev License (free for personal and commercial use, no redistribution of the library itself)", "https://github.com/Jakubantalik/transitions.dev", "apps/web/src/design/transitions.css, the published CSS copied unchanged"),
 ]
 
 

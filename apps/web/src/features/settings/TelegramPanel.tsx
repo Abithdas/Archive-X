@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ApiError, api } from '@/api/client'
+import { ErrorField } from '@/design/ErrorField'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { Segmented } from '@/design/Segmented'
@@ -118,6 +119,8 @@ export function TelegramPanel() {
   const [qr, setQr] = useState<QrView | null>(null)
   const [qrActive, setQrActive] = useState(false)
   const [loginMsg, setLoginMsg] = useState('')
+  const loginError = loginMsg.startsWith('Error:') ? loginMsg : ''   // a rejected code or password: the field shakes
+  const typing = () => { if (loginError) setLoginMsg('') }
   const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY)
   const [local, setLocal] = useState('')
   const phoneLoaded = useRef(false)
@@ -244,7 +247,7 @@ export function TelegramPanel() {
             <div className="grid max-w-md gap-3">
               <h4 className="text-lg font-extrabold">Enter Cloud Password</h4>
               <p className="text-sm text-muted">Two-Step Verification is enabled on your Telegram account. Enter your Telegram cloud password to finish signing in.</p>
-              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void verifyPw()} placeholder="Telegram cloud password" aria-label="Telegram cloud password" autoComplete="current-password" autoFocus className={INPUT} />
+              <ErrorField quiet message={loginError}><input type="password" value={pw} onChange={(e) => { setPw(e.target.value); typing() }} onKeyDown={(e) => e.key === 'Enter' && void verifyPw()} placeholder="Telegram cloud password" aria-label="Telegram cloud password" autoComplete="current-password" autoFocus className={INPUT} /></ErrorField>
               <div className="flex gap-2"><button type="button" disabled={!!busy || !pw} onClick={() => void verifyPw()} className={PRIMARY}>Verify password</button>
                 {needPassword === 'phone' ? <button type="button" onClick={() => { setNeedPassword(null); setLoginMsg('') }} className={BTN}>Back</button> : null}</div>
             </div>
@@ -273,7 +276,7 @@ export function TelegramPanel() {
                   <div className="grid gap-1.5"><Label>Phone number</Label><CountryPhone country={country} local={local} onChange={(c, l) => { setCountry(c); setLocal(l) }} inputClass={INPUT} /></div>
                   <div><button type="button" disabled={!!busy} onClick={() => void sendCode()} className={PRIMARY}>{busy === 'code' ? 'Sending…' : 'Continue'}</button></div>
                   {codeAsked ? (
-                    <label className="grid gap-1.5"><Label>Telegram login code</Label><span className="flex gap-2"><input value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void verify()} inputMode="numeric" autoComplete="one-time-code" placeholder="Enter the code" aria-label="Telegram login code" className={INPUT} /><button type="button" disabled={!!busy || !code.trim()} onClick={() => void verify()} className={PRIMARY}>Verify</button></span></label>
+                    <label className="grid gap-1.5"><Label>Telegram login code</Label><span className="flex gap-2"><ErrorField quiet message={loginError} wrapClassName="min-w-0 flex-1"><input value={code} onChange={(e) => { setCode(e.target.value); typing() }} onKeyDown={(e) => e.key === 'Enter' && void verify()} inputMode="numeric" autoComplete="one-time-code" placeholder="Enter the code" aria-label="Telegram login code" className={INPUT} /></ErrorField><button type="button" disabled={!!busy || !code.trim()} onClick={() => void verify()} className={PRIMARY}>Verify</button></span></label>
                   ) : null}
                 </div>
               )}
