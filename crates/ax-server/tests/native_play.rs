@@ -146,6 +146,7 @@ async fn door_with(extra: impl FnOnce(&Connection), launch_secret: Option<&str>)
             "markers_list".into(),
             "marker_create".into(),
             "marker_delete".into(),
+            "name_list".into(),
         ],
         launch_secret: launch_secret.map(String::from),
         session_touch_interval: Duration::from_secs(300),
