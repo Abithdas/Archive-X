@@ -100,10 +100,15 @@ impl Writer {
             let conn = guard.as_ref().unwrap();
             conn.execute_batch("BEGIN IMMEDIATE")?;
             match f(conn) {
-                Ok(v) => {
-                    conn.execute_batch("COMMIT")?;
-                    Ok(v)
-                }
+                Ok(v) => match conn.execute_batch("COMMIT") {
+                    Ok(()) => Ok(v),
+                    Err(e) => {
+                        // A failed COMMIT (a busy lock, say) leaves the transaction open; the next write would fail with
+                        // "cannot start a transaction within a transaction" until the app restarted.
+                        let _ = conn.execute_batch("ROLLBACK");
+                        Err(DbError::from(e))
+                    }
+                },
                 Err(e) => {
                     let _ = conn.execute_batch("ROLLBACK");
                     Err(DbError::from(e))
