@@ -74,6 +74,12 @@ class DirectTelegramRangeSource:
         self._fingerprint_deadline = (time.monotonic() + float(getattr(config, "FINGERPRINT_TIMEOUT_SECONDS", 30.0))
                                       if self.fingerprint_lane else None)
 
+    def close(self) -> None:
+        """Release what this reader holds. Callers (metadata matching) close every source they open; the missing method made each close fail
+        and the failure was swallowed (22 times in one user's log)."""
+        with self._lock:
+            self._cache.clear()
+
     def _resolve_loop(self):
         """Resolve the authenticated Telegram event loop even from worker threads."""
         try:

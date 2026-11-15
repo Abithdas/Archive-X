@@ -738,177 +738,183 @@ async def _discover_and_store_inventory(ctx, channel_id: str, limit: int, *, ful
     # Reserve discovered logical cards before media rows are inserted. The
     # resource view hides PREPARING groups until their physical parts, metadata,
     # and registries have all been stored and the group is finalized VERIFIED.
-    for record in ordered:
-        parts = record.get("_split_group_parts") if record.get("is_split_group") else None
-        if not parts:
-            continue
-        from ..core.split_files import store_split_group
-        channel_key = str(channel_id)
-        primary_id = int(record.get("id") or 0)
-        group_id = str(record.get("_split_group_group_id") or "").strip()
-        if not group_id:
-            import hashlib
-            group_id = "scan-" + hashlib.sha256(f"{channel_key}:{primary_id}:{record.get('name') or ''}".encode("utf-8")).hexdigest()[:24]
-        record["_split_group_group_id"] = group_id
-        store_split_group(
-            ctx.db, group_id=group_id, destination_channel=channel_key,
-            logical_filename=str(record.get("name") or ""), primary_message_id=primary_id,
-            thumbnail_message_id=int(record.get("thumbnail_message_id") or 0) or None,
-            total_size=int(record.get("size") or 0), parts=list(parts),
-            metadata={"mime_type": str(record.get("mime") or "application/octet-stream"),
-                      "duration": float(record.get("duration") or 0),
-                      "width": int(record.get("width") or 0), "height": int(record.get("height") or 0),
-                      "fps": float(record.get("fps") or 0), "bitrate": int(record.get("bitrate") or 0),
-                      "codec": str(record.get("codec") or ""), "audio_codec": str(record.get("audio_codec") or ""),
-                      "caption": str(record.get("caption") or "")},
-            identity_key=f"telegram-split:{channel_key}:{primary_id}", status="PREPARING",
-        )
-    with ctx.db.lock:
-        for record in ordered:
-            message_id = int(record.get("id") or 0)
-            if not message_id:
-                continue
-            filename = str(record.get("name") or f"Telegram video {message_id}")
-            size = int(record.get("size") or 0)
-            duration = float(record.get("duration") or 0)
-            caption_update = "excluded.caption" if full_scan else "CASE WHEN excluded.caption<>'' THEN excluded.caption ELSE media.caption END"
-            ctx.db.conn.execute(
-                f"""INSERT INTO media(
-                    source_channel,source_message_id,filename,title,size,duration,
-                    width,height,fps,streamable,status,caption,created_at,updated_at
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                ON CONFLICT(source_channel,source_message_id) DO UPDATE SET
-                    filename=excluded.filename,
-                    title=CASE WHEN media.title IS NULL OR TRIM(media.title)='' OR media.title=media.filename
-                               THEN excluded.title ELSE media.title END,
-                    size=CASE WHEN excluded.size>0 THEN excluded.size ELSE media.size END,
-                    duration=CASE WHEN excluded.duration>0 THEN excluded.duration ELSE media.duration END,
-                    width=CASE WHEN excluded.width>0 THEN excluded.width ELSE media.width END,
-                    height=CASE WHEN excluded.height>0 THEN excluded.height ELSE media.height END,
-                    caption={caption_update},
-                    status=CASE WHEN media.status='SOURCE_DELETED' THEN excluded.status ELSE media.status END,
-                    streamable=1,updated_at=excluded.updated_at""",
-                (channel_id, message_id, filename, filename, size, duration,
-                 int(record.get("width") or 0), int(record.get("height") or 0), 0.0, 1,
-                 "SCANNED", str(record.get("caption") or ""), now, now),
-            )
-            from ..core.telegram_registry import register_known_message
-            media_row = ctx.db.conn.execute(
-                "SELECT id,thumbnail_message_id FROM media WHERE source_channel=? AND source_message_id=?",
-                (channel_id, message_id),
-            ).fetchone()
-            if record.get("is_split_group") and record.get("thumbnail_message_id") and media_row:
-                ctx.db.conn.execute(
-                    "UPDATE media SET thumbnail_message_id=? WHERE id=?",
-                    (int(record["thumbnail_message_id"]), int(media_row["id"])),
-                )
-            if not record.get("is_split_group"):
-                register_known_message(
-                    ctx.db, channel_id=channel_id, message_id=message_id, record=record,
-                    media_id=int(media_row["id"]) if media_row else None,
-                    thumbnail_message_id=int(media_row["thumbnail_message_id"] or 0) if media_row else None,
-                )
-        ctx.db.conn.commit()
-        # Only a complete scan of all Telegram history can prove that older
-        # messages disappeared. Incremental passes never tombstone unseen rows.
-        if scan_stats.get("full_history"):
-            present = {int(item.get("id") or 0) for item in ordered}
-            if split_tables == {"split_file_groups", "split_file_parts"}:
-                missing_split_primary_ids = [int(row["primary_message_id"] or 0) for row in split_groups
-                                             if int(row["primary_message_id"] or 0) not in present]
-                if missing_split_primary_ids:
-                    marks = ",".join("?" for _ in missing_split_primary_ids)
-                    ctx.db.conn.execute(
-                        f"UPDATE split_file_groups SET status='INCOMPLETE',updated_at=? "
-                        f"WHERE destination_channel=? AND status='VERIFIED' AND primary_message_id IN ({marks})",
-                        (now, str(channel_id), *missing_split_primary_ids),
-                    )
-            stale = [
-                int(r["source_message_id"]) for r in ctx.db.conn.execute(
-                    "SELECT source_message_id FROM media WHERE source_channel=? AND COALESCE(status,'')<>'SOURCE_DELETED'",
-                    (channel_id,),
-                ).fetchall()
-                if int(r["source_message_id"]) not in present
-            ]
-            for mid in stale:
-                ctx.db.conn.execute(
-                    "UPDATE media SET status='SOURCE_DELETED', updated_at=? WHERE source_channel=? AND source_message_id=?",
-                    (now, channel_id, mid),
-                )
-                ctx.db.conn.execute(
-                    "UPDATE telegram_document_locations SET location_state='DELETED_OUTSIDE_ARCHIVE_X',last_seen_at=? "
-                    "WHERE channel_id=? AND message_id=? AND location_state NOT IN ('MOVED_BY_ARCHIVE_X','MOVED_PENDING_DELETE')",
-                    (now, channel_id, mid),
-                )
-            ctx.db.conn.commit()
-            if stale:
-                ctx.db.log(
-                    f"Collect filenames {channel_id}: {len(stale)} video(s) no longer in the Telegram channel were removed from the Library",
-                    "INFO",
-                )
-        ids = [int(item.get("id") or 0) for item in ordered if int(item.get("id") or 0) > 0]
-        if ids:
-            marks = ",".join("?" for _ in ids)
-            rows = ctx.db.conn.execute(
-                f"SELECT id,source_channel,source_message_id,filename,title FROM media WHERE source_channel=? AND source_message_id IN ({marks}) ORDER BY CAST(source_message_id AS INTEGER) DESC",
-                [channel_id, *ids],
-            ).fetchall()
-            for row in rows:
-                ctx.db.conn.execute(
-                    "INSERT INTO resource_state(media_id,catalogue_state,updated_at) VALUES(?,?,?) "
-                    "ON CONFLICT(media_id) DO UPDATE SET catalogue_state='COMPLETE', updated_at=excluded.updated_at",
-                    (int(row["id"]), "COMPLETE", now),
-                )
-            ctx.db.conn.commit()
-        else:
-            rows = []
-        # Register every Telegram volume (not only .001), then make the logical
-        # card visible to downstream snapshot processing. A partial failure
-        # leaves the PREPARING group hidden and is retried on the next scan.
-        from ..core.split_files import finalize_split_group
-        from ..core.telegram_registry import register_known_message
+    # These blocks write thousands of rows (and commit per message): run them off the event loop, which otherwise freezes for minutes.
+    def _store_split_groups():
         for record in ordered:
             parts = record.get("_split_group_parts") if record.get("is_split_group") else None
             if not parts:
                 continue
+            from ..core.split_files import store_split_group
+            channel_key = str(channel_id)
             primary_id = int(record.get("id") or 0)
-            with ctx.db.lock:
-                media_row = ctx.db.conn.execute(
-                    "SELECT id FROM media WHERE source_channel=? AND source_message_id=?",
-                    (channel_id, primary_id),
-                ).fetchone()
-            primary_media_id = int(media_row["id"]) if media_row else None
-            for part in parts:
-                part_record = dict(part.get("record") or {})
-                part_record.setdefault("id", int(part["message_id"]))
-                part_record.setdefault("name", str(part.get("telegram_filename") or ""))
-                part_record.setdefault("size", int(part.get("size_bytes") or 0))
-                register_known_message(
-                    ctx.db, channel_id=channel_id, message_id=int(part["message_id"]),
-                    record=part_record, media_id=primary_media_id,
-                    thumbnail_message_id=(int(record["thumbnail_message_id"])
-                                           if int(part.get("part_index") or 0) == 1 and record.get("thumbnail_message_id") else None),
+            group_id = str(record.get("_split_group_group_id") or "").strip()
+            if not group_id:
+                import hashlib
+                group_id = "scan-" + hashlib.sha256(f"{channel_key}:{primary_id}:{record.get('name') or ''}".encode("utf-8")).hexdigest()[:24]
+            record["_split_group_group_id"] = group_id
+            store_split_group(
+                ctx.db, group_id=group_id, destination_channel=channel_key,
+                logical_filename=str(record.get("name") or ""), primary_message_id=primary_id,
+                thumbnail_message_id=int(record.get("thumbnail_message_id") or 0) or None,
+                total_size=int(record.get("size") or 0), parts=list(parts),
+                metadata={"mime_type": str(record.get("mime") or "application/octet-stream"),
+                          "duration": float(record.get("duration") or 0),
+                          "width": int(record.get("width") or 0), "height": int(record.get("height") or 0),
+                          "fps": float(record.get("fps") or 0), "bitrate": int(record.get("bitrate") or 0),
+                          "codec": str(record.get("codec") or ""), "audio_codec": str(record.get("audio_codec") or ""),
+                          "caption": str(record.get("caption") or "")},
+                identity_key=f"telegram-split:{channel_key}:{primary_id}", status="PREPARING",
+            )
+    await asyncio.to_thread(_store_split_groups)
+    def _store_media_rows():
+        with ctx.db.lock:
+            for record in ordered:
+                message_id = int(record.get("id") or 0)
+                if not message_id:
+                    continue
+                filename = str(record.get("name") or f"Telegram video {message_id}")
+                size = int(record.get("size") or 0)
+                duration = float(record.get("duration") or 0)
+                caption_update = "excluded.caption" if full_scan else "CASE WHEN excluded.caption<>'' THEN excluded.caption ELSE media.caption END"
+                ctx.db.conn.execute(
+                    f"""INSERT INTO media(
+                        source_channel,source_message_id,filename,title,size,duration,
+                        width,height,fps,streamable,status,caption,created_at,updated_at
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    ON CONFLICT(source_channel,source_message_id) DO UPDATE SET
+                        filename=excluded.filename,
+                        title=CASE WHEN media.title IS NULL OR TRIM(media.title)='' OR media.title=media.filename
+                                   THEN excluded.title ELSE media.title END,
+                        size=CASE WHEN excluded.size>0 THEN excluded.size ELSE media.size END,
+                        duration=CASE WHEN excluded.duration>0 THEN excluded.duration ELSE media.duration END,
+                        width=CASE WHEN excluded.width>0 THEN excluded.width ELSE media.width END,
+                        height=CASE WHEN excluded.height>0 THEN excluded.height ELSE media.height END,
+                        caption={caption_update},
+                        status=CASE WHEN media.status='SOURCE_DELETED' THEN excluded.status ELSE media.status END,
+                        streamable=1,updated_at=excluded.updated_at""",
+                    (channel_id, message_id, filename, filename, size, duration,
+                     int(record.get("width") or 0), int(record.get("height") or 0), 0.0, 1,
+                     "SCANNED", str(record.get("caption") or ""), now, now),
                 )
-            finalize_split_group(ctx.db, str(record.get("_split_group_group_id") or ""), status="VERIFIED")
-        maximum = int(ctx.db.conn.execute(
-            "SELECT COALESCE(MAX(CAST(source_message_id AS INTEGER)),0) FROM media WHERE source_channel=? AND COALESCE(status,'')<>'SOURCE_DELETED'",
-            (channel_id,),
-        ).fetchone()[0] or 0)
-        if enumeration_complete:
-            ctx.db.set_setting(highwater_key, maximum)
-        from ..core.telegram_registry import record_channel_scan
-        new_video_ids = {int(item.get("id") or 0) for item in ordered if int(item.get("id") or 0) > 0} - existing_media_ids
-        try:
-            flood_after = int(ctx.governor.channel_download_floodwaits(int(channel_id)))
-        except Exception:
-            flood_after = flood_before
-        record_channel_scan(ctx.db, channel_id, high_water_mark=maximum,
-                            status="COMPLETE" if enumeration_complete else "PARTIAL",
-                            detail={"messages": int(scan_stats.get("messages") or 0),
-                                    "known_records": len(ordered), "new_videos_found": len(new_video_ids),
-                                    "floodwaits": max(0, flood_after - flood_before),
-                                    "full_history": bool(scan_stats.get("full_history")),
-                                    "limit_hit": bool(scan_stats.get("limit_hit"))})
+                from ..core.telegram_registry import register_known_message
+                media_row = ctx.db.conn.execute(
+                    "SELECT id,thumbnail_message_id FROM media WHERE source_channel=? AND source_message_id=?",
+                    (channel_id, message_id),
+                ).fetchone()
+                if record.get("is_split_group") and record.get("thumbnail_message_id") and media_row:
+                    ctx.db.conn.execute(
+                        "UPDATE media SET thumbnail_message_id=? WHERE id=?",
+                        (int(record["thumbnail_message_id"]), int(media_row["id"])),
+                    )
+                if not record.get("is_split_group"):
+                    register_known_message(
+                        ctx.db, channel_id=channel_id, message_id=message_id, record=record,
+                        media_id=int(media_row["id"]) if media_row else None,
+                        thumbnail_message_id=int(media_row["thumbnail_message_id"] or 0) if media_row else None,
+                    )
+            ctx.db.conn.commit()
+            # Only a complete scan of all Telegram history can prove that older
+            # messages disappeared. Incremental passes never tombstone unseen rows.
+            if scan_stats.get("full_history"):
+                present = {int(item.get("id") or 0) for item in ordered}
+                if split_tables == {"split_file_groups", "split_file_parts"}:
+                    missing_split_primary_ids = [int(row["primary_message_id"] or 0) for row in split_groups
+                                                 if int(row["primary_message_id"] or 0) not in present]
+                    if missing_split_primary_ids:
+                        marks = ",".join("?" for _ in missing_split_primary_ids)
+                        ctx.db.conn.execute(
+                            f"UPDATE split_file_groups SET status='INCOMPLETE',updated_at=? "
+                            f"WHERE destination_channel=? AND status='VERIFIED' AND primary_message_id IN ({marks})",
+                            (now, str(channel_id), *missing_split_primary_ids),
+                        )
+                stale = [
+                    int(r["source_message_id"]) for r in ctx.db.conn.execute(
+                        "SELECT source_message_id FROM media WHERE source_channel=? AND COALESCE(status,'')<>'SOURCE_DELETED'",
+                        (channel_id,),
+                    ).fetchall()
+                    if int(r["source_message_id"]) not in present
+                ]
+                for mid in stale:
+                    ctx.db.conn.execute(
+                        "UPDATE media SET status='SOURCE_DELETED', updated_at=? WHERE source_channel=? AND source_message_id=?",
+                        (now, channel_id, mid),
+                    )
+                    ctx.db.conn.execute(
+                        "UPDATE telegram_document_locations SET location_state='DELETED_OUTSIDE_ARCHIVE_X',last_seen_at=? "
+                        "WHERE channel_id=? AND message_id=? AND location_state NOT IN ('MOVED_BY_ARCHIVE_X','MOVED_PENDING_DELETE')",
+                        (now, channel_id, mid),
+                    )
+                ctx.db.conn.commit()
+                if stale:
+                    ctx.db.log(
+                        f"Collect filenames {channel_id}: {len(stale)} video(s) no longer in the Telegram channel were removed from the Library",
+                        "INFO",
+                    )
+            ids = [int(item.get("id") or 0) for item in ordered if int(item.get("id") or 0) > 0]
+            if ids:
+                marks = ",".join("?" for _ in ids)
+                rows = ctx.db.conn.execute(
+                    f"SELECT id,source_channel,source_message_id,filename,title FROM media WHERE source_channel=? AND source_message_id IN ({marks}) ORDER BY CAST(source_message_id AS INTEGER) DESC",
+                    [channel_id, *ids],
+                ).fetchall()
+                for row in rows:
+                    ctx.db.conn.execute(
+                        "INSERT INTO resource_state(media_id,catalogue_state,updated_at) VALUES(?,?,?) "
+                        "ON CONFLICT(media_id) DO UPDATE SET catalogue_state='COMPLETE', updated_at=excluded.updated_at",
+                        (int(row["id"]), "COMPLETE", now),
+                    )
+                ctx.db.conn.commit()
+            else:
+                rows = []
+            # Register every Telegram volume (not only .001), then make the logical
+            # card visible to downstream snapshot processing. A partial failure
+            # leaves the PREPARING group hidden and is retried on the next scan.
+            from ..core.split_files import finalize_split_group
+            from ..core.telegram_registry import register_known_message
+            for record in ordered:
+                parts = record.get("_split_group_parts") if record.get("is_split_group") else None
+                if not parts:
+                    continue
+                primary_id = int(record.get("id") or 0)
+                with ctx.db.lock:
+                    media_row = ctx.db.conn.execute(
+                        "SELECT id FROM media WHERE source_channel=? AND source_message_id=?",
+                        (channel_id, primary_id),
+                    ).fetchone()
+                primary_media_id = int(media_row["id"]) if media_row else None
+                for part in parts:
+                    part_record = dict(part.get("record") or {})
+                    part_record.setdefault("id", int(part["message_id"]))
+                    part_record.setdefault("name", str(part.get("telegram_filename") or ""))
+                    part_record.setdefault("size", int(part.get("size_bytes") or 0))
+                    register_known_message(
+                        ctx.db, channel_id=channel_id, message_id=int(part["message_id"]),
+                        record=part_record, media_id=primary_media_id,
+                        thumbnail_message_id=(int(record["thumbnail_message_id"])
+                                               if int(part.get("part_index") or 0) == 1 and record.get("thumbnail_message_id") else None),
+                    )
+                finalize_split_group(ctx.db, str(record.get("_split_group_group_id") or ""), status="VERIFIED")
+            maximum = int(ctx.db.conn.execute(
+                "SELECT COALESCE(MAX(CAST(source_message_id AS INTEGER)),0) FROM media WHERE source_channel=? AND COALESCE(status,'')<>'SOURCE_DELETED'",
+                (channel_id,),
+            ).fetchone()[0] or 0)
+            if enumeration_complete:
+                ctx.db.set_setting(highwater_key, maximum)
+            from ..core.telegram_registry import record_channel_scan
+            new_video_ids = {int(item.get("id") or 0) for item in ordered if int(item.get("id") or 0) > 0} - existing_media_ids
+            try:
+                flood_after = int(ctx.governor.channel_download_floodwaits(int(channel_id)))
+            except Exception:
+                flood_after = flood_before
+            record_channel_scan(ctx.db, channel_id, high_water_mark=maximum,
+                                status="COMPLETE" if enumeration_complete else "PARTIAL",
+                                detail={"messages": int(scan_stats.get("messages") or 0),
+                                        "known_records": len(ordered), "new_videos_found": len(new_video_ids),
+                                        "floodwaits": max(0, flood_after - flood_before),
+                                        "full_history": bool(scan_stats.get("full_history")),
+                                        "limit_hit": bool(scan_stats.get("limit_hit"))})
+        return rows
+    rows = await asyncio.to_thread(_store_media_rows)
 
     ctx.db.log(
         f"Channel inventory {'full reconciliation' if full_scan else 'incremental refresh'} {channel_id}: "

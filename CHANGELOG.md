@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased (after 30.2.5)
 
+- **Fewer freezes (from a real log):** the log of 30.2.4 showed the whole app freezing for 8 to 15 seconds, 13 times in about 5 hours, once for 202 seconds. Two causes found and fixed: the performer identity check read every performer (biography included) and compared names against all of them on every call, on the thread that serves the app (now an index kept until the performers change; the answers are the same, tested against the old algorithm; about 6 times faster on the first call and far more after, measured on 30,000 performers); and the channel scan wrote thousands of rows, with a commit each, on that same thread (now on a worker thread). A swallowed error that appeared 22 times (`DirectTelegramRangeSource` had no `close`) is fixed.
+
 - **Removed (backend):** the second way to run the Python server, which the desktop app never used: HTTPS with a local certificate authority, access from other devices on the network, HTTP/3, the phone certificate download (`/ca.crt`) and the `hypercorn` dependency. `python -m telegram_archive` now always runs the loopback desktop mode and prints the hand-off link when started by hand. The installer's backend is a little smaller.
 
 ## 30.2.5 (2026-11-15)

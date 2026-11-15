@@ -139,7 +139,12 @@ def _provider_match(db, table: str, provider: str, provider_id: Optional[str]) -
         return None
     pid = str(provider_id)
     provider_key = str(provider or "").strip().casefold()
-    rows = db.conn.execute(f"SELECT * FROM {table} WHERE provider_ids IS NOT NULL AND provider_ids<>''").fetchall()
+    # Only a row whose stored text contains the id can match, so let SQLite find those and parse just them (reading every row, bio included,
+    # took seconds on a big library). An id with characters JSON may escape is compared the slow way.
+    if pid.isascii() and pid.isprintable() and '"' not in pid and "\\" not in pid:
+        rows = db.conn.execute(f"SELECT * FROM {table} WHERE provider_ids IS NOT NULL AND provider_ids<>'' AND instr(provider_ids, ?)>0", (pid,)).fetchall()
+    else:
+        rows = db.conn.execute(f"SELECT * FROM {table} WHERE provider_ids IS NOT NULL AND provider_ids<>''").fetchall()
     for row in rows:
         payload = _load_json(row["provider_ids"], {})
         namespaced_values = []
@@ -329,6 +334,59 @@ def upsert_entity(db, table: str, name: str, *, provider: str = "",
 # Performer identity decisions and conflict checks.
 # ==============================================================================
 
+def _performer_rows_for_index(db) -> list[dict]:
+    return [dict(raw) for raw in db.conn.execute("SELECT id,name,canonical_key,normalized_name,aliases FROM performers ORDER BY id").fetchall()]
+
+
+def _build_performer_index(rows: list[dict]) -> list[dict]:
+    """What the identity check needs from every performer, worked out once: the keys of the name and aliases, and the name variants long enough
+    to be compared for similarity."""
+    index = []
+    for row in rows:
+        name = str(row.get("name") or "")
+        aliases = [x for x in _load_json(row.get("aliases"), []) if isinstance(x, str)]
+        variants = []
+        for variant in [name, *aliases]:
+            variant_key = canonical_key(variant)
+            if len(variant_key) >= 7:
+                variants.append((variant, variant_key))
+        index.append({
+            "id": int(row["id"]), "name": name, "name_key": canonical_key(name),
+            "canonical": str(row.get("canonical_key") or ""), "norm": str(row.get("normalized_name") or ""),
+            "alias_keys": {canonical_key(alias) for alias in aliases}, "variants": variants,
+        })
+    return index
+
+
+def _performer_index(db) -> list[dict]:
+    """The index of all performers. It is kept until the performers change (the database's own change counter says when, and only when its
+    triggers exist, so a missed change cannot leave it stale); the check used to read every performer, bio included, on every call and froze
+    the app for seconds."""
+    version = None
+    try:
+        has_triggers = db.conn.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='axcv_performers_update'").fetchone()
+        if has_triggers:
+            row = db.conn.execute("SELECT version FROM data_versions WHERE scope='entities'").fetchone()
+            version = int(row[0]) if row else None
+    except Exception:
+        version = None
+    cached = getattr(db, "_performer_identity_index", None)
+    if version is not None and cached and cached[0] == version and cached[2] is db.conn:
+        return cached[1]
+    index = _build_performer_index(_performer_rows_for_index(db))
+    if version is not None:
+        db._performer_identity_index = (version, index, db.conn)
+    return index
+
+
+def _full_performer_rows(db, ids: list[int]) -> list[dict]:
+    if not ids:
+        return []
+    marks = ",".join("?" for _ in ids)
+    found = {int(raw["id"]): dict(raw) for raw in db.conn.execute(f"SELECT * FROM performers WHERE id IN ({marks})", ids).fetchall()}
+    return [found[i] for i in ids if i in found]
+
+
 def assess_performer_identity(db, name: str, *, provider: str = "", provider_id=None) -> dict:
     """Resolve exact performer identity before considering possible duplicates.
 
@@ -350,51 +408,45 @@ def assess_performer_identity(db, name: str, *, provider: str = "", provider_id=
 
         key = canonical_key(clean)
         norm = normalized_name(clean)
-        rows = [dict(raw) for raw in db.conn.execute("SELECT * FROM performers ORDER BY id").fetchall()]
+        index = _performer_index(db)
         canonical_matches: dict[int, dict] = {}
         alias_matches: dict[int, dict] = {}
-        for row in rows:
-            rid = int(row["id"])
-            row_name_key = canonical_key(str(row.get("name") or ""))
-            row_canonical = str(row.get("canonical_key") or "")
-            row_norm = str(row.get("normalized_name") or "")
+        for entry in index:
+            rid = entry["id"]
             # Derive from display name as well because legacy imports may not
             # have backfilled canonical_key/normalized_name yet.
-            if ((key and (row_name_key == key or row_canonical == key))
-                    or (norm and row_norm == norm)):
-                canonical_matches[rid] = row
+            if ((key and (entry["name_key"] == key or entry["canonical"] == key))
+                    or (norm and entry["norm"] == norm)):
+                canonical_matches[rid] = entry
                 continue
-            alias_values = _load_json(row.get("aliases"), [])
-            if key and any(isinstance(alias, str) and canonical_key(alias) == key for alias in alias_values):
-                alias_matches[rid] = row
+            if key and key in entry["alias_keys"]:
+                alias_matches[rid] = entry
 
         # A literal canonical name beats a row that merely lists it as an alias.
-        matched = list(canonical_matches.values()) if canonical_matches else list(alias_matches.values())
+        chosen = list(canonical_matches.values()) if canonical_matches else list(alias_matches.values())
         match_method = "exact_name" if canonical_matches else "unique_alias"
+        matched = _full_performer_rows(db, [entry["id"] for entry in chosen])
 
         matched_ids = {int(row["id"]) for row in matched}
         near = []
         if len(key) >= 7:
-            for row in rows:
-                if int(row["id"]) in matched_ids:
+            for entry in index:
+                if entry["id"] in matched_ids:
                     continue
-                variants = [str(row.get("name") or "")]
-                variants.extend(x for x in _load_json(row.get("aliases"), []) if isinstance(x, str))
                 best_ratio, best_variant = 0.0, ""
-                for variant in variants:
-                    variant_key = canonical_key(variant)
-                    if len(variant_key) < 7 or abs(len(key)-len(variant_key)) > max(2, int(max(len(key),len(variant_key))*0.12)):
+                for variant, variant_key in entry["variants"]:
+                    if abs(len(key)-len(variant_key)) > max(2, int(max(len(key),len(variant_key))*0.12)):
                         continue
                     ratio = SequenceMatcher(None, key, variant_key).ratio()
                     if ratio > best_ratio:
                         best_ratio, best_variant = ratio, variant
                 if best_ratio >= 0.80:
-                    near.append((best_ratio, row, best_variant))
+                    near.append((best_ratio, entry, best_variant))
         near.sort(key=lambda item: (-item[0], int(item[1]["id"])))
         possible_duplicates = [
-            {"id": int(row["id"]), "name": str(row.get("name") or ""),
+            {"id": int(entry["id"]), "name": entry["name"],
              "similarity": round(ratio, 3), "matched_variant": variant}
-            for ratio, row, variant in near[:8]
+            for ratio, entry, variant in near[:8]
         ]
 
         if len(matched) == 1:
