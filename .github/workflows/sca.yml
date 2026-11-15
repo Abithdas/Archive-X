@@ -59,7 +59,7 @@ jobs:
         run: npm audit --audit-level=high
       - name: Licenses
         if: always()
-        run: python3 ../tools/sca/licenses.py npm . --report "$GITHUB_STEP_SUMMARY"
+        run: python3 ../../tools/sca/licenses.py npm . --report "$GITHUB_STEP_SUMMARY"
       - name: Software bill of materials (CycloneDX, shipped packages)
         if: always()
         run: npm sbom --sbom-format cyclonedx --omit dev > sbom-npm.cdx.json
