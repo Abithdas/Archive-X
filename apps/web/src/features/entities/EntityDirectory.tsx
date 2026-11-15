@@ -18,6 +18,7 @@ import { filterEntities, pageCount, type GenderFilter } from './filter'
 import { FAILED, IDLE, NEED_SELECTION, SORTS, canCommit, commitLabel, confirmation, duplicatesOf, hint, mergeBody, modeLabel, pick, sortBy, successMessage, toggleMode, type MergeState, type SortKey } from './merge'
 import { Empty } from '@/design/Empty'
 import { useDirectoryView } from './directoryView'
+import { SpinCounter } from '@/design/SpinCounter'
 
 const GRID = 'grid gap-[18px]'
 const COPY = {
@@ -95,7 +96,7 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
             {merge.active ? <span role="status" aria-live="polite" className="max-w-[480px] text-xs text-muted">{hint(merge, all)}</span> : null}
           </>
         ) : null}
-        {entities.data ? <span className="ml-auto text-sm text-muted">{rows.length} {copy.title.toLowerCase()}</span> : null}
+        {entities.data ? <span className="ml-auto text-sm text-muted"><SpinCounter value={rows.length} /> {copy.title.toLowerCase()}</span> : null}
       </div>
 
       {entities.isPending ? (

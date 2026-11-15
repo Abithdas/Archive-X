@@ -42,7 +42,7 @@ describe('OperationsPage', () => {
     expect(within(summary).getByText('Running').previousSibling).toHaveTextContent('1')
     expect(within(summary).getByText('Failed').previousSibling).toHaveTextContent('1')
     expect(screen.getByText('Index channel')).toBeInTheDocument()
-    expect(screen.getByText('25% · 5 / 20')).toBeInTheDocument()
+    expect(screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === '25% · 5 / 20')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Queued' }))
     await waitFor(() => expect(screen.queryByText('Index channel')).not.toBeInTheDocument())   // leaves with a short exit animation
     expect(screen.getByText('Upload batch')).toBeInTheDocument()

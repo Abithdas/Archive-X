@@ -23,9 +23,10 @@ import { DIFFERENT_NEEDS_GROUP, differentBody, differentCopy } from './faces'
 import { ChannelEditor } from '@/features/channels/ChannelEditor'
 import { PhotoCard } from './PhotoCard'
 import { PhotoViewer } from './PhotoViewer'
-import { EMPTY_INDEX, LOAD_FAILED, NO_CHANNELS_SAVED, NO_SCANNED, SORTS, channelAvatar, channelTitle, deleteBody, deleteCopy, deleteDone, deletePath, deleteStatus, emptyText, initials, photoName, photosUrl, pruneSelection, scanTitle, sortLabel, summaryText, toggleId, type Photo, type PhotoChannel, type PhotoPage, type PhotoSort } from './photos'
+import { EMPTY_INDEX, LOAD_FAILED, NO_CHANNELS_SAVED, NO_SCANNED, SORTS, channelAvatar, channelTitle, deleteBody, deleteCopy, deleteDone, deletePath, deleteStatus, emptyText, initials, photoName, photosUrl, pruneSelection, scanTitle, sortLabel, toggleId, type Photo, type PhotoChannel, type PhotoPage, type PhotoSort } from './photos'
 import { usePhotoStore } from './store'
 import { LikeHeart } from '@/design/LikeHeart'
+import { SpinCounter } from '@/design/SpinCounter'
 
 const Tick = () => <span aria-label="selected" role="img" className="grid size-5 place-items-center rounded-full bg-good text-[11px] font-bold text-white">✓</span>
 const reason = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.detail : e instanceof Error && e.message ? e.message : fb)
@@ -120,7 +121,7 @@ export function PhotosPage() {
 
   return (
     <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
-      <div className="mb-4 flex flex-wrap items-baseline gap-x-3"><h1 className="text-2xl font-bold">Photos</h1>{tab === 'library' ? <span role="status" aria-live="polite" className="text-sm text-muted">{channels.isPending ? 'Loading…' : status || summaryText(total)}</span> : null}</div>
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-3"><h1 className="text-2xl font-bold">Photos</h1>{tab === 'library' ? <span role="status" aria-live="polite" className="text-sm text-muted">{channels.isPending ? 'Loading…' : status || <><SpinCounter value={total} /> image{total === 1 ? '' : 's'}</>}</span> : null}</div>
 
       <div className="mb-3 flex flex-wrap items-center gap-2.5" role="group" aria-label="Photo library tools">
         <div role="tablist" aria-label="Photos views" className="inline-flex gap-0.5 rounded-xl border border-line bg-surface p-[3px]">
@@ -152,7 +153,7 @@ export function PhotosPage() {
               {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </label>
-          {hasContent ? <Popover label="Filters" icon={<Icon name="filter" className="size-4" />} badge={contentTags.length} active={contentTags.length > 0}><ContentTags bare /></Popover> : null}
+          {hasContent ? <Popover label="Filters" icon={<Icon name="filter" className="size-4" />} badge={contentTags.length} active={contentTags.length > 0}><ContentTags bare scope={{ channels: effective, q: search, favorites: favoritesOnly, favoriteIds: favIds, face, contentTags }} /></Popover> : null}
           <button type="button" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(!favoritesOnly)} title="Show only photos starred in this browser" className={cn(PILL, favoritesOnly && 'border-warn text-warn')}>
             <LikeHeart liked={favoritesOnly} />Favourites
           </button>

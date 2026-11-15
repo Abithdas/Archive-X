@@ -429,3 +429,51 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
 .t-drop-up { --drop-from: inset(100% 0 0 0); }
 @keyframes t-drop-in { from { clip-path: var(--drop-from); opacity: 0; filter: blur(2px); } to { clip-path: inset(0 0 0 0 round 12px); opacity: 1; filter: blur(0); } }
 @media (prefers-reduced-motion: reduce) { .t-drop-down, .t-drop-up { animation: none; } }
+
+/* ── Number subtle change and spinning counter (Transitions.dev) ───────────────────────────── */
+:root {
+  --subtle-dur: 455ms;
+  --subtle-distance: 0.14em;
+  --subtle-blur: 0.042em;
+  --subtle-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --reel-step-dur: 130ms;
+  --reel-stagger: 90ms;
+  --reel-ease: cubic-bezier(0.35, -0.02, 0.43, 1);
+  --reel-cell: 1.2em;
+  --reel-side-scale: 0.7;
+  --reel-side-offset: 0.52em;
+  --reel-side-blur: max(0.067em, 0.171em - 2.1px);
+  --reel-side-opacity: 0.17;
+  --reel-center-scale: 0.9;
+  --reel-center-blur: 0.042em;
+  --reel-antic-dur: 100ms;
+  --reel-antic-scale: 0.94;
+  --reel-antic-lift: 0.125em;
+  --reel-land-dur: 740ms;
+  --reel-land-peak: 1.03;
+}
+
+.t-subtle-number { display: inline-flex; align-items: baseline; font-variant-numeric: tabular-nums; }
+.t-subtle-slot { position: relative; display: inline-block; }
+.t-subtle-new { display: inline-block; }
+.t-subtle-old { position: absolute; inset: 0; text-align: center; pointer-events: none; }
+.t-subtle-number.is-animating .t-subtle-new { animation: t-subtle-in var(--subtle-dur) var(--subtle-ease) both; }
+.t-subtle-number.is-animating .t-subtle-old { animation: t-subtle-out var(--subtle-dur) var(--subtle-ease) both; }
+@keyframes t-subtle-in {
+  from { transform: translateY(calc(var(--subtle-distance) * var(--subtle-dir, 1))); opacity: 0; filter: blur(var(--subtle-blur)); }
+}
+@keyframes t-subtle-out {
+  to { transform: translateY(calc(var(--subtle-distance) * var(--subtle-dir, 1) * -1)); opacity: 0; filter: blur(var(--subtle-blur)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-subtle-number .t-subtle-new { animation: none !important; }
+  .t-subtle-number .t-subtle-old { display: none; }
+}
+
+.t-reel { display: inline-flex; align-items: center; height: var(--reel-cell); font-variant-numeric: tabular-nums; vertical-align: middle; }
+.t-reel-col { position: relative; display: inline-block; height: var(--reel-cell); line-height: var(--reel-cell); }
+.t-reel-sizer { visibility: hidden; }
+.t-reel-digit { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; will-change: transform, filter, opacity; }
+.t-reel-sep { display: inline-block; height: var(--reel-cell); line-height: var(--reel-cell); }
+@media (prefers-reduced-motion: reduce) { .t-reel-digit { filter: none !important; } }

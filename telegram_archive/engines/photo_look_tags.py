@@ -212,13 +212,15 @@ def store(db, photo_id: int, tags: dict[str, dict[str, float]], status: str = "C
         db.conn.commit()
 
 
-def summary(db) -> dict[str, Any]:
+def summary(db, facets: dict[str, int] | None = None) -> dict[str, Any]:
+    """Look tags that exist, with a photo count each; `facets` gives the counts inside the current filters (see photo_content_tags.facet_counts)."""
     with db.reading() as rdb:
         total = int(rdb.execute("SELECT COUNT(*) n FROM photo_library_items").fetchone()["n"] or 0)
         done = int(rdb.execute("SELECT COUNT(*) n FROM photo_look_analysis WHERE status='COMPLETE'").fetchone()["n"] or 0)
         counts = {r["tag"]: int(r["n"]) for r in rdb.execute("SELECT tag, COUNT(*) n FROM photo_content_tags WHERE tag LIKE 'hair\\_%' ESCAPE '\\' GROUP BY tag").fetchall()}
+    shown = counts if facets is None else facets
     return {"available": available(), "total_photos": total, "analysed_photos": done,
-            "tags": [{"tag": t, "label": LOOK_LABELS[t], "group": LOOK_GROUP[t], "count": counts[t]} for t in LOOK_LABELS if counts.get(t)]}
+            "tags": [{"tag": t, "label": LOOK_LABELS[t], "group": LOOK_GROUP[t], "count": shown.get(t, 0)} for t in LOOK_LABELS if counts.get(t)]}
 
 
 async def run(ctx) -> dict[str, Any]:

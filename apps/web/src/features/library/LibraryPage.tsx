@@ -24,6 +24,7 @@ import { VideoCard, VideoCardSkeleton } from './VideoCard'
 import { useDebounced } from './useDebounced'
 import { useFitGrid } from './fitGrid'
 import { useLibraryStore } from './store'
+import { SpinCounter } from '@/design/SpinCounter'
 
 const GRID = 'grid gap-4'
 
@@ -90,7 +91,7 @@ export function LibraryPage() {
           <h2 className="mb-4 flex items-baseline gap-2.5 text-xl font-extrabold tracking-tight">
             Library
             <span className="text-[13px] font-normal text-muted">
-              {library.data.total.toLocaleString()} videos · {selected.length} channel{selected.length === 1 ? '' : 's'}
+              <SpinCounter value={library.data.total} /> videos · {selected.length} channel{selected.length === 1 ? '' : 's'}
             </span>
           </h2>
           <ActiveFilters />

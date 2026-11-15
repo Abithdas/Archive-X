@@ -25,6 +25,7 @@ import { useAppearance, useAppearanceActions, useAppearanceSync } from '@/featur
 import { scaleForKey } from '@/theme/themes'
 import { IconSwap } from '@/design/IconSwap'
 import { useScrollMemory } from './scrollMemory'
+import { SubtleNumber } from '@/design/SubtleNumber'
 
 interface NavDef {
   to: string
@@ -58,7 +59,7 @@ function ActivityBadge({ count, className }: { count: number; className?: string
   if (!count) return null
   return (
     <span role="status" aria-label={runningLabel(count)} title={runningLabel(count)} className={cn('relative grid h-[18px] min-w-[18px] motion-safe:animate-pulse place-items-center rounded-full bg-accent px-1 text-[11px] font-bold leading-none text-accent-fg', className)}>
-      {count > 99 ? '99+' : count}
+      {count > 99 ? '99+' : <SubtleNumber value={count} />}
     </span>
   )
 }
@@ -104,7 +105,7 @@ function StorageCard() {
       </div>
       {data ? (
         <>
-          <div>App data: {formatBytes(data.bytes)} · {data.files.toLocaleString()} files</div>
+          <div>App data: {formatBytes(data.bytes)} · <SubtleNumber value={data.files} /> files</div>
           <div>{d?.total ? `${formatBytes(d.free)} free of ${formatBytes(d.total)}` : 'Drive capacity unavailable'}</div>
         </>
       ) : (
