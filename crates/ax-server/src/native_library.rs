@@ -311,3 +311,26 @@ impl Native {
         }
     }
 }
+
+impl Native {
+    /// `GET /api/studios/{id}/metadata`: the studio row and what each provider told us about it.
+    pub(crate) async fn studio_metadata(&self, id: i64, request: &HeaderMap) -> Option<Response<Body>> {
+        let read = self.db.read(move |c| {
+            let Some(entity) = rows_with(c, "SELECT * FROM studios WHERE id=?", [id])?.into_iter().next() else { return Ok(None) };
+            let providers = rows_with(
+                c,
+                "SELECT provider,provider_id,normalized,fetched_at,updated_at FROM entity_metadata WHERE entity_type='studio' AND entity_id=? ORDER BY provider",
+                [id],
+            )?;
+            Ok(Some(serde_json::json!({ "entity": entity, "providers": providers })))
+        });
+        match read.await {
+            Ok(Some(v)) => Some(json_response(request, serde_json::to_vec(&v).unwrap_or_default())),
+            Ok(None) => Some(json_error(StatusCode::NOT_FOUND, "Studio not found")),
+            Err(e) => {
+                tracing::error!("studio metadata: {e}");
+                Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The studio could not be read"))
+            }
+        }
+    }
+}

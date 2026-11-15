@@ -127,7 +127,7 @@ async fn door(extra: impl FnOnce(&Connection)) -> Door {
         print_ready: false,
         limits: Limits::default(),
         db: Some(dbpath),
-        native_routes: vec!["library_list".into(), "tags_list".into()],
+        native_routes: vec!["library_list".into(), "tags_list".into(), "studio_metadata".into()],
         session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {
@@ -242,4 +242,25 @@ async fn tags_are_listed_by_use_and_a_search_goes_to_python() {
     let brief = json(&get(d.addr, "/api/tags?brief=1&limit=320", "").await);
     assert_eq!(keys(&brief[0]), ["id", "name", "video_count"]);
     assert_eq!(json(&get(d.addr, "/api/tags?q=tag", "").await)["from"], "python");
+}
+
+#[tokio::test]
+async fn a_studios_metadata_has_the_row_and_its_providers() {
+    let d = door(|c| {
+        c.execute_batch(
+            "CREATE TABLE IF NOT EXISTS entity_metadata (entity_type TEXT, entity_id INTEGER, provider TEXT, provider_id TEXT, normalized TEXT, fetched_at TEXT, updated_at TEXT);",
+        )
+        .unwrap();
+        c.execute("INSERT INTO entity_metadata VALUES ('studio',1,'tpdb','t1','{}','f','u'),('studio',1,'stashdb','s1','{}','f','u')", []).unwrap();
+    })
+    .await;
+    let r = get(d.addr, "/api/studios/1/metadata", "").await;
+    assert_eq!((r.status, r.headers["x-served-by"].as_str()), (200, "rust"));
+    let v = json(&r);
+    assert_eq!(keys(&v), ["entity", "providers"]);
+    assert_eq!(v["entity"]["name"], "Studio One");
+    let p: Vec<&str> = v["providers"].as_array().unwrap().iter().map(|x| x["provider"].as_str().unwrap()).collect();
+    assert_eq!(p, ["stashdb", "tpdb"], "ordered by provider");
+    let missing = get(d.addr, "/api/studios/99/metadata", "").await;
+    assert_eq!((missing.status, json(&missing)["detail"].as_str().map(String::from)), (404, Some("Studio not found".into())));
 }

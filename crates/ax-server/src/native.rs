@@ -21,7 +21,8 @@ use crate::optimize::json_response;
 use crate::proxy::{Body, Proxy};
 
 /// Every route that can be answered here, by name.
-pub const ROUTES: &[&str] = &["photos_channels", "performers_list", "face_groups_fast", "channel_videos", "studio_videos", "tag_videos", "library_list", "tags_list"];
+pub const ROUTES: &[&str] =
+    &["photos_channels", "performers_list", "face_groups_fast", "channel_videos", "studio_videos", "tag_videos", "library_list", "tags_list", "studio_metadata"];
 
 /// A request that belongs to an enabled native route.
 pub struct Match {
@@ -86,6 +87,7 @@ impl Native {
                     ("channels", "videos") => "channel_videos",
                     ("studios", "videos") => "studio_videos",
                     ("tags", "videos") => "tag_videos",
+                    ("studios", "metadata") => "studio_metadata",
                     _ => return None,
                 };
                 // FastAPI's `int` accepts more forms (signs, spaces, other digits); only plain integers are handled here, the rest goes to Python.
@@ -119,6 +121,11 @@ impl Native {
             }
             "face_groups_fast" => {
                 let resp = self.face_groups_fast(query, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "studio_metadata" => {
+                let resp = self.studio_metadata(m.id?, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }
