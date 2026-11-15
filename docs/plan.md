@@ -17,7 +17,9 @@ How to read it: Part 1 says where the code stands, with numbers measured for thi
 | C7 prune the documents | **Done** (`docs/README.md` is the index) |
 | R2 one Cargo workspace | **Done** (root `Cargo.toml`, one `Cargo.lock`, one `target/`); the Windows installer build under it is checked by the next Desktop run |
 | R1 folder layout | **Done in a reduced form**: `apps/web`, `apps/desktop`, `crates/` (all Rust libraries and the front door), `native/axplayer`, `packaging/`. The Python tree (`telegram_archive/`, `run.py`, `requirements.txt`) was **not** moved: it is being deleted, and moving it would touch every test for no lasting benefit |
-| R3 to R6, Phase 0 onward | Not started |
+| R4 standards (part) | **Rust done**: `rustfmt.toml` (wide lines, matching the existing style), the whole Rust code formatted in one mechanical commit, `cargo fmt --check` in CI and the `justfile`, `.editorconfig`. **Not done, on purpose**: Python formatting (the code is being deleted) and web formatting (no formatter or eslint config exists; adding one would reformat 29,000 lines for little gain) |
+| R6 one CI pipeline | Skipped: the four workflows (CI, Desktop installer, native player engine, dependency scan) each have a different trigger and cost, so merging them would only make every push slower |
+| R3, R5 licence, Phase 0 onward | Not started |
 
 ---
 

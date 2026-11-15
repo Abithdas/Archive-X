@@ -24,7 +24,12 @@ const AUTH: &str = "Cookie: session=tok\r\n";
 type B = BoxBody<Bytes, Infallible>;
 
 fn create_table(c: &Connection, snapshot: &serde_json::Value, table: &str) {
-    let cols: Vec<String> = snapshot[table].as_array().unwrap().iter().map(|col| format!("\"{}\" {}", col["name"].as_str().unwrap(), col["type"].as_str().unwrap())).collect();
+    let cols: Vec<String> = snapshot[table]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|col| format!("\"{}\" {}", col["name"].as_str().unwrap(), col["type"].as_str().unwrap()))
+        .collect();
     c.execute_batch(&format!("CREATE TABLE \"{table}\" ({});", cols.join(", "))).unwrap();
 }
 
@@ -34,13 +39,27 @@ fn database(extra: impl FnOnce(&Connection)) -> (tempfile::TempDir, std::path::P
     let c = Connection::open(&path).unwrap();
     c.pragma_update(None, "journal_mode", "WAL").unwrap();
     let snapshot: serde_json::Value = serde_json::from_str(include_str!("../../ax-db/schema/schema.json")).unwrap();
-    for t in ["web_sessions", "performers", "media", "channels", "video_performers", "local_video_performers", "studios", "video_studios", "tags", "video_tags", "entity_favorites", "studio_image_cache"] {
+    for t in [
+        "web_sessions",
+        "performers",
+        "media",
+        "channels",
+        "video_performers",
+        "local_video_performers",
+        "studios",
+        "video_studios",
+        "tags",
+        "video_tags",
+        "entity_favorites",
+        "studio_image_cache",
+    ] {
         create_table(&c, &snapshot, t);
     }
     let far = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() + 86_400.0;
     c.execute("INSERT INTO web_sessions VALUES (?1,'admin',?2)", (token_hash("tok"), far)).unwrap();
     // the library views are views in the real database
-    c.execute_batch("CREATE VIEW archive_x_library_media AS SELECT m.*, 1 AS library_ready FROM media m; CREATE VIEW archive_x_published_media AS SELECT m.* FROM media m;").unwrap();
+    c.execute_batch("CREATE VIEW archive_x_library_media AS SELECT m.*, 1 AS library_ready FROM media m; CREATE VIEW archive_x_published_media AS SELECT m.* FROM media m;")
+        .unwrap();
     c.execute("INSERT INTO channels(id,telegram_id,title) VALUES (1,'-1001','Main')", []).unwrap();
     //  1: title and file name, thumbnail, newest      2: empty title, no thumbnail      3: channel without a row, no title and no file name
     //  4: deleted at the source (the studio list hides it, the others do not)
@@ -50,7 +69,11 @@ fn database(extra: impl FnOnce(&Connection)) -> (tempfile::TempDir, std::path::P
         (3, "-1002", 13, "", None, "2025-01-01", "ACTIVE", None),
         (4, "-1001", 14, "d.mp4", Some("Deleted"), "2024-12-01", "SOURCE_DELETED", Some(0)),
     ] {
-        c.execute("INSERT INTO media(id,source_channel,source_message_id,filename,title,upload_date,status,thumbnail_message_id) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)", (id, ch, msg, filename, title, date, status, thumb)).unwrap();
+        c.execute(
+            "INSERT INTO media(id,source_channel,source_message_id,filename,title,upload_date,status,thumbnail_message_id) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
+            (id, ch, msg, filename, title, date, status, thumb),
+        )
+        .unwrap();
     }
     c.execute("UPDATE media SET site_url='  https://site/1  ', updated_at='2025-03-02' WHERE id=1", []).unwrap();
     c.execute("INSERT INTO performers(id,name) VALUES (1,'Ava'),(2,'Mia')", []).unwrap();
@@ -94,10 +117,22 @@ async fn door(extra: impl FnOnce(&Connection)) -> Door {
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
     let cfg = Arc::new(Config {
-        listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false,
-        limits: Limits::default(), db: Some(dbpath), native_routes: vec!["channel_videos".into(), "studio_videos".into(), "tag_videos".into()], session_touch_interval: Duration::from_secs(300),
+        listen: addr,
+        upstream,
+        upstream_plain: true,
+        dist: dist.path().to_path_buf(),
+        cert: None,
+        key: None,
+        proxy_key: KEY.into(),
+        print_ready: false,
+        limits: Limits::default(),
+        db: Some(dbpath),
+        native_routes: vec!["channel_videos".into(), "studio_videos".into(), "tag_videos".into()],
+        session_touch_interval: Duration::from_secs(300),
     });
-    tokio::spawn(async move { let _ = server::serve(l, cfg, std::future::pending()).await; });
+    tokio::spawn(async move {
+        let _ = server::serve(l, cfg, std::future::pending()).await;
+    });
     Door { addr, _keep: vec![dist, dbdir] }
 }
 
@@ -123,7 +158,9 @@ async fn get(addr: SocketAddr, path: &str, extra: &str) -> Reply {
         let mut b = &body[..];
         while let Some(p) = b.windows(2).position(|w| w == b"\r\n") {
             let n = usize::from_str_radix(std::str::from_utf8(&b[..p]).unwrap().trim(), 16).unwrap_or(0);
-            if n == 0 { break; }
+            if n == 0 {
+                break;
+            }
             out.extend_from_slice(&b[p + 2..p + 2 + n]);
             b = &b[p + 2 + n + 2..];
         }
@@ -151,7 +188,10 @@ async fn the_channel_list_is_shaped_like_pythons() {
     assert_eq!((r.status, r.headers["x-served-by"].as_str()), (200, "rust"));
     let v = json(&r);
     assert_eq!(keys(&v), ["channel_id", "title", "count", "ready_count", "videos", "catalogued_only", "published_only"]);
-    assert_eq!((v["channel_id"].as_i64(), v["title"].as_str(), v["count"].as_i64(), v["ready_count"].as_i64()), (Some(-1001), Some("Main"), Some(3), Some(3)));
+    assert_eq!(
+        (v["channel_id"].as_i64(), v["title"].as_str(), v["count"].as_i64(), v["ready_count"].as_i64()),
+        (Some(-1001), Some("Main"), Some(3), Some(3))
+    );
     assert_eq!((v["catalogued_only"].as_bool(), v["published_only"].as_bool()), (Some(false), Some(true)));
     // newest first; this list also holds the video deleted at the source
     assert_eq!(names(&v), ["Alpha title", "b.mp4", "Deleted"], "an empty title falls back to the file name");
@@ -163,7 +203,10 @@ async fn the_channel_list_is_shaped_like_pythons() {
     assert_eq!(first["thumbnail_id"], 111);
     assert_eq!(v["videos"][1]["thumbnail_id"], 12, "no thumbnail message: the video's own message id");
     assert_eq!(v["videos"][2]["thumbnail_id"], 14, "a thumbnail id of 0 counts as none, as in Python");
-    assert_eq!((first["library_ready"].as_i64(), first["library_state"].as_str(), first["library_snapshot_state"].as_str()), (Some(1), Some("Ready"), Some("READY")));
+    assert_eq!(
+        (first["library_ready"].as_i64(), first["library_state"].as_str(), first["library_snapshot_state"].as_str()),
+        (Some(1), Some("Ready"), Some("READY"))
+    );
     let mut performers: Vec<&str> = first["performers"].as_array().unwrap().iter().map(|x| x.as_str().unwrap()).collect();
     performers.sort();
     assert_eq!(performers, ["Ava", "Mia"], "Mia is a performer and a local performer: listed once");
@@ -197,7 +240,10 @@ async fn the_studio_list_has_the_site_and_hides_deleted_videos() {
     let site = &v["site"];
     let site_keys = keys(site);
     assert_eq!(&site_keys[site_keys.len() - 2..], ["image_cache_updated_at", "favorite"]);
-    assert_eq!((site["name"].as_str(), site["favorite"].as_bool(), site["image_cache_updated_at"].as_str()), (Some("Studio One"), Some(true), Some("2025-03-05")));
+    assert_eq!(
+        (site["name"].as_str(), site["favorite"].as_bool(), site["image_cache_updated_at"].as_str()),
+        (Some("Studio One"), Some(true), Some("2025-03-05"))
+    );
     assert_eq!(v["site_url"], "https://site/1", "the newest non-blank site link, trimmed");
     assert_eq!(names(&v), ["Alpha title", "b.mp4"], "the video deleted at the source is not listed");
     let first = &v["videos"][0];
@@ -205,7 +251,10 @@ async fn the_studio_list_has_the_site_and_hides_deleted_videos() {
     assert_eq!(first["channel_title"], "Main");
     assert!(first["local_performers"].is_array());
     let other = json(&get(d.addr, "/api/studios/2/videos", "").await);
-    assert_eq!((other["site"]["favorite"].as_bool(), other["site"]["image_cache_updated_at"].is_null(), other["site_url"].as_str()), (Some(false), true, Some("")));
+    assert_eq!(
+        (other["site"]["favorite"].as_bool(), other["site"]["image_cache_updated_at"].is_null(), other["site_url"].as_str()),
+        (Some(false), true, Some(""))
+    );
     assert!(other["videos"][0]["channel_title"].is_null(), "a channel without a row has no title");
     let r = get(d.addr, "/api/studios/99/videos", "").await;
     assert_eq!((r.status, String::from_utf8(r.body).unwrap().as_str()), (404, r#"{"detail":"Site not found"}"#));
@@ -231,8 +280,16 @@ async fn the_tag_list_keeps_its_own_shape() {
 #[tokio::test]
 async fn odd_ids_and_the_studio_performer_filter_are_left_to_python() {
     let d = door(|_| {}).await;
-    for p in ["/api/tags/%2B1/videos", "/api/tags/%201/videos", "/api/tags/1.0/videos", "/api/tags/abc/videos", "/api/tags//videos", "/api/tags/1/videos/extra",
-              "/api/studios/1/videos?performer_id=2", "/api/channels/9999999999999999999/videos"] {
+    for p in [
+        "/api/tags/%2B1/videos",
+        "/api/tags/%201/videos",
+        "/api/tags/1.0/videos",
+        "/api/tags/abc/videos",
+        "/api/tags//videos",
+        "/api/tags/1/videos/extra",
+        "/api/studios/1/videos?performer_id=2",
+        "/api/channels/9999999999999999999/videos",
+    ] {
         assert_eq!(get(d.addr, p, "").await.headers["x-served-by"], "python", "{p}");
     }
     for p in ["/api/studios/1/videos?other=1", "/api/tags/1/videos?x=1", "/api/channels/-001001/videos"] {

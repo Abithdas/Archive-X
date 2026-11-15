@@ -21,6 +21,7 @@ test-web:
 
 # Type checks and lints.
 lint:
+    cargo fmt --all --check
     cargo clippy --workspace --all-targets -- -D warnings
     cd apps/web && npm run typecheck
 

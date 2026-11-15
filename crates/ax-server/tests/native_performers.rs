@@ -24,7 +24,12 @@ const AUTH: &str = "Cookie: session=tok\r\n";
 type B = BoxBody<Bytes, Infallible>;
 
 fn create_table(c: &Connection, snapshot: &serde_json::Value, table: &str) {
-    let cols: Vec<String> = snapshot[table].as_array().unwrap().iter().map(|col| format!("\"{}\" {}", col["name"].as_str().unwrap(), col["type"].as_str().unwrap())).collect();
+    let cols: Vec<String> = snapshot[table]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|col| format!("\"{}\" {}", col["name"].as_str().unwrap(), col["type"].as_str().unwrap()))
+        .collect();
     c.execute_batch(&format!("CREATE TABLE \"{table}\" ({});", cols.join(", "))).unwrap();
 }
 
@@ -42,8 +47,14 @@ fn database(extra: impl FnOnce(&Connection)) -> (tempfile::TempDir, std::path::P
     c.execute_batch("CREATE TABLE archive_x_library_media (id INTEGER);").unwrap(); // a view in the real database
     let far = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() + 86_400.0;
     c.execute("INSERT INTO web_sessions VALUES (?1,'admin',?2)", (token_hash("tok"), far)).unwrap();
-    for (id, name, gender, image) in [(1, "Ava Stone", "female", Some("https://img/a.jpg")), (2, "Mia Rivera", "Trans woman", None), (3, "Zed", "nonbinary", None), (4, "Unknown Performer", "", None),
-                                      (5, "No Videos", "female", None), (6, "Ana", "MALE ", None)] {
+    for (id, name, gender, image) in [
+        (1, "Ava Stone", "female", Some("https://img/a.jpg")),
+        (2, "Mia Rivera", "Trans woman", None),
+        (3, "Zed", "nonbinary", None),
+        (4, "Unknown Performer", "", None),
+        (5, "No Videos", "female", None),
+        (6, "Ana", "MALE ", None),
+    ] {
         c.execute("INSERT INTO performers(id,name,image,gender) VALUES (?1,?2,?3,?4)", (id, name, image, gender)).unwrap();
     }
     for v in 1..=4 {
@@ -87,10 +98,22 @@ async fn door(extra: impl FnOnce(&Connection)) -> Door {
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
     let cfg = Arc::new(Config {
-        listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false,
-        limits: Limits::default(), db: Some(dbpath), native_routes: vec!["performers_list".into()], session_touch_interval: Duration::from_secs(300),
+        listen: addr,
+        upstream,
+        upstream_plain: true,
+        dist: dist.path().to_path_buf(),
+        cert: None,
+        key: None,
+        proxy_key: KEY.into(),
+        print_ready: false,
+        limits: Limits::default(),
+        db: Some(dbpath),
+        native_routes: vec!["performers_list".into()],
+        session_touch_interval: Duration::from_secs(300),
     });
-    tokio::spawn(async move { let _ = server::serve(l, cfg, std::future::pending()).await; });
+    tokio::spawn(async move {
+        let _ = server::serve(l, cfg, std::future::pending()).await;
+    });
     Door { addr, _keep: vec![dist, dbdir] }
 }
 
@@ -116,7 +139,9 @@ async fn get(addr: SocketAddr, path: &str, extra: &str) -> Reply {
         let mut b = &body[..];
         while let Some(p) = b.windows(2).position(|w| w == b"\r\n") {
             let n = usize::from_str_radix(std::str::from_utf8(&b[..p]).unwrap().trim(), 16).unwrap_or(0);
-            if n == 0 { break; }
+            if n == 0 {
+                break;
+            }
             out.extend_from_slice(&b[p + 2..p + 2 + n]);
             b = &b[p + 2 + n + 2..];
         }
@@ -192,9 +217,17 @@ async fn a_search_an_empty_catalogue_and_an_empty_answer_are_passed_to_python() 
     assert_eq!(get(d.addr, "/api/performers?q=ava", "").await.headers["x-served-by"], "python");
     assert_eq!(get(d.addr, "/api/performers?q=%20%20", "").await.headers["x-served-by"], "rust", "blank search text is no search");
     assert_eq!(get(d.addr, "/api/performers?q=", "").await.headers["x-served-by"], "rust");
-    let empty = door(|c| { c.execute("DELETE FROM performers", []).unwrap(); }).await;
+    let empty = door(|c| {
+        c.execute("DELETE FROM performers", []).unwrap();
+    })
+    .await;
     assert_eq!(get(empty.addr, "/api/performers", "").await.headers["x-served-by"], "python", "Python fills an empty catalogue in; Rust never writes");
-    let none_listed = door(|c| { c.execute("DELETE FROM video_performers", []).unwrap(); c.execute("DELETE FROM local_video_performers", []).unwrap(); c.execute("DELETE FROM performers WHERE name='Unknown Performer'", []).unwrap(); }).await;
+    let none_listed = door(|c| {
+        c.execute("DELETE FROM video_performers", []).unwrap();
+        c.execute("DELETE FROM local_video_performers", []).unwrap();
+        c.execute("DELETE FROM performers WHERE name='Unknown Performer'", []).unwrap();
+    })
+    .await;
     assert_eq!(get(none_listed.addr, "/api/performers", "").await.headers["x-served-by"], "python", "an empty answer is re-checked by Python");
 }
 

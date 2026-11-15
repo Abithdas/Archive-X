@@ -54,11 +54,7 @@ fn locate_front_door(app: &tauri::AppHandle) -> Option<FrontDoorOptions> {
 }
 
 fn fail(app: &tauri::AppHandle, message: String) {
-    app.dialog()
-        .message(message)
-        .title("Archive X could not start")
-        .kind(MessageDialogKind::Error)
-        .blocking_show();
+    app.dialog().message(message).title("Archive X could not start").kind(MessageDialogKind::Error).blocking_show();
     app.exit(1);
 }
 

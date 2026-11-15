@@ -28,7 +28,12 @@ type B = BoxBody<Bytes, Infallible>;
 /// Table layouts straight from the committed snapshot of the Python schema (columns and types; constraints left out so the
 /// test can insert only what it needs).
 fn create_table(c: &Connection, snapshot: &serde_json::Value, table: &str) {
-    let cols: Vec<String> = snapshot[table].as_array().unwrap().iter().map(|col| format!("\"{}\" {}", col["name"].as_str().unwrap(), col["type"].as_str().unwrap())).collect();
+    let cols: Vec<String> = snapshot[table]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|col| format!("\"{}\" {}", col["name"].as_str().unwrap(), col["type"].as_str().unwrap()))
+        .collect();
     c.execute_batch(&format!("CREATE TABLE \"{table}\" ({});", cols.join(", "))).unwrap();
 }
 
@@ -48,8 +53,11 @@ fn database(with_channels: bool) -> (tempfile::TempDir, std::path::PathBuf) {
     c.execute("INSERT INTO web_sessions VALUES (?1,'admin',?2)", (token_hash("tok"), far())).unwrap();
     if with_channels {
         // titles chosen to prove the order is case-insensitive for ASCII only (SQLite's NOCASE does not fold \u{c9}, so \"Zed\" comes before \"\u{c9}mile\", in Python too); one without scan state; one with a non-ASCII name
-        for (id, title, user, image) in [("-1002", "beta", "b", None), ("-1001", "Alpha", "a", Some("manual-upload:x")), ("-1003", "Émile ☕", "e", None), ("-1004", "Zed", "z", None)] {
-            c.execute("INSERT INTO channels(telegram_id,title,username,image,updated_at) VALUES (?1,?2,?3,?4,'2025-01-01')", (id, title, user, image)).unwrap();
+        for (id, title, user, image) in
+            [("-1002", "beta", "b", None), ("-1001", "Alpha", "a", Some("manual-upload:x")), ("-1003", "Émile ☕", "e", None), ("-1004", "Zed", "z", None)]
+        {
+            c.execute("INSERT INTO channels(telegram_id,title,username,image,updated_at) VALUES (?1,?2,?3,?4,'2025-01-01')", (id, title, user, image))
+                .unwrap();
         }
         let mut id = 0;
         for (ch, n) in [("-1001", 3), ("-1002", 1), ("-1003", 2), ("-9999", 2)] {
@@ -58,8 +66,16 @@ fn database(with_channels: bool) -> (tempfile::TempDir, std::path::PathBuf) {
                 c.execute("INSERT INTO photo_library_items(id,channel_id) VALUES (?1,?2)", (id, ch)).unwrap();
             }
         }
-        c.execute("INSERT INTO photo_library_scan_state(channel_id,status,last_scan_at,messages_scanned,photos_found,last_error) VALUES ('-1001','COMPLETE','2025-01-02',3,3,'')", []).unwrap();
-        c.execute("INSERT INTO photo_library_scan_state(channel_id,status,last_scan_at,messages_scanned,photos_found,last_error) VALUES ('-1002','FAILED',NULL,0,0,'flood wait')", []).unwrap();
+        c.execute(
+            "INSERT INTO photo_library_scan_state(channel_id,status,last_scan_at,messages_scanned,photos_found,last_error) VALUES ('-1001','COMPLETE','2025-01-02',3,3,'')",
+            [],
+        )
+        .unwrap();
+        c.execute(
+            "INSERT INTO photo_library_scan_state(channel_id,status,last_scan_at,messages_scanned,photos_found,last_error) VALUES ('-1002','FAILED',NULL,0,0,'flood wait')",
+            [],
+        )
+        .unwrap();
     }
     (dir, path)
 }
@@ -87,7 +103,11 @@ async fn backend_handler(seen: Arc<Seen>, req: Request<Incoming>) -> Result<Resp
         seen.ping_peers.lock().unwrap().push(req.headers().get("x-archive-x-peer").and_then(|v| v.to_str().ok()).unwrap_or("").to_string());
         return Ok(Response::builder().header("content-type", "application/json").body(Full::new(Bytes::from(r#"{"ok":true}"#)).boxed()).unwrap());
     }
-    Ok(Response::builder().status(200).header("content-type", "application/json").body(Full::new(Bytes::from(r#"{"from":"python"}"#)).boxed()).unwrap())
+    Ok(Response::builder()
+        .status(200)
+        .header("content-type", "application/json")
+        .body(Full::new(Bytes::from(r#"{"from":"python"}"#)).boxed())
+        .unwrap())
 }
 
 async fn start_backend() -> (SocketAddr, Arc<Seen>) {
@@ -120,10 +140,22 @@ async fn start_door(routes: &[&str], with_channels: bool, touch: Duration) -> (D
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
     let cfg = Arc::new(Config {
-        listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false,
-        limits: Limits::default(), db: Some(dbpath), native_routes: routes.iter().map(|s| s.to_string()).collect(), session_touch_interval: touch,
+        listen: addr,
+        upstream,
+        upstream_plain: true,
+        dist: dist.path().to_path_buf(),
+        cert: None,
+        key: None,
+        proxy_key: KEY.into(),
+        print_ready: false,
+        limits: Limits::default(),
+        db: Some(dbpath),
+        native_routes: routes.iter().map(|s| s.to_string()).collect(),
+        session_touch_interval: touch,
     });
-    tokio::spawn(async move { let _ = server::serve(l, cfg, std::future::pending()).await; });
+    tokio::spawn(async move {
+        let _ = server::serve(l, cfg, std::future::pending()).await;
+    });
     (Door { addr, _keep: vec![dist, dbdir] }, seen)
 }
 
@@ -149,7 +181,9 @@ async fn get(addr: SocketAddr, path: &str, extra: &str) -> Reply {
         let mut b = &body[..];
         while let Some(p) = b.windows(2).position(|w| w == b"\r\n") {
             let n = usize::from_str_radix(std::str::from_utf8(&b[..p]).unwrap().trim(), 16).unwrap_or(0);
-            if n == 0 { break; }
+            if n == 0 {
+                break;
+            }
             out.extend_from_slice(&b[p + 2..p + 2 + n]);
             b = &b[p + 2 + n + 2..];
         }
@@ -263,8 +297,23 @@ async fn an_unreadable_library_is_a_503_not_a_wrong_answer() {
     std::fs::write(dist.path().join("index.html"), "x").unwrap();
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
-    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false, limits: Limits::default(), db: Some(path), native_routes: vec!["photos_channels".into()], session_touch_interval: Duration::from_secs(300) });
-    tokio::spawn(async move { let _ = server::serve(l, cfg, std::future::pending()).await; });
+    let cfg = Arc::new(Config {
+        listen: addr,
+        upstream,
+        upstream_plain: true,
+        dist: dist.path().to_path_buf(),
+        cert: None,
+        key: None,
+        proxy_key: KEY.into(),
+        print_ready: false,
+        limits: Limits::default(),
+        db: Some(path),
+        native_routes: vec!["photos_channels".into()],
+        session_touch_interval: Duration::from_secs(300),
+    });
+    tokio::spawn(async move {
+        let _ = server::serve(l, cfg, std::future::pending()).await;
+    });
     let r = get(addr, "/api/photos/channels", AUTH).await;
     assert_eq!(r.status, 503);
     assert!(String::from_utf8_lossy(&r.body).contains("could not be read"));
@@ -273,8 +322,18 @@ async fn an_unreadable_library_is_a_503_not_a_wrong_answer() {
 #[test]
 fn an_unknown_route_name_is_refused_at_start() {
     let proxy = ax_server::proxy::Proxy::new(&Config {
-        listen: "127.0.0.1:0".parse().unwrap(), upstream: "127.0.0.1:1".parse().unwrap(), upstream_plain: true, dist: ".".into(), cert: None, key: None, proxy_key: KEY.into(),
-        print_ready: false, limits: Limits::default(), db: None, native_routes: vec![], session_touch_interval: Duration::from_secs(300),
+        listen: "127.0.0.1:0".parse().unwrap(),
+        upstream: "127.0.0.1:1".parse().unwrap(),
+        upstream_plain: true,
+        dist: ".".into(),
+        cert: None,
+        key: None,
+        proxy_key: KEY.into(),
+        print_ready: false,
+        limits: Limits::default(),
+        db: None,
+        native_routes: vec![],
+        session_touch_interval: Duration::from_secs(300),
     });
     let e = native::Native::new(&["nonsense".to_string()], None, proxy, Duration::from_secs(1)).err().unwrap();
     assert!(e.contains("unknown native route") && e.contains("photos_channels"), "{e}");

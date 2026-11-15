@@ -139,8 +139,23 @@ mod fake {
         let dir = tempfile::tempdir().unwrap();
         let keys = dir.path().join("keys.txt");
         let args = dir.path().join("args.txt");
-        let backend = script(&dir, "backend.sh", &format!(r#"echo "$ARCHIVE_X_PROXY_KEY" > {k}; echo "ARCHIVE_X_READY {{\"port\": 4242, \"pid\": $$, \"version\": \"t\"}}"; sleep 5"#, k = keys.display()));
-        let front = script(&dir, "front.sh", &format!(r#"echo "$ARCHIVE_X_PROXY_KEY" >> {k}; echo "$@" > {a}; echo "ARCHIVE_X_READY {{\"port\": 5151, \"pid\": $$}}"; sleep 5"#, k = keys.display(), a = args.display()));
+        let backend = script(
+            &dir,
+            "backend.sh",
+            &format!(
+                r#"echo "$ARCHIVE_X_PROXY_KEY" > {k}; echo "ARCHIVE_X_READY {{\"port\": 4242, \"pid\": $$, \"version\": \"t\"}}"; sleep 5"#,
+                k = keys.display()
+            ),
+        );
+        let front = script(
+            &dir,
+            "front.sh",
+            &format!(
+                r#"echo "$ARCHIVE_X_PROXY_KEY" >> {k}; echo "$@" > {a}; echo "ARCHIVE_X_READY {{\"port\": 5151, \"pid\": $$}}"; sleep 5"#,
+                k = keys.display(),
+                a = args.display()
+            ),
+        );
         let dist = dir.path().join("dist");
         let mut b = spawn(&LaunchOptions {
             exe: backend,
@@ -169,7 +184,11 @@ mod fake {
     #[test]
     fn without_a_front_door_nothing_changes() {
         let dir = tempfile::tempdir().unwrap();
-        let exe = script(&dir, "plain.sh", r#"[ -z "$ARCHIVE_X_PROXY_KEY" ] || echo "UNEXPECTED KEY" >&2; echo "ARCHIVE_X_READY {\"port\": 4343, \"pid\": $$}"; sleep 3"#);
+        let exe = script(
+            &dir,
+            "plain.sh",
+            r#"[ -z "$ARCHIVE_X_PROXY_KEY" ] || echo "UNEXPECTED KEY" >&2; echo "ARCHIVE_X_READY {\"port\": 4343, \"pid\": $$}"; sleep 3"#,
+        );
         let mut b = spawn(&LaunchOptions { exe, ready_timeout: Some(Duration::from_secs(10)), ..Default::default() }).unwrap();
         assert_eq!(b.port(), 4343);
         std::thread::sleep(Duration::from_millis(200));
@@ -205,8 +224,7 @@ fn real_frozen_backend_end_to_end() {
     let data = std::env::temp_dir().join(format!("axlauncher_{}", std::process::id()));
     std::fs::create_dir_all(&data).unwrap();
     let started = Instant::now();
-    let mut b = Backend::spawn(&LaunchOptions { exe: exe.into(), data_dir: Some(data.clone()), ..Default::default() })
-        .expect("backend should start");
+    let mut b = Backend::spawn(&LaunchOptions { exe: exe.into(), data_dir: Some(data.clone()), ..Default::default() }).expect("backend should start");
     println!("ready in {:.1}s on port {} (version {})", started.elapsed().as_secs_f32(), b.port(), b.ready.version);
     assert!(b.healthy(), "health endpoint");
     // Guard: the API refuses a request without the secret.
@@ -223,7 +241,6 @@ fn real_frozen_backend_end_to_end() {
     println!("graceful shutdown took {:.1}s", t.elapsed().as_secs_f32());
     let _ = std::fs::remove_dir_all(data);
 }
-
 
 /// Real backend with the Rust front door in front of it:
 /// ARCHIVE_X_BACKEND_EXE=... ARCHIVE_X_FRONT_DOOR_EXE=... ARCHIVE_X_DIST=apps/web/dist cargo test -- --ignored real_backend_with_front_door

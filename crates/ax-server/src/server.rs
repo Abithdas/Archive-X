@@ -6,8 +6,8 @@ use hyper::service::service_fn;
 use hyper::{Method, Request, Response};
 use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
 use std::time::Duration;
-use tokio::sync::{watch, Semaphore};
 use tokio::net::TcpListener;
+use tokio::sync::{watch, Semaphore};
 use tokio_rustls::TlsAcceptor;
 use tracing::{info, warn};
 
@@ -110,7 +110,10 @@ pub async fn handle(req: Request<hyper::body::Incoming>, peer: SocketAddr, tls: 
 
 pub async fn run(cfg: Arc<Config>) -> Result<(), String> {
     let listener = TcpListener::bind(cfg.listen).await.map_err(|e| format!("cannot listen on {}: {e}", cfg.listen))?;
-    serve(listener, cfg, async { let _ = tokio::signal::ctrl_c().await; }).await
+    serve(listener, cfg, async {
+        let _ = tokio::signal::ctrl_c().await;
+    })
+    .await
 }
 
 /// Serve on an already-bound listener until `shutdown` completes.
@@ -119,14 +122,24 @@ pub async fn serve(listener: TcpListener, cfg: Arc<Config>, shutdown: impl std::
 }
 
 /// `serve`, with the way the performer name list reaches the providers replaceable (tests use a fake).
-pub async fn serve_with_fetch(listener: TcpListener, cfg: Arc<Config>, shutdown: impl std::future::Future<Output = ()>, fetch: Option<Arc<dyn ax_names::Fetch>>) -> Result<(), String> {
+pub async fn serve_with_fetch(
+    listener: TcpListener,
+    cfg: Arc<Config>,
+    shutdown: impl std::future::Future<Output = ()>,
+    fetch: Option<Arc<dyn ax_names::Fetch>>,
+) -> Result<(), String> {
     let acceptor = match (&cfg.cert, &cfg.key) {
         (Some(c), Some(k)) => Some(tls_acceptor(c, k)?),
         _ => None,
     };
     tokio::pin!(shutdown);
     let proxy = Proxy::new(&cfg);
-    let database_routes: Vec<String> = cfg.native_routes.iter().filter(|r| !crate::names::ROUTES.contains(&r.as_str()) && !crate::learning::ROUTES.contains(&r.as_str())).cloned().collect();
+    let database_routes: Vec<String> = cfg
+        .native_routes
+        .iter()
+        .filter(|r| !crate::names::ROUTES.contains(&r.as_str()) && !crate::learning::ROUTES.contains(&r.as_str()))
+        .cloned()
+        .collect();
     let native = Native::new(&database_routes, cfg.db.as_deref(), proxy.clone(), cfg.session_touch_interval)?;
     let names = match fetch {
         Some(f) => Names::with_fetch(&cfg.native_routes, proxy.clone(), f, std::time::Duration::ZERO),
@@ -140,7 +153,13 @@ pub async fn serve_with_fetch(listener: TcpListener, cfg: Arc<Config>, shutdown:
         info!("answering these routes itself: {}", n.names().join(", "));
     }
     let state = Arc::new(State { proxy, native, names, learning, files: StaticFiles::new(cfg.dist.clone()) });
-    info!("front door on {}{} -> backend {}{}", if acceptor.is_some() { "https://" } else { "http://" }, listener.local_addr().map(|a| a.to_string()).unwrap_or_default(), if cfg.upstream_plain { "http://" } else { "https://" }, cfg.upstream);
+    info!(
+        "front door on {}{} -> backend {}{}",
+        if acceptor.is_some() { "https://" } else { "http://" },
+        listener.local_addr().map(|a| a.to_string()).unwrap_or_default(),
+        if cfg.upstream_plain { "http://" } else { "https://" },
+        cfg.upstream
+    );
     let tls_on = acceptor.is_some();
     if cfg.print_ready {
         let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);

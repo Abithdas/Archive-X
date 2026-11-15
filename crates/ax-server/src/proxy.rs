@@ -5,11 +5,11 @@
 //! (the Python side: core/http_middleware.TrustedProxyMiddleware). Anything the client sent under those names, and
 //! `X-Forwarded-For`, is removed first so it cannot be forged.
 
+use hyper::client::conn::http1::SendRequest;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Duration;
 use std::sync::Mutex;
-use hyper::client::conn::http1::SendRequest;
+use std::time::Duration;
 
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -147,7 +147,11 @@ impl Proxy {
     /// use (see native.rs). The answer is read and thrown away.
     pub async fn touch(self: &Arc<Self>, cookie: &str, peer: SocketAddr) -> Result<(), String> {
         let (status, _) = self.call(hyper::Method::GET, "/api/app/ping", Some(cookie), Some(peer.ip().to_string()), false).await?;
-        if status.is_success() { Ok(()) } else { Err(format!("the backend answered {status}")) }
+        if status.is_success() {
+            Ok(())
+        } else {
+            Err(format!("the backend answered {status}"))
+        }
     }
 
     /// Is this cookie a signed-in session? Asks the backend (which also counts it as use), so routes that need no database of their own
@@ -173,7 +177,11 @@ impl Proxy {
     async fn call(self: &Arc<Self>, method: hyper::Method, path: &str, cookie: Option<&str>, peer: Option<String>, internal: bool) -> Result<(StatusCode, Bytes), String> {
         let build = || -> Result<Request<Body>, String> {
             let empty: Body = http_body_util::Empty::new().map_err(|n| match n {}).boxed();
-            let mut b = Request::builder().method(method.clone()).uri(path).header(HOST, "127.0.0.1").header(HeaderName::from_static("x-archive-x-proxy-key"), self.key.clone());
+            let mut b = Request::builder()
+                .method(method.clone())
+                .uri(path)
+                .header(HOST, "127.0.0.1")
+                .header(HeaderName::from_static("x-archive-x-proxy-key"), self.key.clone());
             if let Some(c) = cookie {
                 b = b.header(hyper::header::COOKIE, c);
             }

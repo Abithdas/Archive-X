@@ -29,13 +29,23 @@ struct Backend {
 }
 
 fn reply(status: u16, body: &str) -> Response<B> {
-    Response::builder().status(status).header("content-type", "application/json").body(Full::new(Bytes::from(body.to_string())).boxed()).unwrap()
+    Response::builder()
+        .status(status)
+        .header("content-type", "application/json")
+        .body(Full::new(Bytes::from(body.to_string())).boxed())
+        .unwrap()
 }
 
 async fn backend_handler(b: Arc<Backend>, req: Request<Incoming>) -> Result<Response<B>, Infallible> {
     let h = |n: &str| req.headers().get(n).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
     Ok(match req.uri().path() {
-        "/api/app/ping" => if h("cookie").contains("session=ok") { reply(200, r#"{"ok":true}"#) } else { reply(401, r#"{"detail":"Authentication required"}"#) },
+        "/api/app/ping" => {
+            if h("cookie").contains("session=ok") {
+                reply(200, r#"{"ok":true}"#)
+            } else {
+                reply(401, r#"{"detail":"Authentication required"}"#)
+            }
+        }
         "/internal/provider-keys" => {
             if h("x-archive-x-internal") != KEY {
                 reply(404, r#"{"detail":"Not Found"}"#)
@@ -54,7 +64,9 @@ impl Fetch for FakeProviders {
     fn stashdb(&self, key: &str, _q: &str, v: &Value) -> Result<Value, String> {
         assert_eq!(key, "stash-key");
         let rows = if v["input"]["page"] == json!(1) {
-            vec![json!({ "id": "s1", "name": "Stacy Cruz", "aliases": ["Stacey Cruise"], "images": [{ "url": "https://img/1.jpg" }], "deleted": false, "updated": "2026-01-01T00:00:00Z" })]
+            vec![
+                json!({ "id": "s1", "name": "Stacy Cruz", "aliases": ["Stacey Cruise"], "images": [{ "url": "https://img/1.jpg" }], "deleted": false, "updated": "2026-01-01T00:00:00Z" }),
+            ]
         } else {
             vec![]
         };
@@ -91,8 +103,18 @@ async fn start(keys: (&str, &str)) -> Door {
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
     let cfg = Arc::new(Config {
-        listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false,
-        limits: Limits::default(), db: None, native_routes: vec!["name_search".into(), "name_list".into()], session_touch_interval: Duration::from_secs(300),
+        listen: addr,
+        upstream,
+        upstream_plain: true,
+        dist: dist.path().to_path_buf(),
+        cert: None,
+        key: None,
+        proxy_key: KEY.into(),
+        print_ready: false,
+        limits: Limits::default(),
+        db: None,
+        native_routes: vec!["name_search".into(), "name_list".into()],
+        session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {
         let fetch: Arc<dyn Fetch> = Arc::new(FakeProviders);
@@ -110,7 +132,9 @@ struct Reply {
 
 async fn send(addr: SocketAddr, method: &str, path: &str, extra: &str) -> Reply {
     let mut s = TcpStream::connect(addr).await.unwrap();
-    s.write_all(format!("{method} {path} HTTP/1.1\r\nHost: archive.test\r\nConnection: close\r\nContent-Length: 0\r\n{extra}\r\n").as_bytes()).await.unwrap();
+    s.write_all(format!("{method} {path} HTTP/1.1\r\nHost: archive.test\r\nConnection: close\r\nContent-Length: 0\r\n{extra}\r\n").as_bytes())
+        .await
+        .unwrap();
     let mut raw = Vec::new();
     s.read_to_end(&mut raw).await.unwrap();
     let split = raw.windows(4).position(|w| w == b"\r\n\r\n").unwrap();
@@ -140,7 +164,8 @@ const IN: &str = "Cookie: session=ok\r\n";
 async fn filled(d: &Door) {
     let r = send(d.addr, "POST", "/api/photos/faces/performers/name-list/sync", IN).await;
     assert_eq!(r.status, 200, "{}", r.body);
-    for _ in 0..600 {   // up to 30 s: a busy Windows runner has been seen to need more than 5
+    for _ in 0..600 {
+        // up to 30 s: a busy Windows runner has been seen to need more than 5
         let s = send(d.addr, "GET", "/api/photos/faces/performers/name-list", IN).await;
         let v: Value = serde_json::from_str(&s.body).unwrap();
         if v["total"].as_i64().unwrap_or(0) > 0 && v["providers"]["stashdb"]["status"] == "idle" {
@@ -187,7 +212,11 @@ async fn a_name_nobody_here_knows_goes_to_python_for_a_live_search() {
 #[tokio::test]
 async fn follows_the_backends_login_rules() {
     let d = start(("stash-key", "")).await;
-    for (m, p) in [("GET", "/api/photos/faces/performers/provider-search?q=stacy"), ("GET", "/api/photos/faces/performers/name-list"), ("POST", "/api/photos/faces/performers/name-list/sync")] {
+    for (m, p) in [
+        ("GET", "/api/photos/faces/performers/provider-search?q=stacy"),
+        ("GET", "/api/photos/faces/performers/name-list"),
+        ("POST", "/api/photos/faces/performers/name-list/sync"),
+    ] {
         let r = send(d.addr, m, p, "").await;
         assert_eq!(r.status, 401, "{m} {p}");
         assert_eq!(r.body, r#"{"detail":"Authentication required"}"#);

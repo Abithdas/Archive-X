@@ -8,9 +8,7 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
-        .init();
+    tracing_subscriber::fmt().with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into())).init();
     let cfg = match config::Config::from_env_and_args(std::env::args().skip(1)) {
         Ok(c) => c,
         Err(e) => {

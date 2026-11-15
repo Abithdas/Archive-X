@@ -98,7 +98,13 @@ impl StaticFiles {
         let file = self.lookup(path).await;
         let resp = match file {
             Some(real) => {
-                let cache = if trimmed == "sw.js" || trimmed == "manifest.webmanifest" { "no-cache" } else if first == "assets" { "public, max-age=31536000, immutable" } else { "public, max-age=3600" };
+                let cache = if trimmed == "sw.js" || trimmed == "manifest.webmanifest" {
+                    "no-cache"
+                } else if first == "assets" {
+                    "public, max-age=31536000, immutable"
+                } else {
+                    "public, max-age=3600"
+                };
                 self.file_response(&real, cache, headers, head).await
             }
             None if has_ext => not_found(),
@@ -132,7 +138,11 @@ impl StaticFiles {
             }
         }
         let mime = mime_guess::from_path(path).first_or_octet_stream();
-        let ctype = if mime.type_() == "text" || mime.subtype() == "javascript" || mime.subtype() == "json" { format!("{}; charset=utf-8", mime.essence_str()) } else { mime.essence_str().to_string() };
+        let ctype = if mime.type_() == "text" || mime.subtype() == "javascript" || mime.subtype() == "json" {
+            format!("{}; charset=utf-8", mime.essence_str())
+        } else {
+            mime.essence_str().to_string()
+        };
         builder = builder.header(CONTENT_TYPE, ctype).header(VARY, "Accept-Encoding");
         let compressible = mime.type_() == "text" || matches!(mime.subtype().as_str(), "javascript" | "json" | "svg+xml" | "xml" | "manifest+json" | "wasm");
         let wants_gzip = req.get(ACCEPT_ENCODING).and_then(|v| v.to_str().ok()).map(|v| v.to_ascii_lowercase().contains("gzip")).unwrap_or(false);

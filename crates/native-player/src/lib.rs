@@ -153,30 +153,66 @@ pub struct Player(sys::Player);
 impl Player {
     /// Loads a video from an address (http, https or a file path). `parent` is the HWND to put the video window in (None: a hidden window, or
     /// none when headless). Playback starts with [`Player::play`].
-    pub fn open(&self, url: &str, user_agent: &str, parent: Option<isize>, rect: Rect) -> Result<(), Error> { self.0.open(url, user_agent, parent, rect) }
-    pub fn close(&self) { self.0.close() }
-    pub fn play(&self) -> Result<(), Error> { self.0.play() }
-    pub fn pause(&self) -> Result<(), Error> { self.0.pause() }
-    pub fn stop(&self) -> Result<(), Error> { self.0.stop() }
-    pub fn seek(&self, seconds: f64) -> Result<(), Error> { self.0.seek(seconds) }
+    pub fn open(&self, url: &str, user_agent: &str, parent: Option<isize>, rect: Rect) -> Result<(), Error> {
+        self.0.open(url, user_agent, parent, rect)
+    }
+    pub fn close(&self) {
+        self.0.close()
+    }
+    pub fn play(&self) -> Result<(), Error> {
+        self.0.play()
+    }
+    pub fn pause(&self) -> Result<(), Error> {
+        self.0.pause()
+    }
+    pub fn stop(&self) -> Result<(), Error> {
+        self.0.stop()
+    }
+    pub fn seek(&self, seconds: f64) -> Result<(), Error> {
+        self.0.seek(seconds)
+    }
     /// 1.0 is normal speed.
-    pub fn set_rate(&self, rate: f64) -> Result<(), Error> { self.0.set_rate(rate) }
+    pub fn set_rate(&self, rate: f64) -> Result<(), Error> {
+        self.0.set_rate(rate)
+    }
     /// 0 to 100.
-    pub fn set_volume(&self, percent: u8) -> Result<(), Error> { self.0.set_volume(percent.min(100)) }
-    pub fn set_muted(&self, muted: bool) -> Result<(), Error> { self.0.set_muted(muted) }
-    pub fn set_rect(&self, rect: Rect) -> Result<(), Error> { self.0.set_rect(rect) }
+    pub fn set_volume(&self, percent: u8) -> Result<(), Error> {
+        self.0.set_volume(percent.min(100))
+    }
+    pub fn set_muted(&self, muted: bool) -> Result<(), Error> {
+        self.0.set_muted(muted)
+    }
+    pub fn set_rect(&self, rect: Rect) -> Result<(), Error> {
+        self.0.set_rect(rect)
+    }
     /// Video window in front of the page (true) or behind it (false).
-    pub fn set_video_layer(&self, layer: VideoLayer) -> Result<(), Error> { self.0.set_video_layer(layer) }
+    pub fn set_video_layer(&self, layer: VideoLayer) -> Result<(), Error> {
+        self.0.set_video_layer(layer)
+    }
     /// Hide the video window at once, from any thread. Do this before dropping a player: stopping a stream can take seconds.
-    pub fn hide(&self) { self.0.hide() }
+    pub fn hide(&self) {
+        self.0.hide()
+    }
     /// A plain-text report for support (windows, renderer counters, media types, what is on screen).
-    pub fn diagnostics(&self) -> String { self.0.diagnostics() }
-    pub fn audio_tracks(&self) -> Result<Vec<AudioTrack>, Error> { self.0.audio_tracks() }
-    pub fn select_audio_track(&self, index: usize) -> Result<(), Error> { self.0.select_audio_track(index) }
-    pub fn state(&self) -> State { self.0.state() }
+    pub fn diagnostics(&self) -> String {
+        self.0.diagnostics()
+    }
+    pub fn audio_tracks(&self) -> Result<Vec<AudioTrack>, Error> {
+        self.0.audio_tracks()
+    }
+    pub fn select_audio_track(&self, index: usize) -> Result<(), Error> {
+        self.0.select_audio_track(index)
+    }
+    pub fn state(&self) -> State {
+        self.0.state()
+    }
     /// What decodes the video right now (for example "avcodec"); empty before a video is loaded.
-    pub fn decoder(&self) -> String { self.0.decoder() }
-    pub fn last_error(&self) -> String { self.0.last_error() }
+    pub fn decoder(&self) -> String {
+        self.0.decoder()
+    }
+    pub fn last_error(&self) -> String {
+        self.0.last_error()
+    }
 }
 
 #[cfg(test)]

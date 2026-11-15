@@ -58,7 +58,16 @@ impl Names {
         if !search && !list {
             return None;
         }
-        Some(Arc::new(Names { proxy, fetch, enabled: (search, list), store: Mutex::new(None), keys: Mutex::new(None), running: AtomicBool::new(false), stop: Arc::new(AtomicBool::new(false)), pause }))
+        Some(Arc::new(Names {
+            proxy,
+            fetch,
+            enabled: (search, list),
+            store: Mutex::new(None),
+            keys: Mutex::new(None),
+            running: AtomicBool::new(false),
+            stop: Arc::new(AtomicBool::new(false)),
+            pause,
+        }))
     }
 
     pub fn route_for(&self, method: &Method, path: &str) -> Option<Route> {
@@ -178,12 +187,14 @@ impl Names {
     async fn refresh(&self, force: bool) -> Result<(), String> {
         let store = self.store().await?;
         self.keys.lock().unwrap().take(); // use the keys as they are now
-        let keys = self.config().await?.0;   // a failed ask is an error to report, not "no keys, nothing to do"
+        let keys = self.config().await?.0; // a failed ask is an error to report, not "no keys, nothing to do"
         if keys.stashdb.is_none() && keys.tpdb.is_none() {
             return Ok(());
         }
         let (fetch, stop, pause) = (self.fetch.clone(), self.stop.clone(), self.pause);
-        let results = tokio::task::spawn_blocking(move || store.refresh(fetch.as_ref(), &keys, force, &|| stop.load(Ordering::Relaxed), pause)).await.map_err(|e| e.to_string())?;
+        let results = tokio::task::spawn_blocking(move || store.refresh(fetch.as_ref(), &keys, force, &|| stop.load(Ordering::Relaxed), pause))
+            .await
+            .map_err(|e| e.to_string())?;
         for (provider, outcome) in results {
             match outcome {
                 Outcome::Done { written } => tracing::info!("performer names from {provider}: {written} written"),

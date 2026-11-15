@@ -154,7 +154,17 @@ pub async fn native_available(app: AppHandle) -> Availability {
 /// Loads a video and puts its window at the given place (pixels of the app window's client area). Does not start playing.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn native_open(app: AppHandle, window: WebviewWindow, state: State<'_, NativeState>, url: String, x: i32, y: i32, w: i32, h: i32, hw: Option<i32>) -> Result<Opened, String> {
+pub async fn native_open(
+    app: AppHandle,
+    window: WebviewWindow,
+    state: State<'_, NativeState>,
+    url: String,
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+    hw: Option<i32>,
+) -> Result<Opened, String> {
     let (dll, lav) = locate(&app)?;
     let mut inner = state.0.lock().map_err(|_| "the player is busy".to_string())?;
     retire(inner.player.take()); // a new video gets a new player (this closes the old one)
@@ -163,9 +173,7 @@ pub async fn native_open(app: AppHandle, window: WebviewWindow, state: State<'_,
     }
     let engine = inner.engine.clone().ok_or("the engine is not loaded")?;
     let layer = start_layer();
-    let player = engine
-        .create_player(&lav, Options { hw_accel: hw_from(hw), headless: false, video_layer: layer })
-        .map_err(|e| e.to_string())?;
+    let player = engine.create_player(&lav, Options { hw_accel: hw_from(hw), headless: false, video_layer: layer }).map_err(|e| e.to_string())?;
     #[cfg(windows)]
     let parent = window.hwnd().ok().map(|h| h.0 as isize);
     #[cfg(not(windows))]

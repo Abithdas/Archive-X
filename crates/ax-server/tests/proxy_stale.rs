@@ -55,8 +55,18 @@ async fn flaky_keepalive() -> (std::net::SocketAddr, Arc<AtomicUsize>, Arc<Atomi
 async fn calls_keep_working_when_the_backend_closed_a_kept_connection() {
     let (upstream, served, dropped) = flaky_keepalive().await;
     let proxy = Proxy::new(&Config {
-        listen: "127.0.0.1:0".parse().unwrap(), upstream, upstream_plain: true, dist: ".".into(), cert: None, key: None, proxy_key: KEY.into(),
-        print_ready: false, limits: Limits::default(), db: None, native_routes: vec![], session_touch_interval: Duration::from_secs(300),
+        listen: "127.0.0.1:0".parse().unwrap(),
+        upstream,
+        upstream_plain: true,
+        dist: ".".into(),
+        cert: None,
+        key: None,
+        proxy_key: KEY.into(),
+        print_ready: false,
+        limits: Limits::default(),
+        db: None,
+        native_routes: vec![],
+        session_touch_interval: Duration::from_secs(300),
     });
     let peer = "127.0.0.1:5000".parse().unwrap();
     for round in 0..6 {

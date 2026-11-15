@@ -158,21 +158,26 @@ fn item(s: &ax_faces::Scored, flag_name: &str) -> Value {
 
 fn performer_id(query: Option<&str>) -> Option<i64> {
     let q = query.unwrap_or("");
-    q.split('&').find_map(|p| p.strip_prefix("performer_id=")).filter(|v| !v.is_empty() && v.len() <= 18 && v.bytes().all(|b| b.is_ascii_digit())).and_then(|v| v.parse().ok())
+    q.split('&')
+        .find_map(|p| p.strip_prefix("performer_id="))
+        .filter(|v| !v.is_empty() && v.len() <= 18 && v.bytes().all(|b| b.is_ascii_digit()))
+        .and_then(|v| v.parse().ok())
 }
 
 /// Something that changes whenever faces, groups or "not this person" notes do. Cheap: three aggregate queries over indexed columns.
 fn fingerprint(c: &Connection) -> ax_db::rusqlite::Result<String> {
-    let faces: (i64, i64, String) = c.query_row("SELECT COUNT(*), COALESCE(MAX(id),0), COALESCE(MAX(updated_at),'') FROM photo_face_detections", [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
-    let groups: (i64, String, i64) = c.query_row("SELECT COUNT(*), COALESCE(MAX(updated_at),''), COALESCE(SUM(performer_id IS NOT NULL),0) FROM photo_face_groups", [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+    let faces: (i64, i64, String) = c.query_row("SELECT COUNT(*), COALESCE(MAX(id),0), COALESCE(MAX(updated_at),'') FROM photo_face_detections", [], |r| {
+        Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+    })?;
+    let groups: (i64, String, i64) = c.query_row("SELECT COUNT(*), COALESCE(MAX(updated_at),''), COALESCE(SUM(performer_id IS NOT NULL),0) FROM photo_face_groups", [], |r| {
+        Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+    })?;
     let negatives: i64 = c.query_row("SELECT COUNT(*) FROM photo_face_negatives", [], |r| r.get(0)).unwrap_or(0); // the table appears with the first removal
     Ok(format!("{faces:?}|{groups:?}|{negatives}"))
 }
 
 fn load(c: &Connection) -> ax_db::rusqlite::Result<Learner> {
-    let mut stmt = c.prepare(
-        "SELECT d.id,d.photo_id,d.group_id,g.performer_id,d.embedding_json FROM photo_face_detections d JOIN photo_face_groups g ON g.id=d.group_id",
-    )?;
+    let mut stmt = c.prepare("SELECT d.id,d.photo_id,d.group_id,g.performer_id,d.embedding_json FROM photo_face_detections d JOIN photo_face_groups g ON g.id=d.group_id")?;
     let rows = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?, r.get::<_, Option<i64>>(3)?, r.get::<_, String>(4)?)))?;
     let mut dets = Vec::new();
     for row in rows {

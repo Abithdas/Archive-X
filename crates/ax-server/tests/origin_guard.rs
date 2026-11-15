@@ -14,5 +14,11 @@ fn the_rust_guard_agrees_with_the_python_middleware_on_every_vector() {
             wrong.push(format!("{m} {p} origin={origin:?} host={h:?}: Python says allowed={want}"));
         }
     }
-    assert!(wrong.is_empty(), "{} of {} vectors differ, for example:\n{}", wrong.len(), vectors.len(), wrong.iter().take(8).cloned().collect::<Vec<_>>().join("\n"));
+    assert!(
+        wrong.is_empty(),
+        "{} of {} vectors differ, for example:\n{}",
+        wrong.len(),
+        vectors.len(),
+        wrong.iter().take(8).cloned().collect::<Vec<_>>().join("\n")
+    );
 }

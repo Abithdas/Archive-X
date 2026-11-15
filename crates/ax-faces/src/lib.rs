@@ -63,7 +63,11 @@ fn median(values: &mut [f32]) -> f32 {
     }
     values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let n = values.len();
-    if n % 2 == 1 { values[n / 2] } else { (values[n / 2 - 1] + values[n / 2]) / 2.0 }
+    if n % 2 == 1 {
+        values[n / 2]
+    } else {
+        (values[n / 2 - 1] + values[n / 2]) / 2.0
+    }
 }
 
 /// Median and the usual robust spread (1.4826 × median absolute deviation).
@@ -177,7 +181,11 @@ impl Learner {
         people.extend(self.negatives.keys().copied());
         let mut out: Vec<Counts> = people
             .into_iter()
-            .map(|p| Counts { performer: p, confirmed: confirmed.get(&p).copied().unwrap_or(0), removed: self.negatives.get(&p).map(|s| s.iter().filter(|id| self.by_id.contains_key(id)).count()).unwrap_or(0) })
+            .map(|p| Counts {
+                performer: p,
+                confirmed: confirmed.get(&p).copied().unwrap_or(0),
+                removed: self.negatives.get(&p).map(|s| s.iter().filter(|id| self.by_id.contains_key(id)).count()).unwrap_or(0),
+            })
             .collect();
         out.sort_by_key(|c| (std::cmp::Reverse(c.confirmed + c.removed), c.performer));
         out
@@ -225,12 +233,7 @@ impl Learner {
     pub fn outliers(&self, performer: i64) -> Outliers {
         let all = self.confirmed_of(performer);
         let Some(profile) = self.profile(performer) else { return Outliers { items: vec![], threshold: DIFFERENT_FLOOR } };
-        let exemplar_of: HashMap<usize, usize> = profile
-            .exemplars
-            .iter()
-            .enumerate()
-            .filter_map(|(i, e)| all.iter().position(|d| d.v == *e).map(|p| (p, i)))
-            .collect();
+        let exemplar_of: HashMap<usize, usize> = profile.exemplars.iter().enumerate().filter_map(|(i, e)| all.iter().position(|d| d.v == *e).map(|p| (p, i))).collect();
         let mut items: Vec<Scored> = all
             .iter()
             .enumerate()
@@ -292,11 +295,21 @@ fn pick_varied(kept: &[&Detection], centre: &[f32], k: usize) -> Vec<Vec<f32>> {
     if kept.len() <= k {
         return kept.iter().map(|d| d.v.clone()).collect();
     }
-    let first = kept.iter().enumerate().max_by(|a, b| dot(&a.1.v, centre).partial_cmp(&dot(&b.1.v, centre)).unwrap_or(std::cmp::Ordering::Equal)).map(|(i, _)| i).unwrap_or(0);
+    let first = kept
+        .iter()
+        .enumerate()
+        .max_by(|a, b| dot(&a.1.v, centre).partial_cmp(&dot(&b.1.v, centre)).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(i, _)| i)
+        .unwrap_or(0);
     let mut chosen = vec![first];
     let mut best: Vec<f32> = kept.iter().map(|d| dot(&d.v, &kept[first].v)).collect();
     while chosen.len() < k {
-        let next = best.iter().enumerate().filter(|(i, _)| !chosen.contains(i)).min_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal)).map(|(i, _)| i);
+        let next = best
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !chosen.contains(i))
+            .min_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(i, _)| i);
         let Some(next) = next else { break };
         chosen.push(next);
         for (i, b) in best.iter_mut().enumerate() {
@@ -371,7 +384,12 @@ mod tests {
             let v = r.face(&ava, 0.05);
             good.push(w.add(v, Some(7), 1));
         }
-        let wrong: Vec<i64> = (0..4).map(|_| { let v = r.face(&other, 0.05); w.add(v, Some(7), 1) }).collect();
+        let wrong: Vec<i64> = (0..4)
+            .map(|_| {
+                let v = r.face(&other, 0.05);
+                w.add(v, Some(7), 1)
+            })
+            .collect();
         let l = Learner::new(w.dets, []);
         let o = l.outliers(7);
         assert_eq!(o.items.len(), 44);
@@ -414,8 +432,18 @@ mod tests {
             let v = r.face(&mia, 0.05);
             w.add(v, Some(2), 2);
         }
-        let ava_unnamed: Vec<i64> = (0..6).map(|_| { let v = r.face(&ava, 0.05); w.add(v, None, 9) }).collect();
-        let mia_unnamed: Vec<i64> = (0..3).map(|_| { let v = r.face(&mia, 0.05); w.add(v, None, 10) }).collect();
+        let ava_unnamed: Vec<i64> = (0..6)
+            .map(|_| {
+                let v = r.face(&ava, 0.05);
+                w.add(v, None, 9)
+            })
+            .collect();
+        let mia_unnamed: Vec<i64> = (0..3)
+            .map(|_| {
+                let v = r.face(&mia, 0.05);
+                w.add(v, None, 10)
+            })
+            .collect();
         for _ in 0..5 {
             let v = r.face(&stranger, 0.05);
             w.add(v, None, 11);
@@ -433,7 +461,11 @@ mod tests {
         let mut r = Rng(4);
         let ava = r.unit();
         // somebody who looks quite like Ava: close enough to score above the suggestion line against her
-        let lookalike: Vec<f32> = { let n = r.unit(); let v: Vec<f32> = ava.iter().zip(&n).map(|(a, b)| a + 0.55 * b).collect(); normalize(&v).unwrap() };
+        let lookalike: Vec<f32> = {
+            let n = r.unit();
+            let v: Vec<f32> = ava.iter().zip(&n).map(|(a, b)| a + 0.55 * b).collect();
+            normalize(&v).unwrap()
+        };
         let mut w = World::new();
         for _ in 0..20 {
             let v = r.face(&ava, 0.05);
@@ -456,7 +488,11 @@ mod tests {
     fn a_face_that_looks_more_like_another_named_person_goes_to_that_person() {
         let mut r = Rng(5);
         let ava = r.unit();
-        let mia: Vec<f32> = { let n = r.unit(); let v: Vec<f32> = ava.iter().zip(&n).map(|(a, b)| a + 0.5 * b).collect(); normalize(&v).unwrap() };
+        let mia: Vec<f32> = {
+            let n = r.unit();
+            let v: Vec<f32> = ava.iter().zip(&n).map(|(a, b)| a + 0.5 * b).collect();
+            normalize(&v).unwrap()
+        };
         let mut w = World::new();
         for _ in 0..20 {
             let v = r.face(&ava, 0.04);
@@ -520,6 +556,9 @@ mod tests {
         let p = l.profile(1).unwrap();
         assert_eq!(p.exemplars.len(), EXEMPLARS);
         let side_dir: Vec<f32> = normalize(&front.iter().zip(&side).map(|(a, b)| a + 0.5 * b).collect::<Vec<_>>()).unwrap();
-        assert!(p.exemplars.iter().filter(|e| dot(e, &side_dir) > dot(e, &front)).count() >= 1, "at least one example from the rarer look ({sides} such faces)");
+        assert!(
+            p.exemplars.iter().filter(|e| dot(e, &side_dir) > dot(e, &front)).count() >= 1,
+            "at least one example from the rarer look ({sides} such faces)"
+        );
     }
 }

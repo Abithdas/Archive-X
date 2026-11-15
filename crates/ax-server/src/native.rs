@@ -216,9 +216,17 @@ fn photos_channels_rows(conn: &Connection) -> ax_db::rusqlite::Result<Vec<Map<St
     )?;
     for mut item in orphans {
         let count = item.get("photo_count").cloned().unwrap_or(Value::from(0));
-        for (k, v) in [("title", Value::from("Unknown channel")), ("username", Value::from("")), ("image", Value::from("")), ("updated_at", Value::from("")),
-                       ("photo_scan_status", Value::from("UNKNOWN")), ("photo_last_scan_at", Value::Null), ("photo_messages_scanned", Value::from(0)),
-                       ("photo_photos_found", count), ("photo_scan_error", Value::from(""))] {
+        for (k, v) in [
+            ("title", Value::from("Unknown channel")),
+            ("username", Value::from("")),
+            ("image", Value::from("")),
+            ("updated_at", Value::from("")),
+            ("photo_scan_status", Value::from("UNKNOWN")),
+            ("photo_last_scan_at", Value::Null),
+            ("photo_messages_scanned", Value::from(0)),
+            ("photo_photos_found", count),
+            ("photo_scan_error", Value::from("")),
+        ] {
             item.insert(k.to_string(), v);
         }
         out.push(item);
@@ -260,7 +268,7 @@ impl Native {
             None => 5000,
             Some(l) if !l.is_empty() && l.len() <= 6 && l.bytes().all(|b| b.is_ascii_digit()) => l.parse::<i64>().ok()?.clamp(1, 5000),
             Some(l) if l.bytes().all(|b| b.is_ascii_alphabetic()) && !l.is_empty() => 5000, // Python: int() fails, so the default
-            Some(_) => return None, // signs, spaces, underscores, other digits: let Python's int() decide
+            Some(_) => return None,                                                         // signs, spaces, underscores, other digits: let Python's int() decide
         };
         let brief = params.get("brief").map(|b| b == "1").unwrap_or(false);
         let rows = self
@@ -287,7 +295,13 @@ impl Native {
             .into_iter()
             .map(|mut p| {
                 let gender = p.get("gender").and_then(Value::as_str).unwrap_or("").trim().to_lowercase();
-                let normal = if gender.contains("trans") { "trans".to_string() } else if gender == "male" || gender == "female" { gender } else { String::new() };
+                let normal = if gender.contains("trans") {
+                    "trans".to_string()
+                } else if gender == "male" || gender == "female" {
+                    gender
+                } else {
+                    String::new()
+                };
                 p.insert("gender".to_string(), Value::String(normal));
                 if brief {
                     let mut b = Map::new();
@@ -317,7 +331,13 @@ fn casefold(s: &str) -> String {
 }
 
 fn ints(csv: &Value) -> Vec<Value> {
-    csv.as_str().unwrap_or("").split(',').filter(|v| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit())).filter_map(|v| v.parse::<i64>().ok()).map(Value::from).collect()
+    csv.as_str()
+        .unwrap_or("")
+        .split(',')
+        .filter(|v| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit()))
+        .filter_map(|v| v.parse::<i64>().ok())
+        .map(Value::from)
+        .collect()
 }
 
 impl Native {
@@ -424,7 +444,13 @@ impl Native {
         if top > 0 && groups.len() > top {
             // the busiest people only, named ones first (the Photos page shows a row of them, not all)
             groups.sort_by(|a, b| {
-                let key = |g: &Map<String, Value>| (g.get("performer_id").and_then(Value::as_i64).unwrap_or(0) == 0, -g.get("photo_count").and_then(Value::as_i64).unwrap_or(0), casefold(g.get("label").and_then(Value::as_str).unwrap_or("")));
+                let key = |g: &Map<String, Value>| {
+                    (
+                        g.get("performer_id").and_then(Value::as_i64).unwrap_or(0) == 0,
+                        -g.get("photo_count").and_then(Value::as_i64).unwrap_or(0),
+                        casefold(g.get("label").and_then(Value::as_str).unwrap_or("")),
+                    )
+                };
                 key(a).cmp(&key(b))
             });
             groups.truncate(top);
@@ -490,7 +516,13 @@ fn merged_performers(d: &Map<String, Value>) -> Vec<String> {
 /// `d.get(a) or d.get(b) or f"video {id}"` (or with the first two swapped) and `thumbnail_message_id or source_message_id`.
 fn display_name_and_thumbnail(d: &mut Map<String, Value>) {
     let id = d.get("id").cloned();
-    let name = if truthy(d.get("title")) { d["title"].clone() } else if truthy(d.get("filename")) { d["filename"].clone() } else { Value::String(format!("video {}", py_str(id.as_ref()))) };
+    let name = if truthy(d.get("title")) {
+        d["title"].clone()
+    } else if truthy(d.get("filename")) {
+        d["filename"].clone()
+    } else {
+        Value::String(format!("video {}", py_str(id.as_ref())))
+    };
     d.insert("name".into(), name);
     let thumb = if truthy(d.get("thumbnail_message_id")) { d["thumbnail_message_id"].clone() } else { d.get("source_message_id").cloned().unwrap_or(Value::Null) };
     d.insert("thumbnail_id".into(), thumb);
@@ -576,7 +608,14 @@ fn video_list_rows(c: &Connection, route: &str, id: i64) -> ax_db::rusqlite::Res
             Ok(Some(Value::Object(out)))
         }
         "studio_videos" => {
-            let Some(mut studio) = one_row(c, "SELECT s.*, (SELECT MAX(sic.updated_at) FROM studio_image_cache sic WHERE sic.studio_id=s.id) AS image_cache_updated_at FROM studios s WHERE s.id=?", params![id])? else { return Ok(None) };
+            let Some(mut studio) = one_row(
+                c,
+                "SELECT s.*, (SELECT MAX(sic.updated_at) FROM studio_image_cache sic WHERE sic.studio_id=s.id) AS image_cache_updated_at FROM studios s WHERE s.id=?",
+                params![id],
+            )?
+            else {
+                return Ok(None);
+            };
             let favorite: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM entity_favorites WHERE entity_type='studio' AND entity_id=?)", params![id], |r| r.get(0))?;
             studio.insert("favorite".into(), Value::Bool(favorite));
             let sql = format!(
@@ -658,7 +697,13 @@ fn video_list_rows(c: &Connection, route: &str, id: i64) -> ax_db::rusqlite::Res
                     let sm = d.get("source_message_id").cloned().unwrap_or(Value::Null);
                     d.insert("id".into(), sm);
                     // channel list: the name prefers the title, and the telegram filename is the file name or empty
-                    let name = if truthy(d.get("title")) { d["title"].clone() } else if truthy(d.get("filename")) { d["filename"].clone() } else { Value::String(format!("video {}", py_str(d.get("id")))) };
+                    let name = if truthy(d.get("title")) {
+                        d["title"].clone()
+                    } else if truthy(d.get("filename")) {
+                        d["filename"].clone()
+                    } else {
+                        Value::String(format!("video {}", py_str(d.get("id"))))
+                    };
                     d.insert("name".into(), name);
                     let fname = if truthy(d.get("filename")) { d["filename"].clone() } else { Value::String(String::new()) };
                     d.insert("telegram_filename".into(), fname);

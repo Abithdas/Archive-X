@@ -8,7 +8,7 @@ use ax_db::sessions::Session;
 use ax_db::Db;
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
-use hyper::header::{COOKIE, CONTENT_TYPE};
+use hyper::header::{CONTENT_TYPE, COOKIE};
 use hyper::{HeaderMap, Response, StatusCode};
 
 use crate::proxy::Body;
@@ -20,7 +20,11 @@ pub struct Auth {
 
 pub fn json_error(status: StatusCode, detail: &str) -> Response<Body> {
     let body = format!("{{\"detail\":{}}}", crate::proxy::json_escape(detail));
-    Response::builder().status(status).header(CONTENT_TYPE, "application/json").body(Full::new(Bytes::from(body)).map_err(|n| match n {}).boxed()).unwrap()
+    Response::builder()
+        .status(status)
+        .header(CONTENT_TYPE, "application/json")
+        .body(Full::new(Bytes::from(body)).map_err(|n| match n {}).boxed())
+        .unwrap()
 }
 
 fn now() -> f64 {

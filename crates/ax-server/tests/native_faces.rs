@@ -24,7 +24,12 @@ const AUTH: &str = "Cookie: session=tok\r\n";
 type B = BoxBody<Bytes, Infallible>;
 
 fn create_table(c: &Connection, snapshot: &serde_json::Value, table: &str) {
-    let cols: Vec<String> = snapshot[table].as_array().unwrap().iter().map(|col| format!("\"{}\" {}", col["name"].as_str().unwrap(), col["type"].as_str().unwrap())).collect();
+    let cols: Vec<String> = snapshot[table]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|col| format!("\"{}\" {}", col["name"].as_str().unwrap(), col["type"].as_str().unwrap()))
+        .collect();
     c.execute_batch(&format!("CREATE TABLE \"{table}\" ({});", cols.join(", "))).unwrap();
 }
 
@@ -86,10 +91,22 @@ async fn door(extra: impl FnOnce(&Connection)) -> Door {
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
     let cfg = Arc::new(Config {
-        listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false,
-        limits: Limits::default(), db: Some(dbpath), native_routes: vec!["face_groups_fast".into()], session_touch_interval: Duration::from_secs(300),
+        listen: addr,
+        upstream,
+        upstream_plain: true,
+        dist: dist.path().to_path_buf(),
+        cert: None,
+        key: None,
+        proxy_key: KEY.into(),
+        print_ready: false,
+        limits: Limits::default(),
+        db: Some(dbpath),
+        native_routes: vec!["face_groups_fast".into()],
+        session_touch_interval: Duration::from_secs(300),
     });
-    tokio::spawn(async move { let _ = server::serve(l, cfg, std::future::pending()).await; });
+    tokio::spawn(async move {
+        let _ = server::serve(l, cfg, std::future::pending()).await;
+    });
     Door { addr, _keep: vec![dist, dbdir] }
 }
 
@@ -115,7 +132,9 @@ async fn get(addr: SocketAddr, path: &str, extra: &str) -> Reply {
         let mut b = &body[..];
         while let Some(p) = b.windows(2).position(|w| w == b"\r\n") {
             let n = usize::from_str_radix(std::str::from_utf8(&b[..p]).unwrap().trim(), 16).unwrap_or(0);
-            if n == 0 { break; }
+            if n == 0 {
+                break;
+            }
             out.extend_from_slice(&b[p + 2..p + 2 + n]);
             b = &b[p + 2 + n + 2..];
         }
@@ -136,16 +155,39 @@ async fn people_are_merged_by_performer_counted_and_described_like_python() {
     let r = get(d.addr, FAST, "").await;
     assert_eq!((r.status, r.headers["x-served-by"].as_str()), (200, "rust"));
     let v = json(&r);
-    assert_eq!(v.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>(), ["ok", "groups", "photo_scopes", "analysis", "cosine_threshold", "grouping_mode"]);
+    assert_eq!(
+        v.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>(),
+        ["ok", "groups", "photo_scopes", "analysis", "cosine_threshold", "grouping_mode"]
+    );
     assert_eq!(v["cosine_threshold"], 0.42);
     assert_eq!(v["grouping_mode"], "image_embedding_cluster");
     let labels: Vec<&str> = v["groups"].as_array().unwrap().iter().map(|g| g["label"].as_str().unwrap()).collect();
-    assert_eq!(labels, ["Face group 1", "Face group 2", "Face group 5", "Mia Rivera"], "ordered by name, ignoring case; a named person shows the performer's name");
+    assert_eq!(
+        labels,
+        ["Face group 1", "Face group 2", "Face group 5", "Mia Rivera"],
+        "ordered by name, ignoring case; a named person shows the performer's name"
+    );
     let first = &v["groups"][0];
     assert_eq!(
         first.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>(),
-        ["id", "label", "performer_id", "performer_name", "cluster_ids", "representative_detection_id", "photo_count", "face_count", "channel_ids", "updated_at", "detection_ids",
-         "representative_url", "performer_image_url", "metadata_suggestions", "confirmed_assignment_suggestions", "profile_image_suggestions"],
+        [
+            "id",
+            "label",
+            "performer_id",
+            "performer_name",
+            "cluster_ids",
+            "representative_detection_id",
+            "photo_count",
+            "face_count",
+            "channel_ids",
+            "updated_at",
+            "detection_ids",
+            "representative_url",
+            "performer_image_url",
+            "metadata_suggestions",
+            "confirmed_assignment_suggestions",
+            "profile_image_suggestions"
+        ],
         "the same keys in the same order as Python"
     );
     assert_eq!((first["id"].as_i64(), first["photo_count"].as_i64(), first["face_count"].as_i64()), (Some(1), Some(2), Some(2)));
@@ -195,7 +237,14 @@ async fn top_keeps_named_people_first_then_the_busiest() {
     let d = door(|_| {}).await;
     let names = |q: &'static str| {
         let addr = d.addr;
-        async move { json(&get(addr, &format!("{FAST}{q}"), "").await)["groups"].as_array().unwrap().iter().map(|g| g["label"].as_str().unwrap().to_string()).collect::<Vec<_>>() }
+        async move {
+            json(&get(addr, &format!("{FAST}{q}"), "").await)["groups"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|g| g["label"].as_str().unwrap().to_string())
+                .collect::<Vec<_>>()
+        }
     };
     assert_eq!(names("&top=1").await, ["Mia Rivera"]);
     assert_eq!(names("&top=2").await, ["Mia Rivera", "Face group 1"], "then the busiest unnamed group (2 photos)");
@@ -207,18 +256,34 @@ async fn top_keeps_named_people_first_then_the_busiest() {
 #[tokio::test]
 async fn the_full_form_and_odd_parameters_are_left_to_python() {
     let d = door(|_| {}).await;
-    for q in ["/api/photos/faces/groups", "/api/photos/faces/groups?suggestions=1", "/api/photos/faces/groups?top=3", "/api/photos/faces/groups?suggestions=00",
-              "/api/photos/faces/groups?suggestions=0&top=-1", "/api/photos/faces/groups?suggestions=0&top=1_0", "/api/photos/faces/groups?suggestions=0&top=1&top=2"] {
+    for q in [
+        "/api/photos/faces/groups",
+        "/api/photos/faces/groups?suggestions=1",
+        "/api/photos/faces/groups?top=3",
+        "/api/photos/faces/groups?suggestions=00",
+        "/api/photos/faces/groups?suggestions=0&top=-1",
+        "/api/photos/faces/groups?suggestions=0&top=1_0",
+        "/api/photos/faces/groups?suggestions=0&top=1&top=2",
+    ] {
         assert_eq!(get(d.addr, q, "").await.headers["x-served-by"], "python", "{q}");
     }
 }
 
 #[tokio::test]
 async fn an_empty_library_and_a_missing_login() {
-    let d = door(|c| { for t in ["photo_face_analysis", "photo_face_detections", "photo_face_groups", "photo_library_items"] { c.execute(&format!("DELETE FROM {t}"), []).unwrap(); } }).await;
+    let d = door(|c| {
+        for t in ["photo_face_analysis", "photo_face_detections", "photo_face_groups", "photo_library_items"] {
+            c.execute(&format!("DELETE FROM {t}"), []).unwrap();
+        }
+    })
+    .await;
     let v = json(&get(d.addr, FAST, "").await);
     assert_eq!(v["groups"], serde_json::json!([]));
-    assert_eq!(v["analysis"], serde_json::json!({"total_photos": 0, "analyzed_photos": 0, "failed_photos": 0}), "SUM() of nothing is NULL in SQL and 0 in the answer");
+    assert_eq!(
+        v["analysis"],
+        serde_json::json!({"total_photos": 0, "analyzed_photos": 0, "failed_photos": 0}),
+        "SUM() of nothing is NULL in SQL and 0 in the answer"
+    );
     assert_eq!(v["photo_scopes"], serde_json::json!({"named": 0, "unnamed": 0, "no_face": 0, "pending": 0}));
     let mut s = TcpStream::connect(d.addr).await.unwrap();
     s.write_all(format!("GET {FAST} HTTP/1.1\r\nHost: a\r\nConnection: close\r\n\r\n").as_bytes()).await.unwrap();

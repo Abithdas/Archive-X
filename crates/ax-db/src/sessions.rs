@@ -45,10 +45,8 @@ impl Db {
         let hash = token_hash(token);
         let row = self
             .read(move |c| {
-                c.query_row("SELECT username, expires FROM web_sessions WHERE token_hash = ?1", [&hash], |r| {
-                    Ok(Session { username: r.get(0)?, expires: r.get(1)? })
-                })
-                .optional()
+                c.query_row("SELECT username, expires FROM web_sessions WHERE token_hash = ?1", [&hash], |r| Ok(Session { username: r.get(0)?, expires: r.get(1)? }))
+                    .optional()
             })
             .await?;
         Ok(row.filter(|s| s.expires >= now))

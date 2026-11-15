@@ -21,7 +21,12 @@ fn temp_db(wal: bool) -> (tempfile::TempDir, std::path::PathBuf) {
 fn everything_rust_reads_exists_in_the_python_schema_snapshot() {
     let snapshot: serde_json::Value = serde_json::from_str(include_str!("../schema/schema.json")).unwrap();
     for (table, columns) in REQUIRED_COLUMNS {
-        let have: Vec<&str> = snapshot[table].as_array().unwrap_or_else(|| panic!("table {table} is not in the schema snapshot")).iter().map(|c| c["name"].as_str().unwrap()).collect();
+        let have: Vec<&str> = snapshot[table]
+            .as_array()
+            .unwrap_or_else(|| panic!("table {table} is not in the schema snapshot"))
+            .iter()
+            .map(|c| c["name"].as_str().unwrap())
+            .collect();
         for col in *columns {
             assert!(have.contains(col), "{table}.{col} is not in the schema snapshot (columns: {have:?})");
         }
@@ -33,7 +38,10 @@ async fn the_connection_cannot_write() {
     let (_d, path) = temp_db(true);
     let db = Db::open_read_only(&path).unwrap();
     let err = db.read(|c| c.execute("INSERT INTO web_sessions VALUES ('h','u',1.0)", [])).await.unwrap_err();
-    assert!(err.to_string().to_lowercase().contains("readonly") || err.to_string().to_lowercase().contains("read-only") || err.to_string().to_lowercase().contains("read only"), "{err}");
+    assert!(
+        err.to_string().to_lowercase().contains("readonly") || err.to_string().to_lowercase().contains("read-only") || err.to_string().to_lowercase().contains("read only"),
+        "{err}"
+    );
     let n: i64 = db.read(|c| c.query_row("SELECT COUNT(*) FROM web_sessions", [], |r| r.get(0))).await.unwrap();
     assert_eq!(n, 0);
 }

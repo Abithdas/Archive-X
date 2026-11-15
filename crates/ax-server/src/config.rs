@@ -94,7 +94,20 @@ impl Config {
         if native_routes.iter().any(|r| !crate::names::ROUTES.contains(&r.as_str()) && !crate::learning::ROUTES.contains(&r.as_str())) && db.is_none() {
             return Err("--native-routes needs --db (the database file the routes read)".into());
         }
-        Ok(Config { listen, upstream, upstream_plain, dist: PathBuf::from(dist), cert, key, proxy_key, print_ready, limits: Limits::default(), db, native_routes, session_touch_interval: Duration::from_secs(300) })
+        Ok(Config {
+            listen,
+            upstream,
+            upstream_plain,
+            dist: PathBuf::from(dist),
+            cert,
+            key,
+            proxy_key,
+            print_ready,
+            limits: Limits::default(),
+            db,
+            native_routes,
+            session_touch_interval: Duration::from_secs(300),
+        })
     }
 }
 

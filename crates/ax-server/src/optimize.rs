@@ -37,7 +37,12 @@ fn body(bytes: Bytes) -> Body {
 /// A `200` JSON answer for `payload`, or the `304` the client's `If-None-Match` earns.
 pub fn json_response(request: &HeaderMap, payload: Vec<u8>) -> Response<Body> {
     if payload.len() > MAX_BUFFERED {
-        return Response::builder().status(StatusCode::OK).header(CONTENT_TYPE, "application/json").header(CONTENT_LENGTH, payload.len()).body(body(Bytes::from(payload))).unwrap();
+        return Response::builder()
+            .status(StatusCode::OK)
+            .header(CONTENT_TYPE, "application/json")
+            .header(CONTENT_LENGTH, payload.len())
+            .body(body(Bytes::from(payload)))
+            .unwrap();
     }
     let etag = format!("\"{:08x}\"", adler32(&payload));
     let sent = request.get(IF_NONE_MATCH).and_then(|v| v.to_str().ok()).unwrap_or("");

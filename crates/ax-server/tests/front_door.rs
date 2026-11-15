@@ -6,7 +6,10 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use ax_server::{config::{Config, Limits}, server};
+use ax_server::{
+    config::{Config, Limits},
+    server,
+};
 use bytes::Bytes;
 use http_body_util::{combinators::BoxBody, BodyExt, Full, StreamBody};
 use hyper::body::{Frame, Incoming};
@@ -53,14 +56,23 @@ async fn backend_handler(mut req: Request<Incoming>) -> Result<Response<B>, Infa
                     let mut io = TokioIo::new(up);
                     let mut buf = [0u8; 64];
                     while let Ok(n) = io.read(&mut buf).await {
-                        if n == 0 { break; }
+                        if n == 0 {
+                            break;
+                        }
                         let mut out = b"echo:".to_vec();
                         out.extend_from_slice(&buf[..n]);
-                        if io.write_all(&out).await.is_err() { break; }
+                        if io.write_all(&out).await.is_err() {
+                            break;
+                        }
                     }
                 }
             });
-            Ok(Response::builder().status(StatusCode::SWITCHING_PROTOCOLS).header("upgrade", "websocket").header("connection", "Upgrade").body(full("")).unwrap())
+            Ok(Response::builder()
+                .status(StatusCode::SWITCHING_PROTOCOLS)
+                .header("upgrade", "websocket")
+                .header("connection", "Upgrade")
+                .body(full(""))
+                .unwrap())
         }
         _ => Ok(Response::builder().status(404).header("alt-svc", "h3=\":8443\"").body(full(r#"{"detail":"backend 404"}"#)).unwrap()),
     }
@@ -97,8 +109,23 @@ async fn start_door_with(upstream: SocketAddr, limits: Limits) -> Door {
     std::fs::write(dist.path().join("sw.js"), "// sw").unwrap();
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
-    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false, limits, db: None, native_routes: vec![], session_touch_interval: Duration::from_secs(300) });
-    tokio::spawn(async move { let _ = server::serve(l, cfg, std::future::pending()).await; });
+    let cfg = Arc::new(Config {
+        listen: addr,
+        upstream,
+        upstream_plain: true,
+        dist: dist.path().to_path_buf(),
+        cert: None,
+        key: None,
+        proxy_key: KEY.into(),
+        print_ready: false,
+        limits,
+        db: None,
+        native_routes: vec![],
+        session_touch_interval: Duration::from_secs(300),
+    });
+    tokio::spawn(async move {
+        let _ = server::serve(l, cfg, std::future::pending()).await;
+    });
     Door { addr, _dist: dist }
 }
 
@@ -134,7 +161,9 @@ fn dechunk(mut b: &[u8]) -> Vec<u8> {
     let mut out = Vec::new();
     while let Some(p) = b.windows(2).position(|w| w == b"\r\n") {
         let n = usize::from_str_radix(std::str::from_utf8(&b[..p]).unwrap().trim(), 16).unwrap_or(0);
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         out.extend_from_slice(&b[p + 2..p + 2 + n]);
         b = &b[p + 2 + n + 2..];
     }
@@ -148,7 +177,14 @@ fn get(path: &str, extra: &str) -> String {
 #[tokio::test]
 async fn forged_address_headers_are_dropped_and_the_real_peer_is_signed() {
     let door = start_door(start_backend().await).await;
-    let r = http(door.addr, &get("/api/echo?x=1", "X-Forwarded-For: 6.6.6.6\r\nX-Real-IP: 6.6.6.6\r\nX-Archive-X-Peer: 8.8.8.8\r\nX-Archive-X-Proxy-Key: forged\r\nForwarded: for=6.6.6.6\r\n")).await;
+    let r = http(
+        door.addr,
+        &get(
+            "/api/echo?x=1",
+            "X-Forwarded-For: 6.6.6.6\r\nX-Real-IP: 6.6.6.6\r\nX-Archive-X-Peer: 8.8.8.8\r\nX-Archive-X-Proxy-Key: forged\r\nForwarded: for=6.6.6.6\r\n",
+        ),
+    )
+    .await;
     let body = String::from_utf8(r.body).unwrap();
     assert_eq!(r.status, 200, "{body}");
     assert!(body.starts_with("GET /api/echo?x=1"), "{body}");
@@ -179,7 +215,9 @@ async fn a_streamed_answer_is_passed_on_as_it_arrives() {
     let mut buf = [0u8; 512];
     loop {
         let n = s.read(&mut buf).await.unwrap();
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         seen.extend_from_slice(&buf[..n]);
         if first_chunk_at.is_none() && String::from_utf8_lossy(&seen).contains("one;") {
             first_chunk_at = Some(start.elapsed());
@@ -196,7 +234,11 @@ async fn a_streamed_answer_is_passed_on_as_it_arrives() {
 async fn a_websocket_is_tunnelled_in_both_directions() {
     let door = start_door(start_backend().await).await;
     let mut s = TcpStream::connect(door.addr).await.unwrap();
-    s.write_all(b"GET /ws HTTP/1.1\r\nHost: archive.test\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n").await.unwrap();
+    s.write_all(
+        b"GET /ws HTTP/1.1\r\nHost: archive.test\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n",
+    )
+    .await
+    .unwrap();
     let mut buf = [0u8; 512];
     let n = tokio::time::timeout(Duration::from_secs(3), s.read(&mut buf)).await.expect("no handshake answer").unwrap();
     let head = String::from_utf8_lossy(&buf[..n]).to_string();
@@ -346,9 +388,27 @@ async fn shutdown_lets_a_request_in_flight_finish() {
     std::fs::write(dist.path().join("index.html"), "x").unwrap();
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
-    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false, limits: Limits::default(), db: None, native_routes: vec![], session_touch_interval: Duration::from_secs(300) });
+    let cfg = Arc::new(Config {
+        listen: addr,
+        upstream,
+        upstream_plain: true,
+        dist: dist.path().to_path_buf(),
+        cert: None,
+        key: None,
+        proxy_key: KEY.into(),
+        print_ready: false,
+        limits: Limits::default(),
+        db: None,
+        native_routes: vec![],
+        session_touch_interval: Duration::from_secs(300),
+    });
     let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
-    let handle = tokio::spawn(async move { server::serve(l, cfg, async { let _ = stopped.await; }).await });
+    let handle = tokio::spawn(async move {
+        server::serve(l, cfg, async {
+            let _ = stopped.await;
+        })
+        .await
+    });
     let mut s = TcpStream::connect(addr).await.unwrap();
     s.write_all(get("/stream", "").as_bytes()).await.unwrap();
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -374,14 +434,33 @@ async fn https_negotiates_http2_and_reaches_the_backend() {
     std::fs::write(dist.path().join("index.html"), "<html>tls shell</html>").unwrap();
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
-    let cfg = Arc::new(Config { listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: Some(dir.path().join("cert.pem")), key: Some(dir.path().join("key.pem")), proxy_key: KEY.into(), print_ready: false, limits: Limits::default(), db: None, native_routes: vec![], session_touch_interval: Duration::from_secs(300) });
-    tokio::spawn(async move { let _ = server::serve(l, cfg, std::future::pending()).await; });
+    let cfg = Arc::new(Config {
+        listen: addr,
+        upstream,
+        upstream_plain: true,
+        dist: dist.path().to_path_buf(),
+        cert: Some(dir.path().join("cert.pem")),
+        key: Some(dir.path().join("key.pem")),
+        proxy_key: KEY.into(),
+        print_ready: false,
+        limits: Limits::default(),
+        db: None,
+        native_routes: vec![],
+        session_touch_interval: Duration::from_secs(300),
+    });
+    tokio::spawn(async move {
+        let _ = server::serve(l, cfg, std::future::pending()).await;
+    });
 
     let mut roots = rustls::RootCertStore::empty();
     roots.add(ck.cert.der().clone()).unwrap();
     let provider = Arc::new(rustls::crypto::ring::default_provider());
     let client = |alpn: &[&[u8]]| {
-        let mut c = rustls::ClientConfig::builder_with_provider(provider.clone()).with_safe_default_protocol_versions().unwrap().with_root_certificates(roots.clone()).with_no_client_auth();
+        let mut c = rustls::ClientConfig::builder_with_provider(provider.clone())
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .with_root_certificates(roots.clone())
+            .with_no_client_auth();
         c.alpn_protocols = alpn.iter().map(|a| a.to_vec()).collect();
         tokio_rustls::TlsConnector::from(Arc::new(c))
     };

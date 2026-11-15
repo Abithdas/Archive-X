@@ -33,18 +33,8 @@ impl std::fmt::Display for LaunchError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LaunchError::Spawn(e) => write!(f, "could not start the Archive X backend: {e}"),
-            LaunchError::Exited(code, log) => write!(
-                f,
-                "the Archive X backend exited before it was ready (exit code {:?}). Last output:\n{}",
-                code,
-                log.join("\n")
-            ),
-            LaunchError::Timeout(d, log) => write!(
-                f,
-                "the Archive X backend did not become ready within {:?}. Last output:\n{}",
-                d,
-                log.join("\n")
-            ),
+            LaunchError::Exited(code, log) => write!(f, "the Archive X backend exited before it was ready (exit code {:?}). Last output:\n{}", code, log.join("\n")),
+            LaunchError::Timeout(d, log) => write!(f, "the Archive X backend did not become ready within {:?}. Last output:\n{}", d, log.join("\n")),
             LaunchError::BadReadyLine(l) => write!(f, "unreadable ready line from the backend: {l}"),
             LaunchError::Random(e) => write!(f, "could not generate the launch secret: {e}"),
         }
@@ -237,9 +227,7 @@ impl Backend {
 
     /// `GET /health` over plain loopback HTTP.
     pub fn healthy(&self) -> bool {
-        http_request(self.port(), "GET", "/health", &[], Duration::from_secs(3))
-            .map(|(status, _)| status == 200)
-            .unwrap_or(false)
+        http_request(self.port(), "GET", "/health", &[], Duration::from_secs(3)).map(|(status, _)| status == 200).unwrap_or(false)
     }
 
     /// Ask the backend to stop (jobs are checkpointed); kill it if it does not exit within `grace`.
@@ -249,15 +237,9 @@ impl Backend {
             self.stop_front_door();
             return true;
         }
-        let asked = http_request(
-            self.ready.port,
-            "POST",
-            "/desktop/shutdown",
-            &[(SECRET_HEADER, self.secret.as_str()), ("Content-Length", "0")],
-            Duration::from_secs(5),
-        )
-        .map(|(status, _)| status == 202)
-        .unwrap_or(false);
+        let asked = http_request(self.ready.port, "POST", "/desktop/shutdown", &[(SECRET_HEADER, self.secret.as_str()), ("Content-Length", "0")], Duration::from_secs(5))
+            .map(|(status, _)| status == 202)
+            .unwrap_or(false);
         let deadline = Instant::now() + grace;
         while asked && Instant::now() < deadline {
             if !matches!(self.child.try_wait(), Ok(None)) {
@@ -293,12 +275,22 @@ impl Drop for Backend {
 /// Start the front door in front of the backend and wait for it to say which port it bound.
 fn start_front_door(opts: &FrontDoorOptions, key: &str, backend_port: u16, log: &std::sync::Arc<std::sync::Mutex<Vec<String>>>) -> Result<FrontDoor, String> {
     let mut cmd = Command::new(&opts.exe);
-    cmd.args(["--listen", "127.0.0.1:0", "--upstream", &format!("127.0.0.1:{backend_port}"), "--upstream-plain", "--print-ready", "--native-routes", "name_search,name_list,face_learning", "--dist"])
-        .arg(&opts.dist_dir)
-        .env("ARCHIVE_X_PROXY_KEY", key)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+    cmd.args([
+        "--listen",
+        "127.0.0.1:0",
+        "--upstream",
+        &format!("127.0.0.1:{backend_port}"),
+        "--upstream-plain",
+        "--print-ready",
+        "--native-routes",
+        "name_search,name_list,face_learning",
+        "--dist",
+    ])
+    .arg(&opts.dist_dir)
+    .env("ARCHIVE_X_PROXY_KEY", key)
+    .stdin(Stdio::null())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -367,13 +359,7 @@ fn snapshot(log: &std::sync::Arc<std::sync::Mutex<Vec<String>>>) -> Vec<String> 
 }
 
 /// Minimal blocking HTTP/1.1 request to 127.0.0.1 (no TLS, no extra dependencies).
-pub fn http_request(
-    port: u16,
-    method: &str,
-    path: &str,
-    headers: &[(&str, &str)],
-    timeout: Duration,
-) -> std::io::Result<(u16, String)> {
+pub fn http_request(port: u16, method: &str, path: &str, headers: &[(&str, &str)], timeout: Duration) -> std::io::Result<(u16, String)> {
     let addr: SocketAddr = ([127, 0, 0, 1], port).into();
     let mut stream = TcpStream::connect_timeout(&addr, timeout)?;
     stream.set_read_timeout(Some(timeout))?;

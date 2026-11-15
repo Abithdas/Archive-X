@@ -125,5 +125,8 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
     ("studio_image_cache", &["studio_id", "updated_at"]),
     ("video_studios", &["video_id", "studio_id"]),
     ("video_tags", &["video_id", "tag_id"]),
-    ("media", &["id", "source_channel", "source_message_id", "title", "filename", "status", "upload_date", "thumbnail_message_id", "site_url", "updated_at"]),
+    (
+        "media",
+        &["id", "source_channel", "source_message_id", "title", "filename", "status", "upload_date", "thumbnail_message_id", "site_url", "updated_at"],
+    ),
 ];

@@ -152,13 +152,17 @@ impl Player {
         let player = Player { lib, handle };
         if rc != 0 || handle.is_null() {
             let message = if handle.is_null() { String::new() } else { player.last_error() };
-            return Err(Error::Engine { code: rc, message });   // dropping `player` destroys the handle
+            return Err(Error::Engine { code: rc, message }); // dropping `player` destroys the handle
         }
         Ok(player)
     }
 
     fn check(&self, rc: i32) -> Result<(), Error> {
-        if rc == 0 { Ok(()) } else { Err(Error::Engine { code: rc, message: self.last_error() }) }
+        if rc == 0 {
+            Ok(())
+        } else {
+            Err(Error::Engine { code: rc, message: self.last_error() })
+        }
     }
 
     pub fn open(&self, url: &str, ua: &str, parent: Option<isize>, rect: Rect) -> Result<(), Error> {
@@ -168,16 +172,36 @@ impl Player {
         let rc = unsafe { (self.lib.f.open)(self.handle, url.as_ptr(), ua.as_ptr(), parent, rect.x, rect.y, rect.w, rect.h) };
         self.check(rc)
     }
-    pub fn close(&self) { unsafe { (self.lib.f.close)(self.handle) } }
-    pub fn play(&self) -> Result<(), Error> { self.check(unsafe { (self.lib.f.play)(self.handle) }) }
-    pub fn pause(&self) -> Result<(), Error> { self.check(unsafe { (self.lib.f.pause)(self.handle) }) }
-    pub fn stop(&self) -> Result<(), Error> { self.check(unsafe { (self.lib.f.stop)(self.handle) }) }
-    pub fn seek(&self, seconds: f64) -> Result<(), Error> { self.check(unsafe { (self.lib.f.seek)(self.handle, seconds) }) }
-    pub fn set_rate(&self, rate: f64) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_rate)(self.handle, rate) }) }
-    pub fn set_volume(&self, percent: u8) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_volume)(self.handle, percent as i32) }) }
-    pub fn set_muted(&self, muted: bool) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_muted)(self.handle, muted as i32) }) }
-    pub fn set_rect(&self, r: Rect) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_rect)(self.handle, r.x, r.y, r.w, r.h) }) }
-    pub fn set_video_layer(&self, layer: VideoLayer) -> Result<(), Error> { self.check(unsafe { (self.lib.f.set_layer)(self.handle, layer as i32) }) }
+    pub fn close(&self) {
+        unsafe { (self.lib.f.close)(self.handle) }
+    }
+    pub fn play(&self) -> Result<(), Error> {
+        self.check(unsafe { (self.lib.f.play)(self.handle) })
+    }
+    pub fn pause(&self) -> Result<(), Error> {
+        self.check(unsafe { (self.lib.f.pause)(self.handle) })
+    }
+    pub fn stop(&self) -> Result<(), Error> {
+        self.check(unsafe { (self.lib.f.stop)(self.handle) })
+    }
+    pub fn seek(&self, seconds: f64) -> Result<(), Error> {
+        self.check(unsafe { (self.lib.f.seek)(self.handle, seconds) })
+    }
+    pub fn set_rate(&self, rate: f64) -> Result<(), Error> {
+        self.check(unsafe { (self.lib.f.set_rate)(self.handle, rate) })
+    }
+    pub fn set_volume(&self, percent: u8) -> Result<(), Error> {
+        self.check(unsafe { (self.lib.f.set_volume)(self.handle, percent as i32) })
+    }
+    pub fn set_muted(&self, muted: bool) -> Result<(), Error> {
+        self.check(unsafe { (self.lib.f.set_muted)(self.handle, muted as i32) })
+    }
+    pub fn set_rect(&self, r: Rect) -> Result<(), Error> {
+        self.check(unsafe { (self.lib.f.set_rect)(self.handle, r.x, r.y, r.w, r.h) })
+    }
+    pub fn set_video_layer(&self, layer: VideoLayer) -> Result<(), Error> {
+        self.check(unsafe { (self.lib.f.set_layer)(self.handle, layer as i32) })
+    }
 
     /// Hide the video window now, without waiting for the engine (which may be busy stopping a stream).
     pub fn hide(&self) {
@@ -246,7 +270,11 @@ impl Player {
         // SAFETY: the engine returns a NUL-terminated string valid until the next call on this thread; it is copied at once.
         unsafe {
             let p = (self.lib.f.last_error)(self.handle);
-            if p.is_null() { String::new() } else { CStr::from_ptr(p).to_string_lossy().into_owned() }
+            if p.is_null() {
+                String::new()
+            } else {
+                CStr::from_ptr(p).to_string_lossy().into_owned()
+            }
         }
     }
 }

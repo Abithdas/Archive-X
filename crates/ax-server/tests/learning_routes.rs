@@ -23,13 +23,23 @@ const KEY: &str = "0123456789abcdef0123456789abcdef";
 type B = BoxBody<Bytes, Infallible>;
 
 fn reply(status: u16, body: &str) -> Response<B> {
-    Response::builder().status(status).header("content-type", "application/json").body(Full::new(Bytes::from(body.to_string())).boxed()).unwrap()
+    Response::builder()
+        .status(status)
+        .header("content-type", "application/json")
+        .body(Full::new(Bytes::from(body.to_string())).boxed())
+        .unwrap()
 }
 
 async fn backend_handler(db_path: String, req: Request<Incoming>) -> Result<Response<B>, Infallible> {
     let h = |n: &str| req.headers().get(n).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
     Ok(match req.uri().path() {
-        "/api/app/ping" => if h("cookie").contains("session=ok") { reply(200, r#"{"ok":true}"#) } else { reply(401, r#"{"detail":"Authentication required"}"#) },
+        "/api/app/ping" => {
+            if h("cookie").contains("session=ok") {
+                reply(200, r#"{"ok":true}"#)
+            } else {
+                reply(401, r#"{"detail":"Authentication required"}"#)
+            }
+        }
         "/internal/provider-keys" if h("x-archive-x-internal") == KEY => reply(200, &json!({ "stashdb": "", "tpdb": "", "data_dir": "", "db_path": db_path }).to_string()),
         _ => reply(200, r#"{"from":"python"}"#),
     })
@@ -73,11 +83,17 @@ fn database() -> Fixture {
     .unwrap();
     let insert = |next: &mut i64, group: i64, axis: usize, other: usize, pull: f32| {
         *next += 1;
-        c.execute("INSERT INTO photo_face_detections VALUES (?1,?2,0,?3,?4,'t')", (*next, *next * 10, group, face_mix(axis, other, pull, *next as u32))).unwrap();
+        c.execute("INSERT INTO photo_face_detections VALUES (?1,?2,0,?3,?4,'t')", (*next, *next * 10, group, face_mix(axis, other, pull, *next as u32)))
+            .unwrap();
         *next
     };
     let next = std::cell::Cell::new(0i64);
-    let add = |group: i64, axis: usize| { let mut n = next.get(); let id = insert(&mut n, group, axis, axis, 0.0); next.set(n); id };
+    let add = |group: i64, axis: usize| {
+        let mut n = next.get();
+        let id = insert(&mut n, group, axis, axis, 0.0);
+        next.set(n);
+        id
+    };
     for _ in 0..20 {
         add(1, 0); // Ava
     }
@@ -86,7 +102,12 @@ fn database() -> Fixture {
         add(2, 9); // Mia
     }
     let ava_unnamed: Vec<i64> = (0..3).map(|_| add(3, 0)).collect();
-    let removed = { let mut n = next.get(); let id = insert(&mut n, 3, 0, 7, 0.55); next.set(n); id }; // looks a lot like Ava, but was taken out of her
+    let removed = {
+        let mut n = next.get();
+        let id = insert(&mut n, 3, 0, 7, 0.55);
+        next.set(n);
+        id
+    }; // looks a lot like Ava, but was taken out of her
     for _ in 0..2 {
         add(4, 20); // a stranger
     }
@@ -113,8 +134,18 @@ async fn start(f: &Fixture) -> SocketAddr {
     let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = l.local_addr().unwrap();
     let cfg = Arc::new(Config {
-        listen: addr, upstream, upstream_plain: true, dist: dist.path().to_path_buf(), cert: None, key: None, proxy_key: KEY.into(), print_ready: false,
-        limits: Limits::default(), db: None, native_routes: vec!["face_learning".into()], session_touch_interval: Duration::from_secs(300),
+        listen: addr,
+        upstream,
+        upstream_plain: true,
+        dist: dist.path().to_path_buf(),
+        cert: None,
+        key: None,
+        proxy_key: KEY.into(),
+        print_ready: false,
+        limits: Limits::default(),
+        db: None,
+        native_routes: vec!["face_learning".into()],
+        session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {
         let _ = server::serve(l, cfg, std::future::pending()).await;

@@ -187,22 +187,18 @@ impl Store {
 
     fn state(&self, provider: &str) -> SyncState {
         let c = self.conn();
-        c.query_row(
-            "SELECT status,run_cursor,run_page,cursor,last_started,last_finished,last_full,last_error FROM sync WHERE provider=?",
-            [provider],
-            |r| {
-                Ok(SyncState {
-                    status: r.get(0)?,
-                    run_cursor: r.get(1)?,
-                    run_page: r.get(2)?,
-                    cursor: r.get(3)?,
-                    last_started: r.get(4)?,
-                    last_finished: r.get(5)?,
-                    last_full: r.get(6)?,
-                    last_error: r.get(7)?,
-                })
-            },
-        )
+        c.query_row("SELECT status,run_cursor,run_page,cursor,last_started,last_finished,last_full,last_error FROM sync WHERE provider=?", [provider], |r| {
+            Ok(SyncState {
+                status: r.get(0)?,
+                run_cursor: r.get(1)?,
+                run_page: r.get(2)?,
+                cursor: r.get(3)?,
+                last_started: r.get(4)?,
+                last_finished: r.get(5)?,
+                last_full: r.get(6)?,
+                last_error: r.get(7)?,
+            })
+        })
         .unwrap_or(SyncState { status: "never".into(), run_page: 1, ..Default::default() })
     }
 
@@ -256,9 +252,7 @@ impl Store {
         }
         let phrase = words.join(" ");
         let clause = words.iter().map(|_| "(norm LIKE ? OR aliases_norm LIKE ?)").collect::<Vec<_>>().join(" AND ");
-        let sql = format!(
-            "SELECT provider,provider_id,name,norm,aliases_norm,aliases_json,image FROM names WHERE {clause} ORDER BY (norm LIKE ?) DESC, length(norm) LIMIT 400"
-        );
+        let sql = format!("SELECT provider,provider_id,name,norm,aliases_norm,aliases_json,image FROM names WHERE {clause} ORDER BY (norm LIKE ?) DESC, length(norm) LIMIT 400");
         let mut args: Vec<String> = Vec::new();
         for w in &words {
             args.push(format!("%{w}%"));
@@ -268,7 +262,15 @@ impl Store {
         let c = self.conn();
         let Ok(mut stmt) = c.prepare(&sql) else { return Vec::new() };
         let rows = stmt.query_map(rusqlite::params_from_iter(args.iter()), |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?, r.get::<_, String>(4)?, r.get::<_, String>(5)?, r.get::<_, String>(6)?))
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?,
+                r.get::<_, String>(4)?,
+                r.get::<_, String>(5)?,
+                r.get::<_, String>(6)?,
+            ))
         });
         let Ok(rows) = rows else { return Vec::new() };
         let mut ranked: Vec<(u8, u8, usize, Hit)> = Vec::new();
@@ -323,7 +325,13 @@ impl Store {
         let st = self.state("stashdb");
         let resuming = st.status == "running";
         let full = st.cursor.is_empty();
-        let run_cursor = if resuming && !st.run_cursor.is_empty() { st.run_cursor.clone() } else if full { "__full__".to_string() } else { st.cursor.clone() };
+        let run_cursor = if resuming && !st.run_cursor.is_empty() {
+            st.run_cursor.clone()
+        } else if full {
+            "__full__".to_string()
+        } else {
+            st.cursor.clone()
+        };
         let mut page = if resuming { st.run_page.max(1) } else { 1 };
         let mut s = SyncState { status: "running".into(), run_cursor: run_cursor.clone(), run_page: page, last_started: now_secs(), last_error: String::new(), ..st.clone() };
         self.save("stashdb", &s);
@@ -493,7 +501,11 @@ fn aliases_of(v: Option<&Value>) -> Vec<String> {
 
 fn http_url(v: &str) -> String {
     let v = v.trim();
-    if v.starts_with("http://") || v.starts_with("https://") { v.to_string() } else { String::new() }
+    if v.starts_with("http://") || v.starts_with("https://") {
+        v.to_string()
+    } else {
+        String::new()
+    }
 }
 
 /// The picture to show: the first http(s) link among a performer's images (a bare link, or objects with a `url`).
@@ -574,7 +586,7 @@ mod tests {
     use std::sync::Mutex as StdMutex;
 
     struct Fake {
-        stash: StdMutex<Vec<Value>>,       // responses in order
+        stash: StdMutex<Vec<Value>>,        // responses in order
         stash_inputs: StdMutex<Vec<Value>>, // the inputs asked for
         tpdb_pages: usize,
         tpdb_calls: AtomicUsize,
@@ -598,7 +610,9 @@ mod tests {
         fn tpdb(&self, _t: &str, path: &str) -> Result<Value, String> {
             self.tpdb_calls.fetch_add(1, Ordering::SeqCst);
             let page: usize = path.split("page=").nth(1).and_then(|p| p.split('&').next()).and_then(|p| p.parse().ok()).unwrap();
-            let rows: Vec<Value> = (0..3).map(|i| json!({ "id": format!("t{page}-{i}"), "name": format!("Tp {page} {i}"), "aliases": ["Al"], "image": "https://i/x.jpg" })).collect();
+            let rows: Vec<Value> = (0..3)
+                .map(|i| json!({ "id": format!("t{page}-{i}"), "name": format!("Tp {page} {i}"), "aliases": ["Al"], "image": "https://i/x.jpg" }))
+                .collect();
             Ok(json!({ "data": rows, "meta": { "current_page": page, "last_page": self.tpdb_pages } }))
         }
     }
@@ -619,7 +633,15 @@ mod tests {
         let s = Store::in_memory().unwrap();
         let rows: Vec<Row> = names
             .iter()
-            .map(|(id, n, al)| Row { id: id.to_string(), name: n.to_string(), aliases: al.iter().map(|a| a.to_string()).collect(), gender: String::new(), image: "x".into(), updated: String::new(), remove: false })
+            .map(|(id, n, al)| Row {
+                id: id.to_string(),
+                name: n.to_string(),
+                aliases: al.iter().map(|a| a.to_string()).collect(),
+                gender: String::new(),
+                image: "x".into(),
+                updated: String::new(),
+                remove: false,
+            })
             .collect();
         s.store_rows("stashdb", &rows);
         s
@@ -743,7 +765,10 @@ mod tests {
         let path = dir.path().join("names.db");
         {
             let s = Store::open(&path).unwrap();
-            s.store_rows("stashdb", &[Row { id: "1".into(), name: "Ava Stone".into(), aliases: vec![], gender: String::new(), image: String::new(), updated: String::new(), remove: false }]);
+            s.store_rows(
+                "stashdb",
+                &[Row { id: "1".into(), name: "Ava Stone".into(), aliases: vec![], gender: String::new(), image: String::new(), updated: String::new(), remove: false }],
+            );
         }
         assert_eq!(Store::open(&path).unwrap().search("ava", 8).len(), 1);
     }
