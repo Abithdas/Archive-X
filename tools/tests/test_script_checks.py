@@ -10,7 +10,6 @@ ROOT = HERE.parents[1]
 SCRIPTS = [
     ("test_image_derivatives.py", []),
     ("test_photo_derivatives.py", []),
-    ("test_hosted_mode.py", []),
     ("test_desktop_mode.py", []),
     ("test_duplicate_delete_thumbnail.py", [str(ROOT)]),
 ]

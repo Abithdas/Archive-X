@@ -81,7 +81,7 @@ def collect_diagnostics(*, db, requested_items: list[str] | None = None, max_cha
                               "support_readme": {
                                   "start_here": "correlation_index",
                                   "correlation_order": ["launch_id", "request_id", "trace_id", "operation_id", "job_id", "error_fingerprint"],
-                                  "launcher_chain": ["Archive-X.bat", "Setup-And-Run.ps1", "prepare_start.ps1", "run.py", "telegram_archive"],
+                                  "launcher_chain": ["Archive X desktop app", "archive-x-backend", "telegram_archive"],
                                   "note": "Use launch_id to connect Windows startup/control-plane events to application events. Use request/trace IDs for HTTP, operation/job IDs for work execution, and error fingerprints for repeated failures. Browser diagnostics connect media state, Resource Timing, network information, long tasks and browser-side failures to the same report.",
                                   "diagnosis_order": ["diagnostic_health", "incident_analysis.first_failure", "incident_analysis.incidents", "correlation_index.timeline", "raw evidence"],
                                   "log_retention": "Structured JSONL is bounded by configured rotation; repeated events are aggregated within the deduplication window.",

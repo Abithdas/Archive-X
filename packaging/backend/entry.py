@@ -1,7 +1,7 @@
 """Entry point of the frozen Archive X backend (the Tauri shell starts this as a sidecar).
 
 Desktop mode is forced on: the shell cannot forget to set it, and the frozen backend must never listen on the LAN
-by accident. Source-run (browser) mode keeps using run.py.
+by accident. From a checkout, `python -m telegram_archive` is the equivalent.
 """
 import multiprocessing
 import os
@@ -10,7 +10,6 @@ import sys
 
 def _main():
     os.environ.setdefault("ARCHIVE_X_DESKTOP", "1")
-    os.environ.setdefault("ARCHIVE_X_AUTO_OPEN_BROWSER", "0")
     if getattr(sys, "frozen", False):
         # Child processes spawned by the app (isolated media workers) re-run this entry point.
         multiprocessing.freeze_support()

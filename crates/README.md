@@ -18,7 +18,7 @@ ARCHIVE_X_PROXY_KEY=<random secret, 16+ chars> \
 Start the Python backend on the private port with the **same secret**:
 
 ```bash
-ARCHIVE_X_PROXY_KEY=<same secret> TELEGRAM_ARCHIVE_HOST=127.0.0.1 TELEGRAM_ARCHIVE_PORT=18443 python run.py
+ARCHIVE_X_PROXY_KEY=<same secret> TELEGRAM_ARCHIVE_HOST=127.0.0.1 TELEGRAM_ARCHIVE_PORT=18443 python -m telegram_archive
 ```
 
 How it behaves:

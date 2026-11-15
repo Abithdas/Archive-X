@@ -13,7 +13,7 @@ The diagram is in `archive/Archive-X-architecture.svg`.
 
 | Concern | Where | Notes |
 |---|---|---|
-| Launch | `Archive-X.bat` → `scripts/launcher/*.ps1` → `run.py` | `run.py` creates `.venv`, re-execs under it, clears stale `.pyc` on version change, then calls `telegram_archive.main:main` |
+| Launch | The desktop app (`apps/desktop`) → `crates/launcher-core` → the frozen backend (`packaging/backend/entry.py`) → `telegram_archive.main:main` | From a checkout: `python -m telegram_archive`. The old `.bat`/`.ps1`/`run.py` launchers and hosted (Replit) mode were removed on 15 November 2026 |
 | Startup | `main.py` | Instance lock → cleanup → data migration → open DB → credentials and TLS cert → `create_app()` → serve |
 | Web server | Hypercorn (HTTPS/TCP plus HTTP/3 QUIC) or Uvicorn fallback | Binds `0.0.0.0:8443` by default |
 | Player feed | aiohttp, plain HTTP on `0.0.0.0:8444+` | Serves signed-token streams to VLC, MPC-HC and FFmpeg |

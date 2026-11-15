@@ -29,3 +29,5 @@ apps/desktop/src-tauri/resources/lav/*
 native/axplayer/third_party/
 apps/desktop/src-tauri/resources/axplayer/*
 !apps/desktop/src-tauri/resources/axplayer/.gitkeep
+# The web app's build output (made by npm run build; CI and the installer build it themselves)
+apps/web/dist/

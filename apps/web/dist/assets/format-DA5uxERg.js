@@ -1,1 +1,0 @@
-function f(t){if(!t||t<0)return"";const r=Math.floor(t/3600),o=Math.floor(t%3600/60),n=Math.floor(t%60),a=String(o).padStart(r?2:1,"0"),i=String(n).padStart(2,"0");return r?`${r}:${a}:${i}`:`${a}:${i}`}function u(t){if(!t)return"";const r=["B","KB","MB","GB","TB"];let o=t,n=0;for(;o>=1024&&n<r.length-1;)o/=1024,n++;return`${o.toFixed(n>=3?1:0)} ${r[n]}`}export{u as a,f};

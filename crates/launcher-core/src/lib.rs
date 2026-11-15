@@ -119,7 +119,6 @@ impl Backend {
         cmd.env("ARCHIVE_X_DESKTOP", "1")
             .env("ARCHIVE_X_LAUNCH_SECRET", &secret)
             .env("ARCHIVE_X_PARENT_PID", std::process::id().to_string())
-            .env("ARCHIVE_X_AUTO_OPEN_BROWSER", "0")
             .env("PYTHONUNBUFFERED", "1")
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

@@ -586,7 +586,6 @@ METADATA_CACHE_TTL_SECONDS = max(0.0, float(os.getenv("ARCHIVE_X_METADATA_CACHE_
 # missing). "off" always uses the existing Uvicorn HTTPS server.
 HTTP3_MODE = os.getenv("TELEGRAM_ARCHIVE_HTTP3", "auto").strip().lower() or "auto"
 # Browser opening is convenience-only and can be disabled for headless/server installs.
-AUTO_OPEN_BROWSER = os.getenv("ARCHIVE_X_AUTO_OPEN_BROWSER", "1" if os.name == "nt" else "0").strip().lower() not in {"0", "false", "no", "off"}
 # Automatic idle snapshot extraction was removed in v29.4.143. Generating a
 # 36-frame grid makes multiple Telegram range requests per video and must be
 # triggered explicitly from the Snapshot Cache / Metadata & Assets workflow.
