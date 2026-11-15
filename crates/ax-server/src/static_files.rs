@@ -17,7 +17,7 @@ use percent_encoding::percent_decode_str;
 use crate::proxy::Body;
 
 /// Paths that belong to the Python backend. Same list as routes_frontend.RESERVED, plus the few non-API GET routes it serves.
-const BACKEND_PREFIXES: &[&str] = &["api", "stream", "static", "ws", "desktop", "health", "ca.crt", "app-next", "hls", "test-bridge", "openapi.json", "docs", "redoc"];
+const BACKEND_PREFIXES: &[&str] = &["api", "stream", "static", "ws", "desktop", "health", "app-next", "hls", "test-bridge", "openapi.json", "docs", "redoc"];
 const MIN_GZIP: usize = 1024;
 
 /// The first path segment of each page of the web app (the React router's routes). Anything else that is not a real file

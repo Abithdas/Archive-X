@@ -65,7 +65,7 @@ clean-shutdown marker.
 
 ## 4. Key flows
 
-1. **First run.** The launcher builds the venv and installs dependencies. The app creates a local root CA and a leaf certificate for the PC's LAN IP, then sets `setup_required`. `POST /api/auth/setup` is accepted only from loopback and creates the admin credentials. The phone installs the CA via `/ca.crt`.
+1. **First run.** The desktop shell starts the backend on a loopback port with a per-launch secret. The backend creates a random web password nobody sees (there is no web login in the desktop app); the window gets its session from `/desktop/session?token=…`. There is no HTTPS, no LAN access and no certificate.
 2. **Login.** `POST /login` → rate-limit check → PBKDF2-SHA256 verify (260k iterations) → random 256-bit session token. Only a SHA-256 hash is persisted in `web_sessions`. The cookie is HttpOnly, Secure and SameSite=Strict. Sessions last 30 days and slide.
 3. **Playback.** The UI asks `/api/play/*`. The shared engine pulls ranges from Telegram through the governor into a sparse cache and serves HTTP ranges to the browser. External players get a signed `?c=&t=` URL from the player feed.
 4. **Ingest and transfer.** Local-folder or Telegram-source jobs go through orchestrator admission, then an engine (uploader, mover or sender). Oversized files are optimized or split, every delivery is written to the delivery ledger, and the metadata pipeline then enriches the item.

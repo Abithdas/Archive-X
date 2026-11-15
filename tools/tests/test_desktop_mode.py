@@ -73,7 +73,7 @@ def main() -> int:
         print("guard")
         r = request(port, "GET", "/health"); r.read()
         check("/health is open (liveness only)", r.status == 200)
-        for path in ("/", "/api/status", "/api/library", "/ws", "/ca.crt", "/login"):
+        for path in ("/", "/api/status", "/api/library", "/ws", "/login"):
             r = request(port, "GET", path); r.read()
             check(f"{path} without secret is refused", r.status == 403, str(r.status))
         r = request(port, "GET", "/api/status", {"X-Archive-X-Desktop": "wrong" * 8}); r.read()

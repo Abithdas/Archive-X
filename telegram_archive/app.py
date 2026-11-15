@@ -100,45 +100,6 @@ class RequestCorrelationMiddleware:
             set_context(component="-")
 
 
-class HTTP3AdvertisementMiddleware:
-    """Add Alt-Svc only when the application is actually running with HTTP/3.
-
-    This is a tiny ASGI middleware rather than BaseHTTPMiddleware so streaming
-    responses (large video ranges) remain untouched.
-    """
-
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope.get("type") != "http" or os.getenv("TELEGRAM_ARCHIVE_HTTP3_ACTIVE") != "1":
-            await self.app(scope, receive, send)
-            return
-
-        async def _send(message):
-            if message.get("type") == "http.response.start":
-                headers = list(message.get("headers") or [])
-                alt_svc = (
-                    f'h3=":{config.PORT}"; ma={config.HTTP3_ALT_SVC_MAX_AGE}'
-                ).encode("ascii")
-                # Do not duplicate an Alt-Svc header if the serving stack already
-                # provided one.
-                if not any(k.lower() == b"alt-svc" for k, _ in headers):
-                    headers.append((b"alt-svc", alt_svc))
-                message = dict(message)
-                message["headers"] = headers
-            await send(message)
-
-        await self.app(scope, receive, _send)
-
-
-
-
-# ==============================================================================
-# SECTION: Application factory
-# Builds the FastAPI app and wires every singleton. Start here to trace startup.
-# ==============================================================================
-
 def create_app(db: Database | None = None, *, session_store: SessionStore | None = None) -> FastAPI:
     """Build the FastAPI app and wire the database, governor, Telegram, jobs and routes together."""
     set_context(launch_id=os.getenv("ARCHIVE_X_LAUNCH_ID") or "-", component="startup")
@@ -587,7 +548,6 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
     app.add_middleware(BrowserMutationGuardMiddleware)
     app.add_middleware(ResponseOptimizationMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
-    app.add_middleware(HTTP3AdvertisementMiddleware)
     _proxy_key = os.getenv("ARCHIVE_X_PROXY_KEY", "").strip()
     if _proxy_key:   # the Rust front door is in front of this server; outermost, so every later layer sees the real client address
         app.add_middleware(TrustedProxyMiddleware, key=_proxy_key)

@@ -58,15 +58,3 @@ def snapshot() -> ProcessTopology:
             "runtime-watchers",
         ),
     )
-
-
-def startup_message() -> str:
-    topo = snapshot()
-    if topo.multi_process_requested:
-        return (
-            f"Multi-process launch requested ({topo.requested_workers} workers), "
-            "but Archive X lifecycle services are process-owned. "
-            "Keep a single application worker until singleton ownership "
-            "coordination is explicitly enabled."
-        )
-    return "Archive X lifecycle ownership: single-process-owned"

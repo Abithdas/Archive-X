@@ -7816,23 +7816,6 @@
     "summary": "Old Prefix Redirect"
    }
   },
-  "/ca.crt": {
-   "get": {
-    "description": "Public on purpose: it's the CA *certificate* (no private key).\nPhones download and trust it once so HTTPS + video playback work.",
-    "operationId": "ca_cert_download_ca_crt_get",
-    "responses": {
-     "200": {
-      "content": {
-       "application/json": {
-        "schema": {}
-       }
-      },
-      "description": "Successful Response"
-     }
-    },
-    "summary": "Ca Cert Download"
-   }
-  },
   "/health": {
    "get": {
     "description": "GET /health: Health.",

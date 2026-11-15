@@ -1,6 +1,6 @@
 """Send the same requests to two servers (the Python backend and the Rust one) and report every difference.
 
-    python tools/parity/compare.py --a https://127.0.0.1:8443 --b https://127.0.0.1:9443 --user admin --password ...
+    ARCHIVE_X_PARITY_SECRET=<the launch secret both backends run with> python tools/parity/compare.py --a http://127.0.0.1:18500 --b http://127.0.0.1:19500
 
 By default it tests every GET route of docs/api/openapi.json that has no path parameter. Extra routes
 (one per line, e.g. /api/library?page=0&per=3) can be added with --routes FILE. Status codes and JSON bodies must
@@ -10,6 +10,7 @@ Exit code 0 only when nothing differs.
 import argparse
 import http.client
 import json
+import os
 import ssl
 import sys
 import urllib.parse
@@ -26,7 +27,14 @@ class Client:
         self.scheme, self.host, self.port = u.scheme, u.hostname, u.port or (443 if u.scheme == "https" else 80)
         self.base, self.cookie = base, ""
         self.ctx = ssl._create_unverified_context()
-        if user:
+        secret = os.environ.get("ARCHIVE_X_PARITY_SECRET", "")
+        if secret:
+            # The backend runs in desktop mode (the only mode): the window gets its session from the launch hand-off.
+            status, headers, _ = self.request("GET", f"/desktop/session?token={secret}", None, {"X-Archive-X-Desktop": secret})
+            self.cookie = "; ".join(v.split(";")[0] for k, v in headers if k.lower() == "set-cookie")
+            if not self.cookie:
+                sys.exit(f"the launch hand-off at {base} gave no session cookie (status {status})")
+        elif user:
             body = json.dumps({"username": user, "password": password})
             status, headers, _ = self.request("POST", "/login", body, {"Content-Type": "application/json", "Origin": base})
             self.cookie = "; ".join(v.split(";")[0] for k, v in headers if k.lower() == "set-cookie")

@@ -800,7 +800,6 @@ The source code of LAV Filters and FFmpeg is available from the links above, at 
 
 | Name | Version | Licence |
 | --- | --- | --- |
-| Hypercorn | 0.18.0 | MIT |
 | Telethon | 1.45.0 | MIT |
 | aiohttp | 3.14.5 | Apache-2.0 AND MIT |
 | argon2-cffi | 25.1.0 | MIT |

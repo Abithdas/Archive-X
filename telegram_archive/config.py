@@ -563,18 +563,12 @@ LOCAL_PLAYER_PORT = int(os.getenv("TELEGRAM_ARCHIVE_PLAYER_PORT", "8444"))
 LOCAL_PLAYER_HOST = os.getenv("TELEGRAM_ARCHIVE_PLAYER_HOST", "0.0.0.0")
 METADATA_CACHE_TTL_SECONDS = max(0.0, float(os.getenv("ARCHIVE_X_METADATA_CACHE_TTL_SECONDS", str(90 * 86400))))
 
-# Browser-facing transport. "auto" uses HTTP/3/QUIC when Hypercorn + aioquic
-# are installed, otherwise keeps the existing HTTPS/TCP server. "on" forces
-# the HTTP/3 attempt (with safe TCP fallback if the optional dependency is
-# missing). "off" always uses the existing Uvicorn HTTPS server.
-HTTP3_MODE = os.getenv("TELEGRAM_ARCHIVE_HTTP3", "auto").strip().lower() or "auto"
 # Browser opening is convenience-only and can be disabled for headless/server installs.
 # Automatic idle snapshot extraction was removed in v29.4.143. Generating a
 # 36-frame grid makes multiple Telegram range requests per video and must be
 # triggered explicitly from the Snapshot Cache / Metadata & Assets workflow.
 AUTO_PREVIEW_PREFETCH_ON_IDLE = False
 TELEGRAM_BACKGROUND_CONNECT_TIMEOUT_SECONDS = max(5.0, float(os.getenv("ARCHIVE_X_TELEGRAM_CONNECT_TIMEOUT_SECONDS", "20")))
-HTTP3_ALT_SVC_MAX_AGE = int(os.getenv("TELEGRAM_ARCHIVE_HTTP3_ALT_SVC", "86400"))
 SESSION_COOKIE = "session"
 SESSION_TTL_SECONDS = 30 * 24 * 3600
 LOGIN_MAX_ATTEMPTS = 8

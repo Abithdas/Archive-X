@@ -10,7 +10,7 @@ NOT_BUILT = "frontend not built: run npm run build in frontend/"
 OLD_PREFIX = "/app-next"
 # Paths that belong to the backend: an unknown one is a 404, never the app shell.
 REVALIDATE = ("sw.js", "manifest.webmanifest")
-RESERVED = ("api", "stream", "static", "ws", "desktop", "health", "ca.crt")
+RESERVED = ("api", "stream", "static", "ws", "desktop", "health")
 
 
 def register_frontend_routes(router: APIRouter, *, dist_dir: Path) -> None:

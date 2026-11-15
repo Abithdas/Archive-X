@@ -11,7 +11,7 @@ from typing import Callable
 
 _TEXT_TYPES = ("application/json", "application/javascript", "text/", "application/xml")
 _SKIP_PREFIXES = (
-    "/stream", "/api/play/", "/api/thumb/", "/static/", "/ca.crt", "/api/log/download",
+    "/stream", "/api/play/", "/api/thumb/", "/static/", "/api/log/download",
 )
 
 

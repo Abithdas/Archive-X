@@ -692,14 +692,6 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                 _status_cache.update(at=time.monotonic(), data=data, json=payload)
             return _status_cache["data"], _status_cache["json"]
 
-    @router.get("/ca.crt")
-    async def ca_cert_download():
-        """Public on purpose: it's the CA *certificate* (no private key).
-        Phones download and trust it once so HTTPS + video playback work."""
-        from fastapi.responses import Response
-        from ..core.certs import ca_certificate_der
-        return Response(content=ca_certificate_der(), media_type="application/x-x509-ca-cert",
-                        headers={"Content-Disposition": 'attachment; filename="Archive X-RootCA.crt"'})
     ps = player_state if player_state is not None else {}
     ps.setdefault("engine", None)
     ps.setdefault("_playback_stop_task", None)

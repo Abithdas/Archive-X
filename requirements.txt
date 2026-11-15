@@ -7,11 +7,10 @@ aiohttp>=3.9,<4
 Pillow>=13,<14
 qrcode[pil]>=7.4,<9
 av==14.2.0
-# cryptography 50 fixes the certificate-chain, PKCS7 and bundled-OpenSSL advisories of 46.x; it needs pyopenssl>=26.4 (HTTP/3), which pip picks
+# cryptography 50 fixes the certificate-chain, PKCS7 and bundled-OpenSSL advisories of 46.x
 cryptography>=50,<51
 argon2-cffi>=23.1,<26
 cryptg>=0.4
-hypercorn[h3]>=0.18,<1
 opencv-python-headless>=4.10,<5
 faster-whisper>=1.0,<2
 nudenet>=3.4,<4

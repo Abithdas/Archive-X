@@ -9,7 +9,7 @@ PKG = ROOT / "telegram_archive"
 
 # The app imports many modules lazily (inside functions, __import__) - take the whole package.
 hiddenimports = collect_submodules("telegram_archive")
-hiddenimports += collect_submodules("uvicorn") + collect_submodules("hypercorn") + collect_submodules("aioquic")
+hiddenimports += collect_submodules("uvicorn")
 hiddenimports += ["websockets", "websockets.legacy", "wsproto", "h11", "h2", "python_socks", "qrcode", "PIL.Image"]
 
 datas = [

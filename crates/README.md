@@ -27,7 +27,7 @@ How it behaves:
   ETag/304, but only for what is certainly the front door's: a file that exists in the web folder, or one of the app's own pages
   (`/`, `/photos`, `/videos`, `/performers`, `/studios`, `/watch`, `/operations`, `/transfers`, `/settings`, `/ai`, `/people`,
   `/login`). Everything else goes to Python, which decides: it has routes this server has never heard of (for example
-  `/stream-cached/...`, found by the parity harness). Paths under `api`, `stream`, `static`, `ws`, `desktop`, `health`, `ca.crt`,
+  `/stream-cached/...`, found by the parity harness). Paths under `api`, `stream`, `static`, `ws`, `desktop`, `health`,
   `hls`, `app-next`, `test-bridge`, `openapi.json`, `docs` and `redoc` always go to Python.
 - **Limits.** A client has 30 s to send its request headers (this also ends idle keep-alive connections), 10 s for the TLS
   handshake; at most 2048 connections; on shutdown requests in flight get 10 s to finish. HTTP/2 is used only when TLS
