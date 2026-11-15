@@ -268,3 +268,46 @@ impl Native {
         }
     }
 }
+
+impl Native {
+    /// `GET /api/tags` without a search text: every tag that has a video in the library, most used first (`brief=1` keeps three fields).
+    pub(crate) async fn tags_list(&self, query: Option<&str>, request: &HeaderMap) -> Option<Response<Body>> {
+        let params = query_params(query)?;
+        if params.get("q").map(|q| !q.trim().is_empty()).unwrap_or(false) {
+            return None;
+        }
+        let brief = params.get("brief").map(String::as_str) == Some("1");
+        let read = self.db.read(move |c| {
+            let rows = rows_with(
+                c,
+                "SELECT t.*, COUNT(DISTINCT CASE WHEN vt.video_id IN (SELECT id FROM archive_x_library_media) THEN vt.video_id END) video_count \
+                 FROM tags t LEFT JOIN video_tags vt ON vt.tag_id=t.id GROUP BY t.id HAVING video_count > 0 ORDER BY video_count DESC,t.name",
+                [],
+            )?;
+            Ok(rows)
+        });
+        match read.await {
+            Ok(rows) => {
+                let items: Vec<Value> = rows
+                    .into_iter()
+                    .map(|d| {
+                        if brief {
+                            let mut m = Map::new();
+                            for k in ["id", "name", "video_count"] {
+                                m.insert(k.into(), d.get(k).cloned().unwrap_or(Value::Null));
+                            }
+                            Value::Object(m)
+                        } else {
+                            Value::Object(d)
+                        }
+                    })
+                    .collect();
+                Some(json_response(request, serde_json::to_vec(&items).unwrap_or_default()))
+            }
+            Err(e) => {
+                tracing::error!("tags: {e}");
+                Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The tags could not be read"))
+            }
+        }
+    }
+}

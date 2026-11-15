@@ -21,7 +21,7 @@ use crate::optimize::json_response;
 use crate::proxy::{Body, Proxy};
 
 /// Every route that can be answered here, by name.
-pub const ROUTES: &[&str] = &["photos_channels", "performers_list", "face_groups_fast", "channel_videos", "studio_videos", "tag_videos", "library_list"];
+pub const ROUTES: &[&str] = &["photos_channels", "performers_list", "face_groups_fast", "channel_videos", "studio_videos", "tag_videos", "library_list", "tags_list"];
 
 /// A request that belongs to an enabled native route.
 pub struct Match {
@@ -77,6 +77,7 @@ impl Native {
             "/api/performers" => ("performers_list", None),
             "/api/photos/faces/groups" => ("face_groups_fast", None),
             "/api/library" => ("library_list", None),
+            "/api/tags" => ("tags_list", None),
             _ => {
                 let rest = path.strip_prefix("/api/")?;
                 let (kind, tail) = rest.split_once('/')?;
@@ -118,6 +119,11 @@ impl Native {
             }
             "face_groups_fast" => {
                 let resp = self.face_groups_fast(query, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "tags_list" => {
+                let resp = self.tags_list(query, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }

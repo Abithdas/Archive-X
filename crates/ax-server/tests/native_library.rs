@@ -127,7 +127,7 @@ async fn door(extra: impl FnOnce(&Connection)) -> Door {
         print_ready: false,
         limits: Limits::default(),
         db: Some(dbpath),
-        native_routes: vec!["library_list".into()],
+        native_routes: vec!["library_list".into(), "tags_list".into()],
         session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {
@@ -228,4 +228,18 @@ async fn searches_and_odd_numbers_go_to_python() {
         let r = get(d.addr, &format!("/api/library?{q}"), "").await;
         assert_eq!(json(&r)["from"], "python", "{q}");
     }
+}
+
+#[tokio::test]
+async fn tags_are_listed_by_use_and_a_search_goes_to_python() {
+    let d = door(|_| {}).await;
+    let r = get(d.addr, "/api/tags", "").await;
+    assert_eq!((r.status, r.headers["x-served-by"].as_str()), (200, "rust"));
+    let v = json(&r);
+    let names: Vec<&str> = v.as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
+    assert_eq!(names, ["tag-a", "tag-b"], "tag-a is on four videos, tag-b on one");
+    assert_eq!((v[0]["video_count"].as_i64(), v[1]["video_count"].as_i64()), (Some(4), Some(1)));
+    let brief = json(&get(d.addr, "/api/tags?brief=1&limit=320", "").await);
+    assert_eq!(keys(&brief[0]), ["id", "name", "video_count"]);
+    assert_eq!(json(&get(d.addr, "/api/tags?q=tag", "").await)["from"], "python");
 }
