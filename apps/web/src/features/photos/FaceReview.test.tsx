@@ -64,11 +64,13 @@ describe('Check faces with what the app has learned', () => {
   const LIKE = { items: [{ detection_id: 101, photo_id: 5, group_id: 8, crop_url: '/c/101', score: 0.7, strong: true }, { detection_id: 102, photo_id: 6, group_id: 9, crop_url: '/c/102', score: 0.5, strong: false }] }
   const mountLearned = (learned: unknown, like: unknown) => {
     const calls: Call[] = []
+    const turnedDown = new Set<number>()   // what the server remembers once told "not this person"
     vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
       calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : undefined })
+      if (url === '/api/photos/faces/learning/not-this-person') { const ids = (JSON.parse(String(init?.body)) as { detection_ids: number[] }).detection_ids; ids.forEach((i) => turnedDown.add(i)); return json({ ok: true, marked: ids.length, skipped: 0 }) }
       if (url.startsWith('/api/photos/faces/review')) return json({ ok: true, total: FACES.length, items: FACES })
       if (url.startsWith('/api/photos/faces/learning/outliers')) return learned ? json(learned) : new Response('{}', { status: 404 })
-      if (url.startsWith('/api/photos/faces/learning/suggestions')) return like ? json(like) : new Response('{}', { status: 404 })
+      if (url.startsWith('/api/photos/faces/learning/suggestions')) return like ? json({ ...(like as { items: Array<{ detection_id: number }> }), items: (like as { items: Array<{ detection_id: number }> }).items.filter((f) => !turnedDown.has(f.detection_id)) }) : new Response('{}', { status: 404 })
       return json({ ok: true, moved: 1, group_id: 99 })
     }))
     withRouter(<FaceReview performerId={3} label="Ava Stone" onClose={() => {}} />)
@@ -94,11 +96,21 @@ describe('Check faces with what the app has learned', () => {
   it('offers faces from other groups that look like the person and adds the ticked ones to them', async () => {
     const calls = mountLearned(LEARNED, LIKE)
     const group = await screen.findByRole('group', { name: 'Look-alike faces' })
-    expect(screen.getByText(/2 faces in other groups look like Ava Stone/)).toBeInTheDocument()
+    expect(screen.getByText(/2 new faces look like Ava Stone/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Tick the strong matches \(1\)/ }))
     expect(within(group).getByRole('checkbox', { name: 'Look-alike 101, strong match' })).toHaveAttribute('aria-checked', 'true')
     expect(within(group).getByRole('checkbox', { name: 'Look-alike 102' })).toHaveAttribute('aria-checked', 'false')
     fireEvent.click(screen.getByRole('button', { name: 'Add 1 to Ava Stone' }))
     await waitFor(() => expect(calls.find((c) => c.url === '/api/photos/faces/detections/move')?.body).toEqual({ detection_ids: [101], performer_id: 3 }))
+  })
+  it('turning down look-alikes tells the model they are not this person, moves nothing, and drops them from the list', async () => {
+    const calls = mountLearned(LEARNED, LIKE)
+    const group = await screen.findByRole('group', { name: 'Look-alike faces' })
+    expect(screen.getByRole('button', { name: 'Say the ticked look-alikes are not Ava Stone' })).toBeDisabled()
+    fireEvent.click(within(group).getByRole('checkbox', { name: 'Look-alike 102' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Say the ticked look-alikes are not Ava Stone' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/photos/faces/learning/not-this-person')?.body).toEqual({ performer_id: 3, detection_ids: [102] }))
+    expect(calls.some((c) => c.url === '/api/photos/faces/detections/move')).toBe(false)
+    await waitFor(() => expect(within(screen.getByRole('group', { name: 'Look-alike faces' })).queryByRole('checkbox', { name: 'Look-alike 102' })).toBeNull())
   })
 })

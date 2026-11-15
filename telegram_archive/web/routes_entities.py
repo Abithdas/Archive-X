@@ -74,6 +74,24 @@ def register_entity_routes(
         asyncio.get_running_loop().create_task(missing_images.run_once(db, limit=200))
         return {"ok": True, "started": True}
 
+    @router.post("/api/entities/auto-repair")
+    async def entities_auto_repair(request: Request):
+        """Called by the Performers and Studios pages when they open: fill in blank genders and missing pictures in the background.
+
+        Returns at once; the work runs on its own (at most once every ten minutes per kind) and the lists refresh themselves.
+        """
+        require_auth(request)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        kind = str((body or {}).get("kind") or "").strip().lower() if isinstance(body, dict) else ""
+        if kind not in {"performers", "studios"}:
+            raise HTTPException(400, "kind must be performers or studios")
+        from ..engines import missing_images
+        asyncio.get_running_loop().create_task(missing_images.auto_repair(db, kind, reason="page opened"))
+        return {"ok": True}
+
     @router.get("/api/performer-gender/missing")
     async def performers_missing_gender(request: Request):
         """How many performers have no gender (they are hidden from the Female, Male and Trans lists)."""

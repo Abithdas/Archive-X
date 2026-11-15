@@ -4,6 +4,7 @@ import type { Entity } from '@/api/types'
 import { useSearch } from '@/app/search'
 import { withRouter } from '@/test/withRouter'
 import { EntityDirectory } from './EntityDirectory'
+import { DEFAULT_VIEW, useDirectoryView } from './directoryView'
 import { filterEntities, pageCount } from './filter'
 
 const e = (id: number, name: string, video_count: number, gender?: string): Entity => ({ id, name, video_count, gender, image: '' })
@@ -18,7 +19,7 @@ describe('filterEntities', () => {
 
 const mount = (kind: 'performers' | 'studios') => withRouter(<EntityDirectory kind={kind} />)
 
-afterEach(() => { vi.unstubAllGlobals(); useSearch.getState().set('') })
+afterEach(() => { vi.unstubAllGlobals(); useSearch.getState().set(''); useDirectoryView.setState({ views: { performers: DEFAULT_VIEW, studios: DEFAULT_VIEW } }) })
 
 describe('EntityDirectory', () => {
   it('shows a skeleton, then the cards, and filters by search', async () => {
@@ -38,13 +39,15 @@ describe('EntityDirectory', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Male' }))
     expect((await screen.findByRole('link', { name: 'Adam Reed' })).getAttribute('href')).toBe('/performers/2')
   })
-  it('has a Trans choice that also matches provider wording like transgender_female', async () => {
+  it('has no Trans choice; a trans performer is not under Female or Male and is still under All', async () => {
     const list = [e(1, 'Ava Stone', 5, 'female'), e(2, 'Tia Lane', 4, 'transgender_female')]
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(list), { status: 200 })))
     mount('performers')
-    fireEvent.click(await screen.findByRole('button', { name: 'Trans' }))
+    await screen.findByRole('article', { name: 'Ava Stone' })
+    expect(screen.queryByRole('button', { name: 'Trans' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: 'Tia Lane' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'All' }))
     expect(await screen.findByRole('article', { name: 'Tia Lane' })).toBeInTheDocument()
-    expect(screen.queryByRole('article', { name: 'Ava Stone' })).not.toBeInTheDocument()
   })
   it('only offers the gender filter for performers', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })))
@@ -79,5 +82,25 @@ describe('studio directory', () => {
     expect(screen.getAllByRole('article')).toHaveLength(1)
     fireEvent.change(screen.getByLabelText('Items per page'), { target: { value: '24' } })
     expect(await screen.findAllByRole('article')).toHaveLength(13)
+  })
+  it('comes back to the page you were on after leaving the list (opening a card and pressing back)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(studios), { status: 200 })))
+    const first = mount('studios')
+    await screen.findByRole('article', { name: 'Studio 01' })
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    await screen.findByRole('article', { name: 'Studio 13' })
+    first.unmount()
+    mount('studios')
+    expect(await screen.findByRole('article', { name: 'Studio 13' })).toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: 'Studio 01' })).not.toBeInTheDocument()
+  })
+  it('starts again at page 1 when the search changes', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(studios), { status: 200 })))
+    mount('studios')
+    await screen.findByRole('article', { name: 'Studio 01' })
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    await screen.findByRole('article', { name: 'Studio 13' })
+    act(() => useSearch.getState().set('studio'))
+    expect(await screen.findByRole('article', { name: 'Studio 01' })).toBeInTheDocument()
   })
 })

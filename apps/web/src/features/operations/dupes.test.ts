@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ALL_INDEXED, BATCH_LIMIT, candidateKey, channelName, confirmCopy, deleteBody, deletePlan, findKeeper, formatDuration, formatSize, frameUrl, resultWarnings, scanSummary, scanTitles, scanUrl, scopeOptions, selectionState, sharesIdentity, validIds } from './dupes'
+import { withoutCopy, ALL_INDEXED, BATCH_LIMIT, candidateKey, channelName, confirmCopy, deleteBody, deletePlan, findKeeper, formatDuration, formatSize, frameUrl, resultWarnings, scanSummary, scanTitles, scanUrl, scopeOptions, selectionState, sharesIdentity, validIds } from './dupes'
 
 const row = (cid: number, mid: number, extra = {}) => ({ channel_id: cid, message_id: mid, title: `V${mid}`, size: 100, width: 1920, height: 1080, document_id: 'D1', ...extra })
 const group = { candidates: [row(1, 1), row(1, 2), row(2, 3)] }
@@ -54,4 +54,18 @@ describe('dupes', () => {
     expect(frameUrl('-1', 5, 11, 'r 1')).toBe('/api/play/preview-frame/-1/5/11?rev=r%201')
     expect(resultWarnings({ thumbnail_deleted: true, thumbnail_message_id: 9, warnings: ['x'] })).toEqual(['Thumbnail 9 deleted', 'x'])
   })
+})
+
+describe('withoutCopy', () => {
+  const c = (mid: number) => ({ channel_id: '-1', message_id: mid })
+  const scan = { ok: true, groups: [{ _id: 0, candidates: [c(1), c(2), c(3)], duplicate_count: 3 }, { _id: 1, candidates: [c(4), c(5)], duplicate_count: 2 }] }
+  it('takes one deleted copy out and keeps the count right', () => {
+    const next = withoutCopy(scan, '-1:2')
+    expect(next.groups![0]!.candidates!.map((x) => x.message_id)).toEqual([1, 3]); expect(next.groups![0]!.duplicate_count).toBe(2); expect(next.groups![0]!._id).toBe(0)
+  })
+  it('drops a group once it is no longer a duplicate, and leaves the others (and their ids) alone', () => {
+    const next = withoutCopy(scan, '-1:4')
+    expect(next.groups!.map((g) => g._id)).toEqual([0]); expect(scan.groups).toHaveLength(2)   // the original is untouched
+  })
+  it('ignores a key that is not there', () => { expect(withoutCopy(scan, '-1:99').groups).toHaveLength(2) })
 })

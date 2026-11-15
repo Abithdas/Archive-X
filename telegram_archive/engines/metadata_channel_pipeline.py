@@ -1092,6 +1092,21 @@ async def _run_engine(ctx, operation: str, detail: dict[str, Any], *, report_ove
                 await asyncio.sleep(min(5.0, max(0.1, until - time.monotonic())))
 
 
+def _start_entity_repair(ctx, phase: str) -> None:
+    """After the performer or studio phase: fill in blank genders and fetch the pictures still missing, in the background.
+
+    The phase refreshes only entities whose data is due, so a performer whose refresh was recent but found no picture was never tried again
+    by a scan. This pass covers every performer or studio without a picture (retry rules in engines/missing_images.py) and does not hold the
+    scan back.
+    """
+    try:
+        from . import missing_images
+        kind = "performers" if phase == "performers" else "studios"
+        asyncio.get_running_loop().create_task(missing_images.auto_repair(ctx.db, kind, reason="metadata scan", force=True))
+    except Exception:
+        pass
+
+
 def _entity_ids(ctx, channel_id: str, media_ids: list[int]) -> tuple[list[int], list[int]]:
     """Return unique performer and studio IDs linked to the channel inventory."""
     with ctx.db.lock:
@@ -1650,6 +1665,7 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
                         "force_recheck": bool(payload.get("force_entity", False)),
                     },
                 )
+                _start_entity_repair(ctx, phase)
                 continue
 
         operation, detail = _phase_detail(phase, channel_id, videos, payload, performers, studios)
@@ -1773,6 +1789,8 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
             _log_pipeline_event(ctx, "metadata_assets.phase_completed", channel_id=channel_id, phase=phase,
                                 message=f"Metadata & Assets phase completed: {PHASE_LABELS[phase]}",
                                 details={"completed": phase_total, "total": phase_total})
+            if phase in {"performers", "channel_data"}:
+                _start_entity_repair(ctx, phase)
         except (JobCancelled, asyncio.CancelledError):
             monitor_stop.set()
             await asyncio.gather(monitor_task, return_exceptions=True)

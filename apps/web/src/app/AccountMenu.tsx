@@ -10,6 +10,7 @@ import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { install, useInstall } from './pwa'
+import { ThemeToggle } from '@/design/ThemeToggle'
 import { toggleTheme, useTheme } from './theme'
 import { useUi } from './ui'
 
@@ -63,7 +64,8 @@ export function AccountMenu({ live }: { live: string }) {
         <AccountAvatar className="size-10 text-[15px]" />
         <i className={cn('absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-bg', live === 'live' ? 'bg-good' : live === 'connecting' ? 'bg-warn' : 'bg-bad')} role="status" aria-label={live === 'live' ? 'Live' : live === 'connecting' ? 'Connecting' : 'Offline, retrying'} />
       </button>
-      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Account menu" className="fixed right-4 top-[60px] left-auto bottom-auto m-0 w-[280px] rounded-[18px] border border-line-2 bg-surface p-2 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
+      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Account menu" className="t-menu fixed right-4 top-[60px] left-auto bottom-auto m-0 w-[280px] rounded-[18px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
+        <div className="t-acc-panel-inner p-2">
         <div className="px-3 pb-1.5 pt-2 text-xs text-muted">Signed in as <b className="text-fg">{name}</b></div>
         <button type="button" role="menuitem" className={ROW} onClick={() => { close(); setEditing(true) }}>
           <Icon name="edit" className="text-muted" />Edit profile
@@ -72,12 +74,10 @@ export function AccountMenu({ live }: { live: string }) {
           <Icon name="send" className="text-muted" />Telegram
           <span className={cn('ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold', tg ? 'bg-good/15 text-good' : 'bg-warn/15 text-warn')}>{tg ? 'Connected' : 'Setup needed'}</span>
         </Link>
-        <button type="button" role="switch" aria-checked={theme === 'dark'} aria-label="Dark theme" onClick={toggleTheme} className={ROW}>
+        <div className={cn(ROW, 'cursor-default')}>
           <Icon name={theme === 'dark' ? 'moon' : 'sun'} className="text-muted" />Dark theme
-          <span className={cn('ml-auto h-6 w-11 rounded-full p-0.5 transition-colors', theme === 'dark' ? 'bg-accent' : 'bg-surface-3')}>
-            <span className={cn('block size-5 rounded-full bg-bg transition-transform', theme === 'dark' && 'translate-x-5')} />
-          </span>
-        </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} variant="switch" className="ml-auto inline-grid" />
+        </div>
         <Link to="/settings" role="menuitem" onClick={close} className={ROW}>
           <Icon name="database" className="text-muted" />Storage
           <span className="ml-auto text-xs font-normal text-muted">{pct === null ? '—' : `${pct}% used`}</span>
@@ -103,6 +103,7 @@ export function AccountMenu({ live }: { live: string }) {
         <button type="button" role="menuitem" className={cn(ROW, 'text-[13px] text-bad')} onClick={() => { close(); setExit('ask') }}>
           <Icon name="close" />Exit app
         </button>
+      </div>
       </div>
       {editing ? <ProfileEditor onClose={() => setEditing(false)} /> : null}
       {exit ? (

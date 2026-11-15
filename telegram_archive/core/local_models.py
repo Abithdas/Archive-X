@@ -1,7 +1,7 @@
 """Every local AI model Archive X can use, in one list: what it is, what it powers, whether it is ready, a quick self-test, and download.
 
 No model weights are bundled. Faces, look suggestions and live captions download once on request (checked where a checksum is pinned);
-content tags ship inside the optional `nudenet` package; the assistant model is set up by hand on the Models tab.
+content tags ship inside the optional `nudenet` package; the assistant (engine and model) downloads in one step from AI Assistance.
 """
 from __future__ import annotations
 
@@ -57,6 +57,14 @@ def _looks_ready() -> bool:
     return lt.available() and all((root / n).is_file() and (root / n).stat().st_size > 1024 for n in lt.FILES)
 
 
+def _setup_engines():
+    try:
+        from . import local_ai_setup
+        return local_ai_setup.supported_engines()
+    except Exception:
+        return []
+
+
 def catalog(ai_status: dict | None = None) -> list[dict[str, Any]]:
     """The five local models with their current state (no downloads, no model loading)."""
     rt = (ai_status or {}).get("runtime") or {}
@@ -68,9 +76,9 @@ def catalog(ai_status: dict | None = None) -> list[dict[str, Any]]:
     faces = _faces_ready()
     looks = _looks_ready()
     return [
-        {"id": "llm", "name": "Assistant model (llama.cpp)", "detail": "Qwen3 4B Instruct, Q4_K_M, run by llama-server", "size_mb": 2500, "licence": "Apache-2.0 model, MIT runtime",
-         "state": llm_state, "installable": False, "powers": ["AI Assistance: chat", "Library intelligence", "Diagnostics", "Jobs", "Recommendations"],
-         "hint": "Set the llama-server path and the .gguf file on this page, then press Start." if llm_state == "not_set_up" else "Press Start local model." if llm_state == "stopped" else ""},
+        {"id": "llm", "name": "Assistant model (llama.cpp)", "detail": "Qwen3 4B Instruct (Q4_K_M), run by llama.cpp on this PC", "size_mb": 2500, "licence": "Apache-2.0 model, MIT runtime",
+         "state": llm_state, "installable": llm_state == "not_set_up" and bool(_setup_engines()), "powers": ["AI Assistance: chat", "Library intelligence", "Diagnostics", "Jobs", "Recommendations"],
+         "hint": "Downloads the engine (about 25 MB) and the model (about 2.3 GB) once, and checks both." if llm_state == "not_set_up" else "It starts by itself when you ask a question." if llm_state == "stopped" else ""},
         {"id": "faces", "name": "Faces (YuNet + SFace)", "detail": "Finds faces and gives each a fingerprint so the same person can be grouped", "size_mb": 39, "licence": "Apache-2.0 (OpenCV Zoo)",
          "state": "ready" if faces else "needs_package" if not cv_ok else "not_downloaded", "installable": cv_ok and not faces,
          "powers": ["People and Find people", "Check faces", "Matching with performer pictures", "Head finding for look suggestions"],

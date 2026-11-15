@@ -14,6 +14,7 @@ import { AUTONEXT_MODES, experienceFrom, pills, statusRows, type Experience, typ
 import { useAuthStatus, useExperienceSettings, useIconsStatus, useMetadataSettings, usePreflight, useWebLogin } from './queries'
 import { CustomThemes } from './CustomThemes'
 import { useAppearance, useAppearanceActions } from './useAppearance'
+import { Disclosure } from '@/design/Accordion'
 
 const BOX = 'rounded-[18px] border border-line bg-surface p-5'
 function Head({ icon, title, count, aside }: { icon: string; title: string; count: string; aside?: ReactNode }) {
@@ -51,8 +52,8 @@ export function OverviewPanel({ go }: { go: (p: PanelId) => void }) {
             return <li key={r.title} className="border-b border-line last:border-0">{r.go ? <button type="button" onClick={() => go(r.go!)} className="flex w-full items-center gap-3 py-3 hover:bg-fg/5">{inner}</button> : <div className="flex items-center gap-3 py-3">{inner}</div>}</li>
           })}
         </ul>
-        <details className="mt-2 border-t border-line pt-3"><summary className="cursor-pointer text-sm font-bold">Details · raw runtime report</summary>
-          <pre className="mt-2 max-h-64 overflow-auto rounded-xl bg-bg p-3 text-xs text-muted">{JSON.stringify({ telegram: auth.data, dependencies: pre.data, icons: icons.data }, null, 2)}</pre></details>
+        <Disclosure className="mt-2 border-t border-line pt-3" summaryClassName="text-sm font-bold" summary="Details · raw runtime report">
+          <pre className="mt-2 max-h-64 overflow-auto rounded-xl bg-bg p-3 text-xs text-muted">{JSON.stringify({ telegram: auth.data, dependencies: pre.data, icons: icons.data }, null, 2)}</pre></Disclosure>
       </section>
     </div>
   )

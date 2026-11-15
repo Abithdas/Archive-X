@@ -347,16 +347,9 @@ def register_library_routes(
         return await asyncio.to_thread(_read)
 
 
-    @router.get("/api/photos")
-    def photo_library_list(request: Request):
-        """Return only indexed photos; video media records are never included."""
-        require_auth(request)
-        q = request.query_params
-        try:
-            page = max(0, int(q.get("page", "0") or 0))
-            per = max(1, min(1000, int(q.get("per", "48") or 48)))
-        except ValueError:
-            raise HTTPException(400, "page and per must be integers")
+    def _photo_filters(q):
+        """The WHERE parts shared by the photo list and the tag counts: channels, search, favourites, faces, face scope.
+        Returns (where, params, ticked content tags). The tags are returned, not applied, so the counts can treat them differently."""
         raw_channels = [value.strip() for value in str(q.get("channels", "") or "").split(",") if value.strip()]
         channel_ids = list(dict.fromkeys(raw_channels))[:250]
         search = str(q.get("q", "") or "").strip()[:200]
@@ -384,15 +377,6 @@ def register_library_routes(
                 if parsed > 0 and parsed not in face_group_ids: face_group_ids.append(parsed)
             except ValueError:
                 raise HTTPException(400, "face_group_ids must be comma-separated positive integers")
-        sort = str(q.get("sort", "date_desc") or "date_desc")
-        sort_map = {
-            "date_desc": "COALESCE(NULLIF(p.message_date,''),p.created_at) DESC,p.message_id DESC",
-            "date_asc": "COALESCE(NULLIF(p.message_date,''),p.created_at) ASC,p.message_id ASC",
-            "name_asc": "p.filename COLLATE NOCASE ASC,p.message_id DESC",
-            "size_desc": "p.size DESC,p.message_id DESC",
-        }
-        if sort not in sort_map:
-            sort = "date_desc"
         where, params = ["1=1"], []
         if channel_ids:
             marks = ",".join("?" for _ in channel_ids)
@@ -427,16 +411,38 @@ def register_library_routes(
         elif face_group_id is not None:
             where.append("EXISTS (SELECT 1 FROM photo_face_detections fd WHERE fd.photo_id=p.id AND fd.group_id=?)")
             params.append(face_group_id)
-        from ..engines.photo_content_tags import TAG_LABELS as _CONTENT_TAGS_BASE
-        from ..engines.photo_look_tags import LOOK_LABELS as _LOOK_TAGS
-        _CONTENT_TAGS = {**_CONTENT_TAGS_BASE, **_LOOK_TAGS}
-        for content_tag in [t.strip() for t in str(q.get("content_tags", "") or "").split(",") if t.strip()][:9]:
-            if content_tag in _CONTENT_TAGS:   # every ticked tag must be present
-                where.append("EXISTS (SELECT 1 FROM photo_content_tags ct WHERE ct.photo_id=p.id AND ct.tag=?)")
-                params.append(content_tag)
         face_scope = str(q.get("face_scope", "") or "").strip().lower()
         if face_scope in _PHOTO_FACE_SCOPES:
             where.append(_PHOTO_FACE_SCOPES[face_scope])
+        from ..engines.photo_content_tags import TAG_LABELS as _CONTENT_TAGS_BASE
+        from ..engines.photo_look_tags import LOOK_LABELS as _LOOK_TAGS
+        known = {**_CONTENT_TAGS_BASE, **_LOOK_TAGS}
+        ticked = [t for t in dict.fromkeys(t.strip() for t in str(q.get("content_tags", "") or "").split(",") if t.strip()) if t in known][:9]
+        return where, params, ticked
+
+    @router.get("/api/photos")
+    def photo_library_list(request: Request):
+        """Return only indexed photos; video media records are never included."""
+        require_auth(request)
+        q = request.query_params
+        try:
+            page = max(0, int(q.get("page", "0") or 0))
+            per = max(1, min(1000, int(q.get("per", "48") or 48)))
+        except ValueError:
+            raise HTTPException(400, "page and per must be integers")
+        sort = str(q.get("sort", "date_desc") or "date_desc")
+        sort_map = {
+            "date_desc": "COALESCE(NULLIF(p.message_date,''),p.created_at) DESC,p.message_id DESC",
+            "date_asc": "COALESCE(NULLIF(p.message_date,''),p.created_at) ASC,p.message_id ASC",
+            "name_asc": "p.filename COLLATE NOCASE ASC,p.message_id DESC",
+            "size_desc": "p.size DESC,p.message_id DESC",
+        }
+        if sort not in sort_map:
+            sort = "date_desc"
+        where, params, ticked = _photo_filters(q)
+        for content_tag in ticked:   # every ticked tag must be present
+            where.append("EXISTS (SELECT 1 FROM photo_content_tags ct WHERE ct.photo_id=p.id AND ct.tag=?)")
+            params.append(content_tag)
         w = " AND ".join(where)
         with db.reading() as rdb:
             total = int(rdb.execute(
@@ -935,8 +941,16 @@ def register_library_routes(
         """Which content tags exist, how many photos have each, and how many photos have been analysed."""
         require_auth(request)
         from ..engines import photo_content_tags, photo_look_tags
-        base = await asyncio.to_thread(photo_content_tags.summary, db)
-        return {"ok": True, **base, "looks": await asyncio.to_thread(photo_look_tags.summary, db)}
+
+        def _read():
+            facets = None
+            q = request.query_params
+            if any(str(q.get(k, "") or "").strip() for k in ("channels", "q", "favorites", "face_group_id", "face_performer_id", "face_group_ids", "face_scope", "content_tags")):
+                # The page is filtered: count each tag among the photos that pass the filters, so the numbers follow what is ticked.
+                where, params, ticked = _photo_filters(q)
+                facets = photo_content_tags.facet_counts(db, where, params, ticked)
+            return {"ok": True, **photo_content_tags.summary(db, facets), "looks": photo_look_tags.summary(db, facets), "filtered": facets is not None}
+        return await asyncio.to_thread(_read)
 
     @router.post("/api/photos/content-tags/analyze")
     async def photo_content_tags_start(request: Request):
@@ -1037,6 +1051,32 @@ def register_library_routes(
             raise HTTPException(404 if "not found" in str(exc).lower() else 400, str(exc))
         db.log(f"Moved {result['moved']} face(s) to face group {result['group_id']}" + (f" (performer {performer_id})" if performer_id else ""), "SUCCESS",
                event="photo_library.faces_moved", details={"performer_id": performer_id, **result})
+        return {"ok": True, **result}
+
+    @router.post("/api/photos/faces/learning/not-this-person")
+    async def photo_faces_not_this_person(request: Request):
+        """Turn down suggested look-alikes: these faces are not this performer. Nothing is moved; face learning stops offering them."""
+        require_auth(request)
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(400, "Request body must be valid JSON")
+        if not isinstance(body, dict) or not isinstance(body.get("detection_ids"), list):
+            raise HTTPException(400, "detection_ids must be an array")
+        try:
+            ids = [int(v) for v in body["detection_ids"]]
+            performer_id = int(body.get("performer_id"))
+        except (TypeError, ValueError):
+            raise HTTPException(400, "detection_ids and performer_id must be integers")
+        if len(ids) > 2000:
+            raise HTTPException(413, "Mark at most 2000 faces at a time")
+        from ..engines.photo_face_clustering import mark_not_this_person
+        try:
+            result = await asyncio.to_thread(mark_not_this_person, db, performer_id, ids)
+        except ValueError as exc:
+            raise HTTPException(404 if "not found" in str(exc).lower() else 400, str(exc))
+        db.log(f"Marked {result['marked']} suggested face(s) as not performer {performer_id}", "SUCCESS",
+               event="photo_library.faces_not_this_person", details={"performer_id": performer_id, **result})
         return {"ok": True, **result}
 
     @router.post("/api/photos/faces/different-person")

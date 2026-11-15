@@ -146,6 +146,8 @@ async fn door_with(extra: impl FnOnce(&Connection), launch_secret: Option<&str>)
             "markers_list".into(),
             "marker_create".into(),
             "marker_delete".into(),
+            "library_favorite_toggle".into(),
+            "library_bulk_favorite".into(),
             "name_list".into(),
         ],
         launch_secret: launch_secret.map(String::from),
@@ -407,4 +409,58 @@ async fn the_name_list_checks_the_session_in_the_database_when_it_is_known() {
     assert!(raw.starts_with("HTTP/1.1 401"), "{raw}");
     let signed_in = get(d.addr, "/api/photos/faces/performers/name-list", "").await;
     assert_ne!(signed_in.status, 401);
+}
+
+fn media_favorites(path: &std::path::Path) -> Vec<(i64, Option<i64>, Option<String>)> {
+    let c = Connection::open(path).unwrap();
+    let mut st = c.prepare("SELECT id,favorite,updated_at FROM media ORDER BY id").unwrap();
+    st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).unwrap().map(Result::unwrap).collect()
+}
+
+#[tokio::test]
+async fn a_video_favourite_is_flipped_and_a_missing_one_is_a_404() {
+    let d = door(|_| {}).await;
+    let before = media_favorites(&db_path(&d));
+    let on = post(d.addr, "/api/library/2/favorite", "", "").await;
+    assert_eq!((on.status, on.headers["x-served-by"].as_str()), (200, "rust"));
+    assert_eq!(json(&on), serde_json::json!({"ok": true, "favorite": true}));
+    let after = media_favorites(&db_path(&d));
+    assert_eq!(after[1].1, Some(1));
+    assert_eq!(after[1].2, before[1].2, "the single toggle leaves updated_at alone, as Python does");
+    assert_eq!(json(&post(d.addr, "/api/library/2/favorite", "", "").await)["favorite"], false);
+    let missing = post(d.addr, "/api/library/99/favorite", "", "").await;
+    assert_eq!((missing.status, json(&missing)["detail"].as_str().map(String::from)), (404, Some("Not found".into())));
+    assert_eq!(json(&post(d.addr, "/api/library/+2/favorite", "", "").await)["from"], "python");
+    assert_eq!(post(d.addr, "/api/library/3/favorite", "", "Origin: https://evil.example\r\n").await.status, 403);
+}
+
+#[tokio::test]
+async fn bulk_favourites_follow_pythons_rules() {
+    let d = door(|_| {}).await;
+    let ok = post(d.addr, "/api/library/bulk-favorite", r#"{"media_ids":[3,1,3,0,-5,99],"favorite":true}"#, "").await;
+    assert_eq!((ok.status, ok.headers["x-served-by"].as_str()), (200, "rust"));
+    // found ids come back ascending (SQLite walks an IN list in key order); 0 and negatives are dropped silently; 99 is reported missing
+    assert_eq!(json(&ok), serde_json::json!({"ok": true, "favorite": true, "updated": 2, "media_ids": [1, 3], "missing_ids": [99]}));
+    let rows = media_favorites(&db_path(&d));
+    assert_eq!((rows[0].1, rows[1].1, rows[2].1), (Some(1), None, Some(1)));
+    assert!(rows[0].2.as_deref().is_some_and(|t| t.ends_with("+00:00") && t.len() == 25), "updated_at is stamped: {:?}", rows[0].2);
+    let off = post(d.addr, "/api/library/bulk-favorite", r#"{"media_ids":[1],"favorite":false}"#, "").await;
+    assert_eq!(json(&off)["updated"], 1);
+    assert_eq!(media_favorites(&db_path(&d))[0].1, Some(0));
+    // everything Python would answer with an error, or read differently, goes to Python
+    for body in [
+        "[]",
+        "not json",
+        r#"{"media_ids":[],"favorite":true}"#,
+        r#"{"media_ids":[1],"favorite":1}"#,
+        r#"{"media_ids":["1"],"favorite":true}"#,
+        r#"{"media_ids":[1.0],"favorite":true}"#,
+        r#"{"media_ids":[0,-1],"favorite":true}"#,
+        r#"{"favorite":true}"#,
+    ] {
+        assert_eq!(json(&post(d.addr, "/api/library/bulk-favorite", body, "").await)["from"], "python", "{body}");
+    }
+    let many = format!(r#"{{"media_ids":[{}],"favorite":true}}"#, (1..=501).map(|i| i.to_string()).collect::<Vec<_>>().join(","));
+    assert_eq!(json(&post(d.addr, "/api/library/bulk-favorite", &many, "").await)["from"], "python");
+    assert_eq!(post(d.addr, "/api/library/bulk-favorite", r#"{"media_ids":[1],"favorite":true}"#, "Origin: https://evil.example\r\n").await.status, 403);
 }

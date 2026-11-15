@@ -28,6 +28,7 @@ describe('LibraryPage', () => {
     expect(await screen.findByRole('article', { name: 'First scene' })).toBeInTheDocument()
     const asked = urls.find((u) => u.startsWith('/api/library?')) ?? ''
     expect(new URLSearchParams(asked.split('?')[1]).get('channels')).toBe('-1001,-1002')
-    await waitFor(() => expect(screen.getByText(/1 videos? · 2 channels/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/videos? · 2 channels/)).toBeInTheDocument())   // the count itself is a labelled counter
+    expect(screen.getByRole('img', { name: '1' })).toBeInTheDocument()
   })
 })

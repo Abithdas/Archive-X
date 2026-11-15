@@ -153,3 +153,30 @@ async fn real_python_session_is_accepted_and_a_forged_one_is_not() {
     let forged = format!("{}x", cookie);
     assert_eq!(db.session_for_cookie(&forged, now).await.unwrap(), None, "a changed cookie must not be accepted");
 }
+
+/// A COMMIT that fails (here: a reader holds a shared lock in rollback-journal mode, so the commit stays busy) must not leave the
+/// writer's connection inside a transaction, or every later write would fail until the app restarted.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_failed_commit_does_not_poison_later_writes() {
+    let (_dir, path) = temp_db(false);
+    let setup = Connection::open(&path).unwrap();
+    setup.execute_batch("CREATE TABLE t (n INTEGER); INSERT INTO t VALUES (1);").unwrap();
+
+    let writer = ax_db::Writer::new(&path);
+    let reader = Connection::open(&path).unwrap();
+    reader.execute_batch("BEGIN").unwrap();
+    let mut stmt = reader.prepare("SELECT n FROM t").unwrap();
+    let mut rows = stmt.query([]).unwrap();
+    assert!(rows.next().unwrap().is_some(), "the reader now holds a shared lock");
+
+    let blocked = writer.write(|c| c.execute("INSERT INTO t VALUES (2)", []).map(|_| ())).await;
+    assert!(blocked.is_err(), "the commit cannot finish while the reader holds its lock");
+
+    drop(rows);
+    drop(stmt);
+    reader.execute_batch("COMMIT").unwrap();
+
+    writer.write(|c| c.execute("INSERT INTO t VALUES (3)", []).map(|_| ())).await.expect("the next write works");
+    let n: i64 = setup.query_row("SELECT count(*) FROM t", [], |r| r.get(0)).unwrap();
+    assert_eq!(n, 2, "the failed insert was rolled back, the later one kept");
+}

@@ -22,6 +22,7 @@ import { useResume } from './useResume'
 import { frameIndexFor, normaliseChapters, toSegments } from './timelineLogic'
 import { withWidth } from '@/design/responsive'
 import { AnimatePresence, listItem, motion } from '@/design/motion'
+import { LikeHeart } from '@/design/LikeHeart'
 
 const CARD = 'rounded-[18px] border border-line bg-surface p-4'
 const CHIP = 'inline-flex h-7 items-center rounded-full bg-surface-3 px-3 text-xs font-semibold text-muted'
@@ -224,8 +225,8 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
             <button type="button" onClick={vlc} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="brand-vlc" />Open in VLC</button>
             <button type="button" onClick={mpc} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="play" />Open in MPC-HC</button>
             {nativeOk ? <button type="button" onClick={() => void navigate({ to: '/native/$cid/$mid', params: { cid: String(item._cid), mid: String(item.id) } })} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="play" />Native player (experimental)</button> : null}
-            <button type="button" aria-pressed={Boolean(item.favorite)} disabled={fav.isPending} onClick={() => fav.mutate({ mediaId: item.media_id, favorite: !item.favorite }, { onError: () => toast.error('Could not update favourite') })} className={cn('inline-flex h-10 items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold hover:bg-fg/5', item.favorite ? 'border-warn/60 text-warn' : 'border-line-2')}>
-              <Icon name="star" />{item.favorite ? 'Favourited' : 'Favourite'}
+            <button type="button" aria-pressed={Boolean(item.favorite)} disabled={fav.isPending} onClick={() => fav.mutate({ mediaId: item.media_id, favorite: !item.favorite }, { onError: () => toast.error('Could not update favourite') })} className={cn('inline-flex h-10 items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold hover:bg-fg/5', item.favorite ? 'border-[#f40051]/60' : 'border-line-2')}>
+              <LikeHeart liked={Boolean(item.favorite)} />{item.favorite ? 'Favourited' : 'Favourite'}
             </button>
           </div>
         </section>

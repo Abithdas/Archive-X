@@ -1,8 +1,9 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { useState } from 'react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { ContentTags, tagLine, toggleTag } from './ContentTags'
-import { photoParams } from './photos'
+import { photoParams, scopeParams } from './photos'
 import { usePhotoStore } from './store'
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }), Toaster: () => null }))
@@ -75,5 +76,33 @@ describe('Content tags on Photos', () => {
     expect(dlg).toHaveTextContent('155 MB'); expect(dlg).toHaveTextContent('hair colour is the weakest')
     fireEvent.click(within(dlg).getByRole('button', { name: 'Suggest looks' }))
     await waitFor(() => expect(calls.find((c) => c.url === '/api/photos/content-tags/analyze')?.body).toEqual({ kind: 'looks' }))
+  })
+
+  it('asks for the counts inside the filters that are ticked, and shows the new numbers when they change', async () => {
+    const seen: string[] = []
+    const answers: Record<string, unknown> = {
+      '': SUMMARY,
+      'channels=-1&content_tags=hair_long': { ...SUMMARY, tags: [{ tag: 'breasts', label: 'Breasts', count: 3 }, { tag: 'feet', label: 'Feet', count: 0 }], looks: { ...SUMMARY.looks, tags: [{ tag: 'hair_long', label: 'Long hair', group: 'Hair length', count: 9 }, { tag: 'hair_red', label: 'Redhead', group: 'Hair colour', count: 2 }] } },
+    }
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      seen.push(url)
+      const key = url.includes('?') ? url.split('?')[1]!.replace(/%2C/g, ',') : ''
+      return json(answers[key] ?? SUMMARY)
+    }))
+    const scope = (tags: string[]) => ({ channels: ['-1'], q: '', favorites: false, favoriteIds: new Set<string>(), face: null, contentTags: tags })
+    function Page() { const [t, setT] = useState<string[]>([]); return <><button type="button" onClick={() => setT(['hair_long'])}>tick long hair</button><ContentTags scope={scope(t)} /></> }
+    withRouter(<Page />)
+    expect(await screen.findByRole('button', { name: /Breasts\s*21/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'tick long hair' }))
+    expect(await screen.findByRole('button', { name: /Breasts\s*3/ })).toBeInTheDocument()
+    expect(seen.some((u) => u.includes('content_tags=hair_long'))).toBe(true)
+    expect(screen.getByRole('button', { name: /Feet\s*0/ })).toHaveClass('opacity-45')   // nothing left for it: dimmed, not removed
+  })
+})
+
+describe('scopeParams', () => {
+  it('keeps the filters and drops paging, sorting and empty values', () => {
+    const p = scopeParams({ channels: ['-1', '-2'], q: '', favorites: false, favoriteIds: new Set(), face: null, contentTags: ['hair_long'] })
+    expect(p.toString()).toBe('channels=-1%2C-2&content_tags=hair_long')
   })
 })

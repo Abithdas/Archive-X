@@ -6,6 +6,7 @@ import { Confirm } from '@/design/Confirm'
 import { Dialog } from '@/design/Dialog'
 import { Skeleton } from '@/design/Skeleton'
 import { INTRO, LOCAL_ONLY, NEED_NAME, NOT_FOUND, READY, RESET_DONE, RESET_TEXT, SAVE_FAILED, SAVING, TITLE_MAX, chosenText, editBody, initialsOf, nothingToSave, photoProblem, previewUrl, resetPreviewUrl, shouldAskSync, startTitle, syncBody, syncChanges, syncCopy, syncDone, syncFailed, type ChannelRow, type Draft } from './channelEdit'
+import { ErrorField } from '@/design/ErrorField'
 
 const BTN = 'h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
 
@@ -27,6 +28,7 @@ function Form({ channel, onClose }: { channel: ChannelRow; onClose: () => void }
   const [preview, setPreview] = useState(previewUrl(channel))
   const [previewOk, setPreviewOk] = useState(true)
   const [msg, setMsg] = useState({ text: READY, bad: false })
+  const [nameBad, setNameBad] = useState('')
   const [busy, setBusy] = useState(false)
   const [ask, setAsk] = useState<null | Draft>(null)
   const file = useRef<HTMLInputElement>(null)
@@ -44,7 +46,7 @@ function Form({ channel, onClose }: { channel: ChannelRow; onClose: () => void }
   const useTelegramPhoto = () => { setImage(''); setReset(true); if (file.current) file.current.value = ''; setPreview(resetPreviewUrl(id)); setPreviewOk(true); setMsg({ text: RESET_TEXT, bad: false }) }
   const save = async () => {
     const draft: Draft = { title, original, imageData: image, reset }
-    if (!title.trim()) return void setMsg({ text: NEED_NAME, bad: true })
+    if (!title.trim()) { setNameBad(NEED_NAME); return void setMsg({ text: NEED_NAME, bad: true }) }
     if (nothingToSave(draft)) return void onClose()
     setBusy(true); setMsg({ text: SAVING, bad: false })
     try {
@@ -71,7 +73,7 @@ function Form({ channel, onClose }: { channel: ChannelRow; onClose: () => void }
         <div className="grid gap-4 text-left">
           <p className="text-sm text-muted">{INTRO}</p>
           <label className="grid gap-1 text-xs font-semibold text-muted">Channel name
-            <input value={title} maxLength={TITLE_MAX} autoComplete="off" placeholder="Enter channel name" onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void save() } }} className="h-11 rounded-xl border border-line-2 bg-bg px-3 text-sm font-normal text-fg" />
+            <ErrorField quiet message={nameBad}><input value={title} maxLength={TITLE_MAX} autoComplete="off" placeholder="Enter channel name" onChange={(e) => { setTitle(e.target.value); setNameBad('') }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void save() } }} className="h-11 w-full rounded-xl border border-line-2 bg-bg px-3 text-sm font-normal text-fg" /></ErrorField>
           </label>
           <section aria-label="Channel profile photo" className="flex items-center gap-4">
             <span className="relative grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-3 text-xl font-bold"><span aria-hidden="true">{initialsOf(title)}</span>

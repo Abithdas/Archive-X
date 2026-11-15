@@ -114,7 +114,113 @@ class ArchiveXAI:
             return {}
 
     def _bounded_context(self, context: str) -> str:
-        return str(context or "")[:42000]
+        """The snapshot has to fit in the model's window with room left for the question, the tools and the answer (about 3 characters a token)."""
+        budget = max(3000, (self.runtime.context_size - 2600) * 3)
+        return str(context or "")[:min(42000, budget)]
+
+    def ensure_running(self, on_status=None) -> None:
+        """Start the model if it is set up but not running, so asking a question is enough. Raises LocalAIError with plain words when it cannot."""
+        state = self.runtime.status()
+        if state["server"]["reachable"]:
+            self.runtime.touch()
+            return
+        if not state["runtime"]["exists"] or not state["model"]["exists"]:
+            raise LocalAIError("The assistant is not set up yet. Open AI Assistance and press Set up.")
+        if on_status:
+            on_status("Starting the local model…")
+        self.runtime.start(on_wait=(lambda secs: on_status(f"Loading the model… {secs}s") if on_status and secs and secs % 5 == 0 else None))
+
+    TOOL_LABELS = {
+        "search_library": "Searching the library", "get_library_stats": "Reading library numbers", "get_jobs": "Looking at current jobs", "get_job": "Inspecting a job",
+        "get_diagnostics_summary": "Checking diagnostics", "find_unresolved_metadata": "Finding metadata to review", "find_duplicates": "Looking for duplicates",
+    }
+
+    def chat_events(self, message: str, context: str = "", user_identity: str = "operator", investigation_id: int | None = None):
+        """Run one chat turn and yield what happens as it happens: status lines, each tool as it starts and ends, the answer word by word, then done.
+
+        Every event is a dict with a "t" key: status, tool, delta, done or error. The turn is saved to the history only when it finishes.
+        """
+        text = str(message or "").strip()
+        if not text:
+            yield {"t": "error", "detail": "Message is empty"}
+            return
+        if len(text) > 20000:
+            yield {"t": "error", "detail": "Message exceeds 20,000 characters"}
+            return
+        pending: list[dict[str, Any]] = []
+        try:
+            self.ensure_running(lambda line: pending.append({"t": "status", "phase": "starting", "text": line}))
+        except LocalAIError as exc:
+            yield from pending
+            yield {"t": "error", "detail": str(exc)}
+            return
+        yield from pending
+        session_id, iid = self._session_id(investigation_id)
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": SYSTEM_INSTRUCTIONS},
+            {"role": "system", "content": "ARCHIVE X LOCAL CONTEXT:\n" + self._bounded_context(context)},
+            {"role": "user", "content": text},
+        ]
+        started = time.monotonic()
+        tool_calls_total = 0
+        answer = ""
+        model = self.model
+        try:
+            for _round in range(3):
+                yield {"t": "status", "phase": "thinking", "text": "Thinking…"}
+                content = ""
+                calls: dict[int, dict[str, Any]] = {}
+                for chunk in self.runtime.chat_stream(messages, tools=self.tools.definitions(), max_tokens=1100):
+                    model = str(chunk.get("model") or model)
+                    choice = (chunk.get("choices") or [{}])[0]
+                    delta = choice.get("delta") or {}
+                    for tc in delta.get("tool_calls") or []:
+                        slot = calls.setdefault(int(tc.get("index") or 0), {"id": "", "name": "", "arguments": ""})
+                        slot["id"] = str(tc.get("id") or slot["id"])
+                        fn = tc.get("function") or {}
+                        slot["name"] += str(fn.get("name") or "")
+                        slot["arguments"] += str(fn.get("arguments") or "")
+                    piece = delta.get("content")
+                    if piece:
+                        if not content:
+                            yield {"t": "status", "phase": "writing", "text": "Writing the answer…"}
+                        content += piece
+                        if not calls:
+                            yield {"t": "delta", "text": piece}
+                if not calls:
+                    answer = content.strip() or "The local model returned no visible text."
+                    break
+                tool_calls_total += len(calls)
+                if tool_calls_total > 6:
+                    answer = "The local AI tool budget was reached. Please narrow the request."
+                    yield {"t": "delta", "text": answer}
+                    break
+                messages.append({"role": "assistant", "content": content or None, "tool_calls": [
+                    {"id": c["id"] or f"call_{i}", "type": "function", "function": {"name": c["name"], "arguments": c["arguments"] or "{}"}} for i, c in sorted(calls.items())]})
+                for i, c in sorted(calls.items()):
+                    label = self.TOOL_LABELS.get(c["name"], "Using a read-only tool")
+                    yield {"t": "tool", "name": c["name"], "label": label, "state": "start"}
+                    ok = True
+                    try:
+                        args = json.loads(c["arguments"] or "{}")
+                        result = self.tools.execute(c["name"], args)
+                    except Exception as exc:
+                        ok = False
+                        result = {"error": f"Tool failed: {type(exc).__name__}: {exc}"}
+                    messages.append({"role": "tool", "tool_call_id": c["id"] or f"call_{i}", "name": c["name"], "content": json.dumps(result, ensure_ascii=False, default=str)[:16000]})
+                    yield {"t": "tool", "name": c["name"], "label": label, "state": "done" if ok else "error"}
+            else:
+                answer = "The local model did not finish within the tool-call limit."
+                yield {"t": "delta", "text": answer}
+        except LocalAIError as exc:
+            yield {"t": "error", "detail": str(exc)}
+            return
+        latency_ms = round((time.monotonic() - started) * 1000, 1)
+        self.db.ai_add_chat_message(session_id, "user", text, "", iid)
+        self.db.ai_add_chat_message(session_id, "assistant", answer, "", iid)
+        self.db.ai_update_investigation(iid, stage="OBSERVE")
+        self.db.log("Local AI inference completed", event="ai.inference.completed", details={"model": model, "latency_ms": latency_ms, "tool_calls": tool_calls_total, "investigation_id": iid, "streamed": True})
+        yield {"t": "done", "text": answer, "model": model, "latency_ms": latency_ms, "tool_calls": tool_calls_total}
 
     def chat(self, message: str, context: str = "", user_identity: str = "operator", investigation_id: int | None = None) -> dict[str, Any]:
         """Run one chat turn, including tool calls, and persist the messages."""
@@ -132,6 +238,7 @@ class ArchiveXAI:
         started = time.monotonic()
         tool_calls_total = 0
         try:
+            self.ensure_running()
             for _ in range(3):
                 response = self.runtime.chat(messages, tools=self.tools.definitions(), max_tokens=1100)
                 assistant = self._extract_message(response)

@@ -226,6 +226,18 @@ async fn suggestions_offer_the_unnamed_lookalikes_but_not_the_removed_face_or_st
 }
 
 #[tokio::test]
+async fn review_lists_who_has_new_lookalikes_waiting() {
+    let f = database();
+    let addr = start(&f).await;
+    let r = get(addr, "/api/photos/faces/learning/review", IN).await;
+    assert_eq!(r.status, 200, "{}", r.body);
+    let v: Value = serde_json::from_str(&r.body).unwrap();
+    let ava = v["people"].as_array().unwrap().iter().find(|p| p["performer_id"] == json!(1)).expect("Ava has unnamed lookalikes");
+    assert_eq!((ava["name"].as_str(), ava["suggestions"].as_i64(), ava["strong"].as_i64()), (Some("Ava Stone"), Some(3), Some(3)));
+    assert!(v["people"].as_array().unwrap().iter().all(|p| p["performer_id"] != json!(2)), "Mia has none");
+}
+
+#[tokio::test]
 async fn status_counts_confirmed_and_removed_faces_with_names() {
     let f = database();
     let addr = start(&f).await;

@@ -49,6 +49,22 @@ def restore_missing_genders(db) -> dict:
             g = _clean_gender(person.get("gender"))
             if g:
                 seen.setdefault(pid, Counter())[g] += 1
+    # The provider records stored by "Collect performer data" carry the gender too, also for performers whose videos have no stored details.
+    with db.reading() as rdb:
+        stored = rdb.execute(
+            "SELECT entity_id, payload FROM entity_metadata WHERE entity_type='performer' "
+            "AND entity_id IN (SELECT id FROM performers WHERE COALESCE(gender,'')='')").fetchall()
+    for r in stored:
+        pid = int(r["entity_id"])
+        if pid not in blank:
+            continue
+        try:
+            payload = json.loads(r["payload"])
+        except Exception:
+            continue
+        g = _clean_gender(payload.get("gender")) if isinstance(payload, dict) else ""
+        if g:
+            seen.setdefault(pid, Counter())[g] += 1
     restored = 0
     with db.lock:
         for pid, counts in seen.items():

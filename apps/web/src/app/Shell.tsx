@@ -2,22 +2,30 @@ import { fadeThrough, motion, spring } from '@/design/motion'
 import { installGlow } from '@/design/glow'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorBoundary } from './ErrorScreen'
-import { useStatus, useStorage } from '@/api/hooks'
+import { useEntities, useStatus, useStorage } from '@/api/hooks'
 import { useLiveStatus } from '@/api/live'
+import { Bell } from '@/design/Bell'
+import { SearchField } from './SearchField'
+import { suggest } from './searchSuggest'
+import { ThemeToggle } from '@/design/ThemeToggle'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { formatBytes } from '@/design/format'
+import { runningLabel, useActivity } from './activity'
 import { AccountMenu } from './AccountMenu'
 import { CommandPalette } from './CommandPalette'
 import { MoreSheet } from './MoreSheet'
 import { NotificationsPanel, useNotices } from './NotificationsPanel'
 import { useSearch } from './search'
-import { toggleTheme } from './theme'
+import { toggleTheme, useTheme } from './theme'
 import { useUi } from './ui'
 import { useAppearance, useAppearanceActions, useAppearanceSync } from '@/features/settings/useAppearance'
 import { scaleForKey } from '@/theme/themes'
+import { IconSwap } from '@/design/IconSwap'
+import { useScrollMemory } from './scrollMemory'
+import { SubtleNumber } from '@/design/SubtleNumber'
 
 interface NavDef {
   to: string
@@ -46,18 +54,39 @@ const RAIL_KEY = 'ax_next_sidebar_rail'
 const SIDE_ITEM = 'relative flex h-11 w-full items-center rounded-xl text-[15px] font-medium text-muted transition-colors hover:bg-fg/5 hover:text-fg'
 const SIDE_ACTIVE = '!text-fg [&_svg]:text-accent'
 
-function SideItem({ n, rail }: { n: NavDef; rail: boolean }) {
+/** How many jobs are running for this page: a small number that pulses while work is going on. */
+function ActivityBadge({ count, className }: { count: number; className?: string }) {
+  if (!count) return null
+  return (
+    <span role="status" aria-label={runningLabel(count)} title={runningLabel(count)} className={cn('relative grid h-[18px] min-w-[18px] motion-safe:animate-pulse place-items-center rounded-full bg-accent px-1 text-[11px] font-bold leading-none text-accent-fg', className)}>
+      {count > 99 ? '99+' : <SubtleNumber value={count} />}
+    </span>
+  )
+}
+
+function SideItem({ n, rail, count }: { n: NavDef; rail: boolean; count: number }) {
   const layout = rail ? 'justify-center' : 'gap-3 px-3'
   return (
-    <Link to={n.to} activeOptions={{ exact: n.to === '/' }} className={cn(SIDE_ITEM, layout)} title={rail ? n.label : undefined} activeProps={{ className: SIDE_ACTIVE }}>
+    <Link to={n.to} activeOptions={{ exact: n.to === '/' }} className={cn(SIDE_ITEM, layout)} title={rail ? (count ? `${n.label} · ${runningLabel(count)}` : n.label) : undefined} activeProps={{ className: SIDE_ACTIVE }}>
       {({ isActive }) => (
         <>
           {isActive ? <motion.span layoutId="side-pill" transition={spring} aria-hidden="true" className="absolute inset-0 rounded-xl bg-accent/15" /> : null}
           <Icon name={n.icon} className="relative" />
           <span className={cn('relative', rail && 'sr-only')}>{n.label}</span>
+          <ActivityBadge count={count} className={rail ? 'absolute right-1.5 top-1.5' : 'ml-auto'} />
         </>
       )}
     </Link>
+  )
+}
+
+/** One button for both states, so the two icons can swap in the same spot (Transitions.dev icon swap) instead of one button replacing another. */
+function RailToggle({ rail, onToggle }: { rail: boolean; onToggle: () => void }) {
+  const label = rail ? 'Expand sidebar' : 'Collapse sidebar'
+  return (
+    <button type="button" onClick={onToggle} aria-label={label} aria-expanded={!rail} title={label} className={cn('ax-rail-toggle grid size-7 place-items-center rounded-lg text-muted hover:bg-fg/5 hover:text-fg', !rail && 'ml-auto')}>
+      <IconSwap on={rail} offIcon={<Icon name="arrow-left" />} onIcon={<Icon name="arrow-right" />} />
+    </button>
   )
 }
 
@@ -76,7 +105,7 @@ function StorageCard() {
       </div>
       {data ? (
         <>
-          <div>App data: {formatBytes(data.bytes)} · {data.files.toLocaleString()} files</div>
+          <div>App data: {formatBytes(data.bytes)} · <SubtleNumber value={data.files} /> files</div>
           <div>{d?.total ? `${formatBytes(d.free)} free of ${formatBytes(d.total)}` : 'Drive capacity unavailable'}</div>
         </>
       ) : (
@@ -106,6 +135,12 @@ function Header({ live }: { live: string }) {
   const path = useRouterState({ select: (s) => s.location.pathname })
   const input = useRef<HTMLInputElement>(null)
   const notices = useNotices().length
+  const theme = useTheme()
+  const navigate = useNavigate()
+  const [loadLists, setLoadLists] = useState(false)   // the lists the suggestions come from are fetched the first time the box is used
+  const performers = useEntities('performers', loadLists)
+  const studios = useEntities('studios', loadLists)
+  const suggestions = useMemo(() => suggest(performers.data ?? [], studios.data ?? [], q), [performers.data, studios.data, q])
   const placeholder = path.startsWith('/performers') ? 'Search performer…' : path.startsWith('/studios') ? 'Search studio…' : 'Search videos, performers, studios…'
   useEffect(() => set(''), [path.split('/')[1], set])
   useEffect(() => {
@@ -114,34 +149,23 @@ function Header({ live }: { live: string }) {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-bg/85 px-4 backdrop-blur-md sm:px-10">
       <img src="/static/icons/archive-x.png" alt="" className="size-8 rounded-full md:hidden" />
-      <label className="flex h-11 min-w-0 max-w-[407px] flex-1 items-center gap-2.5 rounded-[14px] border border-line bg-surface pl-3.5 pr-2.5 text-faint focus-within:border-accent/50">
-        <Icon name="search" />
-        <input
-          ref={input}
-          type="search"
-          value={q}
-          onChange={(e) => set(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              set('')
-              input.current?.blur()
-            }
-          }}
-          placeholder={placeholder}
-          aria-label="Search"
-          className="min-w-0 flex-1 bg-transparent text-base text-fg outline-none placeholder:text-faint [&::-webkit-search-cancel-button]:hidden"
-        />
-        <kbd className="hidden rounded-md border border-line-2 px-1.5 py-0.5 font-sans text-[11px] font-semibold sm:block">Ctrl K</kbd>
-      </label>
+      <SearchField
+        value={q}
+        onChange={set}
+        placeholder={placeholder}
+        suggestions={suggestions}
+        onFirstUse={() => setLoadLists(true)}
+        onPick={(s) => {
+          set('')
+          void navigate(s.kind === 'performers' ? { to: '/performers/$id', params: { id: String(s.entityId) } } : { to: '/studios/$id', params: { id: String(s.entityId) } })
+        }}
+        inputRef={input}
+      />
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
         <TelegramPill />
-        <button type="button" onClick={toggleTheme} aria-label="Toggle light and dark theme" title="Toggle theme" className={cn(ICON_BTN, 'hidden sm:grid')}>
-          <Icon name="moon" className="[[data-theme=light]_&]:hidden" />
-          <Icon name="sun" className="hidden [[data-theme=light]_&]:block" />
-        </button>
+        <ThemeToggle theme={theme} onToggle={toggleTheme} className={cn(ICON_BTN, 'hidden sm:grid')} />
         <button type="button" onClick={() => useUi.getState().setNotifications(true)} aria-label={notices ? `Notifications, ${notices} shown` : 'Notifications'} title="Notifications" className={cn(ICON_BTN, 'relative')}>
-          <Icon name="clock" />
-          {notices ? <span className="absolute right-1 top-1 grid min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-bold leading-4 text-accent-fg">{notices}</span> : null}
+          <Bell count={notices} />
         </button>
         <AccountMenu live={live} />
       </div>
@@ -183,6 +207,8 @@ function useGlobalKeys() {
 export function Shell(): ReactNode {
   const fullPath = useRouterState({ select: (s) => s.location.pathname })
   const section = useRouterState({ select: (s) => s.location.pathname.split('/')[1] || 'home' })
+  const mainRef = useRef<HTMLElement>(null)
+  useScrollMemory(mainRef)
   const live = useLiveStatus(true)
   useAppearanceSync()
   useEffect(() => installGlow(), [])
@@ -203,34 +229,26 @@ export function Shell(): ReactNode {
     }
   }
   const phone = GROUPS.flatMap((g) => g.items).filter((n) => PHONE_NAV.includes(n.to))
+  const activity = useActivity()
   return (
     <div className="flex h-full flex-col md:flex-row">
       <aside className={cn('hidden shrink-0 flex-col gap-0.5 overflow-y-auto overflow-x-hidden border-r border-line pb-4 transition-[width] duration-200 md:flex', rail ? 'w-[84px] px-2.5' : 'w-[248px] px-3')} aria-label="Main">
-        <div className={cn('flex h-16 shrink-0 items-center gap-2.5 text-lg font-extrabold', rail ? 'justify-center' : 'px-1.5')}>
+        <div className={cn('flex shrink-0 items-center text-lg font-extrabold', rail ? 'h-[92px] flex-col justify-center gap-1' : 'h-16 gap-2.5 px-1.5')}>
           <img src="/static/icons/archive-x.png" alt="" className="size-9 rounded-full" />
           {rail ? null : 'Archive X'}
-          {rail ? null : (
-            <button type="button" onClick={toggleRail} aria-label="Collapse sidebar" aria-expanded title="Collapse sidebar" className="ml-auto grid size-7 place-items-center rounded-lg text-muted hover:bg-fg/5 hover:text-fg">
-              <span aria-hidden="true">×</span>
-            </button>
-          )}
+          <RailToggle rail={rail} onToggle={toggleRail} />
         </div>
-        {rail ? (
-          <button type="button" onClick={toggleRail} aria-label="Expand sidebar" title="Expand sidebar" className={cn(SIDE_ITEM, 'mb-1 justify-center')}>
-            <Icon name="chevron-right" />
-          </button>
-        ) : null}
         {GROUPS.map((g, i) => (
           <div key={g.title} className={cn('grid gap-0.5', i > 0 && 'mt-3')}>
             {rail ? <div className="mx-2 my-1 h-px bg-line" /> : <div className="px-3 pb-1.5 pt-1 text-[11px] font-bold tracking-[0.08em] text-faint">{g.title}</div>}
-            {g.items.map((n) => <SideItem key={n.to} n={n} rail={rail} />)}
+            {g.items.map((n) => <SideItem key={n.to} n={n} rail={rail} count={activity[n.to] ?? 0} />)}
           </div>
         ))}
         {rail ? null : <StorageCard />}
       </aside>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header live={live} />
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <main ref={mainRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <motion.div key={section} {...fadeThrough} className="flex min-h-0 flex-1 flex-col"><ErrorBoundary resetKey={fullPath}><Suspense fallback={<div role="status" aria-label="Loading page" className="grid flex-1 place-items-center py-24"><span className="size-6 animate-spin rounded-full border-2 border-line border-t-accent" /></div>}><Outlet /></Suspense></ErrorBoundary></motion.div>
         </main>
       </div>
@@ -241,7 +259,7 @@ export function Shell(): ReactNode {
               {({ isActive }) => (
                 <>
                   {isActive ? <motion.span layoutId="phone-nav-marker" transition={spring} aria-hidden="true" className="absolute inset-x-4 top-0 h-[3px] rounded-b-full bg-accent" /> : null}
-                  <Icon name={n.icon} />
+                  <span className="relative"><Icon name={n.icon} /><ActivityBadge count={activity[n.to] ?? 0} className="absolute -right-3 -top-1.5 h-4 min-w-4 text-[10px]" /></span>
                   <span className="truncate">{n.label}</span>
                 </>
               )}

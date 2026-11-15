@@ -1,9 +1,11 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { Confirm } from '@/design/Confirm'
 import { cn } from '@/design/cn'
+import { SubtleNumber } from '@/design/SubtleNumber'
+import { scopeParams, type PhotoScope } from './photos'
 import { usePhotoStore } from './store'
 
 export interface LookSummary { available: boolean; total_photos: number; analysed_photos: number; tags: Array<{ tag: string; label: string; group: string; count: number }> }
@@ -15,13 +17,21 @@ const groupLooks = (tags: LookSummary['tags']) => tags.reduce<Record<string, Loo
 const TAG_CONFIRM = 'A small detector (about 12 MB) runs on this PC and looks at each photo for visible body-part regions such as breasts, buttocks, belly or feet. It records them as plain tags you can filter on. It does not identify anyone and does not judge size or shape. Photos that are not saved on this PC are fetched from Telegram first.'
 const why = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.detail : fb)
 
-export const useContentSummary = () => useQuery({ queryKey: ['content-tags'] as const, queryFn: () => api<ContentSummary>('/api/photos/content-tags'), staleTime: 15_000 })
+/**
+ * The tag list with a count per tag. With a `scope` the counts are the ones inside the filters already chosen (ticking Long hair shows how
+ * many of those photos have black hair, and so on); without one they are the overall counts. The last answer stays on screen while the next
+ * one loads, so the numbers change in place instead of blinking away.
+ */
+export const useContentSummary = (scope?: PhotoScope) => {
+  const qs = scope ? scopeParams(scope).toString() : ''
+  return useQuery({ queryKey: ['content-tags', qs] as const, queryFn: () => api<ContentSummary>(`/api/photos/content-tags${qs ? `?${qs}` : ''}`), staleTime: 15_000, placeholderData: keepPreviousData })
+}
 
 /** Filter the photos by what is visible in them; tags come from a small local detector. */
-export function ContentTags({ bare = false }: { bare?: boolean } = {}) {
+export function ContentTags({ bare = false, scope }: { bare?: boolean; scope?: PhotoScope } = {}) {
   const qc = useQueryClient()
   const { contentTags, setContentTags } = usePhotoStore()
-  const q = useContentSummary()
+  const q = useContentSummary(scope)
   const [ask, setAsk] = useState(false)
   const [askLooks, setAskLooks] = useState(false)
   const [busy, setBusy] = useState('')
@@ -58,8 +68,8 @@ export function ContentTags({ bare = false }: { bare?: boolean } = {}) {
         <div role="group" aria-label="Filter by content" className="flex flex-wrap gap-2">
           {s.tags.map((t) => { const on = contentTags.includes(t.tag); return (
             <button key={t.tag} type="button" aria-pressed={on} onClick={() => setContentTags(toggleTag(contentTags, t.tag))}
-              className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors', on ? 'border-accent bg-accent/15 text-fg' : 'border-line-2 text-muted hover:text-fg')}>
-              {t.label}<span className="text-xs tabular-nums text-faint">{t.count.toLocaleString()}</span></button>) })}
+              className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors', on ? 'border-accent bg-accent/15 text-fg' : 'border-line-2 text-muted hover:text-fg', !on && t.count === 0 && 'opacity-45')}>
+              {t.label}<SubtleNumber className="text-xs text-faint" value={t.count} /></button>) })}
           {contentTags.length ? <button type="button" onClick={() => setContentTags([])} className="h-8 px-2 text-xs font-semibold text-accent hover:underline">Clear</button> : null}
         </div>
       ) : null}
@@ -72,8 +82,8 @@ export function ContentTags({ bare = false }: { bare?: boolean } = {}) {
             <div key={group} role="group" aria-label={group} className="flex flex-wrap items-center gap-2"><span className="w-24 text-xs font-semibold text-faint">{group}</span>
               {tags.map((t) => { const on = contentTags.includes(t.tag); return (
                 <button key={t.tag} type="button" aria-pressed={on} onClick={() => setContentTags(toggleTag(contentTags, t.tag))}
-                  className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors', on ? 'border-accent bg-accent/15 text-fg' : 'border-line-2 text-muted hover:text-fg')}>
-                  {t.label}<span className="text-xs tabular-nums text-faint">{t.count.toLocaleString()}</span></button>) })}
+                  className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors', on ? 'border-accent bg-accent/15 text-fg' : 'border-line-2 text-muted hover:text-fg', !on && t.count === 0 && 'opacity-45')}>
+                  {t.label}<SubtleNumber className="text-xs text-faint" value={t.count} /></button>) })}
             </div>
           ))}
         </div>

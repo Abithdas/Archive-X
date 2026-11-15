@@ -5,7 +5,6 @@ import { ApiError, api } from '@/api/client'
 import { useDiagnostics, useResources, useStatus } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
 import { AnimatePresence, listItem, motion } from '@/design/motion'
-import { useCountTo } from '@/design/AnimatedNumber'
 import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
 import { Segmented } from '@/design/Segmented'
@@ -22,6 +21,7 @@ import { ResourceControls } from './ResourceControls'
 import { idOf } from './jobs'
 import { downloadLogBundle, folderOf } from './logBundle'
 import { attention, diagnosticTiles, filterJobs, filterLog, healthTiles, jobCounts, laneRows, policyLine, resourceCards, telemetryTiles, type JobFilter, type LogLevel, type Tile, type Tone } from './ops'
+import { SubtleNumber } from '@/design/SubtleNumber'
 
 type Obj = Record<string, unknown>
 const CARD = 'rounded-[18px] border border-line bg-surface p-4 sm:p-5'
@@ -69,8 +69,8 @@ export function listProgress(j: Obj): { known: boolean; percent: number; text: s
 
 function JobRow({ j }: { j: Obj }) {
   const prog = listProgress(j)
-  const rolling = useCountTo(Math.round(prog.percent))
-  const progText = prog.known && /^\d+%/.test(prog.text) ? prog.text.replace(/^\d+%/, `${rolling}%`) : prog.text
+  const lead = /^(\d+)%/.exec(prog.text)   // a whole-number percentage at the start: its digits change in place
+  const progText = prog.known && lead ? <><SubtleNumber value={Math.round(prog.percent)} />{prog.text.slice(lead[1]!.length)}</> : prog.text
   const st = String(j.status ?? '').toUpperCase()
   const [open, setOpen] = useState(false)
   const id = idOf(j)

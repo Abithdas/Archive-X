@@ -63,14 +63,34 @@ def store_tags(db, photo_id: int, tags: dict[str, dict[str, float]], status: str
         db.conn.commit()
 
 
-def summary(db) -> dict[str, Any]:
+def facet_counts(db, where: list[str], params: list[Any], ticked: list[str]) -> dict[str, int]:
+    """How many photos carry each tag among the photos that pass the current filters (`where`/`params`, written for the aliases
+    p = photo_library_items and c = channels) and already have every tag in `ticked`. A tag you could still add shows how many photos
+    would be left if you ticked it; a tag you ticked shows how many are left now."""
+    clause = list(where)
+    args = list(params)
+    for tag in ticked:
+        clause.append("EXISTS (SELECT 1 FROM photo_content_tags k WHERE k.photo_id=p.id AND k.tag=?)")
+        args.append(tag)
+    with db.reading() as rdb:
+        rows = rdb.execute(
+            "SELECT ct.tag AS tag, COUNT(DISTINCT ct.photo_id) AS n FROM photo_content_tags ct "
+            "JOIN photo_library_items p ON p.id=ct.photo_id LEFT JOIN channels c ON c.telegram_id=p.channel_id "
+            f"WHERE {' AND '.join(clause)} GROUP BY ct.tag", args).fetchall()
+    return {r["tag"]: int(r["n"]) for r in rows}
+
+
+def summary(db, facets: dict[str, int] | None = None) -> dict[str, Any]:
+    """Tags that exist, with a photo count each. With `facets` (see facet_counts) the counts are the ones inside the current filters;
+    a tag that exists keeps its place even when no photo is left for it, so the chips do not jump about."""
     with db.reading() as rdb:
         total = int(rdb.execute("SELECT COUNT(*) n FROM photo_library_items").fetchone()["n"] or 0)
         done = int(rdb.execute("SELECT COUNT(*) n FROM photo_content_analysis WHERE status='COMPLETE'").fetchone()["n"] or 0)
         rows = rdb.execute("SELECT tag, COUNT(*) n FROM photo_content_tags GROUP BY tag").fetchall()
     counts = {r["tag"]: int(r["n"]) for r in rows}
+    shown = counts if facets is None else facets
     return {"available": available(), "total_photos": total, "analysed_photos": done,
-            "tags": [{"tag": t, "label": TAG_LABELS[t], "count": counts.get(t, 0)} for t in TAG_LABELS if counts.get(t, 0)]}
+            "tags": [{"tag": t, "label": TAG_LABELS[t], "count": shown.get(t, 0)} for t in TAG_LABELS if counts.get(t, 0)]}
 
 
 async def run(ctx) -> dict[str, Any]:

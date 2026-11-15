@@ -13,13 +13,19 @@ export interface Candidate {
   width?: number; height?: number; duration?: number; size?: number
   document_id?: string | null; registry_key?: string | null; oshash?: string | null; registry_oshash?: string | null; uploaded_oshash?: string | null
 }
-export interface DupGroup { candidates?: Candidate[]; proof?: string[]; duplicate_count?: number }
+export interface DupGroup { candidates?: Candidate[]; proof?: string[]; duplicate_count?: number; _id?: number }
 export interface DupScan {
   ok?: boolean; detail?: string; scope?: string; channel_id?: string | number; channel_title?: string
   indexed_video_count?: number; indexed_channel_count?: number; complete_channel_count?: number; hashes_computed?: number
   groups?: DupGroup[]; warning?: string; fingerprint_warnings?: string[]; fingerprint_warnings_truncated?: boolean
 }
 interface Target { group: DupGroup; row: Candidate; key: string }
+
+/** The scan without one deleted copy, and without any group that is no longer a duplicate (fewer than two copies left). Group ids stay, so the page can tell which one went. */
+export function withoutCopy(scan: DupScan, key: string): DupScan {
+  const groups = (scan.groups ?? []).map((g) => { const left = (g.candidates ?? []).filter((c) => candidateKey(c) !== key); return { ...g, candidates: left, duplicate_count: left.length } }).filter((g) => (g.candidates?.length ?? 0) >= 2)
+  return { ...scan, groups }
+}
 
 export const candidateKey = (r: Candidate) => `${String(r.channel_id ?? '')}:${Number(r.message_id ?? 0)}`
 

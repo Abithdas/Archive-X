@@ -22,12 +22,16 @@ import { useShuffle } from './useShuffle'
 import { useSelection } from './selection'
 import { VideoCard, VideoCardSkeleton } from './VideoCard'
 import { useDebounced } from './useDebounced'
+import { useFitGrid } from './fitGrid'
 import { useLibraryStore } from './store'
+import { SpinCounter } from '@/design/SpinCounter'
 
-const GRID = 'grid grid-cols-1 gap-4 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4 min-[1700px]:grid-cols-5 min-[2100px]:grid-cols-6'
+const GRID = 'grid gap-4'
 
 export function LibraryPage() {
-  const { channels: picked, page, sort, favorites, filters, per, toggle, clear, setPage, setPer, resetFilters } = useLibraryStore()
+  const { channels: picked, page, sort, favorites, filters, per: nominalPer, toggle, clear, setPage, setPer, resetFilters } = useLibraryStore()
+  const grid = useFitGrid(270, 16)
+  const per = grid.fit(nominalPer)   // whole rows of whatever the window shows, so the last row is full
   const selecting = useSelection((st) => st.active)
   useEffect(() => () => useSelection.getState().exit(), [])   // leaving the page ends select mode
   const search = useDebounced(useSearch((s) => s.q).trim(), 300)
@@ -60,6 +64,7 @@ export function LibraryPage() {
   const query: LibraryQuery = useMemo(() => ({ channels: selected, page, per, sort, favorites, q: search, ...filters }), [selected, page, per, sort, favorites, filters, search])
   const library = useLibrary(query)
   const pages = library.data ? Math.max(1, Math.ceil(library.data.total / per)) : 1
+  useEffect(() => { if (page > pages - 1) setPage(pages - 1) }, [page, pages, setPage])   // a wider window means fewer pages
 
   return (
     <section className="mx-auto flex w-full max-w-[1800px] flex-1 flex-col pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
@@ -70,8 +75,8 @@ export function LibraryPage() {
       {editChannel ? <ChannelEditor id={editChannel} onClose={() => setEditChannel(null)} /> : null}
 
       {library.isPending ? (
-        <SkeletonGroup label="Loading videos" className={GRID}>
-          {Array.from({ length: 12 }, (_, i) => (
+        <SkeletonGroup label="Loading videos" className={GRID} ref={grid.ref} style={grid.style}>
+          {Array.from({ length: grid.cols * 2 }, (_, i) => (
             <VideoCardSkeleton key={i} index={i} />
           ))}
         </SkeletonGroup>
@@ -86,11 +91,11 @@ export function LibraryPage() {
           <h2 className="mb-4 flex items-baseline gap-2.5 text-xl font-extrabold tracking-tight">
             Library
             <span className="text-[13px] font-normal text-muted">
-              {library.data.total.toLocaleString()} videos · {selected.length} channel{selected.length === 1 ? '' : 's'}
+              <SpinCounter value={library.data.total} /> videos · {selected.length} channel{selected.length === 1 ? '' : 's'}
             </span>
           </h2>
           <ActiveFilters />
-          <div className={cn(GRID, library.isPlaceholderData && 'opacity-60 transition-opacity')}>
+          <div ref={grid.ref} style={grid.style} className={cn(GRID, library.isPlaceholderData && 'opacity-60 transition-opacity')}>
             <AnimatePresence mode="popLayout">
               {library.data.items.map((item, i) => (
                 <motion.div key={`${item._cid}:${item.id}`} {...cardMotion(i)}>
@@ -106,7 +111,7 @@ export function LibraryPage() {
             </div>
           ) : null}
           {selecting ? <SelectionBar visible={library.data.items} /> : null}
-          {library.data.total > 0 ? <Pagination page={page} pages={pages} per={per} onPage={setPage} onPer={setPer} /> : null}
+          {library.data.total > 0 ? <Pagination page={page} pages={pages} per={nominalPer} onPage={setPage} onPer={setPer} fit={grid.fit} /> : null}
         </>
       )}
     </section>

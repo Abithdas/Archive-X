@@ -39,8 +39,8 @@ export function useEntityLookup(kind: EntityKind, names: ReadonlyArray<unknown>)
   const list = uniqueNames(names)
   return useQuery({ queryKey: ['entity-lookup', kind, list] as const, queryFn: () => api<Entity[]>(lookupUrl(kind, list)), enabled: list.length > 0, staleTime: 30_000 })
 }
-export const useEntities = (kind: EntityKind) =>
-  useQuery({ queryKey: ['entities', kind] as const, queryFn: () => api<Entity[]>(entitiesUrl(kind)), staleTime: 30_000 })
+export const useEntities = (kind: EntityKind, enabled = true) =>
+  useQuery({ queryKey: ['entities', kind] as const, queryFn: () => api<Entity[]>(entitiesUrl(kind)), staleTime: 30_000, enabled })
 
 export const usePerformer = (id: number) =>
   useQuery({

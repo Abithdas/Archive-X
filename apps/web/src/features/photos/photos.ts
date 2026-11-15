@@ -66,6 +66,15 @@ export function photoParams(q: PhotoQuery): URLSearchParams {
 }
 export const photosUrl = (q: PhotoQuery) => `/api/photos?${photoParams(q)}`
 
+/** What the tag counts are taken inside: the same filters as the photo list, without paging or sorting. */
+export type PhotoScope = Pick<PhotoQuery, 'channels' | 'q' | 'favorites' | 'favoriteIds' | 'face' | 'contentTags'>
+export function scopeParams(s: PhotoScope): URLSearchParams {
+  const p = photoParams({ ...s, sort: 'date_desc', page: 0 })
+  p.delete('page'); p.delete('per'); p.delete('sort')
+  for (const [k, v] of [...p.entries()]) if (!v) p.delete(k)   // an empty value says nothing
+  return p
+}
+
 export function readFavorites(storage: Pick<Storage, 'getItem'> | null): Set<string> {
   try { const v = JSON.parse(storage?.getItem(FAVORITES_KEY) || '[]') as unknown; return new Set(Array.isArray(v) ? v.map(String) : []) } catch { return new Set() }
 }
@@ -76,7 +85,6 @@ export function toggleFavorite(ids: ReadonlySet<string>, p: Pick<Photo, 'id'>): 
 export const emptyText = (search: string, favorites: boolean) => search ? { title: 'No photos match this search.', body: 'Try another filename, caption, or channel name.' }
   : favorites ? { title: 'No favourite photos here yet.', body: 'Star a photo in the viewer to find it here.' }
   : { title: 'No photos indexed in selected channels yet.', body: 'Use Metadata & Assets Manager → Processing Stages → Advanced options → Image scan.' }
-export const summaryText = (total: number) => `${total.toLocaleString()} image${total === 1 ? '' : 's'}`
 
 export const photoName = (p: Pick<Photo, 'filename' | 'message_id'>) => String(p.filename || `Photo ${p.message_id}`)
 export const ratio = (p: Pick<Photo, 'width' | 'height'>) => (p.width > 0 && p.height > 0 ? `${p.width} / ${p.height}` : '4 / 3')

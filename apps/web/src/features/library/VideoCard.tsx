@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { thumbUrl } from '@/api/client'
 import { useFavorite } from '@/api/hooks'
 import type { LibraryItem } from '@/api/types'
+import { LikeHeart } from '@/design/LikeHeart'
 import { Icon } from '@/design/Icon'
 import { Skeleton, SkeletonLine } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
@@ -40,7 +41,7 @@ export function VideoCard({ item }: { item: LibraryItem }) {
     toggle(item._cid, item.id)
   }
   return (
-    <article {...preview.bind} data-glow onClickCapture={pick} data-picked={selecting ? picked : undefined} className={cn(CARD, 'transform-gpu transition-[box-shadow,translate,scale] duration-200 ease-[cubic-bezier(.2,.75,.25,1)] will-change-[translate,scale] motion-reduce:transition-none hover:z-40 hover:-translate-y-[3px] hover:scale-[1.025] hover:shadow-[0_12px_26px_rgb(0_0_0/0.24)]', selecting && 'cursor-pointer', picked && 'border-accent ring-2 ring-accent/60')} aria-label={item.name}>
+    <article {...preview.bind} data-glow data-smoke={`card:${item._cid}:${item.id}`} onClickCapture={pick} data-picked={selecting ? picked : undefined} className={cn(CARD, 'transform-gpu transition-[box-shadow,translate,scale] duration-200 ease-[cubic-bezier(.2,.75,.25,1)] will-change-[translate,scale] motion-reduce:transition-none hover:z-40 hover:-translate-y-[3px] hover:scale-[1.025] hover:shadow-[0_12px_26px_rgb(0_0_0/0.24)]', selecting && 'cursor-pointer', picked && 'border-accent ring-2 ring-accent/60')} aria-label={item.name}>
       <div ref={thumb} className={THUMB}>
         {imgOk ? (
           <img
@@ -70,9 +71,9 @@ export function VideoCard({ item }: { item: LibraryItem }) {
           aria-pressed={Boolean(item.favorite)}
           disabled={fav.isPending}
           onClick={() => fav.mutate({ mediaId: item.media_id, favorite: !item.favorite })}
-          className={cn('absolute right-2 top-2 z-10 grid size-[34px] place-items-center rounded-full bg-black/40 backdrop-blur-sm transition-colors hover:bg-black/60', item.favorite ? 'text-warn' : 'text-white')}
+          className="absolute right-2 top-2 z-10 grid size-[34px] place-items-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
         >
-          <Icon name="star" className={cn("size-4", Boolean(item.favorite) && "drop-shadow")} />
+          <LikeHeart liked={Boolean(item.favorite)} />
         </button>
       </div>
       <div className={BODY}>

@@ -15,7 +15,6 @@ export const IconZoomOut = () => <Svg><circle cx="10.5" cy="10.5" r="6.5" /><pat
 export const IconFit = () => <Svg><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16" /><rect x="8.5" y="9" width="7" height="6" rx="1" /></Svg>
 export const IconRotateLeft = () => <Svg><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6L3.5 8.5M3.5 3.5v5h5" /></Svg>
 export const IconRotateRight = () => <Svg><path d="M20.5 12A8.5 8.5 0 1 1 18 6l2.5 2.5M20.5 3.5v5h-5" /></Svg>
-export const IconStar = ({ on }: { on: boolean }) => <Svg fill={on}><path d="M12 3.2l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.5l6-.8L12 3.2z" /></Svg>
 export const IconFullscreen = ({ on }: { on: boolean }) => (on
   ? <Svg><path d="M9 4v4a1 1 0 0 1-1 1H4M15 4v4a1 1 0 0 0 1 1h4M9 20v-4a1 1 0 0 0-1-1H4M15 20v-4a1 1 0 0 1 1-1h4" /></Svg>
   : <Svg><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4" /></Svg>)

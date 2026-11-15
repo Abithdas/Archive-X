@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
+import { ErrorField } from '@/design/ErrorField'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
@@ -166,9 +167,10 @@ export function EntityEditor({ kind, id, onDone }: { kind: Kind; id: number; onD
                 <label className="grid gap-1.5 text-xs font-semibold text-muted">Biography<textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Optional biography" rows={4} className="w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5 py-2.5 text-[15px] text-fg outline-none placeholder:text-faint focus:border-accent/60" /></label>
               </>
             ) : null}
-            <label className="grid gap-1.5 text-xs font-semibold text-muted">Name<input value={name} onChange={(e) => { setName(e.target.value); setNameMsg('') }} required className={INPUT} />
-              {nameMsg ? <span role="alert" className="text-warn">{nameMsg}</span> : null}
-            </label>
+            <div className="grid gap-1.5 text-xs font-semibold text-muted">
+              <label htmlFor="ax-entity-name">Name</label>
+              <ErrorField message={nameMsg}><input id="ax-entity-name" value={name} onChange={(e) => { setName(e.target.value); setNameMsg('') }} required className={INPUT} /></ErrorField>
+            </div>
           </div>
         </details>
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line pt-3">

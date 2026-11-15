@@ -10,10 +10,9 @@ export const TABS: Array<{ value: AiTab; label: string; blurb: string }> = [
 export interface Message { role: string; content?: string; created_at?: string }
 interface Runtime {
   runtime?: { path?: string; exists?: boolean }; model?: { path?: string; exists?: boolean }
-  server?: { endpoint?: string; reachable?: boolean; context?: number; gpu_layers?: number }; ready?: boolean
+  server?: { endpoint?: string; reachable?: boolean; starting?: boolean; context?: number; gpu_layers?: number }; ready?: boolean
 }
 export interface AiStatus { configured?: boolean; provider?: string; model?: string; runtime?: Runtime }
-export interface ChatReply { text?: string; model?: string; detail?: string }
 
 export const EMPTY_HISTORY = 'Ask about your library, jobs, diagnostics, metadata, playback or the current Archive X state.'
 export const DEFAULT_MODEL = 'Qwen3-4B-Instruct-2507-Q4_K_M'
@@ -43,20 +42,25 @@ export const chatBody = (message: string, page: string) => ({ message, page, sel
 export interface Header { ready: boolean; state: string; model: string }
 export function header(s: AiStatus | null | undefined): Header {
   if (!s) return { ready: false, state: 'Checking local model…', model: '—' }
-  const ready = Boolean(s.configured)
-  return { ready, state: ready ? 'Local model ready' : s.runtime?.model?.exists ? 'Runtime configured — server not ready' : 'Local model not configured', model: `${s.provider || 'llama.cpp'} · ${s.model || '—'}` }
+  const r = s.runtime
+  const files = Boolean(r?.runtime?.exists && r?.model?.exists)
+  const up = Boolean(r?.server?.reachable)
+  const state = up ? 'Assistant ready' : r?.server?.starting ? 'Starting the assistant…' : files ? 'Asleep — starts when you ask' : 'Not set up yet'
+  return { ready: up, state, model: `${s.provider || 'llama.cpp'} · ${s.model || '—'}` }
 }
+/** True when the engine and the model are both on this PC (whether or not the server is running). */
+export const isInstalled = (s: AiStatus | null | undefined) => Boolean(s?.runtime?.runtime?.exists && s?.runtime?.model?.exists)
 export const readiness = (s: AiStatus | null | undefined): Array<[string, string]> => {
   const r = s?.runtime ?? {}
   return [['llama-server', r.runtime?.exists ? 'Ready' : 'Missing'], ['GGUF model', r.model?.exists ? 'Ready' : 'Missing'], ['Local endpoint', r.server?.reachable ? 'Reachable' : 'Not running'], ['Inference', r.ready ? 'Ready' : 'Not ready'], ['Mode', 'CPU-first'], ['Cloud API', 'Disabled']]
 }
 
 export interface Config { runtime_path: string; model_path: string; model_id: string; endpoint: string; context: number; gpu_layers: number }
-export const configFrom = (s: AiStatus | null | undefined): Config => ({ runtime_path: s?.runtime?.runtime?.path || '', model_path: s?.runtime?.model?.path || '', model_id: s?.model || DEFAULT_MODEL, endpoint: s?.runtime?.server?.endpoint || DEFAULT_ENDPOINT, context: Number(s?.runtime?.server?.context || 4096), gpu_layers: Number(s?.runtime?.server?.gpu_layers || 0) })
+export const configFrom = (s: AiStatus | null | undefined): Config => ({ runtime_path: s?.runtime?.runtime?.path || '', model_path: s?.runtime?.model?.path || '', model_id: s?.model || DEFAULT_MODEL, endpoint: s?.runtime?.server?.endpoint || DEFAULT_ENDPOINT, context: Number(s?.runtime?.server?.context || 8192), gpu_layers: Number(s?.runtime?.server?.gpu_layers || 0) })
 /** Request body: trimmed text, numbers clamped to the ranges the form allows. */
 export const configBody = (c: Config): Config => ({
   runtime_path: c.runtime_path.trim(), model_path: c.model_path.trim(), model_id: c.model_id.trim(), endpoint: c.endpoint.trim(),
-  context: Math.min(16384, Math.max(1024, Math.round(Number(c.context) || 4096))), gpu_layers: Math.min(128, Math.max(0, Math.round(Number(c.gpu_layers) || 0))),
+  context: Math.min(16384, Math.max(1024, Math.round(Number(c.context) || 8192))), gpu_layers: Math.min(128, Math.max(0, Math.round(Number(c.gpu_layers) || 0))),
 })
 export const SAVED = 'Local AI settings saved.'
 export const SAVE_FAILED = 'Could not save local AI settings.'
@@ -80,3 +84,17 @@ export const sizeText = (mb: number) => (mb >= 1000 ? `${(mb / 1000).toFixed(1)}
 export const modelsSummary = (r?: Pick<ModelsReply, 'ready' | 'total'>) => (r ? `${r.ready} of ${r.total} local models ready` : 'Checking local models…')
 export const anyBusy = (r?: ModelsReply) => !!r?.models.some((m) => m.busy || m.state === 'downloading')
 export const testLine = (r: { ok?: boolean; ms?: number | null; detail?: string }) => (r.ok ? `Working${r.ms != null ? ` · ${r.ms} ms` : ''}. ${r.detail ?? ''}`.trim() : `Not working: ${r.detail || 'the test failed.'}`)
+
+
+export interface SetupOption { id: 'small' | 'balanced' | 'strong'; label: string; model: string; size_mb: number; min_ram_gb: number; blurb: string; recommended: boolean; fits: boolean }
+export interface SetupEngine { id: string; label: string; size_mb: number; gpu: boolean }
+export interface SetupStep { id: string; label: string; state: 'pending' | 'active' | 'done' | 'error'; detail: string }
+export interface SetupRun { state: 'idle' | 'running' | 'done' | 'error' | 'cancelled'; model: string; engine: string; steps: SetupStep[]; bytes_done: number; bytes_total: number; speed_bps: number; log: string[]; error: string }
+export interface SetupInfo { ok?: boolean; supported: boolean; ram_gb: number; recommended: SetupOption['id']; models: SetupOption[]; engines: SetupEngine[]; engine_tag: string; run: SetupRun }
+export const percentOf = (done: number, total: number) => (total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0)
+export const bytesText = (n: number) => (n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} GB` : `${Math.round(n / 1024 ** 2)} MB`)
+export const speedText = (bps: number) => (bps > 0 ? `${bytesText(bps)}/s` : '')
+export const setupTotal = (m: SetupOption | undefined, e: SetupEngine | undefined) => `${(((m?.size_mb ?? 0) + (e?.size_mb ?? 0)) / 1024).toFixed(1)} GB`
+/** A PC sold as 16 GB reports about 15.7, so the line is drawn a little below the number. */
+export const RAM_SLACK = 0.9
+export const ramNote = (ram: number, o: SetupOption) => (ram && ram < o.min_ram_gb * RAM_SLACK ? `Wants ${o.min_ram_gb} GB of memory; this PC has ${ram} GB.` : '')

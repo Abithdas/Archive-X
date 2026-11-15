@@ -36,6 +36,16 @@ describe('LoginGate', () => {
     const go = await screen.findByRole('button', { name: 'Sign in' }); fill('Username', 'a'); fill('Password', 'b'); fireEvent.click(go)
     expect(await screen.findByText('Wrong username or password.')).toBeInTheDocument()
   })
+  it('shakes and rings the password field on a wrong password, and calms down when you type again', async () => {
+    mount({ setup_required: false }, (u) => (u === '/login' ? json({ detail: 'Wrong' }, 401) : undefined))
+    const go = await screen.findByRole('button', { name: 'Sign in' }); fill('Username', 'a'); fill('Password', 'b'); fireEvent.click(go)
+    await screen.findByText('Wrong username or password.')
+    const field = screen.getByLabelText('Password').closest('.t-input') as HTMLElement
+    expect(field.classList.contains('is-error')).toBe(true)
+    await waitFor(() => expect(field.classList.contains('is-shaking')).toBe(true))
+    fireEvent.input(screen.getByLabelText('Password'), { target: { value: 'bc' } })
+    await waitFor(() => expect(field.classList.contains('is-error')).toBe(false))
+  })
   it('shows the server\'s wait message after too many attempts', async () => {
     mount({ setup_required: false }, (u) => (u === '/login' ? json({ detail: 'Try again in 4 minutes' }, 429) : undefined))
     const go = await screen.findByRole('button', { name: 'Sign in' }); fill('Username', 'a'); fill('Password', 'b'); fireEvent.click(go)

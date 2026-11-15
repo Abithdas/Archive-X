@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { useEntities } from '@/api/hooks'
@@ -11,15 +11,16 @@ import { Segmented } from '@/design/Segmented'
 import { useSearch } from '@/app/search'
 import { SkeletonGroup } from '@/design/Skeleton'
 import { EntityCard, EntityCardSkeleton } from './EntityCard'
-import { MissingGender } from './MissingGender'
-import { MissingPictures } from './MissingPictures'
+import { useAutoRepair } from './autoRepair'
+import { useFitGrid } from '@/features/library/fitGrid'
 import { Pagination } from '@/features/library/Pagination'
 import { filterEntities, pageCount, type GenderFilter } from './filter'
 import { FAILED, IDLE, NEED_SELECTION, SORTS, canCommit, commitLabel, confirmation, duplicatesOf, hint, mergeBody, modeLabel, pick, sortBy, successMessage, toggleMode, type MergeState, type SortKey } from './merge'
 import { Empty } from '@/design/Empty'
+import { useDirectoryView } from './directoryView'
+import { SpinCounter } from '@/design/SpinCounter'
 
-const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-[18px] sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]'
-const DEFAULT_PER = 12
+const GRID = 'grid gap-[18px]'
 const COPY = {
   performers: { eyebrow: 'Library', title: 'Performers', blurb: 'Everyone linked to your videos', empty: 'No performers yet.' },
   studios: { eyebrow: 'Library', title: 'Studios', blurb: 'Studios and sites in your archive', empty: 'No studios yet.' },
@@ -28,18 +29,24 @@ const COPY = {
 export function EntityDirectory({ kind }: { kind: EntityKind }) {
   const copy = COPY[kind]
   const entities = useEntities(kind)
+  useAutoRepair(kind)
   const query = useSearch((s) => s.q)
-  const [gender, setGender] = useState<GenderFilter>('female')
-  const [page, setPage] = useState(1)
-  const [per, setPer] = useState(DEFAULT_PER)
-  const [sort, setSort] = useState<SortKey>('default')
+  const { page, gender, per: nominalPer, sort } = useDirectoryView((s) => s.views[kind])
+  const patch = useDirectoryView((s) => s.patch)
+  const setGender = (g: GenderFilter) => patch(kind, { gender: g, page: 1 })
+  const setPage = (n: number) => patch(kind, { page: n })
+  const setPer = (n: number) => patch(kind, { per: n })
+  const setSort = (v: SortKey) => patch(kind, { sort: v })
+  const grid = useFitGrid(typeof window !== 'undefined' && window.innerWidth < 640 ? 150 : 190, 18)
+  const per = grid.fit(nominalPer)   // whole rows of whatever the window shows, so the last row is full
   const [merge, setMerge] = useState<MergeState>(IDLE)
   const [asking, setAsking] = useState(false)
   const qc = useQueryClient()
   const rows = useMemo(() => sortBy(filterEntities(entities.data ?? [], query, kind === 'performers' ? gender : 'all'), sort), [entities.data, query, gender, kind, sort])
   const pages = pageCount(rows.length, per)
   const current = Math.min(page, pages)
-  useEffect(() => setPage(1), [query, gender, kind])
+  const lastQuery = useRef(query)
+  useEffect(() => { if (lastQuery.current !== query) { lastQuery.current = query; patch(kind, { page: 1 }) } }, [query, kind, patch])   // a new search starts at page 1; coming back to the list does not
   useEffect(() => setMerge(IDLE), [kind])   // merge mode belongs to the performers list
   const visible = rows.slice((current - 1) * per, current * per)
   const all = entities.data ?? []
@@ -68,15 +75,13 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
   return (
     <section className="mx-auto flex w-full max-w-[1800px] flex-1 flex-col pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead title={copy.title} blurb={copy.blurb} />
-      {kind === 'performers' ? <MissingGender /> : null}
-      <MissingPictures kind={kind} />
       <div className="mb-5 flex flex-wrap items-center gap-2.5">
         {kind === 'performers' ? (
           <Segmented
             label="Gender"
             value={gender}
             onChange={setGender}
-            options={[{ value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }, { value: 'trans', label: 'Trans' }, { value: 'all', label: 'All' }]}
+            options={[{ value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }, { value: 'all', label: 'All' }]}
           />
         ) : null}
         {kind === 'performers' ? (
@@ -91,12 +96,12 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
             {merge.active ? <span role="status" aria-live="polite" className="max-w-[480px] text-xs text-muted">{hint(merge, all)}</span> : null}
           </>
         ) : null}
-        {entities.data ? <span className="ml-auto text-sm text-muted">{rows.length} {copy.title.toLowerCase()}</span> : null}
+        {entities.data ? <span className="ml-auto text-sm text-muted"><SpinCounter value={rows.length} /> {copy.title.toLowerCase()}</span> : null}
       </div>
 
       {entities.isPending ? (
-        <SkeletonGroup label={`Loading ${copy.title.toLowerCase()}`} className={GRID}>
-          {Array.from({ length: 12 }, (_, i) => <EntityCardSkeleton key={i} kind={kind} />)}
+        <SkeletonGroup label={`Loading ${copy.title.toLowerCase()}`} className={GRID} ref={grid.ref} style={grid.style}>
+          {Array.from({ length: grid.cols * 2 }, (_, i) => <EntityCardSkeleton key={i} kind={kind} />)}
         </SkeletonGroup>
       ) : entities.isError ? (
         <div role="alert" className="grid place-items-center gap-3 rounded-card border border-line py-16 text-center">
@@ -110,8 +115,8 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
         </Empty>
       ) : (
         <>
-          <div className={GRID}>{visible.map((e, i) => <EntityCard key={e.id} index={i} kind={kind} entity={e} merge={merging ? { keeper: merge.keepId === e.id, selected: merge.mergeIds.includes(e.id), onPick: () => pickCard(e.id) } : undefined} />)}</div>
-          <Pagination page={current - 1} pages={pages} per={per} onPage={(n) => setPage(n + 1)} onPer={(n) => { setPer(n); setPage(1) }} />
+          <div className={GRID} ref={grid.ref} style={grid.style}>{visible.map((e, i) => <EntityCard key={e.id} index={i} kind={kind} entity={e} merge={merging ? { keeper: merge.keepId === e.id, selected: merge.mergeIds.includes(e.id), onPick: () => pickCard(e.id) } : undefined} />)}</div>
+          <Pagination page={current - 1} pages={pages} per={nominalPer} fit={grid.fit} onPage={(n) => setPage(n + 1)} onPer={(n) => { setPer(n); setPage(1) }} />
         </>
       )}
       {asking && keep ? (() => { const c = confirmation(keep, ids, all); return <Confirm title={c.title} text={c.text} ok={c.ok} danger onCancel={() => setAsking(false)} onOk={() => void commit()} /> })() : null}

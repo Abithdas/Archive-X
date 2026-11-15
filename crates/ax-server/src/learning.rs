@@ -23,6 +23,7 @@ pub const ROUTES: &[&str] = &["face_learning"];
 const STATUS: &str = "/api/photos/faces/learning/status";
 const SUGGESTIONS: &str = "/api/photos/faces/learning/suggestions";
 const OUTLIERS: &str = "/api/photos/faces/learning/outliers";
+const REVIEW: &str = "/api/photos/faces/learning/review";
 const SUGGESTION_LIMIT: usize = 300;
 const OUTLIER_LIMIT: usize = 600;
 const PEOPLE_LIMIT: usize = 50;
@@ -32,6 +33,7 @@ pub enum Route {
     Status,
     Suggestions,
     Outliers,
+    Review,
 }
 
 pub struct Learning {
@@ -57,6 +59,7 @@ impl Learning {
             STATUS => Some(Route::Status),
             SUGGESTIONS => Some(Route::Suggestions),
             OUTLIERS => Some(Route::Outliers),
+            REVIEW => Some(Route::Review),
             _ => None,
         }
     }
@@ -142,6 +145,19 @@ impl Learning {
                 let strong = all.iter().filter(|s| s.flag).count();
                 let items: Vec<Value> = all.iter().take(SUGGESTION_LIMIT).map(|s| item(s, "strong")).collect();
                 json!({ "ok": true, "performer_id": id, "total": all.len(), "strong": strong, "items": items })
+            }
+            Route::Review => {
+                // Who has unnamed faces that look like them, for the "new matches to check" mark on each person.
+                let names = match self.db().await {
+                    Ok(db) => db.read(performer_names).await.unwrap_or_default(),
+                    Err(_) => Default::default(),
+                };
+                let people: Vec<Value> = learner
+                    .suggestion_counts()
+                    .into_iter()
+                    .map(|(p, n, strong)| json!({ "performer_id": p, "name": names.get(&p).cloned().unwrap_or_default(), "suggestions": n, "strong": strong }))
+                    .collect();
+                json!({ "ok": true, "people": people })
             }
             Route::Outliers => {
                 let id = performer_id(query)?;

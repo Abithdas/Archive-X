@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api } from '@/api/client'
 import { queryKeys, useStatus } from '@/api/hooks'
 import { Button } from '@/design/Button'
+import { ErrorField } from '@/design/ErrorField'
 import { Skeleton } from '@/design/Skeleton'
 import { DEFAULT_ADMIN, MIN_PASSWORD, NO_SESSION, SETUP_DONE, SETUP_FAILED, SETUP_HINT, SETUP_SUBTITLE, SIGN_IN_SUBTITLE, loginMessage, setupBody, setupProblem, type LoginHint } from './auth'
 
@@ -61,7 +62,7 @@ function LoginForm() {
 
   return (
     <main className="grid h-full place-items-center p-4">
-      <form onSubmit={(e) => void submit(e)} className="grid w-full max-w-sm gap-3 rounded-card border border-line bg-surface p-6">
+      <form onSubmit={(e) => void submit(e)} onInput={() => { if (error) setError('') }} className="grid w-full max-w-sm gap-3 rounded-card border border-line bg-surface p-6">
         <div className="grid justify-items-center gap-1 text-center">
           <img src="/static/icons/archive-x.png" alt="" className="size-14 rounded-2xl" onError={(e) => (e.currentTarget.style.display = 'none')} />
           <h1 className="text-2xl font-extrabold">Archive X</h1>
@@ -78,18 +79,21 @@ function LoginForm() {
               New password
               <input name="new-password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} required className="min-h-11 rounded-xl border border-line bg-bg px-3 text-fg" />
             </label>
-            <label className="grid gap-1 text-sm text-muted">
-              Confirm password
-              <input name="confirm-password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} required className="min-h-11 rounded-xl border border-line bg-bg px-3 text-fg" />
-            </label>
+            <div className="grid gap-1 text-sm text-muted">
+              <label htmlFor="ax-confirm-password">Confirm password</label>
+              <ErrorField message={error}>
+                <input id="ax-confirm-password" name="confirm-password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} required className="min-h-11 w-full rounded-xl border border-line bg-bg px-3 text-fg" />
+              </ErrorField>
+            </div>
           </>
         ) : (
-          <label className="grid gap-1 text-sm text-muted">
-            Password
-            <input name="password" type="password" autoComplete="current-password" required className="min-h-11 rounded-xl border border-line bg-bg px-3 text-fg" />
-          </label>
+          <div className="grid gap-1 text-sm text-muted">
+            <label htmlFor="ax-password">Password</label>
+            <ErrorField message={error}>
+              <input id="ax-password" name="password" type="password" autoComplete="current-password" required className="min-h-11 w-full rounded-xl border border-line bg-bg px-3 text-fg" />
+            </ErrorField>
+          </div>
         )}
-        <p role="alert" className="min-h-5 text-sm text-bad">{error}</p>
         {info ? <p role="status" className="text-sm text-good">{info}</p> : null}
         <Button type="submit" variant="primary" disabled={busy}>
           {setup ? (busy ? 'Creating…' : 'Create administrator') : busy ? 'Signing in…' : 'Sign in'}

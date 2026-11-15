@@ -82,6 +82,20 @@ export function FaceReview({ performerId, groupIds = [], label, onClose }: { per
       await load()
     } catch (e) { toast.error(why(e, 'Could not add those faces.')) } finally { setBusy(false) }
   }
+  // Turn down the ticked look-alikes: they are not this person. Nothing is moved; the model is told, so it stops offering them and faces like them.
+  const rejectLookalikes = async () => {
+    const ids = [...likePicked]
+    if (!ids.length || !performerId) return
+    setBusy(true)
+    try {
+      const r = await api<{ ok?: boolean; marked?: number; detail?: string }>('/api/photos/faces/learning/not-this-person', { method: 'POST', json: { performer_id: performerId, detection_ids: ids } })
+      if (!r?.ok) throw new ApiError(0, r?.detail || '')
+      toast(`Noted: ${r.marked ?? ids.length} ${(r.marked ?? ids.length) === 1 ? 'face is' : 'faces are'} not ${label}. Faces like ${(r.marked ?? ids.length) === 1 ? 'it' : 'them'} will be offered less.`)
+      setLike((l) => l.filter((f) => !likePicked.has(f.detection_id))); setLikePicked(new Set())
+      await qc.invalidateQueries({ queryKey: ['face-learning'] })
+      await load()
+    } catch (e) { toast.error(why(e, 'Could not save that.')) } finally { setBusy(false) }
+  }
   const toggleLike = (id: number) => setLikePicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   const BTN = 'h-9 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
@@ -111,11 +125,12 @@ export function FaceReview({ performerId, groupIds = [], label, onClose }: { per
         {items && !items.length && !failed ? <p className="text-sm text-muted">No faces here.</p> : null}
         {like.length ? (
           <section aria-label="Faces that look like this person" className="grid gap-2 border-t border-line pt-3">
-            <p className="text-sm text-muted"><b className="text-fg">{like.length.toLocaleString()} faces in other groups look like {label}.</b> Tick the ones that are, then add them.</p>
+            <p className="text-sm text-muted"><b className="text-fg">{like.length.toLocaleString()} new {like.length === 1 ? 'face looks' : 'faces look'} like {label}.</b> Tick some, then add them to {label} or say they are not. Each answer teaches the matching.</p>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className={BTN} onClick={() => setLikePicked(new Set(like.filter((f) => f.strong).map((f) => f.detection_id)))} disabled={!like.some((f) => f.strong)}>Tick the strong matches ({like.filter((f) => f.strong).length})</button>
               <button type="button" className={BTN} onClick={() => setLikePicked(new Set())} disabled={!likePicked.size}>Clear</button>
               <button type="button" className="h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg disabled:opacity-50" disabled={!likePicked.size || busy} onClick={() => void addLookalikes()}>{likePicked.size ? `Add ${likePicked.size} to ${label}` : `Add to ${label}`}</button>
+              <button type="button" className="h-9 rounded-xl bg-bad px-3 text-sm font-bold text-white disabled:opacity-50" disabled={!likePicked.size || busy} aria-label={`Say the ticked look-alikes are not ${label}`} onClick={() => void rejectLookalikes()}>{likePicked.size ? `Not ${label} (${likePicked.size})` : `Not ${label}`}</button>
             </div>
             <div role="group" aria-label="Look-alike faces" className="grid max-h-[26vh] auto-rows-min content-start grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2 overflow-y-auto p-1">
               {like.map((f) => {

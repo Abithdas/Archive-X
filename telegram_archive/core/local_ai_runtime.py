@@ -12,6 +12,7 @@ import platform
 import re
 import socket
 import subprocess
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -25,7 +26,9 @@ DEFAULT_MODEL_FILE = "Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 DEFAULT_MODEL_REPO = "bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
-DEFAULT_CONTEXT = 4096
+DEFAULT_CONTEXT = 8192
+START_TIMEOUT_S = 240          # a 2 to 5 GB model can take a while to load from a slow disk
+IDLE_MINUTES = 20              # the server is stopped after this long unused, to give the memory back
 DEFAULT_MAX_TOKENS = 900
 
 
@@ -50,6 +53,29 @@ class LocalAIRuntime:
         self._process: subprocess.Popen | None = None
         self._started_at = 0.0
         self._reach_cache = None
+        self._last_used = time.monotonic()
+        self._watch: threading.Thread | None = None
+
+    def touch(self) -> None:
+        """Note that the model was just used (it is stopped when left alone for a while)."""
+        self._last_used = time.monotonic()
+
+    @property
+    def idle_minutes(self) -> int:
+        try:
+            return max(0, min(240, int(self.db.setting("ai_idle_minutes", IDLE_MINUTES))))
+        except Exception:
+            return IDLE_MINUTES
+
+    @property
+    def log_path(self) -> Path:
+        return Path(config.AI_DIR) / "llama-server.log"
+
+    def log_tail(self, lines: int = 12) -> str:
+        try:
+            return "\n".join(self.log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:])
+        except OSError:
+            return ""
 
     @property
     def endpoint(self) -> str:
@@ -219,6 +245,8 @@ class LocalAIRuntime:
                 "error": error,
                 "context": self.context_size,
                 "gpu_layers": self.gpu_layers,
+                "starting": bool(process_alive and not reachable),
+                "idle_minutes": self.idle_minutes,
             },
             "hardware": {
                 "platform": platform.platform(),
@@ -230,16 +258,18 @@ class LocalAIRuntime:
             "ready": bool(reachable and model.is_file()),
         }
 
-    def start(self) -> dict[str, Any]:
+    def start(self, on_wait=None) -> dict[str, Any]:
+        """Start llama-server and wait until the model is loaded. `on_wait(seconds)` is called about twice a second while waiting."""
         state = self.status(fresh=True)
         if state["server"]["reachable"]:
+            self.touch()
             return state
         runtime = self.runtime_path
         model = self.model_path
         if runtime is None or not runtime.is_file():
-            raise LocalAIError("llama-server executable is not configured or does not exist")
+            raise LocalAIError("The assistant engine is not set up yet")
         if not model.is_file():
-            raise LocalAIError("Local AI model file is not configured or does not exist")
+            raise LocalAIError("The assistant model is not set up yet")
         config.AI_DIR.mkdir(parents=True, exist_ok=True)
         args = [
             str(runtime), "-m", str(model), "--host", DEFAULT_HOST,
@@ -247,22 +277,54 @@ class LocalAIRuntime:
             "-c", str(self.context_size), "-ngl", str(self.gpu_layers), "--jinja",
         ]
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+        try:
+            log = self.log_path.open("wb")
+        except OSError:
+            log = None
         self._process = subprocess.Popen(
-            args, cwd=str(runtime.parent), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            args, cwd=str(runtime.parent), stdout=log or subprocess.DEVNULL, stderr=subprocess.STDOUT if log else subprocess.DEVNULL,
             stdin=subprocess.DEVNULL, creationflags=creationflags,
         )
+        if log:
+            log.close()   # the child keeps its own handle
         self._started_at = time.time()
-        deadline = time.monotonic() + 30
+        deadline = time.monotonic() + START_TIMEOUT_S
+        began = time.monotonic()
         while time.monotonic() < deadline:
             if self._process.poll() is not None:
+                code = self._process.returncode
                 self._process = None
-                raise LocalAIError("llama-server exited during startup")
+                tail = self.log_tail(6)
+                raise LocalAIError(f"The assistant engine stopped while starting (exit code {code})." + (f" Its last words: {tail}" if tail else ""))
             reachable, _, _ = self._reachable(fresh=True)
             if reachable:
+                self.touch()
+                self._watch_idle()
                 return self.status(fresh=True)
-            time.sleep(0.35)
+            if on_wait:
+                on_wait(int(time.monotonic() - began))
+            time.sleep(0.5)
         self.stop()
-        raise LocalAIError("llama-server did not become ready within 30 seconds")
+        raise LocalAIError(f"The assistant did not finish loading within {START_TIMEOUT_S // 60} minutes.")
+
+    def _watch_idle(self) -> None:
+        """Stop the server we started once it has been left alone for `idle_minutes`, so a model is not holding gigabytes of memory all day."""
+        if self._watch and self._watch.is_alive():
+            return
+
+        def loop() -> None:
+            while True:
+                time.sleep(30)
+                proc = self._process
+                if proc is None or proc.poll() is not None:
+                    return
+                limit = self.idle_minutes * 60
+                if limit and time.monotonic() - self._last_used > limit:
+                    self.stop()
+                    return
+
+        self._watch = threading.Thread(target=loop, name="ai-idle-stop", daemon=True)
+        self._watch.start()
 
     def _port(self) -> int:
         try:
@@ -299,7 +361,8 @@ class LocalAIRuntime:
             ],
             "max_tokens": 32,
             "temperature": 0,
-        }, timeout=45.0)
+            "chat_template_kwargs": {"enable_thinking": False},
+        }, timeout=120.0)
         text = ""
         try:
             text = str(response["choices"][0]["message"].get("content") or "").strip()
@@ -321,7 +384,46 @@ class LocalAIRuntime:
             payload["tool_choice"] = "auto"
         if response_format:
             payload["response_format"] = response_format
-        return self._request("POST", "/chat/completions", payload, timeout=90.0)
+        payload["chat_template_kwargs"] = {"enable_thinking": False}   # models that can think at length (Qwen3 8B) answer straight away; others ignore this
+        self.touch()
+        return self._request("POST", "/chat/completions", payload, timeout=300.0)
+
+    def chat_stream(self, messages: list[dict[str, Any]], *, tools: list[dict[str, Any]] | None = None, max_tokens: int = DEFAULT_MAX_TOKENS):
+        """Like `chat`, but yields the server's streamed chunks (parsed JSON) as they arrive, so words can be shown while the rest is still being written."""
+        payload: dict[str, Any] = {
+            "model": self.model_id, "messages": messages, "max_tokens": max(64, min(4096, int(max_tokens))), "temperature": 0.2, "stream": True,
+            "chat_template_kwargs": {"enable_thinking": False},
+        }
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+        req = urllib.request.Request(self.endpoint + "/chat/completions", data=json.dumps(payload, ensure_ascii=False).encode("utf-8"), method="POST", headers={
+            "Content-Type": "application/json", "Accept": "text/event-stream", "Authorization": "Bearer no-key-required", "User-Agent": "Archive-X-Local-AI/1.0",
+        })
+        try:
+            with urllib.request.urlopen(req, timeout=300.0) as resp:
+                for raw in resp:
+                    self.touch()
+                    line = raw.decode("utf-8", "replace").strip()
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        return
+                    try:
+                        yield json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+        except urllib.error.HTTPError as exc:
+            try:
+                body = exc.read(2000).decode("utf-8", "replace")
+            except Exception:
+                body = ""
+            raise LocalAIError(f"Local AI HTTP {exc.code}: {body[:600]}") from exc
+        except urllib.error.URLError as exc:
+            raise LocalAIError(f"Local AI connection failed: {exc.reason}") from exc
+        except TimeoutError as exc:
+            raise LocalAIError("Local AI request timed out") from exc
 
     def close(self) -> None:
         self.stop()

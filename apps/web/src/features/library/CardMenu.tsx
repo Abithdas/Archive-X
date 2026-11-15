@@ -1,4 +1,4 @@
-import { dropdownPosition } from '@/design/placement'
+import { dropdownPosition, limitMenu, openHeight } from '@/design/placement'
 import { useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -6,6 +6,7 @@ import { ApiError, api, thumbUrl } from '@/api/client'
 import type { LibraryItem } from '@/api/types'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
+import { smokeKey } from '@/design/smoke'
 import { cn } from '@/design/cn'
 import { MappingDialog } from './MappingDialog'
 import { MoveVideo } from './MoveVideo'
@@ -46,11 +47,10 @@ export function CardMenu({ item, className }: { item: LibraryItem; className?: s
     const el = pop.current
     const b = btn.current?.getBoundingClientRect()
     if (!el || !b) return
-    const { left, top, maxHeight } = dropdownPosition(b, btn.current, 232, el.offsetHeight || 260, 'right')
+    const { left, top, maxHeight } = dropdownPosition(b, btn.current, 232, openHeight(el) || 260, 'right')
     el.style.left = `${left}px`
     el.style.top = `${top}px`
-    el.style.maxHeight = `${maxHeight}px`
-    el.style.overflowY = 'auto'
+    limitMenu(el, maxHeight)
   }
   const close = () => pop.current?.hidePopover?.()
   const play = async (p: Player) => {
@@ -68,6 +68,7 @@ export function CardMenu({ item, className }: { item: LibraryItem; className?: s
       await deleteVideo(item)
       setConfirm(false)
       toast.success('Video deleted')
+      await smokeKey(`card:${item._cid}:${item.id}`)   // the card dissolves into smoke, then the grid closes the gap
       await Promise.all([qc.invalidateQueries({ queryKey: ['library'] }), qc.invalidateQueries({ queryKey: ['channels'] })])
     } catch (e) {
       toast.error(MSG(e, 'Video was not deleted'))
@@ -93,7 +94,8 @@ export function CardMenu({ item, className }: { item: LibraryItem; className?: s
           <i className="size-1 rounded-full bg-current" />
         </span>
       </button>
-      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Video actions" onToggle={(e) => (e.nativeEvent as ToggleEvent).newState === 'open' && (place(), pop.current?.querySelector<HTMLElement>('button')?.focus())} className="m-0 w-[232px] rounded-[16px] border border-line-2 bg-surface p-2 text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
+      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Video actions" onToggle={(e) => (e.nativeEvent as ToggleEvent).newState === 'open' && (place(), pop.current?.querySelector<HTMLElement>('button')?.focus())} className="t-menu m-0 w-[232px] rounded-[16px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
+        <div className="t-acc-panel-inner p-2">
         <div className="px-3 pb-1 pt-1.5 text-xs font-semibold text-faint" aria-hidden="true">Video actions</div>
         <button type="button" role="menuitem" className={OPTION} title="Copy to another Telegram channel, verify the copy, then delete source" onClick={() => { close(); setMoving(true) }}>
           <Icon name="transfer" className="text-muted" />Move / delete source
@@ -114,6 +116,7 @@ export function CardMenu({ item, className }: { item: LibraryItem; className?: s
         <button type="button" role="menuitem" className={cn(OPTION, 'text-bad')} title="Permanently delete from Telegram and remove from the Archive X Library" onClick={() => { close(); setConfirm(true) }}>
           <Icon name="trash" />Delete
         </button>
+      </div>
       </div>
       {mapping ? <MappingDialog item={item} onDone={() => setMapping(false)} /> : null}
       {moving ? <MoveVideo item={item} onDone={() => setMoving(false)} /> : null}

@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { openSelectMenu } from './selectMenu'
 
 beforeAll(() => {
@@ -6,7 +6,10 @@ beforeAll(() => {
   HTMLElement.prototype.hidePopover = function () {}
   Element.prototype.scrollIntoView = function () {}
 })
-afterEach(() => { document.body.innerHTML = '' })
+beforeEach(() => vi.useFakeTimers())
+afterEach(() => { vi.useRealTimers(); document.body.innerHTML = '' })
+/** A closed menu folds shut first (about a quarter of a second) and is taken out of the page after that. */
+const afterFold = () => vi.advanceTimersByTime(350)
 
 function mount(multiple = false) {
   document.body.innerHTML = '<dialog id="d" open><label>Sort<select aria-label="Sort"><option value="a">Alpha</option><option value="b">Beta</option><option value="c" disabled>Gamma</option></select></label></dialog>'
@@ -37,6 +40,8 @@ describe('themed select menu', () => {
     rows()[1]!.click()
     expect(s.value).toBe('b')
     expect(change).toHaveBeenCalledTimes(1)
+    expect(rows()).toHaveLength(3)   // still there while it folds shut
+    afterFold()
     expect(rows()).toHaveLength(0)
   })
   it('choosing the current item fires no change', () => {
@@ -51,6 +56,7 @@ describe('themed select menu', () => {
     const s = mount()
     openSelectMenu(s)
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    afterFold()
     expect(rows()).toHaveLength(0)
     expect(s.value).toBe('a')
   })
@@ -58,6 +64,14 @@ describe('themed select menu', () => {
     const s = mount()
     openSelectMenu(s)
     openSelectMenu(s)
+    afterFold()
     expect(document.querySelectorAll('[role=listbox]')).toHaveLength(1)
+  })
+  it('is an accordion menu: a folding panel with the options inside a clipped inner box', () => {
+    const s = mount()
+    openSelectMenu(s)
+    const panel = document.querySelector('[role=listbox]')!
+    expect(panel.classList.contains('t-menu')).toBe(true)
+    expect(panel.querySelector(':scope > .t-acc-panel-inner')?.querySelectorAll('button[role=option]')).toHaveLength(3)
   })
 })
