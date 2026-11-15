@@ -121,6 +121,7 @@ async fn start_door_with(upstream: SocketAddr, limits: Limits) -> Door {
         limits,
         db: None,
         native_routes: vec![],
+        launch_secret: None,
         session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {
@@ -400,6 +401,7 @@ async fn shutdown_lets_a_request_in_flight_finish() {
         limits: Limits::default(),
         db: None,
         native_routes: vec![],
+        launch_secret: None,
         session_touch_interval: Duration::from_secs(300),
     });
     let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
@@ -446,6 +448,7 @@ async fn https_negotiates_http2_and_reaches_the_backend() {
         limits: Limits::default(),
         db: None,
         native_routes: vec![],
+        launch_secret: None,
         session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {

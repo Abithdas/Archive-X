@@ -66,6 +66,7 @@ async fn calls_keep_working_when_the_backend_closed_a_kept_connection() {
         limits: Limits::default(),
         db: None,
         native_routes: vec![],
+        launch_secret: None,
         session_touch_interval: Duration::from_secs(300),
     });
     let peer = "127.0.0.1:5000".parse().unwrap();

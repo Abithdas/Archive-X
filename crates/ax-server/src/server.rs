@@ -38,6 +38,7 @@ pub struct State {
     pub names: Option<Arc<Names>>,
     pub learning: Option<Arc<Learning>>,
     pub files: StaticFiles,
+    pub launch_secret: Option<String>,
 }
 
 fn tls_acceptor(cert: &std::path::Path, key: &std::path::Path) -> Result<TlsAcceptor, String> {
@@ -91,7 +92,8 @@ pub async fn handle(req: Request<hyper::body::Incoming>, peer: SocketAddr, tls: 
     }
     // Routes switched on in --native-routes are answered here (see native.rs).
     if let Some(native) = &state.native {
-        if let Some(route) = native.route_for(req.method(), req.uri().path()) {
+        let guarded = crate::desktop_guard::allowed(state.launch_secret.as_deref(), req.headers());
+        if let Some(route) = native.route_for(req.method(), req.uri().path()).filter(|_| guarded) {
             let host = req.headers().get(hyper::header::HOST).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
             if route.needs_body {
                 // A POST: read the (small) body first; if the route declines it, the same body goes on to Python.
@@ -184,7 +186,7 @@ pub async fn serve_with_fetch(
     if let Some(n) = &native {
         info!("answering these routes itself: {}", n.names().join(", "));
     }
-    let state = Arc::new(State { proxy, native, names, learning, files: StaticFiles::new(cfg.dist.clone()) });
+    let state = Arc::new(State { proxy, native, names, learning, files: StaticFiles::new(cfg.dist.clone()), launch_secret: cfg.launch_secret.clone() });
     info!(
         "front door on {}{} -> backend {}{}",
         if acceptor.is_some() { "https://" } else { "http://" },

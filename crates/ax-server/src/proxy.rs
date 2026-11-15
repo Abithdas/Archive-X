@@ -59,6 +59,8 @@ const MAX_IDLE: usize = 32;
 pub struct Proxy {
     upstream: SocketAddr,
     key: HeaderValue,
+    /// The desktop app's launch secret, sent with the front door's own calls (the backend's desktop guard refuses a request without it).
+    desktop: Option<HeaderValue>,
     tls: Option<TlsConnector>,
     idle: Mutex<Vec<SendRequest<Body>>>,
 }
@@ -111,7 +113,13 @@ impl Proxy {
                 .with_no_client_auth();
             Some(TlsConnector::from(Arc::new(client)))
         };
-        Arc::new(Proxy { upstream: cfg.upstream, key: HeaderValue::from_str(&cfg.proxy_key).expect("proxy key is not a valid header value"), tls, idle: Mutex::new(Vec::new()) })
+        Arc::new(Proxy {
+            upstream: cfg.upstream,
+            desktop: cfg.launch_secret.as_deref().and_then(|s| HeaderValue::from_str(s).ok()),
+            key: HeaderValue::from_str(&cfg.proxy_key).expect("proxy key is not a valid header value"),
+            tls,
+            idle: Mutex::new(Vec::new()),
+        })
     }
 
     /// A usable connection: an idle one if there is one, otherwise a new one.
@@ -194,6 +202,9 @@ impl Proxy {
             }
             if internal {
                 b = b.header(HeaderName::from_static("x-archive-x-internal"), self.key.clone());
+            }
+            if let Some(d) = &self.desktop {
+                b = b.header(HeaderName::from_static("x-archive-x-desktop"), d.clone());
             }
             b.body(empty).map_err(|e| e.to_string())
         };

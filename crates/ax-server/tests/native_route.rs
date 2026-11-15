@@ -151,6 +151,7 @@ async fn start_door(routes: &[&str], with_channels: bool, touch: Duration) -> (D
         limits: Limits::default(),
         db: Some(dbpath),
         native_routes: routes.iter().map(|s| s.to_string()).collect(),
+        launch_secret: None,
         session_touch_interval: touch,
     });
     tokio::spawn(async move {
@@ -309,6 +310,7 @@ async fn an_unreadable_library_is_a_503_not_a_wrong_answer() {
         limits: Limits::default(),
         db: Some(path),
         native_routes: vec!["photos_channels".into()],
+        launch_secret: None,
         session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {
@@ -333,6 +335,7 @@ fn an_unknown_route_name_is_refused_at_start() {
         limits: Limits::default(),
         db: None,
         native_routes: vec![],
+        launch_secret: None,
         session_touch_interval: Duration::from_secs(300),
     });
     let e = native::Native::new(&["nonsense".to_string()], None, proxy, Duration::from_secs(1)).err().unwrap();

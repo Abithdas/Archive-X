@@ -108,6 +108,10 @@ struct Door {
 }
 
 async fn door(extra: impl FnOnce(&Connection)) -> Door {
+    door_with(extra, None).await
+}
+
+async fn door_with(extra: impl FnOnce(&Connection), launch_secret: Option<&str>) -> Door {
     let up = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let upstream = up.local_addr().unwrap();
     tokio::spawn(async move {
@@ -143,6 +147,7 @@ async fn door(extra: impl FnOnce(&Connection)) -> Door {
             "marker_create".into(),
             "marker_delete".into(),
         ],
+        launch_secret: launch_secret.map(String::from),
         session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {
@@ -375,4 +380,17 @@ async fn markers_are_listed_created_and_deleted() {
     assert_eq!(left, 2, "late and the one that was too long");
     let blocked = delete(d.addr, "/api/media/1/markers/1", "Origin: https://evil.example\r\n").await;
     assert_eq!(blocked.status, 403);
+}
+
+#[tokio::test]
+async fn with_a_launch_secret_only_the_apps_own_requests_are_answered_here() {
+    let d = door_with(|_| {}, Some("launch-secret")).await;
+    // no secret: not answered here, so Python (the fake one) answers
+    let r = get(d.addr, "/api/play/history/-1001/11", "").await;
+    assert_eq!(r.headers["x-served-by"], "python");
+    let ok = get(d.addr, "/api/play/history/-1001/11", "x-archive-x-desktop: launch-secret\r\n").await;
+    assert_eq!(ok.headers["x-served-by"], "rust");
+    let wrong = post(d.addr, "/api/play/progress", r#"{"channel_id":"-1001","message_id":11}"#, "x-archive-x-desktop: nope\r\n").await;
+    assert_eq!(wrong.headers["x-served-by"], "python");
+    assert!(rows(&db_path(&d)).is_empty());
 }

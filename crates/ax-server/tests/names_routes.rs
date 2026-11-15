@@ -26,6 +26,8 @@ type B = BoxBody<Bytes, Infallible>;
 struct Backend {
     data_dir: String,
     keys: Mutex<(String, String)>,
+    /// Like the desktop app's backend: every request must carry this launch secret.
+    desktop_secret: Option<String>,
 }
 
 fn reply(status: u16, body: &str) -> Response<B> {
@@ -38,6 +40,11 @@ fn reply(status: u16, body: &str) -> Response<B> {
 
 async fn backend_handler(b: Arc<Backend>, req: Request<Incoming>) -> Result<Response<B>, Infallible> {
     let h = |n: &str| req.headers().get(n).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
+    if let Some(secret) = &b.desktop_secret {
+        if h("x-archive-x-desktop") != *secret {
+            return Ok(reply(403, r#"{"detail":"Archive X desktop session required"}"#));
+        }
+    }
     Ok(match req.uri().path() {
         "/api/app/ping" => {
             if h("cookie").contains("session=ok") {
@@ -84,10 +91,18 @@ struct Door {
 }
 
 async fn start(keys: (&str, &str)) -> Door {
+    start_with(keys, None).await
+}
+
+async fn start_with(keys: (&str, &str), desktop_secret: Option<&str>) -> Door {
     // Log to stderr (not captured) so a CI failure shows why a background refresh did not run.
     let _ = tracing_subscriber::fmt().with_writer(std::io::stderr).with_ansi(false).try_init();
     let dir = tempfile::tempdir().unwrap();
-    let backend = Arc::new(Backend { data_dir: dir.path().to_string_lossy().into_owned(), keys: Mutex::new((keys.0.into(), keys.1.into())) });
+    let backend = Arc::new(Backend {
+        data_dir: dir.path().to_string_lossy().into_owned(),
+        keys: Mutex::new((keys.0.into(), keys.1.into())),
+        desktop_secret: desktop_secret.map(String::from),
+    });
     let bl = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let upstream = bl.local_addr().unwrap();
     let b2 = backend.clone();
@@ -116,6 +131,7 @@ async fn start(keys: (&str, &str)) -> Door {
         limits: Limits::default(),
         db: None,
         native_routes: vec!["name_search".into(), "name_list".into()],
+        launch_secret: desktop_secret.map(String::from),
         session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {
@@ -250,4 +266,12 @@ async fn internal_paths_are_not_reachable_by_clients() {
         assert_eq!(r.status, 404, "{extra:?}");
         assert!(!r.body.contains("stash-key"));
     }
+}
+
+#[tokio::test]
+async fn the_front_doors_own_calls_carry_the_desktop_launch_secret() {
+    // the desktop app's backend refuses any request without the secret, the front door's own questions included
+    let d = start_with(("stash-key", ""), Some("launch-secret")).await;
+    let r = send(d.addr, "POST", "/api/photos/faces/performers/name-list/sync", IN).await;
+    assert_eq!(r.status, 200, "{}", r.body);
 }

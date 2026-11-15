@@ -145,6 +145,7 @@ async fn start(f: &Fixture) -> SocketAddr {
         limits: Limits::default(),
         db: None,
         native_routes: vec!["face_learning".into()],
+        launch_secret: None,
         session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {

@@ -129,6 +129,7 @@ async fn door(extra: impl FnOnce(&Connection)) -> Door {
         limits: Limits::default(),
         db: Some(dbpath),
         native_routes: vec!["library_list".into(), "tags_list".into(), "studio_metadata".into(), "photos_list".into()],
+        launch_secret: None,
         session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {

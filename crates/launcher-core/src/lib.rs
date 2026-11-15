@@ -166,7 +166,7 @@ impl Backend {
             match rx.recv_timeout(Duration::from_millis(100)) {
                 Ok(Ok(ready)) => {
                     let front = match (&opts.front_door, &proxy_key) {
-                        (Some(fd), Some(key)) => match start_front_door(fd, key, ready.port, &log) {
+                        (Some(fd), Some(key)) => match start_front_door(fd, key, &secret, ready.port, &log) {
                             Ok(f) => Some(f),
                             Err(e) => {
                                 // The app still works without it: fall back to talking to the backend directly.
@@ -273,11 +273,12 @@ impl Drop for Backend {
 }
 
 /// Start the front door in front of the backend and wait for it to say which port it bound.
-fn start_front_door(opts: &FrontDoorOptions, key: &str, backend_port: u16, log: &std::sync::Arc<std::sync::Mutex<Vec<String>>>) -> Result<FrontDoor, String> {
+fn start_front_door(opts: &FrontDoorOptions, key: &str, launch_secret: &str, backend_port: u16, log: &std::sync::Arc<std::sync::Mutex<Vec<String>>>) -> Result<FrontDoor, String> {
     let mut cmd = Command::new(&opts.exe);
     cmd.args(["--listen", "127.0.0.1:0", "--upstream", &format!("127.0.0.1:{backend_port}"), "--upstream-plain", "--print-ready", "--native-routes", &native_routes(), "--dist"])
         .arg(&opts.dist_dir)
         .env("ARCHIVE_X_PROXY_KEY", key)
+        .env("ARCHIVE_X_LAUNCH_SECRET", launch_secret)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

@@ -40,6 +40,8 @@ pub struct Config {
     pub db: Option<PathBuf>,
     /// Routes answered here instead of by Python: names from `native::ROUTES`, or `all`. Empty by default, so nothing moves unless asked.
     pub native_routes: Vec<String>,
+    /// The desktop app's launch secret (`ARCHIVE_X_LAUNCH_SECRET`): routes answered here require it, as the backend does. Empty outside the desktop app.
+    pub launch_secret: Option<String>,
     /// How often a session used only on routes answered here is reported to Python, so it keeps sliding (Python writes the new expiry
     /// to its database at most every 10 minutes).
     pub session_touch_interval: Duration,
@@ -102,6 +104,7 @@ impl Config {
             limits: Limits::default(),
             db,
             native_routes,
+            launch_secret: std::env::var("ARCHIVE_X_LAUNCH_SECRET").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
             session_touch_interval: Duration::from_secs(300),
         })
     }
