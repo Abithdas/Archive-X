@@ -1,7 +1,7 @@
 import { act, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SubtleNumber } from './SubtleNumber'
-import { diffDigits } from './subtleNumber'
+import { diffDigits } from './digitDiff'
 
 describe('diffDigits', () => {
   it('marks only the characters that changed and keeps the old one to fade out', () => {
