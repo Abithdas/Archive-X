@@ -1,0 +1,17 @@
+# Phase 0 of docs/plan.md: can the `grammers` Telegram library do what Archive X needs? A throw-away test program, not part of the app.
+# It has its own workspace so the app's builds and CI never compile it.
+[package]
+name = "telegram-trial"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+[workspace]
+
+[dependencies]
+grammers-client = "0.12"
+grammers-mtsender = "0.12"
+grammers-session = "0.12"
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"

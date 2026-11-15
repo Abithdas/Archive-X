@@ -21,7 +21,8 @@ How to read it: Part 1 says where the code stands, with numbers measured for thi
 | R6 one CI pipeline | Skipped: the four workflows (CI, Desktop installer, native player engine, dependency scan) each have a different trigger and cost, so merging them would only make every push slower |
 | R5 licence | Done: GPL-3.0-or-later (ADR 0008), LICENSE, THIRD-PARTY-NOTICES.md, shipped in the installer |
 | R3 | Decided (ADR 0009) and every crate has a README; no code moved yet, crates are created when their first content arrives |
-| Phase 0 onward | Not started |
+| Phase 0 | Telegram part: trial program written and builds (`tools/phase0/telegram-trial`, workflow `phase0.yml`), waiting for you to run it on your PC (own new session, never Archive X's). Model part (ONNX, whisper.cpp) not started |
+| Phase 1 onward | See the table below |
 
 ---
 
