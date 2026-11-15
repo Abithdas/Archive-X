@@ -40,4 +40,4 @@ def test_the_app_counts_the_route_that_answered_and_nothing_about_the_request():
     routes = app.state.route_usage.snapshot()["routes"]
     assert routes["GET /health"]["count"] == 2
     assert any(k.startswith("GET /api/performers/{performer_id}/videos") for k in routes)
-    assert "123" not in json.dumps(routes)
+    assert not any("123" in key for key in routes)   # the keys only: the timestamps in the values can contain any digits
