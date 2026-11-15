@@ -77,7 +77,7 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
             label="Gender"
             value={gender}
             onChange={setGender}
-            options={[{ value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }, { value: 'trans', label: 'Trans' }, { value: 'all', label: 'All' }]}
+            options={[{ value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }, { value: 'all', label: 'All' }]}
           />
         ) : null}
         {kind === 'performers' ? (

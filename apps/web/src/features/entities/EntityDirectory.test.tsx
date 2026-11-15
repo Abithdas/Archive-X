@@ -38,13 +38,15 @@ describe('EntityDirectory', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Male' }))
     expect((await screen.findByRole('link', { name: 'Adam Reed' })).getAttribute('href')).toBe('/performers/2')
   })
-  it('has a Trans choice that also matches provider wording like transgender_female', async () => {
+  it('has no Trans choice; a trans performer is not under Female or Male and is still under All', async () => {
     const list = [e(1, 'Ava Stone', 5, 'female'), e(2, 'Tia Lane', 4, 'transgender_female')]
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(list), { status: 200 })))
     mount('performers')
-    fireEvent.click(await screen.findByRole('button', { name: 'Trans' }))
+    await screen.findByRole('article', { name: 'Ava Stone' })
+    expect(screen.queryByRole('button', { name: 'Trans' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: 'Tia Lane' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'All' }))
     expect(await screen.findByRole('article', { name: 'Tia Lane' })).toBeInTheDocument()
-    expect(screen.queryByRole('article', { name: 'Ava Stone' })).not.toBeInTheDocument()
   })
   it('only offers the gender filter for performers', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })))

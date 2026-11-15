@@ -1,6 +1,7 @@
 import type { Entity } from '@/api/types'
 
-export type GenderFilter = 'all' | 'female' | 'male' | 'trans'
+/** The Performers page filters by Female and Male; everyone else (including trans performers) is under All. */
+export type GenderFilter = 'all' | 'female' | 'male'
 
 /** Providers and older data say 'Female', 'transgender_female', 'Trans woman'...; the app groups them as female, male or trans. */
 export const normalizeGender = (g?: string | null): '' | 'female' | 'male' | 'trans' => {
