@@ -112,6 +112,8 @@ def main():
     except AlreadyRunning as exc:
         print(f"  {exc}. Close the running Archive X first.")
         raise SystemExit(2)
+    from .core import crash_log
+    crash_log.install(config.LOG_DIR)   # a crash inside native code (decoder, image library) leaves a stack trace in the log bundle
     with _phase("cleanup"):
         remove_obsolete_files()
     # Walking the player cache for stale leftovers took 11 s of the 18 s start on a real library; nothing waits for it, so it runs beside the start.
