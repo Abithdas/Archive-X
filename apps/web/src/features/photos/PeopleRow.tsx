@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { cn } from '@/design/cn'
 import { BlurImg } from '@/design/BlurImg'
+import { HScroll } from '@/design/HScroll'
 import { bestGuess, groupLabel, isAssigned, peopleRow, viewFilter, type FaceGroup } from './faces'
 import { usePhotoStore } from './store'
 
@@ -29,12 +30,12 @@ export function PeopleRow({ groups, onManage }: { groups: readonly FaceGroup[]; 
     <section aria-label="People" className="mb-4">
       <div className="mb-2 flex items-center justify-between"><h2 className="text-lg font-bold">People</h2>
         <button type="button" onClick={onManage} className="text-xs font-semibold text-accent hover:underline">Manage people</button></div>
-      <div className="flex gap-3 overflow-x-auto pb-2 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <HScroll label="People, scroll sideways" className="flex gap-3 pb-2 pt-1">
         {row.map((g) => {
           const active = face?.groupId === Number(g.id)
           return <Face key={g.id} g={g} active={active} onPick={() => (active ? setFace(null) : isAssigned(g) || Number(g.photo_count ?? 0) > 0 ? setFace(viewFilter(g).filter) : onManage())} />
         })}
-      </div>
+      </HScroll>
     </section>
   )
 }
