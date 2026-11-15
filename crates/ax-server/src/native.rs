@@ -39,6 +39,8 @@ pub const ROUTES: &[&str] = &[
     "markers_list",
     "marker_create",
     "marker_delete",
+    "library_favorite_toggle",
+    "library_bulk_favorite",
 ];
 
 /// A request that belongs to an enabled native route.
@@ -161,6 +163,22 @@ impl Native {
                 mutating: *method == Method::POST,
             });
         }
+        if *method == Method::POST {
+            if path == "/api/library/bulk-favorite" {
+                return self.enabled.get("library_bulk_favorite").map(|n| Match { name: n, id: None, pair: None, kind: None, needs_body: true, mutating: true });
+            }
+            if let Some(id) = path.strip_prefix("/api/library/").and_then(|r| r.strip_suffix("/favorite")) {
+                let digits = id.strip_prefix('-').unwrap_or(id);
+                if !digits.is_empty() && digits.len() <= 18 && digits.bytes().all(|b| b.is_ascii_digit()) {
+                    let id = id.parse::<i64>().ok()?;
+                    return self
+                        .enabled
+                        .get("library_favorite_toggle")
+                        .map(|n| Match { name: n, id: Some(id), pair: None, kind: None, needs_body: false, mutating: true });
+                }
+                return None;
+            }
+        }
         if method == Method::POST && path == "/api/play/progress" {
             return self.enabled.get("play_progress").map(|n| Match { name: n, id: None, pair: None, kind: None, needs_body: true, mutating: true });
         }
@@ -210,7 +228,7 @@ impl Native {
     pub async fn handle(&self, m: &Match, query: Option<&str>, headers: &HeaderMap, peer: SocketAddr, ctx: &Ctx<'_>) -> Option<Response<Body>> {
         let route = m.name;
         if m.mutating && !crate::guard::allowed("POST", "/api/", headers.get(hyper::header::ORIGIN).and_then(|v| v.to_str().ok()), ctx.host) {
-            return Some(json_error(StatusCode::FORBIDDEN, "Cross-site request blocked"));
+            return Some(json_error(StatusCode::FORBIDDEN, "Cross-origin mutation rejected"));
         }
         let session = match self.auth.require(headers).await {
             Ok(s) => s,
@@ -243,6 +261,16 @@ impl Native {
             }
             "marker_delete" => {
                 let resp = self.marker_delete(m.pair?, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "library_favorite_toggle" => {
+                let resp = self.library_favorite_toggle(m.id?, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "library_bulk_favorite" => {
+                let resp = self.library_bulk_favorite(ctx.body, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }

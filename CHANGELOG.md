@@ -2,6 +2,11 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Next release (not published)
+
+- **Video favourites (the star on the Videos page, and the bulk favourite) are answered by the Rust front door**, with the same answers and the same database changes as Python (write parity: 51 of 51 scenarios identical). Rust's "cross-site request refused" answer now uses Python's wording.
+- **Fix (writer):** if a database commit failed, for example because another process held the lock, the Rust writer stayed inside the open transaction and every later write failed until the app restarted. It now rolls back.
+
 ## 30.2.7 (2026-11-15)
 
 - **Jobs no longer lose their settings, and no longer get stopped while checking snapshots (two causes found in the 30.2.6 log):**
