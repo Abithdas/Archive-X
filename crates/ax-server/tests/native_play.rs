@@ -131,7 +131,7 @@ async fn door(extra: impl FnOnce(&Connection)) -> Door {
         print_ready: false,
         limits: Limits::default(),
         db: Some(dbpath),
-        native_routes: vec!["play_progress".into(), "play_history".into()],
+        native_routes: vec!["play_progress".into(), "play_history".into(), "entity_favorite_toggle".into(), "entity_favorite_status".into()],
         session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {
@@ -275,4 +275,32 @@ async fn odd_bodies_and_cross_site_posts() {
         raw
     };
     assert!(anon.starts_with("HTTP/1.1 401"), "{anon}");
+}
+
+fn favourites(path: &std::path::Path) -> Vec<(String, i64)> {
+    let c = Connection::open(path).unwrap();
+    let mut st = c.prepare("SELECT entity_type,entity_id FROM entity_favorites ORDER BY entity_type,entity_id").unwrap();
+    st.query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().map(Result::unwrap).collect()
+}
+
+#[tokio::test]
+async fn a_favourite_is_flipped_and_read_back() {
+    let d = door(|_| {}).await;
+    // the fixture already has studio 1 as a favourite
+    assert_eq!(json(&get(d.addr, "/api/entities/studio/1/favorite", "").await), serde_json::json!({"favorite": true}));
+    assert_eq!(json(&get(d.addr, "/api/entities/performer/1/favorite", "").await), serde_json::json!({"favorite": false}));
+    let on = post(d.addr, "/api/entities/performer/1/favorite", "", "").await;
+    assert_eq!((on.status, on.headers["x-served-by"].as_str()), (200, "rust"));
+    assert_eq!(json(&on), serde_json::json!({"ok": true, "favorite": true, "entity_type": "performer", "entity_id": 1}));
+    assert_eq!(favourites(&db_path(&d)), [("performer".to_string(), 1), ("studio".to_string(), 1)]);
+    let off = post(d.addr, "/api/entities/studio/1/favorite", "", "").await;
+    assert_eq!(json(&off)["favorite"], false);
+    assert_eq!(favourites(&db_path(&d)), [("performer".to_string(), 1)]);
+    let missing = post(d.addr, "/api/entities/performer/99/favorite", "", "").await;
+    assert_eq!((missing.status, json(&missing)["detail"].as_str().map(String::from)), (404, Some("Entity not found".into())));
+    for path in ["/api/entities/Performer/1/favorite", "/api/entities/tag/1/favorite", "/api/entities/performer/+1/favorite"] {
+        assert_eq!(json(&post(d.addr, path, "", "").await)["from"], "python", "{path}");
+    }
+    let blocked = post(d.addr, "/api/entities/performer/2/favorite", "", "Origin: https://evil.example\r\n").await;
+    assert_eq!(blocked.status, 403);
 }

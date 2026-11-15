@@ -266,5 +266,35 @@
    "message_id": 1001,
    "position": 3
   }
+ },
+ {
+  "name": "favourite: performer on",
+  "method": "POST",
+  "path": "/api/entities/performer/1/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite: performer off",
+  "method": "POST",
+  "path": "/api/entities/performer/1/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite: studio on",
+  "method": "POST",
+  "path": "/api/entities/studio/2/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite: studio that does not exist",
+  "method": "POST",
+  "path": "/api/entities/studio/999999/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite: a kind that is not one",
+  "method": "POST",
+  "path": "/api/entities/tag/1/favorite",
+  "body": {}
  }
 ]

@@ -43,7 +43,7 @@ fn parse(body: &[u8]) -> Option<Progress> {
 }
 
 /// `datetime.now(timezone.utc).isoformat(timespec="seconds")`, e.g. `2025-06-01T12:30:05+00:00`.
-fn now_iso() -> String {
+pub(crate) fn now_iso() -> String {
     let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
     let (days, rem) = (secs.div_euclid(86400), secs.rem_euclid(86400));
     let z = days + 719_468;
@@ -129,6 +129,54 @@ impl Native {
             Err(e) => {
                 tracing::error!("play history: {e}");
                 Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The watch history could not be read"))
+            }
+        }
+    }
+}
+
+impl Native {
+    /// `POST /api/entities/{performer|studio}/{id}/favorite`: flip the favourite mark (`save` of routes_experience.py).
+    pub(crate) async fn entity_favorite_toggle(&self, kind: &'static str, id: i64, request: &HeaderMap) -> Option<Response<Body>> {
+        let now = now_iso();
+        let table = if kind == "performer" { "performers" } else { "studios" };
+        let result = self
+            .writer
+            .write(move |c| {
+                let exists = c.query_row("SELECT 1 FROM entity_favorites WHERE entity_type=? AND entity_id=?", params![kind, id], |_| Ok(())).optional()?.is_some();
+                if exists {
+                    c.execute("DELETE FROM entity_favorites WHERE entity_type=? AND entity_id=?", params![kind, id])?;
+                    return Ok(Some(false));
+                }
+                if c.query_row(&format!("SELECT 1 FROM {table} WHERE id=?"), [id], |_| Ok(())).optional()?.is_none() {
+                    return Ok(None);
+                }
+                c.execute("INSERT INTO entity_favorites(entity_type,entity_id,created_at) VALUES(?,?,?)", params![kind, id, now])?;
+                Ok(Some(true))
+            })
+            .await;
+        match result {
+            Ok(Some(favorite)) => Some(json_response(
+                request,
+                serde_json::to_vec(&json!({ "ok": true, "favorite": favorite, "entity_type": kind, "entity_id": id })).unwrap_or_default(),
+            )),
+            Ok(None) => Some(json_error(StatusCode::NOT_FOUND, "Entity not found")),
+            Err(e) => {
+                tracing::error!("favourite: {e}");
+                Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The favourite could not be saved"))
+            }
+        }
+    }
+
+    pub(crate) async fn entity_favorite_status(&self, kind: &'static str, id: i64, request: &HeaderMap) -> Option<Response<Body>> {
+        let read = self
+            .db
+            .read(move |c| Ok(c.query_row("SELECT 1 FROM entity_favorites WHERE entity_type=? AND entity_id=?", params![kind, id], |_| Ok(())).optional()?.is_some()))
+            .await;
+        match read {
+            Ok(favorite) => Some(json_response(request, serde_json::to_vec(&json!({ "favorite": favorite })).unwrap_or_default())),
+            Err(e) => {
+                tracing::error!("favourite status: {e}");
+                Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The favourite could not be read"))
             }
         }
     }

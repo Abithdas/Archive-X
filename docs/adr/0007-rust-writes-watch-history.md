@@ -1,4 +1,4 @@
-# 0007. Rust writes its first table: watch history
+# 0007. Rust writes its first tables: watch history and entity favourites
 
 **Status:** accepted.
 
@@ -12,5 +12,7 @@
 - `tools/parity/compare_writes.py` runs the same requests against Python and against Python-behind-Rust and compares the answers and the rows each changed (7 progress scenarios, 29 of 29 scenarios identical on a clean fixture).
 
 **Exception, documented.** `telegram_identity_migration.py` still updates `watch_history` once at start-up, when it renumbers old Telegram ids. It runs before the app serves requests and never at the same time as the player saving progress. It goes away with the Telegram work (Phase 2/3).
+
+**Second group: entity favourites** (`POST/GET /api/entities/{performer|studio}/{id}/favorite`, routes `entity_favorite_toggle`, `entity_favorite_status`). Same writer, same guard; other kinds or odd ids are forwarded. 34 of 34 write scenarios identical. Documented exception: `engines/entity_identity.py` also touches `entity_favorites` when two performers are merged (move or drop the mark); it is a small transaction on other rows and goes when merging moves (Phase 3).
 
 **Consequences.** Switching `play_progress` on makes Rust the writer of `watch_history` for the session. The route stays off by default until it has been used on a real library.

@@ -10,4 +10,4 @@ One short page per decision that shaped the code, so the reason is not only in s
 | [0004](0004-native-player-own-window.md) | The native video player draws in its own window above the app |
 | [0005](0005-desktop-app-only.md) | The desktop app is the only supported way to run Archive X |
 | [0006](0006-one-workspace-and-layout.md) | One Cargo workspace and an `apps/`, `crates/`, `native/`, `packaging/` layout |
-| [0007](0007-rust-writes-watch-history.md) | Rust writes its first table: watch history |
+| [0007](0007-rust-writes-watch-history.md) | Rust writes its first tables: watch history and entity favourites |

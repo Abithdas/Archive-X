@@ -34,6 +34,8 @@ pub const ROUTES: &[&str] = &[
     "photos_list",
     "play_progress",
     "play_history",
+    "entity_favorite_toggle",
+    "entity_favorite_status",
 ];
 
 /// A request that belongs to an enabled native route.
@@ -42,6 +44,8 @@ pub struct Match {
     pub id: Option<i64>,
     /// The channel and message of a path with two numbers (`/api/play/history/{channel}/{message}`).
     pub pair: Option<(i64, i64)>,
+    /// `performer` or `studio` for the favourite routes.
+    pub kind: Option<&'static str>,
     /// A POST: the front door reads the body before asking `handle`.
     pub needs_body: bool,
 }
@@ -101,8 +105,28 @@ impl Native {
 
     /// The enabled route this request is for, with the number in its path if it has one.
     pub fn route_for(&self, method: &Method, path: &str) -> Option<Match> {
+        if let Some(rest) = path.strip_prefix("/api/entities/") {
+            let name = match *method {
+                Method::POST => "entity_favorite_toggle",
+                Method::GET => "entity_favorite_status",
+                _ => return None,
+            };
+            let mut it = rest.split('/');
+            let (kind, id, tail) = (it.next()?, it.next()?, it.next()?);
+            let kind = match kind {
+                "performer" => "performer",
+                "studio" => "studio",
+                _ => return None, // Python folds case and answers 400 for others
+            };
+            let digits = id.strip_prefix('-').unwrap_or(id);
+            if tail != "favorite" || it.next().is_some() || digits.is_empty() || digits.len() > 18 || !digits.bytes().all(|b| b.is_ascii_digit()) {
+                return None;
+            }
+            let id = id.parse::<i64>().ok()?;
+            return self.enabled.get(name).map(|n| Match { name: n, id: Some(id), pair: None, kind: Some(kind), needs_body: *method == Method::POST });
+        }
         if method == Method::POST && path == "/api/play/progress" {
-            return self.enabled.get("play_progress").map(|n| Match { name: n, id: None, pair: None, needs_body: true });
+            return self.enabled.get("play_progress").map(|n| Match { name: n, id: None, pair: None, kind: None, needs_body: true });
         }
         if method != Method::GET {
             return None;
@@ -114,7 +138,7 @@ impl Native {
                 (!digits.is_empty() && digits.len() <= 18 && digits.bytes().all(|b| b.is_ascii_digit())).then(|| v.parse::<i64>().ok()).flatten()
             };
             let pair = (int(c)?, int(m)?);
-            return self.enabled.get("play_history").map(|n| Match { name: n, id: None, pair: Some(pair), needs_body: false });
+            return self.enabled.get("play_history").map(|n| Match { name: n, id: None, pair: Some(pair), kind: None, needs_body: false });
         }
         let (name, id) = match path {
             "/api/photos/channels" => ("photos_channels", None),
@@ -142,7 +166,7 @@ impl Native {
                 (name, Some(id.parse::<i64>().ok()?))
             }
         };
-        self.enabled.get(name).map(|n| Match { name: n, id, pair: None, needs_body: false })
+        self.enabled.get(name).map(|n| Match { name: n, id, pair: None, kind: None, needs_body: false })
     }
 
     /// `None` means "not for me, ask Python": the route is on, but this particular request is one the Rust version does not
@@ -168,6 +192,16 @@ impl Native {
             }
             "face_groups_fast" => {
                 let resp = self.face_groups_fast(query, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "entity_favorite_toggle" => {
+                let resp = self.entity_favorite_toggle(m.kind?, m.id?, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "entity_favorite_status" => {
+                let resp = self.entity_favorite_status(m.kind?, m.id?, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }
