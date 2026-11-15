@@ -54,11 +54,14 @@ fn database(extra: impl FnOnce(&Connection)) -> (tempfile::TempDir, std::path::P
         "studio_image_cache",
         "photo_library_items",
         "watch_history",
+        "scene_markers",
+        "provider_sync_state",
     ] {
         create_table(&c, &snapshot, t);
     }
     // the snapshot has columns only; the real table has media_id as its key
     c.execute_batch("CREATE UNIQUE INDEX watch_history_media ON watch_history(media_id)").unwrap();
+    c.execute_batch("DROP TABLE scene_markers; CREATE TABLE scene_markers (id INTEGER PRIMARY KEY AUTOINCREMENT, media_id INTEGER, position REAL, title TEXT, note TEXT, tag TEXT, created_at TEXT, updated_at TEXT, source TEXT DEFAULT 'local', provider TEXT, provider_marker_id TEXT); CREATE UNIQUE INDEX psync ON provider_sync_state(provider,entity_type);").unwrap();
     let far = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() + 86_400.0;
     c.execute("INSERT INTO web_sessions VALUES (?1,'admin',?2)", (token_hash("tok"), far)).unwrap();
     // the library views are views in the real database
@@ -131,7 +134,15 @@ async fn door(extra: impl FnOnce(&Connection)) -> Door {
         print_ready: false,
         limits: Limits::default(),
         db: Some(dbpath),
-        native_routes: vec!["play_progress".into(), "play_history".into(), "entity_favorite_toggle".into(), "entity_favorite_status".into()],
+        native_routes: vec![
+            "play_progress".into(),
+            "play_history".into(),
+            "entity_favorite_toggle".into(),
+            "entity_favorite_status".into(),
+            "markers_list".into(),
+            "marker_create".into(),
+            "marker_delete".into(),
+        ],
         session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {
@@ -302,5 +313,66 @@ async fn a_favourite_is_flipped_and_read_back() {
         assert_eq!(json(&post(d.addr, path, "", "").await)["from"], "python", "{path}");
     }
     let blocked = post(d.addr, "/api/entities/performer/2/favorite", "", "Origin: https://evil.example\r\n").await;
+    assert_eq!(blocked.status, 403);
+}
+
+async fn delete(addr: SocketAddr, path: &str, extra: &str) -> Reply {
+    // the helper above sends POST; a DELETE is the same shape
+    let mut s = TcpStream::connect(addr).await.unwrap();
+    s.write_all(format!("DELETE {path} HTTP/1.1\r\nHost: archive.test\r\nConnection: close\r\n{AUTH}{extra}\r\n").as_bytes()).await.unwrap();
+    let mut raw = String::new();
+    s.read_to_string(&mut raw).await.unwrap();
+    let (head, body) = raw.split_once("\r\n\r\n").unwrap();
+    let status = head.split(' ').nth(1).unwrap().parse().unwrap();
+    let headers: HashMap<String, String> = head.lines().skip(1).filter_map(|l| l.split_once(": ")).map(|(k, v)| (k.to_ascii_lowercase(), v.to_string())).collect();
+    Reply { status, headers, body: body.as_bytes().to_vec() }
+}
+
+#[tokio::test]
+async fn markers_are_listed_created_and_deleted() {
+    let d = door(|c| {
+        c.execute("INSERT INTO scene_markers(media_id,position,title,source) VALUES (1,50,'late','local'),(1,10,'early','provider'),(2,5,'other','local')", [])
+            .unwrap();
+    })
+    .await;
+    let list = json(&get(d.addr, "/api/media/1/markers", "").await);
+    let titles: Vec<&str> = list.as_array().unwrap().iter().map(|m| m["title"].as_str().unwrap()).collect();
+    assert_eq!(titles, ["early", "late"], "by position");
+    let r = post(d.addr, "/api/media/1/markers", r#"{"position": 20, "title": "  Hello  ", "note": null, "tag": "x"}"#, "").await;
+    assert_eq!((r.status, r.headers["x-served-by"].as_str()), (200, "rust"));
+    let v = json(&r);
+    assert_eq!(
+        (v["marker"]["title"].as_str(), v["marker"]["note"].as_str(), v["marker"]["position"].as_f64(), v["marker"]["media_id"].as_i64()),
+        (Some("Hello"), Some(""), Some(20.0), Some(1))
+    );
+    let id = v["marker"]["id"].as_i64().unwrap();
+    assert_eq!(json(&get(d.addr, "/api/media/1/markers", "").await).as_array().unwrap().len(), 3);
+    let long = format!(r#"{{"position":1,"title":"{}"}}"#, "é".repeat(200));
+    let clipped = json(&post(d.addr, "/api/media/1/markers", &long, "").await);
+    assert_eq!(clipped["marker"]["title"].as_str().unwrap().chars().count(), 160);
+    let none = post(d.addr, "/api/media/99/markers", r#"{"position":1}"#, "").await;
+    assert_eq!((none.status, json(&none)["detail"].as_str().map(String::from)), (404, Some("Media not found".into())));
+    for bad in ["[]", r#"{"position":"3"}"#, r#"{"position":1,"title":5}"#, "{\"position\":1,\"title\":\"a\\u001cb\"}"] {
+        assert_eq!(json(&post(d.addr, "/api/media/1/markers", bad, "").await)["from"], "python", "{bad}");
+    }
+    assert_eq!(json(&post(d.addr, "/api/media/1/markers/sync", "{}", "").await)["from"], "python");
+    // deleting a provider marker leaves a note so the automatic repair does not bring it back; a local one does not
+    let provider_id = list[0]["id"].as_i64().unwrap();
+    let r = delete(d.addr, &format!("/api/media/1/markers/{provider_id}"), "").await;
+    assert_eq!((r.status, json(&r)), (200, serde_json::json!({"ok": true})));
+    delete(d.addr, &format!("/api/media/1/markers/{id}"), "").await;
+    delete(d.addr, "/api/media/1/markers/12345", "").await;
+    let c = Connection::open(db_path(&d)).unwrap();
+    let state: Vec<(String, String, String)> = c
+        .prepare("SELECT provider,entity_type,status FROM provider_sync_state")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect();
+    assert_eq!(state, [("theporndb".to_string(), "scene_markers:1".to_string(), "USER_MODIFIED".to_string())]);
+    let left: i64 = c.query_row("SELECT COUNT(*) FROM scene_markers WHERE media_id=1", [], |r| r.get(0)).unwrap();
+    assert_eq!(left, 2, "late and the one that was too long");
+    let blocked = delete(d.addr, "/api/media/1/markers/1", "Origin: https://evil.example\r\n").await;
     assert_eq!(blocked.status, 403);
 }

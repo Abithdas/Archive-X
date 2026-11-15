@@ -36,6 +36,9 @@ pub const ROUTES: &[&str] = &[
     "play_history",
     "entity_favorite_toggle",
     "entity_favorite_status",
+    "markers_list",
+    "marker_create",
+    "marker_delete",
 ];
 
 /// A request that belongs to an enabled native route.
@@ -48,6 +51,8 @@ pub struct Match {
     pub kind: Option<&'static str>,
     /// A POST: the front door reads the body before asking `handle`.
     pub needs_body: bool,
+    /// A request that changes data: the cross-site guard applies.
+    pub mutating: bool,
 }
 
 /// What a request carries besides its path and query.
@@ -105,6 +110,25 @@ impl Native {
 
     /// The enabled route this request is for, with the number in its path if it has one.
     pub fn route_for(&self, method: &Method, path: &str) -> Option<Match> {
+        if let Some(rest) = path.strip_prefix("/api/media/") {
+            let mut it = rest.split('/');
+            let (id, tail, marker) = (it.next()?, it.next()?, it.next());
+            let digits = |v: &str| {
+                let d = v.strip_prefix('-').unwrap_or(v);
+                !d.is_empty() && d.len() <= 18 && d.bytes().all(|b| b.is_ascii_digit())
+            };
+            if tail != "markers" || it.next().is_some() || !digits(id) {
+                return None;
+            }
+            let id = id.parse::<i64>().ok()?;
+            let (name, pair, body) = match (method.clone(), marker) {
+                (Method::GET, None) => ("markers_list", None, false),
+                (Method::POST, None) => ("marker_create", None, true),
+                (Method::DELETE, Some(mk)) if digits(mk) => ("marker_delete", Some((id, mk.parse::<i64>().ok()?)), false),
+                _ => return None, // /markers/sync and the rest stay in Python
+            };
+            return self.enabled.get(name).map(|n| Match { name: n, id: Some(id), pair, kind: None, needs_body: body, mutating: *method != Method::GET });
+        }
         if let Some(rest) = path.strip_prefix("/api/entities/") {
             let name = match *method {
                 Method::POST => "entity_favorite_toggle",
@@ -123,10 +147,17 @@ impl Native {
                 return None;
             }
             let id = id.parse::<i64>().ok()?;
-            return self.enabled.get(name).map(|n| Match { name: n, id: Some(id), pair: None, kind: Some(kind), needs_body: *method == Method::POST });
+            return self.enabled.get(name).map(|n| Match {
+                name: n,
+                id: Some(id),
+                pair: None,
+                kind: Some(kind),
+                needs_body: *method == Method::POST,
+                mutating: *method == Method::POST,
+            });
         }
         if method == Method::POST && path == "/api/play/progress" {
-            return self.enabled.get("play_progress").map(|n| Match { name: n, id: None, pair: None, kind: None, needs_body: true });
+            return self.enabled.get("play_progress").map(|n| Match { name: n, id: None, pair: None, kind: None, needs_body: true, mutating: true });
         }
         if method != Method::GET {
             return None;
@@ -138,7 +169,7 @@ impl Native {
                 (!digits.is_empty() && digits.len() <= 18 && digits.bytes().all(|b| b.is_ascii_digit())).then(|| v.parse::<i64>().ok()).flatten()
             };
             let pair = (int(c)?, int(m)?);
-            return self.enabled.get("play_history").map(|n| Match { name: n, id: None, pair: Some(pair), kind: None, needs_body: false });
+            return self.enabled.get("play_history").map(|n| Match { name: n, id: None, pair: Some(pair), kind: None, needs_body: false, mutating: false });
         }
         let (name, id) = match path {
             "/api/photos/channels" => ("photos_channels", None),
@@ -166,14 +197,14 @@ impl Native {
                 (name, Some(id.parse::<i64>().ok()?))
             }
         };
-        self.enabled.get(name).map(|n| Match { name: n, id, pair: None, kind: None, needs_body: false })
+        self.enabled.get(name).map(|n| Match { name: n, id, pair: None, kind: None, needs_body: false, mutating: false })
     }
 
     /// `None` means "not for me, ask Python": the route is on, but this particular request is one the Rust version does not
     /// handle (a search, an unusual parameter, a case where Python writes to the database), so it is forwarded as if the route were off.
     pub async fn handle(&self, m: &Match, query: Option<&str>, headers: &HeaderMap, peer: SocketAddr, ctx: &Ctx<'_>) -> Option<Response<Body>> {
         let route = m.name;
-        if m.needs_body && !crate::guard::allowed("POST", "/api/", headers.get(hyper::header::ORIGIN).and_then(|v| v.to_str().ok()), ctx.host) {
+        if m.mutating && !crate::guard::allowed("POST", "/api/", headers.get(hyper::header::ORIGIN).and_then(|v| v.to_str().ok()), ctx.host) {
             return Some(json_error(StatusCode::FORBIDDEN, "Cross-site request blocked"));
         }
         let session = match self.auth.require(headers).await {
@@ -192,6 +223,21 @@ impl Native {
             }
             "face_groups_fast" => {
                 let resp = self.face_groups_fast(query, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "markers_list" => {
+                let resp = self.markers_list(m.id?, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "marker_create" => {
+                let resp = self.marker_create(m.id?, ctx.body, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "marker_delete" => {
+                let resp = self.marker_delete(m.pair?, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }

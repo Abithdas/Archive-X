@@ -181,3 +181,102 @@ impl Native {
         }
     }
 }
+
+/// `str(value or '').strip()[:max]` for the plain cases: absent, null or text. The control characters 0x1c to 0x1f count as white space in
+/// Python but not here, so text holding them is Python's to read.
+fn clipped(v: Option<&Value>, max: usize) -> Option<String> {
+    let text = match v {
+        None | Some(Value::Null) => "",
+        Some(Value::String(s)) => s.as_str(),
+        _ => return None,
+    };
+    if text.chars().any(|c| ('\u{1c}'..='\u{1f}').contains(&c)) {
+        return None;
+    }
+    Some(text.trim().chars().take(max).collect())
+}
+
+impl Native {
+    pub(crate) async fn markers_list(&self, media_id: i64, request: &HeaderMap) -> Option<Response<Body>> {
+        let read = self.db.read(move |c| rows_with(c, "SELECT * FROM scene_markers WHERE media_id=? ORDER BY position,id", [media_id])).await;
+        match read {
+            Ok(rows) => Some(json_response(request, serde_json::to_vec(&rows).unwrap_or_default())),
+            Err(e) => {
+                tracing::error!("markers: {e}");
+                Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The markers could not be read"))
+            }
+        }
+    }
+
+    pub(crate) async fn marker_create(&self, media_id: i64, body: &[u8], request: &HeaderMap) -> Option<Response<Body>> {
+        let v: Value = serde_json::from_slice(body).ok()?;
+        let o = v.as_object()?;
+        let position = non_negative(o.get("position"))?;
+        let (title, note, tag) = (clipped(o.get("title"), 160)?, clipped(o.get("note"), 500)?, clipped(o.get("tag"), 80)?);
+        let now = now_iso();
+        let made = {
+            let (title, note, tag, now) = (title.clone(), note.clone(), tag.clone(), now.clone());
+            self.writer
+                .write(move |c| {
+                    if c.query_row("SELECT 1 FROM media WHERE id=?", [media_id], |_| Ok(())).optional()?.is_none() {
+                        return Ok(None);
+                    }
+                    c.execute(
+                        "INSERT INTO scene_markers(media_id,position,title,note,tag,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                        params![media_id, position, title, note, tag, now, now],
+                    )?;
+                    Ok(Some(c.last_insert_rowid()))
+                })
+                .await
+        };
+        match made {
+            Ok(Some(id)) => {
+                let marker = json!({ "id": id, "media_id": media_id, "position": position, "title": title, "note": note, "tag": tag, "created_at": now, "updated_at": now });
+                Some(json_response(request, serde_json::to_vec(&json!({ "ok": true, "marker": marker })).unwrap_or_default()))
+            }
+            Ok(None) => Some(json_error(StatusCode::NOT_FOUND, "Media not found")),
+            Err(e) => {
+                tracing::error!("marker create: {e}");
+                Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The marker could not be saved"))
+            }
+        }
+    }
+
+    pub(crate) async fn marker_delete(&self, (media_id, marker_id): (i64, i64), request: &HeaderMap) -> Option<Response<Body>> {
+        let now = now_iso();
+        let done = self
+            .writer
+            .write(move |c| {
+                let source: Option<Option<String>> =
+                    c.query_row("SELECT source FROM scene_markers WHERE id=? AND media_id=?", params![marker_id, media_id], |r| r.get(0)).optional()?;
+                c.execute("DELETE FROM scene_markers WHERE id=? AND media_id=?", params![marker_id, media_id])?;
+                // A deliberate removal of a provider marker is remembered, so the automatic repair of an empty list does not bring it back.
+                if let Some(source) = source {
+                    if source.as_deref().filter(|s| !s.is_empty()).unwrap_or("local").to_lowercase() == "provider" {
+                        c.execute(
+                            "INSERT INTO provider_sync_state(provider,entity_type,last_sync_at,status,error,request_count,updated_at) VALUES(?,?,?,?,?,?,?) \
+                             ON CONFLICT(provider,entity_type) DO UPDATE SET status=excluded.status,error=excluded.error,updated_at=excluded.updated_at",
+                            params![
+                                "theporndb",
+                                format!("scene_markers:{media_id}"),
+                                now,
+                                "USER_MODIFIED",
+                                "Provider markers were manually removed; use explicit refresh to re-import them.",
+                                0,
+                                now
+                            ],
+                        )?;
+                    }
+                }
+                Ok(())
+            })
+            .await;
+        match done {
+            Ok(()) => Some(json_response(request, serde_json::to_vec(&json!({ "ok": true })).unwrap_or_default())),
+            Err(e) => {
+                tracing::error!("marker delete: {e}");
+                Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The marker could not be removed"))
+            }
+        }
+    }
+}

@@ -296,5 +296,51 @@
   "method": "POST",
   "path": "/api/entities/tag/1/favorite",
   "body": {}
+ },
+ {
+  "name": "marker: create",
+  "method": "POST",
+  "path": "/api/media/1/markers",
+  "body": {
+   "position": 12.5,
+   "title": "  First  ",
+   "note": "n",
+   "tag": "t"
+  }
+ },
+ {
+  "name": "marker: create, position only",
+  "method": "POST",
+  "path": "/api/media/1/markers",
+  "body": {
+   "position": 3
+  }
+ },
+ {
+  "name": "marker: create, integer position and very long title",
+  "method": "POST",
+  "path": "/api/media/1/markers",
+  "body": {
+   "position": 7,
+   "title": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+  }
+ },
+ {
+  "name": "marker: create for a video that does not exist",
+  "method": "POST",
+  "path": "/api/media/999999/markers",
+  "body": {
+   "position": 1
+  }
+ },
+ {
+  "name": "marker: delete the first",
+  "method": "DELETE",
+  "path": "/api/media/1/markers/1"
+ },
+ {
+  "name": "marker: delete one that is not there",
+  "method": "DELETE",
+  "path": "/api/media/1/markers/777"
  }
 ]
