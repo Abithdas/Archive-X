@@ -42,9 +42,11 @@ describe('Scene markers', () => {
     const head = screen.getByRole('button', { name: /Scene markers/ })
     fireEvent.click(head)
     expect(head).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByRole('button', { name: /Go to 0:05/ })).toBeNull()
+    // folded: the chips stay in the page for the fold animation but can no longer be reached
+    expect(screen.getByRole('button', { name: /Go to 0:05/, hidden: true }).closest('[inert]')).not.toBeNull()
     fireEvent.click(head)
-    expect(screen.getByRole('button', { name: /Go to 0:05/ })).toBeInTheDocument()
+    expect(head).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: /Go to 0:05/ }).closest('[inert]')).toBeNull()
   })
 
   it('with nothing saved, asks the provider once without forcing, and says why there are no markers', async () => {

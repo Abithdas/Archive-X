@@ -9,6 +9,7 @@ import { cn } from '@/design/cn'
 import { formatDuration } from '@/features/library/format'
 import { useDebounced } from '@/features/library/useDebounced'
 import { LOOKUP_FAILED, LOOKUP_IDLE, LOOKUP_NEEDS_INPUT, LOOKUP_SEARCHING, applyMatch, candidateView, hintChips, initialPeople, initialStudio, lookupAllowed, lookupBody, lookupStatus, originLabel, pickPerformer, pickStudio, safeHttpUrl, samePerformer, saveBody, saveOutcome, searchItems, stagedItems, type CaptionSync, type Item, type LocalHit, type LookupResult, type Match, type Person, type ProviderHit, type Studio } from './quickedit'
+import { ClearField } from '@/design/ClearField'
 
 const INPUT = 'h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5 text-[15px] text-fg outline-none placeholder:text-faint focus:border-accent/60'
 const PANE = 'grid min-w-0 content-start gap-2 rounded-2xl border border-line p-3'
@@ -18,7 +19,7 @@ const asList = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : [])
 function Picker({ kind, q, onQ, items, loading, onPick }: { kind: 'performer' | 'studio'; q: string; onQ: (v: string) => void; items: Item[]; loading: boolean; onPick: (i: number) => void }) {
   return (
     <>
-      <input value={q} onChange={(e) => onQ(e.target.value)} placeholder={`Search ${kind}…`} aria-label={`Search ${kind}`} autoComplete="off" className={INPUT} />
+      <ClearField value={q} onChange={onQ} placeholder={`Search ${kind}…`} label={`Search ${kind}`} clearLabel={`Clear ${kind} search`} className="h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5" />
       <div role="listbox" aria-label={`${kind === 'performer' ? 'Performer' : 'Studio'} results`} className="max-h-56 overflow-y-auto rounded-xl border border-line">
         {loading ? <p role="status" className="p-3 text-sm text-muted">Searching…</p>
           : items.length ? items.map((x, i) => (

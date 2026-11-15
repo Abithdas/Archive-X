@@ -9,6 +9,7 @@ import { canSave, comboDone, comboSteps, heading, hint, n, performerBody, perfor
 import { choiceLabel, choiceNote, studioChoices, type StudioChoice } from './mapping'
 import type { Picked } from './selection'
 import { useDebounced } from './useDebounced'
+import { ClearField } from '@/design/ClearField'
 
 const INPUT = 'h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5 text-[15px] text-fg outline-none placeholder:text-faint focus:border-accent/60'
 
@@ -40,8 +41,8 @@ function SearchPane({ label, placeholder, empty, query, onQuery, rows, loading, 
           ) : <span className="text-sm text-muted">No {label.toLowerCase()} selected.</span>}
         </div>
       ) : null}
-      <input role="combobox" aria-expanded={rows.length > 0} aria-controls={id} aria-autocomplete="list" aria-label={`Search ${label.toLowerCase()}`} aria-activedescendant={rows.length ? `${id}-${at}` : undefined}
-        value={query} onChange={(e) => { onQuery(e.target.value); setActive(0) }} onKeyDown={onKey} placeholder={placeholder} autoComplete="off" className={INPUT} />
+      <ClearField value={query} onChange={(v) => { onQuery(v); setActive(0) }}  placeholder={placeholder} label={`Search ${label.toLowerCase()}`} clearLabel={`Clear ${label.toLowerCase()} search`} className="h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5"
+        inputProps={{ role: 'combobox', 'aria-expanded': rows.length > 0, 'aria-controls': id, 'aria-autocomplete': 'list', 'aria-activedescendant': rows.length ? `${id}-${at}` : undefined, onKeyDown: onKey }} />
       <div id={id} role="listbox" aria-label={`${label} results`} className={cn('overflow-y-auto rounded-xl border border-line', compact ? 'max-h-32 md:max-h-60' : 'max-h-60')}>
         {loading ? <p className="p-3 text-sm text-muted" role="status">Searching…</p>
           : rows.length ? rows.map((r, i) => (

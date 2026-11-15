@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { createPortal } from 'react-dom'
 import { cn } from '@/design/cn'
 import { firstLoaded, loadImage } from './imageCache'
-import { IconClose, IconFit, IconFullscreen, IconNext, IconPause, IconPlay, IconPrev, IconRotateLeft, IconRotateRight, IconStar, IconZoomIn, IconZoomOut } from './ViewerIcons'
+import { IconClose, IconFit, IconFullscreen, IconNext, IconPause, IconPlay, IconPrev, IconRotateLeft, IconRotateRight, IconZoomIn, IconZoomOut } from './ViewerIcons'
 import { MIN_REL, SLIDE_MS, SWIPE_PX, anchorPan, paddedBox, clampPan, clampScale, pinchScale, wheelFactor, wheelSteps, counterText, favKey, fitScale, hud, neighborUrls, photoName, rotate, stepIndex, stripRange, zoomBy, zoomPercent, type Photo } from './photos'
+import { LikeHeart } from '@/design/LikeHeart'
+import { IconSwap } from '@/design/IconSwap'
 
 const PILL = 'grid size-10 shrink-0 place-items-center rounded-full text-white transition-colors hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-35 disabled:hover:bg-transparent aria-pressed:bg-white/20 sm:size-9'
 const NOBAR = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
@@ -221,7 +223,7 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
         <div ref={toolbar} role="toolbar" aria-label="Photo viewer controls" className="mx-auto mb-2.5 flex w-full max-w-[420px] flex-col gap-0.5 rounded-3xl bg-white/10 p-1.5 backdrop-blur sm:w-fit sm:max-w-full sm:flex-row sm:items-center sm:gap-0.5 sm:rounded-full sm:px-2 sm:py-1">
           <div className="flex items-center justify-center gap-1 sm:gap-0.5">
             <button type="button" className={PILL} onClick={() => go(-1)} disabled={index <= 0} title="Previous photo (←)" aria-label="Previous photo"><IconPrev /></button>
-            <button type="button" className={PILL} onClick={() => setPlaying(!playing)} aria-pressed={playing} title={playing ? 'Pause slideshow (Space)' : 'Play slideshow (Space)'} aria-label={playing ? 'Pause slideshow' : 'Play slideshow'}>{playing ? <IconPause /> : <IconPlay />}</button>
+            <button type="button" className={PILL} onClick={() => setPlaying(!playing)} aria-pressed={playing} title={playing ? 'Pause slideshow (Space)' : 'Play slideshow (Space)'} aria-label={playing ? 'Pause slideshow' : 'Play slideshow'}><IconSwap on={playing} offIcon={<IconPlay />} onIcon={<IconPause />} /></button>
             <button type="button" className={PILL} onClick={() => go(1)} disabled={index >= items.length - 1} title="Next photo (→)" aria-label="Next photo"><IconNext /></button>
           </div>
           <span aria-hidden="true" className={DIVIDER} />
@@ -233,8 +235,8 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
             <span aria-hidden="true" className={DIVIDER} />
             <button type="button" className={PILL} onClick={() => turn(-90)} title="Rotate counter-clockwise (Shift+R)" aria-label="Rotate counter-clockwise"><IconRotateLeft /></button>
             <button type="button" className={PILL} onClick={() => turn(90)} title="Rotate clockwise (R)" aria-label="Rotate clockwise"><IconRotateRight /></button>
-            <button type="button" className={cn(PILL, fav && 'text-warn')} onClick={() => onFavorite(item)} aria-pressed={fav} title={fav ? 'Remove from favourites' : 'Add to favourites'} aria-label={fav ? 'Remove from favourites' : 'Add to favourites'}><IconStar on={fav} /></button>
-            <button type="button" className={PILL} onClick={toggleFs} aria-pressed={fs} title="Toggle fullscreen (F)" aria-label="Toggle fullscreen"><IconFullscreen on={fs} /></button>
+            <button type="button" className={PILL} onClick={() => onFavorite(item)} aria-pressed={fav} title={fav ? 'Remove from favourites' : 'Add to favourites'} aria-label={fav ? 'Remove from favourites' : 'Add to favourites'}><LikeHeart liked={fav} /></button>
+            <button type="button" className={PILL} onClick={toggleFs} aria-pressed={fs} title="Toggle fullscreen (F)" aria-label="Toggle fullscreen"><IconSwap on={fs} offIcon={<IconFullscreen on={false} />} onIcon={<IconFullscreen on />} /></button>
           </div>
         </div>
         <div ref={strip} aria-label="Photo carousel" className={cn('flex gap-1.5 overflow-x-auto', NOBAR)}>
@@ -244,7 +246,7 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
               <button key={`${p.channel_id}:${p.message_id}`} type="button" onClick={() => onIndex(i)} aria-label={`Photo ${i + 1}: ${photoName(p)}`} aria-current={i === index ? 'true' : undefined}
                 className={cn('relative h-12 w-[68px] shrink-0 overflow-hidden rounded-lg border-2 opacity-70 hover:opacity-100 sm:h-14 sm:w-20', i === index ? 'border-accent opacity-100' : 'border-transparent')}>
                 <img src={p.thumbnail_url} alt="" loading="lazy" draggable={false} className="size-full object-cover" />
-                {favorites.has(favKey(p)) ? <span aria-hidden="true" className="absolute right-0.5 top-0 text-xs text-warn">★</span> : null}
+                {favorites.has(favKey(p)) ? <span aria-hidden="true" className="absolute right-0.5 top-0 text-xs text-[#f40051]">♥</span> : null}
               </button>
             )
           })}

@@ -6,6 +6,7 @@ import { FiltersDrawer } from './FiltersDrawer'
 import { MoreActions } from './MoreActions'
 import type { Player } from './shuffle'
 import { useLibraryStore } from './store'
+import { LikeHeart } from '@/design/LikeHeart'
 
 const SORTS: { value: SortKey; label: string }[] = [
   { value: 'date_desc', label: 'Newest first' },
@@ -51,7 +52,7 @@ export function Toolbar({ lead, onRefresh, refreshing, onShuffle, shuffling }: {
           ))}
         </select>
       </label>
-      <button type="button" aria-pressed={favorites} onClick={() => setFavorites(!favorites)} title="Show only favourite videos" className={cn(PILL, favorites && 'border-warn text-warn')}><span aria-hidden="true">{favorites ? '★' : '☆'}</span>Favourites</button>
+      <button type="button" aria-pressed={favorites} onClick={() => setFavorites(!favorites)} title="Show only favourite videos" className={cn(PILL, favorites && 'border-[#f40051]/60')}><LikeHeart liked={favorites} />Favourites</button>
       <button type="button" className={cn(PILL, 'w-10 justify-center px-0')} onClick={onRefresh} aria-label="Refresh channel list" title="Refresh channel list from Telegram" disabled={refreshing}>
         <Icon name="refresh" className={cn(refreshing && 'animate-spin')} />
       </button>

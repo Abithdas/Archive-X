@@ -5,6 +5,7 @@ import { ApiError, api } from '@/api/client'
 import { useProfile } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
 import { INTRO, NAME_MAX, READY, RESET_TEXT, SAVED, SAVE_FAILED, chosenText, displayName, initials, nameProblem, photoProblem, photoUrl, saveBody, unchanged, type Profile } from './profile'
+import { ErrorField } from '@/design/ErrorField'
 
 const BTN = 'h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
 
@@ -32,6 +33,7 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
   const [preview, setPreview] = useState(photoUrl(p))
   const [msg, setMsg] = useState<{ text: string; bad: boolean }>({ text: READY, bad: false })
   const [busy, setBusy] = useState(false)
+  const [nameBad, setNameBad] = useState('')   // the rejected name: shakes the field; the words are in the status line below
   const file = useRef<HTMLInputElement>(null)
 
   const choose = (f: File | undefined) => {
@@ -47,7 +49,7 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
   const save = async () => {
     const draft = { name, imageData: image, reset }
     const bad = nameProblem(name)
-    if (bad) return void setMsg({ text: bad, bad: true })
+    if (bad) { setNameBad(bad); return void setMsg({ text: bad, bad: true }) }
     if (unchanged(p, draft)) return void onClose()
     setBusy(true); setMsg({ text: 'Saving…', bad: false })
     try {
@@ -63,7 +65,7 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
       <div className="grid gap-4 text-left">
         <p className="text-sm text-muted">{INTRO}</p>
         <label className="grid gap-1 text-xs font-semibold text-muted">Display name
-          <input value={name} maxLength={NAME_MAX} autoComplete="off" placeholder="Your name" onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void save() } }} className="h-11 rounded-xl border border-line-2 bg-bg px-3 text-sm font-normal text-fg" />
+          <ErrorField quiet message={nameBad}><input value={name} maxLength={NAME_MAX} autoComplete="off" placeholder="Your name" onChange={(e) => { setName(e.target.value); setNameBad('') }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void save() } }} className="h-11 w-full rounded-xl border border-line-2 bg-bg px-3 text-sm font-normal text-fg" /></ErrorField>
         </label>
         <section aria-label="Profile photo" className="flex items-center gap-4">
           <span className="relative grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-3 text-2xl font-bold"><span aria-hidden="true">{initials(p?.name || name)}</span>

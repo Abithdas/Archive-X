@@ -43,12 +43,12 @@ export function MarkersSection({ mediaId, onSeek, className }: { mediaId: number
   }
 
   return (
-    <section aria-label="Scene markers" className={cn('rounded-[18px] border border-line bg-surface p-4', className)}>
+    <section aria-label="Scene markers" className={cn('t-acc rounded-[18px] border border-line bg-surface p-4', className)} data-open={open ? 'true' : 'false'}>
       <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex w-full items-center justify-between gap-3 text-left">
         <h2 className="text-base font-bold">{headingFor(chips.length)}</h2>
-        <Icon name="chevron-down" className={cn('size-4 text-muted transition-transform', !open && '-rotate-90')} />
+        <span className="t-acc-chevron text-muted"><Icon name="chevron-down" className="size-4" /></span>
       </button>
-      {open ? (
+      <div className="t-acc-panel"><div className="t-acc-panel-inner" inert={!open}>
         <div className="mt-3">
           {!mediaId ? <p className="text-sm text-muted">{NEEDS_INDEXING}</p>
             : markers.isPending ? <p role="status" className="text-sm text-muted">Loading scene markers…</p>
@@ -72,7 +72,7 @@ export function MarkersSection({ mediaId, onSeek, className }: { mediaId: number
               </div>
             )}
         </div>
-      ) : null}
+      </div></div>
     </section>
   )
 }

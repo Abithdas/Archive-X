@@ -9,6 +9,7 @@ import { useJobActions } from './JobControls'
 import { JOB_LOAD_FAILED, activityRows, displayName, footerFor, mergeActivity, activityKey, parseDetail, pipeline, progressSummary, runInfo, shortId, toneOf, type Activity } from './jobdetail'
 import { fmtAge } from './ops'
 import { jobPath, primaryLabel } from './jobs'
+import { Disclosure } from '@/design/Accordion'
 
 type Obj = Record<string, unknown>
 const fmtTime = (iso: string) => { const d = iso ? new Date(iso) : null; return d && !Number.isNaN(d.getTime()) ? d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '' }
@@ -105,8 +106,7 @@ export function JobDetails({ id, onClose }: { id: string; onClose: () => void })
 
           {j.error ? <section className={cn(GROUP, 'border-bad/50')} aria-label="Error"><h3 className="mb-1 text-sm font-bold text-bad">Error</h3><p className="text-sm [overflow-wrap:anywhere]">{String(j.error)}</p></section> : null}
 
-          <details className={GROUP}>
-            <summary className="flex cursor-pointer items-center gap-2 text-sm font-bold"><span>Activity</span><span className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-semibold text-good"><span className="size-1.5 animate-pulse rounded-full bg-good" />Live</span></summary>
+          <Disclosure className={GROUP} summaryClassName="text-sm font-bold" summary={<><span>Activity</span><span className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-semibold text-good"><span className="size-1.5 animate-pulse rounded-full bg-good" />Live</span></>}>
             <p className="mt-1 text-[11px] text-muted">Recent steps and important updates</p>
             <ul aria-label="Job activity" className="mt-2 max-h-80 overflow-y-auto">
               {rows.length ? rows.map((r) => (
@@ -119,14 +119,14 @@ export function JobDetails({ id, onClose }: { id: string; onClose: () => void })
                       <p className="mt-1 text-[10.5px] text-muted">{r.meta}</p>
                     </div>
                   </div>
-                  <details className="ml-[50px] mt-1"><summary className="cursor-pointer text-[11px] text-muted">Metadata / paths / frame details</summary><pre className="mt-1 whitespace-pre-wrap text-[11px] [overflow-wrap:anywhere]">{r.details}</pre></details>
+                  <Disclosure className="ml-[50px] mt-1" summaryClassName="text-[11px] text-muted" summary="Metadata / paths / frame details"><pre className="mt-1 whitespace-pre-wrap text-[11px] [overflow-wrap:anywhere]">{r.details}</pre></Disclosure>
                 </li>
               )) : <li className="py-2 text-[11px] text-muted">No detailed activity events yet. This panel updates while the job runs.</li>}
             </ul>
             {hasOlder ? <div className="flex justify-center pt-2"><button type="button" disabled={loadingOlder} onClick={() => void loadOlder()} className="h-9 rounded-xl border border-line-2 px-4 text-sm font-semibold disabled:opacity-60">{loadingOlder ? 'Loading older activity…' : 'Load older activity'}</button></div> : null}
-          </details>
+          </Disclosure>
 
-          {parsed ? <details className={GROUP}><summary className="cursor-pointer text-sm font-bold">Technical details</summary><div className="mt-2"><h4 className="mb-1 text-xs font-semibold text-muted">Job input</h4><pre className="max-h-64 overflow-auto whitespace-pre-wrap text-[11px] [overflow-wrap:anywhere]">{JSON.stringify(parsed, null, 2)}</pre></div></details> : null}
+          {parsed ? <Disclosure className={GROUP} summaryClassName="text-sm font-bold" summary="Technical details"><div className="mt-2"><h4 className="mb-1 text-xs font-semibold text-muted">Job input</h4><pre className="max-h-64 overflow-auto whitespace-pre-wrap text-[11px] [overflow-wrap:anywhere]">{JSON.stringify(parsed, null, 2)}</pre></div></Disclosure> : null}
         </div>
       )}
       {actions.dialogs}

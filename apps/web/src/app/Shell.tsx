@@ -23,6 +23,7 @@ import { toggleTheme, useTheme } from './theme'
 import { useUi } from './ui'
 import { useAppearance, useAppearanceActions, useAppearanceSync } from '@/features/settings/useAppearance'
 import { scaleForKey } from '@/theme/themes'
+import { IconSwap } from '@/design/IconSwap'
 
 interface NavDef {
   to: string
@@ -82,10 +83,7 @@ function RailToggle({ rail, onToggle }: { rail: boolean; onToggle: () => void })
   const label = rail ? 'Expand sidebar' : 'Collapse sidebar'
   return (
     <button type="button" onClick={onToggle} aria-label={label} aria-expanded={!rail} title={label} className={cn('ax-rail-toggle grid size-7 place-items-center rounded-lg text-muted hover:bg-fg/5 hover:text-fg', !rail && 'ml-auto')}>
-      <span className="t-icon-swap" data-state={rail ? 'b' : 'a'}>
-        <span className="t-icon" data-icon="a"><Icon name="arrow-left" /></span>
-        <span className="t-icon" data-icon="b"><Icon name="arrow-right" /></span>
-      </span>
+      <IconSwap on={rail} offIcon={<Icon name="arrow-left" />} onIcon={<Icon name="arrow-right" />} />
     </button>
   )
 }

@@ -10,6 +10,7 @@ import type { LibraryItem } from '@/api/types'
 import { QuickEditDialog } from '@/features/watch/QuickEditDialog'
 import { Frames } from './ChannelDuplicates'
 import { DEFAULT_THRESHOLD, MAX_SELECTION, NO_FILTERS, approveAboveCopy, approveUrl, approvedToast, clamp100, countText, distinctReason, editItem, isFiltered, merge, missingLabel, needs, nextOffsets, oneDone, oneFailed, providerBadge, rejectUrl, rejectedToast, reviewUrl, safeHttp, selectLimit, thresholdOf, visibleText, type Filters, type ReviewPage, type Suggestion, type Unresolved } from './scenematch'
+import { Disclosure } from '@/design/Accordion'
 
 const BTN = 'h-9 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
 const PRIMARY = 'h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg disabled:opacity-50'
@@ -45,11 +46,11 @@ function SuggestionCard({ s, picked, busy, onPick, onAct }: { s: Suggestion; pic
           <div><p className="mb-1 text-[11px] text-muted">Provider scene</p>{image ? <img src={image} alt="Provider scene candidate" loading="lazy" referrerPolicy="no-referrer" className="aspect-video w-full rounded-lg bg-surface-3 object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} /> : <p className="grid aspect-video place-items-center rounded-lg bg-surface-3 text-xs text-muted">No provider image</p>}</div>
           <div><p className="mb-1 text-[11px] text-muted">Video snapshots · 4 of 36</p>{s.message_id ? <Frames cid={cid} mid={Number(s.message_id)} title={local} /> : null}</div>
         </div>
-        <details className="text-xs"><summary className="cursor-pointer font-semibold">Why this match? <span className="font-normal text-muted">Optional details</span></summary>
+        <Disclosure className="text-xs" summaryClassName="font-semibold" summary={<span>Why this match? <span className="font-normal text-muted">Optional details</span></span>}>
           <div className="mt-1 grid gap-1.5 text-muted">
             {meta ? <p><b className="text-fg">Candidate metadata</b><br />{meta}</p> : null}{s.signals ? <p><b className="text-fg">Signals</b><br />{s.signals}</p> : null}{distinctReason(s.signals, s.reason) ? <p><b className="text-fg">Additional note</b><br />{s.reason}</p> : null}
             {!meta && !s.signals && !distinctReason(s.signals, s.reason) ? <p>No additional match details.</p> : null}
-          </div></details>
+          </div></Disclosure>
       </div>
       <div className="flex gap-2 sm:grid sm:content-start"><button type="button" className={PRIMARY} disabled={busy} onClick={() => onAct('approve')} aria-label={`Approve ${title}`}>Approve</button><button type="button" className={BTN} disabled={busy} onClick={() => onAct('reject')} aria-label={`Reject ${title}`}>Reject</button></div>
     </article>

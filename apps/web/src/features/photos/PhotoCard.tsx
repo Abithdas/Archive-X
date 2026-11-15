@@ -5,6 +5,7 @@ import { Icon } from '@/design/Icon'
 import { Skeleton } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
 import { photoName, ratio, type Photo } from './photos'
+import { LikeHeart } from '@/design/LikeHeart'
 
 const OPTION = 'flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium hover:bg-fg/5 focus-visible:bg-fg/5 focus-visible:outline-none'
 
@@ -37,7 +38,7 @@ export function PhotoCard({ photo, favorite, onOpen, onRemove, onDifferent }: { 
         <img ref={(el) => { if (el?.complete && el.naturalWidth > 0) setReady(true) }} src={photo.thumbnail_url} alt="" loading="lazy" decoding="async" draggable={false} onLoad={() => setReady(true)} onError={() => { setFailed(true); setReady(true) }}
           className={cn('absolute inset-0 size-full object-cover transition-[opacity,transform] duration-300 group-hover:scale-[1.03]', ready && !failed ? 'opacity-100' : 'opacity-0')} />
       </button>
-      {favorite ? <span title="Favourite" aria-label="Favourite" className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/55 px-1.5 text-sm text-warn">★</span> : null}
+      {favorite ? <span title="Favourite" aria-label="Favourite" className="pointer-events-none absolute left-2 top-2 grid size-7 place-items-center rounded-full bg-black/55 text-white"><LikeHeart liked /></span> : null}
       <button ref={btn} type="button" popoverTarget={id} aria-label={`More options for ${name}`} aria-haspopup="menu" title="More options" onClick={place}
         className={cn('absolute right-2 top-2 grid size-9 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm hover:bg-black/75 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100')}>
         <span className="flex gap-[3px]" aria-hidden="true"><i className="size-1 rounded-full bg-current" /><i className="size-1 rounded-full bg-current" /><i className="size-1 rounded-full bg-current" /></span>

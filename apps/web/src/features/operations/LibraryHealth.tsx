@@ -6,6 +6,7 @@ import { ApiError, api } from '@/api/client'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { CHECKING, HEALTH_URL, LAST_KEY, NOT_CHECKED_DETAIL, REPAIRING, REPAIR_FAILED, REPAIR_URL, chipText, counts, failedText, lastChecked, overviewText, repairFailedText, repairToast, reportLines, stateOf, type HealthReport, type HealthState, type Summary } from './health'
+import { Disclosure } from '@/design/Accordion'
 
 const read = () => { try { return window.localStorage.getItem(LAST_KEY) } catch { return null } }
 const write = (v: string) => { try { window.localStorage.setItem(LAST_KEY, v) } catch { /* private mode */ } }
@@ -57,7 +58,7 @@ export function LibraryHealth() {
         <Link to="/videos" className={BTN}><Icon name="library" className="size-4" />Open library</Link>
         <span className="ml-auto text-xs text-muted">Last checked <strong className="text-fg">{last}</strong></span>
       </div>
-      <details className="mt-auto text-xs"><summary className="cursor-pointer font-semibold">View check details</summary><div role="status" aria-live="polite" className="mt-2 whitespace-pre-wrap text-muted">{detail}</div></details>
+      <Disclosure className="mt-auto text-xs" summaryClassName="font-semibold" summary="View check details"><div role="status" aria-live="polite" className="mt-2 whitespace-pre-wrap text-muted">{detail}</div></Disclosure>
     </section>
   )
 }

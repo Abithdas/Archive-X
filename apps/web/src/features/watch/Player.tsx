@@ -15,6 +15,7 @@ import { blockingEnabled, resumeAudio, routeThroughApp, setBlocking } from './au
 import { CaptionOverlay } from './CaptionOverlay'
 import { DEFAULT_STYLE, SIZE_STEP, clampSize, loadStyle, saveStyle, sizeLabel, type CaptionBg } from './captionStyle'
 import { useAltAudio, useTracks, type MediaRef } from './useTracks'
+import { IconSwap } from '@/design/IconSwap'
 
 const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const
 export const nextRate = (r: number) => RATES[(RATES.findIndex((x) => x === r) + 1) % RATES.length] ?? 1
@@ -335,7 +336,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
         <div className="flex items-center justify-between py-1 text-xs font-medium text-fg/80 sm:text-[13px]">
           <div className="flex min-w-0 items-center gap-1 @lg:gap-2.5">
             <button type="button" className={BTN} onClick={onPrev} disabled={!onPrev} aria-label="Previous video" title="Previous (Shift+P)"><PrevIcon /></button>
-            <button type="button" className={BTN} onClick={toggle} aria-label={playing ? 'Pause' : 'Play'} title="Play / pause (Space)">{playing ? <PauseIcon /> : <PlayIcon />}</button>
+            <button type="button" className={BTN} onClick={toggle} aria-label={playing ? 'Pause' : 'Play'} title="Play / pause (Space)"><IconSwap on={playing} offIcon={<PlayIcon />} onIcon={<PauseIcon />} /></button>
             <button type="button" className={BTN} onClick={onNext} disabled={!onNext} aria-label="Next video" title="Next (N)"><NextIcon /></button>
             <Divider />
             <div className="hidden @lg:block">
@@ -354,7 +355,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
             </PopMenu>
             <Divider />
             <div className="flex items-center gap-1.5">
-              <button type="button" className={BTN} onClick={() => setMuted(!muted)} aria-label={muted ? 'Unmute' : 'Mute'} aria-pressed={muted} title="Mute (M)"><VolumeIcon muted={muted || volume === 0} /></button>
+              <button type="button" className={BTN} onClick={() => setMuted(!muted)} aria-label={muted ? 'Unmute' : 'Mute'} aria-pressed={muted} title="Mute (M)"><IconSwap on={muted || volume === 0} offIcon={<VolumeIcon muted={false} />} onIcon={<VolumeIcon muted />} /></button>
               <VolumeBar value={muted ? 0 : volume} onChange={(v) => { setVolume(v); setMuted(false) }} />
             </div>
           </div>

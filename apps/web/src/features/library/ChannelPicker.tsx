@@ -1,6 +1,7 @@
 import type { Channel } from '@/api/types'
 import { cn } from '@/design/cn'
 import { channelMatches, channelName, isDisplayName, parseCaption, type CaptionNode } from './send'
+import { ClearField } from '@/design/ClearField'
 
 function CaptionText({ nodes }: { nodes: CaptionNode[] }) {
   return <>{nodes.map((n, i) => {
@@ -21,7 +22,7 @@ export function ChannelPicker({ channels, q, onQ, target, onTarget, caption, cap
   const shown = channelMatches(channels, q)
   return (
     <>
-      <input value={q} onChange={(e) => onQ(e.target.value)} placeholder="Search channel…" aria-label="Search channel" className="h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5 text-[15px] outline-none placeholder:text-faint focus:border-accent/60" />
+      <ClearField value={q} onChange={onQ} placeholder="Search channel…" label="Search channel" clearLabel="Clear channel search" className="h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5" />
       <div role="listbox" aria-label="Destination channel" className="max-h-[30vh] overflow-y-auto rounded-xl border border-line">
         {shown.length ? shown.map((c) => {
           const on = String(c.telegram_id) === target

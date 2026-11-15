@@ -8,6 +8,7 @@ import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { NO_CHANGES, NO_STUDIOS_HINT, SAVED, choiceLabel, choiceNote, failureMessage, mappingBody, mappingTasks, pickedFrom, studioChoices, type PickedStudio, type StudioHit } from './mapping'
 import { useDebounced } from './useDebounced'
+import { ClearField } from '@/design/ClearField'
 
 const INPUT = 'h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5 text-[15px] text-fg outline-none placeholder:text-faint focus:border-accent/60'
 
@@ -71,8 +72,8 @@ export function MappingDialog({ item, onDone }: { item: LibraryItem; onDone: () 
               </span>
             ) : <span className="text-sm text-muted">No studio selected.</span>}
           </div>
-          <input role="combobox" aria-expanded={shown.length > 0} aria-controls={listId} aria-labelledby={`${listId}-lbl`} aria-activedescendant={shown.length ? `${listId}-${active}` : undefined} aria-autocomplete="list"
-            value={q} onChange={(e) => { setQ(e.target.value); setActive(0) }} onKeyDown={onKey} placeholder="Search studio or enter a new studio name" autoComplete="off" className={INPUT} />
+          <ClearField value={q} onChange={(v) => { setQ(v); setActive(0) }} placeholder="Search studio or enter a new studio name" label="Search studio" clearLabel="Clear studio search" className="h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5"
+            inputProps={{ role: 'combobox', 'aria-expanded': shown.length > 0, 'aria-controls': listId, 'aria-labelledby': `${listId}-lbl`, 'aria-activedescendant': shown.length ? `${listId}-${active}` : undefined, 'aria-autocomplete': 'list', onKeyDown: onKey }} />
           <div id={listId} role="listbox" aria-label="Studios" className="max-h-60 overflow-y-auto rounded-xl border border-line">
             {!q.trim() ? <p className="p-3 text-sm text-muted">{NO_STUDIOS_HINT}</p>
               : term !== q.trim() || search.isFetching ? <p className="p-3 text-sm text-muted" role="status">Searching…</p>

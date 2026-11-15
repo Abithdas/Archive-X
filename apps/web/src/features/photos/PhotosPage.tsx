@@ -25,6 +25,7 @@ import { PhotoCard } from './PhotoCard'
 import { PhotoViewer } from './PhotoViewer'
 import { EMPTY_INDEX, LOAD_FAILED, NO_CHANNELS_SAVED, NO_SCANNED, SORTS, channelAvatar, channelTitle, deleteBody, deleteCopy, deleteDone, deletePath, deleteStatus, emptyText, initials, photoName, photosUrl, pruneSelection, scanTitle, sortLabel, summaryText, toggleId, type Photo, type PhotoChannel, type PhotoPage, type PhotoSort } from './photos'
 import { usePhotoStore } from './store'
+import { LikeHeart } from '@/design/LikeHeart'
 
 const Tick = () => <span aria-label="selected" role="img" className="grid size-5 place-items-center rounded-full bg-good text-[11px] font-bold text-white">✓</span>
 const reason = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.detail : e instanceof Error && e.message ? e.message : fb)
@@ -153,7 +154,7 @@ export function PhotosPage() {
           </label>
           {hasContent ? <Popover label="Filters" icon={<Icon name="filter" className="size-4" />} badge={contentTags.length} active={contentTags.length > 0}><ContentTags bare /></Popover> : null}
           <button type="button" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(!favoritesOnly)} title="Show only photos starred in this browser" className={cn(PILL, favoritesOnly && 'border-warn text-warn')}>
-            <span aria-hidden="true">{favoritesOnly ? '★' : '☆'}</span>Favourites
+            <LikeHeart liked={favoritesOnly} />Favourites
           </button>
           <button type="button" onClick={() => void refresh()} aria-label="Refresh photo library" title="Refresh channels and the indexed photo library" className={cn(PILL, 'w-10 justify-center px-0')}><Icon name="refresh" /></button>
         </>) : null}

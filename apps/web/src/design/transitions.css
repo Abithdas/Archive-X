@@ -421,3 +421,11 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
 .t-chev { display: inline-flex; transition: transform var(--acc-chevron) var(--acc-ease); }
 :has(+ .t-menu:popover-open) > .t-chev { transform: scaleY(-1); }
 @media (prefers-reduced-motion: reduce) { .t-menu, .t-menu > .t-acc-panel-inner, .t-chev { transition: none !important; } }
+
+/* ── Dropdowns that appear and disappear with their button (the player's menus, the country list) ──
+   They are not popovers, so there is no :popover-open to key on; the same unfold, blur and fade plays when they mount. */
+.t-drop-down, .t-drop-up { animation: t-drop-in var(--acc-expand) var(--acc-ease) both; }
+.t-drop-down { --drop-from: inset(0 0 100% 0); }
+.t-drop-up { --drop-from: inset(100% 0 0 0); }
+@keyframes t-drop-in { from { clip-path: var(--drop-from); opacity: 0; filter: blur(2px); } to { clip-path: inset(0 0 0 0 round 12px); opacity: 1; filter: blur(0); } }
+@media (prefers-reduced-motion: reduce) { .t-drop-down, .t-drop-up { animation: none; } }
