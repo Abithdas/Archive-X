@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased (after 30.2.6)
+## 30.2.7 (2026-11-15)
 
 - **Jobs no longer lose their settings, and no longer get stopped while checking snapshots (two causes found in the 30.2.6 log):**
   - The metadata-match stage finishes by writing a progress sentence ("fingerprints 0/21 ok") into the job's row, where the channel pipeline keeps the settings it restarts from. After that, Recover (or resuming after a restart) failed at once with "Select at least one source channel". A progress sentence can no longer replace those settings.
