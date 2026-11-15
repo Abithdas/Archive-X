@@ -84,6 +84,8 @@ struct Door {
 }
 
 async fn start(keys: (&str, &str)) -> Door {
+    // Log to stderr (not captured) so a CI failure shows why a background refresh did not run.
+    let _ = tracing_subscriber::fmt().with_writer(std::io::stderr).with_ansi(false).try_init();
     let dir = tempfile::tempdir().unwrap();
     let backend = Arc::new(Backend { data_dir: dir.path().to_string_lossy().into_owned(), keys: Mutex::new((keys.0.into(), keys.1.into())) });
     let bl = TcpListener::bind("127.0.0.1:0").await.unwrap();
