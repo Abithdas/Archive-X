@@ -42,7 +42,9 @@
       "resources/rust": "rust",
       "resources/lav": "lav",
       "resources/axplayer": "axplayer",
-      "resources/web": "web"
+      "resources/web": "web",
+      "../../../LICENSE": "licenses/LICENSE",
+      "../../../THIRD-PARTY-NOTICES.md": "licenses/THIRD-PARTY-NOTICES.md"
     },
     "windows": {
       "webviewInstallMode": {

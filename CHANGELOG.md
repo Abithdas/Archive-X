@@ -9,6 +9,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 - **Performers and studios:** missing pictures are fetched in the background (and with a "Fetch now" button); SVG logos with a standard editor doctype are accepted; a button restores genders that editing a picture used to wipe; searching accepts part of a name in any order.
 - **People:** the name search can be cancelled and only one is open at a time.
 - **Performance and stability:** the performer page no longer freezes the whole app; the AI page no longer looks empty while it loads; the watchdog guardian, which could not start in the installed app, is off there; reopening the app straight after closing it works.
+- **Rust front door (all on in the desktop app):** the Videos list, tags, photos list, studio details, favourites, scene markers and watch progress are answered by the Rust front door instead of Python (the front door finds the database through the backend; `ARCHIVE_X_NATIVE_ROUTES=none` switches them off). Rust now writes watch history, performer and studio favourites and scene markers (ADR 0007). A race that could stop the first performer-name refresh on Windows ("database is locked") is fixed.
+- **Licence:** GPL-3.0-or-later (ADR 0008); `LICENSE` and `THIRD-PARTY-NOTICES.md` are in the repository and the installer.
 - **Housekeeping:** one command runs every test; one version number; unused frontend code removed; a counter records which API routes are used (for the clean-up); documents reorganised under `docs/`.
 
 ## 30.2.2 (2026-11-14)

@@ -42,3 +42,7 @@ The Windows installer is built by the **Desktop** workflow in GitHub Actions (`.
 - [CONTRIBUTING.md](CONTRIBUTING.md): the rules the work follows
 - [CHANGELOG.md](CHANGELOG.md): what changed in each release
 - [docs/README.md](docs/README.md): all the documents
+
+## Licence
+
+Archive X is free software under the GNU General Public License, version 3 or (at your option) any later version: see [LICENSE](LICENSE). The installer also bundles LAV Filters and FFmpeg (both GPL) and builds on many open-source packages; they are listed with their licences in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), which `python tools/release/gen_notices.py` regenerates.

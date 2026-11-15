@@ -11,3 +11,4 @@ One short page per decision that shaped the code, so the reason is not only in s
 | [0005](0005-desktop-app-only.md) | The desktop app is the only supported way to run Archive X |
 | [0006](0006-one-workspace-and-layout.md) | One Cargo workspace and an `apps/`, `crates/`, `native/`, `packaging/` layout |
 | [0007](0007-rust-writes-watch-history.md) | Rust writes its first tables: watch history entity favourites, scene markers |
+| [0008](0008-gpl-3-licence.md) | Licence: GPL-3.0-or-later |

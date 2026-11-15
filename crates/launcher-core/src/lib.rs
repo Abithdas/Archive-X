@@ -275,22 +275,12 @@ impl Drop for Backend {
 /// Start the front door in front of the backend and wait for it to say which port it bound.
 fn start_front_door(opts: &FrontDoorOptions, key: &str, backend_port: u16, log: &std::sync::Arc<std::sync::Mutex<Vec<String>>>) -> Result<FrontDoor, String> {
     let mut cmd = Command::new(&opts.exe);
-    cmd.args([
-        "--listen",
-        "127.0.0.1:0",
-        "--upstream",
-        &format!("127.0.0.1:{backend_port}"),
-        "--upstream-plain",
-        "--print-ready",
-        "--native-routes",
-        "name_search,name_list,face_learning",
-        "--dist",
-    ])
-    .arg(&opts.dist_dir)
-    .env("ARCHIVE_X_PROXY_KEY", key)
-    .stdin(Stdio::null())
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped());
+    cmd.args(["--listen", "127.0.0.1:0", "--upstream", &format!("127.0.0.1:{backend_port}"), "--upstream-plain", "--print-ready", "--native-routes", &native_routes(), "--dist"])
+        .arg(&opts.dist_dir)
+        .env("ARCHIVE_X_PROXY_KEY", key)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -390,4 +380,14 @@ pub fn backend_exe_in(resource_dir: &Path) -> PathBuf {
 
 pub fn tools_dir_in(resource_dir: &Path) -> PathBuf {
     resource_dir.join("ffmpeg")
+}
+
+/// The routes the front door answers itself in the desktop app: the performer name list and face learning, and every route that reads
+/// or writes the database (the front door asks the backend where it is). `ARCHIVE_X_NATIVE_ROUTES` replaces the list, so a problem with a
+/// route can be switched off without a new build (`none` leaves everything to the backend).
+pub fn native_routes() -> String {
+    match std::env::var("ARCHIVE_X_NATIVE_ROUTES") {
+        Ok(v) if !v.trim().is_empty() => v,
+        _ => "name_search,name_list,face_learning,all".to_string(),
+    }
 }

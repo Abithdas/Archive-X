@@ -2,6 +2,7 @@
 name = "ax-names"
 version = "0.1.0"
 edition = "2021"
+license = "GPL-3.0-or-later"
 description = "A local copy of the performer names StashDB and ThePornDB know: stored, searched and refreshed here (Rust owns its own database file)"
 
 [dependencies]

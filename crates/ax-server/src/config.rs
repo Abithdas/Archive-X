@@ -36,7 +36,7 @@ pub struct Config {
     /// Print `ARCHIVE_X_READY {"port":N,"pid":P}` once listening (how the desktop launcher learns the port).
     pub print_ready: bool,
     pub limits: Limits,
-    /// The database file, needed by routes answered here (`--db`, or ARCHIVE_X_DB).
+    /// The database file, needed by routes answered here (`--db`, or ARCHIVE_X_DB; if neither is given the front door asks the backend where it is).
     pub db: Option<PathBuf>,
     /// Routes answered here instead of by Python: names from `native::ROUTES`, or `all`. Empty by default, so nothing moves unless asked.
     pub native_routes: Vec<String>,
@@ -90,10 +90,6 @@ impl Config {
             return Err("ARCHIVE_X_PROXY_KEY must be set to a random secret of at least 16 characters".into());
         }
         let native_routes: Vec<String> = native.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty() && s != "none").collect();
-        // The performer-name routes keep their own small database and ask the backend who is signed in; only the others read the main database.
-        if native_routes.iter().any(|r| !crate::names::ROUTES.contains(&r.as_str()) && !crate::learning::ROUTES.contains(&r.as_str())) && db.is_none() {
-            return Err("--native-routes needs --db (the database file the routes read)".into());
-        }
         Ok(Config {
             listen,
             upstream,

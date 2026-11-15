@@ -3,6 +3,7 @@ name = "archive-x-desktop"
 version = "0.1.0"
 description = "Archive X desktop app (Tauri shell around the frozen Python backend)"
 edition = "2021"
+license = "GPL-3.0-or-later"
 
 [lib]
 name = "archive_x_desktop_lib"

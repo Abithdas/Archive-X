@@ -157,7 +157,22 @@ pub async fn serve_with_fetch(
         .filter(|r| !crate::names::ROUTES.contains(&r.as_str()) && !crate::learning::ROUTES.contains(&r.as_str()))
         .cloned()
         .collect();
-    let native = Native::new(&database_routes, cfg.db.as_deref(), proxy.clone(), cfg.session_touch_interval)?;
+    // No --db: the backend knows where its database is. If it cannot say, the database routes stay off and Python answers everything.
+    let mut db_path = cfg.db.clone();
+    if !database_routes.is_empty() && db_path.is_none() {
+        for attempt in 0..5 {
+            match proxy.internal_json("/internal/provider-keys").await {
+                Ok(v) => {
+                    db_path = v.get("db_path").and_then(|p| p.as_str()).filter(|p| !p.is_empty()).map(std::path::PathBuf::from);
+                    break;
+                }
+                Err(e) if attempt == 4 => warn!("could not ask the backend where the database is ({e}); the routes that read it stay with Python"),
+                Err(_) => tokio::time::sleep(Duration::from_millis(500)).await,
+            }
+        }
+    }
+    let database_routes = if db_path.is_some() { database_routes } else { Vec::new() };
+    let native = Native::new(&database_routes, db_path.as_deref(), proxy.clone(), cfg.session_touch_interval)?;
     let names = match fetch {
         Some(f) => Names::with_fetch(&cfg.native_routes, proxy.clone(), f, std::time::Duration::ZERO),
         None => Names::new(&cfg.native_routes, proxy.clone()),

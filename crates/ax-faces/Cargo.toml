@@ -2,6 +2,7 @@
 name = "ax-faces"
 version = "0.1.0"
 edition = "2021"
+license = "GPL-3.0-or-later"
 description = "Learns from what a person has confirmed and removed: who a face is NOT, which faces look out of place, and which unnamed faces look like a named person"
 
 [dependencies]
