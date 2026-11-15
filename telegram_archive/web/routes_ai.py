@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from .. import config
 from ..core.ai_assistant import ArchiveXAI, LocalAIError, project_context
@@ -148,6 +148,11 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
             job = model_jobs.get(item["id"]) or {}
             item["busy"] = job.get("state") == "downloading"
             item["error"] = job.get("error", "") if job.get("state") == "error" else ""
+            if item["id"] == "llm":
+                from ..core import local_ai_setup
+                run = local_ai_setup.SETUP.snapshot()
+                item["busy"] = run["state"] == "running"
+                item["error"] = run["error"] if run["state"] == "error" and item["state"] == "not_set_up" else item["error"]
             if item["busy"]:
                 item["state"] = "downloading"
         return out
@@ -181,6 +186,13 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     async def ai_model_install(model_id: str, request: Request):
         require_auth(request)
         from ..core import local_models
+        if model_id == "llm":
+            from ..core import local_ai_setup as setup
+            engines = setup.supported_engines()
+            if not engines:
+                raise HTTPException(400, "This computer needs the assistant set up by hand (Models tab, advanced).")
+            started = setup.SETUP.start(db, ai, setup.recommend(await asyncio.to_thread(setup.memory_gb)), engines[0].key)
+            return {"ok": True, "started": started, "already_running": not started}
         if model_id not in {"faces", "captions", "looks"}:
             raise HTTPException(400, "This model is not downloaded from here; see its hint.")
         if (model_jobs.get(model_id) or {}).get("state") == "downloading":
@@ -249,6 +261,43 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
             raise HTTPException(503, str(exc)) from exc
         return {"ok": True, **result}
 
+
+    # ------------------------------------------------------------------
+    # SUBSECTION: One-click setup of the assistant
+    # Download the engine and a model (checked against pinned checksums), then start and test it.
+    # ------------------------------------------------------------------
+    @router.get("/api/ai/setup")
+    async def ai_setup_state(request: Request):
+        require_auth(request)
+        from ..core import local_ai_setup as setup
+        ram = await asyncio.to_thread(setup.memory_gb)
+        engines = [{"id": e.key, "label": e.label, "size_mb": e.size_mb, "gpu": e.gpu_layers > 0} for e in setup.supported_engines()]
+        return {"ok": True, "supported": bool(engines), "ram_gb": ram, "recommended": setup.recommend(ram), "models": setup.options(ram), "engines": engines,
+                "engine_tag": setup.ENGINE_TAG, "run": setup.SETUP.snapshot()}
+
+    @router.post("/api/ai/setup/start")
+    async def ai_setup_start(request: Request):
+        require_auth(request)
+        from ..core import local_ai_setup as setup
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        model = str(body.get("model") or setup.RECOMMENDED)
+        engine = str(body.get("engine") or (setup.supported_engines()[0].key if setup.supported_engines() else ""))
+        try:
+            started = setup.SETUP.start(db, ai, model, engine)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        db.log(f"Local assistant setup started ({model}, {engine})", event="ai.setup.started")
+        return {"ok": True, "started": started, "already_running": not started}
+
+    @router.post("/api/ai/setup/cancel")
+    async def ai_setup_cancel(request: Request):
+        require_auth(request)
+        from ..core import local_ai_setup as setup
+        setup.SETUP.cancel()
+        return {"ok": True}
 
     # ------------------------------------------------------------------
     # SUBSECTION: History and investigations
@@ -425,6 +474,31 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     # SUBSECTION: Evidence consent
     # Evidence collection, preview, discard and send.
     # ------------------------------------------------------------------
+    @router.post("/api/ai/chat/stream")
+    async def ai_chat_stream(request: Request):
+        """The same turn as /api/ai/chat, sent as it happens: one JSON object per line (status, tool, delta, done or error)."""
+        _, operator = require_auth(request)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        message = str(body.get("message") or "").strip()
+        if not message:
+            raise HTTPException(400, "Message is required")
+        page = str(body.get("page") or "")[:400]
+        selected = body.get("selected") if isinstance(body.get("selected"), dict) else None
+        active = db.ai_active_investigation()
+        context = project_context(db, telegram=telegram, jobs=jobs, governor=governor, page=page, selected=selected)
+
+        def lines():
+            try:
+                for event in ai.chat_events(message, context, operator.get("username") or "operator", int(active["id"])):
+                    yield json.dumps(event, ensure_ascii=False) + "\n"
+            except Exception as exc:   # never leave the page waiting on a stream that just stops
+                yield json.dumps({"t": "error", "detail": f"{type(exc).__name__}: {exc}"[:300]}, ensure_ascii=False) + "\n"
+
+        return StreamingResponse(lines(), media_type="application/x-ndjson", headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+
     @router.post("/api/ai/evidence/decline")
     def ai_evidence_decline(request: Request):
         app_token, _ = require_auth(request)

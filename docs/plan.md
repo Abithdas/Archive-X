@@ -269,7 +269,7 @@ Sizes are relative (S, M, L, XL). I have not estimated calendar time; it depends
 
 **Phase 5. Jobs (L).** Job table, lanes, pause, resume, cancel, as `ax-jobs`. Then the engines that need no Telegram: thumbnails, previews, contact sheets, image derivatives, duplicate fingerprints. Exit: those jobs run and resume after a restart with Python stopped.
 
-**Phase 6. Local AI (M).** Face detection and vectors, content tags, look tags, captions. This is where a better face model is adopted (SCRFD + ArcFace through ONNX Runtime), with a re-analysis job and retuned thresholds. Exit: Find people runs in Rust and existing named people survive.
+**Phase 6. Local AI (M).** Face detection and vectors, content tags, look tags, captions, and the assistant's setup and streaming chat (written in Python in 30.2.x: `core/local_ai_setup.py`, `core/ai_assistant.py`; the engine is the separate llama.cpp program, so only the setup, the tool registry and the chat loop move). This is where a better face model is adopted (SCRFD + ArcFace through ONNX Runtime), with a re-analysis job and retuned thresholds. Exit: Find people runs in Rust and existing named people survive.
 
 **Phase 7. Telegram (XL).** Session and sign-in; channel scans; delete and move with verification; the parallel uploader with resume; the Transfer Manager and Media Manager workflows (about 10,000 lines of procedural code: port by workflow, not file by file). Exit: a full transfer runs in Rust and resumes after being killed.
 

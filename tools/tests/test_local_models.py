@@ -14,7 +14,7 @@ def test_catalog_lists_the_five_models_with_state_and_what_they_power(monkeypatc
     items = lm.catalog({"runtime": {"ready": False, "runtime": {"exists": False}, "model": {"exists": False}}})
     assert [m["id"] for m in items] == ["llm", "faces", "captions", "content", "looks"]
     by = {m["id"]: m for m in items}
-    assert by["llm"]["state"] == "not_set_up" and "Set the llama-server" in by["llm"]["hint"]
+    assert by["llm"]["state"] == "not_set_up" and "Downloads the engine" in by["llm"]["hint"]
     assert by["faces"]["state"] == "not_downloaded" and by["faces"]["installable"]       # opencv is installed here
     assert all(m["powers"] for m in items)
     ready = lm.catalog({"runtime": {"ready": True}})
