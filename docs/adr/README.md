@@ -12,3 +12,4 @@ One short page per decision that shaped the code, so the reason is not only in s
 | [0006](0006-one-workspace-and-layout.md) | One Cargo workspace and an `apps/`, `crates/`, `native/`, `packaging/` layout |
 | [0007](0007-rust-writes-watch-history.md) | Rust writes its first tables: watch history entity favourites, scene markers |
 | [0008](0008-gpl-3-licence.md) | Licence: GPL-3.0-or-later |
+| [0009](0009-backend-crate-shape.md) | The shape of the Rust backend (target crates and rules) |

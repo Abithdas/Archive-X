@@ -20,7 +20,8 @@ How to read it: Part 1 says where the code stands, with numbers measured for thi
 | R4 standards (part) | **Rust done**: `rustfmt.toml` (wide lines, matching the existing style), the whole Rust code formatted in one mechanical commit, `cargo fmt --check` in CI and the `justfile`, `.editorconfig`. **Not done, on purpose**: Python formatting (the code is being deleted) and web formatting (no formatter or eslint config exists; adding one would reformat 29,000 lines for little gain) |
 | R6 one CI pipeline | Skipped: the four workflows (CI, Desktop installer, native player engine, dependency scan) each have a different trigger and cost, so merging them would only make every push slower |
 | R5 licence | Done: GPL-3.0-or-later (ADR 0008), LICENSE, THIRD-PARTY-NOTICES.md, shipped in the installer |
-| R3, Phase 0 onward | Not started |
+| R3 | Decided (ADR 0009) and every crate has a README; no code moved yet, crates are created when their first content arrives |
+| Phase 0 onward | Not started |
 
 ---
 
