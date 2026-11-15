@@ -334,3 +334,103 @@ impl Native {
         }
     }
 }
+
+/// `GET /api/photos` for the plain cases: channels, the four sort orders and paging. A search, favourites, face or content filters, or a
+/// number Python would read differently all go on to Python.
+fn photos_request(params: &HashMap<String, String>) -> Option<(i64, i64, Vec<String>, &'static str)> {
+    for (k, v) in params {
+        let known = matches!(k.as_str(), "page" | "per" | "channels" | "sort");
+        if !known && !v.trim().is_empty() {
+            return None; // q, favorites, face_*, content_tags ... (an empty value changes nothing)
+        }
+        if !known && !matches!(k.as_str(), "q" | "favorites" | "favorite_ids" | "face_group_id" | "face_performer_id" | "face_group_ids" | "content_tags" | "face_scope") {
+            return None;
+        }
+    }
+    let number = |k: &str, default: i64| -> Option<i64> {
+        match params.get(k).map(String::as_str) {
+            None | Some("") => Some(default),
+            Some(v) => plain_int(v),
+        }
+    };
+    let page = number("page", 0)?.max(0);
+    let per = number("per", 48)?.clamp(1, 1000);
+    let raw = params.get("channels").map(String::as_str).unwrap_or("");
+    if !raw.is_ascii() {
+        return None;
+    }
+    let mut channels: Vec<String> = Vec::new();
+    for c in raw.split(',').map(str::trim).filter(|c| !c.is_empty()) {
+        if !channels.iter().any(|x| x == c) {
+            channels.push(c.to_string());
+        }
+    }
+    channels.truncate(250);
+    let sort = match params.get("sort").map(String::as_str).unwrap_or("date_desc") {
+        "date_asc" => "date_asc",
+        "name_asc" => "name_asc",
+        "size_desc" => "size_desc",
+        _ => "date_desc",
+    };
+    Some((page, per, channels, sort))
+}
+
+fn photos_payload(c: &Connection, page: i64, per: i64, channels: &[String], sort: &'static str) -> ax_db::rusqlite::Result<Value> {
+    let order = match sort {
+        "date_asc" => "COALESCE(NULLIF(p.message_date,''),p.created_at) ASC,p.message_id ASC",
+        "name_asc" => "p.filename COLLATE NOCASE ASC,p.message_id DESC",
+        "size_desc" => "p.size DESC,p.message_id DESC",
+        _ => "COALESCE(NULLIF(p.message_date,''),p.created_at) DESC,p.message_id DESC",
+    };
+    let (w, mut params): (String, Vec<Sql>) = if channels.is_empty() {
+        ("1=1".into(), Vec::new())
+    } else {
+        (format!("1=1 AND p.channel_id IN ({})", vec!["?"; channels.len()].join(",")), channels.iter().map(|c| Sql::Text(c.clone())).collect())
+    };
+    let total: i64 = c.query_row(
+        &format!("SELECT COUNT(*) AS n FROM photo_library_items p LEFT JOIN channels c ON c.telegram_id=p.channel_id WHERE {w}"),
+        ax_db::rusqlite::params_from_iter(params.iter()),
+        |row| row.get(0),
+    )?;
+    params.push(Sql::Integer(per));
+    params.push(Sql::Integer(page * per));
+    let rows = rows_with(
+        c,
+        &format!(
+            "SELECT p.id,p.channel_id,p.message_id,p.filename,p.caption,p.mime_type,p.size,p.width,p.height,\
+             p.message_date,p.source_kind,p.updated_at,COALESCE(c.title,'Unknown channel') AS channel_title \
+             FROM photo_library_items p LEFT JOIN channels c ON c.telegram_id=p.channel_id WHERE {w} ORDER BY {order} LIMIT ? OFFSET ?"
+        ),
+        ax_db::rusqlite::params_from_iter(params.iter()),
+    )?;
+    let items: Vec<Value> = rows
+        .into_iter()
+        .map(|mut d| {
+            let cid = match d.get("channel_id") {
+                Some(Value::String(s)) => s.clone(),
+                Some(Value::Null) | None => String::new(),
+                Some(other) => other.to_string(),
+            };
+            let mid = d.get("message_id").and_then(Value::as_i64).unwrap_or(0);
+            let stamp = d.get("updated_at").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or("0").replace(':', "");
+            for (key, kind) in [("thumbnail_url", "thumbnail"), ("preview_url", "preview"), ("image_url", "image")] {
+                d.insert(key.into(), Value::String(format!("/api/photos/{cid}/{mid}/{kind}?v={stamp}")));
+            }
+            Value::Object(d)
+        })
+        .collect();
+    Ok(serde_json::json!({ "ok": true, "items": items, "total": total, "page": page, "per": per, "sort": sort }))
+}
+
+impl Native {
+    pub(crate) async fn photos_list(&self, query: Option<&str>, request: &HeaderMap) -> Option<Response<Body>> {
+        let (page, per, channels, sort) = photos_request(&query_params(query)?)?;
+        match self.db.read(move |c| photos_payload(c, page, per, &channels, sort)).await {
+            Ok(v) => Some(json_response(request, serde_json::to_vec(&v).unwrap_or_default())),
+            Err(e) => {
+                tracing::error!("photos: {e}");
+                Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The photos could not be read"))
+            }
+        }
+    }
+}

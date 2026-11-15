@@ -52,6 +52,7 @@ fn database(extra: impl FnOnce(&Connection)) -> (tempfile::TempDir, std::path::P
         "video_tags",
         "entity_favorites",
         "studio_image_cache",
+        "photo_library_items",
     ] {
         create_table(&c, &snapshot, t);
     }
@@ -127,7 +128,7 @@ async fn door(extra: impl FnOnce(&Connection)) -> Door {
         print_ready: false,
         limits: Limits::default(),
         db: Some(dbpath),
-        native_routes: vec!["library_list".into(), "tags_list".into(), "studio_metadata".into()],
+        native_routes: vec!["library_list".into(), "tags_list".into(), "studio_metadata".into(), "photos_list".into()],
         session_touch_interval: Duration::from_secs(300),
     });
     tokio::spawn(async move {
@@ -263,4 +264,27 @@ async fn a_studios_metadata_has_the_row_and_its_providers() {
     assert_eq!(p, ["stashdb", "tpdb"], "ordered by provider");
     let missing = get(d.addr, "/api/studios/99/metadata", "").await;
     assert_eq!((missing.status, json(&missing)["detail"].as_str().map(String::from)), (404, Some("Studio not found".into())));
+}
+
+#[tokio::test]
+async fn photos_are_listed_with_their_urls_and_filters_go_to_python() {
+    let d = door(|c| {
+        c.execute("INSERT INTO photo_library_items(id,channel_id,message_id,filename,size,message_date,updated_at,created_at) VALUES (1,'-1001',5,'b.jpg',10,'2025-01-01','2025-02-02T10:11:12','x'),(2,'-1001',6,'a.jpg',30,'2025-03-01',NULL,'x'),(3,'-1009',7,'c.jpg',20,'','','2025-02-01')", []).unwrap();
+    })
+    .await;
+    let r = get(d.addr, "/api/photos?q=&page=0&per=48&sort=date_desc", "").await;
+    assert_eq!((r.status, r.headers["x-served-by"].as_str()), (200, "rust"));
+    let v = json(&r);
+    assert_eq!(keys(&v), ["ok", "items", "total", "page", "per", "sort"]);
+    let order: Vec<i64> = v["items"].as_array().unwrap().iter().map(|x| x["id"].as_i64().unwrap()).collect();
+    assert_eq!((v["total"].as_i64(), order), (Some(3), vec![2, 3, 1]));
+    assert_eq!(v["items"][2]["thumbnail_url"], "/api/photos/-1001/5/thumbnail?v=2025-02-02T101112");
+    assert_eq!(v["items"][0]["image_url"], "/api/photos/-1001/6/image?v=0", "no update time: 0");
+    assert_eq!(v["items"][1]["channel_title"], "Unknown channel");
+    let by_size = json(&get(d.addr, "/api/photos?sort=size_desc&channels=-1001,-1001", "").await);
+    let ids: Vec<i64> = by_size["items"].as_array().unwrap().iter().map(|x| x["id"].as_i64().unwrap()).collect();
+    assert_eq!((by_size["total"].as_i64(), ids), (Some(2), vec![2, 1]));
+    for q in ["q=a", "favorites=1", "face_group_id=3", "per=x", "content_tags=x"] {
+        assert_eq!(json(&get(d.addr, &format!("/api/photos?{q}"), "").await)["from"], "python", "{q}");
+    }
 }

@@ -22,7 +22,7 @@ use crate::proxy::{Body, Proxy};
 
 /// Every route that can be answered here, by name.
 pub const ROUTES: &[&str] =
-    &["photos_channels", "performers_list", "face_groups_fast", "channel_videos", "studio_videos", "tag_videos", "library_list", "tags_list", "studio_metadata"];
+    &["photos_channels", "performers_list", "face_groups_fast", "channel_videos", "studio_videos", "tag_videos", "library_list", "tags_list", "studio_metadata", "photos_list"];
 
 /// A request that belongs to an enabled native route.
 pub struct Match {
@@ -79,6 +79,7 @@ impl Native {
             "/api/photos/faces/groups" => ("face_groups_fast", None),
             "/api/library" => ("library_list", None),
             "/api/tags" => ("tags_list", None),
+            "/api/photos" => ("photos_list", None),
             _ => {
                 let rest = path.strip_prefix("/api/")?;
                 let (kind, tail) = rest.split_once('/')?;
@@ -126,6 +127,11 @@ impl Native {
             }
             "studio_metadata" => {
                 let resp = self.studio_metadata(m.id?, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "photos_list" => {
+                let resp = self.photos_list(query, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }
