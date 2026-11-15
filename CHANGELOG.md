@@ -5,6 +5,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 ## Next release (not published)
 
 - **Video favourites (the star on the Videos page, and the bulk favourite) are answered by the Rust front door**, with the same answers and the same database changes as Python (write parity: 51 of 51 scenarios identical). Rust's "cross-site request refused" answer now uses Python's wording.
+- **Fix (a Telegram channel-to-channel transfer was stopped by the watchdog right after preparation, from the 15 Nov log, 2 of 2 attempts):** after the Metadata & Assets preparation the transfer reads the source messages again, 100 per Telegram call. Telegram answered each call with a 20 to 30 s FloodWait (the account had just been used heavily by the preparation), and the loop printed nothing until it finished, so the job showed no activity for two minutes and the watchdog force-stopped it. Every call is now preceded by a progress line ("Reading source messages from Telegram: 300 of 1,252"), which counts as activity. **Not fixed, only found:** 4 of the 25 videos could not get playback snapshots in both runs ("Fetched GOP range does not contain all requested samples", "Invalid MP4 NAL length", one local 5XX). That looks like a short fetch of the tail of the file, but the log does not show the cause.
 - **Fix (writer):** if a database commit failed, for example because another process held the lock, the Rust writer stayed inside the open transaction and every later write failed until the app restarted. It now rolls back.
 
 ## 30.2.7 (2026-11-15)

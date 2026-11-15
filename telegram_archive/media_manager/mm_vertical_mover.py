@@ -1391,6 +1391,9 @@ async def transfer_scan_candidates(client, source, source_mode, orientation, sta
         for offset in range(0, len(known_ids), 100):
             await transfer_control_checkpoint()
             batch_ids = known_ids[offset:offset + 100]
+            # Telegram may answer each call with a FloodWait of about 30 s. A line before every call is the transfer's sign of life:
+            # without it the watchdog saw no activity for minutes and force-stopped the job (13 Nov log, 2 of 2 attempts).
+            print(f"Reading source messages from Telegram: {min(offset + 100, len(known_ids)):,} of {len(known_ids):,}")
             batch = await client.get_messages(source, ids=batch_ids)
             if not isinstance(batch, list):
                 batch = [batch] if batch else []
@@ -1987,6 +1990,7 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
                 restored = []
                 for pos in range(0, len(ids), 100):
                     await transfer_control_checkpoint()
+                    print(f"Restoring source messages from Telegram: {min(pos + 100, len(ids)):,} of {len(ids):,}")
                     batch = await client.get_messages(source, ids=ids[pos:pos + 100])
                     if not isinstance(batch, list):
                         batch = [batch] if batch else []
