@@ -295,7 +295,7 @@ Sizes are relative (S, M, L, XL). I have not estimated calendar time; it depends
 | 8 | R1, R2: new layout, one Cargo workspace | M | Nothing; one release to prove the build |
 | 9 | R3 to R6: crate shape, standards, repository files, one CI | M | Answer to question 3 |
 | 10 | Phase 0: the Telegram and model trials | S | Question 2: your account for the trial |
-| 11 | Phase 1: reading in Rust | M | |
+| 11 | Phase 1: reading in Rust | M | Started: `/api/library` (no search text) ported, 302/302 parity on the fixture, off by default; next video detail |
 | 12 | Phases 2 to 9, in order | L to XL | A release and a week of logs after each |
 
 Steps 2, 3, 5 and 6 do not depend on each other and can go in any order. Step 7 must follow step 4. Step 8 should follow step 7, so less code is moved.

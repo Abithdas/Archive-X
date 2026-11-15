@@ -12,6 +12,15 @@
 /api/library?channels={channels}&page=0&per=24&sort=date_desc&q=zzzz-no-match
 /api/library?channels={channels}&page=0&per=24&sort=date_desc&favorites=1
 /api/library?channels=&page=0&per=24
+/api/library?channels={channels}&page=0&per=24&resolution=1080
+/api/library?channels={channels}&page=0&per=24&resolution=480&sort=size_desc
+/api/library?page=0&per=24&studio=a
+/api/library?page=0&per=24&performer=a&sort=performer_asc
+/api/library?page=0&per=24&tag=a&sort=tag_asc
+/api/library?page=0&per=24&date_from=2025-01-01&date_to=2025-06-30
+/api/library?page=0&per=24&message_id=5
+/api/library?page=0&per=500&sort=bogus
+/api/library?page=-3&per=0
 /api/library?channels={channels}&page=999&per=24
 /api/photos?channels={channels}&page=0&per=48&q=&sort=date_desc
 /api/photos?channels={channels}&page=0&per=48&q=&sort=date_asc

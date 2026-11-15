@@ -164,16 +164,18 @@ const IN: &str = "Cookie: session=ok\r\n";
 async fn filled(d: &Door) {
     let r = send(d.addr, "POST", "/api/photos/faces/performers/name-list/sync", IN).await;
     assert_eq!(r.status, 200, "{}", r.body);
+    let mut last = String::new();
     for _ in 0..600 {
         // up to 30 s: a busy Windows runner has been seen to need more than 5
         let s = send(d.addr, "GET", "/api/photos/faces/performers/name-list", IN).await;
+        last = s.body.clone();
         let v: Value = serde_json::from_str(&s.body).unwrap();
         if v["total"].as_i64().unwrap_or(0) > 0 && v["providers"]["stashdb"]["status"] == "idle" {
             return;
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    panic!("the name list never filled");
+    panic!("the name list never filled; last status: {last}");
 }
 
 #[tokio::test]
