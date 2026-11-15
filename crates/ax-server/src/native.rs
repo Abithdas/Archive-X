@@ -21,7 +21,7 @@ use crate::optimize::json_response;
 use crate::proxy::{Body, Proxy};
 
 /// Every route that can be answered here, by name.
-pub const ROUTES: &[&str] = &["photos_channels", "performers_list", "face_groups_fast", "channel_videos", "studio_videos", "tag_videos"];
+pub const ROUTES: &[&str] = &["photos_channels", "performers_list", "face_groups_fast", "channel_videos", "studio_videos", "tag_videos", "library_list"];
 
 /// A request that belongs to an enabled native route.
 pub struct Match {
@@ -32,7 +32,7 @@ pub struct Match {
 pub struct Native {
     enabled: HashSet<&'static str>,
     auth: Auth,
-    db: Db,
+    pub(crate) db: Db,
     proxy: Arc<Proxy>,
     touched: Mutex<HashMap<String, Instant>>,
     touch_interval: Duration,
@@ -76,6 +76,7 @@ impl Native {
             "/api/photos/channels" => ("photos_channels", None),
             "/api/performers" => ("performers_list", None),
             "/api/photos/faces/groups" => ("face_groups_fast", None),
+            "/api/library" => ("library_list", None),
             _ => {
                 let rest = path.strip_prefix("/api/")?;
                 let (kind, tail) = rest.split_once('/')?;
@@ -120,6 +121,11 @@ impl Native {
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }
+            "library_list" => {
+                let resp = self.library_list(query, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
             "channel_videos" | "studio_videos" | "tag_videos" => {
                 let resp = self.video_list(route, m.id?, query, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
@@ -131,7 +137,7 @@ impl Native {
 
     /// Python slides a session's expiry on every request it answers. Requests answered here do not reach it, so now and then
     /// one cheap authenticated call tells it the session is still in use (it writes the new expiry to the database itself).
-    fn keep_session_alive(&self, headers: &HeaderMap, peer: SocketAddr, _user: &str) {
+    pub(crate) fn keep_session_alive(&self, headers: &HeaderMap, peer: SocketAddr, _user: &str) {
         let cookie = headers.get_all(hyper::header::COOKIE).iter().filter_map(|v| v.to_str().ok()).collect::<Vec<_>>().join("; ");
         let Some(token) = cookie_value(&cookie, SESSION_COOKIE).map(str::to_string) else { return };
         {
@@ -166,7 +172,7 @@ impl Native {
 }
 
 /// A SQLite value as the Python `sqlite3` module would hand it to `json.dumps`.
-fn json_value(v: ValueRef<'_>) -> Value {
+pub(crate) fn json_value(v: ValueRef<'_>) -> Value {
     match v {
         ValueRef::Null => Value::Null,
         ValueRef::Integer(i) => Value::from(i),
@@ -235,7 +241,7 @@ fn photos_channels_rows(conn: &Connection) -> ax_db::rusqlite::Result<Vec<Map<St
 }
 
 /// The query string as Starlette's `query_params` sees it, or `None` when a name is repeated (the Rust side then declines the request).
-fn query_params(query: Option<&str>) -> Option<HashMap<String, String>> {
+pub(crate) fn query_params(query: Option<&str>) -> Option<HashMap<String, String>> {
     let mut out = HashMap::new();
     for pair in query.unwrap_or("").split('&').filter(|p| !p.is_empty()) {
         let (k, v) = pair.split_once('=').unwrap_or((pair, ""));
@@ -473,7 +479,7 @@ impl Native {
 // ---- the video lists of a channel, a studio and a tag --------------------------------------------------------------------------------
 
 /// What Python's `x or y` thinks is true.
-fn truthy(v: Option<&Value>) -> bool {
+pub(crate) fn truthy(v: Option<&Value>) -> bool {
     match v {
         None | Some(Value::Null) => false,
         Some(Value::Bool(b)) => *b,
@@ -485,16 +491,16 @@ fn truthy(v: Option<&Value>) -> bool {
 }
 
 /// `[x for x in (value or "").split(",") if x]`
-fn csv_list(v: Option<&Value>) -> Vec<String> {
+pub(crate) fn csv_list(v: Option<&Value>) -> Vec<String> {
     v.and_then(Value::as_str).unwrap_or("").split(',').filter(|x| !x.is_empty()).map(str::to_string).collect()
 }
 
-fn strings(v: Vec<String>) -> Value {
+pub(crate) fn strings(v: Vec<String>) -> Value {
     Value::Array(v.into_iter().map(Value::String).collect())
 }
 
 /// `str(value)` for a number or text, as it appears inside an f-string.
-fn py_str(v: Option<&Value>) -> String {
+pub(crate) fn py_str(v: Option<&Value>) -> String {
     match v {
         None | Some(Value::Null) => "None".to_string(),
         Some(Value::String(s)) => s.clone(),
@@ -503,7 +509,7 @@ fn py_str(v: Option<&Value>) -> String {
 }
 
 /// performers = unique(performers + local performers), keeping order.
-fn merged_performers(d: &Map<String, Value>) -> Vec<String> {
+pub(crate) fn merged_performers(d: &Map<String, Value>) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for name in csv_list(d.get("performers")).into_iter().chain(csv_list(d.get("local_performers"))) {
         if !out.contains(&name) {
@@ -562,7 +568,7 @@ impl Native {
 /// to every video in one go, which multiplies the rows (a video with 113 performers, 26 studios and 3 tags produced 8,000 rows before the
 /// grouping: 125 ms for 18 videos against 2.4 ms for these). The lists come out the same, in the same order, on every database tried
 /// (SQLite does not promise an order for GROUP_CONCAT(DISTINCT ...); the parity harness checks it on the big library).
-fn name_lists(performers: &str, studios: &str, tags: &str) -> String {
+pub(crate) fn name_lists(performers: &str, studios: &str, tags: &str) -> String {
     format!(
         "(SELECT GROUP_CONCAT(DISTINCT p.name) FROM video_performers vp JOIN performers p ON p.id=vp.performer_id WHERE vp.video_id=m.id) AS {performers}, \
          (SELECT GROUP_CONCAT(DISTINCT lp.name) FROM local_video_performers lvp JOIN performers lp ON lp.id=lvp.performer_id WHERE lvp.video_id=m.id) AS local_performers, \
@@ -726,7 +732,7 @@ fn video_list_rows(c: &Connection, route: &str, id: i64) -> ax_db::rusqlite::Res
     }
 }
 
-fn rows_with(conn: &Connection, sql: &str, params: impl ax_db::rusqlite::Params) -> ax_db::rusqlite::Result<Vec<Map<String, Value>>> {
+pub(crate) fn rows_with(conn: &Connection, sql: &str, params: impl ax_db::rusqlite::Params) -> ax_db::rusqlite::Result<Vec<Map<String, Value>>> {
     let mut stmt = conn.prepare(sql)?;
     let names: Vec<String> = stmt.column_names().map(|s| s.to_string()).collect();
     let rows = stmt.query_map(params, |row| {
