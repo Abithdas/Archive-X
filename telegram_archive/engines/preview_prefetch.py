@@ -161,8 +161,13 @@ def _row_needs_remote_playback_assets(row) -> bool:
     return not _mp4_index_cache_ready(cid, mid, size)
 
 
-def _row_needs_scan_work(row) -> bool:
-    """Check both saved DB status and on-disk preview/playback artifacts."""
+def _scan_work_reason(row) -> str:
+    """Why this video still needs snapshot work, in plain words; "" when it needs none.
+
+    A scanned video can still be listed: the check wants all 36 frame files, a validation receipt, the grid picture, a saved
+    database row that matches the current paths and version, and the playback-snapshot card image. Naming the first thing that
+    is missing is what lets a log answer "it is in my Library, why is it listed?".
+    """
     try:
         cid, mid = int(row["source_channel"]), int(row["source_message_id"])
         # Local-only migration can reuse valid frame sets saved by older preview
@@ -170,27 +175,39 @@ def _row_needs_scan_work(row) -> bool:
         promote_existing_local_frames_sync(cid, mid)
         frames_dir = preview_frames_path(cid, mid)
         rep = representative_frame_path(cid, mid)
-        local_frames = rep.is_file() and all(
-            (frames_dir / f"frame_{idx:02d}.jpg").is_file()
-            and (frames_dir / f"frame_{idx:02d}.jpg").stat().st_size >= MIN_FRAME_BYTES
-            for idx in range(1, FRAME_COUNT + 1)
+        if not frames_dir.is_dir():
+            return "no snapshot folder on disk"
+        have = sum(
+            1 for idx in range(1, FRAME_COUNT + 1)
+            if (frames_dir / f"frame_{idx:02d}.jpg").is_file() and (frames_dir / f"frame_{idx:02d}.jpg").stat().st_size >= MIN_FRAME_BYTES
         )
-        receipt = _validation_receipt_ready(frames_dir) if local_frames else None
+        if have < FRAME_COUNT:
+            return f"only {have} of {FRAME_COUNT} snapshot frames on disk"
+        if not rep.is_file():
+            return "representative frame missing"
+        if not _validation_receipt_ready(frames_dir):
+            return "snapshot validation receipt missing or out of date"
         sprite = grid_sprite_path(cid, mid)
-        sprite_ready = sprite.is_file() and sprite.stat().st_size >= 1024
-        cache_ready = bool(
-            str(row["cache_status"] or "").upper() == "READY"
-            and int(row["version"] or 0) == PREVIEW_VERSION
-            and str(row["path"] or "") == str(rep)
-            and str(row["frames_path"] or "") == str(frames_dir)
-            and int(row["frame_count"] or 0) == FRAME_COUNT
-            and str(row["thumbnail_source"] or "") == "playback-snapshot"
-        )
-        if not (local_frames and receipt and sprite_ready and cache_ready):
-            return True
-        return _row_needs_remote_playback_assets(row)
+        if not (sprite.is_file() and sprite.stat().st_size >= 1024):
+            return "grid picture missing"
+        if str(row["cache_status"] or "").upper() != "READY":
+            return f"database says snapshots are {str(row['cache_status'] or 'not recorded').lower()}"
+        if int(row["version"] or 0) != PREVIEW_VERSION:
+            return f"database has snapshot version {int(row['version'] or 0)}, now {PREVIEW_VERSION}"
+        if str(row["path"] or "") != str(rep) or str(row["frames_path"] or "") != str(frames_dir):
+            return "database points at a different snapshot folder (data folder moved?)"
+        if int(row["frame_count"] or 0) != FRAME_COUNT:
+            return f"database counts {int(row['frame_count'] or 0)} frames"
+        if str(row["thumbnail_source"] or "") != "playback-snapshot":
+            return f"card image comes from '{row['thumbnail_source'] or 'nowhere'}', not the playback snapshot"
+        return "playback assets missing" if _row_needs_remote_playback_assets(row) else ""
     except (OSError, TypeError, ValueError, KeyError):
-        return True
+        return "snapshot files could not be checked"
+
+
+def _row_needs_scan_work(row) -> bool:
+    """Check both saved DB status and on-disk preview/playback artifacts."""
+    return bool(_scan_work_reason(row))
 
 
 
@@ -736,15 +753,24 @@ def _pending_rows(db, limit: int = 0, channels: list[int] | None = None, scope: 
         rows = db.conn.execute(query, params).fetchall()
     if local_filter:
         pending = []
+        reasons: list[str] = []
         for index, row in enumerate(rows, 1):
             # Each row checks about 40 local files; on a channel with thousands of videos this loop runs for minutes, so say so now and then
             # (the job's watchdog stopped the whole job after 60 s of silence).
             if progress is not None and index % 200 == 0:
                 progress(index, len(rows))
-            if _row_needs_scan_work(row):
+            why = _scan_work_reason(row)
+            if why:
                 pending.append(row)
+                if len(reasons) < 12:
+                    reasons.append(f"{row['filename'] or row['title'] or row['source_message_id']} (message {row['source_message_id']}): {why}")
                 if limit and len(pending) >= int(limit):
                     break
+        if reasons:
+            try:
+                db.log(f"Snapshot check: {len(pending)} video(s) need snapshot work. " + " | ".join(reasons), "INFO")
+            except Exception:
+                _swallowed_note("preview_prefetch._pending_rows")
         return pending
     return rows
 
