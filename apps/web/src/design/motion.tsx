@@ -49,3 +49,15 @@ export const listItem = {
 
 /** The one spring for sliding highlights and pop-ups. */
 export const spring = { type: 'spring', stiffness: 520, damping: 38, mass: 0.7 } as const
+
+/**
+ * A row in a review list, on the Transitions.dev "Panel reveal" curve: a new one slides up into place with a hint of blur, and when one is
+ * removed the rows below it slide up to fill the gap on the same curve. (The removed one has already dissolved: see smoke.ts.)
+ */
+export const panelItem = {
+  layout: 'position',
+  initial: { opacity: 0, y: 24, filter: 'blur(2px)' },
+  animate: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } },
+  exit: { opacity: 0, transition: { duration: 0.12 } },
+  transition: { layout: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } },
+} as const

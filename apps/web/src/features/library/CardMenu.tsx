@@ -6,6 +6,7 @@ import { ApiError, api, thumbUrl } from '@/api/client'
 import type { LibraryItem } from '@/api/types'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
+import { smokeKey } from '@/design/smoke'
 import { cn } from '@/design/cn'
 import { MappingDialog } from './MappingDialog'
 import { MoveVideo } from './MoveVideo'
@@ -67,6 +68,7 @@ export function CardMenu({ item, className }: { item: LibraryItem; className?: s
       await deleteVideo(item)
       setConfirm(false)
       toast.success('Video deleted')
+      await smokeKey(`card:${item._cid}:${item.id}`)   // the card dissolves into smoke, then the grid closes the gap
       await Promise.all([qc.invalidateQueries({ queryKey: ['library'] }), qc.invalidateQueries({ queryKey: ['channels'] })])
     } catch (e) {
       toast.error(MSG(e, 'Video was not deleted'))

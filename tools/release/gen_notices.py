@@ -21,7 +21,7 @@ BUNDLED = [
     ("llama.cpp engine (llama-server)", "MIT", "https://github.com/ggml-org/llama.cpp", "not in the installer: downloaded when the person presses Set up on AI Assistance (release b12400, pinned by SHA-256), run as a separate program on this PC"),
     ("Qwen3 chat models (1.7B, 4B Instruct 2507, 8B), GGUF quantisations by bartowski", "Apache-2.0 (Qwen3 weights; quantisations as published)", "https://huggingface.co/bartowski", "not in the installer: one is downloaded when the person presses Set up (pinned by SHA-256) and used only on this PC"),
     ("SmoothUI theme toggle and favicon search (adapted)", "MIT, Copyright (c) 2024 Eduardo Calvo", "https://github.com/educlopez/smoothui", "apps/web/src/design/ThemeToggle.tsx and apps/web/src/app/SearchField.tsx, adapted to the app"),
-    ("Transitions.dev motion (like button, notification badge, icon swap, error shake, input clear, accordion, number subtle change, spinning counter, shimmer text, thinking states, streaming text, matrix dot loader)", "Transitions.dev License (free for personal and commercial use, no redistribution of the library itself)", "https://github.com/Jakubantalik/transitions.dev", "apps/web/src/design/transitions.css, the published CSS copied unchanged"),
+    ("Transitions.dev motion (like button, notification badge, icon swap, error shake, input clear, accordion, number subtle change, spinning counter, shimmer text, thinking states, streaming text, matrix dot loader, panel reveal)", "Transitions.dev License (free for personal and commercial use, no redistribution of the library itself)", "https://github.com/Jakubantalik/transitions.dev", "apps/web/src/design/transitions.css, the published CSS copied unchanged"),
 ]
 
 
