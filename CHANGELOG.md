@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Next release (not published)
+## 30.3.0 (2026-11-15)
 - Review panels (Scene Match Review, Duplicate review, the earlier automatic matches): click a small picture and it opens to half the window with a 3D tilt that settles flat, so it can be reviewed properly; click again (or press Escape) and it flies back to its place the same way. The video snapshots, the provider scene picture and the thumbnails all do it.
 - Deleting now has a smoky dissolve: a deleted video card, a deleted duplicate copy and an approved/rejected/kept review row are displaced and blurred by moving noise while smoke rises from where they were, then everything below slides up to close the gap on the Transitions.dev "Panel reveal" curve (400 ms, soft blur). In the duplicate review each deleted copy goes one by one and the list no longer blanks and reloads between them.
 - The zoom and the smoke are written for Archive X from the behaviour of Transitions.dev's "Image open tilt" and "Delete with smoky dissolve" (both paid); their code is not used. Everything follows the system's reduce-motion setting.
