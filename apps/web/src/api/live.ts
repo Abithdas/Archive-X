@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { api } from './client'
 import { queryKeys } from './hooks'
 import type { Status } from './types'
 
@@ -15,6 +16,19 @@ export function parseStatusFrame(data: unknown): Status | null {
     return null
   }
 }
+
+/** What the live connection tells the backend's diagnostics when it closes, so a red dot can be explained from the logs zip. */
+export function closeReport(e: { code: number; reason: string; wasClean: boolean }, upMs: number | null, attempt: number, online: boolean) {
+  return {
+    type: 'live.socket_closed',
+    level: 'WARN',
+    message: `Live updates connection closed (code ${e.code}${e.reason ? `, ${e.reason}` : ''}); ${upMs === null ? 'it never opened' : `it was open for ${Math.round(upMs / 1000)} s`}`,
+    data: { code: e.code, reason: e.reason.slice(0, 120), clean: e.wasClean, open_seconds: upMs === null ? null : Math.round(upMs / 1000), retry: attempt, browser_online: online },
+  }
+}
+
+/** At most one report a minute: a flapping connection must not flood the log. */
+export const REPORT_EVERY_MS = 60_000
 
 /** Reconnect delay with exponential backoff, capped. */
 export const backoffMs = (attempt: number) => Math.min(15_000, 500 * 2 ** Math.min(attempt, 5))
@@ -33,23 +47,33 @@ export function useLiveStatus(enabled: boolean): LiveState {
     let timer: ReturnType<typeof setTimeout> | undefined
     let attempt = 0
     let stopped = false
+    let openedAt: number | null = null
+    let lastReport = 0
 
     const connect = () => {
       if (stopped) return
       setState('connecting')
       const scheme = location.protocol === 'https:' ? 'wss' : 'ws'
       socket = new WebSocket(`${scheme}://${location.host}/ws`)
+      openedAt = null
       socket.onopen = () => {
         attempt = 0
+        openedAt = Date.now()
         setState('live')
       }
       socket.onmessage = (event) => {
         const frame = parseStatusFrame(event.data)
         if (frame) client.setQueryData(queryKeys.status, frame)
       }
-      socket.onclose = () => {
+      socket.onclose = (e) => {
         if (stopped) return
         setState('offline')
+        const now = Date.now()
+        if (now - lastReport >= REPORT_EVERY_MS) {
+          lastReport = now
+          const report = closeReport(e, openedAt === null ? null : now - openedAt, attempt, typeof navigator === 'undefined' ? true : navigator.onLine)
+          void api('/api/diagnostics/client', { method: 'POST', json: { events: [report] } }).catch(() => undefined)
+        }
         timer = setTimeout(connect, backoffMs(attempt++))
       }
       socket.onerror = () => socket?.close()
