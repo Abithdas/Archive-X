@@ -157,6 +157,8 @@ impl Store {
     }
 
     fn from_connection(conn: Connection) -> rusqlite::Result<Store> {
+        // Two opens of a new file can overlap (a status request and a refresh start together); wait for the other instead of failing with "database is locked".
+        conn.busy_timeout(std::time::Duration::from_secs(10))?;
         conn.execute_batch(
             "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;
              CREATE TABLE IF NOT EXISTS names (

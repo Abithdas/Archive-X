@@ -39,6 +39,7 @@ pub struct Names {
     fetch: Arc<dyn Fetch>,
     enabled: (bool, bool), // (search, list+sync)
     store: Mutex<Option<Arc<Store>>>,
+    opening: tokio::sync::Mutex<()>,
     keys: Mutex<Option<(Instant, Keys)>>,
     running: AtomicBool,
     stop: Arc<AtomicBool>,
@@ -63,6 +64,7 @@ impl Names {
             fetch,
             enabled: (search, list),
             store: Mutex::new(None),
+            opening: tokio::sync::Mutex::new(()),
             keys: Mutex::new(None),
             running: AtomicBool::new(false),
             stop: Arc::new(AtomicBool::new(false)),
@@ -111,6 +113,10 @@ impl Names {
     async fn store(&self) -> Result<Arc<Store>, String> {
         if let Some(s) = self.store.lock().unwrap().clone() {
             return Ok(s);
+        }
+        let _one_at_a_time = self.opening.lock().await;
+        if let Some(s) = self.store.lock().unwrap().clone() {
+            return Ok(s); // another request opened it while this one waited
         }
         *self.keys.lock().unwrap() = None; // the path comes with a fresh answer
         let (_, path) = self.config().await?;
