@@ -1053,6 +1053,32 @@ def register_library_routes(
                event="photo_library.faces_moved", details={"performer_id": performer_id, **result})
         return {"ok": True, **result}
 
+    @router.post("/api/photos/faces/learning/not-this-person")
+    async def photo_faces_not_this_person(request: Request):
+        """Turn down suggested look-alikes: these faces are not this performer. Nothing is moved; face learning stops offering them."""
+        require_auth(request)
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(400, "Request body must be valid JSON")
+        if not isinstance(body, dict) or not isinstance(body.get("detection_ids"), list):
+            raise HTTPException(400, "detection_ids must be an array")
+        try:
+            ids = [int(v) for v in body["detection_ids"]]
+            performer_id = int(body.get("performer_id"))
+        except (TypeError, ValueError):
+            raise HTTPException(400, "detection_ids and performer_id must be integers")
+        if len(ids) > 2000:
+            raise HTTPException(413, "Mark at most 2000 faces at a time")
+        from ..engines.photo_face_clustering import mark_not_this_person
+        try:
+            result = await asyncio.to_thread(mark_not_this_person, db, performer_id, ids)
+        except ValueError as exc:
+            raise HTTPException(404 if "not found" in str(exc).lower() else 400, str(exc))
+        db.log(f"Marked {result['marked']} suggested face(s) as not performer {performer_id}", "SUCCESS",
+               event="photo_library.faces_not_this_person", details={"performer_id": performer_id, **result})
+        return {"ok": True, **result}
+
     @router.post("/api/photos/faces/different-person")
     async def photo_face_different_person(request: Request):
         """Remove a photo's detections from the active group(s), keeping photo bytes and Telegram untouched."""

@@ -251,10 +251,30 @@ impl Learner {
 
     /// Faces in unnamed groups that look like this person, best first.
     pub fn suggestions(&self, performer: i64) -> Vec<Scored> {
-        let Some(profile) = self.profile(performer) else { return vec![] };
-        let neg = self.negatives.get(&performer);
         // Everybody else's centre, to tell when a face looks more like somebody else.
         let rivals: Vec<(i64, Vec<f32>)> = self.people().into_iter().filter(|p| *p != performer).filter_map(|p| self.profile(p).map(|pr| (p, pr.centre))).collect();
+        self.suggestions_among(performer, &rivals)
+    }
+
+    /// How many unnamed faces look like each named person, and how many of those match strongly: `(performer, suggestions, strong)` for
+    /// everybody with at least one, most first. Each person's profile is worked out once and shared, so this costs one pass, not one per person.
+    pub fn suggestion_counts(&self) -> Vec<(i64, usize, usize)> {
+        let centres: Vec<(i64, Vec<f32>)> = self.people().into_iter().filter_map(|p| self.profile(p).map(|pr| (p, pr.centre))).collect();
+        let mut out: Vec<(i64, usize, usize)> = centres
+            .iter()
+            .filter_map(|(p, _)| {
+                let rivals: Vec<(i64, Vec<f32>)> = centres.iter().filter(|(q, _)| q != p).cloned().collect();
+                let s = self.suggestions_among(*p, &rivals);
+                (!s.is_empty()).then(|| (*p, s.len(), s.iter().filter(|x| x.flag).count()))
+            })
+            .collect();
+        out.sort_by_key(|(p, n, _)| (std::cmp::Reverse(*n), *p));
+        out
+    }
+
+    fn suggestions_among(&self, performer: i64, rivals: &[(i64, Vec<f32>)]) -> Vec<Scored> {
+        let Some(profile) = self.profile(performer) else { return vec![] };
+        let neg = self.negatives.get(&performer);
         let mut out = Vec::new();
         for d in &self.dets {
             if d.performer.is_some() || neg.is_some_and(|n| n.contains(&d.id)) {
@@ -454,6 +474,40 @@ mod tests {
         assert!(s.iter().all(|x| x.flag), "they match strongly");
         assert!(ids(&l.suggestions(2)).iter().all(|i| mia_unnamed.contains(i)) && l.suggestions(2).len() == 3);
         assert!(l.suggestions(99).is_empty(), "nobody by that number");
+    }
+
+    #[test]
+    fn suggestion_counts_agree_with_asking_for_each_person() {
+        let mut r = Rng(31);
+        let (ava, mia, stranger) = (r.unit(), r.unit(), r.unit());
+        let mut w = World::new();
+        for _ in 0..20 {
+            let v = r.face(&ava, 0.05);
+            w.add(v, Some(1), 1);
+        }
+        for _ in 0..20 {
+            let v = r.face(&mia, 0.05);
+            w.add(v, Some(2), 2);
+        }
+        for _ in 0..6 {
+            let v = r.face(&ava, 0.05);
+            w.add(v, None, 9);
+        }
+        for _ in 0..3 {
+            let v = r.face(&mia, 0.05);
+            w.add(v, None, 10);
+        }
+        for _ in 0..5 {
+            let v = r.face(&stranger, 0.05);
+            w.add(v, None, 11);
+        }
+        let l = Learner::new(w.dets, []);
+        let counts = l.suggestion_counts();
+        assert_eq!(counts, vec![(1, 6, 6), (2, 3, 3)], "most first; the stranger's faces are nobody's");
+        for (p, n, strong) in counts {
+            let one = l.suggestions(p);
+            assert_eq!((one.len(), one.iter().filter(|x| x.flag).count()), (n, strong));
+        }
     }
 
     #[test]

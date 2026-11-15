@@ -587,6 +587,40 @@ def _note_not_this_person(conn, detection_ids: list[int], new_performer_id: int 
     return noted
 
 
+def mark_not_this_person(db, performer_id: int, detection_ids: list[int]) -> dict[str, int]:
+    """Record that these faces are NOT `performer_id`, without moving them anywhere. This is how a suggested look-alike is turned down:
+    face learning stops offering the face and its closest lookalikes for that person. Faces that are already in the person's own group are
+    skipped (taking those out is the "Not <name>" move, which also regroups them)."""
+    ids = list(dict.fromkeys(int(v) for v in detection_ids if int(v) > 0))
+    if not ids:
+        raise ValueError("No faces selected")
+    now = _now()
+    marks = ",".join("?" for _ in ids)
+    with db.lock:
+        try:
+            db.conn.execute("BEGIN IMMEDIATE")
+            if not db.conn.execute("SELECT 1 FROM performers WHERE id=?", (int(performer_id),)).fetchone():
+                raise ValueError("Performer not found")
+            ensure_negatives_table(db.conn)
+            rows = db.conn.execute(
+                f"SELECT d.id AS id,g.performer_id AS performer_id FROM photo_face_detections d JOIN photo_face_groups g ON g.id=d.group_id WHERE d.id IN ({marks})", ids
+            ).fetchall()
+            if not rows:
+                raise ValueError("Face detections not found")
+            marked = skipped = 0
+            for r in rows:
+                if r["performer_id"] is not None and int(r["performer_id"]) == int(performer_id):
+                    skipped += 1
+                    continue
+                db.conn.execute("INSERT OR IGNORE INTO photo_face_negatives(detection_id,performer_id,created_at) VALUES(?,?,?)", (int(r["id"]), int(performer_id), now))
+                marked += 1
+            db.conn.commit()
+            return {"marked": marked, "skipped": skipped}
+        except Exception:
+            db.conn.rollback()
+            raise
+
+
 def _separate_photo_detections(db, photo_id: int, group_ids: list[int]) -> list[dict[str, int]]:
     """Move this photo's detections out of the selected group(s) without deleting the photo."""
     ids = list(dict.fromkeys(int(value) for value in group_ids if int(value) > 0))

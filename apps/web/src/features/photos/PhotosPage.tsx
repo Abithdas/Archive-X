@@ -15,6 +15,7 @@ import { useDebounced } from '@/features/library/useDebounced'
 import { useFaceGroups } from './useFaceGroups'
 import { PeopleRow } from './PeopleRow'
 import { ContentTags, useContentSummary } from './ContentTags'
+import { newMatchesText, useReviewCounts } from './useFaceReview'
 import { Empty } from '@/design/Empty'
 import { motion, spring } from '@/design/motion'
 import { PeopleView } from './PeopleView'
@@ -27,6 +28,7 @@ import { EMPTY_INDEX, LOAD_FAILED, NO_CHANNELS_SAVED, NO_SCANNED, SORTS, channel
 import { usePhotoStore } from './store'
 import { LikeHeart } from '@/design/LikeHeart'
 import { SpinCounter } from '@/design/SpinCounter'
+import { SubtleNumber } from '@/design/SubtleNumber'
 
 const Tick = () => <span aria-label="selected" role="img" className="grid size-5 place-items-center rounded-full bg-good text-[11px] font-bold text-white">✓</span>
 const reason = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.detail : e instanceof Error && e.message ? e.message : fb)
@@ -52,6 +54,8 @@ export function PhotosPage() {
   const [checking, setChecking] = useState(false)
   const effective = useMemo(() => (selected.length ? selected : list.map((c) => String(c.telegram_id))), [selected, list])
   const hasContent = Boolean(useContentSummary().data?.total_photos)
+  const review = useReviewCounts()
+  const newMatches = Object.values(review.data ?? {}).reduce((n, c) => n + c.suggestions, 0)
   const channelButton = !selected.length ? 'All channels' : selected.length === 1 ? channelTitle(list.find((c) => String(c.telegram_id) === selected[0]) ?? { telegram_id: selected[0]! }) : `${selected.length} channels`
   const faces = useFaceGroups(selected, true, false, 24)   // the busiest 24 people for the row, not everyone and not who they might be
   const [different, setDifferent] = useState<Photo | null>(null)
@@ -128,7 +132,7 @@ export function PhotosPage() {
           {([['library', 'Photos'], ['faces', 'People']] as const).map(([v, label]) => (
             <button key={v} type="button" role="tab" aria-selected={tab === v} onClick={() => setTab(v)} className={cn('relative h-9 rounded-[9px] px-4 text-sm font-semibold transition-colors', tab === v ? 'text-fg' : 'text-muted hover:text-fg')}>
               {tab === v ? <motion.span layoutId="photos-view-pill" transition={spring} aria-hidden="true" className="absolute inset-0 rounded-[9px] bg-surface-3" /> : null}
-              <span className="relative">{label}</span>
+              <span className="relative inline-flex items-center gap-1.5">{label}{v === 'faces' && newMatches ? <span title={newMatchesText(newMatches)} aria-label={newMatchesText(newMatches)} className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-accent-fg"><SubtleNumber value={newMatches} /></span> : null}</span>
             </button>
           ))}
         </div>
@@ -179,7 +183,7 @@ export function PhotosPage() {
           <button type="button" onClick={() => setContentTags([])} className="text-xs font-semibold text-accent hover:underline">Clear all</button>
         </div>
       ) : null}
-      <PeopleRow groups={faces.data?.groups ?? []} onManage={() => setTab('faces')} />
+      <PeopleRow groups={faces.data?.groups ?? []} onManage={() => setTab('faces')} fresh={review.data} />
       {!effective.length ? (channels.isPending ? null : <Empty icon="images" title="No photos yet">{status}</Empty>) : q.isPending ? (
         <div role="status" aria-label="Loading photos" className="columns-2 gap-2 sm:columns-3 sm:gap-3 lg:columns-4 xl:columns-6">{[236, 318, 188, 272, 214, 344, 198, 286].map((h, i) => <Skeleton key={i} style={{ height: h }} className="mb-2 break-inside-avoid rounded-xl sm:mb-3" />)}</div>
       ) : q.isError ? (
