@@ -59,18 +59,6 @@ query($fps: [[FingerprintQueryInput!]!]!) {
   }
 }"""
 
-_STASHDB_QUERY = """
-query($fps: [FingerprintQueryInput!]!) {
-  findScenesByFullFingerprints(fingerprints: $fps) {
-    id title date release_date production_date code
-    studio { id name aliases parent { id name aliases } urls { url } images { url width height } }
-    performers { performer { id name gender urls { url } images { url width height } } }
-    tags { name }
-    images { url width height }
-  }
-}"""
-
-
 # Title/term and date queries are separate from the exact-fingerprint query.
 # StashDB's StashBox schema exposes searchScenes for full-text candidates and
 # queryScenes for exact date searches; both are read-only and cached.
@@ -641,8 +629,9 @@ async def stashdb_by_oshash(db, api_key: str, oshash: str) -> list[dict]:
     if hit:
         return cached or []
     await _throttle("stashdb")
-    body = json.dumps({"query": _STASHDB_QUERY,
-                       "variables": {"fps": [{"hash": oshash, "algorithm": "OSHASH"}]}}).encode()
+    # StashDB removed findScenesByFullFingerprints (every lookup answered HTTP 422); the same query as the PHASH lookup now serves OSHASH too.
+    body = json.dumps({"query": _STASHDB_PHASH_QUERY,
+                       "variables": {"fps": [[{"hash": oshash, "algorithm": "OSHASH"}]]}}).encode()
     started = time.perf_counter()
     try:
         data = await asyncio.to_thread(_http, STASHDB_URL, data=body,
@@ -658,7 +647,14 @@ async def stashdb_by_oshash(db, api_key: str, oshash: str) -> list[dict]:
         _provider_stat(db, "stashdb", "errors", 1)
         _record_provider_call(db, "stashdb", status="ERROR", error=str(exc), latency_ms=(time.perf_counter()-started)*1000.0)
         raise
-    scenes = [_norm_stashdb(s) for s in (data.get("data") or {}).get("findScenesByFullFingerprints") or []]
+    root = (data.get("data") or {}).get("findScenesBySceneFingerprints") or []
+    raw_scenes = []
+    for group in root if isinstance(root, list) else []:
+        if isinstance(group, list):
+            raw_scenes.extend(item for item in group if isinstance(item, dict))
+        elif isinstance(group, dict):
+            raw_scenes.append(group)
+    scenes = [_norm_stashdb(row) for row in raw_scenes]
     _cache_put(db, "stashdb", f"oshash:{oshash}", scenes)
     return scenes
 

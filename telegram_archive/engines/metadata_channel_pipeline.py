@@ -767,8 +767,8 @@ async def _discover_and_store_inventory(ctx, channel_id: str, limit: int, *, ful
             )
     await asyncio.to_thread(_store_split_groups)
     def _store_media_rows():
-        with ctx.db.lock:
-            for record in ordered:
+        for record in ordered:
+            with ctx.db.lock:
                 message_id = int(record.get("id") or 0)
                 if not message_id:
                     continue
@@ -812,7 +812,11 @@ async def _discover_and_store_inventory(ctx, channel_id: str, limit: int, *, ful
                         media_id=int(media_row["id"]) if media_row else None,
                         thumbnail_message_id=int(media_row["thumbnail_message_id"] or 0) if media_row else None,
                     )
-            ctx.db.conn.commit()
+                # One record at a time, committed: the lock is free between records, so the event loop (and everything else) never waits
+                # for the whole batch (a 95 s wait for it got the job killed by the watchdog).
+                ctx.db.conn.commit()
+            time.sleep(0.001)   # Python's lock is not fair: without this pause this thread takes it straight back and a waiting thread can starve
+        with ctx.db.lock:
             # Only a complete scan of all Telegram history can prove that older
             # messages disappeared. Incremental passes never tombstone unseen rows.
             if scan_stats.get("full_history"):
@@ -1605,7 +1609,8 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
 
         # Resolve entities only after metadata matching has completed. This is
         # a read-only lookup and is deduplicated at channel scope.
-        performers, studios = _entity_ids(
+        performers, studios = await asyncio.to_thread(
+            _entity_ids,
             ctx,
             channel_id,
             [int(v["media_id"]) for v in videos],
@@ -1613,7 +1618,9 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
         if phase in {"performers", "channel_data"}:
             entity_type = "performer" if phase == "performers" else "studio"
             linked_ids = performers if phase == "performers" else studios
-            refreshable_ids = entity_data.refreshable_entity_ids(
+            # A query over every linked performer: on a worker thread (it held the event loop for 13 s).
+            refreshable_ids = await asyncio.to_thread(
+                entity_data.refreshable_entity_ids,
                 ctx.db,
                 entity_type,
                 linked_ids,

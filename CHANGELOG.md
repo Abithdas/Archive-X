@@ -4,6 +4,10 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased (after 30.2.6)
 
+- **StashDB fingerprint lookups work again:** StashDB removed the query Archive X used for file fingerprints (`findScenesByFullFingerprints`), so every OSHASH lookup failed with HTTP 422 (21 of 21 in the last log: "0 matched, 21 failed"). The lookup now uses the current query.
+- **Freezes, part 3:** the channel scan held the database lock for the whole batch, so the app waited for all of it (a 95 s freeze, after which the watchdog stopped the job); it now holds the lock for one record at a time. Two queries over every linked performer moved off the thread that serves the app (13 s).
+- **Faster start:** the clean-up of old cache leftovers (11 s of an 18 s start) runs beside the start instead of before it.
+
 - **Fewer freezes, part 2:** the similar-name search in the performer identity check skips names that share too few letters to be similar (about 6 times faster again, the same answers); the diagnostics snapshot no longer asks Windows for the python processes on the thread that serves the app (it froze the app for 8 s).
 
 ## 30.2.6 (2026-11-15)

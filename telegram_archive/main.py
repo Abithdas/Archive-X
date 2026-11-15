@@ -114,10 +114,13 @@ def main():
         raise SystemExit(2)
     with _phase("cleanup"):
         remove_obsolete_files()
+    # Walking the player cache for stale leftovers took 11 s of the 18 s start on a real library; nothing waits for it, so it runs beside the start.
+    def _cleanup_in_background():
         try:
             cleanup_runtime_artifacts()
         except Exception as exc:
             print(f"  Runtime cleanup skipped: {type(exc).__name__}: {exc}")
+    threading.Thread(target=_cleanup_in_background, name="runtime-cleanup", daemon=True).start()
 
     with _phase("data migration"):
         moved = config.migrate_legacy_data()
