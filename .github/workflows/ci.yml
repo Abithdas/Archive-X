@@ -79,5 +79,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with: { python-version: "3.12" }
-      - run: pip install ruff
+      - run: pip install ruff vulture
       - run: ruff check
+      # Dead code at 80% confidence must stay at zero; tools/vulture_allowlist.py says why each exception exists.
+      - run: vulture telegram_archive tools/vulture_allowlist.py --min-confidence 80

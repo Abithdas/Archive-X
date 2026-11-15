@@ -1329,9 +1329,6 @@ def register_library_routes(
     async def photo_library_preview(channel_id: str, message_id: int, request: Request):
         """Serve a cached 1440px JPEG preview, built from the local original off the event loop."""
         require_auth(request)
-        import os as _os
-        import tempfile as _tempfile
-        from PIL import Image as _Image, ImageOps as _ImageOps
         from fastapi.responses import FileResponse as _FileResponse
         from ..engines.photo_cache import photo_preview_path as _photo_preview_path
 

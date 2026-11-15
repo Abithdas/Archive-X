@@ -33,7 +33,7 @@ from .capabilities import TelegramAccountProfile
 
 try:
     from telethon import TelegramClient, functions, utils
-    from telethon.errors import FloodWaitError, RPCError, SessionPasswordNeededError
+    from telethon.errors import FloodWaitError, SessionPasswordNeededError
     try:
         from telethon.network.connection.tcpobfuscated import ConnectionTcpObfuscated
     except Exception:
@@ -47,7 +47,7 @@ except ImportError:
     utils = None
     class _TelethonUnavailableError(Exception):
         pass
-    FloodWaitError = RPCError = SessionPasswordNeededError = _TelethonUnavailableError
+    FloodWaitError = SessionPasswordNeededError = _TelethonUnavailableError
 
 
 class TelegramService:
