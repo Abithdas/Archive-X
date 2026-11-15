@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased (after 30.2.2)
+## 30.2.4 (2026-11-15)
 
 - **Native player:** the video's own window is the default layer (the one that showed the picture on a real PC); Back no longer freezes the app; less lag from the on-screen check; a quicker start on network streams; jumps show where they are going.
 - **Playback:** jumping into the middle of an MP4 that the browser plays through the in-browser remux now works; the player offers the native player when the browser cannot decode a file; leaving a video releases its server job.
