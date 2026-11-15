@@ -2,6 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased (after 30.2.6)
+
+- **Fewer freezes, part 2:** the similar-name search in the performer identity check skips names that share too few letters to be similar (about 6 times faster again, the same answers); the diagnostics snapshot no longer asks Windows for the python processes on the thread that serves the app (it froze the app for 8 s).
+
 ## 30.2.6 (2026-11-15)
 
 - **Fewer freezes (from a real log):** the log of 30.2.4 showed the whole app freezing for 8 to 15 seconds, 13 times in about 5 hours, once for 202 seconds. Two causes found and fixed: the performer identity check read every performer (biography included) and compared names against all of them on every call, on the thread that serves the app (now an index kept until the performers change; the answers are the same, tested against the old algorithm; about 6 times faster on the first call and far more after, measured on 30,000 performers); and the channel scan wrote thousands of rows, with a commit each, on that same thread (now on a worker thread). A swallowed error that appeared 22 times (`DirectTelegramRangeSource` had no `close`) is fixed.

@@ -285,7 +285,9 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
             while True:
                 try:
                     eng = app_state.get("engine")
-                    write_runtime_snapshot(
+                    # On a worker thread: it asks Windows for the python processes (PowerShell, up to 2 s each) and used to freeze the app for 8 s.
+                    await asyncio.to_thread(
+                        write_runtime_snapshot,
                         db=db, jobs=jobs, telegram=telegram, governor=governor,
                         extra={
                             "process": {"cwd": str(config.APP_DIR), "package_dir": str(config.PACKAGE_DIR), "topology": process_topology_snapshot().snapshot()},

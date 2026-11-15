@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from collections import Counter
 from difflib import SequenceMatcher
 from typing import Optional
 
@@ -349,7 +350,7 @@ def _build_performer_index(rows: list[dict]) -> list[dict]:
         for variant in [name, *aliases]:
             variant_key = canonical_key(variant)
             if len(variant_key) >= 7:
-                variants.append((variant, variant_key))
+                variants.append((variant, variant_key, Counter(variant_key)))
         index.append({
             "id": int(row["id"]), "name": name, "name_key": canonical_key(name),
             "canonical": str(row.get("canonical_key") or ""), "norm": str(row.get("normalized_name") or ""),
@@ -429,13 +430,19 @@ def assess_performer_identity(db, name: str, *, provider: str = "", provider_id=
 
         matched_ids = {int(row["id"]) for row in matched}
         near = []
+        key_counts = Counter(key)
         if len(key) >= 7:
             for entry in index:
                 if entry["id"] in matched_ids:
                     continue
                 best_ratio, best_variant = 0.0, ""
-                for variant, variant_key in entry["variants"]:
+                for variant, variant_key, variant_counts in entry["variants"]:
                     if abs(len(key)-len(variant_key)) > max(2, int(max(len(key),len(variant_key))*0.12)):
+                        continue
+                    # The ratio can never exceed the share of letters the two keys have in common (SequenceMatcher.quick_ratio); a variant that
+                    # cannot reach 0.80 cannot make the entry a near match, so the expensive comparison is skipped.
+                    common = sum(min(n, variant_counts[ch]) for ch, n in key_counts.items())
+                    if 2.0 * common / (len(key) + len(variant_key)) < 0.80:
                         continue
                     ratio = SequenceMatcher(None, key, variant_key).ratio()
                     if ratio > best_ratio:
