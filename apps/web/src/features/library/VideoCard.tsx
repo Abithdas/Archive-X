@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { thumbUrl } from '@/api/client'
 import { useFavorite } from '@/api/hooks'
 import type { LibraryItem } from '@/api/types'
+import { LikeHeart } from '@/design/LikeHeart'
 import { Icon } from '@/design/Icon'
 import { Skeleton, SkeletonLine } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
@@ -70,9 +71,9 @@ export function VideoCard({ item }: { item: LibraryItem }) {
           aria-pressed={Boolean(item.favorite)}
           disabled={fav.isPending}
           onClick={() => fav.mutate({ mediaId: item.media_id, favorite: !item.favorite })}
-          className={cn('absolute right-2 top-2 z-10 grid size-[34px] place-items-center rounded-full bg-black/40 backdrop-blur-sm transition-colors hover:bg-black/60', item.favorite ? 'text-warn' : 'text-white')}
+          className="absolute right-2 top-2 z-10 grid size-[34px] place-items-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
         >
-          <Icon name="star" className={cn("size-4", Boolean(item.favorite) && "drop-shadow")} />
+          <LikeHeart liked={Boolean(item.favorite)} />
         </button>
       </div>
       <div className={BODY}>

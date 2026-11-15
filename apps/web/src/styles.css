@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./design/transitions.css";
 
 /* Design tokens. Tailwind v4 turns every --color-* into utilities (bg-surface, text-muted, ...).
    Values mirror the legacy "Nord" preset so both UIs look like one product during the migration. */

@@ -6,6 +6,7 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { ErrorBoundary } from './ErrorScreen'
 import { useStatus, useStorage } from '@/api/hooks'
 import { useLiveStatus } from '@/api/live'
+import { Bell } from '@/design/Bell'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { formatBytes } from '@/design/format'
@@ -70,6 +71,19 @@ function SideItem({ n, rail, count }: { n: NavDef; rail: boolean; count: number 
         </>
       )}
     </Link>
+  )
+}
+
+/** One button for both states, so the two icons can swap in the same spot (Transitions.dev icon swap) instead of one button replacing another. */
+function RailToggle({ rail, onToggle }: { rail: boolean; onToggle: () => void }) {
+  const label = rail ? 'Expand sidebar' : 'Collapse sidebar'
+  return (
+    <button type="button" onClick={onToggle} aria-label={label} aria-expanded={!rail} title={label} className={cn('ax-rail-toggle grid size-7 place-items-center rounded-lg text-muted hover:bg-fg/5 hover:text-fg', !rail && 'ml-auto')}>
+      <span className="t-icon-swap" data-state={rail ? 'b' : 'a'}>
+        <span className="t-icon" data-icon="a"><Icon name="arrow-left" /></span>
+        <span className="t-icon" data-icon="b"><Icon name="arrow-right" /></span>
+      </span>
+    </button>
   )
 }
 
@@ -152,8 +166,7 @@ function Header({ live }: { live: string }) {
           <Icon name="sun" className="hidden [[data-theme=light]_&]:block" />
         </button>
         <button type="button" onClick={() => useUi.getState().setNotifications(true)} aria-label={notices ? `Notifications, ${notices} shown` : 'Notifications'} title="Notifications" className={cn(ICON_BTN, 'relative')}>
-          <Icon name="clock" />
-          {notices ? <span className="absolute right-1 top-1 grid min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-bold leading-4 text-accent-fg">{notices}</span> : null}
+          <Bell count={notices} />
         </button>
         <AccountMenu live={live} />
       </div>
@@ -219,20 +232,11 @@ export function Shell(): ReactNode {
   return (
     <div className="flex h-full flex-col md:flex-row">
       <aside className={cn('hidden shrink-0 flex-col gap-0.5 overflow-y-auto overflow-x-hidden border-r border-line pb-4 transition-[width] duration-200 md:flex', rail ? 'w-[84px] px-2.5' : 'w-[248px] px-3')} aria-label="Main">
-        <div className={cn('flex h-16 shrink-0 items-center gap-2.5 text-lg font-extrabold', rail ? 'justify-center' : 'px-1.5')}>
+        <div className={cn('flex shrink-0 items-center text-lg font-extrabold', rail ? 'h-[92px] flex-col justify-center gap-1' : 'h-16 gap-2.5 px-1.5')}>
           <img src="/static/icons/archive-x.png" alt="" className="size-9 rounded-full" />
           {rail ? null : 'Archive X'}
-          {rail ? null : (
-            <button type="button" onClick={toggleRail} aria-label="Collapse sidebar" aria-expanded title="Collapse sidebar" className="ml-auto grid size-7 place-items-center rounded-lg text-muted hover:bg-fg/5 hover:text-fg">
-              <span aria-hidden="true">×</span>
-            </button>
-          )}
+          <RailToggle rail={rail} onToggle={toggleRail} />
         </div>
-        {rail ? (
-          <button type="button" onClick={toggleRail} aria-label="Expand sidebar" title="Expand sidebar" className={cn(SIDE_ITEM, 'mb-1 justify-center')}>
-            <Icon name="chevron-right" />
-          </button>
-        ) : null}
         {GROUPS.map((g, i) => (
           <div key={g.title} className={cn('grid gap-0.5', i > 0 && 'mt-3')}>
             {rail ? <div className="mx-2 my-1 h-px bg-line" /> : <div className="px-3 pb-1.5 pt-1 text-[11px] font-bold tracking-[0.08em] text-faint">{g.title}</div>}
