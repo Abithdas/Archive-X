@@ -24,6 +24,7 @@ import { useUi } from './ui'
 import { useAppearance, useAppearanceActions, useAppearanceSync } from '@/features/settings/useAppearance'
 import { scaleForKey } from '@/theme/themes'
 import { IconSwap } from '@/design/IconSwap'
+import { useScrollMemory } from './scrollMemory'
 
 interface NavDef {
   to: string
@@ -205,6 +206,8 @@ function useGlobalKeys() {
 export function Shell(): ReactNode {
   const fullPath = useRouterState({ select: (s) => s.location.pathname })
   const section = useRouterState({ select: (s) => s.location.pathname.split('/')[1] || 'home' })
+  const mainRef = useRef<HTMLElement>(null)
+  useScrollMemory(mainRef)
   const live = useLiveStatus(true)
   useAppearanceSync()
   useEffect(() => installGlow(), [])
@@ -244,7 +247,7 @@ export function Shell(): ReactNode {
       </aside>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header live={live} />
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <main ref={mainRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <motion.div key={section} {...fadeThrough} className="flex min-h-0 flex-1 flex-col"><ErrorBoundary resetKey={fullPath}><Suspense fallback={<div role="status" aria-label="Loading page" className="grid flex-1 place-items-center py-24"><span className="size-6 animate-spin rounded-full border-2 border-line border-t-accent" /></div>}><Outlet /></Suspense></ErrorBoundary></motion.div>
         </main>
       </div>

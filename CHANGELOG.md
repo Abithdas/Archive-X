@@ -3,6 +3,8 @@
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
 ## Next release (not published)
+- Going back no longer starts over: the Performers and Studios lists keep their page, gender, sort and items-per-page when you open a card and press back, and every page returns to where it was scrolled. A new search still starts at page 1.
+- Cards in the Videos grid now glide to their new place (a long soft ease, position only) when a scan adds videos, instead of snapping with a short bounce; a card that leaves just fades.
 - The motion added in the last round now runs across the app, not only in the header and the video card: the heart (with its burst) on the performer/studio favourite button, the watch page, the photo viewer, the photo badge and both "Favourites" filters; icon swap on the slideshow, fullscreen, play/pause and mute buttons; the typing and dissolve search box on the channel picker, the quick-edit and bulk-edit lists, the studio mapping list and the country list; the accordion fold on every collapsible section (scene markers, job details, check details, match details, Telegram recovery, runtime report); an unfolding reveal for the player menus and the country list; error shake on the profile and channel name fields.
 
 - **Video favourites (the star on the Videos page, and the bulk favourite) are answered by the Rust front door**, with the same answers and the same database changes as Python (write parity: 51 of 51 scenarios identical). Rust's "cross-site request refused" answer now uses Python's wording.

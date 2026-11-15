@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { useEntities } from '@/api/hooks'
@@ -17,9 +17,9 @@ import { Pagination } from '@/features/library/Pagination'
 import { filterEntities, pageCount, type GenderFilter } from './filter'
 import { FAILED, IDLE, NEED_SELECTION, SORTS, canCommit, commitLabel, confirmation, duplicatesOf, hint, mergeBody, modeLabel, pick, sortBy, successMessage, toggleMode, type MergeState, type SortKey } from './merge'
 import { Empty } from '@/design/Empty'
+import { useDirectoryView } from './directoryView'
 
 const GRID = 'grid gap-[18px]'
-const DEFAULT_PER = 12
 const COPY = {
   performers: { eyebrow: 'Library', title: 'Performers', blurb: 'Everyone linked to your videos', empty: 'No performers yet.' },
   studios: { eyebrow: 'Library', title: 'Studios', blurb: 'Studios and sites in your archive', empty: 'No studios yet.' },
@@ -30,19 +30,22 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
   const entities = useEntities(kind)
   useAutoRepair(kind)
   const query = useSearch((s) => s.q)
-  const [gender, setGender] = useState<GenderFilter>('female')
-  const [page, setPage] = useState(1)
-  const [nominalPer, setPer] = useState(DEFAULT_PER)
+  const { page, gender, per: nominalPer, sort } = useDirectoryView((s) => s.views[kind])
+  const patch = useDirectoryView((s) => s.patch)
+  const setGender = (g: GenderFilter) => patch(kind, { gender: g, page: 1 })
+  const setPage = (n: number) => patch(kind, { page: n })
+  const setPer = (n: number) => patch(kind, { per: n })
+  const setSort = (v: SortKey) => patch(kind, { sort: v })
   const grid = useFitGrid(typeof window !== 'undefined' && window.innerWidth < 640 ? 150 : 190, 18)
   const per = grid.fit(nominalPer)   // whole rows of whatever the window shows, so the last row is full
-  const [sort, setSort] = useState<SortKey>('default')
   const [merge, setMerge] = useState<MergeState>(IDLE)
   const [asking, setAsking] = useState(false)
   const qc = useQueryClient()
   const rows = useMemo(() => sortBy(filterEntities(entities.data ?? [], query, kind === 'performers' ? gender : 'all'), sort), [entities.data, query, gender, kind, sort])
   const pages = pageCount(rows.length, per)
   const current = Math.min(page, pages)
-  useEffect(() => setPage(1), [query, gender, kind])
+  const lastQuery = useRef(query)
+  useEffect(() => { if (lastQuery.current !== query) { lastQuery.current = query; patch(kind, { page: 1 }) } }, [query, kind, patch])   // a new search starts at page 1; coming back to the list does not
   useEffect(() => setMerge(IDLE), [kind])   // merge mode belongs to the performers list
   const visible = rows.slice((current - 1) * per, current * per)
   const all = entities.data ?? []
