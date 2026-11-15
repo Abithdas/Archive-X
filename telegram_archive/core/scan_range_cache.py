@@ -111,9 +111,21 @@ def store(key, offset: int, data: bytes) -> None:
             keep.reverse()
             _TOTAL_BYTES += sum(len(b) for _, b in keep) - after
             record["ranges"] = keep
-        while _TOTAL_BYTES > _MAX_TOTAL_BYTES and _FILES:
+        # Over the limit: drop the least recently used OTHER videos first. This one was just touched, so it goes last; and when it
+        # is the only one left, drop only its oldest ranges. (It used to be popped whole, together with the bytes just stored, so a
+        # video whose snapshot windows passed 96 MB failed its last frames with "did not cover".)
+        while _TOTAL_BYTES > _MAX_TOTAL_BYTES and len(_FILES) > 1:
             old_key, old_record = _FILES.popitem(last=False)
             _TOTAL_BYTES -= sum(len(blob) for _, blob in old_record["ranges"])
+        if _TOTAL_BYTES > _MAX_TOTAL_BYTES and _FILES:
+            mine = _FILES[key]
+            ranges = list(mine["ranges"])
+            newest = int(offset)
+            # keep the range that holds the bytes just stored; drop the others, oldest position first, until it fits
+            ranges.sort(key=lambda item: (item[0] <= newest < item[0] + len(item[1]), item[0]))
+            while ranges and _TOTAL_BYTES > _MAX_TOTAL_BYTES and not (ranges[0][0] <= newest < ranges[0][0] + len(ranges[0][1])):
+                _TOTAL_BYTES -= len(ranges.pop(0)[1])
+            mine["ranges"] = sorted(ranges, key=lambda item: item[0])
         _TOTAL_BYTES = max(0, _TOTAL_BYTES)
 
 

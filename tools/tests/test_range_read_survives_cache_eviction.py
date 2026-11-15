@@ -73,3 +73,20 @@ def test_cover_joins_pieces_and_reports_gaps():
     assert _cover([(0, b"abcd"), (4, b"efgh")], 2, 7) == b"cdefg"
     assert _cover([(0, b"abcd"), (6, b"gh")], 2, 7) is None
     assert _cover([], 0, 1) is None
+
+
+def test_one_big_video_does_not_throw_away_what_it_just_stored():
+    """Snapshot windows of one video pass the 96 MB limit around frame 33 of 36: the cache dropped the whole video, new bytes included."""
+    from telegram_archive.core import scan_range_cache as c
+    c._FILES.clear()
+    c._TOTAL_BYTES = 0
+    key = (-1, 1, 1_000_000_000)
+    other = (-1, 2, 1_000_000_000)
+    c.store(other, 0, b"o" * MIB)
+    for i in range(70):                                         # 70 windows of 2 MiB each: well past the limit
+        off = i * 16 * MIB
+        c.store(key, off, b"x" * (2 * MIB))
+        assert c.read(key, off, 2 * MIB) is not None, f"window {i} was lost right after it was stored"
+    assert c._TOTAL_BYTES <= c._MAX_TOTAL_BYTES
+    assert c.read(other, 0, MIB) is None                        # the least recently used other video went first
+    assert c.read(key, 69 * 16 * MIB, 2 * MIB) is not None
