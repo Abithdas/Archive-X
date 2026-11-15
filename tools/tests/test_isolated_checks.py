@@ -9,7 +9,7 @@ import pytest
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-FILES = ["test_inventory_off_loop.py", "test_performer_identity_index.py"]
+FILES = ["test_inventory_off_loop.py", "test_performer_identity_index.py", "test_job_detail_kept.py", "test_snapshot_scan_heartbeat.py"]
 
 
 @pytest.mark.parametrize("name", FILES)

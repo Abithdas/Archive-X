@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
 import asyncio
+import json
 import time
 from typing import Any, Callable, Optional
 
@@ -25,6 +26,30 @@ from ..telegram.service import TelegramService
 # Shown while background work yields to video playback. Starts with "Waiting"
 # so the watchdog treats it as a legitimate wait rather than a stall.
 PLAYBACK_WAIT_OPERATION = "Waiting — paused while a video is playing or open (resumes automatically)"
+
+
+# Jobs whose `detail` column holds the settings the job is restarted from (which channels, which options), not a progress line.
+_DETAIL_IS_SETTINGS = {"METADATA_CHANNEL_PIPELINE", "METADATA_ASSETS"}
+
+
+def _would_overwrite_settings(row: dict, detail: Any) -> bool:
+    """True when `detail` is a plain progress message and the job's stored detail is its settings.
+
+    The metadata-match stage runs inside the channel pipeline's job and ends with report(detail="fingerprints 0/21 ok ..."), which replaced the
+    saved settings with that sentence. Recovering such a job (or resuming it after a restart) then found no channels: "Select at least one
+    source channel". Progress text must never take the place of the settings."""
+    if str(row.get("job_type") or "").upper() not in _DETAIL_IS_SETTINGS or not isinstance(detail, str):
+        return False
+    if not isinstance(_load_object(row.get("detail")), dict):
+        return False
+    return not isinstance(_load_object(detail), dict)
+
+
+def _load_object(value):
+    try:
+        return json.loads(value or "")
+    except (TypeError, ValueError):
+        return None
 
 
 class JobCancelled(Exception):
@@ -78,7 +103,7 @@ class JobContext:
             progress = min(100.0, 100.0 * float(completed or 0) / float(total))
         if progress is not None:
             fields["progress"] = round(float(progress), 1)
-        if detail is not None:
+        if detail is not None and not _would_overwrite_settings(current_row, detail):
             fields["detail"] = detail
         if current_item is not None:
             fields["current_item"] = str(current_item)[:300]

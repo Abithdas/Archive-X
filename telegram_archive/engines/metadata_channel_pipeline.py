@@ -2287,7 +2287,9 @@ async def _run_metadata_assets(ctx):
         if channel and channel not in channels:
             channels.append(channel)
     if not channels:
-        raise RuntimeError("Select at least one source channel")
+        raise RuntimeError(
+            "Select at least one source channel (this job's saved settings are missing: an earlier version overwrote them with a progress line, "
+            "so it cannot be resumed; start a new Metadata & Assets run)")
 
     payload["channel_ids"] = channels
     payload.setdefault("current_channel_index", 0)

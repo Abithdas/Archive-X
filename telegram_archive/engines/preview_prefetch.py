@@ -664,7 +664,7 @@ def backfill_existing_local_preview_assets_sync(db) -> dict:
 # Pending rows and metadata hydration.
 # ==============================================================================
 
-def _pending_rows(db, limit: int = 0, channels: list[int] | None = None, scope: str = "missing", message_ids: list[int] | None = None, targeted: bool = False, allow_failed_retry: bool = False, operator_channel_scan: bool = False):
+def _pending_rows(db, limit: int = 0, channels: list[int] | None = None, scope: str = "missing", message_ids: list[int] | None = None, targeted: bool = False, allow_failed_retry: bool = False, operator_channel_scan: bool = False, progress=None):
     """Select media rows that need snapshot work for the given scope."""
     scope = scope if scope in {"missing", "all"} else "missing"
     # Exact operator/page targets are authoritative requests. They must not be
@@ -736,7 +736,11 @@ def _pending_rows(db, limit: int = 0, channels: list[int] | None = None, scope: 
         rows = db.conn.execute(query, params).fetchall()
     if local_filter:
         pending = []
-        for row in rows:
+        for index, row in enumerate(rows, 1):
+            # Each row checks about 40 local files; on a channel with thousands of videos this loop runs for minutes, so say so now and then
+            # (the job's watchdog stopped the whole job after 60 s of silence).
+            if progress is not None and index % 200 == 0:
+                progress(index, len(rows))
             if _row_needs_scan_work(row):
                 pending.append(row)
                 if limit and len(pending) >= int(limit):
@@ -1729,9 +1733,15 @@ async def run(ctx):
         # Idle maintenance stays incremental.
         effective_limit = limit or MAX_ITEMS_PER_RUN
     targeted = bool(message_ids)
+    loop = asyncio.get_running_loop()
+
+    def _checking(done: int, of: int) -> None:
+        # called from the worker thread: report on the loop, which also tells the watchdog the job is alive
+        loop.call_soon_threadsafe(lambda: ctx.report(operation=f"Checking local snapshots · {done:,} of {of:,} videos"))
+
     rows=await asyncio.to_thread(_pending_rows, ctx.db, effective_limit, channels or None, scope, message_ids or None, targeted,
                                  bool(detail.get("unbounded", False) or detail.get("retry_failed", False)),
-                                 bool(detail.get("operator_channel_scan", False)))
+                                 bool(detail.get("operator_channel_scan", False)), _checking)
     if message_ids:
         # A targeted user request is a priority lane over ordinary background
         # maintenance. Preserve the requested message order instead of letting
