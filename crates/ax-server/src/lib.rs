@@ -6,6 +6,7 @@ pub mod learning;
 pub mod names;
 pub mod native;
 mod native_library;
+mod native_play;
 pub mod optimize;
 pub mod proxy;
 pub mod server;

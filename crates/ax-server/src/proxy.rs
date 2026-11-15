@@ -63,8 +63,12 @@ pub struct Proxy {
     idle: Mutex<Vec<SendRequest<Body>>>,
 }
 
-fn boxed(b: Incoming) -> Body {
-    b.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>).boxed()
+fn boxed<B>(b: B) -> Body
+where
+    B: hyper::body::Body<Data = Bytes> + Send + Sync + 'static,
+    B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
+{
+    b.map_err(Into::into).boxed()
 }
 
 /// A JSON string body for `detail`, escaped by hand (quotes, backslashes and control characters).
@@ -247,7 +251,11 @@ impl Proxy {
         out.body(body).map_err(|e| error_response(StatusCode::BAD_GATEWAY, &format!("bad request: {e}")))
     }
 
-    pub async fn forward(self: &Arc<Self>, mut req: Request<Incoming>, peer: SocketAddr) -> Response<Body> {
+    pub async fn forward<B>(self: &Arc<Self>, mut req: Request<B>, peer: SocketAddr) -> Response<Body>
+    where
+        B: hyper::body::Body<Data = Bytes> + Send + Sync + 'static,
+        B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
+    {
         let wants_upgrade = req.headers().contains_key(UPGRADE);
         let client_upgrade = if wants_upgrade { Some(hyper::upgrade::on(&mut req)) } else { None };
         let (mut parts, body) = req.into_parts();

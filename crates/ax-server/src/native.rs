@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 use ax_db::rusqlite::types::ValueRef;
 use ax_db::rusqlite::Connection;
 use ax_db::sessions::{cookie_value, SESSION_COOKIE};
-use ax_db::Db;
+use ax_db::{Db, Writer};
 use hyper::{HeaderMap, Method, Response, StatusCode};
 use serde_json::{Map, Value};
 
@@ -21,19 +21,42 @@ use crate::optimize::json_response;
 use crate::proxy::{Body, Proxy};
 
 /// Every route that can be answered here, by name.
-pub const ROUTES: &[&str] =
-    &["photos_channels", "performers_list", "face_groups_fast", "channel_videos", "studio_videos", "tag_videos", "library_list", "tags_list", "studio_metadata", "photos_list"];
+pub const ROUTES: &[&str] = &[
+    "photos_channels",
+    "performers_list",
+    "face_groups_fast",
+    "channel_videos",
+    "studio_videos",
+    "tag_videos",
+    "library_list",
+    "tags_list",
+    "studio_metadata",
+    "photos_list",
+    "play_progress",
+    "play_history",
+];
 
 /// A request that belongs to an enabled native route.
 pub struct Match {
     pub name: &'static str,
     pub id: Option<i64>,
+    /// The channel and message of a path with two numbers (`/api/play/history/{channel}/{message}`).
+    pub pair: Option<(i64, i64)>,
+    /// A POST: the front door reads the body before asking `handle`.
+    pub needs_body: bool,
+}
+
+/// What a request carries besides its path and query.
+pub struct Ctx<'a> {
+    pub body: &'a [u8],
+    pub host: &'a str,
 }
 
 pub struct Native {
     enabled: HashSet<&'static str>,
     auth: Auth,
     pub(crate) db: Db,
+    pub(crate) writer: Writer,
     proxy: Arc<Proxy>,
     touched: Mutex<HashMap<String, Instant>>,
     touch_interval: Duration,
@@ -59,7 +82,15 @@ impl Native {
         }
         let path = db_path.ok_or("native routes need --db")?;
         let db = Db::open_read_only(path).map_err(|e| e.to_string())?;
-        Ok(Some(Native { enabled, auth: Auth::new(db.clone()), db, proxy, touched: Mutex::new(HashMap::new()), touch_interval }))
+        Ok(Some(Native {
+            enabled,
+            auth: Auth::new(db.clone()),
+            writer: Writer::new(db.path()),
+            db,
+            proxy,
+            touched: Mutex::new(HashMap::new()),
+            touch_interval,
+        }))
     }
 
     pub fn names(&self) -> Vec<&'static str> {
@@ -70,8 +101,20 @@ impl Native {
 
     /// The enabled route this request is for, with the number in its path if it has one.
     pub fn route_for(&self, method: &Method, path: &str) -> Option<Match> {
+        if method == Method::POST && path == "/api/play/progress" {
+            return self.enabled.get("play_progress").map(|n| Match { name: n, id: None, pair: None, needs_body: true });
+        }
         if method != Method::GET {
             return None;
+        }
+        if let Some(rest) = path.strip_prefix("/api/play/history/") {
+            let (c, m) = rest.split_once('/')?;
+            let int = |v: &str| {
+                let digits = v.strip_prefix('-').unwrap_or(v);
+                (!digits.is_empty() && digits.len() <= 18 && digits.bytes().all(|b| b.is_ascii_digit())).then(|| v.parse::<i64>().ok()).flatten()
+            };
+            let pair = (int(c)?, int(m)?);
+            return self.enabled.get("play_history").map(|n| Match { name: n, id: None, pair: Some(pair), needs_body: false });
         }
         let (name, id) = match path {
             "/api/photos/channels" => ("photos_channels", None),
@@ -99,13 +142,16 @@ impl Native {
                 (name, Some(id.parse::<i64>().ok()?))
             }
         };
-        self.enabled.get(name).map(|n| Match { name: n, id })
+        self.enabled.get(name).map(|n| Match { name: n, id, pair: None, needs_body: false })
     }
 
     /// `None` means "not for me, ask Python": the route is on, but this particular request is one the Rust version does not
     /// handle (a search, an unusual parameter, a case where Python writes to the database), so it is forwarded as if the route were off.
-    pub async fn handle(&self, m: &Match, query: Option<&str>, headers: &HeaderMap, peer: SocketAddr) -> Option<Response<Body>> {
+    pub async fn handle(&self, m: &Match, query: Option<&str>, headers: &HeaderMap, peer: SocketAddr, ctx: &Ctx<'_>) -> Option<Response<Body>> {
         let route = m.name;
+        if m.needs_body && !crate::guard::allowed("POST", "/api/", headers.get(hyper::header::ORIGIN).and_then(|v| v.to_str().ok()), ctx.host) {
+            return Some(json_error(StatusCode::FORBIDDEN, "Cross-site request blocked"));
+        }
         let session = match self.auth.require(headers).await {
             Ok(s) => s,
             Err(resp) => return Some(resp),
@@ -122,6 +168,16 @@ impl Native {
             }
             "face_groups_fast" => {
                 let resp = self.face_groups_fast(query, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "play_progress" => {
+                let resp = self.play_progress(ctx.body, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "play_history" => {
+                let resp = self.play_history(m.pair?, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }

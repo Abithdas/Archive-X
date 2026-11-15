@@ -2,6 +2,7 @@ use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use http_body_util::BodyExt;
 use hyper::service::service_fn;
 use hyper::{Method, Request, Response};
 use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
@@ -91,7 +92,23 @@ pub async fn handle(req: Request<hyper::body::Incoming>, peer: SocketAddr, tls: 
     // Routes switched on in --native-routes are answered here (see native.rs).
     if let Some(native) = &state.native {
         if let Some(route) = native.route_for(req.method(), req.uri().path()) {
-            if let Some(resp) = native.handle(&route, req.uri().query(), req.headers(), peer).await {
+            let host = req.headers().get(hyper::header::HOST).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
+            if route.needs_body {
+                // A POST: read the (small) body first; if the route declines it, the same body goes on to Python.
+                let (parts, body) = req.into_parts();
+                let bytes = match http_body_util::Limited::new(body, 64 * 1024).collect().await {
+                    Ok(c) => c.to_bytes(),
+                    Err(_) => return Ok(served_by(crate::auth::json_error(hyper::StatusCode::PAYLOAD_TOO_LARGE, "Request body too large"), "rust")),
+                };
+                let ctx = crate::native::Ctx { body: &bytes, host: &host };
+                if let Some(resp) = native.handle(&route, parts.uri.query(), &parts.headers, peer, &ctx).await {
+                    return Ok(served_by(crate::static_files::with_security_headers(resp, tls), "rust"));
+                }
+                let again = Request::from_parts(parts, http_body_util::Full::new(bytes));
+                return Ok(served_by(state.proxy.forward(again, peer).await, "python"));
+            }
+            let ctx = crate::native::Ctx { body: &[], host: &host };
+            if let Some(resp) = native.handle(&route, req.uri().query(), req.headers(), peer, &ctx).await {
                 return Ok(served_by(crate::static_files::with_security_headers(resp, tls), "rust"));
             }
             // otherwise this request is one the route does not handle: it goes on to Python like any other

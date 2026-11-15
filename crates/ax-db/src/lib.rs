@@ -66,6 +66,55 @@ fn connect(path: &Path) -> Result<Connection, DbError> {
     Ok(conn)
 }
 
+/// The one connection Rust writes through, for the tables Rust owns (docs/adr/0002 and 0007). It never creates the file and opens only
+/// when the first write arrives, so a front door that only reads never needs write access. Writes are short transactions: SQLite's own
+/// locking and the 5 s busy timeout order them against Python's writes to other tables.
+#[derive(Clone)]
+pub struct Writer(Arc<WriterInner>);
+
+struct WriterInner {
+    path: PathBuf,
+    conn: Mutex<Option<Connection>>,
+}
+
+impl Writer {
+    pub fn new(path: impl Into<PathBuf>) -> Writer {
+        Writer(Arc::new(WriterInner { path: path.into(), conn: Mutex::new(None) }))
+    }
+
+    /// Run `f` inside one `BEGIN IMMEDIATE` transaction on a blocking thread; committed if it returns Ok, rolled back otherwise.
+    pub async fn write<T, F>(&self, f: F) -> Result<T, DbError>
+    where
+        T: Send + 'static,
+        F: FnOnce(&Connection) -> rusqlite::Result<T> + Send + 'static,
+    {
+        let inner = self.0.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut guard = inner.conn.lock().unwrap();
+            if guard.is_none() {
+                let c = Connection::open_with_flags(&inner.path, OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX | OpenFlags::SQLITE_OPEN_URI)
+                    .map_err(|e| DbError::Open(format!("{}: {e}", inner.path.display())))?;
+                c.busy_timeout(BUSY_TIMEOUT)?;
+                *guard = Some(c);
+            }
+            let conn = guard.as_ref().unwrap();
+            conn.execute_batch("BEGIN IMMEDIATE")?;
+            match f(conn) {
+                Ok(v) => {
+                    conn.execute_batch("COMMIT")?;
+                    Ok(v)
+                }
+                Err(e) => {
+                    let _ = conn.execute_batch("ROLLBACK");
+                    Err(DbError::from(e))
+                }
+            }
+        })
+        .await
+        .map_err(|e| DbError::Task(e.to_string()))?
+    }
+}
+
 impl Db {
     /// Open the database read-only. Fails if the file does not exist (Rust never creates the database).
     pub fn open_read_only(path: impl Into<PathBuf>) -> Result<Db, DbError> {

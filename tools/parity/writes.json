@@ -185,5 +185,86 @@
   "path": "/api/library/3/favorite",
   "body": {},
   "origin": "https://evil.example"
+ },
+ {
+  "name": "progress: first save",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 1001,
+   "position": 30,
+   "duration": 100,
+   "watch_delta": 5
+  }
+ },
+ {
+  "name": "progress: more watch time",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 1001,
+   "position": 40,
+   "duration": 100,
+   "watch_delta": 5
+  }
+ },
+ {
+  "name": "progress: a seek is not watch time",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 1001,
+   "position": 80,
+   "duration": 100,
+   "watch_delta": 45
+  }
+ },
+ {
+  "name": "progress: near the end",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 1001,
+   "position": 95.5,
+   "duration": 100,
+   "watch_delta": 2
+  }
+ },
+ {
+  "name": "progress: play again from the top",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 1001,
+   "position": 1,
+   "duration": 100,
+   "watch_delta": 2
+  }
+ },
+ {
+  "name": "progress: unknown video",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 999999,
+   "position": 1,
+   "duration": 2
+  }
+ },
+ {
+  "name": "progress: integer channel id, nothing else",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": -1002,
+   "message_id": 1001,
+   "position": 3
+  }
  }
 ]

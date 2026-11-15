@@ -2,7 +2,7 @@
 name = "ax-db"
 version = "0.1.0"
 edition = "2021"
-description = "Read-only access to the Archive X SQLite database (Python stays the only writer)"
+description = "Access to the Archive X SQLite database: read-only for everything, plus one writer for the tables Rust owns"
 
 [dependencies]
 rusqlite = { version = "0.42", features = ["bundled"] }
