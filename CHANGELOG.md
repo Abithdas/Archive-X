@@ -6,6 +6,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 - **Fix (the Rust routes in 30.2.4 did not start in the real desktop app):** the front door's own question to the backend ("where is the database?") was refused by the backend's desktop guard, so in 30.2.4 every route that reads the database stayed with Python (nothing broke, nothing was faster). The front door now sends the launch secret with its own calls, and routes it answers itself require the launch secret or cookie, as the backend does (found by running the front door in front of a backend in desktop mode, which the earlier tests did not).
 
+- **Sign-in check:** the performer name list and face learning check the session in the database (as the other Rust routes do) instead of asking Python on every request.
+
 ## 30.2.4 (2026-11-15)
 
 - **Native player:** the video's own window is the default layer (the one that showed the picture on a real PC); Back no longer freezes the app; less lag from the on-screen check; a quicker start on network streams; jumps show where they are going.

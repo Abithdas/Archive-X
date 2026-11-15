@@ -38,6 +38,7 @@ pub struct Learning {
     proxy: Arc<Proxy>,
     db: Mutex<Option<Db>>,
     cache: Mutex<Option<(String, Arc<Learner>)>>,
+    auth: std::sync::OnceLock<crate::auth::Auth>,
 }
 
 impl Learning {
@@ -45,7 +46,7 @@ impl Learning {
         if !routes.iter().any(|r| r == "face_learning" || r == "all") {
             return None;
         }
-        Some(Arc::new(Learning { proxy, db: Mutex::new(None), cache: Mutex::new(None) }))
+        Some(Arc::new(Learning { proxy, db: Mutex::new(None), cache: Mutex::new(None), auth: std::sync::OnceLock::new() }))
     }
 
     pub fn route_for(&self, method: &Method, path: &str) -> Option<Route> {
@@ -87,6 +88,10 @@ impl Learning {
     // The Err value is the finished 401/503 answer, sent straight back to the client, so boxing it would only add noise.
     #[allow(clippy::result_large_err)]
     async fn allowed(&self, headers: &HeaderMap, peer: SocketAddr) -> Result<(), Response<Body>> {
+        // With the database known, the sign-in check is made here from the sessions table (same rules as the backend's); without it, the backend is asked.
+        if let Some(auth) = self.auth.get() {
+            return auth.require(headers).await.map(|_| ());
+        }
         let cookie = headers.get_all(hyper::header::COOKIE).iter().filter_map(|v| v.to_str().ok()).collect::<Vec<_>>().join("; ");
         match self.proxy.signed_in(&cookie, peer).await {
             Ok(true) => Ok(()),
@@ -96,6 +101,11 @@ impl Learning {
                 Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "The backend could not be reached"))
             }
         }
+    }
+
+    /// Use this session check instead of asking the backend who is signed in.
+    pub fn use_auth(&self, auth: crate::auth::Auth) {
+        let _ = self.auth.set(auth);
     }
 
     /// `None` means "not for me" (an unusual request): it goes on to Python, which answers 404 for these paths.

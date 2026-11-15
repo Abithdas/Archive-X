@@ -180,6 +180,14 @@ pub async fn serve_with_fetch(
         None => Names::new(&cfg.native_routes, proxy.clone()),
     };
     let learning = Learning::new(&cfg.native_routes, proxy.clone());
+    if let Some(native) = &native {
+        if let Some(n) = &names {
+            n.use_auth(native.auth());
+        }
+        if let Some(l) = &learning {
+            l.use_auth(native.auth());
+        }
+    }
     if let Some(n) = &names {
         n.clone().spawn_loop(std::time::Duration::from_secs(120), std::time::Duration::from_secs(6 * 3600));
     }

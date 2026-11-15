@@ -102,6 +102,11 @@ impl Native {
         }))
     }
 
+    /// The session check, for the other routes answered by the front door.
+    pub fn auth(&self) -> Auth {
+        self.auth.clone()
+    }
+
     pub fn names(&self) -> Vec<&'static str> {
         let mut v: Vec<_> = self.enabled.iter().copied().collect();
         v.sort();

@@ -44,6 +44,7 @@ pub struct Names {
     running: AtomicBool,
     stop: Arc<AtomicBool>,
     pause: Duration,
+    auth: std::sync::OnceLock<crate::auth::Auth>,
 }
 
 impl Names {
@@ -64,6 +65,7 @@ impl Names {
             fetch,
             enabled: (search, list),
             store: Mutex::new(None),
+            auth: std::sync::OnceLock::new(),
             opening: tokio::sync::Mutex::new(()),
             keys: Mutex::new(None),
             running: AtomicBool::new(false),
@@ -129,6 +131,10 @@ impl Names {
     // The Err value is the finished 401/503 answer, sent straight back to the client, so boxing it would only add noise.
     #[allow(clippy::result_large_err)]
     async fn allowed(&self, headers: &HeaderMap, peer: SocketAddr) -> Result<(), Response<Body>> {
+        // With the database known, the sign-in check is made here from the sessions table (same rules as the backend's); without it, the backend is asked.
+        if let Some(auth) = self.auth.get() {
+            return auth.require(headers).await.map(|_| ());
+        }
         let cookie = headers.get_all(hyper::header::COOKIE).iter().filter_map(|v| v.to_str().ok()).collect::<Vec<_>>().join("; ");
         match self.proxy.signed_in(&cookie, peer).await {
             Ok(true) => Ok(()),
@@ -138,6 +144,11 @@ impl Names {
                 Err(json_error(StatusCode::SERVICE_UNAVAILABLE, "The backend could not be reached"))
             }
         }
+    }
+
+    /// Use this session check instead of asking the backend who is signed in.
+    pub fn use_auth(&self, auth: crate::auth::Auth) {
+        let _ = self.auth.set(auth);
     }
 
     /// `None` means "not for me, ask Python" (a name nobody here knows yet: the providers are asked live).

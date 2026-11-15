@@ -394,3 +394,16 @@ async fn with_a_launch_secret_only_the_apps_own_requests_are_answered_here() {
     assert_eq!(wrong.headers["x-served-by"], "python");
     assert!(rows(&db_path(&d)).is_empty());
 }
+
+#[tokio::test]
+async fn the_name_list_checks_the_session_in_the_database_when_it_is_known() {
+    // this backend would call anybody signed in (it answers every path 200), so a 401 can only come from the sessions table
+    let d = door(|_| {}).await;
+    let mut s = TcpStream::connect(d.addr).await.unwrap();
+    s.write_all(b"GET /api/photos/faces/performers/name-list HTTP/1.1\r\nHost: archive.test\r\nConnection: close\r\n\r\n").await.unwrap();
+    let mut raw = String::new();
+    s.read_to_string(&mut raw).await.unwrap();
+    assert!(raw.starts_with("HTTP/1.1 401"), "{raw}");
+    let signed_in = get(d.addr, "/api/photos/faces/performers/name-list", "").await;
+    assert_ne!(signed_in.status, 401);
+}
