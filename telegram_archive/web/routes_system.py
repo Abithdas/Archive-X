@@ -510,7 +510,7 @@ def register_system_routes(
 
         # Let the 202 response leave the server before switching the server's
         # shutdown flag. The ASGI lifespan then checkpoints jobs and stops the
-        # watchdog guardian, playback engine, Telegram client, and database.
+        # watchdogs, playback engine, Telegram client, and database.
         asyncio.get_running_loop().call_later(0.8, request_shutdown)
         return JSONResponse({
             "ok": True,

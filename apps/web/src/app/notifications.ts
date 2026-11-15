@@ -59,7 +59,7 @@ export function eventToNotice(e: Row, now = Date.now()): Notice | null {
   const raw = typeof e.message === 'string' ? e.message : String(e.message ?? '')
   const code = String(e.event ?? '').toLowerCase()
   const source = `${raw} ${code.replace(/[._]+/g, ' ')}`.trim()
-  if (DIAG_EVENT.test(code) || /^diagnostics\.report\./.test(code) || /^watchdog\.guardian_(?:started|restart_backoff|start_exited)$/.test(code)) return null
+  if (DIAG_EVENT.test(code) || /^diagnostics\.report\./.test(code)) return null
   if (/resource load failed|main-thread long task|slow api request|playback engine started/i.test(raw)) return null
   if (ROUTINE_EVENT.test(code) || LOW_SIGNAL.test(source)) return null
 

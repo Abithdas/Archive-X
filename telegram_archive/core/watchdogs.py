@@ -27,15 +27,11 @@ from .swallowed import note as _swallowed_note
 from .background_tasks import retain as _retain_task
 
 import json
-import os
-import subprocess
 import sys
 import threading
 import time
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Optional
 
 
@@ -399,7 +395,7 @@ class EventLoopGuard:
 
 # ==============================================================================
 # SECTION: WatchdogManager
-# Coordinates job liveness, the guardian process and recovery.
+# Coordinates job liveness and recovery.
 # ==============================================================================
 
 class WatchdogManager:
@@ -411,7 +407,7 @@ class WatchdogManager:
     # Start, stop, job registration and heartbeats.
     # ------------------------------------------------------------------
     def __init__(self, job_manager):
-        """Create the registry, loop guard and guardian bookkeeping."""
+        """Create the registry and loop guard."""
         self.manager = job_manager
         self.registry = WatchdogRegistry()
         self.loop_guard = EventLoopGuard()
@@ -449,16 +445,6 @@ class WatchdogManager:
         self._independent_monitor_last_error = ""
         self._started_wall = time.time()
         self._started_monotonic = time.monotonic()
-        self._guardian_process: Optional[subprocess.Popen] = None
-        self._guardian_status = "NOT_STARTED"
-        self._guardian_started_monotonic = 0.0
-        self._manifest_path: Optional[Path] = None
-        self._control_path: Optional[Path] = None
-        self._guardian_heartbeat_path: Optional[Path] = None
-        self._guardian_incident_path: Optional[Path] = None
-        self._guardian_restart_history_path: Optional[Path] = None
-        self._guardian_session_id = f"{os.getpid()}-{uuid.uuid4().hex[:10]}"
-        self._last_guardian_restart_monotonic = 0.0
 
     def start(self) -> None:
         import asyncio
@@ -481,17 +467,7 @@ class WatchdogManager:
             self._task = asyncio.create_task(self._run(), name="watchdog-supervisor")
         if self._loop_task is None or self._loop_task.done():
             self._loop_task = asyncio.create_task(self._loop_heartbeat_loop(), name="watchdog-loop-heartbeat")
-        from .. import config
-        guardian_enabled = bool(getattr(config, "WATCHDOG_GUARDIAN_ENABLED", True))
-        if guardian_enabled:
-            self._configure_guardian()
-            self._publish_guardian_manifest()
-            self._start_guardian_process()
-        else:
-            self._guardian_status = "DISABLED"
-        # Keep the in-process independent monitor active even when the optional
-        # external guardian is disabled: it still enforces the job grace and can
-        # recover a watchdog task while the event loop is responsive.
+        # The independent monitor thread enforces the job grace and can recover a watchdog task while the event loop is responsive.
         self._monitor_stop.clear()
         if self._monitor_thread is None or not self._monitor_thread.is_alive():
             self._monitor_thread = threading.Thread(
@@ -502,7 +478,6 @@ class WatchdogManager:
 
     def stop(self) -> None:
         self._stopping = True
-        self._write_guardian_control("stop")
         self._monitor_stop.set()
         monitor = self._monitor_thread
         if monitor is not None and monitor.is_alive() and monitor is not threading.current_thread():
@@ -517,20 +492,6 @@ class WatchdogManager:
             loop_task.cancel()
         self._loop_task = None
         self.loop_guard.stop()
-        guardian = self._guardian_process
-        if guardian is not None and guardian.poll() is None:
-            try:
-                guardian.wait(timeout=1.25)
-            except subprocess.TimeoutExpired:
-                try:
-                    guardian.terminate()
-                    guardian.wait(timeout=1.0)
-                except Exception:
-                    try:
-                        guardian.kill()
-                    except Exception:
-                        _swallowed_note("watchdogs.WatchdogManager.stop")
-                        pass
 
     def register_job(self, job_id: str, job_type: str, *, replace: bool = False) -> None:
         """Register a job clock. Idempotent unless ``replace`` is requested.
@@ -765,7 +726,7 @@ class WatchdogManager:
         self._last_loop_heartbeat_wall = time.time()
 
     def snapshot(self) -> dict[str, Any]:
-        """Return watchdog, guardian and per-job health for status output."""
+        """Return watchdog and per-job health for status output."""
         raw_jobs = self.registry.snapshot()
         with self._active_jobs_lock:
             active_rows = {jid: dict(row) for jid, row in self._active_jobs_cache.items()}
@@ -781,19 +742,8 @@ class WatchdogManager:
             counts[item["state"]] = counts.get(item["state"], 0) + 1
         from .. import config
         now_mono = time.monotonic()
-        guardian_age = None
-        if self._guardian_heartbeat_path is not None:
-            try:
-                guardian_age = max(0.0, time.time() - float(json.loads(self._guardian_heartbeat_path.read_text(encoding="utf-8")).get("heartbeat_unix") or 0.0))
-            except Exception:
-                guardian_age = None
-        guardian_process_alive = bool(self._guardian_process is not None and self._guardian_process.poll() is None)
         effective_job_grace = _unrecovered_grace_seconds({})
-        guardian = {
-            "state": self._guardian_health_state(guardian_process_alive, guardian_age, now_mono),
-            "process_alive": guardian_process_alive,
-            "pid": self._guardian_process.pid if guardian_process_alive else None,
-            "heartbeat_age": round(guardian_age, 2) if guardian_age is not None else None,
+        monitor = {
             "loop_heartbeat_age": round(max(0.0, time.time() - self._last_loop_heartbeat_wall), 2),
             "watchdog_task_heartbeat_age": round(max(0.0, now_mono - self._last_supervisor_heartbeat_monotonic), 2),
             "watchdog_success_age": round(max(0.0, now_mono - self._last_supervisor_success_monotonic), 2),
@@ -801,9 +751,7 @@ class WatchdogManager:
             "watchdog_last_error": self._last_supervisor_error[:240],
             "independent_monitor_error_count": int(self._independent_monitor_error_count),
             "independent_monitor_last_error": self._independent_monitor_last_error[:240],
-            "enforcement": "independent_process",
-            "restart_limit": int(getattr(config, "WATCHDOG_GUARDIAN_RESTART_LIMIT", 2)),
-            "restart_window_seconds": float(getattr(config, "WATCHDOG_GUARDIAN_RESTART_WINDOW_SECONDS", 600.0)),
+            "enforcement": "independent_thread",
             "event_loop_stale_after_seconds": float(getattr(config, "WATCHDOG_EVENT_LOOP_STALE_SECONDS", 6.0)),
             "watchdog_task_recovery_after_seconds": float(getattr(config, "WATCHDOG_TASK_RECOVERY_SECONDS", 5.0)),
             "watchdog_task_restart_after_seconds": float(getattr(config, "WATCHDOG_TASK_ENFORCER_SECONDS", 12.0)),
@@ -819,324 +767,20 @@ class WatchdogManager:
             },
         }
         overall = FAILED if counts[FAILED] else (STALLED if counts[STALLED] else (SUSPECTED if counts[SUSPECTED] else (DEGRADED if counts[DEGRADED] else HEALTHY)))
-        if guardian["state"] == "DEGRADED" and overall == HEALTHY:
-            overall = DEGRADED
         return {
             "overall": overall,
             "counts": counts,
             "jobs": jobs,
             "event_loop": self.loop_guard.snapshot(),
-            "guardian": guardian,
+            "monitor": monitor,
             "interval_seconds": float(getattr(config, "WATCHDOG_SUPERVISOR_INTERVAL_SECONDS", 1.0)),
         }
 
 
-    # ------------------------------------------------------------------
-    # SUBSECTION: Guardian process
-    # Starts, configures and monitors the out-of-process guardian.
-    # ------------------------------------------------------------------
-    def _guardian_health_state(self, process_alive: bool, heartbeat_age: float | None, now_mono: float) -> str:
-        from .. import config
-        if not bool(getattr(config, "WATCHDOG_GUARDIAN_ENABLED", True)):
-            return "DISABLED"
-        if self._guardian_status == "NOT_STARTED":
-            return "STARTING"
-        if not process_alive:
-            return "DEGRADED"
-        if heartbeat_age is None:
-            startup_age = max(0.0, now_mono - self._guardian_started_monotonic) if self._guardian_started_monotonic else 0.0
-            if startup_age > float(getattr(config, "WATCHDOG_PUBLISHER_STALE_SECONDS", 8.0)):
-                return "DEGRADED"
-            return "STARTING"
-        if heartbeat_age is not None and heartbeat_age > float(getattr(config, "WATCHDOG_PUBLISHER_STALE_SECONDS", 8.0)):
-            return "DEGRADED"
-        if self._guardian_status in {"DEGRADED", "UNAVAILABLE"}:
-            return "DEGRADED"
-        loop_age = max(0.0, now_mono - self._last_loop_heartbeat_monotonic)
-        task_age = max(0.0, now_mono - self._last_supervisor_success_monotonic)
-        if loop_age > float(getattr(config, "WATCHDOG_EVENT_LOOP_STALE_SECONDS", 6.0)) or task_age > float(getattr(config, "WATCHDOG_TASK_ENFORCER_SECONDS", 12.0)):
-            return "DEGRADED"
-        return "HEALTHY"
-
-    def _configure_guardian(self) -> None:
-        from .. import config
-        config.RUNTIME_STATE_DIR.mkdir(parents=True, exist_ok=True)
-        base = config.RUNTIME_STATE_DIR / f"watchdog-{self._guardian_session_id}"
-        self._manifest_path = base.with_suffix(".json")
-        self._control_path = base.with_name(base.name + "-control.json")
-        self._guardian_heartbeat_path = base.with_name(base.name + "-guardian-heartbeat.json")
-        self._guardian_incident_path = config.LOG_DIR / "watchdog-guardian-incidents.jsonl"
-        self._guardian_restart_history_path = config.RUNTIME_STATE_DIR / "watchdog-guardian-restarts.json"
-        self._guardian_status = "STARTING"
-        for path in (self._control_path, self._guardian_heartbeat_path):
-            try:
-                path.unlink(missing_ok=True)
-            except Exception:
-                _swallowed_note("watchdogs.WatchdogManager._configure_guardian")
-                pass
-        self._report_previous_guardian_restart()
-
-    def _report_previous_guardian_restart(self) -> None:
-        """V29.4.223: say in the normal log why the guardian restarted the app."""
-        from .. import config
-        path = self._guardian_incident_path
-        marker = config.RUNTIME_STATE_DIR / "watchdog-guardian-incident-reported.txt"
-        try:
-            if path is None or not path.is_file():
-                return
-            lines = [x for x in path.read_text(encoding="utf-8", errors="replace").splitlines() if x.strip()][-20:]
-            last = None
-            for raw in reversed(lines):
-                try:
-                    item = json.loads(raw)
-                except Exception:
-                    _swallowed_note("watchdogs.WatchdogManager._report_previous_guardian_restart")
-                    continue
-                if str(item.get("event") or "").startswith("watchdog.guardian_restart") or item.get("event") == "watchdog.guardian_enforcement":
-                    last = item
-                    break
-            if not last:
-                return
-            stamp = str(last.get("timestamp") or "")
-            try:
-                if marker.is_file() and marker.read_text(encoding="utf-8").strip() == stamp:
-                    return
-            except Exception:
-                _swallowed_note("watchdogs.WatchdogManager._report_previous_guardian_restart")
-                pass
-            reason = str(last.get("reason") or "unknown").replace("_", " ")
-            self.manager.db.log(
-                f"Archive X was restarted by the watchdog guardian at {stamp}: {reason} "
-                f"(the app had stopped responding; event-loop age {last.get('loop_heartbeat_age_seconds')}s)",
-                "WARN", event="watchdog.guardian_restart_reported",
-            )
-            marker.parent.mkdir(parents=True, exist_ok=True)
-            marker.write_text(stamp, encoding="utf-8")
-        except Exception:
-            _swallowed_note("watchdogs.WatchdogManager._report_previous_guardian_restart")
-            pass
-
-    def _start_guardian_process(self) -> bool:
-        """Launch the out-of-process guardian; returns True when it starts."""
-        from .. import config
-        if self._stopping or self._manifest_path is None or self._control_path is None:
-            return False
-        if self._guardian_process is not None and self._guardian_process.poll() is None:
-            return True
-        now = time.monotonic()
-        min_retry = float(getattr(config, "WATCHDOG_GUARDIAN_POLL_SECONDS", 0.5)) * 4
-        if self._last_guardian_restart_monotonic and now - self._last_guardian_restart_monotonic < min_retry:
-            return False
-        # V29.4.221 restart backoff: a guardian that keeps exiting must never be
-        # relaunched in a tight loop. After 3 launches within 120 s, pause
-        # relaunching for 10 minutes and log the guardian's own error output once.
-        launches = [t for t in (getattr(self, "_guardian_launch_times", None) or []) if now - t < 120.0]
-        suppressed_until = float(getattr(self, "_guardian_suppressed_until", 0.0) or 0.0)
-        if now < suppressed_until:
-            return False
-        if len(launches) >= 3:
-            self._guardian_suppressed_until = now + 600.0
-            self._guardian_launch_times = []
-            self._guardian_status = "DEGRADED"
-            tail = ""
-            try:
-                log_path = config.LOG_DIR / "watchdog-guardian-process.log"
-                lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
-                tail = " | ".join(x.strip() for x in lines[-5:] if x.strip())[:600]
-            except Exception:
-                _swallowed_note("watchdogs.WatchdogManager._start_guardian_process")
-                pass
-            try:
-                self.manager.db.log(
-                    "Independent watchdog guardian exited repeatedly; relaunch paused for 10 minutes"
-                    + (f". Guardian output: {tail}" if tail else ""),
-                    "ERROR", event="watchdog.guardian_restart_backoff",
-                )
-            except Exception:
-                _swallowed_note("watchdogs.WatchdogManager._start_guardian_process")
-                pass
-            return False
-        launches.append(now)
-        self._guardian_launch_times = launches
-        self._last_guardian_restart_monotonic = now
-        command = [sys.executable, str(config.APP_DIR / "run.py"), *sys.argv[1:]]
-        import base64
-        import json as _json
-        encoded_command = base64.urlsafe_b64encode(_json.dumps(command).encode("utf-8")).decode("ascii")
-        guardian_script = Path(__file__).with_name("watchdog_guardian.py").resolve()
-        args = [
-            sys.executable, str(guardian_script),
-            "--manifest", str(self._manifest_path), "--control", str(self._control_path),
-            "--parent-pid", str(os.getpid()),
-            "--guardian-heartbeat", str(self._guardian_heartbeat_path),
-            "--incident", str(self._guardian_incident_path),
-            "--restart-history", str(self._guardian_restart_history_path),
-            "--app-root", str(config.APP_DIR), "--restart-command", encoded_command,
-            "--poll-seconds", str(getattr(config, "WATCHDOG_GUARDIAN_POLL_SECONDS", 0.5)),
-            "--startup-grace-seconds", str(getattr(config, "WATCHDOG_GUARDIAN_STARTUP_HANG_GRACE_SECONDS", 90.0)),
-            "--loop-stale-seconds", str(getattr(config, "WATCHDOG_GUARDIAN_LOOP_HANG_SECONDS", 180.0)),
-            "--watchdog-stale-seconds", str(getattr(config, "WATCHDOG_GUARDIAN_TASK_HANG_SECONDS", 240.0)),
-            "--publisher-stale-seconds", str(getattr(config, "WATCHDOG_GUARDIAN_PUBLISHER_HANG_SECONDS", 240.0)),
-            "--restart-limit", str(getattr(config, "WATCHDOG_GUARDIAN_RESTART_LIMIT", 2)),
-            "--restart-window-seconds", str(getattr(config, "WATCHDOG_GUARDIAN_RESTART_WINDOW_SECONDS", 600.0)),
-        ]
-        try:
-            guardian_log_path = config.LOG_DIR / "watchdog-guardian-process.log"
-            guardian_log_path.parent.mkdir(parents=True, exist_ok=True)
-            guardian_log = guardian_log_path.open("ab", buffering=0)
-            kwargs: dict[str, Any] = {
-                "cwd": str(config.APP_DIR), "stdin": subprocess.DEVNULL,
-                "stdout": guardian_log, "stderr": guardian_log,
-                "close_fds": True,
-            }
-            if os.name == "nt":
-                kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-            else:
-                kwargs["start_new_session"] = True
-            try:
-                self._guardian_process = subprocess.Popen(args, **kwargs)
-            finally:
-                try: guardian_log.close()
-                except Exception:
-                    _swallowed_note("watchdogs.WatchdogManager._start_guardian_process")
-                    pass
-            self._guardian_started_monotonic = time.monotonic()
-            # Popen success does not prove the standard-library guardian loaded
-            # correctly. Give it a short bootstrap interval, verify it is alive,
-            # and record the child PID in the startup event. The monitor loop will
-            # relaunch it if it exits later.
-            time.sleep(0.12)
-            if self._guardian_process.poll() is not None:
-                code = self._guardian_process.returncode
-                self._guardian_status = "DEGRADED"
-                try:
-                    self.manager.db.log(
-                        f"Independent watchdog guardian exited during startup (code {code}); supervisor will retry",
-                        "ERROR", event="watchdog.guardian_start_exited",
-                    )
-                except Exception:
-                    _swallowed_note("watchdogs.WatchdogManager._start_guardian_process")
-                    pass
-                return False
-            self._guardian_status = "RUNNING"
-            try:
-                self.manager.db.log(
-                    f"Independent watchdog guardian started (pid {self._guardian_process.pid})",
-                    "INFO", event="watchdog.guardian_started",
-                )
-            except Exception:
-                _swallowed_note("watchdogs.WatchdogManager._start_guardian_process")
-                pass
-            return True
-        except Exception as exc:
-            self._guardian_status = "UNAVAILABLE"
-            try:
-                self.manager.db.log(
-                    f"Independent watchdog guardian could not start: {type(exc).__name__}: {exc}",
-                    "ERROR", event="watchdog.guardian_start_failed",
-                )
-            except Exception:
-                _swallowed_note("watchdogs.WatchdogManager._start_guardian_process")
-                pass
-            return False
-
-    def _write_guardian_control(self, action: str) -> None:
-        if self._control_path is None:
-            return
-        try:
-            self._write_atomic_json(self._control_path, {"action": action, "timestamp_unix": time.time()})
-        except Exception:
-            _swallowed_note("watchdogs.WatchdogManager._write_guardian_control")
-            pass
-
-    @staticmethod
-    def _write_atomic_json(path: Path, payload: dict[str, Any]) -> None:
-        """Atomically publish watchdog state, retrying short Windows file locks.
-
-        Security scanners and other Windows processes can briefly deny replacement
-        of the destination. A single failure must not stop this monitor cycle or
-        leave the guardian without a fresh manifest. Keep the staged JSON intact
-        while retrying the replace, and use a unique temporary file per write.
-        """
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_name(
-            f"{path.name}.{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex}.tmp"
-        )
-        serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True)
-        temp_ready = False
-        delays = (0.04, 0.08, 0.16, 0.32, 0.64)
-        try:
-            for attempt in range(len(delays) + 1):
-                try:
-                    if not temp_ready:
-                        temporary.write_text(serialized, encoding="utf-8")
-                        temp_ready = True
-                    os.replace(temporary, path)
-                    return
-                except PermissionError:
-                    if attempt >= len(delays):
-                        raise
-                    time.sleep(delays[attempt])
-        finally:
-            try:
-                temporary.unlink(missing_ok=True)
-            except OSError:
-                pass
-
-    def _publish_guardian_manifest(self) -> None:
-        """Write the liveness manifest that the guardian reads."""
-        if self._manifest_path is None:
-            return
-        now_mono = time.monotonic()
-        now_wall = time.time()
-        with self._active_jobs_lock:
-            active = [dict(job) for job in self._active_jobs_cache.values()]
-        live_jobs = []
-        for job in active:
-            jid = str(job.get("id") or "")
-            entry = self.registry.get(jid)
-            state = self._evaluate_job(jid, job, now=now_mono) if entry is not None else {"state": UNKNOWN, "reason": "not_registered"}
-            with self._independent_lock:
-                unhealthy_since = self._independent_unhealthy_since.get(jid)
-            live = {
-                "id": jid, "status": str(job.get("status") or "UNKNOWN").upper(),
-                "job_type": str(job.get("job_type") or "DEFAULT"),
-                "watchdog_state": str(state.get("state") or UNKNOWN),
-                "watchdog_reason": str(state.get("reason") or ""),
-                "heartbeat_age": state.get("heartbeat_age"),
-                "progress_age": state.get("progress_age"),
-                "unhealthy_elapsed_seconds": round(max(0.0, now_mono - unhealthy_since), 2) if unhealthy_since is not None else 0.0,
-                "active_blocking_age_seconds": self._active_blocking_age(jid),
-                "parent_job_id": self._parent_job_id(job) or None,
-                "active_child_count": int((entry.metadata or {}).get("active_child_count") or 0) if entry is not None else 0,
-            }
-            process = getattr(self.manager, "isolated_processes", {}).get(jid)
-            try:
-                live["isolated_process_pid"] = int(process.pid) if process is not None and process.is_alive() else None
-            except Exception:
-                live["isolated_process_pid"] = None
-            live_jobs.append(live)
-        payload = {
-            "schema": 1, "parent_pid": os.getpid(), "guardian_session": self._guardian_session_id,
-            "started_at_unix": self._started_wall, "started_at_monotonic": self._started_monotonic,
-            "publisher_heartbeat_unix": now_wall, "publisher_heartbeat_monotonic": now_mono,
-            "loop_heartbeat_unix": self._last_loop_heartbeat_wall,
-            "loop_heartbeat_monotonic": self._last_loop_heartbeat_monotonic,
-            "watchdog_heartbeat_unix": self._last_supervisor_heartbeat_wall,
-            "watchdog_heartbeat_monotonic": self._last_supervisor_heartbeat_monotonic,
-            "watchdog_success_unix": self._last_supervisor_success_wall,
-            "watchdog_success_monotonic": self._last_supervisor_success_monotonic,
-            "watchdog_error_count": self._supervisor_error_count,
-            "watchdog_last_error": self._last_supervisor_error[:240],
-            "active_jobs": live_jobs,
-            "guardian_pid": self._guardian_process.pid if self._guardian_process and self._guardian_process.poll() is None else None,
-        }
-        self._write_atomic_json(self._manifest_path, payload)
-
     def _independent_monitor_loop(self) -> None:
         """Thread loop that keeps enforcing even if the asyncio loop stalls."""
         from .. import config
-        interval = max(0.2, float(getattr(config, "WATCHDOG_GUARDIAN_PUBLISH_SECONDS", 0.5)))
+        interval = max(0.2, float(getattr(config, "WATCHDOG_MONITOR_SECONDS", 0.5)))
         task_timeout = max(1.0, float(getattr(config, "WATCHDOG_TASK_RECOVERY_SECONDS", 5.0)))
         loop_timeout = max(1.0, float(getattr(config, "WATCHDOG_EVENT_LOOP_STALE_SECONDS", 6.0)))
         while not self._monitor_stop.wait(interval):
@@ -1153,72 +797,14 @@ class WatchdogManager:
                 )
                 if loop_age < min(2.5, loop_timeout / 2.0) and task_age >= task_timeout and recovery_cooldown_elapsed:
                     self._request_watchdog_task_recovery()
-                self._publish_guardian_manifest()
-                if bool(getattr(config, "WATCHDOG_GUARDIAN_ENABLED", True)):
-                    process_alive = self._guardian_process is not None and self._guardian_process.poll() is None
-                    heartbeat_age = None
-                    if self._guardian_heartbeat_path is not None:
-                        try:
-                            heartbeat_age = time.time() - float(json.loads(self._guardian_heartbeat_path.read_text(encoding="utf-8")).get("heartbeat_unix") or 0.0)
-                        except Exception:
-                            heartbeat_age = None
-                    heartbeat_stale = (
-                        heartbeat_age is not None and heartbeat_age > float(getattr(config, "WATCHDOG_PUBLISHER_STALE_SECONDS", 8.0))
-                    ) or (
-                        heartbeat_age is None and self._guardian_started_monotonic
-                        and now_mono - self._guardian_started_monotonic > float(getattr(config, "WATCHDOG_PUBLISHER_STALE_SECONDS", 8.0))
-                    )
-                    if not process_alive or heartbeat_stale:
-                        self._guardian_status = "DEGRADED"
-                        self._restart_guardian_process()
-                    elif self._guardian_status != "UNAVAILABLE":
-                        self._guardian_status = "RUNNING"
-                else:
-                    self._guardian_status = "DISABLED"
             except Exception as exc:
-                # Monitoring errors are reflected separately from watchdog task
-                # errors. Repeated failures stop manifest publication so the
-                # out-of-process guardian enforces its publisher heartbeat deadline.
+                # Monitoring errors are reflected separately from watchdog task errors.
                 self._independent_monitor_error_count += 1
                 self._independent_monitor_last_error = f"{type(exc).__name__}: {exc}"[:240]
-                self._guardian_status = "DEGRADED"
                 continue
 
-    def _restart_guardian_process(self) -> None:
-        process = self._guardian_process
-        replacing_live_process = process is not None and process.poll() is None
-        if replacing_live_process:
-            try:
-                process.terminate()
-                process.wait(timeout=1.0)
-            except Exception:
-                try:
-                    process.kill()
-                except Exception:
-                    _swallowed_note("watchdogs.WatchdogManager._restart_guardian_process")
-                    pass
-        self._guardian_process = None
-        for path in (self._control_path, self._guardian_heartbeat_path):
-            if path is not None:
-                try:
-                    path.unlink(missing_ok=True)
-                except Exception:
-                    _swallowed_note("watchdogs.WatchdogManager._restart_guardian_process")
-                    pass
-        # A live-but-unresponsive guardian can be replaced immediately. A dead
-        # guardian/start failure still respects the retry cooldown in start().
-        if replacing_live_process:
-            self._last_guardian_restart_monotonic = 0.0
-        self._start_guardian_process()
-
-
-    # ------------------------------------------------------------------
-    # SUBSECTION: Independent enforcement and recovery
-    # Stops stuck jobs and recovers watchdog tasks.
-    # ------------------------------------------------------------------
     def _enforce_jobs_independently(self, now: float) -> None:
         """Evaluate active jobs from the monitor thread and request stops."""
-        from .. import config
         unhealthy = {DEGRADED, SUSPECTED, STALLED, RECOVERING}
         with self._active_jobs_lock:
             active = {jid: dict(job) for jid, job in self._active_jobs_cache.items()}
@@ -1366,7 +952,7 @@ class WatchdogManager:
     async def _loop_heartbeat_loop(self) -> None:
         import asyncio
         from .. import config
-        interval = max(0.1, min(0.5, float(getattr(config, "WATCHDOG_GUARDIAN_PUBLISH_SECONDS", 0.5))))
+        interval = max(0.1, min(0.5, float(getattr(config, "WATCHDOG_MONITOR_SECONDS", 0.5))))
         while not self._stopping:
             self.beat_loop()
             await asyncio.sleep(interval)

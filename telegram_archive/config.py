@@ -163,30 +163,13 @@ PLAYBACK_FOREGROUND_MAX_SEGMENTS = 4
 # performance controls, not user-facing settings: changing them can weaken
 # recovery guarantees or increase database/browser load.
 WATCHDOG_SUPERVISOR_INTERVAL_SECONDS = 1.0
-# The asyncio job watchdog is backed by an independent thread and a separate
-# enforcer process. These controls are internal reliability safeguards.
-# The guardian is started as `python watchdog_guardian.py ...`. The installed backend has no separate Python to run it with (its "python" is
-# the app itself, so the call started a second copy of the app, which refused with "already running", three times every ten minutes), and the
-# desktop shell already watches the backend and reports if it stops. So it is off in the installed app and in desktop mode, and on elsewhere.
-# ARCHIVE_X_WATCHDOG_GUARDIAN=1 or 0 overrides.
-_guardian_choice = (os.getenv("ARCHIVE_X_WATCHDOG_GUARDIAN") or "").strip()
-WATCHDOG_GUARDIAN_ENABLED = (_guardian_choice == "1") if _guardian_choice in {"0", "1"} else not (getattr(sys, "frozen", False) or os.getenv("ARCHIVE_X_DESKTOP") == "1")
-WATCHDOG_GUARDIAN_POLL_SECONDS = 0.5
-WATCHDOG_GUARDIAN_PUBLISH_SECONDS = 0.5
+# The asyncio job watchdog is backed by an independent thread. These controls are internal reliability safeguards. (A separate guardian
+# process used to sit beside it; it never ran in the installed app and was removed on 15 November 2026.)
+WATCHDOG_MONITOR_SECONDS = 0.5
 WATCHDOG_EVENT_LOOP_STALE_SECONDS = 6.0
 WATCHDOG_TASK_RECOVERY_SECONDS = 5.0
 WATCHDOG_TASK_ENFORCER_SECONDS = 12.0
 WATCHDOG_PUBLISHER_STALE_SECONDS = 8.0
-WATCHDOG_GUARDIAN_STARTUP_GRACE_SECONDS = 8.0
-WATCHDOG_GUARDIAN_RESTART_LIMIT = 2
-WATCHDOG_GUARDIAN_RESTART_WINDOW_SECONDS = 600.0
-# V29.4.223: the independent guardian restarts the app only for a real hang.
-# Short busy spells (starting playback, remuxing a large file) used to exceed
-# the 6-12 s in-app thresholds and caused a restart plus a new browser tab.
-WATCHDOG_GUARDIAN_LOOP_HANG_SECONDS = 180.0
-WATCHDOG_GUARDIAN_TASK_HANG_SECONDS = 240.0
-WATCHDOG_GUARDIAN_PUBLISHER_HANG_SECONDS = 240.0
-WATCHDOG_GUARDIAN_STARTUP_HANG_GRACE_SECONDS = 90.0
 # Automatically stop active jobs that remain in a watchdog-unhealthy state this long.
 WATCHDOG_UNRECOVERED_GRACE_SECONDS = 60.0
 WATCHDOG_EXECUTION_LEASE_HEARTBEAT_SECONDS = 2.0

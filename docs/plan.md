@@ -9,9 +9,9 @@ How to read it: Part 1 says where the code stands, with numbers measured for thi
 | Step | State |
 |------|-------|
 | C1 one command runs every test, in CI | **Done** (`pytest tools/tests`, `justfile`, `backend-tests` job; first run in CI pending) |
-| C2 remove the old start-up path | Waiting for your answer to question 1 |
+| C2 remove the old start-up path | **Done** on 15 November 2026 (you answered: desktop app only): launcher scripts, `run.py`, Replit files, hosted mode, browser auto-open, the build output in version control. The generic server mode (HTTPS certificate, LAN address, web login) stays for now: tests, the parity harness and the front door still use it, and it goes with the Python backend |
 | C3 part 1 route counter | **Done**, ships in the next release; part 2 (delete routes) waits for a week of its data |
-| C4 remove unused Python | Waits for C3 part 2 and question 1 |
+| C4 remove unused Python | **Started**: the watchdog guardian process (about 1,000 lines, never ran in the installed app) is removed together with its settings and the guardian row on the Operations page; the rest waits for C3 part 2 |
 | C5 unused frontend code | **Done** (`knip` in CI) |
 | C6 one version number | **Done** (`tools/release/write_version.py`, written by the release workflow) |
 | C7 prune the documents | **Done** (`docs/README.md` is the index) |

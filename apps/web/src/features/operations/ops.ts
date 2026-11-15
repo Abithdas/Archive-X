@@ -107,7 +107,6 @@ export function diagnosticTiles(r: Obj): Tile[] {
   const wdSnap = o(r.watchdogs)
   const wdJobs = a(wdSnap.jobs)
   const bad = wdJobs.filter((x) => ['DEGRADED', 'SUSPECTED', 'STALLED', 'FAILED', 'RECOVERING'].includes(s(x.state).toUpperCase())).length
-  const guardian = o(wdSnap.guardian)
   const hs = s(o(r.diagnostic_health).state || 'UNKNOWN')
   const events = Object.values(o(r.events)).reduce<number>((t, v) => t + n(v), 0)
   const latest = a(r.recent_errors).at(-1)
@@ -121,7 +120,6 @@ export function diagnosticTiles(r: Obj): Tile[] {
     if (j) return `${s(j.status) || 'RUNNING'}${j.total ? ` · ${n(j.completed)}/${n(j.total)}` : ''}${issues.length ? ` · ${issues.length} issue(s)` : ''}`
     return issues.length ? `${issues.length} issue(s)` : label
   }
-  const ga = guardian.heartbeat_age != null ? ` · ${fmtAge(n(guardian.heartbeat_age))}` : ''
   return [
     { label: 'Health', value: hs, tone: hs === 'HEALTHY' ? 'ok' : hs === 'ATTENTION' ? 'warn' : 'bad' },
     { label: 'Events', value: String(events), tone: 'neutral' },
@@ -129,7 +127,6 @@ export function diagnosticTiles(r: Obj): Tile[] {
     { label: 'Incidents', value: String(n(o(r.incident_analysis).active_incident_count)), tone: 'neutral' },
     { label: 'Repeated events', value: String(n(r.duplicate_events)), tone: 'neutral' },
     { label: 'Watchdogs', value: bad ? `${bad} attention` : 'Healthy', tone: bad ? 'warn' : 'ok' },
-    { label: 'Watchdog guardian', value: `${s(guardian.state || 'UNKNOWN').toUpperCase()}${ga}`, tone: 'neutral' },
     { label: 'Metadata & Assets', value: line(ma, 'Idle'), tone: 'neutral' },
     { label: 'Telegram Transfer', value: line(tr, 'Idle'), tone: 'neutral' },
     { label: 'Content Automation', value: line(ca, 'Idle'), tone: 'neutral' },

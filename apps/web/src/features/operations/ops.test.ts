@@ -55,13 +55,13 @@ describe('telemetry', () => {
 
 describe('diagnostics', () => {
   it('summarises levels, watchdogs and the last error', () => {
-    const r = { levels: { ERROR: 2, CRITICAL: 1 }, diagnostic_health: { state: 'ATTENTION' }, events: { INFO: 5, WARN: 2 }, watchdogs: { jobs: [{ state: 'STALLED' }, { state: 'OK' }], guardian: { state: 'running', heartbeat_age: 12 } }, recent_errors: [{ error_type: 'ValueError', message: 'boom' }], http: { latency_ms: { p95: 123.4 } } }
+    const r = { levels: { ERROR: 2, CRITICAL: 1 }, diagnostic_health: { state: 'ATTENTION' }, events: { INFO: 5, WARN: 2 }, watchdogs: { jobs: [{ state: 'STALLED' }, { state: 'OK' }] }, recent_errors: [{ error_type: 'ValueError', message: 'boom' }], http: { latency_ms: { p95: 123.4 } } }
     const t = Object.fromEntries(diagnosticTiles(r).map((x) => [x.label, x]))
     expect(t.Health).toMatchObject({ value: 'ATTENTION', tone: 'warn' })
     expect(t.Errors).toMatchObject({ value: '3', tone: 'warn' })
     expect(t.Events!.value).toBe('7')
     expect(t.Watchdogs!.value).toBe('1 attention')
-    expect(t['Watchdog guardian']!.value).toBe('RUNNING · 12s')
+    expect(t['Watchdog guardian']).toBeUndefined()
     expect(t['Last issue']!.value).toBe('ValueError · boom')
     expect(t['HTTP p95']!.value).toBe('123 ms')
   })
