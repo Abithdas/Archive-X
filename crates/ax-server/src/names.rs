@@ -87,7 +87,16 @@ impl Names {
                 return Ok((keys, None));
             }
         }
-        let v = self.proxy.internal_json("/internal/provider-keys").await?;
+        // A few tries: the backend may be busy or a kept connection may have just closed; the front door itself must not give up on one hiccup.
+        let mut asked = self.proxy.internal_json("/internal/provider-keys").await;
+        for _ in 0..2 {
+            if asked.is_ok() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(150)).await;
+            asked = self.proxy.internal_json("/internal/provider-keys").await;
+        }
+        let v = asked?;
         let pick = |k: &str| v.get(k).and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
         let keys = Keys { stashdb: pick("stashdb"), tpdb: pick("tpdb") };
         *self.keys.lock().unwrap() = Some((Instant::now(), keys.clone()));
