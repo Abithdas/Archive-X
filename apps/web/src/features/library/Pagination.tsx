@@ -18,7 +18,8 @@ export function pageWindow(current: number, total: number): Array<number | '…'
 
 const BTN = 'grid h-9 min-w-9 place-items-center rounded-lg border border-line bg-surface px-2 text-sm font-semibold hover:bg-surface-2 disabled:opacity-40'
 
-export function Pagination({ page, pages, per, onPage, onPer }: { page: number; pages: number; per: number; onPage: (zeroBased: number) => void; onPer: (n: number) => void }) {
+/** `fit` turns a nominal page size into the real one (whole rows of the grid); the choices show the real numbers. */
+export function Pagination({ page, pages, per, onPage, onPer, fit }: { page: number; pages: number; per: number; onPage: (zeroBased: number) => void; onPer: (n: number) => void; fit?: (n: number) => number }) {
   const cur = page + 1
   return (
     <nav aria-label="Pages" className="mt-auto flex pt-8 flex-wrap items-center justify-between gap-3 text-sm text-muted">
@@ -42,7 +43,7 @@ export function Pagination({ page, pages, per, onPage, onPer }: { page: number; 
         <label className="ml-2 flex items-center gap-2">
           Items per page
           <select value={per} onChange={(e) => onPer(Number(e.target.value))} className="h-9 rounded-lg border border-line-2 bg-bg px-2 text-fg">
-            {PER_CHOICES.map((n) => <option key={n} value={n}>{n}</option>)}
+            {PER_CHOICES.map((n) => <option key={n} value={n}>{fit ? fit(n) : n}</option>)}
           </select>
         </label>
       </div>

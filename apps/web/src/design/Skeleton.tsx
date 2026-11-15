@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties, ReactNode, Ref } from 'react'
 import { cn } from './cn'
 
 /**
@@ -29,9 +29,9 @@ export function SkeletonLine({ width = '100%', className }: { width?: string; cl
 }
 
 /** Announces loading once to assistive tech while the visual placeholders stay hidden from it. */
-export function SkeletonGroup({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+export function SkeletonGroup({ label, children, className, style, ref }: { label: string; children: ReactNode; className?: string; style?: CSSProperties; ref?: Ref<HTMLDivElement> }) {
   return (
-    <div role="status" aria-busy="true" className={className}>
+    <div role="status" aria-busy="true" className={className} style={style} ref={ref}>
       <span className="sr-only">{label}</span>
       {children}
     </div>
