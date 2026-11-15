@@ -161,6 +161,22 @@ def _row_needs_remote_playback_assets(row) -> bool:
     return not _mp4_index_cache_ready(cid, mid, size)
 
 
+def _library_state_note(db, row) -> str:
+    """" [library: snapshots STALE, last change STALE_REFRESH_REQUIRED]": what the database itself says about this video."""
+    try:
+        with db.lock:
+            r = db.conn.execute(
+                "SELECT rs.snapshot_state, rs.last_reason, (SELECT COUNT(*) FROM archive_x_published_media pm WHERE pm.id=m.id) AS published "
+                "FROM media m JOIN resource_state rs ON rs.media_id=m.id "
+                "WHERE CAST(m.source_channel AS TEXT)=? AND m.source_message_id=?",
+                (str(row["source_channel"]), int(row["source_message_id"]))).fetchone()
+        if not r:
+            return " [library: no state row]"
+        return f" [library: {'in' if r['published'] else 'not in'} the Library, snapshots {r['snapshot_state'] or 'unknown'}, last change {r['last_reason'] or 'none'}]"
+    except Exception:
+        return ""
+
+
 def _scan_work_reason(row) -> str:
     """Why this video still needs snapshot work, in plain words; "" when it needs none.
 
@@ -763,7 +779,7 @@ def _pending_rows(db, limit: int = 0, channels: list[int] | None = None, scope: 
             if why:
                 pending.append(row)
                 if len(reasons) < 12:
-                    reasons.append(f"{row['filename'] or row['title'] or row['source_message_id']} (message {row['source_message_id']}): {why}")
+                    reasons.append(f"{row['filename'] or row['title'] or row['source_message_id']} (message {row['source_message_id']}): {why}{_library_state_note(db, row)}")
                 if limit and len(pending) >= int(limit):
                     break
         if reasons:
