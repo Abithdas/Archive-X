@@ -9,6 +9,7 @@ import { useLiveStatus } from '@/api/live'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { formatBytes } from '@/design/format'
+import { runningLabel, useActivity } from './activity'
 import { AccountMenu } from './AccountMenu'
 import { CommandPalette } from './CommandPalette'
 import { MoreSheet } from './MoreSheet'
@@ -46,15 +47,26 @@ const RAIL_KEY = 'ax_next_sidebar_rail'
 const SIDE_ITEM = 'relative flex h-11 w-full items-center rounded-xl text-[15px] font-medium text-muted transition-colors hover:bg-fg/5 hover:text-fg'
 const SIDE_ACTIVE = '!text-fg [&_svg]:text-accent'
 
-function SideItem({ n, rail }: { n: NavDef; rail: boolean }) {
+/** How many jobs are running for this page: a small number that pulses while work is going on. */
+function ActivityBadge({ count, className }: { count: number; className?: string }) {
+  if (!count) return null
+  return (
+    <span role="status" aria-label={runningLabel(count)} title={runningLabel(count)} className={cn('relative grid h-[18px] min-w-[18px] motion-safe:animate-pulse place-items-center rounded-full bg-accent px-1 text-[11px] font-bold leading-none text-accent-fg', className)}>
+      {count > 99 ? '99+' : count}
+    </span>
+  )
+}
+
+function SideItem({ n, rail, count }: { n: NavDef; rail: boolean; count: number }) {
   const layout = rail ? 'justify-center' : 'gap-3 px-3'
   return (
-    <Link to={n.to} activeOptions={{ exact: n.to === '/' }} className={cn(SIDE_ITEM, layout)} title={rail ? n.label : undefined} activeProps={{ className: SIDE_ACTIVE }}>
+    <Link to={n.to} activeOptions={{ exact: n.to === '/' }} className={cn(SIDE_ITEM, layout)} title={rail ? (count ? `${n.label} · ${runningLabel(count)}` : n.label) : undefined} activeProps={{ className: SIDE_ACTIVE }}>
       {({ isActive }) => (
         <>
           {isActive ? <motion.span layoutId="side-pill" transition={spring} aria-hidden="true" className="absolute inset-0 rounded-xl bg-accent/15" /> : null}
           <Icon name={n.icon} className="relative" />
           <span className={cn('relative', rail && 'sr-only')}>{n.label}</span>
+          <ActivityBadge count={count} className={rail ? 'absolute right-1.5 top-1.5' : 'ml-auto'} />
         </>
       )}
     </Link>
@@ -203,6 +215,7 @@ export function Shell(): ReactNode {
     }
   }
   const phone = GROUPS.flatMap((g) => g.items).filter((n) => PHONE_NAV.includes(n.to))
+  const activity = useActivity()
   return (
     <div className="flex h-full flex-col md:flex-row">
       <aside className={cn('hidden shrink-0 flex-col gap-0.5 overflow-y-auto overflow-x-hidden border-r border-line pb-4 transition-[width] duration-200 md:flex', rail ? 'w-[84px] px-2.5' : 'w-[248px] px-3')} aria-label="Main">
@@ -223,7 +236,7 @@ export function Shell(): ReactNode {
         {GROUPS.map((g, i) => (
           <div key={g.title} className={cn('grid gap-0.5', i > 0 && 'mt-3')}>
             {rail ? <div className="mx-2 my-1 h-px bg-line" /> : <div className="px-3 pb-1.5 pt-1 text-[11px] font-bold tracking-[0.08em] text-faint">{g.title}</div>}
-            {g.items.map((n) => <SideItem key={n.to} n={n} rail={rail} />)}
+            {g.items.map((n) => <SideItem key={n.to} n={n} rail={rail} count={activity[n.to] ?? 0} />)}
           </div>
         ))}
         {rail ? null : <StorageCard />}
@@ -241,7 +254,7 @@ export function Shell(): ReactNode {
               {({ isActive }) => (
                 <>
                   {isActive ? <motion.span layoutId="phone-nav-marker" transition={spring} aria-hidden="true" className="absolute inset-x-4 top-0 h-[3px] rounded-b-full bg-accent" /> : null}
-                  <Icon name={n.icon} />
+                  <span className="relative"><Icon name={n.icon} /><ActivityBadge count={activity[n.to] ?? 0} className="absolute -right-3 -top-1.5 h-4 min-w-4 text-[10px]" /></span>
                   <span className="truncate">{n.label}</span>
                 </>
               )}
