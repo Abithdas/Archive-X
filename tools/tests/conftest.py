@@ -6,3 +6,10 @@ collect_ignore = [
     "test_photo_derivatives.py",
     "test_duplicate_delete_thumbnail.py",
 ]
+
+# Tests that build a Database on the shared data folder would clash with the others (a second connection waits for the first one's lock, and
+# rows left behind change the next schema check). They run in their own process: test_isolated_checks.py starts one with AX_ISOLATED=1.
+import os as _os
+ISOLATED = ["test_inventory_off_loop.py", "test_performer_identity_index.py"]
+if _os.environ.get("AX_ISOLATED") != "1":
+    collect_ignore += ISOLATED
