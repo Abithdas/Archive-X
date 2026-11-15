@@ -22,7 +22,6 @@ import os
 import re
 import threading
 import time
-from typing import Any
 from urllib.parse import unquote, urlsplit
 
 try:
@@ -50,8 +49,6 @@ RECONNECT_BUDGET_SECONDS = 90.0
 RECONNECT_ATTEMPT_TIMEOUT_SECONDS = 20.0
 _IDEMPOTENT_PREFIXES = ("Get", "Search", "Resolve", "Check", "Export", "SaveFilePart", "SaveBigFilePart")
 _RECONNECT_LISTENERS: list = []
-
-
 
 
 # ==============================================================================
@@ -82,8 +79,6 @@ def _notify_reconnect_listeners(client, ok, reason, attempts, error) -> None:
         except Exception:
             _swallowed_note("client_policy._notify_reconnect_listeners")
             pass
-
-
 
 
 # ==============================================================================
@@ -333,8 +328,6 @@ class GovernedTelegramClient(TelegramClient):
                         pass
                     raise
                 await asyncio.sleep(seconds)
-
-
 
 
 # ==============================================================================
@@ -603,24 +596,6 @@ def _active_telegram_proxy_runtime() -> dict:
             **runtime,
             "proxy": dict(runtime["proxy"]) if isinstance(runtime.get("proxy"), dict) else runtime.get("proxy"),
         }
-
-
-def _reset_telegram_proxy_runtime_for_tests() -> None:
-    global _TELEGRAM_PROXY_RUNTIME_LOADED, _TELEGRAM_PROXY_RUNTIME, _TELEGRAM_PROXY_RESTART_REQUIRED
-    with _TELEGRAM_PROXY_CACHE_LOCK:
-        _TELEGRAM_PROXY_RUNTIME_LOADED = False
-        _TELEGRAM_PROXY_RUNTIME = None
-        _TELEGRAM_PROXY_RESTART_REQUIRED = False
-
-
-def telegram_proxy_status() -> str:
-    """Return a safe proxy state for settings UI; never return endpoint details."""
-    try:
-        return "direct" if _active_telegram_proxy_runtime()["type"] == "direct" else "configured"
-    except ValueError:
-        return "invalid"
-
-
 
 
 # ==============================================================================

@@ -119,8 +119,3 @@ class EncryptedSQLiteSession(SQLiteSession):
         return super().clone(to_instance if to_instance is not None else MemorySession())
 
 
-def migrate_session_file(path) -> None:
-    path = session_path(path)
-    if path.exists():
-        session = EncryptedSQLiteSession(path)
-        session.close()

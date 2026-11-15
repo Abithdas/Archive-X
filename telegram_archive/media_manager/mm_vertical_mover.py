@@ -46,8 +46,6 @@ TRANSFER_JOB_STATE_FILE = config.MEDIA_MANAGER_STATE_DIR / "telegram_transfer_jo
 CHANNEL_CLEANUP_STATE_FILE = config.MEDIA_MANAGER_STATE_DIR / "telegram_channel_cleanup_state.json"
 
 
-
-
 # ==============================================================================
 # SECTION: Vertical mover: thumbnails and state
 # Thumbnail lookup, state and candidate checks.
@@ -222,8 +220,6 @@ def vertical_mobile_is_candidate(message, source_mode=None, orientation="VERTICA
     return actual == orientation
 
 
-
-
 # ==============================================================================
 # SECTION: Source scanning
 # Media mode keys and source scan.
@@ -255,10 +251,6 @@ def is_document_video_message(message):
 async def scan_source_mode(client, source, source_mode):
     """Scan selected source media and retain only portrait/vertical videos."""
     return await vertical_mobile_scan(client, source, source_mode)
-
-
-
-
 
 
 # ==============================================================================
@@ -510,8 +502,6 @@ async def _sync_verified_transfer_destination_registry(db, client, destination, 
         except Exception:
             pass
         return {"registered": False, "prepared": False, "error": f"{type(exc).__name__}: {exc}"}
-
-
 
 
 # ==============================================================================
@@ -846,7 +836,6 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
         return True
 
 
-
 # ==============================================================================
 # SECTION: Vertical mover: scan and process
 # Vertical/mobile scan, thumbnail and item processing.
@@ -977,231 +966,6 @@ async def _vertical_mobile_scan_impl(client, source, source_mode):
     return candidates
 
 
-
-async def vertical_mobile_process_one(client, source, destination, video, state):
-    """Move one vertical video and its thumbnail, verifying first."""
-    key = vertical_mobile_state_key(source, destination, video.id)
-    entry = state["items"].setdefault(key, {})
-    entry.update({
-        "source_message_id": int(video.id),
-        "source_filename": safe_video_name(video),
-        "source_size": message_size(video),
-        "status": entry.get("status", "STARTED"),
-    })
-    vertical_mobile_save_state(state)
-
-    # Re-read the source video so a stale scan object cannot cause accidental
-    # work on a changed/deleted message.
-    source_video = await client.get_messages(source, ids=int(video.id))
-    if not source_video or not is_video_message(source_video):
-        raise RuntimeError(f"source video msg={video.id} no longer exists")
-    video = source_video
-
-    # Re-confirm streamability at processing time.
-    if not vertical_mobile_is_candidate(video):
-        entry["status"] = "SKIPPED_NO_LONGER_VERTICAL"
-        vertical_mobile_save_state(state)
-        print("  Source item is no longer an eligible vertical/mobile video. Skipping safely.")
-        return False
-
-    source_thumb_id = None
-    source_thumb = None
-
-    with tempfile.TemporaryDirectory(prefix="tg_vertical_mobile_") as td:
-        dest_video_id = entry.get("destination_video_id")
-        dest_thumb_id = entry.get("destination_thumbnail_id")
-
-        # A previous version of this script used forward_messages(), which
-        # copied the source caption (for example @EncodedFapFiles or a URL).
-        # If state points at one of those old destination messages, discard
-        # that destination pair and recreate it as MEDIA-ONLY. This prevents
-        # the resume logic from preserving the unwanted caption forever.
-        if dest_video_id:
-            try:
-                existing_dest_video = await client.get_messages(
-                    destination, ids=int(dest_video_id)
-                )
-                existing_text = str(getattr(existing_dest_video, "message", "") or "").strip()
-                if existing_text:
-                    print(
-                        f"  Existing destination video msg={dest_video_id} contains text/caption; "
-                        "replacing it with media-only copy..."
-                    )
-                    old_ids = [int(dest_video_id)]
-                    if dest_thumb_id:
-                        old_ids.append(int(dest_thumb_id))
-                    await delete_messages(client, destination, old_ids)
-                    dest_video_id = None
-                    dest_thumb_id = None
-                    entry.pop("destination_video_id", None)
-                    entry.pop("destination_thumbnail_id", None)
-                    entry["status"] = "REBUILD_MEDIA_ONLY"
-                    vertical_mobile_save_state(state)
-            except Exception as exc:
-                # If the old destination message cannot be inspected, do not
-                # guess. Leave the source untouched and retry safely.
-                raise RuntimeError(
-                    f"Could not inspect existing destination video msg={dest_video_id}: "
-                    f"{type(exc).__name__}: {exc}"
-                ) from exc
-
-        # Prepare the canonical Archive X playback snapshot before copying the video.
-        # This avoids creating an orphan destination video if snapshot generation fails.
-        generated = None
-        if not dest_thumb_id:
-            db = globals().get("MEDIA_MANAGER_DB")
-            if db is None:
-                raise RuntimeError("Archive X database is required for playback snapshot delivery")
-            from ..engines.thumbnail_cache import ensure_playback_snapshot
-            snapshot = await ensure_playback_snapshot(
-                db, type("TelegramAdapter", (), {"client": client, "connected": True})(),
-                int(canonical_peer_id(source)), int(video.id), message=video,
-            )
-            generated = Path(td) / (Path(safe_video_name(video)).stem + ".jpg")
-            generated.write_bytes(snapshot[0])
-
-        if not dest_video_id:
-            print(
-                f"  Copying VIDEO msg={video.id} -> destination "
-                "(media-only server-side copy; NO caption/text/link)..."
-            )
-            copied = await forward_without_tag_safe(client, destination, source, video)
-            dest_video_id = int(getattr(copied, "id", copied))
-            entry["destination_video_id"] = dest_video_id
-            entry["status"] = "VIDEO_COPIED"
-            vertical_mobile_save_state(state)
-            print(f"  VIDEO COPIED: destination msg={dest_video_id}")
-        else:
-            print(f"  Destination VIDEO already recorded: msg={dest_video_id}")
-
-        try:
-            if not dest_thumb_id:
-                print(f"  Uploading Archive X playback snapshot DOCUMENT: {Path(generated).name}")
-                copied_thumb = await upload_thumbnail_document(client, destination, generated)
-
-                dest_thumb_id = int(getattr(copied_thumb, "id", copied_thumb))
-                entry["destination_thumbnail_id"] = dest_thumb_id
-                entry["status"] = "PAIR_COPIED"
-                vertical_mobile_save_state(state)
-                print(f"  THUMBNAIL COPIED: destination msg={dest_thumb_id}")
-            else:
-                print(f"  Destination THUMBNAIL already recorded: msg={dest_thumb_id}")
-        except Exception as exc:
-            # A Telegram flood wait is temporary. Keep the already-copied
-            # destination video so the next retry only has to finish the thumbnail.
-            wait = flood_wait_seconds(exc)
-            if wait:
-                entry["status"] = "WAITING_FLOOD_RETRY"
-                entry["error"] = f"{type(exc).__name__}: {exc}"
-                vertical_mobile_save_state(state)
-                print(
-                    f"  Telegram rate limit: waiting {wait}s is required. "
-                    "Destination video retained for resume; source retained."
-                )
-                raise
-
-            if dest_video_id and not entry.get("destination_thumbnail_id"):
-                try:
-                    await delete_messages(client, destination, [int(dest_video_id)])
-                    entry.pop("destination_video_id", None)
-                    entry["status"] = "ERROR_DEST_VIDEO_REMOVED"
-                    vertical_mobile_save_state(state)
-                    print(f"  Removed incomplete destination VIDEO msg={dest_video_id}")
-                except Exception as cleanup_exc:
-                    print(
-                        f"  WARNING: could not remove incomplete destination VIDEO "
-                        f"msg={dest_video_id}: {cleanup_exc}"
-                    )
-            raise
-
-        print("  Verifying destination VIDEO + THUMBNAIL before source deletion...")
-        # The vertical-mobile flow copies the original Telegram message as-is,
-        # so the destination keeps the source's name and native-video form.
-        prepared_display_name = None
-        prepared_video_meta = None
-        destination_mode = "VIDEO" if getattr(video, "video", None) is not None else "FILE"
-        expected_delivery_name = prepared_display_name or safe_video_name(video)
-        ok, reason = await verify_destination_pair(
-            client,
-            destination,
-            dest_video_id,
-            dest_thumb_id,
-            expected_video_name=expected_delivery_name,
-            destination_mode="VIDEO" if destination_mode == "VIDEO" else "FILE",
-            require_native_video=(destination_mode == "VIDEO"),
-            expected_source=video,
-            expected_meta=prepared_video_meta,
-        )
-        if not ok:
-            entry["status"] = "DESTINATION_VERIFY_FAILED"
-            entry["error"] = reason
-            vertical_mobile_save_state(state)
-            raise RuntimeError(f"Destination verification failed: {reason}")
-
-        print(
-            f"  DESTINATION VERIFIED: video={dest_video_id} | "
-            f"thumbnail={dest_thumb_id} | pair/order/name checks PASS"
-        )
-
-        db = globals().get("MEDIA_MANAGER_DB")
-        previous_thumbnail_id = int(entry.get("source_thumbnail_message_id_to_delete") or 0)
-        source_thumbnail_id = await _resolve_associated_source_thumbnail_for_move(
-            client, source, video, db, known_message_id=previous_thumbnail_id or None,
-        )
-        if source_thumbnail_id:
-            entry["source_thumbnail_message_id_to_delete"] = int(source_thumbnail_id)
-            vertical_mobile_save_state(state)
-            if not previous_thumbnail_id:
-                print(f"  Associated SOURCE thumbnail found: msg={source_thumbnail_id}")
-        else:
-            entry.pop("source_thumbnail_message_id_to_delete", None)
-        if db is not None and generated is not None:
-            await _store_delivery_representative_snapshot(
-                db, destination, dest_video_id, dest_thumb_id,
-                source=source, source_video=video, generated_sheet=generated,
-            )
-        _cleanup_verified_delivery_artifacts(source, video, db=db)
-
-        # Freeze the exact source IDs that were verified. The linked source
-        # thumbnail is deleted only when it is verified as an exclusive image.
-        source_ids = [int(video.id)]
-        source_thumbnail_id = int(entry.get("source_thumbnail_message_id_to_delete") or 0)
-        if source_thumbnail_id > 0 and source_thumbnail_id != int(video.id):
-            source_ids.append(source_thumbnail_id)
-
-        entry["source_ids_to_delete"] = list(source_ids)
-        entry["status"] = "DESTINATION_VERIFIED"
-        vertical_mobile_save_state(state)
-
-        print(f"  Deleting SOURCE after verification: {source_ids}")
-        await delete_source_after_verify(client, source, source_ids)
-
-        # Confirm Telegram no longer returns the source messages. This makes
-        # the completion state truthful instead of assuming delete_messages succeeded.
-        remaining = await client.get_messages(source, ids=source_ids)
-        if not isinstance(remaining, list):
-            remaining = [remaining] if remaining else []
-        remaining = [m for m in remaining if m and getattr(m, "id", None)]
-        if remaining:
-            raise RuntimeError(
-                "Telegram deletion did not remove all requested source messages: "
-                + ", ".join(str(int(m.id)) for m in remaining)
-            )
-        if source_thumbnail_id > 0 and source_thumbnail_id in source_ids[1:]:
-            _mark_moved_source_thumbnail_deleted(db, source, source_thumbnail_id)
-
-        entry["source_deleted"] = True
-        entry["status"] = "COMPLETE"
-        entry.pop("error", None)
-        vertical_mobile_save_state(state)
-        print(f"  MOVE COMPLETE: {safe_video_name(video)}")
-        return True
-
-
-
-
-
-
 # ==============================================================================
 # SECTION: Transfer job state
 # Control checkpoints and persisted job state.
@@ -1253,8 +1017,6 @@ TRANSFER_DUPLICATE_POLICIES = {
     "2": "SKIP",
     "3": "ASK",
 }
-
-
 
 
 # ==============================================================================
@@ -1471,8 +1233,6 @@ def transfer_destination_duplicate_ids(index, message, oshash=""):
                 seen.add(value)
                 matches.append(value)
     return matches
-
-
 
 
 # ==============================================================================
@@ -1838,7 +1598,6 @@ async def _run_metadata_child_job(db, manager, manager_loop, *, parent_job_id, c
             db.log(f"Telegram Transfer Manager: {label} Metadata & Assets child job {jid} completed", "SUCCESS", event="telegram_transfer.preparation_completed", job_id=parent_job_id)
             return jid
         await asyncio.sleep(0.5)
-
 
 
 # ==============================================================================

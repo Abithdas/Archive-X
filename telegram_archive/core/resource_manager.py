@@ -22,25 +22,12 @@ from .background_tasks import retain as _retain_task
 import asyncio
 import os
 import time
-from dataclasses import dataclass
-
-
 
 
 # ==============================================================================
 # SECTION: Snapshot and restored controls
 # Snapshot type and restoring persisted controls.
 # ==============================================================================
-
-@dataclass
-class ResourceSnapshot:
-    """Point-in-time view of interactive resource state."""
-    playback_active: bool = False
-    playback_streams: int = 0
-    background_active: int = 0
-    background_waiting: int = 0
-    service_active: int = 0
-    cpu_count: int = 1
 
 
 _RESOURCE_CONTROL_MODES = {"automatic", "playback", "balanced", "background", "manual"}
@@ -101,8 +88,6 @@ def restore_persisted_resource_controls(db, resources) -> str:
         label=label,
     )
     return mode
-
-
 
 
 # ==============================================================================

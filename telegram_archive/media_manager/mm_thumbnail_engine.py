@@ -44,8 +44,6 @@ from ..core.telegram_media_range_resource import DirectTelegramRangeSource
 _SMART_SUPPORTED_CODECS = {b"avc1", b"avc3", b"hvc1", b"hev1"}
 
 
-
-
 # ==============================================================================
 # SECTION: MP4 box parsing
 # Locates and parses BMFF boxes and the moov atom.
@@ -302,8 +300,6 @@ def _load_moov(source):
     )
 
 
-
-
 # ==============================================================================
 # SECTION: MP4 sample tables
 # Timescale, sample sizes, offsets and PTS.
@@ -517,8 +513,6 @@ def _build_pts(stts_runs, ctts_runs, sample_count):
         raise RuntimeError(f"stts sample count mismatch ({len(pts)}/{sample_count})")
     duration_ticks = max(pts) + 1 if pts else dts
     return pts, dts, duration_ticks
-
-
 
 
 # ==============================================================================
@@ -766,8 +760,6 @@ def _decode_gop_image(index, annexb, target_rank, tw, th):
         raise RuntimeError("FFmpeg returned invalid JPEG for GOP frame") from exc
 
 
-
-
 # ==============================================================================
 # SECTION: Smart thumbnail from Telegram
 # Range-based thumbnail extraction.
@@ -816,7 +808,6 @@ def _smart_plan_target(index, target_seconds, *, keyframe_only=None):
     start_byte = index["offsets"][start_idx]
     end_byte = index["offsets"][end_idx] + index["sizes"][end_idx]
     return target_idx, start_idx, end_idx, rank, int(start_byte), int(end_byte)
-
 
 
 def _read_cached_moov_for_source(source):
@@ -1158,8 +1149,6 @@ def _smart_thumbnail_from_telegram(source, display_name, output_path, frames_dir
         retry_output.unlink(missing_ok=True)
 
 
-
-
 # ==============================================================================
 # SECTION: Local HTTP range bridge
 # Temporary HTTP server exposing Telegram ranges to FFmpeg.
@@ -1264,7 +1253,7 @@ class RangeHandler(BaseHTTPRequestHandler):
             try:
                 max_response = max(1024, int(getattr(self.server, "max_response", self.MAX_RESPONSE) or self.MAX_RESPONSE))
                 self._send_range(0, min(src.size - 1, max_response - 1), 206)
-            except Exception as exc:
+            except Exception:
                 try:
                     self.send_error(502, "Telegram range backend failed")
                 except Exception:
@@ -1330,8 +1319,6 @@ def start_temp_http_server(source, *, max_response: int | None = None):
     return server, thread, url
 
 
-
-
 # ==============================================================================
 # SECTION: Target planning and stream decode
 # Picks capture times and decodes targets from a stream.
@@ -1350,8 +1337,6 @@ def target_size(width, height, frame_width=None):
         tw = min(max(1, int(frame_width)), max(1, int(width)))
     th = max(1, int(tw * height / max(1, width)))
     return tw, th
-
-
 
 
 # ==============================================================================
@@ -1792,8 +1777,6 @@ def _ffmpeg_single_still(source, display_name, output_path, *, target_seconds=No
             except Exception: pass
 
 
-
-
 # ==============================================================================
 # SECTION: Thumbnail generators
 # Legacy and stream-based generation.
@@ -1809,8 +1792,6 @@ def generate_v20_from_stream(source, display_name, output_path, worker_count=4, 
     return _ffmpeg_single_still(source, display_name, output_path)
 
 
-
-
 # ==============================================================================
 # SECTION: Telegram document operations
 # Forward, upload and delete operations.
@@ -1822,65 +1803,6 @@ async def forward_without_tag(client, entity, message):
             # drop_author=True makes this a copied message rather than a visible
             # forwarded-from message. It does not download/re-upload the video.
             return await client.forward_messages(entity, message.id, from_peer=entity, drop_author=True)
-        except FloodWaitError as e:
-            print(f"Telegram requested {e.seconds}s wait. Waiting...")
-            await asyncio.sleep(e.seconds + 2)
-
-
-async def upload_document(client, entity, path):
-    while True:
-        try:
-            return await client.send_file(entity, str(path), force_document=True,
-                                          progress_callback=progress_printer("THUMBNAIL"))
-        except FloodWaitError as e:
-            print(f"Telegram requested {e.seconds}s wait. Waiting...")
-            await asyncio.sleep(e.seconds + 2)
-
-
-async def forward_photo_as_document(client, entity, photo_message, video_message, tempdir):
-    """Copy an existing Telegram PHOTO and re-upload it as a DOCUMENT.
-
-    Telegram's photo media is typed as a photo at the API level. Passing
-    photo_message.media to send_file(force_document=True) can therefore still
-    produce a Telegram PHOTO. To guarantee DOCUMENT mode, download the
-    existing photo temporarily, then upload that temporary JPG with
-    force_document=True. The temporary file is deleted automatically.
-    """
-    # The thumbnail DOCUMENT must use the exact video filename + .jpg,
-    # e.g. "Test thumbnail.mp4" -> "Test thumbnail.mp4.jpg".
-    thumbnail_name = safe_video_name(video_message) + ".jpg"
-    temp_path = Path(tempdir) / thumbnail_name
-
-    while True:
-        try:
-            print("Downloading existing PHOTO temporarily so Telegram can receive it as a DOCUMENT...")
-            while True:
-                try:
-                    downloaded = await _download_media_governed(client, photo_message, file=str(temp_path))
-                    break
-                except Exception as exc:
-                    wait = flood_wait_seconds(exc)
-                    if wait:
-                        print(f"\nTelegram flood wait detected: {wait}s. Waiting {wait + 2}s...")
-                        await asyncio.sleep(wait + 2)
-                        continue
-                    raise
-            if not downloaded or not Path(downloaded).exists():
-                raise RuntimeError("Could not download the existing Telegram photo")
-
-            print(f"Uploading existing thumbnail as DOCUMENT: {Path(downloaded).name}")
-            result = await client.send_file(
-                entity,
-                str(downloaded),
-                force_document=True,
-                progress_callback=progress_printer("THUMBNAIL")
-            )
-            try:
-                Path(downloaded).unlink(missing_ok=True)
-                print(f"Deleted temporary thumbnail from PC: {downloaded}")
-            except Exception as cleanup_error:
-                print(f"WARNING: could not delete temporary thumbnail: {cleanup_error}")
-            return result
         except FloodWaitError as e:
             print(f"Telegram requested {e.seconds}s wait. Waiting...")
             await asyncio.sleep(e.seconds + 2)
@@ -1901,8 +1823,6 @@ async def delete_messages(client, entity, ids):
 
 
 THUMBNAIL_TIMEOUT_SECONDS = 90
-
-
 
 
 # ==============================================================================

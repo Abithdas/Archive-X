@@ -25,19 +25,14 @@ data structures.
 from __future__ import annotations
 
 import bisect
-import io
 import json
-import math
 import mimetypes
 import os
 import re
-import shutil
 import subprocess
-import tempfile
-import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Iterable
 
 
 # Require an extension before the numbered volume marker and at least three
@@ -55,8 +50,6 @@ _PLAYABLE_PART_RE = re.compile(
     r"^(?P<stem>.+)\.part(?P<index>[0-9]{2,})\.(?P<ext>[A-Za-z0-9][A-Za-z0-9_-]{0,31})$",
     re.IGNORECASE,
 )
-
-
 
 
 # ==============================================================================
@@ -113,79 +106,6 @@ class SplitVolumeSet:
     @property
     def sizes(self) -> tuple[int, ...]:
         return tuple(volume.size for volume in self.volumes)
-
-
-def validate_split_volumes(paths: Iterable[str | os.PathLike[str]]) -> SplitVolumeSet:
-    """Validate an explicit volume list in numeric order.
-
-    Reject duplicate indices, missing index 1 or any later gap, empty/unreadable
-    parts, mixed logical names, and non-volume filenames. Nothing is silently
-    skipped, because doing so would produce a truncated stream.
-    """
-    supplied = [Path(path) for path in paths]
-    if not supplied:
-        raise SplitFileError("No split volumes were supplied")
-
-    parsed: list[tuple[Path, SplitVolumeName]] = []
-    for path in supplied:
-        item = recognize_split_volume(path.name)
-        if item is None:
-            raise SplitFileError(f"Not a byte-split volume name: {path.name}")
-        parsed.append((path, item))
-
-    logical_names = {item.logical_filename.casefold() for _path, item in parsed}
-    parent_dirs = {str(path.parent.resolve(strict=False)).casefold() for path, _item in parsed}
-    if len(logical_names) != 1 or len(parent_dirs) != 1:
-        raise SplitFileError("Split volumes must share one original filename and one directory")
-
-    by_index: dict[int, tuple[Path, SplitVolumeName]] = {}
-    for path, item in parsed:
-        if item.index in by_index:
-            raise SplitFileError(
-                f"Duplicate split volume index {item.index}: "
-                f"{by_index[item.index][0].name} and {path.name}"
-            )
-        by_index[item.index] = (path, item)
-
-    # Telegram filenames are case-preserving. Do not combine a mixed-case
-    # lookalike sequence even on a case-insensitive local filesystem.
-    if len({item.logical_filename for _path, item in parsed}) != 1:
-        raise SplitFileError("Split volumes must preserve the exact original filename and extension")
-
-    indices = sorted(by_index)
-    expected = list(range(1, len(indices) + 1))
-    if indices != expected:
-        missing = sorted(set(expected) - set(indices))
-        if indices[0] != 1:
-            missing = list(range(1, indices[0])) + missing
-        missing = sorted(set(missing))
-        preview = ", ".join(f"{index:03d}" for index in missing[:12])
-        if len(missing) > 12:
-            preview += ", …"
-        raise SplitFileError(f"Split-volume sequence is incomplete; missing volume(s): {preview}")
-
-    logical_filename = by_index[1][1].logical_filename
-    volumes: list[SplitVolume] = []
-    for index in indices:
-        path = by_index[index][0]
-        try:
-            if not path.is_file():
-                raise SplitFileError(f"Split volume is not a regular file: {path.name}")
-            size = int(path.stat().st_size)
-            if size <= 0:
-                raise SplitFileError(f"Split volume is empty: {path.name}")
-            # Read one byte at validation time so access-denied or offline files
-            # fail before the caller starts streaming/uploading the sequence.
-            with path.open("rb") as stream:
-                if not stream.read(1):
-                    raise SplitFileError(f"Split volume is unreadable or empty: {path.name}")
-        except SplitFileError:
-            raise
-        except OSError as exc:
-            raise SplitFileError(f"Cannot read split volume {path.name}: {exc}") from exc
-        volumes.append(SplitVolume(index=index, path=path, size=size))
-
-    return SplitVolumeSet(logical_filename, tuple(volumes), sum(v.size for v in volumes))
 
 
 def discover_telegram_split_groups(records: Iterable[dict]) -> list[dict]:
@@ -308,101 +228,10 @@ def discover_telegram_split_groups(records: Iterable[dict]) -> list[dict]:
     return raw_groups
 
 
-
 # ==============================================================================
 # SECTION: Random-access reading
 # File-like reader and byte range mapping across volumes.
 # ==============================================================================
-
-class SplitVolumeReader(io.RawIOBase):
-    """Seekable read-only view over validated volumes without reassembly."""
-
-    def __init__(self, volume_set: SplitVolumeSet):
-        super().__init__()
-        self.volume_set = volume_set
-        self._starts: list[int] = []
-        offset = 0
-        for volume in volume_set.volumes:
-            self._starts.append(offset)
-            offset += volume.size
-        self._position = 0
-        self._part_index = -1
-        self._part_stream = None
-
-    def readable(self) -> bool:
-        return True
-
-    def seekable(self) -> bool:
-        return True
-
-    def tell(self) -> int:
-        self._checkClosed()
-        return self._position
-
-    def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
-        self._checkClosed()
-        if whence == os.SEEK_SET:
-            new_pos = int(offset)
-        elif whence == os.SEEK_CUR:
-            new_pos = self._position + int(offset)
-        elif whence == os.SEEK_END:
-            new_pos = self.volume_set.total_size + int(offset)
-        else:
-            raise ValueError(f"Invalid whence: {whence}")
-        if new_pos < 0:
-            raise ValueError("negative seek position")
-        self._position = min(new_pos, self.volume_set.total_size)
-        return self._position
-
-    def _open_part(self, part_index: int):
-        if self._part_index == part_index and self._part_stream is not None:
-            return self._part_stream
-        if self._part_stream is not None:
-            self._part_stream.close()
-            self._part_stream = None
-        volume = self.volume_set.volumes[part_index]
-        try:
-            self._part_stream = volume.path.open("rb")
-        except OSError as exc:
-            raise OSError(f"Cannot open split volume {volume.path.name}: {exc}") from exc
-        self._part_index = part_index
-        return self._part_stream
-
-    def readinto(self, buffer) -> int:
-        data = self.read(len(buffer))
-        buffer[:len(data)] = data
-        return len(data)
-
-    def read(self, size: int = -1) -> bytes:
-        self._checkClosed()
-        remaining_total = self.volume_set.total_size - self._position
-        if remaining_total <= 0 or size == 0:
-            return b""
-        remaining = remaining_total if size is None or int(size) < 0 else min(int(size), remaining_total)
-        chunks: list[bytes] = []
-        while remaining > 0:
-            # O(log N) binary search via prefix-sum offsets instead of linear scan
-            part_index = bisect.bisect_right(self._starts, self._position) - 1
-            volume = self.volume_set.volumes[part_index]
-            local_offset = self._position - self._starts[part_index]
-            take = min(remaining, volume.size - local_offset)
-            stream = self._open_part(part_index)
-            stream.seek(local_offset)
-            chunk = stream.read(take)
-            if len(chunk) != take:
-                raise OSError(
-                    f"Short read from split volume {volume.path.name}: expected {take}, received {len(chunk)}"
-                )
-            chunks.append(chunk)
-            self._position += len(chunk)
-            remaining -= len(chunk)
-        return b"".join(chunks)
-
-    def close(self):
-        if not self.closed and self._part_stream is not None:
-            self._part_stream.close()
-            self._part_stream = None
-        super().close()
 
 
 @dataclass(frozen=True)
@@ -475,13 +304,10 @@ def map_split_range(parts: Iterable[dict], start: int, end: int, *, total_size: 
     return tuple(mapped)
 
 
-
-
 # ==============================================================================
 # SECTION: ZIP member access
 # Stored ZIP validation and member range reads.
 # ==============================================================================
-
 
 
 # ---------------------------------------------------------------------------
@@ -489,8 +315,6 @@ def map_split_range(parts: Iterable[dict], start: int, end: int, *, total_size: 
 # ---------------------------------------------------------------------------
 
 _MP4_EXTENSIONS = {".mp4", ".m4v", ".mov"}
-
-
 
 
 # ==============================================================================
@@ -750,8 +574,6 @@ def split_video_into_playable_parts(
             except OSError:
                 pass
         raise
-
-
 
 
 # ==============================================================================

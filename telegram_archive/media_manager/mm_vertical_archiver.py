@@ -36,8 +36,6 @@ UPLOAD_THUMBNAIL_AS_DOCUMENT = True
 THUMBNAIL_TIMEOUT_SECONDS = 90
 
 
-
-
 # ==============================================================================
 # SECTION: Vertical detection
 # Dimensions and vertical checks.
@@ -118,11 +116,8 @@ def get_video_dimensions(message):
     return width, height, normalized_rotation, supports_streaming
 
 
-
 def state_key(source, destination, message_id):
     return f"{int(source.id)}:{int(destination.id)}:{int(message_id)}"
-
-
 
 
 # ==============================================================================
@@ -233,9 +228,6 @@ async def upload_thumbnail_bytes_document(client, destination, thumb_bytes: byte
             raise
 
 
-
-
-
 # ==============================================================================
 # SECTION: Thumbnail generation
 # Thumbnail generation under a watchdog.
@@ -281,169 +273,9 @@ async def generate_thumbnail_with_timeout(client, source, message, tempdir):
     )
 
 
-
-
 # ==============================================================================
 # SECTION: Scan and processing
 # Candidate scan and per-video processing.
 # ==============================================================================
-
-
-async def process_vertical_video(client, source, destination, message, state, key):
-    """MOVE one vertical video using the canonical Archive X playback snapshot.
-
-    The source Telegram thumbnail is never required. The persisted local
-    playback snapshot is used for the destination cover/thumbnail, and source
-    cleanup occurs only after destination verification.
-    """
-    entry = state.setdefault("completed", {}).setdefault(key, {})
-    entry["source_message_id"] = int(message.id)
-    entry["source_filename"] = safe_video_name(message)
-    entry["status"] = entry.get("status", "STARTED")
-    save_json(STATE_FILE, state)
-
-    with tempfile.TemporaryDirectory(prefix="tg_vertical_") as td:
-        destination_video_id = entry.get("destination_video_id")
-        destination_thumb_id = entry.get("destination_thumbnail_id")
-        source_thumb_id = None
-        source_thumbnail = None
-
-        # If we already have both destination IDs from a previous interrupted run,
-        # do not generate/copy anything again. Just verify and perform source cleanup.
-        if not destination_video_id:
-            print(
-                f"  Copying vertical VIDEO msg {message.id} -> destination "
-                "(Telegram copy; source stays until verification)..."
-            )
-            new_video = await forward_without_tag_safe(
-                client, destination, source, message
-            )
-            destination_video_id = int(getattr(new_video, "id", new_video))
-            entry["destination_video_id"] = destination_video_id
-            entry["status"] = "VIDEO_COPIED"
-            save_json(STATE_FILE, state)
-            print(f"  VIDEO COPIED: destination msg {destination_video_id}")
-        else:
-            print(f"  Video already copied: destination msg {destination_video_id}")
-
-        if not destination_thumb_id:
-            print("  Using Archive X playback snapshot as destination thumbnail...")
-            from ..engines.thumbnail_cache import ensure_playback_snapshot
-            db = globals().get("MEDIA_MANAGER_DB")
-            if db is None:
-                raise RuntimeError("Archive X database is required for playback snapshot delivery")
-            snapshot = await ensure_playback_snapshot(
-                db, type("TelegramAdapter", (), {"client": client, "connected": True})(),
-                int(canonical_peer_id(source)), int(message.id), message=message,
-            )
-            if not snapshot:
-                raise RuntimeError("Playback snapshot is unavailable")
-            snap_path = Path(td) / (Path(safe_video_name(message)).stem + ".jpg")
-            snap_path.write_bytes(snapshot[0])
-            new_thumb = await upload_thumbnail_document(client, destination, snap_path)
-            destination_thumb_id = int(getattr(new_thumb, "id", new_thumb))
-            entry["destination_thumbnail_id"] = destination_thumb_id
-            entry["thumbnail_source"] = "playback-snapshot"
-            entry["status"] = "DESTINATION_PAIR_READY"
-            save_json(STATE_FILE, state)
-            print(f"  THUMBNAIL POSTED: destination msg {destination_thumb_id}")
-        else:
-            print(f"  Thumbnail already copied: destination msg {destination_thumb_id}")
-
-        # Safety gate: NEVER delete the source until both destination messages
-        # can be fetched back successfully.
-        print("  Verifying destination video + thumbnail before source deletion...")
-        video_ok = await verify_message_exists(client, destination, destination_video_id)
-        thumb_ok = await verify_message_exists(client, destination, destination_thumb_id)
-        if not video_ok or not thumb_ok:
-            missing = []
-            if not video_ok:
-                missing.append("video")
-            if not thumb_ok:
-                missing.append("thumbnail")
-            entry["status"] = "DESTINATION_VERIFY_FAILED"
-            entry["error"] = "Destination verification failed for: " + ", ".join(missing)
-            save_json(STATE_FILE, state)
-            raise RuntimeError("Destination verification failed; source was NOT deleted")
-
-        print("  DESTINATION VERIFIED: video and thumbnail both exist.")
-
-        db = globals().get("MEDIA_MANAGER_DB")
-        if db is not None:
-            from ..engines.thumbnail_cache import playback_snapshot_cached_sync, _store_thumb_sync
-            source_channel_key = canonical_peer_id(source)
-            destination_channel_key = canonical_peer_id(destination)
-            snapshot = await asyncio.to_thread(
-                playback_snapshot_cached_sync, db, int(source_channel_key), int(message.id)
-            )
-            if snapshot:
-                await asyncio.to_thread(
-                    _store_thumb_sync, db, destination_channel_key,
-                    int(destination_video_id), int(destination_thumb_id),
-                    "image/jpeg", 0, 0, snapshot[0], "playback-snapshot", False,
-                )
-            with db.lock:
-                source_row = db.conn.execute(
-                    "SELECT * FROM media WHERE source_channel=? AND source_message_id=? LIMIT 1",
-                    (source_channel_key, int(message.id)),
-                ).fetchone()
-            if source_row is not None:
-                try:
-                    from ..engines.delivery_ledger import copy_delivery_preview_frames
-                    await asyncio.to_thread(
-                        copy_delivery_preview_frames, db,
-                        destination_channel=destination_channel_key,
-                        destination_video_message_id=int(destination_video_id),
-                        source_row=source_row,
-                    )
-                except Exception as exc:
-                    try: db.log(f"Vertical move preview-frame handoff deferred: {type(exc).__name__}: {exc}", "WARN")
-                    except Exception: pass
-            await _record_verified_transfer_location(
-                db, source, message, destination, destination_video_id, destination_thumb_id,
-                client=client, action="VERTICAL_MOVE", filename=safe_video_name(message),
-            )
-            await _sync_verified_transfer_destination_registry(
-                db, client, destination, destination_video_id, destination_thumb_id,
-                destination_message=None,
-            )
-
-            from ..core.telegram_identity import canonical_peer_id
-            from ..engines.delivery_ledger import mark_verified_transfer_source_hidden
-            await asyncio.to_thread(
-                mark_verified_transfer_source_hidden, db,
-                source_channel=source_channel_key, source_message_id=int(message.id),
-                destination_channel=destination_channel_key, destination_message_id=int(destination_video_id),
-                source_deleted=False,
-            )
-
-        source_ids_to_delete = [int(message.id)]
-        print(f"  Deleting SOURCE video msg {message.id}; Archive X snapshot is retained locally.")
-
-        await delete_messages(client, source, source_ids_to_delete)
-
-        remaining_source = await client.get_messages(source, ids=int(message.id))
-        if isinstance(remaining_source, (list, tuple)):
-            remaining_source = next((item for item in remaining_source if item is not None), None)
-        if remaining_source is not None and getattr(remaining_source, "id", None):
-            raise RuntimeError(f"Telegram did not confirm deletion of source video msg={message.id}")
-        if db is not None:
-            from ..core.telegram_identity import canonical_peer_id
-            from ..engines.delivery_ledger import mark_verified_transfer_source_hidden
-            await asyncio.to_thread(
-                mark_verified_transfer_source_hidden, db,
-                source_channel=canonical_peer_id(source), source_message_id=int(message.id),
-                destination_channel=canonical_peer_id(destination), destination_message_id=int(destination_video_id),
-                source_deleted=True,
-            )
-
-        entry["source_deleted"] = True
-        entry["status"] = "COMPLETE"
-        entry.pop("error", None)
-        save_json(STATE_FILE, state)
-        print(
-            f"  MOVE COMPLETE: source msg {message.id} deleted | "
-            f"destination video={destination_video_id} | thumbnail={destination_thumb_id}"
-        )
 
 

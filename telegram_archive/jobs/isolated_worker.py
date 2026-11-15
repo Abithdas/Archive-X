@@ -14,7 +14,6 @@ import asyncio
 import importlib
 import multiprocessing as mp
 import traceback
-from dataclasses import dataclass
 from typing import Any
 
 from ..core.database import Database
@@ -74,16 +73,6 @@ class _IsolatedManager:
 
     def skip_current(self, _job_id: str) -> None:
         return None
-
-
-@dataclass(frozen=True)
-class ChildResult:
-    """Outcome of a job run in an isolated child process."""
-    ok: bool
-    cancelled: bool = False
-    skipped: bool = False
-    error: str = ""
-    traceback_text: str = ""
 
 
 def _resolve_engine(spec: str):

@@ -104,9 +104,3 @@ def oshash_file(path: str) -> str:
     return oshash_from_parts(size, head, tail)
 
 
-async def oshash_telegram(reader, channel_id: int, message_id: int) -> str:
-    info = await reader.info(channel_id, message_id)
-    want_head, want_tail = expected_lengths(info.size)
-    head = await reader.read(channel_id, message_id, 0, want_head)
-    tail = await reader.read(channel_id, message_id, info.size - want_tail, want_tail)
-    return oshash_from_parts(info.size, head, tail)
