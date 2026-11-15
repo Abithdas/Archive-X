@@ -45,11 +45,18 @@ def test_a_try_is_remembered_so_a_miss_is_not_asked_again_this_week_and_a_find_r
     monkeypatch.setattr(performer_image_sync, "refresh_performer_image", perf)
     monkeypatch.setattr(studio_image_sync, "refresh_studio_image", stud)
     r = asyncio.run(missing_images.fetch_missing(db, pause=0))
-    assert r == {"tried": 3, "found": 1, "not_found": 2}                       # a failing lookup (the studio raised) does not stop the others
+    assert {k: r[k] for k in ("tried", "found", "not_found")} == {"tried": 3, "found": 1, "not_found": 2}   # a failing lookup (the studio raised) does not stop the others
+    assert r["outcomes"] == {"found": 1, "no_provider_artwork": 1, "error": 1}                  # and each pass says why
     assert missing_images.counts(db) == {"performers": 1, "studios": 1}
     asked.clear()
     r2 = asyncio.run(missing_images.fetch_missing(db, pause=0))
     assert r2["tried"] == 0 and asked == []                                  # nothing is retried within the week
+    with db.lock:   # a lookup that failed with an error is tried again after a few hours, a provider with no picture only after a week
+        db.conn.execute("UPDATE entity_image_attempts SET last_attempt=last_attempt-? WHERE outcome='error'", (7 * 3600,))
+        db.conn.commit()
+    asked.clear()
+    asyncio.run(missing_images.fetch_missing(db, pause=0))
+    assert asked == [("s", sid)]
     with db.lock:
         db.conn.execute("UPDATE entity_image_attempts SET last_attempt=last_attempt-?", (8 * 86400,))
         db.conn.commit()
