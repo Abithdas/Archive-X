@@ -134,6 +134,22 @@ describe('Telegram media', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Destination channel' }), { target: { value: '-1002' } })
     expect(screen.getByRole('button', { name: /Next: Options/ })).toBeEnabled()
   })
+  it('skips videos without saved snapshots by default, and can be told to make them first', async () => {
+    const calls = mount((url) => (url === '/api/telegram-transfer/start' ? json({ id: 'tj' }) : undefined))
+    await toTelegram()
+    await screen.findByRole('option', { name: 'Misc' })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Destination channel' }), { target: { value: '-1002' } })
+    next(/Next: Options/)
+    const choice = screen.getByRole('combobox', { name: 'Videos without saved snapshots' }) as HTMLSelectElement
+    expect(choice.value).toBe('existing')
+    fireEvent.change(choice, { target: { value: 'generate' } })
+    next(/Next: Review/)
+    expect(screen.getByText('Make them from Telegram first')).toBeInTheDocument()
+    next(/Next: Run/)
+    fireEvent.click(screen.getByRole('button', { name: 'Start Telegram transfer' }))
+    await screen.findByText('Telegram media inspection/preparation queued.')
+    expect(calls.find((c) => c.url === '/api/telegram-transfer/start')!.body).toMatchObject({ snapshot_policy: 'generate' })
+  })
   it('requires a trash channel when cleanup is on, and sends nested checks', async () => {
     const calls = mount((url) => (url === '/api/telegram-transfer/start' ? json({ id: 'tj' }) : undefined))
     await toTelegram()

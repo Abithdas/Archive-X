@@ -32,7 +32,7 @@ describe('payloads', () => {
   it('telegram payload nests duplicate checks and cleanup', () => {
     expect(telegramPayload({ ...DEFAULT_TELEGRAM, channels: ['1', '2'], destination: '3', dupDb: false, cleanup: true, trash: '9' })).toEqual({
       source: 'telegram', source_channels: ['1', '2'], destination_channel: '3', source_mode: 'VIDEO', destination_mode: 'VIDEO', orientation: 'BOTH', resolution_filter: 'ANY',
-      duplicate_check: { source: true, destination: true, database: false }, cleanup: { enabled: true, trash_channel: '9' },
+      duplicate_check: { source: true, destination: true, database: false }, cleanup: { enabled: true, trash_channel: '9' }, snapshot_policy: 'existing',
     })
   })
 })

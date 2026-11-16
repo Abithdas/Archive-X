@@ -727,6 +727,15 @@ class ContactSheetUnavailable(RuntimeError):
 
 async def _select_manager_thumbnail_with_retry(*args, **kwargs):
     """Prepare the canonical Archive X contact sheet, retrying once on failure."""
+    if kwargs.get("generate_fallback") is False:
+        # "Use saved snapshots only": one look at what is saved; no second attempt and nothing is made from Telegram.
+        result = await _select_manager_thumbnail(*args, **kwargs)
+        if result and result[0]:
+            return result
+        raise ContactSheetUnavailable(
+            "Needs snapshots: this video has no saved 36-frame snapshot set, and the transfer is set to skip such videos. "
+            "Scan the channel (or choose 'Make missing snapshots from Telegram first') and run the transfer again."
+        )
     last_error = None
     for attempt in (1, 2):
         try:

@@ -1674,7 +1674,8 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
         destination = await resolve_saved_entity(client, destination_id)
         duplicate_check = job_detail.get("duplicate_check") if isinstance(job_detail.get("duplicate_check"), dict) else {}
         duplicate_policy = "SKIP" if duplicate_check.get("destination", True) else "NONE"
-        cover_policy = "AUTOMATIC"
+        # "existing": use only a saved 36-frame snapshot set, skip a video that has none (the source stays). "generate": make a missing set from Telegram.
+        cover_policy = "EXISTING" if str(job_detail.get("snapshot_policy") or "existing").lower() == "existing" else "AUTOMATIC"
         source_count = len(sources)
         state = transfer_job_state_load(job_id, resume=False)
         state["config"] = {
@@ -1898,7 +1899,9 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
     print(f"Destination        : {channel_display_name(destination)}")
     print(f"Destination duplicate check: {duplicate_policy}")
     if destination_mode == "VIDEO":
-        print(f"Video cover         : {cover_policy} (Archive X playback snapshot reused automatically)")
+        print(f"Video cover         : {cover_policy} ("
+              + ("saved Archive X snapshots only; a video without them is skipped and stays in the source)" if cover_policy == "EXISTING"
+                 else "saved Archive X snapshot reused; a missing set is made from Telegram first)"))
     print("Processing          : ONE SOURCE CHANNEL AT A TIME")
     print("Workspace           : only the current transfer item may use disk")
     print("Metadata            : persisted Archive X catalogue; no provider refresh during transfer")
@@ -1964,13 +1967,13 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
     metadata_job = await _run_metadata_child_job(
         globals().get("MEDIA_MANAGER_DB"), job_manager, manager_loop,
         parent_job_id=job_id, channel_ids=preparation_channels,
-        stages=["metadata", "performers", "channel_data", "snapshots"],
+        stages=["metadata", "performers", "channel_data"] + ([] if cover_policy == "EXISTING" else ["snapshots"]),
         label="Metadata & Assets", existing_job_id=child_jobs.get("metadata_assets"),
     )
     child_jobs["metadata_assets"] = metadata_job
     transfer_job_state_save(state)
 
-    total_complete = total_failed = total_skipped = total_duplicates = 0
+    total_complete = total_failed = total_skipped = total_duplicates = total_needs_snapshots = 0
 
     try:
         # Critical behavior: finish source #1 completely before scanning source #2.
@@ -2157,11 +2160,12 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
                 except ContactSheetUnavailable as exc:
                     channel_skipped += 1
                     total_skipped += 1
+                    total_needs_snapshots += 1
                     entry["status"] = "NEEDS_SNAPSHOTS"
                     entry["needs_snapshots"] = True
                     entry["error"] = str(exc)
                     transfer_job_state_save(state)
-                    print(f"  SKIPPED — NEEDS SNAPSHOTS: {exc}")
+                    print(f"  SKIPPED — NEEDS SNAPSHOTS: {safe_video_name(message)} (message {int(getattr(message, 'id', 0) or 0)}): {exc}")
                     print("  Source retained. The next item will be processed normally.")
                 except Exception as exc:
                     channel_failed += 1
@@ -2187,6 +2191,8 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
         print(f"Source channels     : {len(sources)}")
         print(f"Completed items     : {total_complete:,}")
         print(f"Skipped/resumed     : {total_skipped:,}")
+        if total_needs_snapshots:
+            print(f"  of which need snapshots: {total_needs_snapshots:,} (left in the source; scan the channel, then run the transfer again)")
         print(f"Duplicates detected : {total_duplicates:,}")
         print(f"Failed items        : {total_failed:,}")
         print("Processing model    : one source channel at a time; one transfer item at a time")

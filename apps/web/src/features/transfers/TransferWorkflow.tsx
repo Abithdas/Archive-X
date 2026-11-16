@@ -9,7 +9,7 @@ import { Segmented } from '@/design/Segmented'
 import { CARD, CHANNEL_LIST, Check, FIELD, Field, Stepper, detail, videosHint } from './parts'
 import { ChannelAvatar } from '@/features/channels/ChannelAvatar'
 import {
-  DEFAULT_LOCAL, DEFAULT_TELEGRAM, ORIENTATIONS, RESOLUTIONS, localPayload, planPhotoScan, resolveAsk, startMessage, telegramPayload, validateLocal, validateTelegram,
+  DEFAULT_LOCAL, DEFAULT_TELEGRAM, ORIENTATIONS, RESOLUTIONS, SNAPSHOT_CHOICES, localPayload, planPhotoScan, resolveAsk, startMessage, telegramPayload, validateLocal, validateTelegram,
   type LocalOptions, type PhotoPlan, type PhotoScan, type Source, type TelegramOptions,
 } from './transfer'
 
@@ -208,6 +208,9 @@ export function TransferWorkflow() {
               </div>
               <Field label="Video orientation"><Select label="Video orientation" value={tg.orientation} onChange={(v) => setT('orientation', v)} options={ORIENTATIONS} /></Field>
               <Field label="Source resolution" hint="Filters source videos; no re-encoding. A specific tier skips unknown dimensions."><Select label="Source resolution for Telegram videos" value={tg.resolution} onChange={(v) => setT('resolution', v)} options={RESOLUTIONS} /></Field>
+              <Field label="Videos without saved snapshots" hint="The cover of each transferred video is its 36-frame snapshot set, made when a channel is scanned. A video that has none can be skipped (it stays in the source, and the job lists it) or have the set made from Telegram before it moves.">
+                <Select label="Videos without saved snapshots" value={tg.snapshots} onChange={(v) => setT('snapshots', v as TelegramOptions['snapshots'])} options={SNAPSHOT_CHOICES} />
+              </Field>
               <div className="rounded-xl border border-line p-2"><p className="px-2 pb-1 pt-1 text-xs font-bold text-muted">Duplicate checks and cleanup</p>
                 <Check checked={tg.dupSource} onChange={(v) => setT('dupSource', v)} title="Check source duplicates" />
                 <Check checked={tg.dupDestination} onChange={(v) => setT('dupDestination', v)} title="Check destination" />
@@ -225,7 +228,7 @@ export function TransferWorkflow() {
           <dl className="grid gap-1.5 rounded-xl bg-bg p-3 text-sm">
             {(source === 'local'
               ? [['Source', 'Local files'], ['Media', local.images ? 'Images (as documents)' : 'Videos'], ['Folder', local.folder || '—'], ['Destination', local.destination ? nameOf(local.destination) : '—'], ['Include subfolders', local.subfolders ? 'Yes' : 'No'], ['Delete local source after delivery', local.deleteSource ? 'Yes' : 'No'], ...(local.images ? [] : [['Orientation', local.orientation], ['Resolution', local.resolution], ['Oversized files', local.oversized === 'optimize' ? 'Optimize to fit' : 'Skip']])]
-              : [['Source', 'Telegram media'], ['From', tg.channels.map(nameOf).join(', ') || '—'], ['Destination', tg.destination ? nameOf(tg.destination) : '—'], ['Media', `${tg.sourceMedia === 'VIDEO' ? 'Video' : 'File'} → ${tg.destinationMedia === 'VIDEO' ? 'Video' : 'File'}`], ['Orientation', tg.orientation], ['Resolution', tg.resolution], ['Duplicate checks', [tg.dupSource && 'source', tg.dupDestination && 'destination', tg.dupDb && 'database'].filter(Boolean).join(', ') || 'none'], ['Cleanup', tg.cleanup ? `Yes → ${nameOf(tg.trash)}` : 'No']]
+              : [['Source', 'Telegram media'], ['From', tg.channels.map(nameOf).join(', ') || '—'], ['Destination', tg.destination ? nameOf(tg.destination) : '—'], ['Media', `${tg.sourceMedia === 'VIDEO' ? 'Video' : 'File'} → ${tg.destinationMedia === 'VIDEO' ? 'Video' : 'File'}`], ['Orientation', tg.orientation], ['Resolution', tg.resolution], ['Duplicate checks', [tg.dupSource && 'source', tg.dupDestination && 'destination', tg.dupDb && 'database'].filter(Boolean).join(', ') || 'none'], ['Cleanup', tg.cleanup ? `Yes → ${nameOf(tg.trash)}` : 'No'], ['Without saved snapshots', tg.snapshots === 'generate' ? 'Make them from Telegram first' : 'Skip them (source kept)']]
             ).map(([k, v]) => <div key={k} className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)] gap-3"><dt className="text-muted">{k}</dt><dd className="font-semibold [overflow-wrap:anywhere]">{v}</dd></div>)}
           </dl>
           {problem ? <p role="alert" className="mt-2 text-sm text-warn">{problem}</p> : <p className="mt-2 text-sm text-muted">Everything needed is set. Continue to Run.</p>}

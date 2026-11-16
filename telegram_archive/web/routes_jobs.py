@@ -643,6 +643,8 @@ def register_job_routes(
             cleanup=data.get("cleanup") if isinstance(data.get("cleanup"),dict) else {}
             cleanup_enabled=bool(cleanup.get("enabled")); trash=str(cleanup.get("trash_channel") or "").strip()
             if cleanup_enabled and not trash: raise HTTPException(400,"Choose a trash channel when cleanup is enabled")
+            snapshot_policy = str(data.get("snapshot_policy") or "existing").strip().lower()
+            if snapshot_policy not in {"existing", "generate"}: raise HTTPException(400, "Invalid snapshot policy")
             requested_mode = str(data.get("mode") or "").strip().upper()
             from ..media_manager.runner import MODES as MEDIA_MANAGER_MODES
             detail["mode"] = requested_mode if requested_mode in MEDIA_MANAGER_MODES else "TRANSFER"
@@ -654,6 +656,7 @@ def register_job_routes(
                 "orientation": orientation,
                 "duplicate_check": {"source":bool(dup.get("source",True)),"destination":bool(dup.get("destination",True)),"database":bool(dup.get("database",True))},
                 "cleanup": {"enabled":cleanup_enabled,"trash_channel":trash},
+                "snapshot_policy": snapshot_policy,
                 "source_count": len(source_channels),
                 "processing_policy": "INVENTORY_THEN_METADATA_ASSETS_THEN_TRANSFER",
             })
