@@ -819,8 +819,21 @@ async def _discover_and_store_inventory(ctx, channel_id: str, limit: int, *, ful
         with ctx.db.lock:
             # Only a complete scan of all Telegram history can prove that older
             # messages disappeared. Incremental passes never tombstone unseen rows.
+            present = {int(item.get("id") or 0) for item in ordered}
+            if scan_stats.get("full_history") and not (present - {0}):
+                known_live = int(ctx.db.conn.execute(
+                    "SELECT COUNT(*) FROM media WHERE source_channel=? AND COALESCE(status,'')<>'SOURCE_DELETED'", (channel_id,)).fetchone()[0] or 0)
+                if known_live:
+                    # Telegram can answer a history walk with nothing (access lost, a search hiccup) and still call it complete.
+                    # Treating that as "every video was deleted" would remove the whole channel from the Library.
+                    _INVENTORY_WARNINGS[(str(getattr(ctx, "job_id", "")), str(channel_id))] = (
+                        f"Telegram returned no videos for the whole history while {known_live:,} are stored; nothing was removed")
+                    ctx.db.log(
+                        f"Collect filenames {channel_id}: Telegram returned no videos for a full history scan, but {known_live:,} are known. "
+                        "Nothing was removed from the Library; check that this account can still read the channel and scan again.",
+                        "WARN")
+                    scan_stats["full_history"] = False
             if scan_stats.get("full_history"):
-                present = {int(item.get("id") or 0) for item in ordered}
                 if split_tables == {"split_file_groups", "split_file_parts"}:
                     missing_split_primary_ids = [int(row["primary_message_id"] or 0) for row in split_groups
                                                  if int(row["primary_message_id"] or 0) not in present]
@@ -856,11 +869,14 @@ async def _discover_and_store_inventory(ctx, channel_id: str, limit: int, *, ful
                     )
             ids = [int(item.get("id") or 0) for item in ordered if int(item.get("id") or 0) > 0]
             if ids:
-                marks = ",".join("?" for _ in ids)
-                rows = ctx.db.conn.execute(
-                    f"SELECT id,source_channel,source_message_id,filename,title FROM media WHERE source_channel=? AND source_message_id IN ({marks}) ORDER BY CAST(source_message_id AS INTEGER) DESC",
-                    [channel_id, *ids],
-                ).fetchall()
+                from ..core.sql_batches import batches, marks as _marks
+                rows = []
+                for batch in batches(ids):
+                    rows.extend(ctx.db.conn.execute(
+                        f"SELECT id,source_channel,source_message_id,filename,title FROM media WHERE source_channel=? AND source_message_id IN ({_marks(len(batch))})",
+                        [channel_id, *batch],
+                    ).fetchall())
+                rows.sort(key=lambda r: int(r["source_message_id"] or 0), reverse=True)
                 for row in rows:
                     ctx.db.conn.execute(
                         "INSERT INTO resource_state(media_id,catalogue_state,updated_at) VALUES(?,?,?) "
@@ -1111,15 +1127,16 @@ def _entity_ids(ctx, channel_id: str, media_ids: list[int]) -> tuple[list[int], 
     """Return unique performer and studio IDs linked to the channel inventory."""
     with ctx.db.lock:
         if media_ids:
-            marks = ",".join("?" for _ in media_ids)
-            params = tuple(media_ids)
-            performers = [int(r[0]) for r in ctx.db.conn.execute(
-                f"SELECT DISTINCT performer_id FROM video_performers WHERE video_id IN ({marks}) ORDER BY performer_id", params
-            ).fetchall()]
-            studios = [int(r[0]) for r in ctx.db.conn.execute(
-                f"SELECT DISTINCT studio_id FROM video_studios WHERE video_id IN ({marks}) ORDER BY studio_id", params
-            ).fetchall()]
-            return performers, studios
+            from ..core.sql_batches import batches, marks as _marks
+            performers_found: set[int] = set()
+            studios_found: set[int] = set()
+            for batch in batches(media_ids):
+                params = tuple(batch)
+                performers_found.update(int(r[0]) for r in ctx.db.conn.execute(
+                    f"SELECT DISTINCT performer_id FROM video_performers WHERE video_id IN ({_marks(len(batch))})", params).fetchall())
+                studios_found.update(int(r[0]) for r in ctx.db.conn.execute(
+                    f"SELECT DISTINCT studio_id FROM video_studios WHERE video_id IN ({_marks(len(batch))})", params).fetchall())
+            return sorted(performers_found), sorted(studios_found)
         performers = [int(r[0]) for r in ctx.db.conn.execute(
             "SELECT DISTINCT vp.performer_id FROM video_performers vp JOIN media m ON m.id=vp.video_id WHERE m.source_channel=? ORDER BY vp.performer_id",
             (channel_id,),

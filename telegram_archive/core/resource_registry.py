@@ -462,29 +462,31 @@ def ensure_unknown_entity_links(db, media_ids: list[int] | tuple[int, ...] | Non
         # Reserved fallback profiles must remain local-only even if an older
         # build accidentally associated them with a provider record.
         ensure_unknown_performer_local_profile(db)
-        params=[]
-        where='1=1'
-        if media_ids:
+        # None means every video; an empty list means none (it used to mean every video in the database).
+        if media_ids is None:
+            scopes = [([], '1=1')]
+        else:
+            from .sql_batches import batches, marks as _marks
             mids=[int(x) for x in media_ids if int(x)>0]
             if not mids: return 0
-            where=f"m.id IN ({','.join('?' for _ in mids)})"
-            params.extend(mids)
-        rows=db.conn.execute(
-            f"SELECT m.id FROM media m WHERE {where} "
-            "AND NOT EXISTS (SELECT 1 FROM video_performers vp WHERE vp.video_id=m.id) "
-            "AND NOT EXISTS (SELECT 1 FROM local_video_performers lvp WHERE lvp.video_id=m.id) "
-            "ORDER BY m.id", params).fetchall()
+            scopes = [(batch, f"m.id IN ({_marks(len(batch))})") for batch in batches(mids)]
         changed=0
-        for row in rows:
-            db.conn.execute("INSERT OR IGNORE INTO video_performers(video_id,performer_id) VALUES(?,?)", (int(row['id']), int(perf['id'])))
-            changed += 1
-        rows=db.conn.execute(
-            f"SELECT m.id FROM media m WHERE {where} "
-            "AND NOT EXISTS (SELECT 1 FROM video_studios vs WHERE vs.video_id=m.id) "
-            "ORDER BY m.id", params).fetchall()
-        for row in rows:
-            db.conn.execute("INSERT OR IGNORE INTO video_studios(video_id,studio_id,confidence) VALUES(?,?,?)", (int(row['id']), int(studio['id']), 1.0))
-            changed += 1
+        for params, where in scopes:
+            rows=db.conn.execute(
+                f"SELECT m.id FROM media m WHERE {where} "
+                "AND NOT EXISTS (SELECT 1 FROM video_performers vp WHERE vp.video_id=m.id) "
+                "AND NOT EXISTS (SELECT 1 FROM local_video_performers lvp WHERE lvp.video_id=m.id) "
+                "ORDER BY m.id", params).fetchall()
+            for row in rows:
+                db.conn.execute("INSERT OR IGNORE INTO video_performers(video_id,performer_id) VALUES(?,?)", (int(row['id']), int(perf['id'])))
+                changed += 1
+            rows=db.conn.execute(
+                f"SELECT m.id FROM media m WHERE {where} "
+                "AND NOT EXISTS (SELECT 1 FROM video_studios vs WHERE vs.video_id=m.id) "
+                "ORDER BY m.id", params).fetchall()
+            for row in rows:
+                db.conn.execute("INSERT OR IGNORE INTO video_studios(video_id,studio_id,confidence) VALUES(?,?,?)", (int(row['id']), int(studio['id']), 1.0))
+                changed += 1
         db.conn.commit()
         return changed
 
@@ -502,14 +504,18 @@ def mark_media_entity_complete(db, media_ids: list[int] | tuple[int, ...] | None
         return 0
     ensure_unknown_entity_links(db, media_ids)
     with db.lock:
-        params=[]; where='1=1'
-        if media_ids:
-            mids=[int(x) for x in media_ids if int(x)>0]
-            if not mids: return 0
-            where=f"media_id IN ({','.join('?' for _ in mids)})"; params.extend(mids)
-        cur=db.conn.execute(f"UPDATE resource_state SET entity_state='COMPLETE', updated_at=datetime('now') WHERE {where}", params)
+        if media_ids is None:
+            cur=db.conn.execute("UPDATE resource_state SET entity_state='COMPLETE', updated_at=datetime('now')")
+            db.conn.commit()
+            return int(cur.rowcount or 0)
+        from .sql_batches import batches, marks as _marks
+        mids=[int(x) for x in media_ids if int(x)>0]
+        done=0
+        for batch in batches(mids):
+            cur=db.conn.execute(f"UPDATE resource_state SET entity_state='COMPLETE', updated_at=datetime('now') WHERE media_id IN ({_marks(len(batch))})", batch)
+            done += int(cur.rowcount or 0)
         db.conn.commit()
-        return int(cur.rowcount or 0)
+        return done
 
 
 def sync_media_state(db, media_id: int, *, catalogue: str | None = None,
@@ -654,23 +660,28 @@ def media_readiness_stats(db, *, channel_id: str | int | None = None, media_ids:
     clauses=["COALESCE(m.status,'')<>'SOURCE_DELETED'"]; params=[]
     if channel_id is not None:
         clauses.append('m.source_channel=?'); params.append(str(channel_id))
-    if media_ids:
+    # None = every video; a list = just those (an empty list is none, it used to count the whole database); long lists go in batches.
+    if media_ids is None:
+        scopes=[([], '')]
+    else:
+        from .sql_batches import batches, marks as _marks
         mids=[int(x) for x in media_ids if int(x)>0]
-        if mids:
-            clauses.append(f"m.id IN ({','.join('?' for _ in mids)})"); params.extend(mids)
-    where=('WHERE '+' AND '.join(clauses)) if clauses else ''
+        scopes=[(batch, f" AND m.id IN ({_marks(len(batch))})") for batch in batches(mids)]
+    rows=[]
     with db.reading() as conn:
-        rows=conn.execute(
-            "SELECT rs.catalogue_state,rs.metadata_state,rs.entity_state,rs.snapshot_state, "
-            "COALESCE(m.streamable,0) streamable, COALESCE(m.metadata_source,'') metadata_source, COALESCE(m.identification_state,'') identification_state, "
-            "CASE WHEN pm.id IS NOT NULL THEN 1 ELSE 0 END published, "
-            "CASE WHEN EXISTS (SELECT 1 FROM asset_registry ar WHERE ar.entity_type='telegram_video' "
-            "AND ar.entity_id=(CAST(m.source_channel AS TEXT) || ':' || CAST(m.source_message_id AS TEXT)) "
-            "AND ar.asset_type='PLAYBACK_REPRESENTATIVE' AND ar.state='READY') "
-            "OR EXISTS (SELECT 1 FROM asset_registry ar WHERE ar.media_id=m.id "
-            "AND ar.asset_type='PLAYBACK_REPRESENTATIVE' AND ar.state='READY') THEN 1 ELSE 0 END card_image "
-            "FROM media m JOIN resource_state rs ON rs.media_id=m.id "
-            "LEFT JOIN archive_x_published_media pm ON pm.id=m.id " + where, params).fetchall()
+        for batch, extra in scopes:
+            where='WHERE '+' AND '.join(clauses)+extra
+            rows.extend(conn.execute(
+                "SELECT rs.catalogue_state,rs.metadata_state,rs.entity_state,rs.snapshot_state, "
+                "COALESCE(m.streamable,0) streamable, COALESCE(m.metadata_source,'') metadata_source, COALESCE(m.identification_state,'') identification_state, "
+                "CASE WHEN pm.id IS NOT NULL THEN 1 ELSE 0 END published, "
+                "CASE WHEN EXISTS (SELECT 1 FROM asset_registry ar WHERE ar.entity_type='telegram_video' "
+                "AND ar.entity_id=(CAST(m.source_channel AS TEXT) || ':' || CAST(m.source_message_id AS TEXT)) "
+                "AND ar.asset_type='PLAYBACK_REPRESENTATIVE' AND ar.state='READY') "
+                "OR EXISTS (SELECT 1 FROM asset_registry ar WHERE ar.media_id=m.id "
+                "AND ar.asset_type='PLAYBACK_REPRESENTATIVE' AND ar.state='READY') THEN 1 ELSE 0 END card_image "
+                "FROM media m JOIN resource_state rs ON rs.media_id=m.id "
+                "LEFT JOIN archive_x_published_media pm ON pm.id=m.id " + where, params+list(batch)).fetchall())
     out={'total':len(rows),'published_ready':0,'metadata_pending':0,'entity_pending':0,'snapshot_pending':0,'catalogue_pending':0,'needs_review':0,
          'card_image_pending':0,'not_streamable':0,'suggestion_pending_review':0,'not_in_library':0}
     for r in rows:
