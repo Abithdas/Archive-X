@@ -11,6 +11,7 @@ import { StreamText } from '@/design/StreamText'
 import { ThinkingLine } from '@/design/ThinkingLine'
 import { cn } from '@/design/cn'
 import { AssistantSetup } from './AssistantSetup'
+import { Findings } from './Findings'
 import { ModelCatalog } from './ModelCatalog'
 import { StepsFeed } from './StepsFeed'
 import { DIAGNOSTICS_PROMPT, EMPTY_HISTORY, JOBS_PROMPT, LIBRARY_QUICK, NEED_QUERY, QUICK, RECOMMEND_PROMPT, SAVED, SAVE_FAILED, START_FAILED, STARTED, STARTING, STOPPED, STOP_FAILED, TABS, TEST_FAILED, TESTING, TOOLS_OFF, TOOLS_ON, TOOLS_WAIT, configBody, configFrom, header, isInstalled, libraryPrompt, messageTime, readiness, testPassed, type AiStatus, type AiTab, type Config, type Message } from './ai'
@@ -107,7 +108,7 @@ export function AiPage() {
   const h = header(status.isError ? { configured: false } : status.data)
   const hdr = status.isError ? { ...h, state: 'AI status unavailable', model: 'Local AI service unavailable' } : h
   const starting = Boolean(status.data?.runtime?.server?.starting) || Boolean(busy && turn?.status.startsWith('Starting'))
-  const needsSetup = Boolean(status.data) && !isInstalled(status.data) && tab !== 'models'
+  const needsSetup = Boolean(status.data) && !isInstalled(status.data) && tab !== 'models' && tab !== 'findings'
   const finishedSetup = () => { refreshed(); void history.refetch() }
   const body = (t: LiveTurn | null, text: string | undefined, isWorking: boolean | undefined, fallback: string) => isWorking && t ? <TurnBody turn={t} /> : text ? <StreamText text={text} instant /> : <span className="text-muted">{fallback}</span>
 
@@ -174,6 +175,7 @@ export function AiPage() {
               </div>
             )
           })() : null}
+          {tab === 'findings' ? <Findings /> : null}
           {tab === 'models' ? <Models status={status.data} onChanged={() => qc.invalidateQueries({ queryKey: ['ai-status'] })} /> : null}
         </main>
       </div>

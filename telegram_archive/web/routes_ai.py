@@ -239,6 +239,42 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
         require_auth(request)
         return {"local_only": True, "tools": ai.tools.definitions()}
 
+    @router.get("/api/ai/findings")
+    async def ai_findings(request: Request, status: str = ""):
+        """The assistant's notebook (problems and ideas it noticed) with how many are in each state, and what it knows about the app."""
+        require_auth(request)
+        st = status.upper()
+
+        def read():
+            ai.tools.knowledge.ensure()
+            return {"findings": ai.tools.findings.list(st if st else None, 100), "counts": ai.tools.findings.counts(), "knowledge": ai.tools.knowledge.counts()}
+        return await asyncio.to_thread(read)
+
+    @router.post("/api/ai/findings/{finding_id}")
+    async def ai_finding_decide(finding_id: int, request: Request):
+        """Accept, reject, mark fixed or reopen one finding. Only changes the notebook."""
+        require_auth(request)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        status = str(body.get("status") or "").upper()
+        try:
+            found = await asyncio.to_thread(ai.tools.findings.decide, finding_id, status)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        if not found:
+            raise HTTPException(404, "Finding not found")
+        db.log(f"AI finding {finding_id} marked {status}", event="ai.finding.decided")
+        return {"ok": True}
+
+    @router.post("/api/ai/knowledge/rebuild")
+    async def ai_knowledge_rebuild(request: Request):
+        """Read the changelog, the docs and the program's docstrings again."""
+        require_auth(request)
+        counts = await asyncio.to_thread(ai.tools.knowledge.rebuild)
+        return {"ok": True, "knowledge": counts}
+
     @router.post("/api/ai/runtime/start")
     async def ai_runtime_start(request: Request):
         require_auth(request)

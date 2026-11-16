@@ -123,6 +123,56 @@
    "type": "TEXT"
   }
  ],
+ "ai_findings": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "kind",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "title",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "title_key",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "detail",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
  "ai_investigations": [
   {
    "name": "id",
@@ -162,6 +212,44 @@
   },
   {
    "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "ai_knowledge": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "source",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "ref",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "title",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "body",
    "notnull": true,
    "pk": false,
    "type": "TEXT"

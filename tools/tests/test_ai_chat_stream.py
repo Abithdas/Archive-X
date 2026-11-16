@@ -161,3 +161,15 @@ def test_the_config_route_setting_is_stored(ai):
     assert ai.runtime.thinking is True
     ai.configure(thinking=False)
     assert ai.runtime.thinking is False
+
+
+def test_the_model_can_write_to_its_notebook_through_the_chat_loop(ai):
+    call = {"index": 0, "id": "c9", "function": {"name": "record_finding", "arguments": ""}}
+    args = json.dumps({"kind": "issue", "title": "Scan is slow on the big channel", "detail": "60 s for 1000 videos. api_key=LEAKME12345678"})
+    Fake.rounds = [sse(delta(tool_calls=[call]), delta(tool_calls=[{"index": 0, "function": {"arguments": args}}])), sse(delta(content="Noted."))]
+    events = list(ai.chat_events("anything slow?", ""))
+    assert [e["state"] for e in events if e["t"] == "tool"] == ["start", "done"] and events[-1]["text"] == "Noted."
+    saved = ai.tools.findings.list()
+    assert [f["title"] for f in saved] == ["Scan is slow on the big channel"] and "LEAKME12345678" not in saved[0]["detail"]
+    tool_msg = [m for m in Fake.seen[1]["messages"] if m["role"] == "tool"][0]
+    assert '"recorded": true' in tool_msg["content"]

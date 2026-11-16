@@ -34,7 +34,7 @@ describe('ai', () => {
   })
   it('builds prompts and labels', () => {
     expect(libraryPrompt('cats')).toMatch(/^Search the published Archive X library for: cats\. /); expect(chatBody('hi', '/ai')).toEqual({ message: 'hi', page: '/ai', selected: null })
-    expect(QUICK).toHaveLength(4); expect(TABS.map((t) => t.value)).toEqual(['assistant', 'library', 'diagnostics', 'jobs', 'recommendations', 'models'])
+    expect(QUICK).toHaveLength(4); expect(TABS.map((t) => t.value)).toEqual(['assistant', 'library', 'diagnostics', 'jobs', 'recommendations', 'findings', 'models'])
     expect(testPassed(120, 'ok')).toBe('Model test passed in 120 ms: ok'); expect(messageTime({ role: 'user', created_at: 'x' })).toBe('You · x'); expect(messageTime({ role: 'assistant' })).toBe('Archive X Local AI · ')
   })
 })

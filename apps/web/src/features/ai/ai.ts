@@ -1,10 +1,10 @@
 /** Pure logic for the AI Assistance page (local llama.cpp assistant). Prompts and wording mirror the classic page. */
 
-export type AiTab = 'assistant' | 'library' | 'diagnostics' | 'jobs' | 'recommendations' | 'models'
+export type AiTab = 'assistant' | 'library' | 'diagnostics' | 'jobs' | 'recommendations' | 'findings' | 'models'
 export const TABS: Array<{ value: AiTab; label: string; blurb: string }> = [
   { value: 'assistant', label: 'Assistant', blurb: 'Ask Archive X' }, { value: 'library', label: 'Library Intelligence', blurb: 'Search, metadata, duplicates' },
   { value: 'diagnostics', label: 'Diagnostics', blurb: 'Explain current health' }, { value: 'jobs', label: 'Jobs', blurb: 'Explain active work' },
-  { value: 'recommendations', label: 'Recommendations', blurb: 'Evidence-based suggestions' }, { value: 'models', label: 'Models', blurb: 'Local runtime and model' },
+  { value: 'recommendations', label: 'Recommendations', blurb: 'Evidence-based suggestions' }, { value: 'findings', label: 'Findings', blurb: 'What it noticed' }, { value: 'models', label: 'Models', blurb: 'Local runtime and model' },
 ]
 
 export interface Message { role: string; content?: string; created_at?: string }

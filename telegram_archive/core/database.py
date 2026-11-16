@@ -535,6 +535,29 @@ class Database:
                 PRIMARY KEY (performer_id, video_id)
             );
 
+            -- What the assistant knows about Archive X itself (core/ai_knowledge.py): pieces of the changelog, the docs and the program's own docstrings.
+            CREATE TABLE IF NOT EXISTS ai_knowledge (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source TEXT NOT NULL,
+                ref TEXT NOT NULL DEFAULT '',
+                title TEXT NOT NULL,
+                body TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_ai_knowledge_source ON ai_knowledge(source);
+            -- The assistant's notebook: problems and ideas it noticed, each accepted, rejected or marked fixed by the person.
+            CREATE TABLE IF NOT EXISTS ai_findings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kind TEXT NOT NULL DEFAULT 'note',
+                title TEXT NOT NULL,
+                title_key TEXT NOT NULL UNIQUE,
+                detail TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'OPEN',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_ai_findings_status ON ai_findings(status, id);
+
             -- What a local detector (NudeNet) can see in each photo: visible body-part regions, kept as plain tags.
             CREATE TABLE IF NOT EXISTS photo_content_analysis (
                 photo_id INTEGER PRIMARY KEY,

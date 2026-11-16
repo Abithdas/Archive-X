@@ -216,7 +216,7 @@ def client(tmp_path):
     from telegram_archive.core.auth import ensure_web_credentials
     db = base.private_db(tmp_path)
     ensure_web_credentials(db)
-    c = TestClient(create_app(db=db), base_url="https://testserver")
+    c = TestClient(create_app(db=db), base_url="https://testserver", client=("127.0.0.1", 50000))
     pw = "correct-horse-battery"
     c.post("/api/auth/setup", json={"username": "admin", "password": pw, "confirmation": pw}, headers=H)
     assert c.post("/login", json={"username": "admin", "password": pw}, headers=H).status_code == 200
