@@ -9,6 +9,7 @@ import { cn } from '@/design/cn'
 import { NO_STUDIO_VIDEOS } from '@/features/library/shuffle'
 import { useShuffle } from '@/features/library/useShuffle'
 import { VideoCard, VideoCardSkeleton } from '@/features/library/VideoCard'
+import { useFitGrid } from '@/features/library/fitGrid'
 import { EntityEditor } from './EntityEditor'
 import { NamedPoster, PerformerPoster, PosterGrid } from './PosterCard'
 import { ACTION, ACTION_PRIMARY, Actions, BackBar, Bio, EditingBar, Eyebrow, EntityTabs, HeroCard, MEDIA_FRAME, Pill, Pills, Title, VideosHead, providerTone } from './EntityHero'
@@ -19,11 +20,12 @@ import { NOT_FOUND, TABS, bioText, imagePath, initial, linkedPerformers, metadat
 import { responsive } from '@/design/responsive'
 import { Empty } from '@/design/Empty'
 
-const GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
+const GRID = 'grid gap-4'   // the library's own card size: the columns are measured (useFitGrid), not fixed
 const WRAP = 'mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10'
 
 export function StudioPage({ id }: { id: number }) {
   const q = useStudio(id)
+  const grid = useFitGrid(270, 16)
   const performers = useEntityLookup('performers', (q.data?.videos ?? []).flatMap((v) => (Array.isArray(v.performers) ? v.performers : [])))
   const studios = useEntityLookup('studios', (q.data?.videos ?? []).flatMap((v) => (Array.isArray(v.studios) ? v.studios : [])))
   const meta = useStudioMetadata(id)
@@ -43,7 +45,7 @@ export function StudioPage({ id }: { id: number }) {
             <Skeleton className="size-28 rounded-card sm:size-40" />
             <div className="min-w-0 flex-1 text-3xl"><SkeletonLine width="40%" /><div className="text-sm"><SkeletonLine width="25%" /><SkeletonLine width="85%" /></div></div>
           </div>
-          <div className={GRID}>{Array.from({ length: 8 }, (_, i) => <VideoCardSkeleton key={i} />)}</div>
+          <div className={GRID} ref={grid.ref} style={grid.style}>{Array.from({ length: grid.cols * 2 }, (_, i) => <VideoCardSkeleton key={i} />)}</div>
         </SkeletonGroup>
       </section>
     )
@@ -95,7 +97,7 @@ export function StudioPage({ id }: { id: number }) {
         tabs={TABS.map((t) => ({ value: t.value, label: t.label, count: t.value === 'videos' ? videos.length : t.value === 'performers' ? linked.length : t.value === 'suggestions' ? (suggested.data?.length ?? 0) : 0 }))} />
 
       {tab === 'similar' ? <SimilarPanel items={similarStudios(videos, site.name, studios.data ?? [])} /> : tab === 'suggestions' ? <SuggestionsPanel kind="studio" entityId={site.id} name={site.name} /> : tab === 'videos' ? (
-        videos.length ? <><VideosHead kind="studio" videos={videos} /><div className={GRID} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div><EditingBar videos={videos} /></> : <Empty role="tabpanel" aria-label="Videos" icon="library">No videos are linked to this studio yet.</Empty>
+        videos.length ? <><VideosHead kind="studio" videos={videos} /><div className={GRID} ref={grid.ref} style={grid.style} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div><EditingBar videos={videos} /></> : <Empty role="tabpanel" aria-label="Videos" icon="library">No videos are linked to this studio yet.</Empty>
       ) : linked.length ? (
         <PosterGrid label="Performers">{linked.map((p) => { const pid = idOf(p.name); return pid ? <PerformerPoster key={p.name} id={pid} name={p.name} count={p.count} /> : <NamedPoster key={p.name} name={p.name} count={p.count} /> })}</PosterGrid>
       ) : <Empty role="tabpanel" aria-label="Performers" icon="user">No performers are linked to this studio&apos;s videos yet.</Empty>}

@@ -90,7 +90,7 @@ export function LibraryPage() {
         <>
           <h2 className="mb-4 flex items-baseline gap-2.5 text-xl font-extrabold tracking-tight">
             Library
-            <span className="text-[13px] font-normal text-muted">
+            <span className="text-[13px] font-normal tracking-normal text-muted">
               <SpinCounter value={library.data.total} /> videos · {selected.length} channel{selected.length === 1 ? '' : 's'}
             </span>
           </h2>

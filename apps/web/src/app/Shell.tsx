@@ -17,13 +17,12 @@ import { runningLabel, useActivity } from './activity'
 import { AccountMenu } from './AccountMenu'
 import { CommandPalette } from './CommandPalette'
 import { MoreSheet } from './MoreSheet'
-import { NotificationsPanel, useNotices } from './NotificationsPanel'
+import { NotificationsPanel, useUnseenCount } from './NotificationsPanel'
 import { useSearch } from './search'
 import { toggleTheme, useTheme } from './theme'
 import { useUi } from './ui'
 import { useAppearance, useAppearanceActions, useAppearanceSync } from '@/features/settings/useAppearance'
 import { scaleForKey } from '@/theme/themes'
-import { IconSwap } from '@/design/IconSwap'
 import { useScrollMemory } from './scrollMemory'
 import { SubtleNumber } from '@/design/SubtleNumber'
 
@@ -58,7 +57,7 @@ const SIDE_ACTIVE = '!text-fg [&_svg]:text-accent'
 function ActivityBadge({ count, className }: { count: number; className?: string }) {
   if (!count) return null
   return (
-    <span role="status" aria-label={runningLabel(count)} title={runningLabel(count)} className={cn('relative grid h-[18px] min-w-[18px] motion-safe:animate-pulse place-items-center rounded-full bg-accent px-1 text-[11px] font-bold leading-none text-accent-fg', className)}>
+    <span role="status" aria-label={runningLabel(count)} title={runningLabel(count)} className={cn('grid h-[18px] min-w-[18px] motion-safe:animate-pulse place-items-center rounded-full bg-accent px-1 text-[11px] font-bold leading-none text-accent-fg', className)}>
       {count > 99 ? '99+' : <SubtleNumber value={count} />}
     </span>
   )
@@ -80,12 +79,12 @@ function SideItem({ n, rail, count }: { n: NavDef; rail: boolean; count: number 
   )
 }
 
-/** One button for both states, so the two icons can swap in the same spot (Transitions.dev icon swap) instead of one button replacing another. */
+/** The hamburger that folds the sidebar to its icon rail and opens it again. */
 function RailToggle({ rail, onToggle }: { rail: boolean; onToggle: () => void }) {
   const label = rail ? 'Expand sidebar' : 'Collapse sidebar'
   return (
-    <button type="button" onClick={onToggle} aria-label={label} aria-expanded={!rail} title={label} className={cn('ax-rail-toggle grid size-7 place-items-center rounded-lg text-muted hover:bg-fg/5 hover:text-fg', !rail && 'ml-auto')}>
-      <IconSwap on={rail} offIcon={<Icon name="arrow-left" />} onIcon={<Icon name="arrow-right" />} />
+    <button type="button" onClick={onToggle} aria-label={label} aria-expanded={!rail} title={label} className="ax-rail-toggle grid size-10 shrink-0 place-items-center rounded-xl text-muted hover:bg-fg/5 hover:text-fg">
+      <Icon name="menu" />
     </button>
   )
 }
@@ -134,7 +133,7 @@ function Header({ live }: { live: string }) {
   const focusTick = useUi((s) => s.focusSearch)
   const path = useRouterState({ select: (s) => s.location.pathname })
   const input = useRef<HTMLInputElement>(null)
-  const notices = useNotices().length
+  const notices = useUnseenCount()
   const theme = useTheme()
   const navigate = useNavigate()
   const [loadLists, setLoadLists] = useState(false)   // the lists the suggestions come from are fetched the first time the box is used
@@ -164,7 +163,7 @@ function Header({ live }: { live: string }) {
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
         <TelegramPill />
         <ThemeToggle theme={theme} onToggle={toggleTheme} className={cn(ICON_BTN, 'hidden sm:grid')} />
-        <button type="button" onClick={() => useUi.getState().setNotifications(true)} aria-label={notices ? `Notifications, ${notices} shown` : 'Notifications'} title="Notifications" className={cn(ICON_BTN, 'relative')}>
+        <button type="button" onClick={() => useUi.getState().setNotifications(true)} aria-label={notices ? `Notifications, ${notices} new` : 'Notifications'} title="Notifications" className={cn(ICON_BTN, 'relative')}>
           <Bell count={notices} />
         </button>
         <AccountMenu live={live} />
@@ -234,9 +233,9 @@ export function Shell(): ReactNode {
     <div className="flex h-full flex-col md:flex-row">
       <aside className={cn('hidden shrink-0 flex-col gap-0.5 overflow-y-auto overflow-x-hidden border-r border-line pb-4 transition-[width] duration-200 md:flex', rail ? 'w-[84px] px-2.5' : 'w-[248px] px-3')} aria-label="Main">
         <div className={cn('flex shrink-0 items-center text-lg font-extrabold', rail ? 'h-[92px] flex-col justify-center gap-1' : 'h-16 gap-2.5 px-1.5')}>
+          <RailToggle rail={rail} onToggle={toggleRail} />
           <img src="/static/icons/archive-x.png" alt="" className="size-9 rounded-full" />
           {rail ? null : 'Archive X'}
-          <RailToggle rail={rail} onToggle={toggleRail} />
         </div>
         {GROUPS.map((g, i) => (
           <div key={g.title} className={cn('grid gap-0.5', i > 0 && 'mt-3')}>

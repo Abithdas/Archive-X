@@ -3,7 +3,7 @@ import { useStatus } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { useUi } from './ui'
-import { useNotices } from './NotificationsPanel'
+import { useUnseenCount } from './NotificationsPanel'
 
 const ROW = 'flex h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] font-semibold hover:bg-fg/5'
 
@@ -12,7 +12,7 @@ export function MoreSheet() {
   const open = useUi((s) => s.more)
   const { setMore, setNotifications, setPalette } = useUi.getState()
   const running = (useStatus().data?.jobs as Array<{ status?: string }> | undefined)?.filter((j) => /^(RUNNING|ACTIVE|STARTING|RECOVERING|RETRYING)$/i.test(String(j.status))).length ?? 0
-  const notices = useNotices().length
+  const notices = useUnseenCount()
   const done = () => setMore(false)
   return (
     <Dialog open={open} onClose={done} title="More">

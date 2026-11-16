@@ -53,4 +53,20 @@ describe('ZoomImage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enlarge: A' }))
     expect(onClick).toHaveBeenCalledTimes(1)
   })
+  it('opens inside the modal dialog it is shown in (a native dialog hides anything outside it), and on the page otherwise', () => {
+    const { container } = render(<dialog open><ZoomImage src="/a.jpg" alt="In dialog" /></dialog>)
+    fireEvent.click(screen.getByRole('button', { name: 'Enlarge: In dialog' }))
+    expect(container.querySelector('dialog .ax-zoom-root')).not.toBeNull()
+    expect(document.body.querySelector(':scope > .ax-zoom-root')).toBeNull()
+    render(<ZoomImage src="/b.jpg" alt="On page" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Enlarge: On page' }))
+    expect(document.body.querySelector(':scope > .ax-zoom-root')).not.toBeNull()
+  })
+  it('Escape closes only the enlarged picture, not the dialog under it', () => {
+    render(<dialog open><ZoomImage src="/a.jpg" alt="In dialog" /></dialog>)
+    fireEvent.click(screen.getByRole('button', { name: 'Enlarge: In dialog' }))
+    const ev = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    act(() => { document.dispatchEvent(ev) })
+    expect(ev.defaultPrevented).toBe(true)                  // the browser's own "close the dialog" is cancelled
+  })
 })

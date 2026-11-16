@@ -13,22 +13,40 @@ afterEach(() => { vi.unstubAllGlobals(); try { localStorage.clear() } catch { /*
 
 class QuietSocket { onopen = null; onclose = null; onmessage = null; onerror = null; close() {} }
 
+const quietFetch = (jobs: unknown[] = []) => vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes('storage') ? { bytes: 1, files: 1, disk: { total: 10, used: 1, free: 9 } } : String(url).includes('/api/status') ? { jobs } : {}), { status: 200 }))
+
 describe('sidebar collapse button', () => {
-  it('is one button whose two icons swap in place, in the same spot for both states', async () => {
+  it('is a hamburger that folds the sidebar and opens it again, always the same button', async () => {
     vi.stubGlobal('WebSocket', QuietSocket)
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes('storage') ? { bytes: 1, files: 1, disk: { total: 10, used: 1, free: 9 } } : {}), { status: 200 })))
+    vi.stubGlobal('fetch', quietFetch())
     withRouter(<Shell />)
     const btn = await screen.findByRole('button', { name: 'Collapse sidebar' })
-    const swap = btn.querySelector('.t-icon-swap') as HTMLElement
-    expect(swap.dataset.state).toBe('a')
-    expect(btn.querySelectorAll('.t-icon')).toHaveLength(2)
+    expect(btn.querySelector('use')?.getAttribute('href')).toMatch(/#ax-menu$/)   // the three-line icon, not an arrow
+    expect(btn.getAttribute('aria-expanded')).toBe('true')
     fireEvent.click(btn)
     const same = screen.getByRole('button', { name: 'Expand sidebar' })
-    expect(same).toBe(btn)                                  // the same element, so the transition can play
+    expect(same).toBe(btn)
     expect(same.getAttribute('aria-expanded')).toBe('false')
-    expect((same.querySelector('.t-icon-swap') as HTMLElement).dataset.state).toBe('b')
     fireEvent.click(same)
     expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toBe(btn)
-    expect((btn.querySelector('.t-icon-swap') as HTMLElement).dataset.state).toBe('a')
+  })
+
+  it('comes before the logo in the sidebar header', async () => {
+    vi.stubGlobal('WebSocket', QuietSocket)
+    vi.stubGlobal('fetch', quietFetch())
+    withRouter(<Shell />)
+    const btn = await screen.findByRole('button', { name: 'Collapse sidebar' })
+    const logo = btn.parentElement!.querySelector('img')!
+    expect(btn.compareDocumentPosition(logo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('puts a running-jobs count on the corner of its icon when collapsed (it must not be a relative element, which cancels absolute)', async () => {
+    vi.stubGlobal('WebSocket', QuietSocket)
+    vi.stubGlobal('fetch', quietFetch([{ type: 'METADATA_SYNC', status: 'RUNNING' }]))
+    withRouter(<Shell />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Collapse sidebar' }))
+    const badge = (await screen.findAllByRole('status', { name: '1 running' }))[0]!
+    expect(badge.className).toMatch(/\babsolute\b/)
+    expect(badge.className).not.toMatch(/\brelative\b/)
   })
 })

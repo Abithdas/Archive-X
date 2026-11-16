@@ -317,17 +317,12 @@
 .t-acc-panel-inner {
   overflow: hidden;
   opacity: 0;
-  filter: blur(2px);
-  transition:
-    opacity var(--acc-collapse) var(--acc-ease),
-    filter var(--acc-collapse) var(--acc-ease);
+  contain: paint;
+  transition: opacity var(--acc-collapse) var(--acc-ease);
 }
 .t-acc[data-open="true"] .t-acc-panel-inner {
   opacity: 1;
-  filter: blur(0);
-  transition:
-    opacity var(--acc-expand) var(--acc-ease),
-    filter var(--acc-expand) var(--acc-ease);
+  transition: opacity var(--acc-expand) var(--acc-ease);
 }
 /* Flip the chevron vertically to turn the "v" into a "^".
    scaleY(-1) about the centre passes through a flat line at
@@ -365,7 +360,6 @@
   color: #fff; font-size: 11.7px; font-weight: 600; line-height: 1;
   box-shadow: 0 0 0 2px var(--color-bg);
 }
-.ax-rail-toggle .t-icon-swap { width: 20px; height: 20px; }
 
 /* ── Error state: the app's own colours; the shake and the message fade are the snippets above.
    The field keeps its own border, so the error is a ring around it (no layout shift) that fades in and out with the message. */
@@ -400,34 +394,27 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
    The published accordion toggles data-open; a menu opens and closes through the popover API, so the same grid-rows, blur and fade are keyed
    on :popover-open, with @starting-style for the opening frame and display/overlay transitions so it also animates closed. */
 .t-menu {
-  display: none; grid-template-rows: 0fr; overflow: hidden;
-  transition: grid-template-rows var(--acc-collapse) var(--acc-ease), display var(--acc-collapse) allow-discrete, overlay var(--acc-collapse) allow-discrete;
+  display: none; grid-template-rows: 1fr; overflow: hidden;
+  opacity: 0; transform: translateY(-6px) scale(0.97); transform-origin: var(--menu-origin, top right);
+  transition: opacity var(--acc-collapse) var(--acc-ease), transform var(--acc-collapse) var(--acc-ease), display var(--acc-collapse) allow-discrete, overlay var(--acc-collapse) allow-discrete;
 }
 .t-menu:popover-open {
-  display: grid; grid-template-rows: 1fr;
-  transition: grid-template-rows var(--acc-expand) var(--acc-ease), display var(--acc-expand) allow-discrete, overlay var(--acc-expand) allow-discrete;
+  display: grid; opacity: 1; transform: none;
+  transition: opacity var(--acc-expand) var(--acc-ease), transform var(--acc-expand) var(--acc-ease), display var(--acc-expand) allow-discrete, overlay var(--acc-expand) allow-discrete;
 }
-@starting-style { .t-menu:popover-open { grid-template-rows: 0fr; } }
-.t-menu > .t-acc-panel-inner {
-  overflow-y: auto; opacity: 0; filter: blur(2px);
-  transition: opacity var(--acc-collapse) var(--acc-ease), filter var(--acc-collapse) var(--acc-ease);
-}
-.t-menu:popover-open > .t-acc-panel-inner {
-  opacity: 1; filter: blur(0);
-  transition: opacity var(--acc-expand) var(--acc-ease), filter var(--acc-expand) var(--acc-ease);
-}
-@starting-style { .t-menu:popover-open > .t-acc-panel-inner { opacity: 0; filter: blur(2px); } }
+@starting-style { .t-menu:popover-open { opacity: 0; transform: translateY(-6px) scale(0.97); } }
+.t-menu > .t-acc-panel-inner { overflow-y: auto; opacity: 1; transition: none; contain: none; }   /* the menu itself fades; the accordion's own hidden state must not apply inside it */
 /* A trigger's chevron flips like the accordion's while its menu is open (the menu is the trigger's next sibling). */
 .t-chev { display: inline-flex; transition: transform var(--acc-chevron) var(--acc-ease); }
 :has(+ .t-menu:popover-open) > .t-chev { transform: scaleY(-1); }
-@media (prefers-reduced-motion: reduce) { .t-menu, .t-menu > .t-acc-panel-inner, .t-chev { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .t-menu, .t-chev { transition: none !important; } }
 
 /* ── Dropdowns that appear and disappear with their button (the player's menus, the country list) ──
    They are not popovers, so there is no :popover-open to key on; the same unfold, blur and fade plays when they mount. */
 .t-drop-down, .t-drop-up { animation: t-drop-in var(--acc-expand) var(--acc-ease) both; }
-.t-drop-down { --drop-from: inset(0 0 100% 0); }
-.t-drop-up { --drop-from: inset(100% 0 0 0); }
-@keyframes t-drop-in { from { clip-path: var(--drop-from); opacity: 0; filter: blur(2px); } to { clip-path: inset(0 0 0 0 round 12px); opacity: 1; filter: blur(0); } }
+.t-drop-down { --drop-shift: -6px; transform-origin: top center; }
+.t-drop-up { --drop-shift: 6px; transform-origin: bottom center; }
+@keyframes t-drop-in { from { opacity: 0; transform: translateY(var(--drop-shift)) scale(0.97); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .t-drop-down, .t-drop-up { animation: none; } }
 
 /* ── Number subtle change and spinning counter (Transitions.dev) ───────────────────────────── */

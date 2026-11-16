@@ -21,6 +21,9 @@ export function ZoomImage({ fullSrc, className, onClick, onKeyDown, ...img }: Im
   const [open, setOpen] = useState(false)
   const [origin, setOrigin] = useState<Box | null>(null)
   const closing = useRef(false)
+  // A native modal <dialog> sits in the browser's top layer and makes the rest of the page inert: an image opened from inside one is shown
+  // inside that dialog (it then stacks above its content and can be clicked), anywhere else on the page body.
+  const host = (): HTMLElement => (thumb.current?.closest('dialog') as HTMLElement | null) ?? document.body
   const label = img.alt ? `Enlarge: ${img.alt}` : 'Enlarge image'
 
   const show = useCallback(() => {
@@ -65,7 +68,7 @@ export function ZoomImage({ fullSrc, className, onClick, onKeyDown, ...img }: Im
 
   useEffect(() => {
     if (!open) return
-    const key = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); hide() } }
+    const key = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hide() } }   // preventDefault: Esc must not also close the dialog under it
     document.addEventListener('keydown', key, true)
     window.addEventListener('resize', hide)
     return () => { document.removeEventListener('keydown', key, true); window.removeEventListener('resize', hide) }
@@ -90,7 +93,7 @@ export function ZoomImage({ fullSrc, className, onClick, onKeyDown, ...img }: Im
         <div className="ax-zoom-root" role="dialog" aria-modal="true" aria-label={img.alt ? `Enlarged: ${img.alt}` : 'Enlarged image'} onClick={hide}>
           <div ref={backdrop} className="ax-zoom-backdrop" />
           <div ref={stage} className="ax-zoom-stage"><img src={fullSrc || thumb.current?.currentSrc || img.src} alt={img.alt ?? ''} referrerPolicy={img.referrerPolicy} draggable={false} /></div>
-        </div>, document.body) : null}
+        </div>, host()) : null}
     </>
   )
 }

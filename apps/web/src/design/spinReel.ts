@@ -133,12 +133,12 @@ export function showReel(el: HTMLElement, to: number): void {
   buildColumns(el, str).forEach((c) => rest(c, c.digit))
 }
 
-/** Rolls `el` from one number to another. Returns a function that cancels it. */
-export function rollReel(el: HTMLElement, from: number, to: number): () => void {
+/** Rolls `el` from one number to another and calls `onDone` when every drum has landed. Returns a function that cancels it. */
+export function rollReel(el: HTMLElement, from: number, to: number, onDone?: () => void): () => void {
   const str = to.toLocaleString('en-US')
   el.setAttribute('aria-label', str)
   const cols = buildColumns(el, str)
-  if (reduced() || typeof requestAnimationFrame !== 'function') { cols.forEach((c) => rest(c, c.digit)); return () => {} }
+  if (reduced() || typeof requestAnimationFrame !== 'function') { cols.forEach((c) => rest(c, c.digit)); onDone?.(); return () => {} }
   const o = readTokens(el)
   const fromDigits = String(Math.max(0, Math.round(from))).padStart(cols.length, '0').slice(-cols.length)   // each column starts on its digit of the old number, from the right
   cols.forEach((c, i) => { c.from = +fromDigits[i]!; rest(c, c.from); if (c.from === c.digit) c.done = true })
@@ -178,6 +178,7 @@ export function rollReel(el: HTMLElement, from: number, to: number): () => void 
       place(c, pos, spread, middle, o, land)
     })
     if (running) raf = requestAnimationFrame(tick)
+    else onDone?.()
   }
   tick()
   return () => cancelAnimationFrame(raf)

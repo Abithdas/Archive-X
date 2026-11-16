@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { withFavorite } from './favorite'
 import { ApiError, api, libraryUrl } from './client'
 import type { Channel, Entity, EntityKind, LibraryItem, LibraryPage, PerformerDetail, LibraryQuery, Status } from './types'
 import { scannedChannels } from '@/features/photos/photos'
@@ -121,11 +122,17 @@ export const useVideo = (cid: string, mid: number) =>
 /** Favourite on/off for one library row, then refresh whatever lists show it. */
 export function useFavorite() {
   const qc = useQueryClient()
+  const KEYS = ['library', 'video', 'performer', 'studio'] as const
   return useMutation({
     mutationFn: (v: { mediaId: number; favorite: boolean }) => api('/api/library/bulk-favorite', { method: 'POST', json: { media_ids: [v.mediaId], favorite: v.favorite } }),
-    onSuccess: () => {
-      for (const k of ['library', 'video', 'performer']) void qc.invalidateQueries({ queryKey: [k] })
+    // The heart answers at once: the cached rows change before the request is sent, and are put back if it fails.
+    onMutate: async (v) => {
+      const before = KEYS.flatMap((k) => qc.getQueriesData({ queryKey: [k] }))
+      for (const k of KEYS) qc.setQueriesData({ queryKey: [k] }, (d: unknown) => (d === undefined ? d : withFavorite(d, v.mediaId, v.favorite)))
+      return { before }
     },
+    onError: (_e, _v, ctx) => { for (const [key, data] of ctx?.before ?? []) qc.setQueryData(key, data) },
+    onSettled: () => { for (const k of KEYS) void qc.invalidateQueries({ queryKey: [k] }) },
   })
 }
 

@@ -1,9 +1,11 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
+import { create } from 'zustand'
 import { useStatus } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { buildNotifications, groupByDay, type Tone } from './notifications'
+import { loadSeen, markSeen, saveSeen, unseen } from './seenNotices'
 import { useUi } from './ui'
 
 const TONE: Record<Tone, string> = { error: 'bg-bad/15 text-bad', warning: 'bg-warn/15 text-warn', success: 'bg-good/15 text-good', match: 'bg-accent/15 text-accent', info: 'bg-surface-3 text-muted' }
@@ -16,11 +18,25 @@ export function useNotices() {
   return useMemo(() => buildNotifications(Array.isArray(events) ? (events as never[]) : [], Array.isArray(jobs) ? (jobs as never[]) : []), [events, jobs])
 }
 
+const useSeen = create<{ seen: readonly string[]; mark: (rows: readonly { key: string }[]) => void }>((set, get) => ({
+  seen: loadSeen(),
+  mark: (rows) => { const next = markSeen(get().seen, rows); if (next !== get().seen) { saveSeen(next); set({ seen: next }) } },
+}))
+
+/** How many notices are new: the ones the person has not opened the panel on yet. The bell shows this. */
+export function useUnseenCount(): number {
+  const rows = useNotices()
+  const seen = useSeen((s) => s.seen)
+  return useMemo(() => unseen(rows, seen).length, [rows, seen])
+}
+
 export function NotificationsPanel() {
   const open = useUi((s) => s.notifications)
   const set = useUi((s) => s.setNotifications)
   const rows = useNotices()
   const groups = groupByDay(rows)
+  const mark = useSeen((s) => s.mark)
+  useEffect(() => { if (open) mark(rows) }, [open, rows, mark])   // looking at the list is what clears the count
   return (
     <Dialog open={open} onClose={() => set(false)} title="Notifications" side="right">
       <p className="mb-3 text-sm text-muted">Important updates from your library</p>

@@ -2,6 +2,17 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Next release (not published)
+- Interface fixes:
+  - Video cards on a performer's and a studio's page are now the same size as in the Library (the columns are measured the same way, not fixed at 2/3/4/6).
+  - Favourite buttons answer at once: the heart changes before the server replies (videos, and performer/studio pages) and goes back if the request fails. Before, the heart waited for the request and a full library refresh.
+  - The bell uses the app's own icon style and its count now means new notices: it drops to nothing after you open the list and rises again for new ones (remembered in this browser).
+  - Collapsed sidebar: the running-jobs counts sat on top of the icons; they are now on each icon's top-right corner. The same fix applies to the phone bottom bar.
+  - The sidebar has a hamburger button (new icon) at the top to fold it to icons and open it again.
+  - Menus (account, card actions, selection bar) and dropdowns (player menus, country list) open and close with a fade and slide instead of animating their height with a blur, which was jerky; accordions no longer blur their content while they open.
+  - The total in the Library heading rolls without shifting the text beside it when it gains or loses a digit, and the heading's wording is no longer cramped.
+  - A photo enlarged from inside a dialog (the review pages) now opens above it and can be clicked; before it opened behind the dialog. Esc closes only the enlarged picture.
+
 ## 30.3.1 (2026-11-16)
 - Conflicting identifications are now settled in one place (new `metadata/evidence_resolver.py`, used by the scene-match step): a provider candidate is weighed against what the video's own snapshots say (the watermark studio and the faces).
   - A file-fingerprint (OSHASH) match is authoritative: never downgraded, only annotated when the snapshots disagree.
