@@ -2444,6 +2444,16 @@ class Database:
     # Key/value settings read and write.
     # ------------------------------------------------------------------
     def setting(self, key: str, default: Any = None) -> Any:
+        value = self._setting_one(key, default)
+        if key == "tpdb_api_token" and value in (None, "", default):
+            # An older version stored the ThePornDB token as "tpdb_token". The settings page still shows it as saved and the scan's
+            # "is a key configured" check accepts it, so every lookup must too (they used to read only the newer name and fail).
+            legacy = self._setting_one("tpdb_token", None)
+            if legacy not in (None, ""):
+                return legacy
+        return value
+
+    def _setting_one(self, key: str, default: Any = None) -> Any:
         if config.is_secret_key(key):
             secret = config.get_secret(key, None)
             if secret not in (None, ""):

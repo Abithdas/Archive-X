@@ -193,3 +193,18 @@ def test_a_file_name_with_odd_characters_does_not_break_the_stage(keyed, monkeyp
     wire(monkeypatch, ident)
     go(ctx_for(keyed, ch, Telegram()))
     assert len(ident.calls) == 4
+
+
+def test_a_token_saved_under_the_older_name_is_used_by_the_lookups_too():
+    """The settings page and the scan's "is a key configured" check accept `tpdb_token`; the provider lookups read `tpdb_api_token`."""
+    db = h.fresh_db()
+    old = {k: db.setting(k) for k in ("tpdb_api_token", "tpdb_token")}
+    try:
+        db.set_setting("tpdb_api_token", "")
+        db.set_setting("tpdb_token", "legacy-token")
+        assert db.setting("tpdb_api_token") == "legacy-token"
+        db.set_setting("tpdb_api_token", "new-token")
+        assert db.setting("tpdb_api_token") == "new-token"            # the newer name wins when both exist
+    finally:
+        for k, v in old.items():
+            db.set_setting(k, v if v is not None else "")
