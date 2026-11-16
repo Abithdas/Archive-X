@@ -85,7 +85,10 @@ export function validationMessage(r: { telegram?: Obj; metadata?: Obj; web?: Obj
 }
 
 export const AUTONEXT_MODES = [['context', 'Current queue'], ['collection', 'Collection'], ['performer', 'Same performer'], ['studio', 'Same studio'], ['recommended', 'Recommended']] as const
+export const NATIVE_MODES = [['fallback', 'Only when the browser cannot play the video'], ['always', 'Always'], ['off', 'Never by itself (a button on the video page)']] as const
+export type NativeMode = (typeof NATIVE_MODES)[number][0]
 export interface Experience {
+  native_player: NativeMode
   autoplay: boolean
   autonext: boolean
   resume_prompt: boolean
@@ -97,7 +100,9 @@ export interface Experience {
 export function experienceFrom(r: Obj | undefined): Experience {
   const x = r ?? {}
   const mode = s(x.autonext_mode)
+  const native = s(x.native_player)
   return {
+    native_player: NATIVE_MODES.some(([k]) => k === native) ? (native as NativeMode) : 'fallback',
     autoplay: Boolean(x.autoplay), autonext: Boolean(x.autonext), resume_prompt: x.resume_prompt !== false, live_seek_preview: x.live_seek_preview !== false,
     partial_cache_prompt: x.partial_cache_prompt === true, autonext_mode: AUTONEXT_MODES.some(([k]) => k === mode) ? mode : 'context',
   }

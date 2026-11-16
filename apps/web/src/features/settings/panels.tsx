@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { useStorage } from '@/api/hooks'
+import { hasNativeBridge } from '@/features/watch/nativeBridge'
 import { Icon } from '@/design/Icon'
 import { ThemePreview } from './ThemePreview'
 import { Segmented } from '@/design/Segmented'
@@ -10,7 +11,7 @@ import { Switch } from '@/design/Switch'
 import { cn } from '@/design/cn'
 import { formatBytes } from '@/design/format'
 import { THEMES, SCALE_MAX, SCALE_MIN, SCALE_PRESETS, type Mode } from '@/theme/themes'
-import { AUTONEXT_MODES, experienceFrom, pills, statusRows, type Experience, type PanelId } from './logic'
+import { AUTONEXT_MODES, NATIVE_MODES, experienceFrom, pills, statusRows, type Experience, type NativeMode, type PanelId } from './logic'
 import { useAuthStatus, useExperienceSettings, useIconsStatus, useMetadataSettings, usePreflight, useWebLogin } from './queries'
 import { CustomThemes } from './CustomThemes'
 import { useAppearance, useAppearanceActions } from './useAppearance'
@@ -95,6 +96,14 @@ export function ExperiencePanel() {
       <Row title="Ask to resume playback" hint="Offer to continue where you left off"><Switch label="Ask to resume playback" checked={form.resume_prompt} onChange={(v) => set('resume_prompt', v)} /></Row>
       <Row title="Live seek preview (timeline hover)" hint="Show frames while scrubbing"><Switch label="Live seek preview" checked={form.live_seek_preview} onChange={(v) => set('live_seek_preview', v)} /></Row>
       <p className="py-2 text-xs text-muted">Hover the playback timeline to preview a frame. On touch screens, drag to seek.</p>
+      {hasNativeBridge() ? (
+        <label className="mt-2 grid gap-2 text-center text-sm font-semibold">Native player (desktop app)
+          <select aria-label="Native player" value={form.native_player} onChange={(e) => set('native_player', e.target.value as NativeMode)} className="h-10 rounded-xl border border-line-2 bg-bg px-3 text-sm font-normal">
+            {NATIVE_MODES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+          </select>
+          <span className="text-xs font-normal text-muted">The native player plays files the browser cannot (some HEVC, 10-bit and MKV videos) with hardware decoding. It is shown on the same video page, with captions under the picture.</span>
+        </label>
+      ) : null}
       <Row title="Ask about partial cache on close"><Switch label="Ask about partial cache on close" checked={form.partial_cache_prompt} onChange={(v) => set('partial_cache_prompt', v)} /></Row>
       <p className="py-2 text-xs text-muted">Off keeps cached bytes automatically without showing the close popup.</p>
       <label className="mt-2 grid gap-2 text-center text-sm font-semibold">Autoplay source

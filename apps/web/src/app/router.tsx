@@ -4,7 +4,6 @@ const LibraryPage = lazy(() => import('@/features/library/LibraryPage').then((m)
 const EntityDirectory = lazy(() => import('@/features/entities/EntityDirectory').then((m) => ({ default: m.EntityDirectory })))
 const StudioPage = lazy(() => import('@/features/entities/StudioPage').then((m) => ({ default: m.StudioPage })))
 const PerformerPage = lazy(() => import('@/features/entities/PerformerPage').then((m) => ({ default: m.PerformerPage })))
-const NativePlayerPage = lazy(() => import('@/features/watch/NativePlayerPage').then((m) => ({ default: m.NativePlayerPage })))
 const WatchPage = lazy(() => import('@/features/watch/WatchPage').then((m) => ({ default: m.WatchPage })))
 const OperationsPage = lazy(() => import('@/features/operations/OperationsPage').then((m) => ({ default: m.OperationsPage })))
 const TransfersPage = lazy(() => import('@/features/transfers/TransfersPage').then((m) => ({ default: m.TransfersPage })))
@@ -49,13 +48,11 @@ const watch = createRoute({
   },
 })
 
+// The native player is no longer a page of its own: it plays inside the video page. An old /native/... link opens that page with it chosen.
 const nativePlayer = createRoute({
   getParentRoute: () => root,
   path: '/native/$cid/$mid',
-  component: function NativePlayerRoute() {
-    const { cid, mid } = nativePlayer.useParams()
-    return <NativePlayerPage key={`${cid}:${mid}`} cid={cid} mid={Number(mid)} />
-  },
+  beforeLoad: ({ params }) => { throw redirect({ to: '/watch/$cid/$mid', params, search: { engine: 'native' } as never, replace: true }) },
 })
 
 const routeTree = root.addChildren([

@@ -40,7 +40,7 @@ function releasePlayback(channelId: string, messageId: number, reason = 'viewer_
   } catch { /* nothing to do */ }
 }
 
-export function Player({ media, info, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative }: { media?: MediaRef; info?: PlayInfo | null; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void; onOpenNative?: () => void }) {
+export function Player({ media, info, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable }: { onUnplayable?: () => void; media?: MediaRef; info?: PlayInfo | null; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void; onOpenNative?: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
   const smartPipeline = useRef<SmartPipeline | null>(null)   // while the smart (in-browser remux) path owns the video
@@ -67,6 +67,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
   const [volume, setVolume] = useState(1)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
+  useEffect(() => { if (failed) onUnplayable?.() }, [failed]) // eslint-disable-line react-hooks/exhaustive-deps -- the page switches to the native player once, when this video cannot be played here
   const [attempt, setAttempt] = useState(0)
   // Smart playback: files the browser may not play directly go through the client-side engine (loaded only when needed).
   const [smart, setSmart] = useState<SmartApi | null | undefined>(undefined)   // undefined: not loaded yet, null: unavailable

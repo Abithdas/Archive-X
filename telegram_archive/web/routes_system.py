@@ -573,6 +573,7 @@ def register_system_routes(
                 # otherwise the seeded GET cache can temporarily default it to enabled.
                 "resume_prompt": bool(db.setting("ta_resume_prompt", "1") not in {"0", "false", "False"}),
                 "partial_cache_prompt": bool(db.setting("ta_partial_cache_prompt", "0") not in {"0", "false", "False"}),
+                "native_player": (db.setting("ta_native_player", "fallback") if db.setting("ta_native_player", "fallback") in {"off", "fallback", "always"} else "fallback"),
             }
             from ..core.auth import is_default_login
             web_s = {"username": db.setting("web_username", "admin"), "default_login": is_default_login(db)}
