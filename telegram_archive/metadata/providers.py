@@ -1163,8 +1163,12 @@ FALLBACK_PROVIDER = "theporndb"
 # ==============================================================================
 
 def _norm_entity_name(value: object) -> str:
+    """A comparison key for a name or title that two providers may write differently: no accents, "&" read as "and", no punctuation."""
     import re
-    return re.sub(r"[^a-z0-9]+", "", str(value or "").casefold())
+    import unicodedata
+    text = unicodedata.normalize("NFKD", str(value or "")).casefold().replace("&", " and ")
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+", "", text)
 
 
 def _merge_dict_prefer_primary(primary: dict | None, fallback: dict | None) -> dict:
@@ -1175,6 +1179,27 @@ def _merge_dict_prefer_primary(primary: dict | None, fallback: dict | None) -> d
         if out.get(key) in (None, "", [], {}):
             out[key] = value
     return out
+
+
+def _same_cast_member(a: str, b: str) -> bool:
+    """The same person written two ways by two providers: equal after folding accents/capitals/punctuation, or one small spelling slip."""
+    from difflib import SequenceMatcher
+    ka, kb = _norm_entity_name(a), _norm_entity_name(b)
+    if not ka or not kb:
+        return False
+    if ka == kb:
+        return True
+    return ka[:1] == kb[:1] and min(len(ka), len(kb)) >= 6 and SequenceMatcher(None, ka, kb).ratio() >= 0.92
+
+
+def cast_disagreement(primary_people: list, fallback_people: list) -> tuple[list[str], list[str]]:
+    """Names only the primary lists, and names only the fallback lists. A provider that lists MORE people is not a disagreement (those are
+    on one side only); a disagreement is each provider naming someone the other does not."""
+    def names(items):
+        return [str(i.get("name") if isinstance(i, dict) else i or "").strip() for i in items or [] if (i.get("name") if isinstance(i, dict) else i)]
+    pn, fn = names(primary_people), names(fallback_people)
+    return ([x for x in pn if not any(_same_cast_member(x, y) for y in fn)],
+            [y for y in fn if not any(_same_cast_member(x, y) for x in pn)])
 
 
 def _merge_named_people(primary: list, fallback: list) -> list[dict]:
@@ -1202,6 +1227,27 @@ def _merge_named_people(primary: list, fallback: list) -> list[dict]:
             return
         provider = str(clean.get("provider") or "").strip().casefold()
         ident = str(clean.get("id") or "").strip()
+        variant_of = None
+        if key not in index and not primary_row and len(key) >= 6:
+            # The other provider spells the same cast member a little differently ("Ava Stone" / "Ava Stones"). Without this the scene
+            # listed her twice and the extra spelling became a second performer row. Only a different provider's spelling is folded in:
+            # two similar names inside one provider's own cast stay two people.
+            from difflib import SequenceMatcher
+            for existing_key, pos_ in index.items():
+                other = out[pos_]
+                if "|" in existing_key or str(other.get("provider") or "").strip().casefold() == provider:
+                    continue
+                if existing_key[:1] == key[:1] and min(len(existing_key), len(key)) >= 6 and SequenceMatcher(None, existing_key, key).ratio() >= 0.92:
+                    variant_of = existing_key
+                    break
+        if variant_of is not None:
+            current = out[index[variant_of]]
+            spellings = [str(a) for a in (current.get("aliases") if isinstance(current.get("aliases"), list) else []) if a]
+            if str(clean.get("name")) != str(current.get("name")) and str(clean.get("name")) not in spellings:
+                spellings.append(str(clean.get("name")))
+            key = variant_of
+            clean = {k: v for k, v in clean.items() if k != "name"} | {"name": current.get("name")}
+            clean["aliases"] = spellings
         # Same display name but different IDs in the same source are not enough
         # evidence to merge distinct provider identities.
         if key in index:
@@ -1216,6 +1262,9 @@ def _merge_named_people(primary: list, fallback: list) -> list[dict]:
                     out.append(clean)
                 return
             merged = _merge_dict_prefer_primary(current, clean) if primary_row else _merge_dict_prefer_primary(clean, current)
+            if isinstance(clean.get("aliases"), list) or isinstance(current.get("aliases"), list):
+                merged["aliases"] = _merge_string_list(current.get("aliases") if isinstance(current.get("aliases"), list) else [],
+                                                       clean.get("aliases") if isinstance(clean.get("aliases"), list) else [])
             provider_ids: dict[str, str] = {}
             for person in (current, clean):
                 raw_ids = person.get("provider_ids")
@@ -1285,6 +1334,21 @@ def merge_provider_matches(primary: dict, fallback: dict | None) -> dict:
             merged[key] = fallback[key]
     merged["performers"] = _merge_string_list(primary.get("performers") or [], fallback.get("performers") or [])
     merged["performer_details"] = _merge_named_people(primary.get("performer_details") or [], fallback.get("performer_details") or [])
+    primary_only, fallback_only = cast_disagreement(primary.get("performer_details") or primary.get("performers"),
+                                                    fallback.get("performer_details") or fallback.get("performers"))
+    if primary_only and fallback_only:
+        # Each provider names someone the other does not: the scene is the same but the cast is contested. Trust the primary provider's
+        # cast (plus the other's spellings of the same people); the contested names are recorded, and the scene needs review
+        # instead of being applied automatically on a fingerprint-less match.
+        keep_fallback = [d for d in (fallback.get("performer_details") or [])
+                         if isinstance(d, dict) and any(_same_cast_member(str(d.get("name") or ""), x) for x in
+                                                        [str(q.get("name") or "") for q in (primary.get("performer_details") or []) if isinstance(q, dict)])]
+        merged["performer_details"] = _merge_named_people(primary.get("performer_details") or [], keep_fallback)
+        merged["performers"] = [str(d.get("name")) for d in merged["performer_details"] if d.get("name")]
+        merged["cast_conflict"] = {"primary_only": primary_only, "fallback_only": fallback_only}
+    if merged["performer_details"] and (primary.get("performer_details") or fallback.get("performer_details")):
+        # One list of names, taken from the merged cast, so a spelling variant folded into a person is not listed again beside them.
+        merged["performers"] = [str(d.get("name")) for d in merged["performer_details"] if d.get("name")]
     studio_provider_ids = {}
     for item in (primary, fallback):
         src = str(item.get("source") or "").strip()
@@ -2664,7 +2728,12 @@ def _scene_candidate_equivalent(left: dict, right: dict) -> bool:
         return False
     def norm(value):
         return _norm_entity_name(value)
-    lt, rt = norm(left.get("title")), norm(right.get("title"))
+
+    def title_key(candidate):
+        """The title without a leading studio name ("Brazzers - Office Affair" on one provider, "Office Affair" on the other)."""
+        title, studio = norm(candidate.get("title")), norm(candidate.get("studio") or candidate.get("site"))
+        return title[len(studio):] if studio and title.startswith(studio) and len(title) > len(studio) + 2 else title
+    lt, rt = title_key(left), title_key(right)
     if not lt or not rt:
         return False
     if lt != rt and SequenceMatcher(None, lt, rt).ratio() < 0.94:
