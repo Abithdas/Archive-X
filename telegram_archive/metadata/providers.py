@@ -267,11 +267,26 @@ def _first_provider_url(value: object) -> str | None:
     return None
 
 
+def _dicts(value) -> list:
+    """The dict items of a provider list; anything else (None, text, numbers) is ignored rather than crashing the reader."""
+    return [x for x in value if isinstance(x, dict)] if isinstance(value, (list, tuple)) else []
+
+
+def _as_dict(value, name_key: str = "name") -> dict:
+    """A provider sub-record that may arrive as a dict, a bare name, or nothing."""
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip():
+        return {name_key: value.strip()}
+    return {}
+
+
 def _norm_stashdb(scene: dict) -> dict:
     """Convert a StashDB scene into the shared scene shape."""
+    scene = scene if isinstance(scene, dict) else {}
     performers = []
-    for p in scene.get("performers") or []:
-        person = p.get("performer") or {}
+    for p in _dicts(scene.get("performers")):
+        person = _as_dict(p.get("performer"))
         name = person.get("name")
         if name:
             performers.append({
@@ -282,12 +297,12 @@ def _norm_stashdb(scene: dict) -> dict:
                 "gender": person.get("gender") or person.get("sex"),
                 "provider": "stashdb",
             })
-    studio = scene.get("studio") or {}
-    parent_studio = studio.get("parent") or {}
-    studio_aliases = [str(value).strip() for value in (studio.get("aliases") or []) if str(value or "").strip()]
-    parent_aliases = [str(value).strip() for value in (parent_studio.get("aliases") or []) if str(value or "").strip()]
+    studio = _as_dict(scene.get("studio"))
+    parent_studio = _as_dict(studio.get("parent"))
+    studio_aliases = [str(value).strip() for value in (studio.get("aliases") if isinstance(studio.get("aliases"), list) else []) if str(value or "").strip()]
+    parent_aliases = [str(value).strip() for value in (parent_studio.get("aliases") if isinstance(parent_studio.get("aliases"), list) else []) if str(value or "").strip()]
     studio_url = studio.get("url") or studio.get("profile") or _first_provider_url(studio.get("urls"))
-    image_rows = scene.get("images") or []
+    image_rows = scene.get("images") if isinstance(scene.get("images"), list) else []
     scene_image = scene.get("image") or scene.get("thumbnail") or _entity_image_from_images(image_rows)
     return {
         "source": "stashdb", "id": scene.get("id"), "title": scene.get("title"),
@@ -305,7 +320,7 @@ def _norm_stashdb(scene: dict) -> dict:
         "scene_type": scene.get("type") or "Scene",
         "performers": [p.get("name") for p in performers if p.get("name")],
         "performer_details": performers,
-        "tags": [t.get("name") for t in scene.get("tags") or [] if isinstance(t, dict) and t.get("name")],
+        "tags": [t.get("name") for t in _dicts(scene.get("tags")) if t.get("name")],
         "image": scene_image, "thumbnail": scene.get("thumbnail") or scene_image,
         "profile": scene.get("url") or _first_provider_url(scene.get("urls")),
     }
@@ -346,36 +361,36 @@ async def stashdb_scenes_by_year(db, api_key: str, year: str | int, limit: int =
 
 def _norm_tpdb(scene: dict) -> dict:
     """Convert a ThePornDB scene into the shared scene shape."""
-    site = scene.get("site") or {}
-    parent_site = site.get("parent") or site.get("network") or site.get("parent_site") or {}
-    if isinstance(parent_site, str):
-        parent_site = {"name": parent_site}
+    scene = scene if isinstance(scene, dict) else {}
+    site = _as_dict(scene.get("site"))
+    parent_site = _as_dict(site.get("parent") or site.get("network") or site.get("parent_site"))
     performers = []
-    for p in scene.get("performers") or []:
-        if not isinstance(p, dict):
-            continue
+    for p in _dicts(scene.get("performers")):
         name = p.get("name") or p.get("full_name")
         if name:
+            extras = p.get("extras") if isinstance(p.get("extras"), dict) else (p.get("extra") if isinstance(p.get("extra"), dict) else {})
             performers.append({
                 "name": name,
                 "id": p.get("id") or p.get("_id"),
                 "image": p.get("image") or p.get("thumbnail"),
                 "thumbnail": p.get("thumbnail"),
                 "profile": p.get("url") or p.get("profile"),
+                # ThePornDB keeps a performer's gender under "extras"; it was dropped, so those performers had none until a later refresh.
+                "gender": p.get("gender") or p.get("sex") or extras.get("gender"),
                 "provider": "theporndb",
             })
-    images = scene.get("images") or {}
-    site_images = site.get("images") or {}
+    images = scene.get("images") if isinstance(scene.get("images"), dict) else {}
+    site_images = site.get("images") if isinstance(site.get("images"), dict) else {}
     return {
         "source": "theporndb", "id": scene.get("id") or scene.get("_id"),
         "title": scene.get("title"), "date": scene.get("date"),
         "duration": scene.get("duration") or scene.get("duration_seconds") or scene.get("length"),
-        "fingerprints": [dict(fp) for fp in (scene.get("fingerprints") or scene.get("hashes") or []) if isinstance(fp, dict)],
+        "fingerprints": [dict(fp) for fp in _dicts(scene.get("fingerprints") or scene.get("hashes"))],
         "updated_at": scene.get("last_updated") or scene.get("updated_at"),
         "studio": site.get("name"), "studio_id": site.get("id") or site.get("_id"),
-        "studio_aliases": list(site.get("aliases") or []),
+        "studio_aliases": list(site.get("aliases") if isinstance(site.get("aliases"), (list, tuple)) else []),
         "parent_studio": parent_site.get("name"), "parent_network": parent_site.get("name"),
-        "parent_studio_aliases": list(parent_site.get("aliases") or []),
+        "parent_studio_aliases": list(parent_site.get("aliases") if isinstance(parent_site.get("aliases"), (list, tuple)) else []),
         "studio_url": site.get("url"), "site": site.get("name"),
         "site_url": site.get("url"), "scene_type": scene.get("type") or "Scene",
         # Site/studio logo, when ThePornDB supplies one. Best-effort/optional —
@@ -384,7 +399,7 @@ def _norm_tpdb(scene: dict) -> dict:
                           or site_images.get("logo") or site_images.get("poster")),
         "performers": [p.get("name") for p in performers if p.get("name")],
         "performer_details": performers,
-        "tags": [t.get("name") for t in scene.get("tags") or [] if isinstance(t, dict) and t.get("name")],
+        "tags": [t.get("name") for t in _dicts(scene.get("tags")) if t.get("name")],
         "image": scene.get("image") or images.get("large") or images.get("medium") or images.get("small"),
         "thumbnail": scene.get("thumbnail") or images.get("medium") or images.get("small"),
         "profile": scene.get("url"),
@@ -514,11 +529,13 @@ def apply_scene_match(db, channel_id: int, message_id: int, best: dict, oshash: 
         # Delete FIRST: older code inserted the new studio relationship and
         # then deleted the entire video_studios set, losing the correct site.
         locked = {r["field"] for r in db.conn.execute("SELECT field FROM metadata_mapping_locks WHERE video_id=? AND locked=1", (media_id,)).fetchall()}
-        if "performer" not in locked and not preserve_performers:
-            db.conn.execute("DELETE FROM video_performers WHERE video_id=?", (media_id,))
-        if "site" not in locked and not preserve_site:
-            db.conn.execute("DELETE FROM video_studios WHERE video_id=?", (media_id,))
         studio = str(best.get("studio") or best.get("site") or "").strip()
+        # Replace the earlier links only when this match actually names a cast / a studio. A provider record that simply lacks its cast
+        # or studio used to wipe what the video already had (from its filename or an operator), leaving "Unknown Performer".
+        if "performer" not in locked and not preserve_performers and performers:
+            db.conn.execute("DELETE FROM video_performers WHERE video_id=?", (media_id,))
+        if "site" not in locked and not preserve_site and studio:
+            db.conn.execute("DELETE FROM video_studios WHERE video_id=?", (media_id,))
         if studio and "site" not in locked and not preserve_site:
             field_provenance = best.get("field_provenance") if isinstance(best.get("field_provenance"), dict) else {}
             studio_provider = str(field_provenance.get("studio_id") or provider).strip() or provider
