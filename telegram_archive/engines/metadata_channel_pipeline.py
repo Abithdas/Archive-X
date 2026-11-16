@@ -2329,6 +2329,10 @@ async def _run_metadata_assets(ctx):
     payload["channel_ids"] = channels
     payload.setdefault("current_channel_index", 0)
     payload["stages"] = _selected_stages(payload)
+    if not payload["stages"]:
+        # Without this a job whose saved stages are empty or misspelt "completed" having done nothing at all.
+        raise RuntimeError("This Metadata & Assets job has no valid stage selected (Collect filenames, Match metadata, Performer data, "
+                           "Studio/site data or Playback snapshots); start a new run and tick at least one")
     queue = payload.get("channel_queue")
     if not isinstance(queue, list) or len(queue) != len(channels):
         queue = [{"channel_id": channel, "state": "PENDING", "videos": [], "phases": {}}

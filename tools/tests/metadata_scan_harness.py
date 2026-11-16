@@ -10,6 +10,7 @@ from types import SimpleNamespace
 root = str(Path(__file__).resolve().parents[2])
 os.environ.setdefault("ARCHIVE_X_DATA_DIR", tempfile.mkdtemp(prefix="axmeta_"))
 os.environ.setdefault("ARCHIVE_X_AUTO_OPEN_BROWSER", "0")
+os.environ.setdefault("TELEGRAM_ARCHIVE_ALLOW_REMOTE_SETUP", "1")
 sys.path.insert(0, root)
 
 from telegram_archive.core.database import Database  # noqa: E402
@@ -111,3 +112,104 @@ def fresh_db():
 
 def run(coro):
     return asyncio.run(coro)
+
+
+# ---------------------------------------------------------------- the three stage engines, faked ----------------------------------------------
+class Engines:
+    """Stands in for pipe._run_engine. Like the real engines it writes the database states the final check reads:
+    metadata -> metadata_state COMPLETE; thumbnails -> snapshot_state READY (+ a card image); entity_data -> nothing (the final step
+    fills in Unknown placeholders). `fail` maps an operation key to an exception; `slow` makes snapshots take that many seconds."""
+
+    def __init__(self, db, *, fail=None, slow=0.0, link_entities=True):
+        self.db, self.fail, self.slow, self.link_entities = db, dict(fail or {}), slow, link_entities
+        self.calls, self.cancelled, self.finished = [], [], []
+
+    @staticmethod
+    def key(operation, detail):
+        return "performers" if operation == "entity_data" and detail.get("scope") == "performers" else \
+               "studios" if operation == "entity_data" else operation
+
+    def _media_ids(self, channel):
+        return [r[0] for r in self.db.conn.execute("SELECT id FROM media WHERE source_channel=? AND COALESCE(status,'')<>'SOURCE_DELETED'", (channel,))]
+
+    async def __call__(self, ctx, operation, detail, *, report_override=None):
+        key = self.key(operation, detail)
+        self.calls.append((key, detail))
+        try:
+            if self.slow and key == "thumbnails":
+                await asyncio.sleep(self.slow)
+            else:
+                await asyncio.sleep(0)
+            exc = self.fail.get(key)
+            if exc is not None:
+                raise exc
+            channels = [str(c) for c in (detail.get("source_channels") or detail.get("channels") or [])]
+            with self.db.lock:
+                if key == "metadata":
+                    for ch in channels:
+                        ids = self._media_ids(ch)
+                        for mid in ids:
+                            self.db.conn.execute("UPDATE media SET metadata_synced_at=datetime('now') WHERE id=?", (mid,))
+                            self.db.conn.execute("INSERT INTO resource_state(media_id,metadata_state,updated_at) VALUES(?, 'COMPLETE', datetime('now')) "
+                                                 "ON CONFLICT(media_id) DO UPDATE SET metadata_state='COMPLETE'", (mid,))
+                        if self.link_entities and ids:
+                            self.db.conn.execute("INSERT OR IGNORE INTO performers(name) VALUES(?)", (f"Fake Performer {ch}",))
+                            self.db.conn.execute("INSERT OR IGNORE INTO studios(name) VALUES(?)", (f"Fake Studio {ch}",))
+                            p = self.db.conn.execute("SELECT id FROM performers WHERE name=?", (f"Fake Performer {ch}",)).fetchone()[0]
+                            s = self.db.conn.execute("SELECT id FROM studios WHERE name=?", (f"Fake Studio {ch}",)).fetchone()[0]
+                            for mid in ids:
+                                self.db.conn.execute("INSERT OR IGNORE INTO video_performers(video_id,performer_id) VALUES(?,?)", (mid, p))
+                                self.db.conn.execute("INSERT OR IGNORE INTO video_studios(video_id,studio_id,confidence) VALUES(?,?,1.0)", (mid, s))
+                elif key == "thumbnails":
+                    for ch in channels:
+                        for mid, msg in self.db.conn.execute("SELECT id, source_message_id FROM media WHERE source_channel=? AND COALESCE(status,'')<>'SOURCE_DELETED'", (ch,)).fetchall():
+                            self.db.conn.execute("INSERT INTO resource_state(media_id,snapshot_state,updated_at) VALUES(?, 'READY', datetime('now')) "
+                                                 "ON CONFLICT(media_id) DO UPDATE SET snapshot_state='READY'", (mid,))
+                            # what the real snapshot engine leaves behind, and the Library view asks for
+                            self.db.conn.execute("DELETE FROM timeline_preview_cache WHERE source_channel=? AND video_message_id=?", (ch, msg))
+                            self.db.conn.execute("INSERT INTO timeline_preview_cache(source_channel,video_message_id,path,status,frame_count,version,updated_at) "
+                                                 "VALUES(?,?,?,?,36,7,datetime('now'))", (ch, msg, f"/x/{msg}.jpg", "READY"))
+                            self.db.conn.execute("DELETE FROM thumbnail_cache WHERE source_channel=? AND video_message_id=?", (ch, msg))
+                            self.db.conn.execute("INSERT INTO thumbnail_cache(source_channel,video_message_id,mime,data,source,updated_at) "
+                                                 "VALUES(?,?,'image/jpeg',x'ffd8',?,datetime('now'))", (ch, msg, "playback-snapshot"))
+                            self.db.conn.execute("DELETE FROM asset_registry WHERE media_id=? AND asset_type='PLAYBACK_REPRESENTATIVE'", (mid,))
+                            self.db.conn.execute("INSERT INTO asset_registry(media_id,entity_type,entity_id,asset_type,path,state,content_revision,created_at,updated_at) "
+                                                 "VALUES(?,?,?,?,?,'READY',1,datetime('now'),datetime('now'))", (mid, "telegram_video", f"{ch}:{msg}", "PLAYBACK_REPRESENTATIVE", f"/x/{msg}.jpg"))
+                self.db.conn.commit()
+            self.finished.append(key)
+        except asyncio.CancelledError:
+            self.cancelled.append(key)
+            raise
+
+    def keys(self):
+        return [k for k, _ in self.calls]
+
+
+def job(db, monkeypatch, *, stages=None, channels, history=None, engines=None, detail=None, cancel_after=None):
+    """Run the whole Metadata & Assets job body once; return (ctx, saved job detail)."""
+    body = {"channel_ids": list(channels), "limit": 0, "unbounded": True}
+    if stages is not None:
+        body["stages"] = stages
+    body.update(detail or {})
+    ctx = make_ctx(db, body, cancel_after=cancel_after)
+    install(monkeypatch, history or FakeHistory())
+    monkeypatch.setattr(pipe, "_run_engine", engines)
+    monkeypatch.setattr(pipe, "_start_entity_repair", lambda *a, **k: None)
+    ctx.leftover = []
+
+    async def go():
+        try:
+            await pipe._run_metadata_assets(ctx)
+        finally:
+            await asyncio.sleep(0.05)      # let cancelled tasks finish before looking for strays
+            ctx.leftover = [t.get_name() for t in asyncio.all_tasks() if t is not asyncio.current_task() and not t.done()]
+
+    try:
+        run(go())
+    finally:
+        ctx.saved = json.loads(db.get_job(ctx.job_id)["detail"])
+    return ctx, ctx.saved
+
+
+def phases(payload, index=0):
+    return payload["channel_queue"][index]["phases"]
