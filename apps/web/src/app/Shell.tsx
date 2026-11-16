@@ -116,6 +116,14 @@ function StorageCard() {
   )
 }
 
+/** The app's version under the storage card, so it is always clear which release is running ("v30.3.2"; a development build says "dev"). */
+export const versionLabel = (v: string | undefined): string => { const t = String(v ?? '').trim(); return !t ? '' : /^\d/.test(t) ? `v${t}` : t }
+function VersionLine() {
+  const { data } = useStatus()
+  const label = versionLabel(data?.version)
+  return label ? <p className="mt-2 text-center text-[11px] font-medium text-faint" title="Archive X version">Archive X {label}</p> : null
+}
+
 function TelegramPill() {
   const { data } = useStatus()
   const ok = Boolean(data?.telegram_connected ?? data?.telegram?.connected)
@@ -246,6 +254,7 @@ export function Shell(): ReactNode {
           </div>
         ))}
         {rail ? null : <StorageCard />}
+        {rail ? null : <VersionLine />}
       </aside>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header live={live} />

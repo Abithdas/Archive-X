@@ -85,24 +85,32 @@ fn start_backend(app: tauri::AppHandle) {
         *state.0.lock().unwrap() = Some(backend);
     }
 
-    // Watch the backend: if it dies while the app is open, say so instead of showing a dead page.
+    // Watch the backend: if it dies while the app is open, say so instead of showing a dead page. A backend that stops by itself with a success
+    // status is not a crash: it is "Exit app" in the page (it checkpoints its jobs and stops), so the app closes with it, quietly.
     loop {
         std::thread::sleep(Duration::from_secs(2));
         let state = app.state::<BackendState>();
         let mut guard = state.0.lock().unwrap();
-        let died: Option<String> = match guard.as_mut() {
+        let ended: Option<Result<(), String>> = match guard.as_mut() {
             None => return, // shut down by the app
             Some(b) => {
                 if b.is_running() {
                     None
+                } else if b.exited_cleanly() == Some(true) {
+                    Some(Ok(()))
                 } else {
-                    Some(b.log_tail().join("\n"))
+                    Some(Err(b.log_tail().join("\n")))
                 }
             }
         };
         drop(guard);
-        if let Some(tail) = died {
-            return fail(&app, format!("The Archive X backend stopped unexpectedly.\n\n{tail}"));
+        match ended {
+            None => {}
+            Some(Ok(())) => {
+                app.exit(0);
+                return;
+            }
+            Some(Err(tail)) => return fail(&app, format!("The Archive X backend stopped unexpectedly.\n\n{tail}")),
         }
     }
 }

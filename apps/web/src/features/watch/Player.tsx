@@ -13,6 +13,7 @@ import { DOUBLE_TAP_MS, KEEP_SKIPPING_MS, registerTap, type TapState } from './t
 import { CcMenu } from './CcMenu'
 import { blockingEnabled, resumeAudio, routeThroughApp, setBlocking } from './audioGraph'
 import { CaptionOverlay } from './CaptionOverlay'
+import { releasePlayback } from './release'
 import { DEFAULT_STYLE, SIZE_STEP, clampSize, loadStyle, saveStyle, sizeLabel, type CaptionBg } from './captionStyle'
 import { useAltAudio, useTracks, type MediaRef } from './useTracks'
 import { IconSwap } from '@/design/IconSwap'
@@ -28,17 +29,6 @@ const BTN = 'grid size-8 shrink-0 place-items-center rounded-md text-fg/85 trans
  * Native <video> with the classic player's control bar: seek, play, previous/next, ±30 s, speed, mute and volume,
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
-/** Tell the server the viewer left this video. Best effort: a failure only means its cache is cleared a little later. */
-function releasePlayback(channelId: string, messageId: number, reason = 'viewer_left') {
-  const id = Number(channelId)
-  if (!Number.isFinite(id) || !Number.isFinite(messageId)) return
-  try {
-    void fetch('/api/play/release', {
-      method: 'POST', keepalive: true, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ channel_id: id, message_id: messageId, reason }),
-    }).catch(() => undefined)
-  } catch { /* nothing to do */ }
-}
 
 export function Player({ media, info, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable }: { onUnplayable?: () => void; media?: MediaRef; info?: PlayInfo | null; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void; onOpenNative?: () => void }) {
   const video = useRef<HTMLVideoElement>(null)

@@ -225,6 +225,15 @@ impl Backend {
         backend && front
     }
 
+    /// How the backend ended: `None` while it is still running, `Some(true)` when it stopped by itself with a success status (for instance after
+    /// "Exit app" in the page, which makes it checkpoint its jobs and stop), `Some(false)` when it crashed or was killed.
+    pub fn exited_cleanly(&mut self) -> Option<bool> {
+        match self.child.try_wait() {
+            Ok(Some(status)) => Some(status.success()),
+            _ => None,
+        }
+    }
+
     /// `GET /health` over plain loopback HTTP.
     pub fn healthy(&self) -> bool {
         http_request(self.port(), "GET", "/health", &[], Duration::from_secs(3)).map(|(status, _)| status == 200).unwrap_or(false)

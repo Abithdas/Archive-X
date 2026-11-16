@@ -26,4 +26,9 @@ describe('activityByPage', () => {
     expect(activityByPage([null, 3, {}])).toEqual({})
   })
   it('words the count', () => expect(runningLabel(3)).toBe('3 running'))
+  it('counts a playback session only while it is streaming, not when it is open but idle', () => {
+    expect(activityByPage([{ type: 'PLAYBACK', status: 'IDLE' }])).toEqual({})
+    expect(activityByPage([{ type: 'PLAYBACK', status: 'PLAYING' }])).toEqual({ '/videos': 1 })
+    expect(activityByPage([{ type: 'PLAYBACK', status: 'STALLED' }, { type: 'METADATA_SYNC', status: 'RUNNING' }])).toEqual({ '/videos': 2, '/operations': 1 })
+  })
 })

@@ -5,6 +5,7 @@ import { formatDuration } from '@/features/library/format'
 import { CcMenu } from './CcMenu'
 import { native, pixelRect, type NativeCommand, type NativeTrack, type Opened, type Snapshot } from './nativeBridge'
 import { afterJump, aspectOf, quiet, stallStep, videoVisible, type StallState } from './nativeLogic'
+import { releasePlayback } from './release'
 import { ChevronIcon, NextIcon, PauseIcon, PlayIcon, PrevIcon, VolumeIcon } from './PlayerIcons'
 import { Divider, MenuItem, PopMenu, VolumeBar } from './PlayerParts'
 import { Timeline, type PreviewInfo } from './Timeline'
@@ -85,7 +86,7 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
       if (playRef.current) await native.command('play')
       setNativeTracks(await native.tracks().catch(() => []))
     })().catch((e: unknown) => { if (!dead) { setPhase('failed'); setMessage(e instanceof Error ? e.message : 'The native player failed') } })
-    return () => { dead = true; void native.command('close').catch(noop) }
+    return () => { dead = true; void native.command('close').catch(noop); releasePlayback(media.cid, media.mid) }   // the server drops this video's session and temporary downloads
   }, [media.cid, media.mid, rect])
 
   // ---- keep the video window on the stage; step aside when it cannot be shown whole or something is open over it

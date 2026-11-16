@@ -13,7 +13,7 @@ afterEach(() => { vi.unstubAllGlobals(); try { localStorage.clear() } catch { /*
 
 class QuietSocket { onopen = null; onclose = null; onmessage = null; onerror = null; close() {} }
 
-const quietFetch = (jobs: unknown[] = []) => vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes('storage') ? { bytes: 1, files: 1, disk: { total: 10, used: 1, free: 9 } } : String(url).includes('/api/status') ? { jobs } : {}), { status: 200 }))
+const quietFetch = (jobs: unknown[] = [], version?: string) => vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes('storage') ? { bytes: 1, files: 1, disk: { total: 10, used: 1, free: 9 } } : String(url).includes('/api/status') ? { jobs, version } : {}), { status: 200 }))
 
 describe('sidebar collapse button', () => {
   it('swaps a hamburger (minimized) and an X (open) in the same button, with the icon swap transition', async () => {
@@ -54,5 +54,16 @@ describe('sidebar collapse button', () => {
     const badge = (await screen.findAllByRole('status', { name: '1 running' }))[0]!
     expect(badge.className).toMatch(/\babsolute\b/)
     expect(badge.className).not.toMatch(/\brelative\b/)
+  })
+
+  it('shows the version under the storage card, and not when the sidebar is folded', async () => {
+    vi.stubGlobal('WebSocket', QuietSocket)
+    vi.stubGlobal('fetch', quietFetch([], '30.3.2'))
+    withRouter(<Shell />)
+    const line = await screen.findByText('Archive X v30.3.2')
+    const storage = screen.getByTitle('Archive X app storage summary')
+    expect(storage.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()   // below it
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
+    expect(screen.queryByText('Archive X v30.3.2')).toBeNull()
   })
 })

@@ -12,6 +12,13 @@ import { Icon } from './Icon'
 import { cn } from './cn'
 import { spring } from './motion'
 
+/** The font of an element as a canvas font string, built from its separate properties. The `font` shorthand cannot be used: browsers return it empty
+ *  when any related property is not at its default (this box turns kerning off), and the canvas then silently measures in its own 10 px font, which
+ *  put the caret at about 62% of the way along the text. */
+export function fontOf(cs: Pick<CSSStyleDeclaration, 'fontStyle' | 'fontWeight' | 'fontSize' | 'fontFamily'>): string {
+  return `${cs.fontStyle || 'normal'} ${cs.fontWeight || '400'} ${cs.fontSize || '16px'} ${cs.fontFamily || 'sans-serif'}`
+}
+
 /** Width of text in the input's own font, the way the browser lays it out (kerning off, to match the mirror's letter-by-letter boxes). */
 function makeMeasure(input: () => HTMLInputElement | null) {
   let ctx: CanvasRenderingContext2D | null | undefined   // undefined: not asked yet; null: no canvas here
@@ -20,7 +27,7 @@ function makeMeasure(input: () => HTMLInputElement | null) {
     try {
       ctx ??= document.createElement('canvas').getContext('2d')
       if (ctx && el) {
-        ctx.font = getComputedStyle(el).font
+        ctx.font = fontOf(getComputedStyle(el))
         ;(ctx as CanvasRenderingContext2D & { fontKerning?: string }).fontKerning = 'none'
         return ctx.measureText(s).width
       }
