@@ -5,7 +5,7 @@ import { streamChat } from './stream'
 
 export interface Step { name: string; label: string; state: 'active' | 'done' | 'error' }
 /** The exchange being answered right now (and the last one, until the next question). */
-export interface LiveTurn { user: string; status: string; steps: Step[]; text: string; done: boolean; error: string; meta: string }
+export interface LiveTurn { user: string; status: string; steps: Step[]; reasoning: string; text: string; done: boolean; error: string; meta: string }
 
 const reason = (e: unknown) => (e instanceof ApiError && e.detail ? e.detail : e instanceof Error && e.message ? e.message : CHAT_FAILED)
 
@@ -26,7 +26,7 @@ export function useAssistant(seed: Message[] | undefined) {
     if (!text) return null
     const previous = live.current
     if (previous) setRows((r) => [...r, { role: 'user', content: previous.user, created_at: '' }, ...(previous.text ? [{ role: 'assistant', content: previous.text, created_at: previous.meta }] : previous.error ? [{ role: 'assistant', content: previous.error, created_at: '' }] : [])])
-    let t: LiveTurn = { user: text, status: 'Thinking…', steps: [], text: '', done: false, error: '', meta: '' }
+    let t: LiveTurn = { user: text, status: 'Thinking…', steps: [], reasoning: '', text: '', done: false, error: '', meta: '' }
     put(t)
     const set = (patch: Partial<LiveTurn>) => { t = { ...t, ...patch }; put(t) }
     try {
@@ -35,7 +35,8 @@ export function useAssistant(seed: Message[] | undefined) {
         else if (e.t === 'tool') {
           const steps = e.state === 'start' ? [...t.steps, { name: e.name, label: e.label, state: 'active' as const }] : t.steps.map((s, i) => (i === t.steps.map((x) => x.name).lastIndexOf(e.name) ? { ...s, state: e.state === 'done' ? ('done' as const) : ('error' as const) } : s))
           set({ steps })
-        } else if (e.t === 'delta') set({ text: t.text + e.text })
+        } else if (e.t === 'reasoning') set({ reasoning: t.reasoning + e.text })
+        else if (e.t === 'delta') set({ text: t.text + e.text })
         else if (e.t === 'done') { set({ text: e.text, done: true, status: '', meta: replyMeta(e.model).replace('Archive X Local AI · ', '') }); return e.text }
         else if (e.t === 'error') { set({ error: e.detail || CHAT_FAILED, done: true, status: '' }); return null }
       }

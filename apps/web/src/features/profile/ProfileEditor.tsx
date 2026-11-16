@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
-import { useProfile } from '@/api/hooks'
+import { useProfile, useStatus } from '@/api/hooks'
 import { Dialog } from '@/design/Dialog'
 import { INTRO, NAME_MAX, READY, RESET_TEXT, SAVED, SAVE_FAILED, chosenText, displayName, initials, nameProblem, photoProblem, photoUrl, saveBody, unchanged, type Profile } from './profile'
 import { ErrorField } from '@/design/ErrorField'
@@ -12,13 +12,24 @@ const BTN = 'h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold hov
 /** The account's round photo, or its initials when there is none. */
 export function AccountAvatar({ className = 'size-10 text-[15px]' }: { className?: string }) {
   const p = useProfile()
+  const status = useStatus()
+  const connected = Boolean(status.data?.telegram_connected ?? status.data?.telegram?.connected)
+  const qc = useQueryClient()
+  // A photo that failed is remembered together with the Telegram state it failed in: the account photo cannot be fetched while Telegram is
+  // not connected, and it must be tried again once it is (it used to stay hidden for good after the first miss).
   const [broken, setBroken] = useState<string>('')
   const url = photoUrl(p.data)
+  const attempt = `${url}|${connected ? 1 : 0}`
+  const was = useRef(connected)
+  useEffect(() => {
+    if (connected && !was.current) void qc.invalidateQueries({ queryKey: ['profile'] })   // the name and photo version are re-read when Telegram comes up
+    was.current = connected
+  }, [connected, qc])
   const name = displayName(p.data) || 'A'
   return (
     <span className={`relative grid shrink-0 place-items-center overflow-hidden rounded-full bg-surface-3 font-bold ${className}`}>
       <span aria-hidden="true">{initials(name)}</span>
-      {broken !== url ? <img src={url} alt="" className="absolute inset-0 size-full object-cover" onError={() => setBroken(url)} /> : null}
+      {broken !== attempt ? <img key={attempt} src={connected && !p.data?.has_custom_image ? `${url}&c=1` : url} alt="" className="absolute inset-0 size-full object-cover" onError={() => setBroken(attempt)} /> : null}
     </span>
   )
 }

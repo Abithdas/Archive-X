@@ -5,6 +5,8 @@ import json
 import re
 from typing import Any
 
+from .ai_safety import redact
+
 
 class AIToolRegistry:
     """Read-only library and job tools exposed to the assistant."""
@@ -38,7 +40,7 @@ class AIToolRegistry:
         fn = methods.get(str(name))
         if fn is None:
             raise ValueError("Unknown AI tool")
-        return fn(**args)
+        return redact(fn(**args))     # whatever a tool finds, the model never sees a key, token, password or cookie
 
     def search_library(self, query: str, limit: int = 10) -> dict[str, Any]:
         q = str(query or "").strip()

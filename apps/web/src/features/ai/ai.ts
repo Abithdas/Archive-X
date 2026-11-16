@@ -10,7 +10,7 @@ export const TABS: Array<{ value: AiTab; label: string; blurb: string }> = [
 export interface Message { role: string; content?: string; created_at?: string }
 interface Runtime {
   runtime?: { path?: string; exists?: boolean }; model?: { path?: string; exists?: boolean }
-  server?: { endpoint?: string; reachable?: boolean; starting?: boolean; context?: number; gpu_layers?: number }; ready?: boolean
+  server?: { endpoint?: string; reachable?: boolean; starting?: boolean; context?: number; gpu_layers?: number; thinking?: boolean }; ready?: boolean
 }
 export interface AiStatus { configured?: boolean; provider?: string; model?: string; runtime?: Runtime }
 
@@ -55,12 +55,12 @@ export const readiness = (s: AiStatus | null | undefined): Array<[string, string
   return [['llama-server', r.runtime?.exists ? 'Ready' : 'Missing'], ['GGUF model', r.model?.exists ? 'Ready' : 'Missing'], ['Local endpoint', r.server?.reachable ? 'Reachable' : 'Not running'], ['Inference', r.ready ? 'Ready' : 'Not ready'], ['Mode', 'CPU-first'], ['Cloud API', 'Disabled']]
 }
 
-export interface Config { runtime_path: string; model_path: string; model_id: string; endpoint: string; context: number; gpu_layers: number }
-export const configFrom = (s: AiStatus | null | undefined): Config => ({ runtime_path: s?.runtime?.runtime?.path || '', model_path: s?.runtime?.model?.path || '', model_id: s?.model || DEFAULT_MODEL, endpoint: s?.runtime?.server?.endpoint || DEFAULT_ENDPOINT, context: Number(s?.runtime?.server?.context || 8192), gpu_layers: Number(s?.runtime?.server?.gpu_layers || 0) })
+export interface Config { runtime_path: string; model_path: string; model_id: string; endpoint: string; context: number; gpu_layers: number; thinking: boolean }
+export const configFrom = (s: AiStatus | null | undefined): Config => ({ runtime_path: s?.runtime?.runtime?.path || '', model_path: s?.runtime?.model?.path || '', model_id: s?.model || DEFAULT_MODEL, endpoint: s?.runtime?.server?.endpoint || DEFAULT_ENDPOINT, context: Number(s?.runtime?.server?.context || 8192), gpu_layers: Number(s?.runtime?.server?.gpu_layers || 0), thinking: Boolean(s?.runtime?.server?.thinking) })
 /** Request body: trimmed text, numbers clamped to the ranges the form allows. */
 export const configBody = (c: Config): Config => ({
   runtime_path: c.runtime_path.trim(), model_path: c.model_path.trim(), model_id: c.model_id.trim(), endpoint: c.endpoint.trim(),
-  context: Math.min(16384, Math.max(1024, Math.round(Number(c.context) || 8192))), gpu_layers: Math.min(128, Math.max(0, Math.round(Number(c.gpu_layers) || 0))),
+  context: Math.min(16384, Math.max(1024, Math.round(Number(c.context) || 8192))), gpu_layers: Math.min(128, Math.max(0, Math.round(Number(c.gpu_layers) || 0))), thinking: Boolean(c.thinking),
 })
 export const SAVED = 'Local AI settings saved.'
 export const SAVE_FAILED = 'Could not save local AI settings.'

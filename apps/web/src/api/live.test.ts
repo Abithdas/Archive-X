@@ -31,3 +31,26 @@ describe('closeReport', () => {
   })
   it('reports at most once a minute', () => expect(REPORT_EVERY_MS).toBe(60_000))
 })
+
+describe('while the live connection is down', () => {
+  it('asks for the status every few seconds instead, and stops once it is live', async () => {
+    const { renderHook, act } = await import('@testing-library/react')
+    const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
+    const { createElement } = await import('react')
+    const { vi } = await import('vitest')
+    const { POLL_WHILE_NOT_LIVE_MS, useLiveStatus } = await import('./live')
+    vi.useFakeTimers()
+    const sockets: Array<{ onopen: null | (() => void); close: () => void }> = []
+    vi.stubGlobal('WebSocket', class { onopen: null | (() => void) = null; onclose = null; onmessage = null; onerror = null; close() {}; constructor() { sockets.push(this) } })
+    const qc = new QueryClient()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+    renderHook(() => useLiveStatus(true), { wrapper: ({ children }: { children: React.ReactNode }) => createElement(QueryClientProvider, { client: qc }, children) })
+    act(() => { vi.advanceTimersByTime(POLL_WHILE_NOT_LIVE_MS * 2 + 10) })
+    expect(spy).toHaveBeenCalledTimes(2)
+    act(() => { sockets[0]!.onopen?.() })                              // the socket comes up: no more polling
+    spy.mockClear()
+    act(() => { vi.advanceTimersByTime(POLL_WHILE_NOT_LIVE_MS * 3) })
+    expect(spy).not.toHaveBeenCalled()
+    vi.useRealTimers(); vi.unstubAllGlobals()
+  })
+})

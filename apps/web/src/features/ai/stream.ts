@@ -4,6 +4,7 @@ import { ApiError } from '@/api/client'
 export type ChatEvent =
   | { t: 'status'; phase: 'starting' | 'thinking' | 'writing'; text: string }
   | { t: 'tool'; name: string; label: string; state: 'start' | 'done' | 'error' }
+  | { t: 'reasoning'; text: string }
   | { t: 'delta'; text: string }
   | { t: 'done'; text: string; model: string; latency_ms: number; tool_calls: number }
   | { t: 'error'; detail: string }

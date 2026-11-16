@@ -16,6 +16,12 @@ import { useUi } from './ui'
 
 const ROW = 'flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium hover:bg-fg/5 focus-visible:bg-fg/5 focus-visible:outline-none'
 
+/** The little dot on the avatar says whether Telegram is connected (not whether the live-updates socket is): green, amber while the first answer is awaited, red. */
+export function telegramDot(known: boolean, connected: boolean): { tone: string; label: string } {
+  if (!known) return { tone: 'bg-warn', label: 'Checking Telegram' }
+  return connected ? { tone: 'bg-good', label: 'Telegram connected' } : { tone: 'bg-bad', label: 'Telegram not connected' }
+}
+
 /** Avatar button and its menu: Telegram status, theme, storage, command palette, settings, sign out, exit. */
 export function AccountMenu({ live }: { live: string }) {
   const id = useId()
@@ -32,6 +38,7 @@ export function AccountMenu({ live }: { live: string }) {
   const [editing, setEditing] = useState(false)
   const offer = useInstall((st) => st.offer)
   const tg = Boolean(status.data?.telegram_connected ?? status.data?.telegram?.connected)
+  const dot = telegramDot(Boolean(status.data), tg)
   const d = storage.data?.disk
   const pct = d?.total ? Math.round(((d.used || d.total - d.free) / d.total) * 100) : null
   const close = () => pop.current?.hidePopover?.()
@@ -60,9 +67,9 @@ export function AccountMenu({ live }: { live: string }) {
 
   return (
     <>
-      <button type="button" popoverTarget={id} aria-label="Account menu" aria-haspopup="menu" className="relative grid size-10 place-items-center rounded-full bg-surface-3 text-[15px] font-bold" title={`Live updates: ${live}`}>
+      <button type="button" popoverTarget={id} aria-label="Account menu" aria-haspopup="menu" className="relative grid size-10 place-items-center rounded-full bg-surface-3 text-[15px] font-bold" title={`${dot.label} · live updates: ${live}`}>
         <AccountAvatar className="size-10 text-[15px]" />
-        <i className={cn('absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-bg', live === 'live' ? 'bg-good' : live === 'connecting' ? 'bg-warn' : 'bg-bad')} role="status" aria-label={live === 'live' ? 'Live' : live === 'connecting' ? 'Connecting' : 'Offline, retrying'} />
+        <i className={cn('absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-bg', dot.tone)} role="status" aria-label={dot.label} />
       </button>
       <div ref={pop} id={id} popover="auto" role="menu" aria-label="Account menu" className="t-menu fixed right-4 top-[60px] left-auto bottom-auto m-0 w-[280px] rounded-[18px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
         <div className="t-acc-panel-inner p-2">

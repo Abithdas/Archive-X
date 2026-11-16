@@ -465,7 +465,7 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
 .t-reel-sep { display: inline-block; height: var(--reel-cell); line-height: var(--reel-cell); }
 @media (prefers-reduced-motion: reduce) { .t-reel-digit { filter: none !important; } }
 
-/* ── AI agent motion (Transitions.dev: shimmer text, thinking states, streaming text, matrix dot loader) + a spinner that turns into a check ─── */
+/* ── AI agent motion (Transitions.dev: shimmer text, thinking states, streaming text) + a spinner that turns into a check ─── */
 :root {
   --shimmer-dur: 2000ms;
   --shimmer-base: var(--color-muted);
@@ -488,10 +488,6 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
   --stream-blur: 1px;
   --stream-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  --matrix-cycle: 1200ms;
-  --matrix-base: color-mix(in srgb, var(--color-fg) 16%, transparent);
-  --matrix-active: var(--color-accent);
-  --matrix-ease: ease-in-out;
 }
 
 .t-shimmer { position: relative; display: inline-block; color: var(--shimmer-base); }
@@ -534,11 +530,10 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
 .t-stream-w.is-in { opacity: 1; filter: blur(0); }
 @media (prefers-reduced-motion: reduce) { .t-stream-w { transition: none !important; filter: none !important; opacity: 1 !important; } }
 
-.t-matrix { display: inline-grid; grid-template-columns: repeat(4, var(--matrix-dot, 3px)); grid-auto-rows: var(--matrix-dot, 3px); gap: var(--matrix-dot, 3px); vertical-align: middle; }
-.t-matrix i { display: block; background: var(--matrix-base); animation: t-matrix-pulse var(--matrix-cycle) var(--matrix-ease) infinite; animation-delay: calc(var(--d, 0) * 1ms); }
-.t-matrix i.is-gap { visibility: hidden; animation: none; }
-@keyframes t-matrix-pulse { 0%, 45%, 100% { background-color: var(--matrix-base); } 15% { background-color: var(--matrix-active); } }
-@media (prefers-reduced-motion: reduce) { .t-matrix i { animation: none !important; } }
+/* The assistant's breathing dot: scale and fade only, so it animates on the compositor and never moves the text beside it. */
+.ax-chat-dot { display: inline-block; flex: none; width: 0.7em; height: 0.7em; border-radius: 9999px; background: var(--color-accent); vertical-align: -0.04em; animation: ax-chat-dot 1.5s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+@keyframes ax-chat-dot { 0%, 100% { transform: scale(0.55); opacity: 0.45; } 50% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ax-chat-dot { animation: none; } }
 
 /* The spinner that turns into a check (written for Archive X; not from Transitions.dev's paid set) */
 .ax-mark { width: 20px; height: 20px; display: inline-block; flex: none; overflow: visible; }

@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MatrixLoader, dotDelays } from './MatrixLoader'
+import { ChatDot } from './ChatDot'
 import { Shimmer } from './Shimmer'
 import { StatusMark } from './StatusMark'
 import { StreamText } from './StreamText'
@@ -61,18 +61,13 @@ describe('ThinkingLine', () => {
   })
 })
 
-describe('matrix loader', () => {
-  it('has a delay table per pattern, with holes at the corners when rounded', () => {
-    expect(dotDelays('scan').slice(0, 5)).toEqual([0, 120, 240, 360, 0])
-    expect(dotDelays('orbit')[5]).toBeNull()                       // the centre holds still
-    expect(dotDelays('pulse').filter((d) => d === 0)).toHaveLength(4)
-    expect(dotDelays('twinkle', true).filter((d) => d === 'gap')).toHaveLength(4)
-    expect(new Set(dotDelays('twinkle')).size).toBe(16)
-  })
-  it('draws sixteen dots', () => {
-    const { container, getByRole } = render(<MatrixLoader variant="orbit" label="Setting up" />)
-    expect(container.querySelectorAll('i')).toHaveLength(16)
-    expect(getByRole('status', { name: 'Setting up' })).toBeInTheDocument()
+describe('chat dot', () => {
+  it('is a decorative dot unless it is given a label, and then a named status', () => {
+    const { container, rerender, getByRole } = render(<ChatDot />)
+    expect(container.firstElementChild).toHaveClass('ax-chat-dot')
+    expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true')
+    rerender(<ChatDot label="Starting" />)
+    expect(getByRole('status', { name: 'Starting' })).toHaveClass('ax-chat-dot')
   })
 })
 

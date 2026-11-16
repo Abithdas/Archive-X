@@ -14,6 +14,7 @@ import time
 from typing import Any
 
 from .. import config
+from .ai_safety import redact_text
 from .ai_tools import AIToolRegistry
 from .local_ai_runtime import DEFAULT_MODEL_ID, LocalAIError, LocalAIRuntime
 
@@ -116,7 +117,7 @@ class ArchiveXAI:
     def _bounded_context(self, context: str) -> str:
         """The snapshot has to fit in the model's window with room left for the question, the tools and the answer (about 3 characters a token)."""
         budget = max(3000, (self.runtime.context_size - 2600) * 3)
-        return str(context or "")[:min(42000, budget)]
+        return redact_text(context)[:min(42000, budget)]      # secrets are removed before the snapshot is cut to size
 
     def ensure_running(self, on_status=None) -> None:
         """Start the model if it is set up but not running, so asking a question is enough. Raises LocalAIError with plain words when it cannot."""
@@ -135,10 +136,56 @@ class ArchiveXAI:
         "get_diagnostics_summary": "Checking diagnostics", "find_unresolved_metadata": "Finding metadata to review", "find_duplicates": "Looking for duplicates",
     }
 
+    @staticmethod
+    def _shrunk(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """The same conversation with a much shorter Archive X snapshot and shorter tool results (a second try after the server said 400)."""
+        out = []
+        for i, m in enumerate(messages):
+            m = dict(m)
+            if i == 1 and m.get("role") == "system":
+                m["content"] = str(m.get("content") or "")[:1500]
+            elif m.get("role") == "tool":
+                m["content"] = str(m.get("content") or "")[:4000]
+            out.append(m)
+        return out
+
+    @staticmethod
+    def explain_400(detail: str) -> str:
+        """Plain words for a model server's HTTP 400, keeping a short piece of what it said."""
+        low = detail.lower()
+        body = detail.split(":", 1)[-1].strip()[:240]
+        if "context" in low or "exceed" in low or "too long" in low or "n_ctx" in low:
+            why = "The question and Archive X's context are longer than the model's window. Ask something shorter, or raise Context tokens under Models, Advanced."
+        elif "template" in low or "jinja" in low or "parse" in low:
+            why = "The model's chat template did not accept the message format."
+        elif "tool" in low:
+            why = "This model build does not accept tool calls while streaming."
+        else:
+            why = "The local model server rejected the request."
+        return f"{why} (server said: {body})" if body else why
+
+    def _round_chunks(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]):
+        """The streamed chunks of one model round. If the server answers HTTP 400 before sending anything, ask again in a plainer way:
+        first with a shorter snapshot and without the optional template switch, then without tools. The reply of the server is logged."""
+        attempts = (("as asked", False, True), ("shorter snapshot", True, True), ("no tools", True, False))
+        for number, (name, shrink, with_tools) in enumerate(attempts, 1):
+            started = False
+            try:
+                for chunk in self.runtime.chat_stream(self._shrunk(messages) if shrink else messages, tools=tools if with_tools else None, max_tokens=3000 if self.runtime.thinking else 1100, plain=shrink):
+                    started = True
+                    yield chunk
+                return
+            except LocalAIError as exc:
+                if started or "HTTP 400" not in str(exc):
+                    raise
+                self.db.log(f"Local AI answered HTTP 400 ({name}): {str(exc)[:400]}", "WARN", event="ai.inference.http400", details={"attempt": number, "detail": str(exc)[:600]})
+                if number == len(attempts):
+                    raise LocalAIError(self.explain_400(str(exc))) from exc
+
     def chat_events(self, message: str, context: str = "", user_identity: str = "operator", investigation_id: int | None = None):
         """Run one chat turn and yield what happens as it happens: status lines, each tool as it starts and ends, the answer word by word, then done.
 
-        Every event is a dict with a "t" key: status, tool, delta, done or error. The turn is saved to the history only when it finishes.
+        Every event is a dict with a "t" key: status, tool, reasoning, delta, done or error. The turn is saved to the history only when it finishes.
         """
         text = str(message or "").strip()
         if not text:
@@ -170,7 +217,7 @@ class ArchiveXAI:
                 yield {"t": "status", "phase": "thinking", "text": "Thinking…"}
                 content = ""
                 calls: dict[int, dict[str, Any]] = {}
-                for chunk in self.runtime.chat_stream(messages, tools=self.tools.definitions(), max_tokens=1100):
+                for chunk in self._round_chunks(messages, self.tools.definitions()):
                     model = str(chunk.get("model") or model)
                     choice = (chunk.get("choices") or [{}])[0]
                     delta = choice.get("delta") or {}
@@ -180,6 +227,9 @@ class ArchiveXAI:
                         fn = tc.get("function") or {}
                         slot["name"] += str(fn.get("name") or "")
                         slot["arguments"] += str(fn.get("arguments") or "")
+                    reasoning = delta.get("reasoning_content")
+                    if reasoning:
+                        yield {"t": "reasoning", "text": str(reasoning)}
                     piece = delta.get("content")
                     if piece:
                         if not content:
@@ -299,9 +349,9 @@ class ArchiveXAI:
         if context:
             parts.append("ARCHIVE X CONTEXT:\n" + self._bounded_context(context))
         if diagnostics_text:
-            parts.append("OPERATOR-APPROVED DIAGNOSTICS:\n" + str(diagnostics_text)[:80000])
+            parts.append("OPERATOR-APPROVED DIAGNOSTICS:\n" + redact_text(diagnostics_text)[:80000])
         if client_state:
-            parts.append("OPERATOR-APPROVED CLIENT STATE:\n" + str(client_state)[:24000])
+            parts.append("OPERATOR-APPROVED CLIENT STATE:\n" + redact_text(client_state)[:24000])
         return self.chat("\n\n".join(parts), "", user_identity, investigation_id)
 
     def close(self) -> None:

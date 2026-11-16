@@ -227,6 +227,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
                 endpoint=body.get("endpoint") if "endpoint" in body else None,
                 context=body.get("context") if "context" in body else None,
                 gpu_layers=body.get("gpu_layers") if "gpu_layers" in body else None,
+                thinking=bool(body.get("thinking")) if "thinking" in body else None,
             )
         except (ValueError, TypeError) as exc:
             raise HTTPException(400, str(exc)) from exc

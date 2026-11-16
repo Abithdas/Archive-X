@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { ApiError, api } from '@/api/client'
-import { MatrixLoader } from '@/design/MatrixLoader'
+import { ChatDot } from '@/design/ChatDot'
 import { Segmented } from '@/design/Segmented'
 import { Shimmer } from '@/design/Shimmer'
 import { SubtleNumber } from '@/design/SubtleNumber'
@@ -102,7 +102,7 @@ export function AssistantSetup({ onFinished }: { onFinished: () => void }) {
             {finished ? (
               <div className="flex items-center gap-3"><span className="scale-150 origin-left"><StatusMark state="done" /></span><div className="ml-3"><b className="block text-base">The assistant is ready</b><span className="text-sm text-muted">Opening the chat…</span></div></div>
             ) : (
-              <div className="flex items-center gap-3 text-sm"><MatrixLoader variant="orbit" label="Setting up" /><Shimmer text={active?.label ?? 'Working…'} className="font-semibold" /></div>
+              <div className="flex items-center gap-3 text-sm"><ChatDot label="Setting up" className="text-sm" /><Shimmer text={active?.label ?? 'Working…'} className="font-semibold" /></div>
             )}
             <StepsFeed label="Setup steps" steps={run.steps} />
           </div>
