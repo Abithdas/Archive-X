@@ -16,19 +16,25 @@ class QuietSocket { onopen = null; onclose = null; onmessage = null; onerror = n
 const quietFetch = (jobs: unknown[] = []) => vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes('storage') ? { bytes: 1, files: 1, disk: { total: 10, used: 1, free: 9 } } : String(url).includes('/api/status') ? { jobs } : {}), { status: 200 }))
 
 describe('sidebar collapse button', () => {
-  it('is a hamburger that folds the sidebar and opens it again, always the same button', async () => {
+  it('swaps a hamburger (minimized) and an X (open) in the same button, with the icon swap transition', async () => {
     vi.stubGlobal('WebSocket', QuietSocket)
     vi.stubGlobal('fetch', quietFetch())
     withRouter(<Shell />)
     const btn = await screen.findByRole('button', { name: 'Collapse sidebar' })
-    expect(btn.querySelector('use')?.getAttribute('href')).toMatch(/#ax-menu$/)   // the three-line icon, not an arrow
+    const icon = (which: 'a' | 'b') => btn.querySelector(`.t-icon[data-icon="${which}"] use`)?.getAttribute('href')
+    const swap = () => (btn.querySelector('.t-icon-swap') as HTMLElement).dataset.state
+    expect(icon('a')).toMatch(/#ax-menu$/)       // the hamburger is shown while minimized
+    expect(icon('b')).toMatch(/#ax-x$/)      // the X is shown while open
+    expect(swap()).toBe('b')                     // open: the X
     expect(btn.getAttribute('aria-expanded')).toBe('true')
     fireEvent.click(btn)
     const same = screen.getByRole('button', { name: 'Expand sidebar' })
     expect(same).toBe(btn)
     expect(same.getAttribute('aria-expanded')).toBe('false')
+    expect(swap()).toBe('a')                     // minimized: the hamburger
     fireEvent.click(same)
     expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toBe(btn)
+    expect(swap()).toBe('b')
   })
 
   it('comes before the logo in the sidebar header', async () => {

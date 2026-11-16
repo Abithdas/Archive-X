@@ -8,7 +8,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
   - Favourite buttons answer at once: the heart changes before the server replies (videos, and performer/studio pages) and goes back if the request fails. Before, the heart waited for the request and a full library refresh.
   - The bell uses the app's own icon style and its count now means new notices: it drops to nothing after you open the list and rises again for new ones (remembered in this browser).
   - Collapsed sidebar: the running-jobs counts sat on top of the icons; they are now on each icon's top-right corner. The same fix applies to the phone bottom bar.
-  - The sidebar has a hamburger button (new icon) at the top to fold it to icons and open it again.
+  - The sidebar has one toggle button at the top that swaps its icon with the Transitions.dev icon-swap transition: a hamburger while the sidebar is minimized, an X while it is open.
   - Menus (account, card actions, selection bar) and dropdowns (player menus, country list) open and close with a fade and slide instead of animating their height with a blur, which was jerky; accordions no longer blur their content while they open.
   - The total in the Library heading rolls without shifting the text beside it when it gains or loses a digit, and the heading's wording is no longer cramped.
   - A photo enlarged from inside a dialog (the review pages) now opens above it and can be clicked; before it opened behind the dialog. Esc closes only the enlarged picture.

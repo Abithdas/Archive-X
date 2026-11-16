@@ -24,6 +24,7 @@ import { useUi } from './ui'
 import { useAppearance, useAppearanceActions, useAppearanceSync } from '@/features/settings/useAppearance'
 import { scaleForKey } from '@/theme/themes'
 import { useScrollMemory } from './scrollMemory'
+import { IconSwap } from '@/design/IconSwap'
 import { SubtleNumber } from '@/design/SubtleNumber'
 
 interface NavDef {
@@ -79,12 +80,13 @@ function SideItem({ n, rail, count }: { n: NavDef; rail: boolean; count: number 
   )
 }
 
-/** The hamburger that folds the sidebar to its icon rail and opens it again. */
+/** Folds the sidebar to its icon rail and opens it again. One button, so the two icons trade places in the same spot (the Transitions.dev
+ *  icon swap): the hamburger while the sidebar is minimized (press to open), the X while it is open (press to fold). */
 function RailToggle({ rail, onToggle }: { rail: boolean; onToggle: () => void }) {
   const label = rail ? 'Expand sidebar' : 'Collapse sidebar'
   return (
     <button type="button" onClick={onToggle} aria-label={label} aria-expanded={!rail} title={label} className="ax-rail-toggle grid size-10 shrink-0 place-items-center rounded-xl text-muted hover:bg-fg/5 hover:text-fg">
-      <Icon name="menu" />
+      <IconSwap on={!rail} offIcon={<Icon name="menu" />} onIcon={<Icon name="x" />} />
     </button>
   )
 }
