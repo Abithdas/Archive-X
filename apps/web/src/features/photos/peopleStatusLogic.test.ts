@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detailLine, learningLine, namesLine, problemOf, reasonText, type NameList } from './peopleStatus'
+import { detailLine, learningLine, namesLine, problemOf, reasonText, type NameList } from './peopleStatusLogic'
 
 const prov = (o: Partial<NameList['providers'][string]> = {}) => ({ configured: true, status: 'idle', count: 0, last_finished: '', last_error: '', page: 0, ...o })
 const list = (providers: NameList['providers'], total = 0): NameList => ({ total, ready: total > 0, providers })

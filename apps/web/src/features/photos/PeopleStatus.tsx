@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { Icon } from '@/design/Icon'
-import { detailLine, problemOf, type FaceLearning, type NameList } from './peopleStatus'
+import { detailLine, problemOf, type FaceLearning, type NameList } from './peopleStatusLogic'
 
 /** Under the People heading: a headline, one small line of detail, and a warning only when a name list could not be read. */
 export function PeopleStatus({ headline }: { headline: string }) {
