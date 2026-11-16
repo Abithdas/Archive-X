@@ -104,7 +104,10 @@ def test_every_video_is_identified_with_the_fingerprint_of_its_file(keyed, monke
     ident = Identify({1: "applied", 2: "no_match", 3: "suggested"})
     wire(monkeypatch, ident)
     go(ctx_for(keyed, ch, Telegram()))
-    assert sorted(c["id"] for c in ident.calls) == [1, 2, 3] and all(c["oshash"] == "abcdef0123456789" for c in ident.calls)
+    assert sorted({c["id"] for c in ident.calls}) == [1, 2, 3] and all(c["oshash"] == "abcdef0123456789" for c in ident.calls)
+    asked = [c["id"] for c in ident.calls]
+    assert asked.count(1) == 1 and asked.count(3) == 1             # identified and suggested videos are asked once
+    assert asked.count(2) == 2                                     # the no-match one is asked again after the pass found another (new catalogue data)
 
 
 def test_a_video_deleted_from_telegram_is_counted_failed_and_the_rest_still_run(keyed, monkeypatch):
@@ -120,7 +123,9 @@ def test_a_provider_that_raises_for_one_video_does_not_stop_the_others(keyed, mo
     ident = Identify({2: RuntimeError("provider timeout"), 3: "provider_error"})
     wire(monkeypatch, ident)
     go(ctx_for(keyed, ch, Telegram()))
-    assert sorted(c["id"] for c in ident.calls) == [1, 2, 3, 4]
+    asked = [c["id"] for c in ident.calls]
+    assert sorted(set(asked)) == [1, 2, 3, 4]
+    assert asked.count(1) == 1 and asked.count(4) == 1 and asked.count(2) <= 1 + 3     # the failures are retried, a bounded number of times
 
 
 def test_a_failed_batch_lookup_falls_back_to_one_message_at_a_time(keyed, monkeypatch):
@@ -208,3 +213,88 @@ def test_a_token_saved_under_the_older_name_is_used_by_the_lookups_too():
     finally:
         for k, v in old.items():
             db.set_setting(k, v if v is not None else "")
+
+
+# ---------------------------------------------------------------- one scan should do what several passes did ------------------------------------
+class Chained(Identify):
+    """A provider whose answer for a video depends on what the catalogue knew when it was asked: video N is only recognised once
+    video N-1 has been identified (its performer or studio was added to the catalogue). One pass over the videos therefore finds only
+    the first; each further pass finds the next."""
+
+    def __init__(self, db, channel):
+        super().__init__()
+        self.db, self.channel = db, channel
+
+    async def __call__(self, db, *, channel_id, message_id, filename, oshash=None, force=False, **kw):
+        self.calls.append({"id": message_id, "oshash": oshash, "force": force, "filename": filename})
+        known = message_id == 1 or self._matched(message_id - 1)       # what the catalogue knew when this video was asked
+        import asyncio
+        await asyncio.sleep(0.01)                                      # videos asked together all read before any of them writes
+        if known:
+            with self.db.lock:
+                self.db.conn.execute("UPDATE media SET identification_state='MATCHED', metadata_source='stashdb', metadata_synced_at=datetime('now') "
+                                     "WHERE source_channel=? AND source_message_id=?", (str(channel_id), int(message_id)))
+                self.db.conn.commit()
+            return {"action": "applied"}
+        with self.db.lock:
+            self.db.conn.execute("UPDATE media SET metadata_source='none', metadata_synced_at=datetime('now') WHERE source_channel=? AND source_message_id=?", (str(channel_id), int(message_id)))
+            self.db.conn.commit()
+        return {"action": "no_match"}
+
+    def _matched(self, mid):
+        with self.db.lock:
+            row = self.db.conn.execute("SELECT identification_state FROM media WHERE source_channel=? AND source_message_id=?", (self.channel, mid)).fetchone()
+        return bool(row and row["identification_state"] == "MATCHED")
+
+
+def matched_ids(db, ch):
+    with db.lock:
+        return sorted(r[0] for r in db.conn.execute("SELECT source_message_id FROM media WHERE source_channel=? AND identification_state='MATCHED'", (ch,)))
+
+
+def test_one_scan_keeps_going_while_each_pass_identifies_more(keyed, monkeypatch):
+    """A video recognised later in the scan can add the performer or studio an earlier one needed. Without a follow-up the user ran
+    the scan, then a recheck, then another recheck, each finding a few more."""
+    ch = stored(keyed, 4)
+    ident = Chained(keyed, ch)
+    wire(monkeypatch, ident)
+    go(ctx_for(keyed, ch, Telegram()))
+    assert matched_ids(keyed, ch) == [1, 2, 3, 4]
+
+
+def test_when_a_pass_identifies_nothing_new_there_is_no_follow_up(keyed, monkeypatch):
+    ch = stored(keyed, 3)
+    ident = Identify(default="no_match")
+    wire(monkeypatch, ident)
+    go(ctx_for(keyed, ch, Telegram()))
+    assert len(ident.calls) == 3                                    # nothing was learnt, so nobody is asked a second time
+
+
+def test_the_follow_up_asks_only_about_videos_still_unidentified_and_stops_at_a_limit(keyed, monkeypatch):
+    ch = stored(keyed, 12)
+    ident = Chained(keyed, ch)
+    wire(monkeypatch, ident)
+    go(ctx_for(keyed, ch, Telegram()))
+    assert matched_ids(keyed, ch) == [1, 2, 3, 4]                   # a chain of 12 needs 11 passes; 3 follow-ups are the limit
+    asked = [c["id"] for c in ident.calls]
+    assert asked.count(1) == 1                                      # an identified video is never asked about again
+    assert len(asked) < 12 * 4
+
+
+def test_a_video_that_hits_a_provider_error_is_tried_again_in_the_same_scan(keyed, monkeypatch):
+    ch = stored(keyed, 3)
+
+    class Flaky(Identify):
+        async def __call__(self, db, *, channel_id, message_id, **kw):
+            self.calls.append({"id": message_id})
+            if message_id == 2 and sum(1 for c in self.calls if c["id"] == 2) == 1:
+                return {"action": "provider_error", "errors": ["StashDB: timeout"]}
+            with keyed.lock:
+                keyed.conn.execute("UPDATE media SET identification_state='MATCHED' WHERE source_channel=? AND source_message_id=?", (str(channel_id), int(message_id)))
+                keyed.conn.commit()
+            return {"action": "applied"}
+
+    ident = Flaky()
+    wire(monkeypatch, ident)
+    go(ctx_for(keyed, ch, Telegram()))
+    assert matched_ids(keyed, ch) == [1, 2, 3]

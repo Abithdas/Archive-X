@@ -24,6 +24,8 @@ PROVIDER_OPERATION_TIMEOUT_SECONDS = 180.0
 
 BATCH_SIZE = 50      # videos per batch; their Telegram messages are fetched together
 BATCH_MESSAGE_TIMEOUT_SECONDS = 90.0
+# After the main pass, videos that are still unidentified are asked about again while the previous pass identified more (see run()).
+MAX_FOLLOW_UP_ROUNDS = 3
 
 
 
@@ -224,6 +226,9 @@ async def run(ctx):
 
     stats = {"done": 0, "matched": 0, "suggested": 0, "skipped": 0, "no_match": 0, "hash_failed": 0, "fingerprint_ok": 0, "fingerprint_attempted": 0, "failed": 0}
     filename_fallback_ids: list[int] = []
+    # Videos left without an answer, with what is needed to ask again: id -> {channel, message, filename, oshash, last}. A video recognised
+    # later in a pass can add the performer or studio an earlier one needed, and a provider can time out for one video and not the next.''
+    unresolved: dict[int, dict] = {}
     sem = asyncio.Semaphore(CONCURRENCY)
     client = ctx.telegram.client
 
@@ -345,14 +350,19 @@ async def run(ctx):
                 elif action == "no_match":
                     stats["no_match"] += 1
                     filename_fallback_ids.append(int(row["id"]))
+                    unresolved[int(row["id"])] = {"channel": channel_id, "message": message_id, "filename": filename, "oshash": oshash, "last": "no_match"}
                 elif action == "provider_error":
                     stats["failed"] += 1
+                    unresolved[int(row["id"])] = {"channel": channel_id, "message": message_id, "filename": filename, "oshash": oshash, "last": "failed"}
                 else:
                     stats["no_match"] += 1
             except (JobCancelled, asyncio.CancelledError):
                 raise
             except Exception as exc:
                 stats["failed"] += 1
+                if "filename" in locals() and "oshash" in locals():
+                    # a timeout or provider hiccup after the file was read: worth one more try
+                    unresolved[int(row["id"])] = {"channel": channel_id, "message": message_id, "filename": filename, "oshash": oshash, "last": "failed"}
                 _activity(ctx, f"Metadata processing failed for {row['filename']}: {type(exc).__name__}",
                           operation="Metadata matching · item failed", current_item=row["filename"],
                           event="metadata.item_failed", level="WARN",
@@ -381,6 +391,59 @@ async def run(ctx):
         for r in results:
             if isinstance(r, (JobCancelled, asyncio.CancelledError)):
                 raise r
+    # Follow-up rounds. One pass asks about each video once, in turn, with what the catalogue knew at that moment. Identifying one video
+    # adds performers and studios that would have helped an earlier one, and a provider can time out for one video and answer the next, so a
+    # single pass left some unidentified that a second scan or a "recheck metadata" then found. Ask again about the videos still without
+    # an answer while the previous round identified more (and once after a provider error), at most MAX_FOLLOW_UP_ROUNDS times.
+    async def follow_up_round(round_number: int) -> int:
+        resolved_now = 0
+        pending_ids = list(unresolved)
+
+        async def again(media_id: int) -> None:
+            nonlocal resolved_now
+            info = unresolved.get(media_id)
+            if not info:
+                return
+            async with sem:
+                await ctx.checkpoint()
+                try:
+                    result = await ctx.cancellable(lambda: identify_video(
+                        ctx.db, channel_id=info["channel"], message_id=info["message"], filename=info["filename"], oshash=info["oshash"] or None,
+                        force=force, reconcile_filename_entities=False, visual_scan=True,
+                    ), timeout=PROVIDER_OPERATION_TIMEOUT_SECONDS, activity=True)
+                except (JobCancelled, asyncio.CancelledError):
+                    raise
+                except Exception:
+                    return                                   # still unanswered; the next round or scan will try again
+                action = result.get("action")
+                if action in ("applied", "suggested", "skipped"):
+                    if info["last"] == "failed":
+                        stats["failed"] = max(0, stats["failed"] - 1)
+                    else:
+                        stats["no_match"] = max(0, stats["no_match"] - 1)
+                    stats["matched" if action == "applied" else "suggested" if action == "suggested" else "skipped"] += 1
+                    unresolved.pop(media_id, None)
+                    if media_id in filename_fallback_ids:
+                        filename_fallback_ids.remove(media_id)
+                    resolved_now += 1
+                elif action == "provider_error":
+                    info["last"] = "failed"
+
+        for start in range(0, len(pending_ids), BATCH_SIZE):
+            await wait_for_metadata_scan_window(ctx)
+            await ctx.checkpoint()
+            await asyncio.gather(*(again(i) for i in pending_ids[start:start + BATCH_SIZE]))
+        ctx.db.log(f"Metadata match: follow-up round {round_number} asked about {len(pending_ids)} unidentified video(s) and identified {resolved_now} more", "INFO")
+        return resolved_now
+
+    from ..core.scan_schedule import wait_for_metadata_scan_window
+    errors_to_retry = any(v["last"] == "failed" for v in unresolved.values())
+    progress = stats["matched"] > 0 or errors_to_retry
+    for round_number in range(1, MAX_FOLLOW_UP_ROUNDS + 1):
+        if not unresolved or not progress:
+            break
+        progress = (await follow_up_round(round_number)) > 0 and any(v["last"] == "no_match" or v["last"] == "failed" for v in unresolved.values())
+
     # Apply deterministic filename entity links only to videos for which the
     # provider pipeline returned no scene candidate. Exact hash matches and
     # reviewable provider candidates remain authoritative and are not overlaid.
