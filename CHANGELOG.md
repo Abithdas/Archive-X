@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Next release (not published)
+## 30.3.3 (2026-11-16)
 - Exit app and the sidebar:
   - "Exit app" in the desktop app showed "The Archive X backend stopped unexpectedly" and closed with an error. The page asks the backend to stop (it saves its jobs and ends with a success status), and the desktop shell took that for a crash. The shell now tells the two apart: a backend that stops by itself with a success status is a requested exit, and the app closes with it, quietly. A crash or a kill still shows the error with the backend's last output. The shell was compile-checked and the launcher tested; the exit itself has not been tried on a real PC.
   - The Videos counter in the sidebar stayed lit by an open playback session even when nothing was playing (a paused, ended or abandoned video keeps its session; an idle one was also relabelled "PLAYING"). The playback session is now listed as IDLE when nothing has streamed for 15 seconds, and only a streaming one is counted. It stays in the Operations list so it can still be stopped. The native player now also tells the server when it is left, as the browser player already did.
