@@ -310,8 +310,25 @@ async def _prepare_local_snapshot_assets(
     return failures
 
 
+def _int(value: Any, default: int = 0) -> int:
+    """A whole number from whatever a saved job holds (a number, digits as text, nothing, or junk)."""
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        try:
+            return int(float(value))
+        except (TypeError, ValueError, OverflowError):
+            return default
+
+
+def _dict(value: Any) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
 def _work_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
     """Return a UI-safe hierarchical progress snapshot from the checkpoint."""
+    if not isinstance(payload, dict):
+        payload = {}
     channels = payload.get("channel_queue") if isinstance(payload.get("channel_queue"), list) else []
     selected = _selected_stages(payload)
     total_work = completed_work = 0.0
@@ -325,12 +342,10 @@ def _work_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
         for phase in PHASES:
             if phase not in selected:
                 continue
-            pp = (entry.get("phase_progress") or {}).get(phase)
-            if not isinstance(pp, dict):
-                pp = {}
-            total = max(0, int(pp.get("total") or 0))
-            done = max(0, min(total if total else max(0, int(pp.get("completed") or 0)), int(pp.get("completed") or 0)))
-            state = str((entry.get("phases") or {}).get(phase) or "PENDING").upper()
+            pp = _dict(_dict(entry.get("phase_progress")).get(phase))
+            total = max(0, _int(pp.get("total")))
+            done = max(0, min(total if total else max(0, _int(pp.get("completed"))), _int(pp.get("completed"))))
+            state = str(_dict(entry.get("phases")).get(phase) or "PENDING").upper()
             if state in {"COMPLETED", "COMPLETED_WITH_ERRORS"} and total:
                 done = total
             if not total:
@@ -356,11 +371,11 @@ def _work_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
         channel_rows.append({
             "channel_id": str(entry.get("channel_id") or ""),
             "state": str(entry.get("state") or "PENDING").upper(),
-            "total_videos": int((entry.get("counts") or {}).get("videos") or len(entry.get("videos") or [])),
-            "failed": int((entry.get("counts") or {}).get("failed") or 0),
-            "published_ready": int((entry.get("readiness") or {}).get("published_ready") or (entry.get("counts") or {}).get("published_ready") or 0),
-            "needs_review": int((entry.get("readiness") or {}).get("needs_review") or (entry.get("counts") or {}).get("needs_review") or 0),
-            "needs_snapshots": int((entry.get("readiness") or {}).get("snapshot_pending") or 0),
+            "total_videos": _int(_dict(entry.get("counts")).get("videos")) or len(entry.get("videos") if isinstance(entry.get("videos"), list) else []),
+            "failed": _int(_dict(entry.get("counts")).get("failed")),
+            "published_ready": _int(_dict(entry.get("readiness")).get("published_ready")) or _int(_dict(entry.get("counts")).get("published_ready")),
+            "needs_review": _int(_dict(entry.get("readiness")).get("needs_review")) or _int(_dict(entry.get("counts")).get("needs_review")),
+            "needs_snapshots": _int(_dict(entry.get("readiness")).get("snapshot_pending")),
             "progress": round(channel_done * 100.0 / channel_total, 1) if channel_total else 0.0,
             "completed_work": int(channel_done), "total_work": int(channel_total),
             "remaining_work": max(0, int(channel_total - channel_done)),
@@ -369,21 +384,25 @@ def _work_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
             "error": str(entry.get("error") or ""),
         })
     caption_state = payload.get("caption_reconciliation") if isinstance(payload.get("caption_reconciliation"), dict) else {}
-    caption_total = max(0, int(caption_state.get("total") or 0))
-    caption_completed = min(caption_total, max(0, int(caption_state.get("completed") or 0)))
+    caption_total = max(0, _int(caption_state.get("total")))
+    caption_completed = min(caption_total, max(0, _int(caption_state.get("completed"))))
     if caption_total:
         total_work += caption_total
         completed_work += caption_completed
 
-    current_index = int(payload.get("current_channel_index") or 0)
+    current_index = _int(payload.get("current_channel_index"))
     current = channel_rows[current_index] if 0 <= current_index < len(channel_rows) else None
     current_phase = str(payload.get("current_phase") or "")
     if current and not current_phase:
         current_phase = next((p["phase"] for p in current["phases"] if p["state"] == "PROCESSING"), "")
     clock = payload.get("progress_started_at")
-    if not clock:
+    try:
+        clock = float(clock)
+    except (TypeError, ValueError):
+        clock = 0.0
+    if clock <= 0:
         clock = payload["progress_started_at"] = time.time()
-    elapsed = max(0.0, time.time() - float(clock))
+    elapsed = max(0.0, time.time() - clock)
     remaining_work = max(0, int(total_work - completed_work))
     rate = completed_work / elapsed if elapsed > 1.0 else 0.0
     global_eta = remaining_work / rate if remaining_work and rate > 0 else (0.0 if remaining_work == 0 else None)
@@ -2295,7 +2314,14 @@ def progress_snapshot(detail: str | dict[str, Any] | None) -> dict[str, Any]:
         payload = dict(detail)
     else:
         payload = {}
-    return _work_snapshot(payload)
+    if not isinstance(payload, dict):
+        payload = {}                      # valid JSON that is not an object ("[]", "123", "null")
+    try:
+        return _work_snapshot(payload)
+    except Exception:
+        # A saved job in a shape no version wrote must not take the progress page down with it.
+        _swallowed_note("metadata_channel_pipeline.progress_snapshot")
+        return _work_snapshot({})
 
 
 async def _run_metadata_assets(ctx):

@@ -261,3 +261,61 @@ def test_a_resumed_job_does_not_repeat_finished_stages(monkeypatch):
     again = h.Engines(db)
     _, payload = h.job(db, monkeypatch, stages=ALL, channels=[ch], history=hist, engines=again, detail=saved)
     assert again.calls == [] and payload["result_status"] == "COMPLETED"
+
+
+# ---------------------------------------------------------------- the pending-only scan and caption sync --------------------------------------
+def test_a_pending_scan_never_asks_telegram_and_only_works_on_videos_not_in_the_library(monkeypatch):
+    db = h.fresh_db()
+    ch, hist = channel_with_videos(5)
+    done = h.Engines(db)
+    h.job(db, monkeypatch, stages=ALL, channels=[ch], history=hist, engines=done)       # everything is in the Library now
+    assert h.count(db, ch) == 5
+    # two videos fall out of the Library again (a snapshot set was lost)
+    with db.lock:
+        db.conn.execute("UPDATE resource_state SET snapshot_state='MISSING' WHERE media_id IN (SELECT id FROM media WHERE source_channel=? AND source_message_id IN (2,4))", (ch,))
+        db.conn.commit()
+    asked = h.FakeHistory({i: h.video(i) for i in range(1, 6)})
+    eng = h.Engines(db)
+    _, payload = h.job(db, monkeypatch, stages=["metadata", "performers", "channel_data", "snapshots"], channels=[ch], history=asked, engines=eng,
+                       detail={"pending_only": True, "unbounded": False, "limit": 10})
+    assert asked.calls == []                                                            # no Telegram history walk
+    thumbs = [d for k, d in eng.calls if k == "thumbnails"]
+    assert len(thumbs) == 1 and sorted(thumbs[0]["message_ids"]) == [2, 4]              # exactly the two that fell out
+    assert payload["result_status"] == "COMPLETED"
+
+
+def test_a_pending_scan_of_a_channel_that_is_all_in_the_library_has_nothing_to_do(monkeypatch):
+    db = h.fresh_db()
+    ch, hist = channel_with_videos(3)
+    h.job(db, monkeypatch, stages=ALL, channels=[ch], history=hist, engines=h.Engines(db))
+    eng = h.Engines(db)
+    _, payload = h.job(db, monkeypatch, stages=["metadata", "snapshots"], channels=[ch], engines=eng, detail={"pending_only": True})
+    assert eng.calls == [] and payload["channel_queue"][0]["state"] == "COMPLETED"
+
+
+def test_videos_deleted_from_telegram_are_not_treated_as_pending(monkeypatch):
+    db = h.fresh_db()
+    ch, hist = channel_with_videos(3)
+    h.install(monkeypatch, hist)
+    h.run(h.pipe._discover_and_store_inventory(h.make_ctx(db), ch, 0, full_scan=True))
+    with db.lock:
+        db.conn.execute("UPDATE media SET status='SOURCE_DELETED' WHERE source_channel=? AND source_message_id=2", (ch,))
+        db.conn.commit()
+    ids = [v["message_id"] for v in h.pipe._local_inventory(h.make_ctx(db), ch, 0, pending_only=True)]
+    assert sorted(ids) == [1, 3]
+    assert sorted(v["message_id"] for v in h.pipe._local_inventory(h.make_ctx(db), ch, 0)) == [1, 3]
+    assert len(h.pipe._local_inventory(h.make_ctx(db), ch, 1, pending_only=True)) == 1             # a limit is honoured
+
+
+def test_a_caption_sync_that_fails_does_not_fail_the_stage(monkeypatch):
+    db = h.fresh_db()
+    ch, hist = channel_with_videos(3)
+
+    async def boom(*a, **k):
+        raise RuntimeError("Telegram would not edit the caption")
+
+    monkeypatch.setattr(h.pipe, "_sync_changed_captions", boom)
+    monkeypatch.setattr(h.pipe, "_caption_signatures", lambda db_, ch_, videos: {int(v["media_id"]): "changed-%s" % (id(object()),) for v in videos})
+    eng = h.Engines(db)
+    _, payload = h.job(db, monkeypatch, stages=["inventory", "metadata"], channels=[ch], history=hist, engines=eng)
+    assert h.phases(payload)["metadata"] == "COMPLETED" and payload["channel_queue"][0].get("error", "") == ""
