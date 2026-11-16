@@ -191,20 +191,18 @@ def _scan_work_reason(row) -> str:
         promote_existing_local_frames_sync(cid, mid)
         frames_dir = preview_frames_path(cid, mid)
         rep = representative_frame_path(cid, mid)
-        if not frames_dir.is_dir():
+        listing = _frame_listing(frames_dir)             # the folder is read once; every check below uses that listing
+        if listing is None:
             return "no snapshot folder on disk"
-        have = sum(
-            1 for idx in range(1, FRAME_COUNT + 1)
-            if (frames_dir / f"frame_{idx:02d}.jpg").is_file() and (frames_dir / f"frame_{idx:02d}.jpg").stat().st_size >= MIN_FRAME_BYTES
-        )
+        have = sum(1 for idx in range(1, FRAME_COUNT + 1) if (st := listing.get(f"frame_{idx:02d}.jpg")) is not None and st.st_size >= MIN_FRAME_BYTES)
         if have < FRAME_COUNT:
             return f"only {have} of {FRAME_COUNT} snapshot frames on disk"
-        if not rep.is_file():
+        if rep.name not in listing:
             return "representative frame missing"
-        if not _validation_receipt_ready(frames_dir):
+        if not _validation_receipt_ready(frames_dir, listing):
             return "snapshot validation receipt missing or out of date"
-        sprite = grid_sprite_path(cid, mid)
-        if not (sprite.is_file() and sprite.stat().st_size >= 1024):
+        sprite = listing.get(grid_sprite_path(cid, mid).name)
+        if not (sprite is not None and sprite.st_size >= 1024):
             return "grid picture missing"
         if str(row["cache_status"] or "").upper() != "READY":
             return f"database says snapshots are {str(row['cache_status'] or 'not recorded').lower()}"
@@ -255,15 +253,59 @@ def grid_sprite_path(channel_id: int, message_id: int) -> Path:
     return preview_frames_path(channel_id, message_id) / "grid_sprite.jpg"
 
 
-def _has_all_local_frame_files(frames_dir: Path) -> bool:
+_SIBLINGS: dict[str, tuple[float, dict[int, list[str]]]] = {}
+
+
+def _sibling_versions(parent: Path, message_id: int) -> list[str]:
+    """Names of the frame folders of `message_id` under `parent` (any version). The channel folder is read once and indexed (and reused for a
+    few seconds): searching it with a glob for every video made the readiness check of a channel slower with every video (quadratic)."""
+    import os
+    import re
+    import time
+    key = str(parent)
+    hit = _SIBLINGS.get(key)
+    now = time.monotonic()
+    if hit is None or now - hit[0] > 5.0:
+        index: dict[int, list[str]] = {}
+        try:
+            with os.scandir(parent) as entries:
+                for entry in entries:
+                    found = re.fullmatch(r"(\d+)_v\d+\.frames", entry.name)
+                    if found and entry.is_dir():
+                        index.setdefault(int(found.group(1)), []).append(entry.name)
+        except OSError:
+            index = {}
+        hit = _SIBLINGS[key] = (now, index)
+    return list(hit[1].get(int(message_id), []))
+
+
+def _frame_listing(root: Path) -> dict | None:
+    """name -> stat of the files directly inside `root`, from ONE directory read. On Windows the sizes and times arrive with the listing, so
+    checking a video's 36 frames costs one call instead of 72 (is_file + stat each); the readiness check of a big channel makes these
+    calls for every video, several times over. None when the folder is missing or unreadable."""
+    import os
+    out: dict = {}
     try:
-        return all(
-            (Path(frames_dir) / f"frame_{idx:02d}.jpg").is_file()
-            and (Path(frames_dir) / f"frame_{idx:02d}.jpg").stat().st_size >= MIN_FRAME_BYTES
-            for idx in range(1, FRAME_COUNT + 1)
-        )
+        with os.scandir(root) as entries:
+            for entry in entries:
+                try:
+                    if entry.is_file():
+                        out[entry.name] = entry.stat()
+                except OSError:
+                    continue
     except OSError:
+        return None
+    return out
+
+
+def _has_all_local_frame_files(frames_dir: Path, listing: dict | None = None) -> bool:
+    listing = listing if listing is not None else _frame_listing(Path(frames_dir))
+    if listing is None:
         return False
+    return all(
+        (st := listing.get(f"frame_{idx:02d}.jpg")) is not None and st.st_size >= MIN_FRAME_BYTES
+        for idx in range(1, FRAME_COUNT + 1)
+    )
 
 
 def promote_existing_local_frames_sync(channel_id: int, message_id: int) -> bool:
@@ -274,8 +316,9 @@ def promote_existing_local_frames_sync(channel_id: int, message_id: int) -> bool
     with _LOCAL_PREVIEW_REPAIR_LOCK:
         # Current version already has a sound saved receipt: this is the common
         # scan path and only requires inexpensive fingerprint/file checks.
-        if _has_all_local_frame_files(current):
-            if _validation_receipt_ready(current):
+        listing = _frame_listing(current)               # one directory read serves both checks below
+        if listing is not None and _has_all_local_frame_files(current, listing):
+            if _validation_receipt_ready(current, listing):
                 return True
             saved = load_saved_frame_validation_sync(current)
             if saved is not None:
@@ -285,10 +328,7 @@ def promote_existing_local_frames_sync(channel_id: int, message_id: int) -> bool
                 save_frame_validation_sync(current, quality)
                 return True
         parent = current.parent
-        try:
-            candidates = list(parent.glob(f"{mid}_v*.frames"))
-        except OSError:
-            candidates = []
+        candidates = [parent / name for name in _sibling_versions(parent, mid)]
         def _version(path):
             try:
                 return int(path.name.split("_v", 1)[1].split(".", 1)[0])
@@ -487,7 +527,7 @@ def frame_quality_sync(frames_dir: Path) -> dict:
 _LOCAL_PREVIEW_REPAIR_LOCK = threading.RLock()
 
 
-def _validation_receipt_ready(frames_dir: Path) -> dict | None:
+def _validation_receipt_ready(frames_dir: Path, listing: dict | None = None) -> dict | None:
     """Return a valid saved receipt using metadata-only file checks (no JPEG decode)."""
     try:
         root = Path(frames_dir)
@@ -501,16 +541,16 @@ def _validation_receipt_ready(frames_dir: Path) -> dict | None:
         by_name = {str(item.get("name") or ""): item for item in files if isinstance(item, dict)}
         if len(by_name) != FRAME_COUNT:
             return None
-        # Stat checks catch replaced/missing files while keeping manifest requests
+        # Size and time checks catch replaced/missing files while keeping manifest requests
         # free of Pillow decoding or JPEG verification.
+        listing = listing if listing is not None else _frame_listing(root)
+        if listing is None:
+            return None
         for idx in range(1, FRAME_COUNT + 1):
             name = f"frame_{idx:02d}.jpg"
             item = by_name.get(name)
-            if item is None:
-                return None
-            path = root / name
-            stat = path.stat()
-            if (not path.is_file() or stat.st_size < MIN_FRAME_BYTES
+            stat = listing.get(name)
+            if (item is None or stat is None or stat.st_size < MIN_FRAME_BYTES
                     or stat.st_size != int(item.get("size") or -1)
                     or stat.st_mtime_ns != int(item.get("mtime_ns") or -1)):
                 return None

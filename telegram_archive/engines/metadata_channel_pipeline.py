@@ -786,55 +786,63 @@ async def _discover_and_store_inventory(ctx, channel_id: str, limit: int, *, ful
             )
     await asyncio.to_thread(_store_split_groups)
     def _store_media_rows():
-        for record in ordered:
+        # Records are written in short chunks: one lock hold and one commit per ~50 ms of work, not one per record. A commit per record cost
+        # a disk flush for every video (slow on a big library or a hard disk), and the chunk limit keeps the database lock free often enough
+        # that the event loop and everything else never wait long (a 95 s wait for a whole batch once got the job killed by the watchdog).
+        position = 0
+        while position < len(ordered):
+            deadline = time.monotonic() + 0.05
             with ctx.db.lock:
-                message_id = int(record.get("id") or 0)
-                if not message_id:
-                    continue
-                filename = str(record.get("name") or f"Telegram video {message_id}")
-                size = int(record.get("size") or 0)
-                duration = float(record.get("duration") or 0)
-                caption_update = "excluded.caption" if full_scan else "CASE WHEN excluded.caption<>'' THEN excluded.caption ELSE media.caption END"
-                ctx.db.conn.execute(
-                    f"""INSERT INTO media(
-                        source_channel,source_message_id,filename,title,size,duration,
-                        width,height,fps,streamable,status,caption,created_at,updated_at
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                    ON CONFLICT(source_channel,source_message_id) DO UPDATE SET
-                        filename=excluded.filename,
-                        title=CASE WHEN media.title IS NULL OR TRIM(media.title)='' OR media.title=media.filename
-                                   THEN excluded.title ELSE media.title END,
-                        size=CASE WHEN excluded.size>0 THEN excluded.size ELSE media.size END,
-                        duration=CASE WHEN excluded.duration>0 THEN excluded.duration ELSE media.duration END,
-                        width=CASE WHEN excluded.width>0 THEN excluded.width ELSE media.width END,
-                        height=CASE WHEN excluded.height>0 THEN excluded.height ELSE media.height END,
-                        caption={caption_update},
-                        status=CASE WHEN media.status='SOURCE_DELETED' THEN excluded.status ELSE media.status END,
-                        streamable=1,updated_at=excluded.updated_at""",
-                    (channel_id, message_id, filename, filename, size, duration,
-                     int(record.get("width") or 0), int(record.get("height") or 0), 0.0, 1,
-                     "SCANNED", str(record.get("caption") or ""), now, now),
-                )
-                from ..core.telegram_registry import register_known_message
-                media_row = ctx.db.conn.execute(
-                    "SELECT id,thumbnail_message_id FROM media WHERE source_channel=? AND source_message_id=?",
-                    (channel_id, message_id),
-                ).fetchone()
-                if record.get("is_split_group") and record.get("thumbnail_message_id") and media_row:
+                while position < len(ordered):
+                    record = ordered[position]
+                    position += 1
+                    message_id = int(record.get("id") or 0)
+                    if not message_id:
+                        continue
+                    filename = str(record.get("name") or f"Telegram video {message_id}")
+                    size = int(record.get("size") or 0)
+                    duration = float(record.get("duration") or 0)
+                    caption_update = "excluded.caption" if full_scan else "CASE WHEN excluded.caption<>'' THEN excluded.caption ELSE media.caption END"
                     ctx.db.conn.execute(
-                        "UPDATE media SET thumbnail_message_id=? WHERE id=?",
-                        (int(record["thumbnail_message_id"]), int(media_row["id"])),
+                        f"""INSERT INTO media(
+                            source_channel,source_message_id,filename,title,size,duration,
+                            width,height,fps,streamable,status,caption,created_at,updated_at
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        ON CONFLICT(source_channel,source_message_id) DO UPDATE SET
+                            filename=excluded.filename,
+                            title=CASE WHEN media.title IS NULL OR TRIM(media.title)='' OR media.title=media.filename
+                                       THEN excluded.title ELSE media.title END,
+                            size=CASE WHEN excluded.size>0 THEN excluded.size ELSE media.size END,
+                            duration=CASE WHEN excluded.duration>0 THEN excluded.duration ELSE media.duration END,
+                            width=CASE WHEN excluded.width>0 THEN excluded.width ELSE media.width END,
+                            height=CASE WHEN excluded.height>0 THEN excluded.height ELSE media.height END,
+                            caption={caption_update},
+                            status=CASE WHEN media.status='SOURCE_DELETED' THEN excluded.status ELSE media.status END,
+                            streamable=1,updated_at=excluded.updated_at""",
+                        (channel_id, message_id, filename, filename, size, duration,
+                         int(record.get("width") or 0), int(record.get("height") or 0), 0.0, 1,
+                         "SCANNED", str(record.get("caption") or ""), now, now),
                     )
-                if not record.get("is_split_group"):
-                    register_known_message(
-                        ctx.db, channel_id=channel_id, message_id=message_id, record=record,
-                        media_id=int(media_row["id"]) if media_row else None,
-                        thumbnail_message_id=int(media_row["thumbnail_message_id"] or 0) if media_row else None,
-                    )
-                # One record at a time, committed: the lock is free between records, so the event loop (and everything else) never waits
-                # for the whole batch (a 95 s wait for it got the job killed by the watchdog).
+                    from ..core.telegram_registry import register_known_message
+                    media_row = ctx.db.conn.execute(
+                        "SELECT id,thumbnail_message_id FROM media WHERE source_channel=? AND source_message_id=?",
+                        (channel_id, message_id),
+                    ).fetchone()
+                    if record.get("is_split_group") and record.get("thumbnail_message_id") and media_row:
+                        ctx.db.conn.execute(
+                            "UPDATE media SET thumbnail_message_id=? WHERE id=?",
+                            (int(record["thumbnail_message_id"]), int(media_row["id"])),
+                        )
+                    if not record.get("is_split_group"):
+                        register_known_message(
+                            ctx.db, channel_id=channel_id, message_id=message_id, record=record,
+                            media_id=int(media_row["id"]) if media_row else None,
+                            thumbnail_message_id=int(media_row["thumbnail_message_id"] or 0) if media_row else None,
+                        )
+                    if time.monotonic() >= deadline:
+                        break
                 ctx.db.conn.commit()
-            time.sleep(0.001)   # Python's lock is not fair: without this pause this thread takes it straight back and a waiting thread can starve
+            time.sleep(0.002)   # Python's lock is not fair: without this pause this thread takes it straight back and a waiting thread can starve
         with ctx.db.lock:
             # Only a complete scan of all Telegram history can prove that older
             # messages disappeared. Incremental passes never tombstone unseen rows.

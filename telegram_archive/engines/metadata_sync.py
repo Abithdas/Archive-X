@@ -232,6 +232,108 @@ async def run(ctx):
     sem = asyncio.Semaphore(CONCURRENCY)
     client = ctx.telegram.client
 
+    async def fingerprint_of(row, message, filename, channel_id, message_id):
+        """The OSHASH of this video's file: the stored one, else read from two small pieces of the Telegram file. Never raises except for a cancel."""
+        oshash = str(row["oshash"] or "").strip() if "oshash" in row.keys() else None
+        stats["fingerprint_attempted"] += 1
+        if oshash:
+            stats["fingerprint_ok"] += 1
+        if not oshash:
+            source = None
+            _activity(ctx, f"Fingerprint lookup started for {filename}",
+                      operation="Metadata matching · calculate source fingerprint", current_item=filename,
+                      event="metadata.fingerprint_started", details={"filename": filename,
+                      "channel_id": channel_id, "message_id": message_id})
+            try:
+                source = DirectTelegramRangeSource(client, message, asyncio.get_running_loop(), fingerprint_lane=True)
+                oshash = await ctx.cancellable(
+                    lambda: asyncio.to_thread(oshash_from_source, source),
+                    timeout=FINGERPRINT_TIMEOUT_SECONDS, activity=True,
+                )
+                stats["fingerprint_ok"] += 1
+                # Metadata matching can run far ahead of the snapshot
+                # worker on a large channel. Pin only the two 64 KiB
+                # OSHASH intervals to temporary scan storage so the
+                # later MP4-index/snapshot phase can reuse them even if
+                # the bounded RAM cache has moved on to other videos.
+                try:
+                    from ..core import scan_range_cache
+                    fsize = int(getattr(getattr(message, "file", None), "size", 0) or 0)
+                    cache_key = scan_range_cache.key_for_message(message, fsize)
+                    span = min(64 * 1024, fsize)
+                    if cache_key and span > 0:
+                        await asyncio.to_thread(
+                            scan_range_cache.pin_ranges, cache_key,
+                            [(0, span), (max(0, fsize - span), span)],
+                        )
+                except Exception:
+                    _swallowed_note("metadata_sync.run.one")
+                    pass
+                _activity(ctx, f"Source fingerprint ready for {filename}",
+                          operation="Metadata matching · fingerprint ready", current_item=filename,
+                          event="metadata.fingerprint_completed", details={"filename": filename,
+                          "has_oshash": bool(oshash), "channel_id": channel_id, "message_id": message_id})
+            except (JobCancelled, asyncio.CancelledError):
+                raise
+            except Exception as exc:
+                stats["hash_failed"] += 1     # filename lookup still runs
+                _activity(ctx, f"Fingerprint unavailable for {filename} ({type(exc).__name__}: {str(exc)[:240]}); continuing with filename evidence",
+                          operation="Metadata matching · filename fallback", current_item=filename,
+                          event="metadata.fingerprint_failed", level="WARN",
+                          details={"filename": filename, "error_type": type(exc).__name__,
+                                   "error": str(exc)[:400], "channel_id": channel_id, "message_id": message_id})
+            finally:
+                if source is not None:
+                    try:
+                        source.close()
+                    except Exception:
+                        _swallowed_note("metadata_sync.run.one")
+                        pass
+        return oshash
+
+    fingerprints: dict[int, str | None] = {}
+
+    async def warm_fingerprints(batch, prefetched) -> None:
+        """Read the fingerprints of a batch's files together, then ask StashDB about all of them in ONE request (instead of one request, 0.5 s
+        apart, per video). The per-video lookup that follows finds the answer in the cache. Anything that goes wrong here just leaves the
+        normal per-video path to do the work, as before."""
+        hashes: list[str] = []
+
+        async def read(row) -> None:
+            key = (int(row["source_channel"]), int(row["source_message_id"]))
+            message = (prefetched or {}).get(key)
+            if not message or not getattr(message, "file", None):
+                return
+            stored = str(row["oshash"] or "").strip() if "oshash" in row.keys() else ""
+            if stored:
+                hashes.append(stored)
+                return
+            async with sem:
+                await ctx.checkpoint()
+                filename = getattr(message.file, "name", None) or row["filename"] or f"telegram_{key[1]}.mp4"
+                try:
+                    value = await fingerprint_of(row, message, filename, key[0], key[1])
+                except (JobCancelled, asyncio.CancelledError):
+                    raise
+                except Exception:
+                    return
+            fingerprints[int(row["id"])] = value
+            if value:
+                hashes.append(value)
+
+        ctx.report(completed=stats["done"], total=total, operation="Metadata matching · reading file fingerprints", force=True)
+        await asyncio.gather(*(read(r) for r in batch))
+        key = ctx.db.setting("stashdb_api_key")
+        if key and hashes:
+            from ..metadata.providers import stashdb_by_oshash_many
+            try:
+                await ctx.cancellable(lambda: stashdb_by_oshash_many(ctx.db, key, hashes), timeout=PROVIDER_OPERATION_TIMEOUT_SECONDS * 2, activity=True)
+            except (JobCancelled, asyncio.CancelledError):
+                raise
+            except Exception as exc:
+                _swallowed_note("metadata_sync.warm_fingerprints")
+                ctx.db.log(f"Metadata match: batched fingerprint lookup skipped ({type(exc).__name__}); looking up one video at a time", "INFO")
+
     async def one(row, prefetched=None):
         """Identify one source message and record the result."""
         channel_id = int(row["source_channel"])
@@ -270,61 +372,10 @@ async def run(ctx):
                 # when a local filename reference exists. If no provider has an
                 # exact hash result, identify_video continues with filename clues
                 # and then falls back to the saved local reference.
-                oshash = str(row["oshash"] or "").strip() if "oshash" in row.keys() else None
-                stats["fingerprint_attempted"] += 1
-                if oshash:
-                    stats["fingerprint_ok"] += 1
-                if not oshash:
-                    source = None
-                    _activity(ctx, f"Fingerprint lookup started for {filename}",
-                              operation="Metadata matching · calculate source fingerprint", current_item=filename,
-                              event="metadata.fingerprint_started", details={"filename": filename,
-                              "channel_id": channel_id, "message_id": message_id})
-                    try:
-                        source = DirectTelegramRangeSource(client, message, asyncio.get_running_loop(), fingerprint_lane=True)
-                        oshash = await ctx.cancellable(
-                            lambda: asyncio.to_thread(oshash_from_source, source),
-                            timeout=FINGERPRINT_TIMEOUT_SECONDS, activity=True,
-                        )
-                        stats["fingerprint_ok"] += 1
-                        # Metadata matching can run far ahead of the snapshot
-                        # worker on a large channel. Pin only the two 64 KiB
-                        # OSHASH intervals to temporary scan storage so the
-                        # later MP4-index/snapshot phase can reuse them even if
-                        # the bounded RAM cache has moved on to other videos.
-                        try:
-                            from ..core import scan_range_cache
-                            fsize = int(getattr(getattr(message, "file", None), "size", 0) or 0)
-                            cache_key = scan_range_cache.key_for_message(message, fsize)
-                            span = min(64 * 1024, fsize)
-                            if cache_key and span > 0:
-                                await asyncio.to_thread(
-                                    scan_range_cache.pin_ranges, cache_key,
-                                    [(0, span), (max(0, fsize - span), span)],
-                                )
-                        except Exception:
-                            _swallowed_note("metadata_sync.run.one")
-                            pass
-                        _activity(ctx, f"Source fingerprint ready for {filename}",
-                                  operation="Metadata matching · fingerprint ready", current_item=filename,
-                                  event="metadata.fingerprint_completed", details={"filename": filename,
-                                  "has_oshash": bool(oshash), "channel_id": channel_id, "message_id": message_id})
-                    except (JobCancelled, asyncio.CancelledError):
-                        raise
-                    except Exception as exc:
-                        stats["hash_failed"] += 1     # filename lookup still runs
-                        _activity(ctx, f"Fingerprint unavailable for {filename} ({type(exc).__name__}: {str(exc)[:240]}); continuing with filename evidence",
-                                  operation="Metadata matching · filename fallback", current_item=filename,
-                                  event="metadata.fingerprint_failed", level="WARN",
-                                  details={"filename": filename, "error_type": type(exc).__name__,
-                                           "error": str(exc)[:400], "channel_id": channel_id, "message_id": message_id})
-                    finally:
-                        if source is not None:
-                            try:
-                                source.close()
-                            except Exception:
-                                _swallowed_note("metadata_sync.run.one")
-                                pass
+                if int(row["id"]) in fingerprints:
+                    oshash = fingerprints.pop(int(row["id"]))        # already read together with the rest of its batch
+                else:
+                    oshash = await fingerprint_of(row, message, filename, channel_id, message_id)
 
                 _activity(ctx, f"Identifying scene metadata for {filename}",
                           operation="Metadata matching · match title and entities", current_item=filename,
@@ -387,6 +438,7 @@ async def run(ctx):
         await ctx.checkpoint()
         batch = rows[start:start + BATCH_SIZE]
         prefetched = await _prefetch_messages(ctx, client, batch)
+        await warm_fingerprints(batch, prefetched)
         results = await asyncio.gather(*(one(r, prefetched) for r in batch), return_exceptions=True)
         for r in results:
             if isinstance(r, (JobCancelled, asyncio.CancelledError)):

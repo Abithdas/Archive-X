@@ -68,7 +68,18 @@ class Identify:
         return {"action": out}
 
 
+WARMED: list[list[str]] = []          # the hashes each batched StashDB lookup was asked about
+
+
 def wire(monkeypatch, identify, *, hash_error=None):
+    from telegram_archive.metadata import providers as providers_module
+
+    async def no_network_batch(db, key, hashes, **kw):
+        WARMED.append(list(hashes))
+        return {}
+
+    WARMED.clear()
+    monkeypatch.setattr(providers_module, "stashdb_by_oshash_many", no_network_batch)
     monkeypatch.setattr(meta_pipeline, "identify_video", identify)
     monkeypatch.setattr("telegram_archive.core.scan_schedule.wait_for_metadata_scan_window", h._no_wait)
 
@@ -298,3 +309,65 @@ def test_a_video_that_hits_a_provider_error_is_tried_again_in_the_same_scan(keye
     wire(monkeypatch, ident)
     go(ctx_for(keyed, ch, Telegram()))
     assert matched_ids(keyed, ch) == [1, 2, 3]
+
+
+def test_a_batch_of_videos_is_looked_up_in_stashdb_with_one_request_not_one_each(keyed, monkeypatch):
+    ch = stored(keyed, 130)
+    wire(monkeypatch, Identify())
+    go(ctx_for(keyed, ch, Telegram()))
+    assert [len(batch) for batch in WARMED] == [50, 50, 30]                  # one batched lookup per batch of videos
+    assert all(h == "abcdef0123456789" for batch in WARMED for h in batch)
+
+
+def test_videos_with_a_stored_fingerprint_are_included_without_reading_their_file(keyed, monkeypatch):
+    ch = stored(keyed, 3)
+    with keyed.lock:
+        keyed.conn.execute("UPDATE media SET oshash='feedfacefeedface' WHERE source_channel=?", (ch,))
+        keyed.conn.commit()
+    wire(monkeypatch, Identify(), hash_error=RuntimeError("the file must not be read"))
+    go(ctx_for(keyed, ch, Telegram()))
+    assert WARMED == [["feedfacefeedface"] * 3]
+
+
+def test_a_failing_batched_lookup_never_stops_the_matching(keyed, monkeypatch):
+    ch = stored(keyed, 4)
+    ident = Identify()
+    wire(monkeypatch, ident)
+    from telegram_archive.metadata import providers as providers_module
+
+    async def boom(db, key, hashes, **kw):
+        raise RuntimeError("StashDB is down")
+
+    monkeypatch.setattr(providers_module, "stashdb_by_oshash_many", boom)
+    go(ctx_for(keyed, ch, Telegram()))
+    assert sorted({c["id"] for c in ident.calls}) == [1, 2, 3, 4]
+
+
+def test_a_video_is_fingerprinted_once_even_though_the_batch_step_read_it_first(keyed, monkeypatch):
+    ch = stored(keyed, 3)
+    reads = []
+    wire(monkeypatch, Identify())
+
+    def counting_hash(source):
+        reads.append(1)
+        return "abcdef0123456789"
+
+    monkeypatch.setattr(metadata_sync, "oshash_from_source", counting_hash)
+    go(ctx_for(keyed, ch, Telegram()))
+    assert len(reads) == 3
+
+
+def test_no_batched_lookup_without_a_stashdb_key(monkeypatch):
+    db = h.fresh_db()
+    old = {k: db.setting(k) for k in ("stashdb_api_key", "tpdb_api_token", "tpdb_token")}
+    try:
+        db.set_setting("stashdb_api_key", "")
+        db.set_setting("tpdb_api_token", "t-key")
+        db.set_setting("tpdb_token", "")
+        ch = stored(db, 3)
+        wire(monkeypatch, Identify())
+        go(ctx_for(db, ch, Telegram()))
+        assert WARMED == []
+    finally:
+        for k, v in old.items():
+            db.set_setting(k, v if v is not None else "")

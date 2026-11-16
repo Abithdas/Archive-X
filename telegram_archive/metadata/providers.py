@@ -676,6 +676,62 @@ async def stashdb_by_oshash(db, api_key: str, oshash: str) -> list[dict]:
     return scenes
 
 
+STASHDB_HASH_BATCH = 40
+
+
+async def stashdb_by_oshash_many(db, api_key: str, hashes, *, batch_size: int = STASHDB_HASH_BATCH) -> dict[str, list[dict]]:
+    """Look up many file fingerprints with ONE StashDB request per `batch_size`, and keep each answer in the cache `stashdb_by_oshash` reads.
+
+    Requests to a provider are paced (0.5 s apart for StashDB), so asking about every video on its own made a channel's fingerprint lookups
+    take (videos x 0.5 s): 38 minutes for 4,600 videos. The same query takes a list of fingerprint groups and answers each one, so 40 videos
+    cost one request. The per-video lookup that follows then finds its answer in the cache and sends nothing.
+
+    Never raises. A hash that could not be answered is left out of the result (and uncached), so the normal per-video lookup does it. An
+    answer is only trusted when the reply holds exactly one list per hash asked about: it is never guessed which scene belongs to which file.
+    """
+    _ensure_cache(db)
+    answered: dict[str, list[dict]] = {}
+    pending: list[str] = []
+    seen: set[str] = set()
+    for raw in hashes:
+        try:
+            clean = normalize_stashdb_oshash(str(raw or ""))
+        except ValueError:
+            continue
+        if clean in seen:                 # the same fingerprint written in capitals or twice is asked about once
+            continue
+        seen.add(clean)
+        cached, hit = _cache_get(db, "stashdb", f"oshash:{clean}")
+        if hit:
+            answered[clean] = cached or []
+        else:
+            pending.append(clean)
+    size = max(1, min(100, int(batch_size)))
+    for start in range(0, len(pending), size):
+        chunk = pending[start:start + size]
+        body = json.dumps({"query": _STASHDB_PHASH_QUERY,
+                           "variables": {"fps": [[{"hash": h, "algorithm": "OSHASH"}] for h in chunk]}}).encode()
+        started = time.perf_counter()
+        try:
+            await _throttle("stashdb")
+            data = await asyncio.to_thread(_http, STASHDB_URL, data=body, headers={"Content-Type": "application/json", "ApiKey": api_key})
+            if data.get("errors"):
+                raise RuntimeError("StashDB GraphQL errors: " + json.dumps(data.get("errors"), ensure_ascii=False)[:400])
+            _record_provider_call(db, "stashdb", latency_ms=(time.perf_counter() - started) * 1000.0, entity_type="scene_oshash_batch")
+        except Exception as exc:
+            _provider_stat(db, "stashdb", "errors", 1)
+            _record_provider_call(db, "stashdb", status="ERROR", error=str(exc), latency_ms=(time.perf_counter() - started) * 1000.0, entity_type="scene_oshash_batch")
+            continue
+        root = (data.get("data") or {}).get("findScenesBySceneFingerprints")
+        if not isinstance(root, list) or len(root) != len(chunk) or not all(isinstance(group, list) for group in root):
+            continue
+        for fingerprint, group in zip(chunk, root):
+            scenes = [_norm_stashdb(row) for row in group if isinstance(row, dict)]
+            _cache_put(db, "stashdb", f"oshash:{fingerprint}", scenes)
+            answered[fingerprint] = scenes
+    return answered
+
+
 async def stashdb_by_phash(db, api_key: str, phash: str) -> list[dict]:
     """Query StashBox's PHASH distance index using its Stash-compatible hex hash."""
     clean = re.sub(r"[^0-9a-f]", "", str(phash or "").casefold())
