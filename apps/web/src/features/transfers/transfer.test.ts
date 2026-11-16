@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_LOCAL, DEFAULT_TELEGRAM, localPayload, planPhotoScan, resolveAsk, startMessage, telegramPayload, validateLocal, validateTelegram } from './transfer'
+import { DEFAULT_LOCAL, DEFAULT_TELEGRAM, MAX_MINUTES_PROBLEM, localPayload, parseMaxMinutes, planPhotoScan, resolveAsk, startMessage, telegramPayload, validateLocal, validateTelegram } from './transfer'
 
 describe('validation', () => {
   it('local needs a folder and a destination', () => {
@@ -34,6 +34,24 @@ describe('payloads', () => {
       source: 'telegram', source_channels: ['1', '2'], destination_channel: '3', source_mode: 'VIDEO', destination_mode: 'VIDEO', orientation: 'BOTH', resolution_filter: 'ANY',
       duplicate_check: { source: true, destination: true, database: false }, cleanup: { enabled: true, trash_channel: '9' }, snapshot_policy: 'existing',
     })
+  })
+  it('sends the length limit only when one is set, for both sources', () => {
+    expect('max_duration_minutes' in telegramPayload({ ...DEFAULT_TELEGRAM, channels: ['1'], destination: '2' })).toBe(false)
+    expect(telegramPayload({ ...DEFAULT_TELEGRAM, channels: ['1'], destination: '2', maxMinutes: '10' }).max_duration_minutes).toBe(10)
+    expect(telegramPayload({ ...DEFAULT_TELEGRAM, channels: ['1'], destination: '2', maxMinutes: '7,5' }).max_duration_minutes).toBe(7.5)
+    expect('max_duration_minutes' in telegramPayload({ ...DEFAULT_TELEGRAM, channels: ['1'], destination: '2', maxMinutes: '0' })).toBe(false)
+    expect((localPayload({ ...DEFAULT_LOCAL, folder: 'D:\\v', destination: '1', maxMinutes: '10' }) as Record<string, unknown>).max_duration_minutes).toBe(10)
+    expect('max_duration_minutes' in localPayload({ ...DEFAULT_LOCAL, folder: 'D:\\v', destination: '1' })).toBe(false)
+    expect('max_duration_minutes' in localPayload({ ...DEFAULT_LOCAL, folder: 'D:\\p', destination: '1', images: true, maxMinutes: '10' })).toBe(false)
+  })
+  it('refuses a length limit that is not a positive number', () => {
+    for (const bad of ['abc', '-2', '99999']) {
+      expect(validateTelegram({ ...DEFAULT_TELEGRAM, channels: ['1'], destination: '2', maxMinutes: bad })).toBe(MAX_MINUTES_PROBLEM)
+      expect(validateLocal({ ...DEFAULT_LOCAL, folder: 'x', destination: '1', maxMinutes: bad })).toBe(MAX_MINUTES_PROBLEM)
+    }
+    expect(validateTelegram({ ...DEFAULT_TELEGRAM, channels: ['1'], destination: '2', maxMinutes: '10' })).toBe('')
+    expect(validateLocal({ ...DEFAULT_LOCAL, folder: 'x', destination: '1', maxMinutes: '' })).toBe('')
+    expect(parseMaxMinutes(' ')).toBeUndefined()
   })
 })
 

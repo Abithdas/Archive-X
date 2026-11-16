@@ -573,6 +573,11 @@ def register_job_routes(
             resolution_filter = normalize_resolution_filter(data.get("resolution_filter"))
         except ValueError as exc:
             raise HTTPException(400, str(exc))
+        from ..core.duration_filter import normalize_max_minutes
+        try:
+            max_duration_minutes = normalize_max_minutes(data.get("max_duration_minutes"))
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
         if not telegram.connected:
             raise HTTPException(503, "Telegram is not connected")
         # Different workflows occupy independent scheduler lanes. The durable
@@ -585,6 +590,8 @@ def register_job_routes(
             "resolution_filter": resolution_filter,
             "media_type": media_type,
         }
+        if max_duration_minutes is not None and media_type == "VIDEO":
+            detail["max_duration_minutes"] = max_duration_minutes
         destination = ""
         if source == "local":
             folder = str(data.get("folder") or "").strip()

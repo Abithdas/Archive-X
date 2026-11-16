@@ -1634,6 +1634,7 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
         normalize_resolution_filter,
         resolution_tier_for_dimensions,
     )
+    from ..core import duration_filter
 
     client = None
     print("\n" + "=" * 90)
@@ -1664,6 +1665,7 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
         destination_mode = str(job_detail.get("destination_mode") or "VIDEO").upper()
         orientation = str(job_detail.get("orientation") or "BOTH").upper()
         resolution_filter = normalize_resolution_filter(job_detail.get("resolution_filter"))
+        max_minutes = duration_filter.normalize_max_minutes(job_detail.get("max_duration_minutes"))
         source_ids = [int(x) for x in (job_detail.get("source_channels") or [])]
         destination_id = int(str(job_detail.get("destination_channel") or "0"))
         if not source_ids or not destination_id:
@@ -1681,6 +1683,7 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
         state["config"] = {
             "source_mode": source_mode, "destination_mode": destination_mode, "orientation": orientation,
             "resolution_filter": resolution_filter,
+            "max_duration_minutes": max_minutes,
             "source_count": source_count,
             "source_channels": [{"id": int(x.id), "title": channel_display_name(x)} for x in sources],
             "destination_channel": {"id": int(destination.id), "title": channel_display_name(destination)},
@@ -1695,6 +1698,7 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
         destination_mode = str(resume_config.get("destination_mode") or "VIDEO")
         orientation = str(resume_config.get("orientation") or "BOTH")
         resolution_filter = normalize_resolution_filter(resume_config.get("resolution_filter"))
+        max_minutes = duration_filter.normalize_max_minutes(resume_config.get("max_duration_minutes"))
         source_count = int(resume_config.get("source_count") or len(resume_config.get("source_channels") or []))
         duplicate_policy = str(resume_config.get("duplicate_policy") or "NONE")
         cover_policy = str(resume_config.get("cover_policy") or "AUTOMATIC")
@@ -1712,6 +1716,7 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
     else:
         print("Configure the complete job first. Channel scanning starts only after the rules are fixed.")
         resolution_filter = "ANY"
+        max_minutes = None
 
         source_mode_choice = input("\nSource media [1=VIDEO, 2=FILE]: ").strip()
         source_mode = {"1": "VIDEO", "2": "FILE"}.get(source_mode_choice)
@@ -1785,6 +1790,7 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
             "destination_mode": destination_mode,
             "orientation": orientation,
             "resolution_filter": resolution_filter,
+            "max_duration_minutes": max_minutes,
             "source_count": source_count,
             "source_channels": [{"id": int(s.id), "title": channel_display_name(s)} for s in sources],
             "destination_channel": {"id": int(destination.id), "title": channel_display_name(destination)},
@@ -2041,6 +2047,27 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
                 print(
                     f"[RESOLUTION FILTER] {resolution_filter}: kept {len(candidates):,}/"
                     f"{checked:,} source videos; {unknown_dimensions:,} had unknown dimensions."
+                )
+
+            if max_minutes is not None:
+                checked = len(candidates)
+                selected = []
+                unknown_duration = 0
+                for message in candidates:
+                    seconds = duration_filter.message_duration_seconds(message)
+                    if duration_filter.within_limit(seconds, max_minutes):
+                        selected.append(message)
+                    elif not duration_filter.known(seconds):
+                        unknown_duration += 1
+                candidates = selected
+                state.setdefault("duration_filter_summary", {})[source_key] = {
+                    "selection": duration_filter.describe(max_minutes), "checked": checked, "selected": len(candidates),
+                    "excluded": checked - len(candidates), "unknown_duration": unknown_duration,
+                }
+                transfer_job_state_save(state)
+                print(
+                    f"[DURATION FILTER] {duration_filter.describe(max_minutes)}: kept {len(candidates):,}/"
+                    f"{checked:,} source videos; {unknown_duration:,} had no duration and were left out."
                 )
 
             if not candidates:

@@ -9,7 +9,7 @@ import { Segmented } from '@/design/Segmented'
 import { CARD, CHANNEL_LIST, Check, FIELD, Field, Stepper, detail, videosHint } from './parts'
 import { ChannelAvatar } from '@/features/channels/ChannelAvatar'
 import {
-  DEFAULT_LOCAL, DEFAULT_TELEGRAM, ORIENTATIONS, RESOLUTIONS, SNAPSHOT_CHOICES, localPayload, planPhotoScan, resolveAsk, startMessage, telegramPayload, validateLocal, validateTelegram,
+  DEFAULT_LOCAL, DEFAULT_TELEGRAM, ORIENTATIONS, RESOLUTIONS, SNAPSHOT_CHOICES, describeMaxMinutes, localPayload, planPhotoScan, resolveAsk, startMessage, telegramPayload, validateLocal, validateTelegram,
   type LocalOptions, type PhotoPlan, type PhotoScan, type Source, type TelegramOptions,
 } from './transfer'
 
@@ -188,6 +188,7 @@ export function TransferWorkflow() {
                 <>
                   <Field label="Video orientation" hint="Uses the displayed orientation, including phone rotation metadata. A specific orientation skips files with unknown dimensions."><Select label="Video orientation for local videos" value={local.orientation} onChange={(v) => setL('orientation', v)} options={ORIENTATIONS} /></Field>
                   <Field label="Source resolution" hint="Filters original files; no re-encoding. A specific tier skips unknown dimensions."><Select label="Source resolution for local videos" value={local.resolution} onChange={(v) => setL('resolution', v)} options={RESOLUTIONS} /></Field>
+                  <Field label="Only videos shorter than (minutes)" hint="Leave empty for any length. 10 sends only videos under 10 minutes; a video exactly 10:00 long, or one whose length cannot be read, is left out."><input value={local.maxMinutes} onChange={(e) => setL('maxMinutes', e.target.value)} inputMode="decimal" placeholder="Any length" aria-label="Only local videos shorter than this many minutes" className={FIELD} /></Field>
                 </>
               ) : <p className="text-sm text-muted">Image uploads have no video filters.</p>}
               <div className="rounded-xl border border-line p-2">
@@ -208,6 +209,7 @@ export function TransferWorkflow() {
               </div>
               <Field label="Video orientation"><Select label="Video orientation" value={tg.orientation} onChange={(v) => setT('orientation', v)} options={ORIENTATIONS} /></Field>
               <Field label="Source resolution" hint="Filters source videos; no re-encoding. A specific tier skips unknown dimensions."><Select label="Source resolution for Telegram videos" value={tg.resolution} onChange={(v) => setT('resolution', v)} options={RESOLUTIONS} /></Field>
+              <Field label="Only videos shorter than (minutes)" hint="Leave empty for any length. 10 moves only videos under 10 minutes; a video exactly 10:00 long, or one whose length Telegram does not report, is left out (and stays in the source)."><input value={tg.maxMinutes} onChange={(e) => setT('maxMinutes', e.target.value)} inputMode="decimal" placeholder="Any length" aria-label="Only Telegram videos shorter than this many minutes" className={FIELD} /></Field>
               <Field label="Videos without saved snapshots" hint="The cover of each transferred video is its 36-frame snapshot set, made when a channel is scanned. A video that has none can be skipped (it stays in the source, and the job lists it) or have the set made from Telegram before it moves.">
                 <Select label="Videos without saved snapshots" value={tg.snapshots} onChange={(v) => setT('snapshots', v as TelegramOptions['snapshots'])} options={SNAPSHOT_CHOICES} />
               </Field>
@@ -227,8 +229,8 @@ export function TransferWorkflow() {
           <h3 className="mb-2 text-[15px] font-bold">3 · Review</h3>
           <dl className="grid gap-1.5 rounded-xl bg-bg p-3 text-sm">
             {(source === 'local'
-              ? [['Source', 'Local files'], ['Media', local.images ? 'Images (as documents)' : 'Videos'], ['Folder', local.folder || '—'], ['Destination', local.destination ? nameOf(local.destination) : '—'], ['Include subfolders', local.subfolders ? 'Yes' : 'No'], ['Delete local source after delivery', local.deleteSource ? 'Yes' : 'No'], ...(local.images ? [] : [['Orientation', local.orientation], ['Resolution', local.resolution], ['Oversized files', local.oversized === 'optimize' ? 'Optimize to fit' : 'Skip']])]
-              : [['Source', 'Telegram media'], ['From', tg.channels.map(nameOf).join(', ') || '—'], ['Destination', tg.destination ? nameOf(tg.destination) : '—'], ['Media', `${tg.sourceMedia === 'VIDEO' ? 'Video' : 'File'} → ${tg.destinationMedia === 'VIDEO' ? 'Video' : 'File'}`], ['Orientation', tg.orientation], ['Resolution', tg.resolution], ['Duplicate checks', [tg.dupSource && 'source', tg.dupDestination && 'destination', tg.dupDb && 'database'].filter(Boolean).join(', ') || 'none'], ['Cleanup', tg.cleanup ? `Yes → ${nameOf(tg.trash)}` : 'No'], ['Without saved snapshots', tg.snapshots === 'generate' ? 'Make them from Telegram first' : 'Skip them (source kept)']]
+              ? [['Source', 'Local files'], ['Media', local.images ? 'Images (as documents)' : 'Videos'], ['Folder', local.folder || '—'], ['Destination', local.destination ? nameOf(local.destination) : '—'], ['Include subfolders', local.subfolders ? 'Yes' : 'No'], ['Delete local source after delivery', local.deleteSource ? 'Yes' : 'No'], ...(local.images ? [] : [['Orientation', local.orientation], ['Resolution', local.resolution], ['Length', describeMaxMinutes(local.maxMinutes)], ['Oversized files', local.oversized === 'optimize' ? 'Optimize to fit' : 'Skip']])]
+              : [['Source', 'Telegram media'], ['From', tg.channels.map(nameOf).join(', ') || '—'], ['Destination', tg.destination ? nameOf(tg.destination) : '—'], ['Media', `${tg.sourceMedia === 'VIDEO' ? 'Video' : 'File'} → ${tg.destinationMedia === 'VIDEO' ? 'Video' : 'File'}`], ['Orientation', tg.orientation], ['Resolution', tg.resolution], ['Duplicate checks', [tg.dupSource && 'source', tg.dupDestination && 'destination', tg.dupDb && 'database'].filter(Boolean).join(', ') || 'none'], ['Cleanup', tg.cleanup ? `Yes → ${nameOf(tg.trash)}` : 'No'], ['Length', describeMaxMinutes(tg.maxMinutes)], ['Without saved snapshots', tg.snapshots === 'generate' ? 'Make them from Telegram first' : 'Skip them (source kept)']]
             ).map(([k, v]) => <div key={k} className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)] gap-3"><dt className="text-muted">{k}</dt><dd className="font-semibold [overflow-wrap:anywhere]">{v}</dd></div>)}
           </dl>
           {problem ? <p role="alert" className="mt-2 text-sm text-warn">{problem}</p> : <p className="mt-2 text-sm text-muted">Everything needed is set. Continue to Run.</p>}
