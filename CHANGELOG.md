@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Next release (not published)
+## 30.3.2 (2026-11-16)
 - Native player merged into the video page (desktop app):
   - It is no longer a separate page. It plays inside the watch page where the browser's video was, with the same timeline (markers and seek preview), resume, up next and autonext, previous and next, speed, volume, and audio and subtitle menu. An old native-player link opens the watch page with it chosen.
   - New setting, Settings, Experience, "Native player": "Only when the browser cannot play the video" (default; the page switches to it by itself when the browser fails), "Always", or "Never by itself" (a button on the video page). On one video you can switch either way ("Use the browser player" / "Play with the native player"), and the automatic switch never loops back.
