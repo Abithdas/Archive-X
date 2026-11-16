@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Next release (not published)
+## 30.3.1 (2026-11-16)
 - Conflicting identifications are now settled in one place (new `metadata/evidence_resolver.py`, used by the scene-match step): a provider candidate is weighed against what the video's own snapshots say (the watermark studio and the faces).
   - A file-fingerprint (OSHASH) match is authoritative: never downgraded, only annotated when the snapshots disagree.
   - One contradiction (the watermark names another studio, or the faces are performers not in the scene's cast) caps the candidate at "needs review". Two contradictions drop it to LOW. A studio's network or alias name is not a contradiction.
