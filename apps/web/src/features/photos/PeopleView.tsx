@@ -17,16 +17,15 @@ import { nameMatches } from '@/features/entities/filter'
 import { usePhotoStore } from './store'
 import { FaceReview } from './FaceReview'
 import { NamePicker } from './NamePicker'
-import { NameListStatus } from './NameListStatus'
-import { FaceLearningStatus } from './FaceLearningStatus'
+import { PeopleStatus } from './PeopleStatus'
 import { usePhotoChannels } from '@/api/hooks'
 
-const BTN = 'h-8 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50'
-const PRIMARY = 'h-8 rounded-lg bg-accent px-3 text-xs font-bold text-accent-fg disabled:opacity-50'
+const BTN = 'h-9 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50 sm:h-8'
+const PRIMARY = 'h-9 rounded-lg bg-accent px-3 text-xs font-bold text-accent-fg disabled:opacity-50 sm:h-8'
 const sourceOf = (s: Suggestion) => (s.source === 'profile_image' || s.source === 'confirmed_assignment' || s.source === 'metadata' ? s.source : 'metadata')
 const why = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.detail : fb)
 
-function Circle({ g, size = 'size-24' }: { g: FaceGroup; size?: string }) {
+function Circle({ g, size = 'size-20 sm:size-24' }: { g: FaceGroup; size?: string }) {
   const [ok, setOk] = useState(true)
   return (
     <span className={cn('grid shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 text-2xl font-bold text-muted', size)}>
@@ -39,7 +38,7 @@ function Card({ g, fresh, naming, setNaming, onOpen, onCheck, onYes, onNo, onNam
   const guess = bestGuess(g)
   const named = Boolean(g.performer_id)
   return (
-    <article aria-label={groupLabel(g)} className={cn('grid shrink-0 content-start justify-items-center gap-2 rounded-2xl border border-line bg-surface p-3 text-center transition-[width] duration-200', naming ? 'w-[280px]' : 'w-[190px]')}>
+    <article aria-label={groupLabel(g)} className="grid h-full w-full min-w-0 content-start justify-items-center gap-2 rounded-2xl border border-line bg-surface p-3 text-center">
       <span className="relative">
         <button type="button" onClick={onOpen} aria-label={`Show photos of ${groupLabel(g)}`} className="rounded-full outline-none ring-accent/60 transition hover:scale-[1.03] focus-visible:ring-2"><Circle g={g} /></button>
         {named && fresh ? <span title={newMatchesText(fresh.suggestions)} aria-hidden="true" className="absolute -right-1.5 -top-1.5 grid h-6 min-w-6 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-accent-fg shadow ring-2 ring-surface"><SubtleNumber value={fresh.suggestions} /></span> : null}
@@ -135,11 +134,14 @@ export function PeopleView() {
     } catch (e) { toast.error(why(e, 'Could not start finding people.')) } finally { if (alive.current) setFinding(null) }
   }
 
+  // The cards share the row equally and fill it to the right edge (150 px wide at least on a phone, 180 px from tablet width). The one being named
+  // takes two cells (the whole row on a phone) so its search has room.
+  const GRID = 'relative grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]'
   const grid = (list: FaceGroup[]) => (
-    <div className="relative flex flex-wrap gap-3">
+    <div className={GRID}>
       <AnimatePresence mode="popLayout" initial={false}>
         {list.map((g) => (
-          <motion.div key={g.id} {...cardMotion(0)}>
+          <motion.div key={g.id} {...cardMotion(0)} className={cn('min-w-0', namingId === g.id && 'col-span-full sm:col-span-2')}>
             <Card g={g} fresh={g.performer_id ? fresh?.[Number(g.performer_id)] : undefined} naming={namingId === g.id} setNaming={(on) => setNamingId(on ? g.id : null)} onOpen={() => open(g)} onCheck={() => setChecking(g)} onYes={(s) => yes(g, s)} onNo={(s) => void no(g, s)} onName={(p) => name(g, p)} />
           </motion.div>
         ))}
@@ -149,15 +151,13 @@ export function PeopleView() {
   const C = analyzeCopy(0)
   return (
     <section aria-label="People" className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p role="status" aria-live="polite" className="max-w-2xl text-sm text-muted">{finding ? '' : (q.isSuccess ? findPeopleHint(groups, q.data?.analysis) : '')}</p>
-        <button type="button" disabled={!!finding} onClick={() => setAsk(true)} className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60"><Icon name="images" className="size-4" />{finding ? 'Finding people…' : 'Find people'}</button>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <PeopleStatus headline={finding ? 'Finding people…' : (q.isSuccess ? findPeopleHint(groups, q.data?.analysis) : '')} />
+        <button type="button" disabled={!!finding} onClick={() => setAsk(true)} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60 sm:h-10 sm:w-auto"><Icon name="images" className="size-4" />{finding ? 'Finding people…' : 'Find people'}</button>
       </div>
       {finding ? <FindProgress {...finding} /> : null}
-      <NameListStatus />
-      <FaceLearningStatus />
 
-      {q.isPending ? <div role="status" aria-label="Loading people" className="flex flex-wrap gap-3">{[0, 1, 2, 3].map((i) => <div key={i} className="grid h-[236px] w-[190px] content-start justify-items-center gap-3 rounded-2xl border border-line bg-surface p-3"><Skeleton className="size-24 rounded-full" /><Skeleton className="h-4 w-28" /><Skeleton className="h-3 w-16" /><Skeleton className="h-8 w-32 rounded-lg" /></div>)}</div>
+      {q.isPending ? <div role="status" aria-label="Loading people" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">{[0, 1, 2, 3].map((i) => <div key={i} className="grid h-[236px] content-start justify-items-center gap-3 rounded-2xl border border-line bg-surface p-3"><Skeleton className="size-24 rounded-full" /><Skeleton className="h-4 w-28" /><Skeleton className="h-3 w-16" /><Skeleton className="h-8 w-32 rounded-lg" /></div>)}</div>
         : q.isError ? <button type="button" onClick={() => void q.refetch()} className={cn(PRIMARY, 'w-fit')}>Could not load people. Retry</button>
         : (<>
           {sec.guesses.length ? <section aria-label="Is this the right person?" className="grid gap-2"><h2 className="text-lg font-bold">Is this the right person?</h2>{grid(sec.guesses)}</section> : null}

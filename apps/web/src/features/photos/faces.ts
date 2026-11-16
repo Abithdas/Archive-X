@@ -118,9 +118,9 @@ export function peopleSections(groups: readonly FaceGroup[]) {
 }
 export const findPeopleHint = (groups: readonly FaceGroup[], analysis?: Analysis) => {
   const total = Number(analysis?.total_photos ?? 0), done = Number(analysis?.analyzed_photos ?? 0)
-  if (!total) return 'No photos are indexed yet. Scan a channel for images first (Transfers → Metadata & Assets → Image scan).'
-  if (!groups.length) return done ? 'No faces were found in your photos.' : 'Press Find people to look for faces in your photos.'
-  return `${groups.length.toLocaleString()} ${groups.length === 1 ? 'person' : 'people'} found in ${done.toLocaleString()} analysed photos.`
+  if (!total) return 'No photos yet. Scan a channel for images first (Transfers, Metadata & Assets, Image scan).'
+  if (!groups.length) return done ? 'No faces found in your photos.' : 'Press Find people to look for faces in your photos.'
+  return `${groups.length.toLocaleString()} ${groups.length === 1 ? 'person' : 'people'} · ${done.toLocaleString()} photos checked`
 }
 
 /** The steps "Find people" goes through, in order. */

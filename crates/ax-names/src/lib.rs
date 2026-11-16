@@ -10,6 +10,9 @@
 //!
 //! This crate owns its own SQLite file; the Python database is never written from here.
 
+// ureq's own error type is large; it is only returned on the slow network path, where its size does not matter.
+#![allow(clippy::result_large_err)]
+
 use std::path::Path;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -71,23 +74,72 @@ impl Default for Http {
     }
 }
 
+/// What a provider said when it refused, short: a GraphQL error message or a JSON "message", else the start of a plain-text reply (an HTML error
+/// page says nothing useful, so it gives nothing). Without this the person only ever saw "HTTP 422" and could not tell a rejected key from a
+/// changed query or a busy server.
+pub fn error_detail(body: &str) -> String {
+    let t = body.trim();
+    if t.is_empty() {
+        return String::new();
+    }
+    if let Ok(v) = serde_json::from_str::<Value>(t) {
+        let message = v.pointer("/errors/0/message").or_else(|| v.get("message")).or_else(|| v.get("error")).and_then(Value::as_str);
+        return message.map(|m| m.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(160).collect()).unwrap_or_default();
+    }
+    if t.starts_with('<') {
+        return String::new();
+    }
+    t.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(160).collect()
+}
+
 fn describe(e: ureq::Error) -> String {
     match e {
-        ureq::Error::Status(code, _) => format!("HTTP {code}"),
+        ureq::Error::Status(code, resp) => {
+            let detail = error_detail(&resp.into_string().unwrap_or_default());
+            if detail.is_empty() {
+                format!("HTTP {code}")
+            } else {
+                format!("HTTP {code}: {detail}")
+            }
+        }
         other => other.to_string(),
+    }
+}
+
+const RETRIES: u32 = 3;
+
+/// Call a provider, and when it says "too many requests" (429) or is briefly down (502, 503, 504) or the connection drops, wait and try again
+/// (its own Retry-After when it gives one, else 2, 4, 8 seconds; never more than 30) instead of failing a refresh that has thousands of pages to go.
+/// Anything else (a rejected key, a bad query) is returned at once: waiting would not change it.
+fn call_with_retry(mut call: impl FnMut() -> Result<ureq::Response, ureq::Error>, sleep: impl Fn(Duration)) -> Result<ureq::Response, ureq::Error> {
+    let mut attempt = 0u32;
+    loop {
+        match call() {
+            Err(ureq::Error::Status(code, resp)) if matches!(code, 429 | 502 | 503 | 504) && attempt < RETRIES => {
+                let wait = resp.header("Retry-After").and_then(|v| v.trim().parse::<u64>().ok()).unwrap_or(1u64 << (attempt + 1)).min(30);
+                sleep(Duration::from_secs(wait));
+                attempt += 1;
+            }
+            Err(ureq::Error::Transport(_)) if attempt < RETRIES => {
+                sleep(Duration::from_secs(1u64 << (attempt + 1)));
+                attempt += 1;
+            }
+            other => return other,
+        }
     }
 }
 
 impl Fetch for Http {
     fn stashdb(&self, key: &str, query: &str, variables: &Value) -> Result<Value, String> {
         let body = json!({ "query": query, "variables": variables });
-        let resp = self.agent.post(STASH_URL).set("APIKey", key).send_json(body).map_err(describe)?;
+        let resp = call_with_retry(|| self.agent.post(STASH_URL).set("APIKey", key).send_json(body.clone()), std::thread::sleep).map_err(describe)?;
         resp.into_json::<Value>().map_err(|e| e.to_string())
     }
 
     fn tpdb(&self, token: &str, path: &str) -> Result<Value, String> {
         let url = format!("{TPDB_URL}/{}", path.trim_start_matches('/'));
-        let resp = self.agent.get(&url).set("Authorization", &format!("Bearer {token}")).set("Accept", "application/json").call().map_err(describe)?;
+        let resp = call_with_retry(|| self.agent.get(&url).set("Authorization", &format!("Bearer {token}")).set("Accept", "application/json").call(), std::thread::sleep)
+            .map_err(describe)?;
         resp.into_json::<Value>().map_err(|e| e.to_string())
     }
 }
@@ -583,6 +635,78 @@ fn tpdb_rows(data: &Value) -> (Vec<Row>, i64) {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_providers_reason_is_kept_short_and_html_pages_are_dropped() {
+        assert_eq!(
+            error_detail(r#"{"errors":[{"message":"Cannot query field \"foo\" on type \"Performer\"."}]}"#),
+            "Cannot query field \"foo\" on type \"Performer\"."
+        );
+        assert_eq!(error_detail(r#"{"message":"Unauthenticated."}"#), "Unauthenticated.");
+        assert_eq!(error_detail(r#"{"error":"Rate limit exceeded"}"#), "Rate limit exceeded");
+        assert_eq!(error_detail("  too   many\nrequests "), "too many requests");
+        assert_eq!(error_detail("<html><body>502 Bad Gateway</body></html>"), "");
+        assert_eq!(error_detail(""), "");
+        assert_eq!(error_detail(&"x".repeat(500)).chars().count(), 160);
+        assert_eq!(error_detail(r#"{"errors":[]}"#), "");
+    }
+
+    fn status(code: u16) -> ureq::Error {
+        ureq::Error::Status(code, ureq::Response::new(code, "x", "").unwrap())
+    }
+
+    #[test]
+    fn a_busy_provider_is_retried_with_growing_waits_and_then_succeeds() {
+        use std::cell::{Cell, RefCell};
+        let calls = Cell::new(0);
+        let waits = RefCell::new(Vec::new());
+        let out = call_with_retry(
+            || {
+                calls.set(calls.get() + 1);
+                if calls.get() < 3 {
+                    Err(status(429))
+                } else {
+                    ureq::Response::new(200, "OK", "{}").map_err(|_| status(500))
+                }
+            },
+            |d| waits.borrow_mut().push(d.as_secs()),
+        );
+        assert!(out.is_ok());
+        assert_eq!(calls.get(), 3);
+        assert_eq!(*waits.borrow(), vec![2, 4]);
+    }
+
+    #[test]
+    fn it_gives_up_after_a_few_tries_and_reports_the_last_answer() {
+        use std::cell::Cell;
+        let calls = Cell::new(0);
+        let out = call_with_retry(
+            || {
+                calls.set(calls.get() + 1);
+                Err(status(503))
+            },
+            |_| {},
+        );
+        assert!(matches!(out, Err(ureq::Error::Status(503, _))));
+        assert_eq!(calls.get(), RETRIES + 1);
+    }
+
+    #[test]
+    fn a_rejected_key_or_a_bad_query_is_not_retried() {
+        use std::cell::Cell;
+        for code in [400u16, 401, 403, 404, 422] {
+            let calls = Cell::new(0);
+            let out = call_with_retry(
+                || {
+                    calls.set(calls.get() + 1);
+                    Err(status(code))
+                },
+                |_| panic!("must not wait for {code}"),
+            );
+            assert!(matches!(out, Err(ureq::Error::Status(c, _)) if c == code));
+            assert_eq!(calls.get(), 1);
+        }
+    }
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex as StdMutex;
