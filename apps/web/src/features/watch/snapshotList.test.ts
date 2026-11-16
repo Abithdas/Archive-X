@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { openSuggestions, reasonOf, runNote, suggestionList, type SnapshotSuggestion } from './snapshotSuggestions'
+import { openSuggestions, reasonOf, runNote, suggestionList, type SnapshotSuggestion } from './snapshotList'
 
 const perf: SnapshotSuggestion = { kind: 'performer', id: 4, name: 'Ava Stone', score: 0.5, evidence: { frames: 12 } }
 const stud: SnapshotSuggestion = { kind: 'studio', id: 9, name: 'Northlight', score: 0.9, evidence: { corner: 'br' } }

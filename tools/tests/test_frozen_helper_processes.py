@@ -58,11 +58,14 @@ def test_the_entry_point_answers_the_pyav_flag_without_starting_the_app():
 
 def test_the_entry_point_runs_a_worker_job_and_a_clean_finish_is_quiet(tmp_path):
     clip = tmp_path / "t.mp4"
-    made = subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=duration=1:size=160x120:rate=5", "-y", str(clip)],
-                          capture_output=True)
-    if made.returncode != 0:
-        import pytest
+    import pytest
+    try:
+        made = subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=duration=1:size=160x120:rate=5", "-y", str(clip)],
+                              capture_output=True)
+    except FileNotFoundError:
         pytest.skip("no ffmpeg to make a test clip")
+    if made.returncode != 0:
+        pytest.skip("ffmpeg could not make a test clip")
     r = _run("--ax-native-worker", "probe", json.dumps({"path": str(clip)}))
     kinds = [json.loads(x)["type"] for x in r.stdout.splitlines() if x.startswith("{")]
     assert kinds == ["result"] and r.returncode == 0 and "SystemExit" not in r.stderr

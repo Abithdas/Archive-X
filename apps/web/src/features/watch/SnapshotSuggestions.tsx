@@ -4,7 +4,7 @@ import { api } from '@/api/client'
 import type { LibraryItem } from '@/api/types'
 import { cn } from '@/design/cn'
 import type { Person, Studio } from './quickedit'
-import { openSuggestions, reasonOf, runNote, suggestionList, type SnapshotRun, type SnapshotSuggestion } from './snapshotSuggestions'
+import { openSuggestions, reasonOf, runNote, suggestionList, type SnapshotRun, type SnapshotSuggestion } from './snapshotList'
 
 /** "From snapshots": performers and a studio proposed from the video's own 36 snapshots. Add puts them in the dialog (Save applies them). */
 export function SnapshotSuggestions({ item, performers, studio, onAddPerformer, onSetStudio }: { item: LibraryItem; performers: Person[]; studio: Studio | null; onAddPerformer: (p: Person) => void; onSetStudio: (s: Studio) => void }) {

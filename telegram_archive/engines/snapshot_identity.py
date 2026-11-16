@@ -338,7 +338,7 @@ def studio_references(db) -> dict[int, dict[str, list[float]]]:
     return out
 
 
-def _references(db, extra_only: bool = False):
+def _references(db):
     """(ids, matrix) of every performer reference: profile pictures, gallery, confirmed photo faces and faces confirmed from snapshots."""
     import numpy as np
     from .performer_gallery import reference_matrix
