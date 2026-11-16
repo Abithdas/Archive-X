@@ -60,4 +60,14 @@ describe('PerformerGallery', () => {
     withRouter(<PerformerGallery id={7} name="Mia Rivera" />)
     expect(await screen.findByText('The gallery could not be loaded.')).toBeInTheDocument()
   })
+
+  it('finds pictures in the performer’s videos, labels them, and can use one as the profile picture', async () => {
+    const calls = mockApi(state({ items: [{ ...pic(3, 'snapshot'), source: 'snapshot' }], references: 1, removed: 0 }))
+    withRouter(<PerformerGallery id={7} name="Mia Rivera" />)
+    expect(await screen.findByRole('button', { name: /Enlarge: Mia Rivera, picture from From a video/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Use this picture as the profile picture of Mia Rivera' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url === '/api/performers/7/gallery/3/use-as-profile')).toBe(true))
+    fireEvent.click(screen.getByRole('button', { name: 'Find pictures in videos' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url === '/api/performers/7/gallery/from-videos')).toBe(true))
+  })
 })

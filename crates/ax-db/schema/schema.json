@@ -2717,6 +2717,38 @@
    "type": "TEXT"
   }
  ],
+ "performer_video_faces_done": [
+  {
+   "name": "performer_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "video_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "own_refs",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "added",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
  "performers": [
   {
    "name": "id",

@@ -544,7 +544,13 @@ def _snapshot_pass(db) -> dict:
     """snapshot_identity.run for a bounded number of videos; never lets a problem here fail the metadata run."""
     try:
         from . import snapshot_identity
-        return snapshot_identity.run(db, limit=SNAPSHOT_LOOKS_PER_RUN)
+        summary = snapshot_identity.run(db, limit=SNAPSHOT_LOOKS_PER_RUN)
+        try:
+            from . import performer_snapshot_faces
+            performer_snapshot_faces.grow_all(db, reader=snapshot_identity.make_face_reader(), max_videos=SNAPSHOT_LOOKS_PER_RUN // 2)
+        except Exception:
+            _swallowed_note("metadata_sync._snapshot_pass.gallery")   # no face models yet: the gallery grows once they exist
+        return summary
     except Exception:
         _swallowed_note("metadata_sync._snapshot_pass")
         return {}

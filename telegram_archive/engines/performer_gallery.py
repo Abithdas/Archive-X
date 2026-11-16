@@ -171,7 +171,7 @@ async def sync_performer(db, performer_id: int, *, max_pictures: int = MAX_PICTU
         known = {r["url_hash"]: r["status"] for r in db.conn.execute("SELECT url_hash,status FROM performer_gallery WHERE performer_id=?", (pid,)).fetchall()}
         kept_files = {r["url_hash"]: r["file_path"] for r in db.conn.execute("SELECT url_hash,file_path FROM performer_gallery WHERE performer_id=? AND status='ACTIVE'", (pid,)).fetchall()}
         sha_known = {r["sha256"] for r in db.conn.execute("SELECT sha256 FROM performer_gallery WHERE performer_id=? AND sha256<>''", (pid,)).fetchall()}
-        active = int(db.conn.execute("SELECT COUNT(*) FROM performer_gallery WHERE performer_id=? AND status='ACTIVE'", (pid,)).fetchone()[0])
+        active = int(db.conn.execute("SELECT COUNT(*) FROM performer_gallery WHERE performer_id=? AND status='ACTIVE' AND source='provider'", (pid,)).fetchone()[0])
     summary["found"] = len(candidates)
     folder = gallery_dir() / str(pid)
     for item in candidates:
@@ -360,13 +360,21 @@ def picture_file(db, performer_id: int, picture_id: int) -> Path | None:
 
 
 def remove_picture(db, performer_id: int, picture_id: int) -> bool:
-    """Take a picture out of the gallery for good: the file goes, it is not fetched again, and it stops being a face reference."""
+    """Take a picture out of the gallery for good: the file goes, it is not fetched again, and it stops being a face reference. A picture
+    taken from a video keeps its face as a "not this performer" memory (engines/performer_snapshot_faces.py) and that video is not searched
+    for this performer again."""
     ensure_tables(db)
     with db.lock:
-        row = db.conn.execute("SELECT id,file_path FROM performer_gallery WHERE id=? AND performer_id=? AND status='ACTIVE'", (int(picture_id), int(performer_id))).fetchone()
+        row = db.conn.execute("SELECT id,file_path,source,provider_id FROM performer_gallery WHERE id=? AND performer_id=? AND status='ACTIVE'", (int(picture_id), int(performer_id))).fetchone()
         if not row:
             return False
-        db.conn.execute("UPDATE performer_gallery SET status='REJECTED',file_path='',embedding_json='[]',updated_at=? WHERE id=?", (_now(), int(picture_id)))
+        if row["source"] == "snapshot":
+            db.conn.execute("UPDATE performer_gallery SET status='REJECTED',file_path='',updated_at=? WHERE id=?", (_now(), int(picture_id)))
+            if str(row["provider_id"] or "").isdigit():
+                db.conn.execute("INSERT OR REPLACE INTO performer_video_faces_done(performer_id,video_id,own_refs,added,updated_at) VALUES (?,?,-1,0,?)",
+                                (int(performer_id), int(row["provider_id"]), _now()))
+        else:
+            db.conn.execute("UPDATE performer_gallery SET status='REJECTED',file_path='',embedding_json='[]',updated_at=? WHERE id=?", (_now(), int(picture_id)))
         db.conn.commit()
     if row["file_path"]:
         try:
@@ -376,6 +384,25 @@ def remove_picture(db, performer_id: int, picture_id: int) -> bool:
                 target.unlink(missing_ok=True)
         except OSError:
             _swallowed_note("performer_gallery.remove_picture")
+    return True
+
+
+def use_as_profile_picture(db, performer_id: int, picture_id: int) -> bool:
+    """Make a kept picture the performer's profile picture, the same way a hand-uploaded one is stored: it is cached, marked manual and
+    locked, so a later provider sync does not replace it. False when the picture is not there."""
+    path = picture_file(db, performer_id, picture_id)
+    if path is None:
+        return False
+    try:
+        blob = path.read_bytes()
+    except OSError:
+        return False
+    mime = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}.get(path.suffix.lower(), "image/jpeg")
+    token = "manual-upload:" + hashlib.sha1(blob).hexdigest()
+    with db.lock:
+        db.conn.execute("UPDATE performers SET image=?,image_source='manual',image_locked=1,image_crop_version=0 WHERE id=?", (token, int(performer_id)))
+        db.conn.execute("INSERT OR REPLACE INTO performer_image_cache(performer_id,url,mime,data,updated_at) VALUES(?,?,?,?,?)", (int(performer_id), token, mime, blob, _now()))
+        db.conn.commit()
     return True
 
 

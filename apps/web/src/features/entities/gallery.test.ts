@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GALLERY_PROVIDER_FAILED, galleryStatus, galleryTabCount, lastSyncText, providerName, referenceNote } from './gallery'
+import { GALLERY_PROVIDER_FAILED, galleryStatus, galleryTabCount, lastSyncText, providerName, referenceNote, fromVideosNote } from './gallery'
 
 const item = (over = {}) => ({ id: 1, provider: 'stashdb', width: 300, height: 400, faces: 1, reference: true, source: 'provider', url: '/x', ...over })
 
@@ -31,5 +31,13 @@ describe('gallery wording', () => {
     expect(referenceNote({ faces: 0, reference: false })).toMatch(/No face/)
     expect(referenceNote({ faces: 3, reference: false })).toMatch(/Several faces/)
     expect(referenceNote({ faces: -1, reference: false })).toBe('Not read yet')
+  })
+
+  it('reports a search through the videos in words', () => {
+    expect(fromVideosNote({ faces_checked: false })).toMatch(/face models are not on this PC/)
+    expect(fromVideosNote({ faces_checked: true, videos: 0, added: 0 })).toMatch(/No new videos/)
+    expect(fromVideosNote({ faces_checked: true, videos: 3, added: 2 })).toBe('Looked through 3 videos and kept 2 new pictures.')
+    expect(fromVideosNote({ faces_checked: true, videos: 1, added: 0 })).toMatch(/no clear, matching face/)
+    expect(providerName('snapshot')).toBe('From a video')
   })
 })

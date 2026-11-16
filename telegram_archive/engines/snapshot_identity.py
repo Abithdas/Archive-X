@@ -210,20 +210,38 @@ def _now() -> str:
 
 
 
-def make_extractor() -> Callable[[str], list[list[float]]]:
-    """image path -> face embeddings, built on the face models Archive X already uses for photos. Raises when they are not on this PC yet:
-    a metadata run must not start a download by itself, so the models are only used once the People feature has fetched them."""
+def _models():
+    """(detector, recognizer) of the face models Archive X already uses for photos. Raises when they are not on this PC yet: a metadata run
+    must not start a download by itself, so they are only used once the People feature has fetched them."""
     from . import photo_face_clustering as pfc
     root = pfc._cache_root() / "models"
     yunet, sface = root / "face_detection_yunet_2023mar.onnx", root / "face_recognition_sface_2021dec.onnx"
     if not (yunet.is_file() and sface.is_file()):
         raise RuntimeError("The face models are not installed yet")
-    detector, recognizer = pfc._new_models(yunet, sface)
+    return pfc._new_models(yunet, sface)
+
+
+def make_extractor() -> Callable[[str], list[list[float]]]:
+    """image path -> face embeddings."""
+    from . import photo_face_clustering as pfc
+    detector, recognizer = _models()
 
     def extract(path: str) -> list[list[float]]:
         with tempfile.TemporaryDirectory(prefix="ax-snap-faces-") as crops:
             return [f["embedding"] for f in pfc._extract_faces(path, crops, detector, recognizer)]
     return extract
+
+
+def make_face_reader() -> Callable[[str], list[dict]]:
+    """image path -> faces as {bbox [x, y, w, h], embedding, confidence} (the aligned crops the detector writes are discarded)."""
+    from . import photo_face_clustering as pfc
+    detector, recognizer = _models()
+
+    def read(path: str) -> list[dict]:
+        with tempfile.TemporaryDirectory(prefix="ax-snap-faces-") as crops:
+            return [{"bbox": f["bbox"], "embedding": f["embedding"], "confidence": f.get("confidence", 0.0)}
+                    for f in pfc._extract_faces(path, crops, detector, recognizer)]
+    return read
 
 
 def marks_of(db, media_id: int, *, refresh: bool = False) -> dict[str, tuple[list[float], float]] | None:

@@ -195,6 +195,34 @@ def register_entity_routes(
         started = performer_gallery.start_background_sync(db, performer_id)
         return {"ok": True, "started": started, "syncing": True}
 
+    @router.post("/api/performers/{performer_id}/gallery/from-videos")
+    async def performer_gallery_from_videos(performer_id: int, request: Request):
+        """Search the snapshots of the videos mapped to this performer for their face and keep the best ones as gallery pictures."""
+        require_auth(request)
+        row = _gallery_performer(performer_id)
+        if str(row["name"] or "").strip().casefold() == "unknown performer":
+            raise HTTPException(400, "The Unknown Performer profile has no face to look for")
+        from ..engines import performer_snapshot_faces, snapshot_identity
+
+        def work():
+            try:
+                reader = snapshot_identity.make_face_reader()
+            except Exception:
+                _swallowed_note("routes_entities.performer_gallery_from_videos.models")
+                return {"faces_checked": False, "videos": 0, "added": 0}
+            return {"faces_checked": True, **performer_snapshot_faces.grow_gallery(db, performer_id, reader=reader, max_videos=12)}
+        return {"ok": True, **await asyncio.to_thread(work)}
+
+    @router.post("/api/performers/{performer_id}/gallery/{picture_id}/use-as-profile")
+    async def performer_gallery_use_as_profile(performer_id: int, picture_id: int, request: Request):
+        """Use a gallery picture as the performer's profile picture (kept: provider syncs do not replace it)."""
+        require_auth(request)
+        _gallery_performer(performer_id)
+        from ..engines import performer_gallery
+        if not await asyncio.to_thread(performer_gallery.use_as_profile_picture, db, performer_id, picture_id):
+            raise HTTPException(404, "Picture not found")
+        return {"ok": True}
+
     @router.delete("/api/performers/{performer_id}/gallery/{picture_id}")
     async def performer_gallery_remove(performer_id: int, picture_id: int, request: Request):
         """Remove a picture for good: it is not fetched again and stops being a face reference (this is not the performer)."""

@@ -524,6 +524,17 @@ class Database:
                 updated_at TEXT NOT NULL
             );
 
+            -- Which videos of a performer were already searched for their face (engines/performer_snapshot_faces.py); own_refs is how many face
+            -- references the performer had then, so a video searched without any is searched again once they have some.
+            CREATE TABLE IF NOT EXISTS performer_video_faces_done (
+                performer_id INTEGER NOT NULL,
+                video_id INTEGER NOT NULL,
+                own_refs INTEGER NOT NULL DEFAULT 0,
+                added INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (performer_id, video_id)
+            );
+
             -- What a local detector (NudeNet) can see in each photo: visible body-part regions, kept as plain tags.
             CREATE TABLE IF NOT EXISTS photo_content_analysis (
                 photo_id INTEGER PRIMARY KEY,

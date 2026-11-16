@@ -5,7 +5,7 @@ export interface GalleryState { ok?: boolean; items: GalleryItem[]; removed: num
 export const GALLERY_EMPTY = 'No gallery pictures yet. Get them from the providers: they are kept on this PC and help recognise this performer in your photos.'
 export const GALLERY_PROVIDER_FAILED = 'The providers could not be reached for this performer. Try again later.'
 
-const PROVIDERS: Record<string, string> = { stashdb: 'StashDB', theporndb: 'ThePornDB' }
+const PROVIDERS: Record<string, string> = { stashdb: 'StashDB', theporndb: 'ThePornDB', snapshot: 'From a video' }
 export const providerName = (p: string): string => PROVIDERS[p.trim().toLowerCase()] ?? (p.trim() || 'Provider')
 
 /** "14 pictures · 11 used to recognise her · 2 removed" */
@@ -35,3 +35,14 @@ export function referenceNote(i: Pick<GalleryItem, 'faces' | 'reference'>): stri
 }
 
 export const galleryTabCount = (s: Pick<GalleryState, 'items'> | undefined): number => (Array.isArray(s?.items) ? s.items.length : 0)
+
+export interface FromVideosResult { faces_checked?: boolean; videos?: number; added?: number }
+
+/** What "Find pictures in videos" reports, in words. */
+export function fromVideosNote(r: FromVideosResult): string {
+  if (r.faces_checked === false) return 'The face models are not on this PC yet. Open People once to install them, then try again.'
+  const added = Number(r.added) || 0
+  const videos = Number(r.videos) || 0
+  if (!videos) return 'No new videos to look through: every video of this performer was already searched, or has no snapshots yet.'
+  return added ? `Looked through ${videos} video${videos === 1 ? '' : 's'} and kept ${added} new picture${added === 1 ? '' : 's'}.` : `Looked through ${videos} video${videos === 1 ? '' : 's'}; no clear, matching face to keep.`
+}
