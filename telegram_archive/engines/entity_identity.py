@@ -848,6 +848,9 @@ def merge_performers(db, keep_id: int, merge_id: int, *, commit: bool = True, re
                     (keep_id, merge_id),
                 )
                 db.conn.execute("DELETE FROM performer_image_cache WHERE performer_id=?", (merge_id,))
+            if "performer_gallery" in tables:
+                from .performer_gallery import move_gallery
+                move_gallery(db, keep_id, merge_id)          # their pictures join the survivor's gallery
             if "entity_merge_audit" in tables:
                 db.conn.execute(
                     "INSERT INTO entity_merge_audit(entity_type,canonical_key,survivor_id,merged_id,survivor_name,merged_name,reason,created_at) "

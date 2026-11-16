@@ -211,13 +211,10 @@ def register_library_routes(
         """(performer ids, names, normalised picture-face matrix), read and decoded once per request."""
         import numpy as _np
         names = {int(r['id']): str(r['name'] or '').strip() for r in performer_rows}
-        ids, mats = [], []
-        for r in rdb.execute("SELECT performer_id,embedding_json FROM performer_face_embeddings WHERE embedding_json<>'[]'").fetchall():
-            v = _photo_decode_embedding(r['embedding_json'])
-            pid = int(r['performer_id'])
-            if v is not None and names.get(pid):
-                ids.append(pid); mats.append(v)
-        return ids, names, (_np.asarray(mats, dtype=_np.float32) if mats else None)
+        # One row per reference face (profile picture, gallery pictures, varied confirmed faces); a performer can have several rows.
+        from ..engines.performer_gallery import reference_matrix
+        ids, matrix = reference_matrix(rdb, wanted=[pid for pid, n in names.items() if n])
+        return ids, names, matrix
 
     def _photo_profile_picture_suggestions(rdb, vectors, performer_rows, rejected_ids, limit=3, prepared=None):
         """Rank performers whose profile-picture face resembles this group's faces. A suggestion only; the user confirms it."""
@@ -229,15 +226,17 @@ def register_library_routes(
             if matrix is None or not len(ids):
                 return []
             target = _np.asarray(vectors[:32], dtype=_np.float32)
-            scores = (target @ matrix.T).max(axis=0)
+            from ..engines.performer_gallery import best_per_performer
+            ids, best = best_per_performer(ids, (target @ matrix.T).max(axis=0), top=1)      # a performer's best reference
+            scores = _np.asarray(best, dtype=float)
             for i, pid in enumerate(ids):
                 if pid in rejected_ids:
                     scores[i] = -1.0
             order = _np.argsort(-scores)[:max(1, min(5, int(limit)))]
             return [{
                 'id': ids[i], 'name': names[ids[i]], 'image_url': f"/api/performers/{ids[i]}/image",
-                'source': 'profile_image', 'basis': 'profile picture',
-                'reason': "Face resembles this performer's profile picture",
+                'source': 'profile_image', 'basis': 'pictures',
+                'reason': "Face resembles this performer's pictures (profile picture and gallery)",
                 'similarity_score': round(float(scores[i]), 4),
             } for i in order if float(scores[i]) >= _PROFILE_PICTURE_MATCH_THRESHOLD]
         except Exception:

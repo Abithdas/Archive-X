@@ -2555,6 +2555,136 @@
    "type": ""
   }
  ],
+ "performer_gallery": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "performer_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "url_hash",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "url",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "provider_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "file_path",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "sha256",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "width",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "height",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "bytes",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "faces",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "embedding_json",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "source",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "performer_gallery_state": [
+  {
+   "name": "performer_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "last_synced_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_result",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "images_found",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  }
+ ],
  "performer_image_cache": [
   {
    "name": "performer_id",

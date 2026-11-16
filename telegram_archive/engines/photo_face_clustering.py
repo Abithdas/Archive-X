@@ -698,25 +698,17 @@ async def _download_performer_images(ctx) -> dict[str, int]:
 def _auto_match_people(db) -> dict[str, int]:
     """Name each unnamed face group after the performer whose profile-picture face matches it clearly. Everything else stays a suggestion."""
     import numpy as np
+    from . import performer_gallery
     with db.reading() as rdb:
-        perf = rdb.execute("SELECT performer_id,embedding_json FROM performer_face_embeddings WHERE embedding_json<>'[]'").fetchall()
+        # One row per reference face: the profile picture, the gallery pictures and a few varied faces already confirmed for the performer.
+        ids, pm = performer_gallery.reference_matrix(rdb)
         groups = rdb.execute(
             """SELECT g.id FROM photo_face_groups g
                WHERE g.performer_id IS NULL AND EXISTS (SELECT 1 FROM photo_face_detections d WHERE d.group_id=g.id)""").fetchall()
         rejected = {(int(r["group_id"]), int(r["performer_id"])) for r in rdb.execute(
             "SELECT group_id,performer_id FROM photo_face_suggestion_feedback WHERE status='REJECTED'").fetchall()}
-    ids, mats = [], []
-    for r in perf:
-        try:
-            v = np.asarray(json.loads(r["embedding_json"]), dtype=np.float32)
-        except Exception:
-            _swallowed_note("photo_face_clustering._auto_match_people")
-            continue
-        if v.shape == (128,) and np.isfinite(v).all() and float(np.linalg.norm(v)):
-            ids.append(int(r["performer_id"])); mats.append(v / float(np.linalg.norm(v)))
-    if not ids or not groups:
-        return {"matched": 0, "groups": len(groups), "performers_with_faces": len(ids)}
-    pm = np.stack(mats)
+    if pm is None or not groups:
+        return {"matched": 0, "groups": len(groups), "performers_with_faces": len(set(ids))}
     matched = 0
     for g in groups:
         gid = int(g["id"])
@@ -735,15 +727,18 @@ def _auto_match_people(db) -> dict[str, int]:
                 vecs.append(v / float(np.linalg.norm(v)))
         if len(vecs) < _AUTO_MATCH_MIN_FACES:
             continue
-        scores = (np.stack(vecs) @ pm.T).mean(axis=0)
-        for i, pid in enumerate(ids):
+        # mean over the group's faces for each reference; a performer's score is their best reference, so more pictures can only help a
+        # true match, and the margin over the next performer (below) is what guards against a wrong one
+        perf_ids, perf_scores = performer_gallery.best_per_performer(ids, (np.stack(vecs) @ pm.T).mean(axis=0), top=1)
+        scores = np.asarray(perf_scores, dtype=float)
+        for i, pid in enumerate(perf_ids):
             if (gid, pid) in rejected:
                 scores[i] = -1.0
         order = np.argsort(-scores)
         best = float(scores[order[0]]); second = float(scores[order[1]]) if len(order) > 1 else -1.0
         if best < _AUTO_MATCH_MIN_SCORE or best - second < _AUTO_MATCH_MARGIN:
             continue
-        pid = ids[int(order[0])]
+        pid = perf_ids[int(order[0])]
         now = _now()
         with db.lock:
             db.conn.execute("UPDATE photo_face_groups SET performer_id=?,updated_at=? WHERE id=? AND performer_id IS NULL", (pid, now, gid))
@@ -754,7 +749,7 @@ def _auto_match_people(db) -> dict[str, int]:
                 (gid, pid, round(best, 4), "Matched automatically from the performer profile picture", now, now))
             db.conn.commit()
         matched += 1
-    return {"matched": matched, "groups": len(groups), "performers_with_faces": len(ids)}
+    return {"matched": matched, "groups": len(groups), "performers_with_faces": len(set(ids))}
 
 
 async def run(ctx) -> dict[str, Any]:
@@ -797,6 +792,20 @@ async def run(ctx) -> dict[str, Any]:
         except Exception as exc:
             ctx.db.log(f"Performer picture download stopped: {type(exc).__name__}: {exc}", "WARN")
 
+    if match_people:
+        # The whole provider gallery of each performer, kept on this PC (the next batch of performers that are due; the rest follow next time).
+        ctx.report(completed=0, total=0, current_item="", operation="Downloading performer galleries", force=True)
+        try:
+            from . import performer_gallery
+            gallery = await performer_gallery.sync_due(
+                ctx.db, limit=60, checkpoint=ctx.checkpoint,
+                on_progress=lambda n, total, _x: ctx.report(completed=n, total=total, current_item="", operation=f"Downloading performer galleries · {n:,}/{total:,}", force=(n == total or n % 5 == 0)))
+            pictures["gallery_added"] = int(gallery.get("added") or 0)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            ctx.db.log(f"Performer gallery download stopped: {type(exc).__name__}: {exc}", "WARN")
+
     client = getattr(ctx.telegram, "client", None)
     if rows and (client is None or not getattr(ctx.telegram, "connected", False)):
         # Cached originals can still be used, but if none are available the normal
@@ -813,6 +822,14 @@ async def run(ctx) -> dict[str, Any]:
         await ctx.blocking(_index_performer_faces, ctx.db, detector, recognizer)
     except Exception as exc:   # matching against profile pictures is a bonus; never fail the analysis for it
         ctx.db.log(f"Performer picture face index skipped: {type(exc).__name__}: {exc}", "WARN")
+    try:
+        from . import performer_gallery
+        crops = str(_cache_root() / "performer_crops")
+        read = await ctx.blocking(performer_gallery.index_faces, ctx.db, lambda path: _extract_faces(path, crops, detector, recognizer))
+        if read:
+            ctx.db.log(f"Performer gallery: read the faces in {read:,} picture(s)", "INFO")
+    except Exception as exc:
+        ctx.db.log(f"Performer gallery face index skipped: {type(exc).__name__}: {exc}", "WARN")
     crop_dir = _cache_root() / "crops"
     crop_dir.mkdir(parents=True, exist_ok=True)
     analyzed = faces_total = failed = 0
@@ -855,7 +872,7 @@ async def run(ctx) -> dict[str, Any]:
             groups_count = int(rdb.execute("SELECT COUNT(*) n FROM photo_face_groups g WHERE EXISTS (SELECT 1 FROM photo_face_detections d WHERE d.group_id=g.id)").fetchone()["n"] or 0)
     summary = f"Analyzed {analyzed:,} photo(s); detected {faces_total:,} face(s) in {groups_count:,} visual groups"
     if match_people:
-        summary += f"; downloaded {pictures.get('downloaded', 0):,} performer picture(s); named {matched_info.get('matched', 0):,} group(s) from performer pictures"
+        summary += f"; downloaded {pictures.get('downloaded', 0):,} performer picture(s) and {pictures.get('gallery_added', 0):,} gallery picture(s); named {matched_info.get('matched', 0):,} group(s) from performer pictures"
     if failed:
         summary += f"; {failed:,} photo(s) failed and can be retried"
     from ..core.job_results import record as record_job_result

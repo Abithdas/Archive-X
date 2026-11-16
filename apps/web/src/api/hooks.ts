@@ -203,6 +203,16 @@ export const usePerformerCareer = (id: number) => useQuery(perfGet<{ career_coun
 export const usePerformerSimilar = (id: number, enabled: boolean) =>
   useQuery({ queryKey: ['performer-similar', id] as const, enabled, queryFn: () => api<{ items?: Array<{ id: number; name: string; video_count?: number; image?: string | null } & import('@/features/entities/similarity').SimilarFields>; reason?: string }>(`/api/performers/${id}/similar?limit=40`), staleTime: 60_000, retry: false })
 
+/** The pictures kept for one performer. While a download from the providers runs it checks again every few seconds. */
+export const usePerformerGallery = (id: number) =>
+  useQuery({
+    queryKey: ['performer-gallery', id] as const,
+    queryFn: () => api<import('@/features/entities/gallery').GalleryState>(`/api/performers/${id}/gallery`),
+    refetchInterval: (q) => (q.state.data?.syncing ? 3000 : false),
+    staleTime: 15_000,
+    retry: false,
+  })
+
 /** Codec and container facts for one video (the smart-playback decision); fails quietly when Telegram is not connected. */
 export const usePlayInfo = (cid: string, mid: number) =>
   useQuery({

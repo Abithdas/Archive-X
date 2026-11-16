@@ -451,6 +451,36 @@ class Database:
                 updated_at TEXT NOT NULL
             );
 
+            -- Every provider picture kept for a performer (engines/performer_gallery.py). A picture the user removes stays as REJECTED so it is
+            -- never fetched again; embedding_json is the one face used as a matching reference ('[]' when the picture cannot serve as one).
+            CREATE TABLE IF NOT EXISTS performer_gallery (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                performer_id INTEGER NOT NULL,
+                url_hash TEXT NOT NULL,
+                url TEXT NOT NULL DEFAULT '',
+                provider TEXT NOT NULL DEFAULT '',
+                provider_id TEXT NOT NULL DEFAULT '',
+                file_path TEXT NOT NULL DEFAULT '',
+                sha256 TEXT NOT NULL DEFAULT '',
+                width INTEGER NOT NULL DEFAULT 0,
+                height INTEGER NOT NULL DEFAULT 0,
+                bytes INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                faces INTEGER NOT NULL DEFAULT -1,
+                embedding_json TEXT NOT NULL DEFAULT '[]',
+                source TEXT NOT NULL DEFAULT 'provider',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(performer_id, url_hash)
+            );
+            CREATE INDEX IF NOT EXISTS idx_performer_gallery_performer ON performer_gallery(performer_id, status);
+            CREATE TABLE IF NOT EXISTS performer_gallery_state (
+                performer_id INTEGER PRIMARY KEY,
+                last_synced_at TEXT NOT NULL DEFAULT '',
+                last_result TEXT NOT NULL DEFAULT '',
+                images_found INTEGER NOT NULL DEFAULT 0
+            );
+
             -- What a local detector (NudeNet) can see in each photo: visible body-part regions, kept as plain tags.
             CREATE TABLE IF NOT EXISTS photo_content_analysis (
                 photo_id INTEGER PRIMARY KEY,

@@ -1,11 +1,13 @@
 import { Link } from '@tanstack/react-router'
 import { useReducer, useState } from 'react'
-import { useEntityLookup, usePerformer, usePerformerCareer, usePerformerMetadata, usePerformerSimilar, useSuggested } from '@/api/hooks'
+import { useEntityLookup, usePerformer, usePerformerCareer, usePerformerGallery, usePerformerMetadata, usePerformerSimilar, useSuggested } from '@/api/hooks'
 import { ApiError } from '@/api/client'
 import { Button } from '@/design/Button'
 import { Skeleton, SkeletonGroup, SkeletonLine } from '@/design/Skeleton'
 import { EntityEditor } from './EntityEditor'
 import { ACTION, ACTION_PRIMARY, Actions, BackBar, Bio, EditingBar, Eyebrow, EntityTabs, HeroCard, MEDIA_FRAME, Pill, Pills, Title, VideosHead, providerTone } from './EntityHero'
+import { PerformerGallery } from './PerformerGallery'
+import { galleryTabCount } from './gallery'
 import { PortraitAdjust } from './PortraitAdjust'
 import { imageStyle, readCrop } from './portrait'
 import { NO_PERFORMER_VIDEOS } from '@/features/library/shuffle'
@@ -39,6 +41,7 @@ export function PerformerPage({ id }: { id: number }) {
   const career = usePerformerCareer(id)
   const suggested = useSuggested('performer', id)
   const similar = usePerformerSimilar(id, tab === 'similar')
+  const gallery = usePerformerGallery(id)
 
   if (q.isPending)
     return (
@@ -115,13 +118,15 @@ export function PerformerPage({ id }: { id: number }) {
       {adjusting ? <PortraitAdjust id={p.id} name={p.name} src={imgSrc} open onClose={() => setAdjusting(false)} onSaved={refreshFraming} /> : null}
       <DetailsCard label="Performer details" rows={detailRows(p, metadata, videos.length)} related={[]} />
       <EntityTabs label="Performer details" value={tab} onChange={setTab}
-        tabs={PTABS.map((t) => ({ value: t.value, label: t.label, count: t.value === 'videos' ? videos.length : t.value === 'studios' ? studioCount(videos) : t.value === 'suggestions' ? (suggested.data?.length ?? 0) : 0 }))} />
+        tabs={PTABS.map((t) => ({ value: t.value, label: t.label, count: t.value === 'videos' ? videos.length : t.value === 'studios' ? studioCount(videos) : t.value === 'gallery' ? galleryTabCount(gallery.data) : t.value === 'suggestions' ? (suggested.data?.length ?? 0) : 0 }))} />
       {tab === 'videos' ? (
         videos.length ? <><VideosHead kind="performer" videos={videos} /><div className={GRID} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div><EditingBar videos={videos} /></> : <Empty role="tabpanel" aria-label="Videos" icon="library">No videos for this performer yet.</Empty>
       ) : tab === 'studios' ? (
         (() => { const items = studiosFor(videos, studios.data ?? []); return items.length ? (
           <PosterGrid label="Studios">{items.map((s) => <StudioPoster key={s.id} id={s.id} name={s.name} image={s.image} count={s.count} />)}</PosterGrid>
         ) : <Empty role="tabpanel" aria-label="Studios" icon="studio">{STUDIOS_EMPTY}</Empty> })()
+      ) : tab === 'gallery' ? (
+        <PerformerGallery id={p.id} name={p.name} />
       ) : tab === 'similar' ? (
         similar.isPending ? <p role="tabpanel" aria-label="Similar Performers" className="py-8 text-center text-sm text-muted">Finding similar performers…</p>
         : (similar.data?.items ?? []).length ? <PerformerGrid items={similar.data!.items!} />
