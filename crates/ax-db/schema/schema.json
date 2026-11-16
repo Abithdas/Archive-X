@@ -4041,6 +4041,38 @@
    "type": "TEXT"
   }
  ],
+ "studio_watermarks": [
+  {
+   "name": "studio_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "corner",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "vector_json",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "videos",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
  "studios": [
   {
    "name": "id",
@@ -4719,6 +4751,38 @@
    "type": "TEXT"
   }
  ],
+ "video_face_references": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "performer_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "video_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "embedding_json",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
  "video_performers": [
   {
    "name": "video_id",
@@ -4737,6 +4801,88 @@
    "notnull": false,
    "pk": false,
    "type": "REAL"
+  }
+ ],
+ "video_snapshot_looks": [
+  {
+   "name": "video_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "face_refs",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "studio_marks",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "video_snapshot_suggestions": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "video_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "kind",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "entity_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "score",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "evidence_json",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
   }
  ],
  "video_studios": [
@@ -4777,6 +4923,26 @@
    "notnull": false,
    "pk": false,
    "type": "REAL"
+  }
+ ],
+ "video_watermark_marks": [
+  {
+   "name": "video_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "marks_json",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
   }
  ],
  "watch_history": [

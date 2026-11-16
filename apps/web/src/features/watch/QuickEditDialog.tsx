@@ -10,6 +10,7 @@ import { formatDuration } from '@/features/library/format'
 import { useDebounced } from '@/features/library/useDebounced'
 import { LOOKUP_FAILED, LOOKUP_IDLE, LOOKUP_NEEDS_INPUT, LOOKUP_SEARCHING, applyMatch, candidateView, hintChips, initialPeople, initialStudio, lookupAllowed, lookupBody, lookupStatus, originLabel, pickPerformer, pickStudio, safeHttpUrl, samePerformer, saveBody, saveOutcome, searchItems, stagedItems, type CaptionSync, type Item, type LocalHit, type LookupResult, type Match, type Person, type ProviderHit, type Studio } from './quickedit'
 import { ClearField } from '@/design/ClearField'
+import { SnapshotSuggestions } from './SnapshotSuggestions'
 
 const INPUT = 'h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5 text-[15px] text-fg outline-none placeholder:text-faint focus:border-accent/60'
 const PANE = 'grid min-w-0 content-start gap-2 rounded-2xl border border-line p-3'
@@ -144,6 +145,10 @@ export function QuickEditDialog({ item, onDone }: { item: LibraryItem; onDone: (
           {note ? <p role="status" className="rounded-lg bg-accent/10 px-3 py-2 text-xs text-accent">{note}</p> : null}
           {hints.length ? <div aria-label="Filename clues" className="flex flex-wrap gap-1.5">{hints.map((h) => <span key={`${h.kind}:${h.label}`} className={cn('rounded-full border px-2.5 py-0.5 text-[11px] font-semibold', h.kind === 'unverified' ? 'border-dashed border-line-2 text-muted' : h.kind === 'date' ? 'border-line-2 text-muted' : 'border-accent/40 text-accent')}>{h.label}</span>)}</div> : null}
         </section>
+
+        <SnapshotSuggestions item={item} performers={performers} studio={studio}
+          onAddPerformer={(p) => { setPerformers((cur) => pickPerformer(cur, { ...p, kind: 'local' })); setPerformerPicked(true) }}
+          onSetStudio={(s) => { setStudio(pickStudio({ ...s, kind: 'local' })); setStudioPicked(true) }} />
 
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-3">
           <section className={PANE} aria-label="Performer">

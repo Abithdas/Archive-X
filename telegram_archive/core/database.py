@@ -481,6 +481,49 @@ class Database:
                 images_found INTEGER NOT NULL DEFAULT 0
             );
 
+            -- Suggestions of a performer / studio made from a video's own snapshots (engines/snapshot_identity.py): the studio's learned
+            -- watermark per frame corner, the corner marks of each video, faces a person confirmed, and what each video was last checked against.
+            CREATE TABLE IF NOT EXISTS video_snapshot_suggestions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                video_id INTEGER NOT NULL,
+                kind TEXT NOT NULL,
+                entity_id INTEGER NOT NULL,
+                score REAL NOT NULL DEFAULT 0,
+                evidence_json TEXT NOT NULL DEFAULT '{}',
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(video_id, kind, entity_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_video_snapshot_suggestions_video ON video_snapshot_suggestions(video_id, status);
+            CREATE TABLE IF NOT EXISTS video_watermark_marks (
+                video_id INTEGER PRIMARY KEY,
+                marks_json TEXT NOT NULL DEFAULT '{}',
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS studio_watermarks (
+                studio_id INTEGER NOT NULL,
+                corner TEXT NOT NULL,
+                vector_json TEXT NOT NULL,
+                videos INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (studio_id, corner)
+            );
+            CREATE TABLE IF NOT EXISTS video_face_references (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                performer_id INTEGER NOT NULL,
+                video_id INTEGER NOT NULL,
+                embedding_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_video_face_references_performer ON video_face_references(performer_id);
+            CREATE TABLE IF NOT EXISTS video_snapshot_looks (
+                video_id INTEGER PRIMARY KEY,
+                face_refs INTEGER NOT NULL DEFAULT -1,
+                studio_marks INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL
+            );
+
             -- What a local detector (NudeNet) can see in each photo: visible body-part regions, kept as plain tags.
             CREATE TABLE IF NOT EXISTS photo_content_analysis (
                 photo_id INTEGER PRIMARY KEY,

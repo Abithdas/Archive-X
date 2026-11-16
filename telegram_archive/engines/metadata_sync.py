@@ -515,8 +515,14 @@ async def run(ctx):
                 event="metadata.filename_entity_match", job_id=ctx.job_id,
                 details={"phase": "provider_no_match_fallback", **filename_links},
             )
+    # Videos the providers still could not name get one look at their own snapshots (a studio's watermark, performers' faces). Suggestions
+    # only: a person accepts them in Quick edit. Bounded, so a big library is worked through over several runs.
+    await ctx.checkpoint()
+    snapshot_summary = await asyncio.to_thread(_snapshot_pass, ctx.db)
     ctx.report(completed=total, total=total, operation="Finished", detail=_fingerprint_summary(stats), force=True)
     extra = []
+    if snapshot_summary.get("studio_suggestions") or snapshot_summary.get("performer_suggestions"):
+        extra.append(f"{snapshot_summary['studio_suggestions']} studio and {snapshot_summary['performer_suggestions']} performer suggestion(s) from snapshots (needs confirmation)")
     if stats["suggested"]:
         extra.append(f"{stats['suggested']} suggested (needs confirmation)")
     if stats["skipped"]:
@@ -529,6 +535,19 @@ async def run(ctx):
                f"{_fingerprint_summary(stats)}"
                + ("; " + "; ".join(extra) if extra else ""), "SUCCESS" if not stats["failed"] else "WARN")
     _record_metadata_result(ctx, sources, total, stats)
+
+
+SNAPSHOT_LOOKS_PER_RUN = 25
+
+
+def _snapshot_pass(db) -> dict:
+    """snapshot_identity.run for a bounded number of videos; never lets a problem here fail the metadata run."""
+    try:
+        from . import snapshot_identity
+        return snapshot_identity.run(db, limit=SNAPSHOT_LOOKS_PER_RUN)
+    except Exception:
+        _swallowed_note("metadata_sync._snapshot_pass")
+        return {}
 
 
 def _record_metadata_result(ctx, sources, total, stats) -> None:
