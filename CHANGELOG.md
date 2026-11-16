@@ -3,6 +3,11 @@
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
 ## Next release (not published)
+- Conflicting identifications are now settled in one place (new `metadata/evidence_resolver.py`, used by the scene-match step): a provider candidate is weighed against what the video's own snapshots say (the watermark studio and the faces).
+  - A file-fingerprint (OSHASH) match is authoritative: never downgraded, only annotated when the snapshots disagree.
+  - One contradiction (the watermark names another studio, or the faces are performers not in the scene's cast) caps the candidate at "needs review". Two contradictions drop it to LOW. A studio's network or alias name is not a contradiction.
+  - A MEDIUM candidate is applied automatically only when the watermark AND a face both agree with it, nothing contradicts it and its own score is solid (0.60 or more). Snapshot evidence alone never applies anything, and a rejected suggestion is not evidence.
+  - Videos that have snapshots but were not looked at yet are looked at when a candidate is found, so the evidence exists at decision time.
 - People recognition from your own videos, and use gallery pictures as the profile picture (new):
   - The snapshots of the videos mapped to a performer are searched for their face. Clear, sharp faces (at least 56 px wide) that match the performer become Gallery pictures labelled "From a video" (at most 12 per performer, 2 per video, no near-duplicates). Because the gallery already feeds the People check, recognition improves with every video.
   - Which face counts: with reference faces already, one that matches them and beats every other performer by a clear margin. With none yet, only a video where they are the only mapped performer, and only the one face seen in at least 6 snapshots.

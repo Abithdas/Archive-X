@@ -232,6 +232,26 @@ def make_extractor() -> Callable[[str], list[list[float]]]:
     return extract
 
 
+_SHARED: dict = {"fn": None, "tried": 0.0}
+
+
+def shared_extractor() -> Callable[[str], list[list[float]]] | None:
+    """One face reader for the whole process (loading the models takes a moment), or None while they are not installed. A failed attempt is
+    not repeated for five minutes."""
+    import time
+    if _SHARED["fn"] is not None:
+        return _SHARED["fn"]
+    if time.monotonic() - _SHARED["tried"] < 300 and _SHARED["tried"]:
+        return None
+    _SHARED["tried"] = time.monotonic()
+    try:
+        _SHARED["fn"] = make_extractor()
+    except Exception:
+        _swallowed_note("snapshot_identity.shared_extractor")
+        _SHARED["fn"] = None
+    return _SHARED["fn"]
+
+
 def make_face_reader() -> Callable[[str], list[dict]]:
     """image path -> faces as {bbox [x, y, w, h], embedding, confidence} (the aligned crops the detector writes are discarded)."""
     from . import photo_face_clustering as pfc
