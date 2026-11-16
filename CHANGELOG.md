@@ -2,6 +2,9 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Next release (not published)
+- At a zoom below 100% (Settings, Appearance, down to 70%) the pages no longer have empty bands at both sides. Their width limit was a fixed 1800 px (1500 px on the video page) measured inside the zoomed window, so on screen it shrank with the zoom while the window stayed as wide. The limit is now divided by the zoom, so every page fills the window at 70% as at 100%, and the video page uses the same limit as the others. Measured in a browser on 1366, 1920 and 2560 px wide windows: the gaps (up to 256 px on each side) are 0 on all ten pages.
+
 ## 30.3.2 (2026-11-16)
 - Native player merged into the video page (desktop app):
   - It is no longer a separate page. It plays inside the watch page where the browser's video was, with the same timeline (markers and seek preview), resume, up next and autonext, previous and next, speed, volume, and audio and subtitle menu. An old native-player link opens the watch page with it chosen.

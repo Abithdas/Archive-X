@@ -33,7 +33,7 @@ export const telegramLink = (cid: string, mid: number) => (/^-100\d+$/.test(cid)
 
 function Skel() {
   return (
-    <SkeletonGroup label="Loading video" className="mx-auto grid w-full max-w-[1500px] gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <SkeletonGroup label="Loading video" className="mx-auto grid w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="grid gap-4 text-sm leading-snug">
         <Skeleton className="aspect-video w-full rounded-[18px]" />
         <div className="text-3xl"><SkeletonLine width="55%" /></div>
@@ -151,7 +151,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const tags = showTags ? item.tags : item.tags.slice(0, 12)
 
   return (
-    <div className="mx-auto grid w-full max-w-[1500px] gap-5 px-4 pb-10 pt-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="mx-auto grid w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] gap-5 px-4 pb-10 pt-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="grid min-w-0 content-start gap-4">
         <div className="flex items-center justify-between gap-2">
           <button type="button" onClick={() => router.history.back()} aria-label="Go back" title="Go back" className="grid size-10 place-items-center rounded-xl border border-line bg-surface hover:bg-surface-2"><Icon name="arrow-left" /></button>

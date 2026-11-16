@@ -21,7 +21,7 @@ import { responsive } from '@/design/responsive'
 import { Empty } from '@/design/Empty'
 
 const GRID = 'grid gap-4'   // the library's own card size: the columns are measured (useFitGrid), not fixed
-const WRAP = 'mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10'
+const WRAP = 'mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10'
 
 export function StudioPage({ id }: { id: number }) {
   const q = useStudio(id)

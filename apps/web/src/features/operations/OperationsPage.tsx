@@ -217,7 +217,7 @@ export function OperationsPage() {
 
   if (status.isPending)
     return (
-      <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+      <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
         <SkeletonGroup label="Loading operations" className="grid gap-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-[68px] rounded-[14px]" />)}</div>
           <Skeleton className="h-52 rounded-[18px]" />
@@ -228,7 +228,7 @@ export function OperationsPage() {
 
   const tele = telemetryTiles(st)
   return (
-    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead eyebrow="Control Center" title="Operations" blurb="Service health, resources, diagnostics and live jobs">
         <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-good/15 px-3 text-xs font-bold text-good"><i className="size-1.5 rounded-full bg-good" />Live</span>
       </PageHead>

@@ -113,7 +113,7 @@ export function AiPage() {
   const body = (t: LiveTurn | null, text: string | undefined, isWorking: boolean | undefined, fallback: string) => isWorking && t ? <TurnBody turn={t} /> : text ? <StreamText text={text} instant /> : <span className="text-muted">{fallback}</span>
 
   return (
-    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead eyebrow="Local intelligence" title="AI Assistance" blurb="Private, local AI for Archive X library intelligence, diagnostics, jobs and recommendations.">
         <div className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-2" role="status" aria-live="polite">
           {starting ? <ChatDot label="Starting" className="text-sm" /> : <span aria-hidden="true" className={cn('size-2.5 rounded-full', hdr.ready ? 'bg-good' : 'bg-warn')} />}

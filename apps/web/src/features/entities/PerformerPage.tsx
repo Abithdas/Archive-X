@@ -47,7 +47,7 @@ export function PerformerPage({ id }: { id: number }) {
 
   if (q.isPending)
     return (
-      <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+      <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
         <SkeletonGroup label="Loading performer" className="grid gap-6">
           <div className="flex gap-5 text-sm leading-snug">
             <Skeleton className="aspect-[3/4] w-32 rounded-card sm:w-44" />
@@ -81,7 +81,7 @@ export function PerformerPage({ id }: { id: number }) {
   const crop = readCrop(p.id)
   const imgSrc = `/api/performers/${p.id}/image?v=${encodeURIComponent(p.image ?? '')}`
   return (
-    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <BackBar to="/performers" section="Performers" name={p.name} />
       <HeroCard label="Performer profile" media={
         <div className={cn(MEDIA_FRAME, 'group')}>

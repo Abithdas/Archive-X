@@ -124,7 +124,7 @@ export function PhotosPage() {
     : note || (channels.data && !list.length ? (channels.data.savedCount ? NO_SCANNED : NO_CHANNELS_SAVED) : q.isSuccess && !total ? EMPTY_INDEX : '')
 
   return (
-    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <div className="mb-4 flex flex-wrap items-baseline gap-x-3"><h1 className="text-2xl font-bold">Photos</h1>{tab === 'library' ? <span role="status" aria-live="polite" className="text-sm text-muted">{channels.isPending ? 'Loading…' : status || <><SpinCounter value={total} /> image{total === 1 ? '' : 's'}</>}</span> : null}</div>
 
       <div className="mb-3 flex flex-wrap items-center gap-2.5" role="group" aria-label="Photo library tools">
