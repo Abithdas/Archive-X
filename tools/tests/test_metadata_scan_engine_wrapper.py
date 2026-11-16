@@ -26,16 +26,7 @@ def wire(monkeypatch, outcomes):
     monkeypatch.setattr(h.pipe.metadata_assets, "_run_operation", fake_run_operation)
     monkeypatch.setattr(h.pipe, "_subctx", lambda ctx, job_type, detail: SimpleNamespace(report=None, scan_window_enforced=False))
     monkeypatch.setattr(h.pipe, "_scan_window_wait", h._no_wait)
-    real_sleep = asyncio.sleep
-    waits = []
-
-    async def fast_sleep(s, *a, **k):
-        waits.append(s)
-        await real_sleep(0)
-
-    clock = {"t": 0.0}
-    monkeypatch.setattr(h.pipe.asyncio, "sleep", fast_sleep)
-    monkeypatch.setattr(h.pipe.time, "monotonic", lambda: clock.__setitem__("t", clock["t"] + 5.0) or clock["t"])
+    waits = h.fast_clock(monkeypatch, h.pipe)
     return calls, waits
 
 

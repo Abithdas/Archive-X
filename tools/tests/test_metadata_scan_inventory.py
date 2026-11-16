@@ -134,14 +134,7 @@ def test_flood_waits_are_waited_out_then_the_scan_succeeds(monkeypatch):
     class FloodWait(Exception):
         seconds = 7
     hist = h.FakeHistory({i: h.video(i) for i in range(1, 4)}, raises=[FloodWait("wait"), FloodWait("wait"), None])
-    slept = []
-    real_sleep = asyncio.sleep
-    async def fast_sleep(s, *a, **k):
-        slept.append(s)
-        await real_sleep(0)
-    monkeypatch.setattr(h.pipe.asyncio, "sleep", fast_sleep)
-    clock = {"t": 0.0}
-    monkeypatch.setattr(h.pipe.time, "monotonic", lambda: clock.__setitem__("t", clock["t"] + 5.0) or clock["t"])
+    slept = h.fast_clock(monkeypatch, h.pipe)
     h.install(monkeypatch, hist)
     ctx = h.make_ctx(db)
     out = h.run(h.pipe._inventory(ctx, CH, 0))
@@ -154,12 +147,7 @@ def test_endless_flood_waits_give_up_after_five_tries_and_fall_back_to_the_store
     class FloodWait(Exception):
         seconds = 3
     hist = h.FakeHistory(raises=[FloodWait("wait")] * 50)
-    real_sleep = asyncio.sleep
-    async def fast_sleep(s, *a, **k):
-        await real_sleep(0)
-    monkeypatch.setattr(h.pipe.asyncio, "sleep", fast_sleep)
-    clock = {"t": 0.0}
-    monkeypatch.setattr(h.pipe.time, "monotonic", lambda: clock.__setitem__("t", clock["t"] + 50.0) or clock["t"])
+    h.fast_clock(monkeypatch, h.pipe, step=50.0)
     h.install(monkeypatch, hist)
     ctx = h.make_ctx(db)
     out = h.run(h.pipe._inventory(ctx, CH, 0))

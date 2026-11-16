@@ -94,7 +94,7 @@ def count(db, channel, where=""):
 
 
 _DB = None
-_CH = [1000]
+_CH = [7_700_000_000_000]      # far from the small fixed ids other tests use
 
 
 def new_channel():
@@ -104,9 +104,11 @@ def new_channel():
 
 
 def fresh_db():
+    """One private database for all these tests. The suite's own tests share the user's real data folder, which keeps rows from earlier
+    runs: channel ids that were unique within a run collided across runs and made these tests fail every second time."""
     global _DB
     if _DB is None:
-        _DB = Database()
+        _DB = Database(Path(tempfile.mkdtemp(prefix="axmeta_db_")) / "archive.db")
     return _DB
 
 
@@ -213,3 +215,34 @@ def job(db, monkeypatch, *, stages=None, channels, history=None, engines=None, d
 
 def phases(payload, index=0):
     return payload["channel_queue"][index]["phases"]
+
+
+# ---------------------------------------------------------------- a fast clock for the pipeline module only ----------------------------------------
+class _Proxy:
+    """A stand-in for a module that overrides a few names and hands everything else to the real one. Patching `time` or `asyncio`
+    themselves would change them for every thread in the process (the database, the job manager) and made the suite flaky."""
+
+    def __init__(self, real, **over):
+        self._real, self._over = real, over
+
+    def __getattr__(self, name):
+        return self._over[name] if name in self._over else getattr(self._real, name)
+
+
+def fast_clock(monkeypatch, module, *, step=5.0):
+    """Inside `module`: time.monotonic() moves `step` seconds per call and asyncio.sleep() returns at once. Returns the list of sleeps."""
+    import time as _time
+    sleeps, clock = [], {"t": 0.0}
+    real_sleep = asyncio.sleep
+
+    async def sleep(seconds, *a, **k):
+        sleeps.append(seconds)
+        await real_sleep(0)
+
+    def monotonic():
+        clock["t"] += step
+        return clock["t"]
+
+    monkeypatch.setattr(module, "time", _Proxy(_time, monotonic=monotonic))
+    monkeypatch.setattr(module, "asyncio", _Proxy(asyncio, sleep=sleep))
+    return sleeps
