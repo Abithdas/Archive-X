@@ -2,6 +2,9 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Next release (not published)
+- Installer: "Error opening file for writing: ...\backend\_internal\vcruntime140.dll" (also vcruntime140_1.dll and msvcp140.dll) while installing, with the app closed. The backend and the front door can still be running (or saving jobs) when the installer starts and keep those files open. The installer, and the uninstaller, now stop `archive-x-backend.exe` and `ax-server.exe` first and wait a moment. This also covers an update installed right after the app closes. Not tried on a real PC; the build is what checks the installer script.
+
 ## 30.3.6 (2026-11-17)
 - Telegram to Telegram transfer, "Use saved snapshots only": it skipped every video as "needs snapshots" even when the video was in the Library with all its 36 snapshot frames. The transfer sends one picture made of the 36 frames (a contact sheet), and that sheet was only looked for, never made, unless a transfer had sent the video before. It now makes the sheet from the saved frames, which needs no download from Telegram. A video whose 36 frames are really missing is still skipped, with the same message. Found in the transfer console of 30.3.5, where 79 of 79 videos were skipped.
 
