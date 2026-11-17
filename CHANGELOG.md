@@ -2,6 +2,9 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Next release (not published)
+- Telegram to Telegram transfer, "Use saved snapshots only": it skipped every video as "needs snapshots" even when the video was in the Library with all its 36 snapshot frames. The transfer sends one picture made of the 36 frames (a contact sheet), and that sheet was only looked for, never made, unless a transfer had sent the video before. It now makes the sheet from the saved frames, which needs no download from Telegram. A video whose 36 frames are really missing is still skipped, with the same message. Found in the transfer console of 30.3.5, where 79 of 79 videos were skipped.
+
 ## 30.3.5 (2026-11-17)
 - Transfers: the Media Manager's console (scan counts, skipped videos and why, each verified move) is also kept in `logs/transfer-console.log`, so it is in the logs zip (it lived only in memory before, and only error lines reached the logs). Each transfer also ends with one line in Recent activity: moved and verified, skipped, duplicates, failed.
 - Slowness and a failed transfer, from the logs of 30.3.4 (the lock-holder lines in `event-loop-stalls.log` named the causes):

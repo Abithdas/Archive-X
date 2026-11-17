@@ -686,12 +686,13 @@ async def _select_manager_thumbnail(client, source, source_video, tempdir, *, ex
         raise RuntimeError("Archive X database is required for 36-frame Telegram contact-sheet delivery")
 
     from ..engines.thumbnail_cache import (
-        ensure_playback_snapshot_sheet, playback_snapshot_sheet_cached_sync,
+        ensure_playback_snapshot_sheet, playback_snapshot_sheet_from_saved_frames_sync,
     )
     channel_id = int(canonical_peer_id(source))
     message_id = int(getattr(source_video, "id", 0) or 0)
     if not generate_fallback:
-        sheet = await asyncio.to_thread(playback_snapshot_sheet_cached_sync, db, channel_id, message_id)
+        # Saved snapshots only: the cached sheet, or one made now from the 36 saved frames (no Telegram download either way).
+        sheet = await asyncio.to_thread(playback_snapshot_sheet_from_saved_frames_sync, db, channel_id, message_id)
     else:
         sheet = await ensure_playback_snapshot_sheet(
             db, type("TelegramAdapter", (), {"client": client, "connected": True})(),

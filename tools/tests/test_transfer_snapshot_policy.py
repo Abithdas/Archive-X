@@ -61,3 +61,42 @@ def test_the_start_route_validates_and_stores_the_policy():
     src = inspect.getsource(routes_jobs)
     assert '"snapshot_policy": snapshot_policy' in src
     assert 'snapshot_policy not in {"existing", "generate"}' in src
+
+
+def test_saved_snapshots_only_composes_the_sheet_from_the_36_saved_frames(tmp_path, monkeypatch):
+    """A video in the Library has its 36 frames but never had the one-picture sheet made: "saved snapshots only" must build it from the frames
+    (no Telegram download) instead of skipping the video as "needs snapshots"."""
+    import random
+    from PIL import Image, ImageDraw
+    from telegram_archive import config
+    from telegram_archive.core.database import Database
+    from telegram_archive.engines import preview_prefetch as pp, thumbnail_cache as tc
+
+    monkeypatch.setattr(config, "CACHE_DIR", tmp_path / "cache")
+    db = Database(tmp_path / "t.db")
+    cid, mid = -1001234567890, 42
+    folder = pp.preview_frames_path(cid, mid)
+    folder.mkdir(parents=True, exist_ok=True)
+    rng = random.Random(1)
+    for i in range(1, 37):
+        im = Image.new("RGB", (320, 180), (rng.randrange(256), rng.randrange(256), rng.randrange(256)))
+        d = ImageDraw.Draw(im)
+        for _ in range(40):
+            x, y = rng.randrange(280), rng.randrange(140)
+            d.rectangle([x, y, x + rng.randrange(1, 40), y + rng.randrange(1, 40)], fill=(rng.randrange(256), rng.randrange(256), rng.randrange(256)))
+        im.save(folder / f"frame_{i:02d}.jpg", quality=92)
+    if not pp.frame_quality_sync(folder).get("ready"):
+        import pytest
+        pytest.skip("the generated test frames do not pass the snapshot quality check on this machine")
+    assert tc.playback_snapshot_sheet_cached_sync(db, cid, mid) is None          # no sheet has been made yet
+    sheet = tc.playback_snapshot_sheet_from_saved_frames_sync(db, cid, mid)      # made now, from the frames
+    assert sheet and sheet[1] == "image/jpeg" and len(sheet[0]) > 512
+    assert tc.playback_snapshot_sheet_cached_sync(db, cid, mid) is not None      # and kept for next time
+
+
+def test_saved_snapshots_only_still_says_no_when_the_frames_are_missing(tmp_path, monkeypatch):
+    from telegram_archive import config
+    from telegram_archive.core.database import Database
+    from telegram_archive.engines import thumbnail_cache as tc
+    monkeypatch.setattr(config, "CACHE_DIR", tmp_path / "cache")
+    assert tc.playback_snapshot_sheet_from_saved_frames_sync(Database(tmp_path / "t.db"), -1001234567890, 7) is None
