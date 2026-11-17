@@ -151,7 +151,7 @@ export function AppearancePanel() {
                   <ThemePreview c={{ bg: p.bg, surface: p.surface, card: p.surface2, thumb: p.surface3, text: p.text, muted: p.text3, accent: p.accent }} />
                   <span className="flex items-center justify-between gap-2 px-1">
                     <b className="truncate text-[13px]">{t.name}</b>
-                    {on ? <span className="inline-flex items-center gap-1 text-[11px] font-bold text-accent"><Icon name="check" className="size-3" />In use</span> : <span className="text-[11px] text-faint opacity-0 group-hover:opacity-100">Use</span>}
+                    {on ? <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-bold text-accent"><Icon name="check" className="size-3" /><span className="sr-only">In use</span></span> : <span className="text-[11px] text-faint opacity-0 group-hover:opacity-100">Use</span>}
                   </span>
                 </button>
               </li>

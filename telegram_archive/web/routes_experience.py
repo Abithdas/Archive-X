@@ -51,7 +51,7 @@ def _entity_favorited(db, entity_type: str, entity_id: int) -> bool:
 
 
 
-_AX_THEME_PRESETS = {'nord', 'nero-gold', 'black-essence', 'pastel-lavender', 'pastel-mint', 'minimal-slate', 'minimal-sand', 'custom'}
+_AX_THEME_PRESETS = {'nord', 'nero-gold', 'black-essence', 'pastel-lavender', 'pastel-mint', 'minimal-slate', 'minimal-sand', 'teal-coral', 'neon-lime', 'golden-noir', 'custom'}
 _AX_THEME_ALIASES = {'nobuf-dark': 'nobuf', 'nobuf-light': 'nobuf', 'solarized-light': 'solarized'}
 
 

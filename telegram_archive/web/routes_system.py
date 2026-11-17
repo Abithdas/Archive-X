@@ -572,7 +572,7 @@ def register_system_routes(
                 "autonext": bool(db.setting("ta_autonext", "1") not in {"0", "false", "False"}),
                 "autonext_mode": db.setting("ta_autonext_mode", "context"),
                 "theme_mode": ("system" if db.setting("ax_theme_mode", "system") == "auto-time" else db.setting("ax_theme_mode", "system")),
-                "theme_preset": (db.setting("ax_theme_preset", "nord") if db.setting("ax_theme_preset", "nord") in {"nord", "nero-gold", "black-essence","pastel-lavender", "pastel-mint", "minimal-slate", "minimal-sand", "custom"} else "nord"),
+                "theme_preset": (db.setting("ax_theme_preset", "nord") if db.setting("ax_theme_preset", "nord") in {"nord", "nero-gold", "black-essence","pastel-lavender", "pastel-mint", "minimal-slate", "minimal-sand", "teal-coral", "neon-lime", "golden-noir", "custom"} else "nord"),
                 "grid_density": (db.setting("ax_grid_density", "default") if db.setting("ax_grid_density", "default") in {"compact", "default", "spacious"} else "default"),
                 "live_seek_preview": bool(db.setting("ta_live_seek_preview", "1") not in {"0", "false", "False"}),
                 # Include this in bootstrap as well as the dedicated settings route;

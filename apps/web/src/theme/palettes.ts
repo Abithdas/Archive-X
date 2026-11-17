@@ -47,4 +47,24 @@ export const THEMES: ThemeFamily[] = [
     dark: { bg: '#1a1815', surface: '#231f1b', surface2: '#2d2823', surface3: '#3a342d', text: '#f3efe9', text2: '#c4bcb1', text3: '#8f8579', accent: '#c4a484', onAccent: '#1a1410', ok: '#2dba6e', warn: '#e8a838', bad: '#e25555' },
     light: { bg: '#f8f5f0', surface: '#ffffff', surface2: '#eee9e1', surface3: '#e1d9ce', text: '#2a241e', text2: '#5f564c', text3: '#8b8176', accent: '#86644a', onAccent: '#ffffff', ok: '#207a4a', warn: '#8a5a00', bad: '#a83333' },
   },
+  // Three palettes added later, each built from three swatches (a light neutral, a dark and one bright colour). The swatch colours are used as they
+  // are where they read well (the bright colour as the accent on the dark variant); the light variants take a darker accent so links stay readable.
+  {
+    id: 'teal-coral',
+    name: 'Teal Coral',
+    dark: { bg: '#0e2f2c', surface: '#14403c', surface2: '#1a4f4a', surface3: '#22615b', text: '#f3eee8', text2: '#c5cfc9', text3: '#93a8a2', accent: '#ff6845', onAccent: '#1b0a05', ok: '#2dba6e', warn: '#e8a838', bad: '#e25555' },
+    light: { bg: '#f3eee8', surface: '#fbf8f4', surface2: '#eae4dc', surface3: '#ddd5ca', text: '#0f3633', text2: '#4b6a66', text3: '#7a8f8b', accent: '#17645f', onAccent: '#f3eee8', ok: '#207a4a', warn: '#8a5a00', bad: '#a83333' },
+  },
+  {
+    id: 'neon-lime',
+    name: 'Neon Lime',
+    dark: { bg: '#08090b', surface: '#121316', surface2: '#1c1d21', surface3: '#27292e', text: '#faf8f3', text2: '#c2c2be', text3: '#8a8b88', accent: '#cdf22b', onAccent: '#08090b', ok: '#2dba6e', warn: '#e8a838', bad: '#e25555' },
+    light: { bg: '#faf8f3', surface: '#ffffff', surface2: '#efece4', surface3: '#e2ded3', text: '#08090b', text2: '#4a4b4d', text3: '#7c7d7f', accent: '#08090b', onAccent: '#cdf22b', ok: '#207a4a', warn: '#8a5a00', bad: '#a83333' },
+  },
+  {
+    id: 'golden-noir',
+    name: 'Gold Noir',
+    dark: { bg: '#08090b', surface: '#131417', surface2: '#1d1e22', surface3: '#2a2b30', text: '#f5f3ef', text2: '#c4c2bd', text3: '#8c8b87', accent: '#ffc900', onAccent: '#08090b', ok: '#2dba6e', warn: '#e8a838', bad: '#e25555' },
+    light: { bg: '#f5f3ef', surface: '#ffffff', surface2: '#ebe8e1', surface3: '#ddd9cf', text: '#08090b', text2: '#4b4c4e', text3: '#7b7c7e', accent: '#8a6600', onAccent: '#ffffff', ok: '#207a4a', warn: '#8a5a00', bad: '#a83333' },
+  },
 ]

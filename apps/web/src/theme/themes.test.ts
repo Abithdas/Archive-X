@@ -4,13 +4,26 @@ import { THEMES, applyScale, applyTheme, familyOf, normalizeMode, normalizePrese
 beforeEach(() => { localStorage.clear(); document.documentElement.removeAttribute('style'); document.documentElement.removeAttribute('data-theme') })
 
 describe('presets', () => {
-  it('has the seven classic themes with both variants', () => {
-    expect(THEMES.map((t) => t.id)).toEqual(['nord', 'nero-gold', 'black-essence', 'pastel-lavender', 'pastel-mint', 'minimal-slate', 'minimal-sand'])
+  it('has the seven classic themes and the three added ones, each with both variants', () => {
+    expect(THEMES.map((t) => t.id)).toEqual(['nord', 'nero-gold', 'black-essence', 'pastel-lavender', 'pastel-mint', 'minimal-slate', 'minimal-sand', 'teal-coral', 'neon-lime', 'golden-noir'])
     for (const t of THEMES) for (const m of ['dark', 'light'] as const) expect(t[m].bg).toMatch(/^#[0-9a-f]{6}$/i)
   })
   it('uses the measured classic colours', () => {
     expect(familyOf('nord').dark).toMatchObject({ bg: '#232833', surface: '#2b313d', accent: '#5fd3e0' })
     expect(familyOf('nero-gold').light).toMatchObject({ bg: '#f7f4eb', accent: '#8d6a18' })
+  })
+  it('the added themes use their swatch colours and keep their text readable', () => {
+    expect(familyOf('teal-coral').light.bg).toBe('#f3eee8'); expect(familyOf('teal-coral').dark.accent).toBe('#ff6845')
+    expect(familyOf('neon-lime').dark).toMatchObject({ bg: '#08090b', accent: '#cdf22b' })
+    expect(familyOf('golden-noir').dark.accent).toBe('#ffc900')
+    const lum = (h: string) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]! }
+    const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x! + 0.05) / (y! + 0.05) }
+    for (const id of ['teal-coral', 'neon-lime', 'golden-noir']) for (const m of ['dark', 'light'] as const) {
+      const p = familyOf(id)[m]
+      expect(ratio(p.text, p.bg), `${id} ${m} text`).toBeGreaterThan(7)
+      expect(ratio(p.onAccent, p.accent), `${id} ${m} button text`).toBeGreaterThan(4.5)
+      expect(ratio(p.accent, p.bg), `${id} ${m} accent on page`).toBeGreaterThan(3)
+    }
   })
   it('falls back to Nord for unknown ids and non-light modes', () => {
     expect(normalizePreset('custom')).toBe('nord')
