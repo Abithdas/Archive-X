@@ -174,6 +174,28 @@ class MediaManagerRunner:
 
     # ------------------------------------------------------------ console bridge
 
+    def _keep_line(self, line: str) -> None:
+        """Keep the console on disk too (logs/transfer-console.log, 3 MB then one older copy), so the log zip shows what a transfer or scan did:
+        the in-memory console is gone after a restart and only error lines reached the event log."""
+        if not line.strip():
+            return
+        try:
+            from .. import config
+            path = config.LOG_DIR / "transfer-console.log"
+            fh = getattr(self, "_console_file", None)
+            if fh is None or getattr(self, "_console_path", None) != path:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                fh = path.open("a", encoding="utf-8", errors="replace")
+                self._console_file, self._console_path = fh, path
+            fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {line[:600]}\n")
+            fh.flush()
+            if fh.tell() > 3_000_000:
+                fh.close()
+                self._console_file = None
+                path.replace(path.with_suffix(".old.log"))
+        except Exception:
+            self._console_file = None
+
     def _commit(self, line: str):
         self.heartbeat(progress=True)
         if "\r" in line:
@@ -181,6 +203,7 @@ class MediaManagerRunner:
         line = line.rstrip()
         self.seq += 1
         self.lines.append((self.seq, line))
+        self._keep_line(line)
         m = _PROGRESS_RE.match(line) or _PREFETCH_RE.match(line)
         if m:
             idx = int(m.group(1).replace(",", ""))

@@ -3,6 +3,7 @@
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
 ## Next release (not published)
+- Transfers: the Media Manager's console (scan counts, skipped videos and why, each verified move) is also kept in `logs/transfer-console.log`, so it is in the logs zip (it lived only in memory before, and only error lines reached the logs). Each transfer also ends with one line in Recent activity: moved and verified, skipped, duplicates, failed.
 - Slowness and a failed transfer, from the logs of 30.3.4 (the lock-holder lines in `event-loop-stalls.log` named the causes):
   - The performer "suggested" list (`/api/performers/{id}/suggested`) kept the database lock for up to 135 s: its query walked every pending suggestion. It now uses two indexed lookups on its own connection and takes no lock (5 ms against 373 ms on a test library of 600,000 suggestions).
   - The channel-ID repair that runs at start-up and after a Telegram-to-Telegram transfer (it moves a channel's rows to the new ID) searched whole tables for every row it moved, with the lock held, which is the likely reason for the 20-second start-up and for pages freezing right after a transfer. Its lookups now use the tables' indexes. Not measured on the real library: it is the one found holding the lock at that moment.
