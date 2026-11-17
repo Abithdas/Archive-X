@@ -2218,6 +2218,17 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
         print(f"Source channels     : {len(sources)}")
         print(f"Completed items     : {total_complete:,}")
         print(f"Skipped/resumed     : {total_skipped:,}")
+        # One line in Recent activity with the outcome of the run, so "nothing moved" can be read from the logs instead of guessed.
+        try:
+            globals().get("MEDIA_MANAGER_DB").log(
+                f"Telegram Transfer Manager finished: {total_complete:,} moved and verified, {total_skipped:,} skipped"
+                + (f" ({total_needs_snapshots:,} of them have no saved snapshots)" if total_needs_snapshots else "")
+                + f", {total_duplicates:,} duplicates, {total_failed:,} failed.",
+                "SUCCESS" if not total_failed else "WARN", event="telegram_transfer.summary", job_id=job_id,
+                details={"moved": int(total_complete), "skipped": int(total_skipped), "no_snapshots": int(total_needs_snapshots),
+                         "duplicates": int(total_duplicates), "failed": int(total_failed)})
+        except Exception:
+            pass
         if total_needs_snapshots:
             print(f"  of which need snapshots: {total_needs_snapshots:,} (left in the source; scan the channel, then run the transfer again)")
             # The console above is easy to miss: say it where the activity list shows it, in plain words, with what to do about it.
