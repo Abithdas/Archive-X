@@ -1,29 +1,43 @@
 # Archive X
 
-A private media archive for Telegram: browse, search and play the videos and photos in your channels, keep them organised by performer, studio and tag, and move them between channels. It runs on your PC as a desktop app (Windows installer) and keeps everything local.
+**A private, local-first media library for your Telegram channels.**
 
-## What is in this repository
+Browse, search, and play your videos and photos from a Windows desktop app. Organize media by performer, studio, and tag, then move selected items between channels.
 
-| Folder | What it is | Language |
-|--------|------------|----------|
-| `apps/web/` | The web app the desktop window shows | TypeScript, React 19, Vite, Tailwind |
-| `telegram_archive/` | The backend: Telegram, database, jobs, streaming, metadata | Python (being rewritten in Rust) |
-| `crates/` | Rust libraries and the front door: `ax-server`, `ax-db`, `ax-names`, `ax-faces`, `launcher-core`, `native-player` | Rust |
-| `apps/desktop/` | The Tauri desktop shell | Rust |
-| `native/axplayer/` | The native video engine (DirectShow, LAV Filters) | C++ |
-| `packaging/` | Freezing the Python backend (PyInstaller) and the scripts that fetch ffmpeg and LAV Filters for the installer | Python, shell |
-| `tools/` | Tests for the Python backend, parity checks against the Rust front door, release and dependency-scan scripts | Python |
-| `docs/` | Plans, architecture, logs, security reports (start at [docs/README.md](docs/README.md)) | Markdown |
+[Download the latest Windows release](https://github.com/Abithdas/Archive-X/releases/latest) · [View all releases](https://github.com/Abithdas/Archive-X/releases) · [Read the changelog](CHANGELOG.md)
 
-How the pieces fit: the desktop shell starts the backend and the Rust front door, then opens the web app in a window. The front door serves the web app's files and a growing set of routes itself, and forwards everything else to the Python backend. The plan to move the rest into Rust is in [docs/plan.md](docs/plan.md).
+> Archive X runs on your PC. Your library and app data stay local; Telegram is used to access and transfer channel media.
 
-## Build and test
+## What you can do
 
-Tools needed: Rust (stable), Node 22, Python 3.12. [`just`](https://github.com/casey/just) is optional but runs exactly what CI runs.
+- Browse and search media from your Telegram channels.
+- Play videos and view photos in the desktop app.
+- Keep a library organized with performer, studio, and tag details.
+- Move media between channels.
+
+## Install
+
+Download the latest release and choose the Windows installer that suits you:
+
+- **`.exe`** — standard setup installer.
+- **`.msi`** — Windows Installer package.
+
+Archive X is currently distributed as a Windows x64 desktop app. See the [latest release](https://github.com/Abithdas/Archive-X/releases/latest) for downloads and version-specific notes.
+
+## Build from source
+
+### Requirements
+
+- Rust stable
+- Node.js 22
+- Python 3.12
+- [`just`](https://github.com/casey/just) (optional; provides the same commands used by CI)
+
+Run the full test suite and lint checks:
 
 ```bash
-just test    # Python, Rust and web tests
-just lint    # clippy and the type check
+just test
+just lint
 ```
 
 Without `just`:
@@ -32,17 +46,35 @@ Without `just`:
 python -m pip install -r requirements.txt pytest httpx websockets
 python -m pytest tools/tests -q
 cargo test --workspace
-(cd apps/web && npm ci && npm test && npm run typecheck && npm run unused)
+cd apps/web
+npm ci
+npm test
+npm run typecheck
+npm run unused
 ```
 
-The Windows installer is built by the **Desktop** workflow in GitHub Actions (`.github/workflows/desktop.yml`). Run it with a version number to publish a release.
+The Windows installer is built by the [Desktop GitHub Actions workflow](.github/workflows/desktop.yml). The workflow publishes a release when run with a version number.
 
-## More
+## Project structure
 
-- [CONTRIBUTING.md](CONTRIBUTING.md): the rules the work follows
-- [CHANGELOG.md](CHANGELOG.md): what changed in each release
-- [docs/README.md](docs/README.md): all the documents
+| Path | Purpose | Main technologies |
+| --- | --- | --- |
+| `apps/web/` | User interface shown inside the desktop window | TypeScript, React, Vite, Tailwind |
+| `apps/desktop/` | Desktop shell | Rust, Tauri |
+| `crates/` | Rust server, database, naming, face, launcher, and player libraries | Rust |
+| `telegram_archive/` | Telegram integration, database, jobs, streaming, and metadata backend | Python; migration to Rust is in progress |
+| `native/axplayer/` | Native video engine | C++ |
+| `packaging/` | Installer and bundled dependency tooling | Python, shell |
+| `tools/` | Tests, parity checks, release, and dependency-scan scripts | Python |
+| `docs/` | Architecture, plans, and project notes | Markdown |
 
-## Licence
+The desktop shell starts the backend and Rust front door, then opens the web interface in its window. The Rust front door serves the web app and handles a growing set of routes, forwarding the rest to the Python backend. See the [migration plan](docs/plan.md) and [documentation index](docs/README.md).
 
-Archive X is free software under the GNU General Public License, version 3 or (at your option) any later version: see [LICENSE](LICENSE). The installer also bundles LAV Filters and FFmpeg (both GPL) and builds on many open-source packages; they are listed with their licences in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), which `python tools/release/gen_notices.py` regenerates.
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the project workflow and contribution guidelines. Bug reports and feature requests are welcome in [GitHub Issues](https://github.com/Abithdas/Archive-X/issues).
+
+## License
+
+Archive X is licensed under the [GNU General Public License v3 or later](LICENSE). Third-party components and their licenses are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
