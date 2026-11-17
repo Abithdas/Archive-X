@@ -307,6 +307,7 @@ class EventLoopGuard:
         self._stall_started: Optional[float] = None
         self._stall_dumped = False
         self._stall_dumped_late = False
+        self._last_stall_end: Optional[float] = None   # monotonic time the last freeze ended
 
     def beat(self) -> None:
         with self._lock:
@@ -314,6 +315,7 @@ class EventLoopGuard:
             self._loop_thread_id = threading.get_ident()
             if self._stalled and self._stall_started is not None:
                 self._record_stall_end(time.monotonic() - self._stall_started)
+                self._last_stall_end = time.monotonic()
             self._stalled = False
             self._stall_started = None
             self._stall_dumped = False
@@ -354,6 +356,11 @@ class EventLoopGuard:
             _swallowed_note("watchdogs.EventLoopGuard._dump_loop_stack")
             holder = ""
         self._write_stall(f"=== {stamp} event loop frozen for {age:.1f}s; code running now:\n{stack[-6000:]}" + (f"\n{holder}" if holder else ""))
+
+    def stalled_since(self, t: float) -> bool:
+        """True when the event loop was frozen at any moment since monotonic time `t` (or is frozen now)."""
+        with self._lock:
+            return self._stalled or (self._last_stall_end is not None and self._last_stall_end >= t)
 
     def _record_stall_end(self, total: float) -> None:
         stamp = datetime.now(timezone.utc).isoformat()
@@ -1076,6 +1083,11 @@ class WatchdogManager:
         if state == RECOVERING and entry is not None and entry.last_progress > started:
             self._unhealthy_since[jid] = now
             return False
+        # A job that looks late because the whole application was frozen (the event loop, not the job) is not stuck: start its grace again
+        # instead of stopping it. A 56-second freeze used to make this stop a healthy metadata job and fail the transfer waiting on it.
+        if self.loop_guard.stalled_since(started):
+            self._unhealthy_since[jid] = now
+            return False
         grace = _unrecovered_grace_seconds(latest_job)
         elapsed = max(0.0, now - started)
         if elapsed < grace:
@@ -1125,7 +1137,9 @@ class WatchdogManager:
     async def _tick(self):
         """One evaluation pass over active jobs on the event loop."""
         now = time.monotonic()
-        active = {str(j.get("id")): j for j in self.manager.db.active_jobs()}
+        # On a worker thread: waiting for the database lock here used to freeze the whole event loop for as long as another thread kept it.
+        import asyncio
+        active = {str(j.get("id")): j for j in await asyncio.to_thread(self.manager.db.active_jobs)}
         with self._active_jobs_lock:
             self._active_jobs_cache = {jid: dict(job) for jid, job in active.items()}
 

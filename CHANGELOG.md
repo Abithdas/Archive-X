@@ -2,6 +2,14 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Next release (not published)
+- Slowness and a failed transfer, from the logs of 30.3.4 (the lock-holder lines in `event-loop-stalls.log` named the causes):
+  - The performer "suggested" list (`/api/performers/{id}/suggested`) kept the database lock for up to 135 s: its query walked every pending suggestion. It now uses two indexed lookups on its own connection and takes no lock (5 ms against 373 ms on a test library of 600,000 suggestions).
+  - The channel-ID repair that runs at start-up and after a Telegram-to-Telegram transfer (it moves a channel's rows to the new ID) searched whole tables for every row it moved, with the lock held, which is the likely reason for the 20-second start-up and for pages freezing right after a transfer. Its lookups now use the tables' indexes. Not measured on the real library: it is the one found holding the lock at that moment.
+  - The watchdog's own check for running jobs waited for the database lock on the main thread; it now waits on a worker thread.
+  - A metadata job that looked late only because the whole application had frozen was force-stopped by the watchdog ("remained DEGRADED for 63 s"), and a Telegram transfer waiting on it failed with it. The watchdog now gives such a job a fresh grace period when the freeze, not the job, was the cause.
+  - A transfer that leaves videos behind because they have no saved snapshots ("existing snapshots only") now says so in Recent activity, with what to do. Those videos stay in the source channel and keep showing "Snapshots missing" until their snapshots are built (Metadata & Assets, Snapshots) or the transfer is run again with snapshots set to Automatic. This was how the setting always worked; it was only reported in the console.
+
 ## 30.3.4 (2026-11-17)
 - Slowness. From the logs of a PC where every page was slow: the app's server froze 37 times for 8 to 202 seconds (`event-loop-stalls.log`), mostly waiting for the one database lock that every database call takes. What was changed, and what was not:
   - Fewer database calls on the server's main thread: a running job no longer reads its own row on every progress report (only when a write goes through, twice a second at most, and its stage telemetry is written at that pace too); the job supervisor that checked four times a second now checks twice a second and does its database work on a worker thread; the end-of-scan readiness count (up to 100 s in the log) runs on a worker thread.

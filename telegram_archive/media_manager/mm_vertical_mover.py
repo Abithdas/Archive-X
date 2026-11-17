@@ -2220,6 +2220,16 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
         print(f"Skipped/resumed     : {total_skipped:,}")
         if total_needs_snapshots:
             print(f"  of which need snapshots: {total_needs_snapshots:,} (left in the source; scan the channel, then run the transfer again)")
+            # The console above is easy to miss: say it where the activity list shows it, in plain words, with what to do about it.
+            try:
+                globals().get("MEDIA_MANAGER_DB").log(
+                    f"Telegram Transfer Manager: {total_needs_snapshots:,} video(s) were not moved and stay in the source channel, because they have no saved "
+                    "snapshots and this transfer uses \"existing snapshots only\". Build their snapshots (Metadata & Assets, Snapshots, on that channel) "
+                    "or start the transfer again with snapshots set to Automatic.",
+                    "WARN", event="telegram_transfer.left_in_source", job_id=job_id,
+                    details={"videos_left_in_source": int(total_needs_snapshots)})
+            except Exception:
+                pass
         print(f"Duplicates detected : {total_duplicates:,}")
         print(f"Failed items        : {total_failed:,}")
         print("Processing model    : one source channel at a time; one transfer item at a time")

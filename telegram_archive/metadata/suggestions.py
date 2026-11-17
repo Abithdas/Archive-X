@@ -382,11 +382,19 @@ def list_for_video(db, video_id: int, status: str = "PENDING") -> list[dict]:
 
 
 def list_for_performer(db, performer_id: int, status: str = "PENDING") -> list[dict]:
-    with db.lock:
-        rows = db.conn.execute(
-            """SELECT DISTINCT ms.* FROM metadata_suggestions ms
-               LEFT JOIN metadata_suggestion_performers msp ON msp.suggestion_id=ms.id
-               WHERE ms.status=? AND (ms.suggested_performer_id=? OR msp.performer_id=?)
+    pid = int(performer_id)
+    # Two indexed lookups joined by UNION instead of `suggested_performer_id=? OR msp.performer_id=?` over a LEFT JOIN, which SQLite answers by
+    # walking every pending suggestion (a minute or more on a big library, with the database lock held, which froze the app). It reads on its own
+    # connection, so it does not take that lock at all.
+    with db.reading() as rdb:
+        rows = rdb.execute(
+            """SELECT ms.* FROM metadata_suggestions ms
+               WHERE ms.id IN (
+                     SELECT id FROM metadata_suggestions WHERE status=? AND suggested_performer_id=?
+                     UNION
+                     SELECT msp.suggestion_id FROM metadata_suggestion_performers msp
+                       JOIN metadata_suggestions m2 ON m2.id=msp.suggestion_id
+                      WHERE msp.performer_id=? AND m2.status=?)
                  AND NOT EXISTS (
                      SELECT 1 FROM metadata_entity_suggestion_decisions d
                      WHERE d.video_id=ms.video_id AND d.entity_type='performer'
@@ -405,8 +413,7 @@ def list_for_performer(db, performer_id: int, status: str = "PENDING") -> list[d
                      WHERE lvp.video_id=ms.video_id AND lvp.performer_id=?
                  )
                ORDER BY COALESCE(ms.score,0) DESC, ms.id DESC""",
-            (status, int(performer_id), int(performer_id), int(performer_id),
-             int(performer_id), int(performer_id)),
+            (status, pid, pid, status, pid, pid, pid),
         ).fetchall()
     # Entity pages ask one relationship question per video, not one question
     # for every provider record. The highest-ranked candidate is representative;

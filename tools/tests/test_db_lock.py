@@ -45,3 +45,21 @@ def test_other_threads_wait_and_non_blocking_acquire_still_works():
     t.start(); t.join()
     assert got == [False]
     lock.release()
+
+
+def test_the_watchdog_can_tell_a_frozen_application_from_a_stuck_job():
+    """A job that looks late because the whole event loop froze must not be force-stopped for it."""
+    from telegram_archive.core.watchdogs import EventLoopGuard
+    guard = EventLoopGuard(check_interval=0.2, stall_after=0.4)
+    guard.start()
+    try:
+        guard.beat()
+        t0 = time.monotonic()
+        assert not guard.stalled_since(t0)
+        time.sleep(0.9)                      # nothing beats: the loop is frozen
+        assert guard.stalled_since(t0)       # frozen right now
+        guard.beat()                         # it recovers
+        assert guard.stalled_since(t0)       # but it was frozen after t0
+        assert not guard.stalled_since(time.monotonic() + 0.01)
+    finally:
+        guard.stop()
