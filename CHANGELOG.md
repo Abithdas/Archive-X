@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Next release (not published)
+## 30.3.4 (2026-11-17)
 - Slowness. From the logs of a PC where every page was slow: the app's server froze 37 times for 8 to 202 seconds (`event-loop-stalls.log`), mostly waiting for the one database lock that every database call takes. What was changed, and what was not:
   - Fewer database calls on the server's main thread: a running job no longer reads its own row on every progress report (only when a write goes through, twice a second at most, and its stage telemetry is written at that pace too); the job supervisor that checked four times a second now checks twice a second and does its database work on a worker thread; the end-of-scan readiness count (up to 100 s in the log) runs on a worker thread.
   - The Operations page asks for the resources and diagnostics views every 5 seconds (the log shows 14,539 and 11,192 such requests from one page left open); both are now built once and shared for 2 to 3 seconds, so a second open window or a slow answer no longer adds to the load.
