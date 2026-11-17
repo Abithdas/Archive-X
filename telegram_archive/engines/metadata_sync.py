@@ -534,7 +534,7 @@ async def run(ctx):
     ctx.db.log(f"Metadata match: {total} checked, {stats['matched']} matched, {stats['no_match']} no match; "
                f"{_fingerprint_summary(stats)}"
                + ("; " + "; ".join(extra) if extra else ""), "SUCCESS" if not stats["failed"] else "WARN")
-    _record_metadata_result(ctx, sources, total, stats)
+    await asyncio.to_thread(_record_metadata_result, ctx, sources, total, stats)   # counts every video of each channel: not on the event loop
 
 
 SNAPSHOT_LOOKS_PER_RUN = 25

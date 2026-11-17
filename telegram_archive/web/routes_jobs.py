@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
+from ..core.snapshot_cache import SnapshotCache
 import asyncio
 import json
 
@@ -73,10 +74,13 @@ def register_job_routes(
         jobs.submit(jid)
         return {"id": jid}
 
+    # Polled every 5 s by each open Operations page, and building it expires leases (a database write): shared for 2 s.
+    _resources_view = SnapshotCache(2.0)
+
     @router.get("/api/operations/resources")
     def resource_control_status(request: Request):
         require_auth(request)
-        return {"ok": True, "resources": resources.snapshot() if resources is not None else {}, "resource_leases": db.resource_lease_snapshot(), "execution_lanes": jobs.execution_lane_capacities() if hasattr(jobs, "execution_lane_capacities") else {}, "governor": governor.status()}
+        return _resources_view.get(lambda: {"ok": True, "resources": resources.snapshot() if resources is not None else {}, "resource_leases": db.resource_lease_snapshot(), "execution_lanes": jobs.execution_lane_capacities() if hasattr(jobs, "execution_lane_capacities") else {}, "governor": governor.status()})
 
     # Apply and persist resource control changes.
     @router.post("/api/operations/resources")
@@ -118,6 +122,7 @@ def register_job_routes(
             db.set_setting("ax_resource_manual_limits", control["manual_limits"])
             db.set_setting("ax_resource_playback_gate", control["playback_gate"])
             db.log(f"Resource control changed: {control['mode_label']}")
+            _resources_view.clear()   # the change must show in the next poll, not two seconds later
             return {"ok": True, "resources": resources.snapshot(), "resource_leases": db.resource_lease_snapshot(), "governor": governor.status()}
         except (ValueError, TypeError) as exc:
             raise HTTPException(400, str(exc))

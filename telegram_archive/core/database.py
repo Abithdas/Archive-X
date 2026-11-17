@@ -39,6 +39,7 @@ from typing import Any
 
 from .. import config
 from .ai_persistence import AIPersistence
+from .db_lock import TrackedRLock
 
 
 
@@ -136,7 +137,7 @@ class Database:
     """SQLite persistence facade; see the SUBSECTION banners for its feature groups."""
     def __init__(self, path: Path = config.DB_PATH):
         self.path = path
-        self.lock = threading.RLock()
+        self.lock = TrackedRLock()   # an RLock that knows its holder, so a freeze can be traced to the code that kept it (core/db_lock.py)
         self.conn = sqlite3.connect(str(path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.reference_repair_channels = []

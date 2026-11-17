@@ -572,16 +572,12 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
 }
 @media (prefers-reduced-motion: reduce) { .t-panel-slide { transition: none !important; } }
 
-/* ── Image zoom (an image that opens with a 3D tilt) and the smoky dissolve for a deleted card. Both are written for Archive X from the
-      behaviour of the Transitions.dev "Image open tilt" and "Delete with smoky dissolve" (paid) transitions, not from their code. ── */
-.ax-zoom-root { position: fixed; inset: 0; z-index: 90; perspective: 1400px; }
-.ax-zoom-backdrop { position: absolute; inset: 0; background: rgb(0 0 0 / 0.62); backdrop-filter: blur(3px); opacity: 0; }
-.ax-zoom-stage { position: absolute; margin: 0; transform-origin: 50% 50%; will-change: transform, clip-path; cursor: zoom-out; overflow: hidden; border-radius: 14px; box-shadow: 0 30px 80px rgb(0 0 0 / 0.55); background: var(--color-surface-2); touch-action: manipulation; }
-.ax-zoom-stage img { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+/* ── The smoky dissolve for a deleted card, written for Archive X from the behaviour of the Transitions.dev "Delete with smoky dissolve"
+      (paid) transition, not from its code. (Enlarged pictures open in the photo viewer; see ImageZoom.tsx.) ── */
 img[data-zoomable] { cursor: zoom-in; }
 .ax-smoke-layer { position: fixed; pointer-events: none; z-index: 70; overflow: visible; }
 .ax-puff { position: absolute; left: var(--x); top: var(--y); width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%; opacity: 0; filter: blur(9px);
   background: radial-gradient(circle at 50% 50%, rgb(var(--smoke, 190 196 208) / 0.55), rgb(var(--smoke, 190 196 208) / 0) 70%); animation: ax-puff var(--dur) cubic-bezier(0.2, 0.6, 0.3, 1) var(--delay) both; }
 @keyframes ax-puff { 0% { opacity: 0; transform: translate(0, 0) scale(0.35); } 22% { opacity: var(--o); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.9); } }
 html[data-theme="light"] .ax-puff { --smoke: 90 96 110; }
-@media (prefers-reduced-motion: reduce) { .ax-puff { display: none; } .ax-zoom-backdrop { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .ax-puff { display: none; } }

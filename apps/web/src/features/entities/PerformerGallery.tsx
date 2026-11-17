@@ -7,6 +7,7 @@ import { Button } from '@/design/Button'
 import { Empty } from '@/design/Empty'
 import { ZoomImage } from '@/design/ImageZoom'
 import { cn } from '@/design/cn'
+import { PerformerPhotos } from './PerformerPhotos'
 import { GALLERY_EMPTY, fromVideosNote, galleryStatus, lastSyncText, providerName, referenceNote, type FromVideosResult } from './gallery'
 
 /**
@@ -59,21 +60,22 @@ export function PerformerGallery({ id, name }: { id: number; name: string }) {
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 2xl:grid-cols-7">
           {g.items.map((i) => (
             <li key={i.id} className="group relative overflow-hidden rounded-card border border-line bg-surface">
-              <ZoomImage src={i.url} alt={`${name}, picture from ${providerName(i.provider)}`} loading="lazy" className="aspect-[3/4] w-full object-cover" />
-              <div className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11.5px] text-muted">
-                <span title={referenceNote(i)} className={cn('flex min-w-0 items-center gap-1.5 truncate', i.reference ? 'font-semibold text-accent' : '')}>
+              <ZoomImage group={`gallery-${id}`} src={i.url} alt={`${name}, picture from ${providerName(i.provider)}`} loading="lazy" className="aspect-[3/4] w-full object-cover" />
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 px-2 py-1.5 text-[11.5px] text-muted">
+                <span title={referenceNote(i)} className={cn('flex w-full min-w-0 items-center gap-1.5 truncate', i.reference ? 'font-semibold text-accent' : '')}>
                   <span aria-hidden="true" className={cn('size-1.5 shrink-0 rounded-full', i.reference ? 'bg-accent' : 'bg-line')} />{providerName(i.provider)}
                   <span className="sr-only">{i.reference ? ' (used for face matching)' : ''}</span>
                 </span>
                 <button type="button" disabled={useAsProfile.isPending} onClick={() => useAsProfile.mutate(i.id)} aria-label={`Use this picture as the profile picture of ${name}`} title="Use as the profile picture"
-                  className="rounded px-1.5 py-0.5 font-semibold text-muted hover:bg-bg hover:text-fg">Use as profile</button>
+                  className="whitespace-nowrap rounded px-1.5 py-0.5 font-semibold text-muted hover:bg-bg hover:text-fg">Use as profile</button>
                 <button type="button" disabled={remove.isPending} onClick={() => remove.mutate(i.id)} aria-label={`Remove this picture: not ${name}`} title="Not this performer: remove it and never fetch it again"
-                  className="rounded px-1.5 py-0.5 font-semibold text-muted hover:bg-bg hover:text-warn">Remove</button>
+                  className="whitespace-nowrap rounded px-1.5 py-0.5 font-semibold text-muted hover:bg-bg hover:text-warn">Remove</button>
               </div>
             </li>
           ))}
         </ul>
       ) : <Empty icon="user">{GALLERY_EMPTY}</Empty>}
+      <PerformerPhotos id={id} name={name} />
     </div>
   )
 }

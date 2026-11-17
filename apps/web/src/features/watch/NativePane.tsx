@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { api } from '@/api/client'
 import { IconSwap } from '@/design/IconSwap'
 import { formatDuration } from '@/features/library/format'
@@ -171,12 +171,17 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
   const info: TrackInfo | null = tracks.info ? { ...tracks.info, audio: tracks.info.audio.length ? tracks.info.audio : audioList } : audioList.length > 1 ? { audio: audioList, subtitles: [], captions: { available: false, engine: '', install: '' } } : null
   const pickAudio = (t: AudioTrack | null) => { const n = t ? t.ordinal : 0; setAudioPick(n); send('audio', n) }
   const aspect = aspectOf(opened, size ?? {})
+  const shape = Math.min(2.4, Math.max(0.5, aspect))   // the browser player limits the proportions the same way
   const status = phase === 'checking' ? 'Checking the native player…' : phase === 'opening' ? 'Opening the video…' : holding ? 'Buffering after the jump…' : snap?.buffering ? 'Buffering…' : jump ? 'Jumping…' : ''
   const broken = phase === 'unavailable' || phase === 'failed'
 
   return (
-    <div className="@container grid gap-2" data-testid="native-pane" onKeyDown={key} tabIndex={-1}>
-      <div ref={stage} data-testid="stage" style={{ aspectRatio: aspect }} className="relative max-h-[72vh] w-full overflow-hidden rounded-[18px] bg-black">
+    // The same shape as the browser player (Player.tsx): the picture no wider than fits the window at its own proportions, the same rounded frame,
+    // shadow and ring, the controls below it with the same gaps. The one difference is that the controls cannot sit on the picture, because the
+    // native picture is a window above the page.
+    <div className="@container relative mx-auto grid w-full gap-4 outline-none sm:w-[var(--pw)] sm:gap-5" data-testid="native-pane" onKeyDown={key} tabIndex={-1}
+      style={{ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${shape.toFixed(4)})))` } as CSSProperties}>
+      <div ref={stage} data-testid="stage" style={{ aspectRatio: shape }} className="relative w-full overflow-hidden rounded-[18px] bg-[#111215] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]">
         {phase === 'ready' && !shown ? <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-white/70">The picture is hidden while a menu is open or it is scrolled partly out of view. The sound keeps playing.</p> : null}
         {status ? <span role="status" className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">{status}</span> : null}
         {broken ? (
@@ -188,12 +193,12 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
       </div>
 
       {tracks.sub.kind !== 'off' ? (
-        <div data-testid="captions" aria-live="polite" className="grid min-h-[3.4rem] place-items-center rounded-xl border border-line bg-surface px-4 py-2 text-center">
+        <div data-testid="captions" aria-live="polite" className="grid min-h-[3.4rem] place-items-center rounded-[14px] bg-surface-2 px-4 py-2 text-center">
           {tracks.text ? <p className="whitespace-pre-line text-[17px] font-semibold leading-snug text-fg">{tracks.text}</p> : <p className="text-xs text-muted">{tracks.liveStatus || 'Captions appear here'}</p>}
         </div>
       ) : null}
 
-      <div className="@container grid gap-1.5 rounded-[14px] border border-line bg-surface px-3 py-2">
+      <div className="@container grid gap-3">
         <div>
           <div className="mb-1 flex items-center justify-between px-0.5 text-[13px] font-semibold tracking-tight tabular-nums" aria-hidden="true"><span>{clock(jump?.to ?? position)}</span><span className="font-medium text-muted">{duration ? clock(duration) : '–:––'}</span></div>
           <Timeline time={jump?.to ?? position} duration={duration} buffered={0} segments={segments} preview={preview} onSeek={seekTo} />

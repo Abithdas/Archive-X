@@ -1168,14 +1168,17 @@ class JobManager:
         last_error = ""
         while not self.stopping:
             try:
-                await asyncio.sleep(0.25)
+                await asyncio.sleep(0.5)
+                # The database calls below run in a worker thread: when another thread holds the database for a while this loop used to wait
+                # for it on the event loop, and the whole web server froze with it.
+                active_now = await asyncio.to_thread(self.db.active_jobs)
                 # Reconcile explicit Stop requests even if a handler misses its
                 # normal checkpoint. Most jobs stop cooperatively; after a
                 # generous grace period, cancel only the owned asyncio task (or
                 # its isolated child process) and persist a terminal state.
                 cancel_grace = max(5.0, float(getattr(config, "JOB_OPERATOR_CANCEL_GRACE_SECONDS", 20.0)))
                 now_mono = time.monotonic()
-                for cancel_job in self.db.active_jobs():
+                for cancel_job in active_now:
                     cancel_id = str(cancel_job.get("id") or "")
                     if str(cancel_job.get("status") or "").upper() != "CANCEL_REQUESTED" or not cancel_id:
                         continue
@@ -1224,18 +1227,21 @@ class JobManager:
                 # Durable execution leases are independent from the in-memory
                 # watchdog. Refresh them from the live worker map and classify
                 # expired leases as interrupted work for recovery.
-                for jid, execution in list(self._execution_context.items()):
-                    try:
-                        if jid in self.running and not self.running[jid].done():
-                            self.orchestrator.heartbeat_execution(jid, execution["execution_id"], "RUNNING")
-                    except Exception:
-                        _swallowed_note("manager.JobManager._watch_job_lifecycle")
-                        pass
-                for expired_id in self.orchestrator.recover_expired_leases():
+                to_beat = [(jid, execution["execution_id"]) for jid, execution in list(self._execution_context.items())
+                           if jid in self.running and not self.running[jid].done()]
+
+                def _leases() -> list:
+                    for jid, execution_id in to_beat:
+                        try:
+                            self.orchestrator.heartbeat_execution(jid, execution_id, "RUNNING")
+                        except Exception:
+                            _swallowed_note("manager.JobManager._watch_job_lifecycle")
+                    return list(self.orchestrator.recover_expired_leases())
+                for expired_id in await asyncio.to_thread(_leases):
                     task = self.running.get(expired_id)
                     if task is not None and not task.done():
                         task.cancel()
-                for job in self.db.active_jobs():
+                for job in active_now:
                     if job.get("job_type") not in {"MEDIA_MANAGER", "TELEGRAM_TRANSFER"}:
                         continue
                     jid = str(job.get("id") or "")

@@ -18,7 +18,7 @@ import { LibraryHealth } from './LibraryHealth'
 import { SceneMatchCard } from './SceneMatchCard'
 import { ChannelDuplicateCard } from './ChannelDuplicates'
 import { ResourceControls } from './ResourceControls'
-import { idOf } from './jobs'
+import { idOf, liveness } from './jobs'
 import { downloadLogBundle, folderOf } from './logBundle'
 import { attention, diagnosticTiles, filterJobs, filterLog, healthTiles, jobCounts, laneRows, policyLine, resourceCards, telemetryTiles, type JobFilter, type LogLevel, type Tile, type Tone } from './ops'
 import { SubtleNumber } from '@/design/SubtleNumber'
@@ -72,6 +72,8 @@ function JobRow({ j }: { j: Obj }) {
   const lead = /^(\d+)%/.exec(prog.text)   // a whole-number percentage at the start: its digits change in place
   const progText = prog.known && lead ? <><SubtleNumber value={Math.round(prog.percent)} />{prog.text.slice(lead[1]!.length)}</> : prog.text
   const st = String(j.status ?? '').toUpperCase()
+  const live = liveness(j)
+  const item = String(j.item || '').trim()
   const [open, setOpen] = useState(false)
   const id = idOf(j)
   const detailed = Boolean(id) && String(j.type ?? '') !== 'PLAYBACK'   // a playback session has no job record
@@ -86,6 +88,8 @@ function JobRow({ j }: { j: Obj }) {
         <span className={cn('block h-full rounded-full bg-accent transition-[width] duration-500', !prog.known && 'w-1/3 animate-pulse')} style={prog.known ? { width: `${prog.percent}%` } : undefined} />
       </div>
       <p className="mt-1 text-[11px] tabular-nums text-faint">{progText}</p>
+      {live ? <p role="status" className={cn('mt-1.5 flex items-start gap-1.5 text-xs leading-4', TONE[live.tone])}><i aria-hidden="true" className={cn('mt-[5px] size-1.5 shrink-0 rounded-full bg-current', live.tone === 'ok' && 'animate-pulse')} /><span className="min-w-0 [overflow-wrap:anywhere]">{live.text}</span></p> : null}
+      {item && item !== String(j.operation || '') ? <p className="mt-0.5 truncate text-[11px] text-faint" title={item}>Now: {item}</p> : null}
       <JobControls j={j} />
       {open ? <JobDetails id={id} onClose={() => setOpen(false)} /> : null}
     </motion.li>

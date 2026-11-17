@@ -60,6 +60,9 @@ export function OverviewPanel({ go }: { go: (p: PanelId) => void }) {
   )
 }
 
+/** A drop-down in a settings row: the same height, width and text alignment everywhere, in line with the switches above it. */
+const PICK = 'h-10 w-44 shrink-0 rounded-xl border border-line-2 bg-bg px-3 text-left text-sm font-medium sm:w-64'
+
 function Row({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return <div className="flex items-center justify-between gap-4 border-b border-line py-3"><div className="min-w-0"><b className="block text-[15px]">{title}</b>{hint ? <small className="text-xs text-muted">{hint}</small> : null}</div>{children}</div>
 }
@@ -97,20 +100,18 @@ export function ExperiencePanel() {
       <Row title="Live seek preview (timeline hover)" hint="Show frames while scrubbing"><Switch label="Live seek preview" checked={form.live_seek_preview} onChange={(v) => set('live_seek_preview', v)} /></Row>
       <p className="py-2 text-xs text-muted">Hover the playback timeline to preview a frame. On touch screens, drag to seek.</p>
       {hasNativeBridge() ? (
-        <label className="mt-2 grid gap-2 text-center text-sm font-semibold">Native player (desktop app)
-          <select aria-label="Native player" value={form.native_player} onChange={(e) => set('native_player', e.target.value as NativeMode)} className="h-10 rounded-xl border border-line-2 bg-bg px-3 text-sm font-normal">
+        <>
+          <Row title="Native player (desktop app)" hint="Plays files the browser cannot"><select aria-label="Native player" value={form.native_player} onChange={(e) => set('native_player', e.target.value as NativeMode)} className={PICK}>
             {NATIVE_MODES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-          </select>
-          <span className="text-xs font-normal text-muted">The native player plays files the browser cannot (some HEVC, 10-bit and MKV videos) with hardware decoding. It is shown on the same video page, with captions under the picture.</span>
-        </label>
+          </select></Row>
+          <p className="py-2 text-xs text-muted">The native player plays files the browser cannot (some HEVC, 10-bit and MKV videos) with hardware decoding. It is shown on the same video page, with captions under the picture.</p>
+        </>
       ) : null}
       <Row title="Ask about partial cache on close"><Switch label="Ask about partial cache on close" checked={form.partial_cache_prompt} onChange={(v) => set('partial_cache_prompt', v)} /></Row>
       <p className="py-2 text-xs text-muted">Off keeps cached bytes automatically without showing the close popup.</p>
-      <label className="mt-2 grid gap-2 text-center text-sm font-semibold">Autoplay source
-        <select value={form.autonext_mode} onChange={(e) => set('autonext_mode', e.target.value)} aria-label="Autoplay source" className="h-12 w-full rounded-xl border border-line-2 bg-bg px-3 text-left text-[15px] font-medium">
-          {AUTONEXT_MODES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-        </select>
-      </label>
+      <Row title="Autoplay source" hint="Which videos come next"><select value={form.autonext_mode} onChange={(e) => set('autonext_mode', e.target.value)} aria-label="Autoplay source" className={PICK}>
+        {AUTONEXT_MODES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+      </select></Row>
       <p className="mt-4 text-xs text-muted">Continue Watching, play position, play count, markers, favorites and recommendation shelves are stored locally. Provider APIs are used for enrichment rather than page rendering.</p>
       <p className="mt-3 text-xs text-muted">Playback QoS prioritizes the browser requested byte range, keeps a short bitrate-based read-ahead window, and preloads only the next queued video prefix at background priority.</p>
       <div className="mt-4 flex items-center gap-3">

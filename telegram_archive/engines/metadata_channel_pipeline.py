@@ -1952,7 +1952,7 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
     if not snapshot_integrity_scan:
         mark_media_entity_complete(ctx.db, media_ids)
     from ..core.resource_registry import media_readiness_stats
-    readiness=media_readiness_stats(ctx.db, media_ids=media_ids)
+    readiness = await asyncio.to_thread(media_readiness_stats, ctx.db, media_ids=media_ids)   # a whole channel's videos: not on the event loop
     entry["readiness"] = readiness
     entry.setdefault("counts", {}).update({
         "published_ready": readiness["published_ready"],
@@ -2292,8 +2292,8 @@ async def run_local_media(ctx, media_items: list[dict[str, Any]], *, force_metad
     payload["progress"] = _work_snapshot(payload)
     _save(ctx, payload)
     from ..core.resource_registry import media_readiness_stats
-    readiness=media_readiness_stats(ctx.db, media_ids=[int(v["media_id"]) for v in videos])
-    payload["readiness"]=readiness
+    readiness = await asyncio.to_thread(media_readiness_stats, ctx.db, media_ids=[int(v["media_id"]) for v in videos])
+    payload["readiness"] = readiness
     _save(ctx, payload)
     _log_pipeline_event(
         ctx,

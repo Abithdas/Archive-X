@@ -18,7 +18,7 @@ function Row({ it, busy, picked, onPick, onAct }: { it: AutoMatch; busy: boolean
   const [thumb, setThumb] = useState(true)
   return (
     <div data-smoke={`am:${it.video_id}`} className="flex flex-wrap items-start gap-3 rounded-xl border border-line bg-bg p-3">
-      {thumb ? <ZoomImage src={withWidth(thumbUrl(String(it.channel_id), it.message_id), 240)} fullSrc={withWidth(thumbUrl(String(it.channel_id), it.message_id), 1280)} alt={it.filename || 'Video thumbnail'} loading="lazy" className="h-14 w-24 shrink-0 rounded-lg bg-surface-2 object-cover" onError={() => setThumb(false)} /> : <span className="h-14 w-24 shrink-0 rounded-lg bg-surface-2" />}
+      {thumb ? <ZoomImage group="auto-match" src={withWidth(thumbUrl(String(it.channel_id), it.message_id), 240)} fullSrc={withWidth(thumbUrl(String(it.channel_id), it.message_id), 1280)} alt={it.filename || 'Video thumbnail'} loading="lazy" className="h-14 w-24 shrink-0 rounded-lg bg-surface-2 object-cover" onError={() => setThumb(false)} /> : <span className="h-14 w-24 shrink-0 rounded-lg bg-surface-2" />}
       <div className="min-w-0 flex-1 text-left">
         <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={picked} onChange={onPick} aria-label={`Select ${it.filename || 'video'} for bulk review`} /><span className="truncate" title={it.filename}>{it.filename || '(no filename)'}</span></label>
         <p className="mt-1 text-xs [overflow-wrap:anywhere]">{appliedLine(it)}</p>

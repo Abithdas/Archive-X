@@ -306,6 +306,7 @@ class EventLoopGuard:
         self._loop_thread_id: Optional[int] = None
         self._stall_started: Optional[float] = None
         self._stall_dumped = False
+        self._stall_dumped_late = False
 
     def beat(self) -> None:
         with self._lock:
@@ -316,6 +317,7 @@ class EventLoopGuard:
             self._stalled = False
             self._stall_started = None
             self._stall_dumped = False
+            self._stall_dumped_late = False
 
     # V29.4.223: when the event loop freezes, record what it is doing so the
     # slow code can be found from the user's logs instead of guessed.
@@ -345,7 +347,13 @@ class EventLoopGuard:
         frame = sys._current_frames().get(getattr(self, "_loop_thread_id", None) or -1)
         stack = "".join(traceback.format_stack(frame)) if frame is not None else "(event-loop thread stack unavailable)\n"
         stamp = datetime.now(timezone.utc).isoformat()
-        self._write_stall(f"=== {stamp} event loop frozen for {age:.1f}s; code running now:\n{stack[-6000:]}")
+        try:
+            from .db_lock import long_holds
+            holder = long_holds(2.0)
+        except Exception:
+            _swallowed_note("watchdogs.EventLoopGuard._dump_loop_stack")
+            holder = ""
+        self._write_stall(f"=== {stamp} event loop frozen for {age:.1f}s; code running now:\n{stack[-6000:]}" + (f"\n{holder}" if holder else ""))
 
     def _record_stall_end(self, total: float) -> None:
         stamp = datetime.now(timezone.utc).isoformat()
@@ -374,8 +382,11 @@ class EventLoopGuard:
                         self._stall_count += 1
                         self._stall_started = self._last_tick
                     self._stalled = True
-                    if not self._stall_dumped:
+                    # A second look at 30 s: a long freeze is usually someone holding the database, and by then it shows who.
+                    late = age >= 30.0 and not self._stall_dumped_late
+                    if not self._stall_dumped or late:
                         self._stall_dumped = True
+                        self._stall_dumped_late = self._stall_dumped_late or late
                         try:
                             self._dump_loop_stack(age)
                         except Exception:

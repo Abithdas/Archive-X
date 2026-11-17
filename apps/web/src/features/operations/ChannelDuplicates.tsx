@@ -35,7 +35,7 @@ export function Frames({ cid, mid, title }: { cid: string; mid: number; title: s
       {SNAPSHOT_FRAMES.map((f, i) => (
         <figure key={f} className="m-0">
           <div className="relative grid aspect-video place-items-center overflow-hidden rounded-lg bg-surface-3 text-center text-[11px] text-muted">
-            {m.data?.frames_ready ? <ZoomImage alt={`Cached snapshot ${i + 1} of ${title}`} decoding="async" loading="lazy" src={frameUrl(cid, mid, f, rev)} className="absolute inset-0 size-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} /> : <span>{note}</span>}
+            {m.data?.frames_ready ? <ZoomImage group={`frames-${cid}-${mid}`} alt={`Cached snapshot ${i + 1} of ${title}`} decoding="async" loading="lazy" src={frameUrl(cid, mid, f, rev)} className="absolute inset-0 size-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} /> : <span>{note}</span>}
           </div>
           <figcaption className="mt-1 text-[10px] text-faint">Frame {f + 1} / 36</figcaption>
         </figure>
