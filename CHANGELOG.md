@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Next release (not published)
+## 30.3.6 (2026-11-17)
 - Telegram to Telegram transfer, "Use saved snapshots only": it skipped every video as "needs snapshots" even when the video was in the Library with all its 36 snapshot frames. The transfer sends one picture made of the 36 frames (a contact sheet), and that sheet was only looked for, never made, unless a transfer had sent the video before. It now makes the sheet from the saved frames, which needs no download from Telegram. A video whose 36 frames are really missing is still skipped, with the same message. Found in the transfer console of 30.3.5, where 79 of 79 videos were skipped.
 
 ## 30.3.5 (2026-11-17)
