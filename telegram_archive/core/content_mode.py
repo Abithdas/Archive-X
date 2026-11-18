@@ -44,8 +44,13 @@ def _channel_ok(col: str, kind: str | None = None) -> str:
     return f"({col} IN {_visible_channels(kind)} OR ({_MODE_SQL}='nsfw' AND NOT EXISTS (SELECT 1 FROM main.channels oc WHERE oc.telegram_id={col})))"
 
 
-_VISIBLE_MEDIA_IDS = f"(SELECT m.id FROM main.media m WHERE {_channel_ok('m.source_channel', 'video')})"
-_VISIBLE_PHOTO_IDS = f"(SELECT p.id FROM main.photo_library_items p WHERE {_channel_ok('p.channel_id', 'photo')})"
+
+
+def _of_visible_media(table: str, col: str) -> str:
+    """The rows of a link table whose video is shown. A join, not `col IN (SELECT ...)`: the nested form made SQLite run the inner query again
+    for every row of the outer one (tens of seconds on a big library)."""
+    return f"SELECT t.* FROM main.{table} t JOIN main.media m ON m.id=t.{col} WHERE {_channel_ok('m.source_channel', 'video')}"
+
 
 # One statement per entry; every one is `CREATE TEMP VIEW <table> AS ...` so the view shadows the table of the same name.
 VISIBILITY_VIEWS: tuple[tuple[str, str], ...] = (
@@ -57,13 +62,13 @@ VISIBILITY_VIEWS: tuple[tuple[str, str], ...] = (
     ("channels", f"SELECT * FROM main.channels WHERE {_CHANNELS_OK}"),
     ("media", f"SELECT * FROM main.media WHERE {_channel_ok('source_channel', 'video')}"),
     ("photo_library_items", f"SELECT * FROM main.photo_library_items WHERE {_channel_ok('channel_id', 'photo')}"),
-    ("photo_face_detections", f"SELECT * FROM main.photo_face_detections WHERE photo_id IN {_VISIBLE_PHOTO_IDS}"),
-    ("video_performers", f"SELECT * FROM main.video_performers WHERE video_id IN {_VISIBLE_MEDIA_IDS}"),
-    ("local_video_performers", f"SELECT * FROM main.local_video_performers WHERE video_id IN {_VISIBLE_MEDIA_IDS}"),
-    ("video_studios", f"SELECT * FROM main.video_studios WHERE video_id IN {_VISIBLE_MEDIA_IDS}"),
-    ("video_tags", f"SELECT * FROM main.video_tags WHERE video_id IN {_VISIBLE_MEDIA_IDS}"),
-    ("watch_history", f"SELECT * FROM main.watch_history WHERE media_id IN {_VISIBLE_MEDIA_IDS}"),
-    ("scene_markers", f"SELECT * FROM main.scene_markers WHERE media_id IN {_VISIBLE_MEDIA_IDS}"),
+    ("photo_face_detections", f"SELECT t.* FROM main.photo_face_detections t JOIN main.photo_library_items p ON p.id=t.photo_id WHERE {_channel_ok('p.channel_id', 'photo')}"),
+    ("video_performers", _of_visible_media("video_performers", "video_id")),
+    ("local_video_performers", _of_visible_media("local_video_performers", "video_id")),
+    ("video_studios", _of_visible_media("video_studios", "video_id")),
+    ("video_tags", _of_visible_media("video_tags", "video_id")),
+    ("watch_history", _of_visible_media("watch_history", "media_id")),
+    ("scene_markers", _of_visible_media("scene_markers", "media_id")),
     ("performers", f"SELECT * FROM main.performers WHERE COALESCE(content_rating,'nsfw')={_MODE_SQL}"),
     ("studios", f"SELECT * FROM main.studios WHERE COALESCE(content_rating,'nsfw')={_MODE_SQL}"),
     ("tags", f"SELECT * FROM main.tags WHERE COALESCE(content_rating,'nsfw')={_MODE_SQL}"),

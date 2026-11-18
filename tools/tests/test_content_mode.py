@@ -126,3 +126,27 @@ def test_a_channel_with_no_row_counts_as_an_nsfw_library_channel(db):
     assert "orphan.mp4" not in names(db, "SELECT filename FROM media", True)          # sfw: not a movie channel
     cm.set_mode(db, "nsfw")
     assert "orphan.mp4" in names(db, "SELECT filename FROM media", True)             # nsfw: as before this feature
+
+
+def test_counting_videos_per_performer_stays_fast_with_the_filter_on(tmp_path):
+    """The link-table views once used `video_id IN (SELECT ...)`, which SQLite repeated for every row: 40 seconds at 100,000 videos."""
+    import time
+    d = Database(tmp_path / "big.db")
+    now = "2026-01-01T00:00:00"
+    with d.lock:
+        d.conn.executemany("INSERT INTO channels(telegram_id,title,updated_at,in_library,content_rating) VALUES(?,?,?,?,?)", [(str(-1000 - i), f"c{i}", now, 1, "nsfw") for i in range(50)])
+        d.conn.executemany("INSERT INTO media(source_channel,source_message_id,filename) VALUES(?,?,?)", [(str(-1000 - i % 50), i, f"f{i}.mp4") for i in range(20000)])
+        d.conn.executemany("INSERT INTO performers(name,content_rating) VALUES(?,?)", [(f"p{i}", "nsfw") for i in range(1000)])
+        d.conn.executemany("INSERT INTO video_performers(video_id,performer_id) VALUES(?,?)", [(i + 1, i % 1000 + 1) for i in range(20000)])
+        d.conn.commit()
+    cm.set_mode(d, "nsfw")
+    tok = cm.FILTER_ACTIVE.set(True)
+    try:
+        with d.reading() as c:
+            t = time.perf_counter()
+            rows = c.execute("SELECT p.id, COUNT(vp.video_id) n FROM performers p LEFT JOIN video_performers vp ON vp.performer_id=p.id GROUP BY p.id").fetchall()
+            took = time.perf_counter() - t
+    finally:
+        cm.FILTER_ACTIVE.reset(tok)
+    assert len(rows) == 1000 and sum(r["n"] for r in rows) == 20000
+    assert took < 2.0, f"{took:.1f}s"
