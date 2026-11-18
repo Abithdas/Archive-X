@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ScreenProviders } from './ScreenProviders'
-import { candidateText, statusText } from './screen'
+import { candidateText, statusText, typedKind } from './screen'
 import { withRouter } from '@/test/withRouter'
 
 const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -47,10 +47,40 @@ describe('ScreenProviders', () => {
   })
 })
 
+describe('settling a video by hand', () => {
+  const item = { id: 7, filename: 'blurry.mkv', title: 'x', state: 'UNMATCHED', season: null, episode: null, candidates: [], parsed: { kind: 'movie', title: 'blurry', year: null, season: null, episode: null } }
+  it('searches by words and uses the title that is picked', async () => {
+    const calls = mount('sfw', { items: [item] })
+    fireEvent.change(await screen.findByLabelText('Find a title for blurry.mkv'), { target: { value: 'the matrix' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+    await waitFor(() => expect(calls.some((c) => c.url.startsWith('/api/screen/search?q=the%20matrix&kind=movie'))).toBe(true))
+  })
+  it('uses a pasted IMDb or TMDB id without searching', async () => {
+    const calls = mount('sfw', { items: [item] })
+    const box = await screen.findByLabelText('Find a title for blurry.mkv')
+    fireEvent.change(box, { target: { value: 'tt0133093' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Use this IMDb id' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/screen/review/7')?.body).toEqual({ kind: 'movie', imdb_id: 'tt0133093', season: null, episode: null }))
+    fireEvent.change(box, { target: { value: '603' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Use this TMDB id' }))
+    await waitFor(() => expect(calls.filter((c) => c.url === '/api/screen/review/7')).toHaveLength(2))
+    expect(calls.filter((c) => c.url.startsWith('/api/screen/search'))).toHaveLength(0)
+  })
+})
+
+describe('TVmaze switch', () => {
+  it('is saved when switched', async () => {
+    const calls = mount('sfw')
+    fireEvent.click(await screen.findByRole('switch', { name: 'Use TVmaze for TV shows' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/screen/settings' && c.method === 'POST')?.body).toEqual({ tvmaze_enabled: true }))
+  })
+})
+
 describe('words', () => {
   it('describes progress and candidates', () => {
     expect(statusText({ progress: { running: true, total: 9, done: 3 }, counts: {}, pending: 0, configured: true })).toBe('Identifying: 3 of 9')
     expect(statusText({ progress: {}, counts: {}, pending: 0, configured: false })).toMatch(/Add a TMDB key/)
+    expect(['tt0133093', ' 603 ', 'the matrix', ''].map(typedKind)).toEqual(['imdb', 'tmdb', 'words', 'none'])
     expect(candidateText({ kind: 'tv', tmdb_id: 1, title: 'Dark', year: 2017, score: 1, source: 'tmdb' })).toBe('Dark (2017) · TV show')
   })
 })

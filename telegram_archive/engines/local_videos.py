@@ -153,8 +153,46 @@ def build_snapshots(db, channel: str, message_id: int, path: str, duration: floa
     return True
 
 
+def workers_for(db) -> int:
+    """How many videos are prepared at once: 2 by default, 1 to 4 by the person's choice (Settings, `local_prepare_workers`)."""
+    try:
+        return max(1, min(4, int(db.setting("local_prepare_workers") or 2)))
+    except (TypeError, ValueError):
+        return 2
+
+
+def _prepare_one(db, channel: str, item: dict) -> bool:
+    """Probe one video and build its snapshots. True when it ended up ready."""
+    mid = int(item["message_id"])
+    path = file_of(db, channel, mid)
+    if not path:
+        return False
+    info: dict = {}
+    if not item["probed"]:
+        info = probe(path)
+        with db.lock:
+            if info:
+                db.conn.execute(
+                    "UPDATE media SET duration=?,width=?,height=?,fps=?,bitrate=?,codec=?,audio_codec=?,orientation=?,resolution_category=?,updated_at=? WHERE source_channel=? AND source_message_id=?",
+                    (info["duration"], info["width"], info["height"], info["fps"], info["bit_rate"], info["vcodec"], info["acodec"],
+                     "portrait" if info["height"] > info["width"] else "landscape", _resolution_category(info["height"]), config.now_iso(), channel, mid))
+            db.conn.execute("UPDATE local_video_files SET probed=? WHERE channel_id=? AND message_id=?", (1 if info else 2, channel, mid))
+            db.conn.commit()
+    if item["snapshots"]:
+        return True
+    with db.reading() as conn:
+        row = conn.execute("SELECT duration FROM media WHERE source_channel=? AND source_message_id=?", (channel, mid)).fetchone()
+    duration = float((info.get("duration") if info else None) or (row["duration"] if row else 0) or 0)
+    ok = duration > 0 and build_snapshots(db, channel, mid, path, duration)
+    with db.lock:
+        db.conn.execute("UPDATE local_video_files SET snapshots=? WHERE channel_id=? AND message_id=?", (1 if ok else 2, channel, mid))
+        db.conn.commit()
+    return ok
+
+
 def process(db, channel: str) -> dict:
-    """Probe every unprobed video of a folder, then build snapshots for the ones that have none. Safe to run again."""
+    """Probe every unprobed video of a folder, then build snapshots for the ones that have none, a few at a time. Safe to run again."""
+    from concurrent.futures import ThreadPoolExecutor
     sid_key = int(channel)
     with _WORK_LOCK:
         if sid_key in _working:
@@ -163,43 +201,25 @@ def process(db, channel: str) -> dict:
     try:
         with db.reading() as conn:
             todo = [dict(r) for r in conn.execute("SELECT channel_id,message_id,path,probed,snapshots FROM local_video_files WHERE channel_id=? AND (probed=0 OR snapshots=0) ORDER BY message_id", (channel,))]
-        _state[sid_key] = {"running": True, "total": len(todo), "done": 0, "failed": 0}
-        for item in todo:
-            mid = int(item["message_id"])
-            path = file_of(db, channel, mid)
-            if not path:
-                _state[sid_key]["failed"] += 1
-                continue
+        workers = workers_for(db)
+        _state[sid_key] = {"running": True, "total": len(todo), "done": 0, "failed": 0, "workers": workers}
+
+        def one(item: dict) -> None:
             try:
-                info = {}
-                if not item["probed"]:
-                    info = probe(path)
-                    with db.lock:
-                        if info:
-                            db.conn.execute(
-                                "UPDATE media SET duration=?,width=?,height=?,fps=?,bitrate=?,codec=?,audio_codec=?,orientation=?,resolution_category=?,updated_at=? WHERE source_channel=? AND source_message_id=?",
-                                (info["duration"], info["width"], info["height"], info["fps"], info["bit_rate"], info["vcodec"], info["acodec"],
-                                 "portrait" if info["height"] > info["width"] else "landscape", _resolution_category(info["height"]), config.now_iso(), channel, mid))
-                        db.conn.execute("UPDATE local_video_files SET probed=? WHERE channel_id=? AND message_id=?", (1 if info else 2, channel, mid))
-                        db.conn.commit()
-                if not item["snapshots"]:
-                    with db.reading() as conn:
-                        row = conn.execute("SELECT duration FROM media WHERE source_channel=? AND source_message_id=?", (channel, mid)).fetchone()
-                    duration = float((info.get("duration") if info else None) or (row["duration"] if row else 0) or 0)
-                    ok = duration > 0 and build_snapshots(db, channel, mid, path, duration)
-                    with db.lock:
-                        db.conn.execute("UPDATE local_video_files SET snapshots=? WHERE channel_id=? AND message_id=?", (1 if ok else 2, channel, mid))
-                        db.conn.commit()
-                    if not ok:
-                        _state[sid_key]["failed"] += 1
+                ok = _prepare_one(db, channel, item)
             except Exception:
                 _swallowed_note("local_videos.process")
-                _state[sid_key]["failed"] += 1
-            _state[sid_key]["done"] += 1
+                ok = False
+            with _WORK_LOCK:
+                _state[sid_key]["done"] += 1
+                if not ok:
+                    _state[sid_key]["failed"] += 1
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="local-prepare") as pool:
+            list(pool.map(one, todo))
         return dict(_state[sid_key])
     finally:
-        _state[sid_key] = {**_state.get(sid_key, {}), "running": False}
         with _WORK_LOCK:
+            _state[sid_key] = {**_state.get(sid_key, {}), "running": False}
             _working.discard(sid_key)
 
 

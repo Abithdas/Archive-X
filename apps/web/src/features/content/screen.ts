@@ -3,13 +3,19 @@ export type Provider = 'tmdb' | 'omdb' | 'opensubtitles'
 
 export interface ScreenSettings {
   tmdb_api_key: string; omdb_api_key: string; opensubtitles_api_key: string
-  tmdb_configured: boolean; omdb_configured: boolean; opensubtitles_configured: boolean
+  tmdb_configured: boolean; omdb_configured: boolean; opensubtitles_configured: boolean; tvmaze_enabled?: boolean
 }
 export interface ScreenStatus {
   progress: { running?: boolean; total?: number; done?: number; matched?: number; review?: number; unmatched?: number; failed?: number }
   counts: Record<string, number>; pending: number; configured: boolean
 }
-export interface Candidate { kind: 'movie' | 'tv'; tmdb_id: number; title: string; year: number | null; score: number; source: string }
+export interface Candidate { kind: 'movie' | 'tv'; tmdb_id: number; title: string; year: number | null; score: number; source: string; imdb_id?: string }
+
+/** What the person typed to settle a video: an IMDb id (tt0133093), a TMDB id (603), or words to search for. */
+export function typedKind(text: string): 'imdb' | 'tmdb' | 'words' | 'none' {
+  const t = text.trim()
+  return !t ? 'none' : /^tt\d{6,9}$/i.test(t) ? 'imdb' : /^\d{1,8}$/.test(t) ? 'tmdb' : 'words'
+}
 export interface ReviewItem {
   id: number; filename: string; title: string; state: 'REVIEW' | 'UNMATCHED'; season: number | null; episode: number | null
   candidates: Candidate[]; parsed: { kind: 'movie' | 'episode'; title: string; year: number | null; season: number | null; episode: number | null }
@@ -36,4 +42,4 @@ export function statusText(s: ScreenStatus | undefined): string {
   return bits.join(' · ')
 }
 
-export const candidateText = (c: Candidate) => `${c.title}${c.year ? ` (${c.year})` : ''} · ${c.kind === 'tv' ? 'TV show' : 'Movie'}`
+export const candidateText = (c: Candidate) => `${c.title}${c.year ? ` (${c.year})` : ''} · ${c.kind === 'tv' ? 'TV show' : 'Movie'}${c.source === 'tvmaze' ? ' · TVmaze' : ''}`

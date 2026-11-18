@@ -36,15 +36,22 @@ def fake(url, params, headers):
     if url.endswith("/tv/70523"):
         return {"id": 70523, "name": "Dark", "first_air_date": "2017-12-01", "overview": "A missing child.", "genres": [{"name": "Drama"}], "networks": [{"name": "Netflix"}],
                 "credits": {"cast": [{"id": 1, "name": "Louis Hofmann", "character": "Jonas"}]}, "seasons": [{"season_number": 2, "episode_count": 8, "name": "Season 2"}]}
-    if url.endswith("/tv/70523/season/2/episode/3"):
-        return {"name": "Dark Matter", "overview": "Ep.", "air_date": "2019-06-21", "runtime": 55}
+    if url.endswith("/tv/70523/season/2"):
+        return {"episodes": [{"episode_number": 3, "name": "Dark Matter", "overview": "Ep.", "air_date": "2019-06-21", "runtime": 55}, {"episode_number": 4, "name": "Lies", "air_date": "2019-06-21"}]}
+    if url.endswith("/tv/70523/season/1"):
+        return {"episodes": [{"episode_number": 1, "name": "Secrets", "air_date": "2017-12-01"}]}
+    if "/find/tt0133093" in url:
+        return {"movie_results": [{"id": 603, "title": "The Matrix", "release_date": "1999-03-30"}], "tv_results": []}
     if url.endswith("/configuration"):
         return {"images": {}}
     return {}
 
 
 def test_names_become_titles_years_and_episodes():
-    p = si.parse_name
+    def p(name):
+        got = si.parse_name(name)
+        got.pop("ids")
+        return got
     assert p("Breaking.Bad.S02E05.1080p.BluRay.x264-GROUP.mkv") == {"kind": "episode", "title": "Breaking Bad", "year": None, "season": 2, "episode": 5}
     assert p("The.Matrix.1999.REMASTERED.1080p.BluRay.mkv")["title"] == "The Matrix" and p("The.Matrix.1999.REMASTERED.1080p.BluRay.mkv")["year"] == 1999
     assert p("2001 A Space Odyssey 1968.mkv")["title"] == "2001 A Space Odyssey"

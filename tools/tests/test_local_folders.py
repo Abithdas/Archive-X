@@ -220,3 +220,58 @@ def test_nsfw_folders_are_not_listed_in_sfw(tmp_path):
     assert c.post("/api/content-mode", json={"mode": "sfw"}, headers=H).status_code == 200
     r = c.get("/api/local-folders").json()
     assert r["folders"] == [] and r["hidden"] == 1                      # neither its name nor its path is shown
+
+
+def test_several_videos_are_prepared_at_once_and_all_of_them_finish(tmp_path):
+    import threading
+    from telegram_archive.engines import local_videos as lv
+    root = tmp_path / "Many"
+    root.mkdir()
+    made = 0
+    for i in range(4):
+        made += 1 if _make_video(root / f"clip {i}.mp4", seconds=3) else 0
+    if made < 4:
+        pytest.skip("ffmpeg is not available")
+    db = Database(tmp_path / "p.db")
+    db.set_setting("local_prepare_workers", 3)
+    c, H = _client(db)
+    assert lv.workers_for(db) == 3
+    db.set_setting("local_prepare_workers", 99)
+    assert lv.workers_for(db) == 4                                      # never more than four at once
+    db.set_setting("local_prepare_workers", 3)
+    r = c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H)
+    seen, lock, peak, now = set(), threading.Lock(), [0], [0]
+    real = lv.build_snapshots
+
+    def watched(*a, **k):
+        with lock:
+            now[0] += 1
+            peak[0] = max(peak[0], now[0])
+        try:
+            time.sleep(0.2)                                             # long enough for the others to be running too
+            return real(*a, **k)
+        finally:
+            with lock:
+                now[0] -= 1
+    lv.build_snapshots = watched
+    try:
+        sid = c.post("/api/local-folders", json={"path": str(root), "content_rating": "nsfw", "holds": "videos"}, headers=H).json()["id"]
+        ch = ls.channel_id(sid)
+        for _ in range(600):
+            with db.reading() as conn:
+                done = conn.execute("SELECT COUNT(*) FROM local_video_files WHERE channel_id=? AND snapshots=1", (ch,)).fetchone()[0]
+            if done == 4:
+                break
+            time.sleep(0.1)
+    finally:
+        lv.build_snapshots = real
+    assert done == 4 and peak[0] >= 2, (done, peak[0])                  # all four are ready, and more than one was being built at a time
+
+
+def test_how_many_videos_are_prepared_at_once_can_be_chosen(tmp_path):
+    db = Database(tmp_path / "w.db")
+    c, H = _client(db)
+    assert c.get("/api/local-folders/settings").json()["workers"] == 2
+    assert c.post("/api/local-folders/settings", json={"workers": 3}, headers=H).json()["workers"] == 3
+    assert c.get("/api/local-folders/settings").json()["workers"] == 3
+    assert [c.post("/api/local-folders/settings", json={"workers": w}, headers=H).status_code for w in (0, 5, "many")] == [400, 400, 400]

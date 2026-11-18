@@ -101,6 +101,26 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
         hidden = [f for f in found if mode == "sfw" and f["in_library"] and f["content_rating"] == "nsfw"]
         return {"ok": True, "mode": mode, "folders": [f for f in found if f not in hidden], "hidden": len(hidden)}
 
+    @router.get("/api/local-folders/settings")
+    async def local_settings(request: Request):
+        require_auth(request)
+        from ..engines import local_videos
+        return {"ok": True, "workers": await asyncio.to_thread(local_videos.workers_for, db)}
+
+    @router.post("/api/local-folders/settings")
+    async def local_settings_save(request: Request):
+        """How many videos are prepared at once (1 to 4)."""
+        require_auth(request)
+        body = await request.json()
+        try:
+            n = int((body or {}).get("workers"))
+        except (TypeError, ValueError):
+            raise HTTPException(400, "workers must be a number from 1 to 4")
+        if not 1 <= n <= 4:
+            raise HTTPException(400, "workers must be a number from 1 to 4")
+        await asyncio.to_thread(db.set_setting, "local_prepare_workers", n)
+        return {"ok": True, "workers": n}
+
     @router.get("/api/local-folders/browse")
     async def browse(request: Request, path: str = ""):
         """The folders inside `path` (the drives when empty), to choose a folder without typing its path."""

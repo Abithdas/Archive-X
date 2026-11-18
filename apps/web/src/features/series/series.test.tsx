@@ -48,3 +48,50 @@ describe('Series pages', () => {
     expect(screen.getByText(/Louis Hofmann/)).toBeInTheDocument()
   })
 })
+
+describe('missing episodes and movies', () => {
+  it('writes missing episodes as runs', async () => {
+    const { missingText } = await import('./series')
+    expect(missingText([1, 2, 5, 6, 7, 9])).toBe('E01–E02, E05–E07, E09')
+    expect(missingText([])).toBe('')
+  })
+  it('sorts and finds movies, and words their copies', async () => {
+    const { sortMovies, movieBadge, versionText, sizeText } = await import('./series')
+    const m = (id: number, title: string, year: number, rating: number, added: number) => ({ id, title, year, poster: '', overview: '', genres: [], rating, release_date: '', added, versions: 1, best: '1080p', cam_only: false })
+    const list = [m(1, 'Heat', 1995, 8.3, 5), m(2, 'Alien', 1979, 8.5, 9), m(3, 'Dune', 2021, 8, 1)]
+    expect(sortMovies(list, 'title', '').map((x) => x.title)).toEqual(['Alien', 'Dune', 'Heat'])
+    expect(sortMovies(list, 'recent', '').map((x) => x.title)).toEqual(['Alien', 'Heat', 'Dune'])
+    expect(sortMovies(list, 'year', '').map((x) => x.title)).toEqual(['Dune', 'Heat', 'Alien'])
+    expect(sortMovies(list, 'rating', '').map((x) => x.title)).toEqual(['Alien', 'Heat', 'Dune'])
+    expect(sortMovies(list, 'title', ' he').map((x) => x.title)).toEqual(['Heat'])
+    expect(movieBadge({ best: '1080p', versions: 2, cam_only: false })).toBe('1080p · 2 copies')
+    expect(movieBadge({ best: '480p', versions: 1, cam_only: true })).toBe('Cinema recording')
+    expect(versionText({ resolution: '1080p', source: 'WEB-DL', codec: 'h264', size: 2.5 * 1024 ** 3, cam: false })).toBe('1080p · WEB-DL · H264 · 2.5 GB')
+    expect(sizeText(300 * 1024 ** 2)).toBe('300 MB')
+  })
+  it('shows a movie page with its copies, best first', async () => {
+    const d = { id: 1, title: 'The Matrix', year: 1999, overview: 'A hacker.', tagline: '', poster: '', backdrop: '', genres: ['Action'], companies: [], rating: 8, runtime: 136, cast: [{ name: 'Keanu Reeves', character: 'Neo', profile: '' }],
+      versions: [{ cid: '-9000000000001', mid: 2, media_id: 2, filename: 'The.Matrix.1080p.mkv', resolution: '1080p', height: 1080, source: 'WEB-DL', cam: false, codec: 'h264', size: 2 * 1024 ** 3, duration: 8100 }, { cid: '-9000000000001', mid: 1, media_id: 1, filename: 'The.Matrix.720p.mkv', resolution: '720p', height: 720, source: '', cam: false, codec: '', size: 0, duration: 8100 }] }
+    vi.stubGlobal('fetch', vi.fn(async () => json(d)))
+    const { MovieDetailPage } = await import('./MoviesPage')
+    withRouter(<MovieDetailPage id={1} />)
+    expect(await screen.findByText('Choose a copy (2)')).toBeInTheDocument()
+    expect(screen.getByText('Best')).toBeInTheDocument()
+    expect(screen.getByText('1080p · WEB-DL · H264 · 2.0 GB')).toBeInTheDocument()
+  })
+  it('lists movies as one poster each', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json({ items: [{ id: 1, title: 'The Matrix', year: 1999, poster: '', overview: '', genres: [], rating: 8, release_date: '', added: 3, versions: 2, best: '1080p', cam_only: false }] })))
+    const { MoviesPage } = await import('./MoviesPage')
+    withRouter(<MoviesPage />)
+    expect(await screen.findByRole('link', { name: 'Open The Matrix' })).toBeInTheDocument()
+    expect(screen.getByText('1080p · 2 copies')).toBeInTheDocument()
+  })
+  it('says which episodes of a season are missing', async () => {
+    const d = { id: 1, title: 'Dark', year: 2017, overview: '', tagline: '', poster: '', backdrop: '', genres: [], companies: [], cast: [], rating: 8, status: '',
+      seasons: [{ season: 1, name: 'Season 1', total: 4, missing: [3, 4], episodes: [{ episode: 1, name: 'A', overview: '', air_date: '', still: '', runtime: 0, duration: 0, cid: '-1', mid: 1 }] }, { season: 2, name: 'Season 2', total: 8, missing: [1, 2, 3, 4, 5, 6, 7, 8], episodes: [] }] }
+    vi.stubGlobal('fetch', vi.fn(async () => json(d)))
+    withRouter(<SeriesDetailPage id={1} />)
+    expect(await screen.findByText('Missing: E03–E04')).toBeInTheDocument()
+    expect(screen.getByText('None of this season is here (8 episodes)')).toBeInTheDocument()
+  })
+})

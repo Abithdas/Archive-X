@@ -42,6 +42,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             v = str(db.setting(key) or "")
             out[key] = _mask(v)
             out[key.replace("_api_key", "") + "_configured"] = bool(v)
+        out["tvmaze_enabled"] = sid.tvmaze_on(db)
         return out
 
     @router.post("/api/screen/settings")
@@ -56,6 +57,9 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             if v:
                 db.set_setting(key, v)
                 saved.append(key)
+        if "tvmaze_enabled" in body:
+            db.set_setting("tvmaze_enabled", "1" if body["tvmaze_enabled"] else "0")
+            saved.append("tvmaze_enabled")
         for key in body.get("clear") or []:
             if key in KEYS:
                 db.set_setting(key, "")
@@ -113,6 +117,20 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             return {r["state"]: r["n"] for r in rows}
         return {"progress": sid.progress(), "counts": await asyncio.to_thread(read), "pending": len(await asyncio.to_thread(sid.pending, db)), "configured": sid.configured(db)}
 
+    @router.get("/api/screen/search")
+    async def screen_search(request: Request, q: str = "", kind: str = "movie"):
+        """Look a title up by what was typed (a name, or an IMDb id tt…), to settle a video by hand."""
+        require_auth(request)
+        if kind not in ("movie", "tv"):
+            raise HTTPException(400, "kind must be movie or tv")
+        if len(q) > 200:
+            raise HTTPException(400, "That is too long to be a title")
+        try:
+            return {"items": await asyncio.to_thread(sid.search_titles, db, q, kind, fetch)}
+        except Exception as exc:
+            db.log(f"Title search failed: {type(exc).__name__}: {exc}"[:300], "WARN")
+            raise HTTPException(502, "The provider could not be reached")
+
     @router.get("/api/screen/review")
     async def screen_review(request: Request):
         """Videos the providers could not settle: with the candidates found, for the person to pick."""
@@ -142,13 +160,18 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         if kind not in ("movie", "tv"):
             raise HTTPException(400, "kind must be movie or tv")
         try:
-            tmdb_id = int(body.get("tmdb_id"))
+            tmdb_id = int(body["tmdb_id"]) if body.get("tmdb_id") not in (None, "") else None
             season = int(body["season"]) if body.get("season") is not None else None
             episode = int(body["episode"]) if body.get("episode") is not None else None
         except (TypeError, ValueError):
             raise HTTPException(400, "tmdb_id, season and episode must be numbers")
+        imdb = str(body.get("imdb_id") or "").strip().lower() or None
+        if imdb and not (imdb.startswith("tt") and imdb[2:].isdigit()):
+            raise HTTPException(400, "An IMDb id looks like tt0133093")
+        if tmdb_id is None and not imdb:
+            raise HTTPException(400, "Give a TMDB id, an IMDb id, or pick one of the titles")
         try:
-            return {"ok": True, **await asyncio.to_thread(sid.choose, db, int(media_id), kind, tmdb_id, season, episode, fetch)}
+            return {"ok": True, **await asyncio.to_thread(sid.choose, db, int(media_id), kind, tmdb_id, season, episode, fetch, imdb)}
         except LookupError as exc:
             raise HTTPException(404, str(exc))
         except Exception as exc:
@@ -194,12 +217,76 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 seasons.setdefault(key, []).append({
                     "episode": e["episode"], "name": e["name"] or e["media_title"], "overview": e["overview"] or "", "air_date": e["air_date"] or "", "still": si.image_url(e["still"] or "", "w300"),
                     "runtime": e["runtime"] or 0, "duration": e["duration"] or 0, "cid": e["source_channel"], "mid": e["source_message_id"]})
+            for k, info in known.items():       # a season of the show with nothing of it here still appears, as all missing
+                if k and k not in seasons and (info.get("episodes") or 0) > 0:
+                    seasons[k] = []
             return {"id": t["id"], "title": t["title"], "year": t["year"], "overview": t["overview"], "tagline": t["tagline"], "poster": si.image_url(t["poster"], "w500"),
                     "backdrop": si.image_url(t["backdrop"], "w780"), "genres": json.loads(t["genres"] or "[]"), "companies": json.loads(t["companies"] or "[]"),
                     "cast": [{"name": p["name"], "character": p.get("character", ""), "profile": si.image_url(p.get("profile", ""), "w185")} for p in json.loads(t["cast_json"] or "[]")][:12],
                     "rating": t["rating"], "status": t["status"],
-                    "seasons": [{"season": k, "name": (known.get(k) or {}).get("name") or (f"Season {k}" if k else "Specials"), "total": (known.get(k) or {}).get("episodes") or 0, "episodes": v} for k, v in sorted(seasons.items())]}
+                    "seasons": [{"season": k, "name": (known.get(k) or {}).get("name") or (f"Season {k}" if k else "Specials"), "total": (known.get(k) or {}).get("episodes") or 0, "episodes": v,
+                                 "missing": si.missing_episodes((known.get(k) or {}).get("episodes") or 0, [e["episode"] for e in v if e["episode"] is not None]) if k else []} for k, v in sorted(seasons.items())]}
         out = await asyncio.to_thread(read)
         if out is None:
             raise HTTPException(404, "No such show")
+        return out
+
+
+    def _versions(rows, hide_cam: bool) -> list[dict]:
+        """The copies of one movie, best first. A cinema recording is left out when a real copy exists (and is marked when it is all there is)."""
+        copies = []
+        for r in rows:
+            q = si.quality_of(r["filename"] or "", r["height"] or 0)
+            copies.append({"cid": r["source_channel"], "mid": r["source_message_id"], "media_id": r["media_id"], "filename": r["filename"] or "", "resolution": q["resolution"], "height": q["height"],
+                           "source": q["source"], "cam": q["cam"], "codec": r["codec"] or "", "size": r["size"] or 0, "duration": r["duration"] or 0})
+        copies.sort(key=lambda v: si.version_sort_key(v))
+        if hide_cam and any(not v["cam"] for v in copies):
+            copies = [v for v in copies if not v["cam"]]
+        return copies
+
+    @router.get("/api/screen/movies")
+    async def movies_list(request: Request, cam: int = 0):
+        """The movies in the library: one entry for each, with how many copies there are and the best one's picture size."""
+        require_auth(request)
+
+        def read():
+            with db.reading() as c:
+                rows = c.execute(
+                    "SELECT t.id AS title_id,t.title,t.year,t.poster,t.overview,t.genres,t.rating,t.release_date,m.id AS media_id,m.source_channel,m.source_message_id,m.filename,m.height,m.size,m.duration,m.codec "
+                    "FROM media_screen s JOIN media m ON m.id=s.media_id JOIN screen_titles t ON t.id=s.title_id WHERE t.kind='movie' AND s.state='MATCHED' ORDER BY t.id, m.id").fetchall()
+            groups: dict[int, list] = {}
+            for r in rows:
+                groups.setdefault(r["title_id"], []).append(r)
+            out = []
+            for tid, rs in groups.items():
+                v = _versions(rs, not cam)
+                first = rs[0]
+                out.append({"id": tid, "title": first["title"], "year": first["year"], "poster": si.image_url(first["poster"], "w342"), "overview": first["overview"], "genres": json.loads(first["genres"] or "[]"),
+                            "rating": first["rating"] or 0, "release_date": first["release_date"] or "", "added": max(r["media_id"] for r in rs), "versions": len(v), "best": v[0]["resolution"] if v else "",
+                            "cam_only": bool(v) and all(x["cam"] for x in v)})
+            return sorted(out, key=lambda m: m["title"].lower())
+        return {"items": await asyncio.to_thread(read)}
+
+    @router.get("/api/screen/movies/{title_id}")
+    async def movie_detail(title_id: int, request: Request, cam: int = 0):
+        """One movie: its story, cast and every copy of it (best first), each one playable."""
+        require_auth(request)
+
+        def read():
+            with db.reading() as c:
+                t = c.execute("SELECT * FROM screen_titles WHERE id=? AND kind='movie'", (int(title_id),)).fetchone()
+                if not t:
+                    return None
+                rows = c.execute(
+                    "SELECT m.id AS media_id,m.source_channel,m.source_message_id,m.filename,m.height,m.size,m.duration,m.codec FROM media_screen s JOIN media m ON m.id=s.media_id "
+                    "WHERE s.title_id=? AND s.state='MATCHED' ORDER BY m.id", (int(title_id),)).fetchall()
+            v = _versions(rows, not cam)
+            if not v:
+                return None
+            return {"id": t["id"], "title": t["title"], "year": t["year"], "overview": t["overview"], "tagline": t["tagline"], "poster": si.image_url(t["poster"], "w500"), "backdrop": si.image_url(t["backdrop"], "w780"),
+                    "genres": json.loads(t["genres"] or "[]"), "companies": json.loads(t["companies"] or "[]"), "rating": t["rating"], "runtime": t["runtime"],
+                    "cast": [{"name": p["name"], "character": p.get("character", ""), "profile": si.image_url(p.get("profile", ""), "w185")} for p in json.loads(t["cast_json"] or "[]")][:12], "versions": v}
+        out = await asyncio.to_thread(read)
+        if out is None:
+            raise HTTPException(404, "No such movie")
         return out

@@ -2042,6 +2042,8 @@ class Database:
             media_id INTEGER PRIMARY KEY, title_id INTEGER, season INTEGER, episode INTEGER, state TEXT NOT NULL, confidence REAL NOT NULL DEFAULT 0,
             source TEXT NOT NULL DEFAULT '', chosen INTEGER NOT NULL DEFAULT 0, candidates TEXT NOT NULL DEFAULT '[]', updated_at TEXT NOT NULL
         )""")
+        if "parser" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(media_screen)")}:   # 30.4.0 created the table without it
+            self.conn.execute("ALTER TABLE media_screen ADD COLUMN parser INTEGER NOT NULL DEFAULT 0")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_media_screen_title ON media_screen(title_id, season, episode)")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_photo_library_local_path ON photo_library_items(channel_id, local_path)")
         from .content_mode import VISIBILITY_COLUMNS

@@ -4,7 +4,7 @@ import { api } from '@/api/client'
 import { Empty } from '@/design/Empty'
 import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
-import { episodeLabel, countText, lengthText, seasonSummary, type SeriesCard, type SeriesDetail } from './series'
+import { episodeLabel, countText, lengthText, missingText, seasonSummary, type SeriesCard, type SeriesDetail } from './series'
 
 const PLACEHOLDER = '/static/icons/ax-placeholder.png'
 
@@ -62,6 +62,7 @@ export function SeriesDetailPage({ id }: { id: number }) {
             {d.seasons.length ? d.seasons.map((s) => (
               <section key={s.season} aria-label={s.name} className="mb-6">
                 <h2 className="mb-2 flex items-baseline gap-3 text-lg font-bold">{s.name}<span className="text-xs font-medium text-faint">{seasonSummary(s)}</span></h2>
+                {s.missing?.length ? <p className="mb-2 text-xs text-warn" aria-label={`Missing from ${s.name}`}>{s.episodes.length ? `Missing: ${missingText(s.missing)}` : `None of this season is here (${s.missing.length.toLocaleString()} episodes)`}</p> : null}
                 <ul className="m-0 grid list-none gap-2 p-0">
                   {s.episodes.map((e) => (
                     <li key={`${e.cid}:${e.mid}`} className="m-0">

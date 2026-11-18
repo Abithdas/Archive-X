@@ -38,6 +38,7 @@ const groupsFor = (l: Labels): { title: string; items: NavDef[] }[] => [
   { title: 'Library', items: [
     { to: '/photos', label: 'Photos', icon: 'images' },
     { to: '/videos', label: l.videos, icon: 'library' },
+    ...(l.movies ? [{ to: '/movies', label: l.movies, icon: 'play' }] : []),
     ...(l.series ? [{ to: '/series', label: l.series, icon: 'transfer' }] : []),
     { to: '/performers', label: l.performers, icon: 'user' },
     { to: '/studios', label: l.studios, icon: 'studio' },
@@ -51,7 +52,7 @@ const groupsFor = (l: Labels): { title: string; items: NavDef[] }[] => [
     { to: '/ai', label: 'AI Assistance', icon: 'sparkle' },
   ] },
 ]
-const PHONE_NAV = ['/photos', '/videos', '/series', '/performers', '/studios', '/transfers']
+const PHONE_NAV = ['/photos', '/videos', '/movies', '/series', '/performers', '/studios', '/transfers']
 const RAIL_KEY = 'ax_next_sidebar_rail'
 
 const SIDE_ITEM = 'relative flex h-11 w-full items-center rounded-xl text-[15px] font-medium text-muted transition-colors hover:bg-fg/5 hover:text-fg'

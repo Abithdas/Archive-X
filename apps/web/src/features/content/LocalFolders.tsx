@@ -5,6 +5,7 @@ import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { Segmented } from '@/design/Segmented'
 import { cn } from '@/design/cn'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
 import { modeLabel, scanText, withPatch, type LocalFolder, type Mode, type Patch } from './content'
 import { SaveBar } from './SaveBar'
@@ -19,6 +20,9 @@ export function LocalFolders() {
   const mode = useContentMode().data?.mode ?? 'sfw'
   const act = useLocalActions()
   const save = useSaveMarks()
+  const qc = useQueryClient()
+  const prep = useQuery({ queryKey: ['local-settings'], queryFn: () => api<{ workers: number }>('/api/local-folders/settings'), staleTime: 60_000 })
+  const setWorkers = (n: number) => void api('/api/local-folders/settings', { method: 'POST', json: { workers: n } }).then(() => qc.invalidateQueries({ queryKey: ['local-settings'] })).catch((e) => toast.error(errorText(e, 'Could not save.')))
   const [draft, setDraft] = useState<Record<string, Patch>>({})
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<LocalFolder | null>(null)
@@ -44,6 +48,9 @@ export function LocalFolders() {
           <button type="button" onClick={() => setAdding(true)} className="h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Add a folder</button>
         </div>
         <p className="mb-4 text-sm text-muted">Folders on this PC join the library like channels do. Photos and videos stay where they are; Archive X reads them from there. Mark each folder SFW or NSFW, and it is shown only in that mode ({modeLabel(mode)} now).</p>
+        <label className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted">Prepare
+          <select aria-label="Videos prepared at once" value={prep.data?.workers ?? 2} onChange={(e) => setWorkers(Number(e.target.value))} className="h-8 rounded-lg border border-line-2 bg-bg px-2 text-sm text-fg">{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}</select>
+          videos at once (snapshots and details). More is faster on a strong PC, and busier.</label>
         {q.data?.hidden ? <p className="mb-3 rounded-xl bg-surface-2 px-3 py-2 text-xs text-muted">{q.data.hidden.toLocaleString()} folder{q.data.hidden === 1 ? ' is' : 's are'} in the library as NSFW and not listed in SFW mode.</p> : null}
         {q.isPending ? <p role="status" className="py-3 text-sm text-muted">Loading…</p> : q.isError ? <p role="alert" className="py-3 text-sm text-warn">Could not load the folders.</p> : !folders.length ? <p className="py-3 text-sm text-muted">No folders yet. Add one to see its photos in the Photos page.</p> : (
           <ul className="grid divide-y divide-line rounded-xl border border-line">

@@ -1,6 +1,6 @@
 export interface SeriesCard { id: number; title: string; year: number | null; poster: string; overview: string; genres: string[]; episodes: number; seasons: number }
 export interface EpisodeRow { episode: number | null; name: string; overview: string; air_date: string; still: string; runtime: number; duration: number; cid: string; mid: number }
-export interface SeasonBlock { season: number; name: string; total: number; episodes: EpisodeRow[] }
+export interface SeasonBlock { season: number; name: string; total: number; episodes: EpisodeRow[]; missing?: number[] }
 export interface SeriesDetail {
   id: number; title: string; year: number | null; overview: string; tagline: string; poster: string; backdrop: string; genres: string[]; companies: string[]
   cast: { name: string; character: string; profile: string }[]; rating: number; status: string; seasons: SeasonBlock[]
@@ -23,3 +23,53 @@ export function lengthText(e: Pick<EpisodeRow, 'duration' | 'runtime'>): string 
 export function seasonSummary(s: SeasonBlock): string {
   return s.total && s.total > s.episodes.length ? `${s.episodes.length} of ${s.total} episodes here` : countText(s.episodes.length, 'episode')
 }
+
+/** Episode numbers as runs: [1, 2, 5, 6, 7] reads "E01–E02, E05–E07". */
+export function missingText(missing: readonly number[]): string {
+  const runs: string[] = []
+  const e = (n: number) => `E${String(n).padStart(2, '0')}`
+  for (let i = 0; i < missing.length;) {
+    let j = i
+    while (j + 1 < missing.length && missing[j + 1] === (missing[j] ?? 0) + 1) j++
+    runs.push(j > i ? `${e(missing[i] ?? 0)}–${e(missing[j] ?? 0)}` : e(missing[i] ?? 0))
+    i = j + 1
+  }
+  return runs.join(', ')
+}
+
+export interface MovieCard { id: number; title: string; year: number | null; poster: string; overview: string; genres: string[]; rating: number; release_date: string; added: number; versions: number; best: string; cam_only: boolean }
+export interface MovieVersion { cid: string; mid: number; media_id: number; filename: string; resolution: string; height: number; source: string; cam: boolean; codec: string; size: number; duration: number }
+export interface MovieDetail {
+  id: number; title: string; year: number | null; overview: string; tagline: string; poster: string; backdrop: string; genres: string[]; companies: string[]; rating: number; runtime: number
+  cast: { name: string; character: string; profile: string }[]; versions: MovieVersion[]
+}
+
+export const MOVIE_SORTS = [{ value: 'title', label: 'A to Z' }, { value: 'recent', label: 'Recently added' }, { value: 'year', label: 'Newest release' }, { value: 'rating', label: 'Top rated' }] as const
+export type MovieSort = (typeof MOVIE_SORTS)[number]['value']
+
+export function sortMovies(items: readonly MovieCard[], sort: MovieSort, find: string): MovieCard[] {
+  const text = find.trim().toLowerCase()
+  const shown = text ? items.filter((m) => m.title.toLowerCase().includes(text)) : [...items]
+  const by: Record<MovieSort, (a: MovieCard, b: MovieCard) => number> = {
+    title: (a, b) => a.title.localeCompare(b.title),
+    recent: (a, b) => b.added - a.added,
+    year: (a, b) => (b.year ?? 0) - (a.year ?? 0) || a.title.localeCompare(b.title),
+    rating: (a, b) => b.rating - a.rating || a.title.localeCompare(b.title),
+  }
+  return shown.sort(by[sort])
+}
+
+/** "1080p · 2 copies", "720p", or "Cinema recording" when that is all there is. */
+export function movieBadge(m: Pick<MovieCard, 'best' | 'versions' | 'cam_only'>): string {
+  if (m.cam_only) return 'Cinema recording'
+  return [m.best, m.versions > 1 ? `${m.versions} copies` : ''].filter(Boolean).join(' · ')
+}
+
+export function sizeText(bytes: number): string {
+  if (!bytes) return ''
+  const gb = bytes / 1024 ** 3
+  return gb >= 1 ? `${gb.toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`
+}
+
+export const versionText = (v: Pick<MovieVersion, 'resolution' | 'source' | 'codec' | 'size' | 'cam'>) =>
+  [v.cam ? 'Cinema recording' : '', v.resolution, v.source, v.codec.toUpperCase(), sizeText(v.size)].filter(Boolean).join(' · ')
