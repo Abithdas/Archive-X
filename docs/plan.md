@@ -25,7 +25,7 @@ Sizes on 18 November: about 106,000 lines of Python (218 files), 456 TypeScript 
 6. **Nothing is done without evidence:** a test, a parity run, a measured number, or a result from a real PC. A call to a provider or service that has only run against stand-in answers has not been run: try it once against the real service.
 7. **The SFW rule has no bypass.** Anything that reads content goes through the filtered connection or the guard (ADR 0011); `tools/tests/test_sfw_leaks.py` stays green, and new lists are also tried with an empty SFW library.
 8. **Outbound HTTP from Python uses the standard library or `core/http_client.py`.** `requests` is not part of the installed app.
-9. **Licences, and what we take from other projects.** Anything new that we depend on is MIT or GPL (a crate licensed "MIT OR Apache-2.0" is taken as MIT; Apache-only, Unlicense, "non-standard" and unknown licences are not used). We never paste a project's code or files in: we read what a project does and why, then write our own. A dependency is allowed only when it passes the licence rule; the licence of each candidate is checked on crates.io (or its repository) before it is added.
+9. **Licences, and what we take from other projects.** We take on no legal obligations. New dependencies must be, in this order of preference: Unlicense, CC0 or 0BSD (no conditions at all); MIT, BSD-2/3, ISC or Zlib (only keep their copyright line in `THIRD-PARTY-NOTICES.md`); Apache-2.0 only when nothing else works. A crate licensed "X OR Y" is taken under the better one. Not used: GPL, LGPL and AGPL code as a dependency (it brings rules of its own), MPL, non-commercial or research-only terms, "non-standard" or missing licences; the weights of a model count too. We never paste a project's code or files in: we read what a project does and why, then write our own. The licence of each candidate is checked on crates.io (or its repository) before it is added.
 10. **Releases are built by the Desktop workflow only**, and published only when you say so.
 
 ## 3. Verify on a real PC (nothing else is trusted until these are done)
@@ -123,7 +123,7 @@ Two tracks run alongside: the **native player** (done: picture in its own window
 |-----|---------|---------|-----|
 | B4 name parser | hunch (guessit port, Rust) | MIT | May be a dependency; at least use its guessit-derived test cases as our benchmark |
 | B4 | cinekey (release-name parser) | MIT | Second opinion for multi-episode and anime numbering |
-| B7 captions without CUDA | whisper.cpp, whisper-cpp-plus (Rust, streaming and voice detection) | MIT, MIT | May be a dependency. `whisper-rs` is Unlicense: not used |
+| B7 captions without CUDA | whisper.cpp, whisper-cpp-plus (Rust, streaming and voice detection) | MIT, MIT | May be a dependency (`whisper-rs`, Unlicense, is also allowed) |
 | Phase 6 faces | rusty_scrfd (SCRFD detector) | MIT | May be a dependency. `face_id` has a "non-standard" licence: not used, read for the idea only. Check the licence of the model weights too (some published face models are research-only) before shipping any |
 | B12, C4 duplicates | vid_dup_finder_lib, czkawka_core | MIT OR Apache-2.0, MIT | Study how they hash frames; our own fingerprint on the 36 snapshots is the plan |
 | Phase 5 jobs | apalis, apalis-sqlite | MIT OR Apache-2.0, MIT | Study the SQLite job table and the hooked fetch; decide after D4 |
