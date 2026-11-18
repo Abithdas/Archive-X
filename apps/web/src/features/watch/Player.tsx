@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { SMART_FAILED, TRYING, initialMode, isDecodeFailure, loadSmartStream, shouldFallBack, type Mode, type PlayInfo, type SmartApi, type SmartPipeline } from './smartstream'
 import { Icon } from '@/design/Icon'
 import { BufferIcon, ChevronIcon, FullscreenIcon, GearIcon, NextIcon, PauseIcon, PipIcon, PlayIcon, PrevIcon, VolumeIcon } from './PlayerIcons'
 import { Divider, MenuHead, MenuItem, MenuRow, PopMenu, VolumeBar } from './PlayerParts'
@@ -8,7 +7,6 @@ import { formatDuration } from '@/features/library/format'
 import { SnapshotGrid, type SnapshotData } from './SnapshotGrid'
 import { Timeline, type PreviewInfo } from './Timeline'
 import type { Segment } from './timelineLogic'
-import { HLS_FAILED, hlsUrl, startHls } from './hlsplay'
 import { DOUBLE_TAP_MS, KEEP_SKIPPING_MS, registerTap, type TapState } from './tapseek'
 import { CcMenu } from './CcMenu'
 import { blockingEnabled, resumeAudio, routeThroughApp, setBlocking } from './audioGraph'
@@ -30,10 +28,9 @@ const BTN = 'grid size-8 shrink-0 place-items-center rounded-md text-fg/85 trans
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
 
-export function Player({ media, info, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable }: { onUnplayable?: () => void; media?: MediaRef; info?: PlayInfo | null; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void; onOpenNative?: () => void }) {
+export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable }: { onUnplayable?: () => void; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void; onOpenNative?: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
-  const smartPipeline = useRef<SmartPipeline | null>(null)   // while the smart (in-browser remux) path owns the video
   const pendingStart = useRef<number | null>(null)
   const [started, setStarted] = useState(false)
   // Leaving the video (Back, another page, another video, closing the tab) tells the server to stop that video's downloads and clear its
@@ -59,27 +56,14 @@ export function Player({ media, info, infoPending = false, src, poster, duration
   const [failed, setFailed] = useState(false)
   useEffect(() => { if (failed) onUnplayable?.() }, [failed]) // eslint-disable-line react-hooks/exhaustive-deps -- the page switches to the native player once, when this video cannot be played here
   const [attempt, setAttempt] = useState(0)
-  // Smart playback: files the browser may not play directly go through the client-side engine (loaded only when needed).
-  const [smart, setSmart] = useState<SmartApi | null | undefined>(undefined)   // undefined: not loaded yet, null: unavailable
-  const [mode, setMode] = useState<Mode>('direct')
-  const [failText, setFailText] = useState('')
-  const triedSmart = useRef(false)
-  const triedHls = useRef(false)
+  // The video plays as it is: this web view plays what Windows can decode. A file it cannot play is handed to the native player (see WatchPage), never converted here.
   const [committed, setCommitted] = useState(false)   // the source was handed to the video: late codec info must not switch it mid-play
-  useEffect(() => {
-    if (!info || info.direct_likely) return
-    let live = true
-    void loadSmartStream().then((api) => { if (live) setSmart(api) })
-    return () => { live = false }
-  }, [info])
-  const needsSmart = !!info && !info.direct_likely
-  const ready = !infoPending && (!needsSmart || smart !== undefined)
-  useEffect(() => { triedSmart.current = false; triedHls.current = false; setCommitted(false); setMode('direct'); setFailText('') }, [src])
+  const ready = !infoPending
+  useEffect(() => { setCommitted(false) }, [src])
   useEffect(() => {
     if (!ready || committed) return
     setCommitted(true)
-    setMode(initialMode(info, smart))
-  }, [ready, committed, info, smart, src])
+  }, [ready, committed, src])
   const [loop, setLoop] = useState(false)
   const [block, setBlock] = useState(blockingEnabled)
   const [hint, setHint] = useState('')
@@ -165,45 +149,9 @@ export function Player({ media, info, infoPending = false, src, poster, duration
 
   useEffect(() => {
     setFailed(false)
-    setFailText('')
     setLoading(true)
     setTime(0)
   }, [src, attempt])
-
-  /** Hand the file to the PC's converter (HLS), once, resuming where playback had reached. */
-  const toHls = useCallback((at: number) => {
-    if (triedHls.current || !hlsUrl(src, media)) return false
-    triedHls.current = true
-    if (at > 0.5) pendingStart.current = at
-    setHint('Converting for this browser…'); setLoading(true); setFailed(false); setMode('hls')
-    return true
-  }, [src, media])
-
-  useEffect(() => {
-    if (!committed || mode !== 'hls') return
-    const v = video.current; const url = hlsUrl(src, media)
-    if (!v || !url) return
-    let run: { destroy: () => void } | null = null; let gone = false
-    void startHls(v, url, { startTime: pendingStart.current ?? (startAt > 0 && !startApplied.current ? startAt : 0), onError: (why) => { console.warn('[HLS] error:', why); if (!gone) { setFailText(HLS_FAILED); setFailed(true); setLoading(false) } } })
-      .then((r) => { if (gone) r?.destroy(); else run = r })
-    return () => { gone = true; run?.destroy() }
-  }, [committed, mode, src, attempt]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // The smart pipeline owns the video element's source while it runs.
-  useEffect(() => {
-    if (!committed || mode !== 'mse' || !smart || !info) return
-    const v = video.current
-    if (!v) return
-    const startTime = pendingStart.current ?? (startAt > 0 && !startApplied.current ? startAt : 0)
-    if (startTime > 0) pendingStart.current = startTime
-    const pipeline = smart.start(v, src, info, {
-      startTime,
-      onError: (msg) => { console.warn('[SmartStream] error:', msg); if (toHls(video.current?.currentTime ?? 0)) return; setFailText(SMART_FAILED); setFailed(true); setLoading(false) },
-    })
-    if (!pipeline) { triedSmart.current = true; setMode('direct'); return }
-    smartPipeline.current = pipeline
-    return () => { smartPipeline.current = null; try { pipeline.destroy() } catch { /* already gone */ } }
-  }, [committed, mode, smart, info, src, attempt]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -241,9 +189,9 @@ export function Player({ media, info, infoPending = false, src, poster, duration
       className={cn(isFs ? 'relative h-full w-full bg-black' : cn('relative mx-auto grid w-full sm:w-[var(--pw)]', !overlay && 'gap-4 sm:gap-5'), hideBar && 'cursor-none [&_video]:cursor-none')}>
       <div data-caption-frame style={isFs ? undefined : { aspectRatio: ratio }} className={cn('@container relative w-full overflow-hidden bg-[#111215]', isFs ? 'absolute inset-0 h-full' : 'rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
         <video
-          key={`${attempt}-${mode}`}
+          key={attempt}
           ref={video}
-          src={committed && mode === 'direct' ? src : undefined}
+          src={committed ? src : undefined}
           poster={poster}
           playsInline
           preload="metadata"
@@ -253,8 +201,6 @@ export function Player({ media, info, infoPending = false, src, poster, duration
           onPlay={(e) => { routeThroughApp(e.currentTarget); resumeAudio(); setPlaying(true); setStarted(true); onPlayed?.() }}
           onPause={() => setPlaying(false)}
           onWaiting={() => setLoading(true)}
-          // The in-browser remux path reads the file from the start; a jump to a moment it has not read yet makes it read from there instead.
-          onSeeking={(e) => { if (smartPipeline.current?.type === 'mse-mp4box') smartPipeline.current.seekTo?.(e.currentTarget.currentTime) }}
           onPlaying={() => { resumeAudio(); setLoading(false) }}
           onCanPlay={() => setLoading(false)}
           onLoadedMetadata={(e) => {
@@ -272,19 +218,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
             setBuffered(b.length ? b.end(b.length - 1) : 0)
           }}
           onEnded={() => { onEnd?.(); if (autoNext) onNext?.() }}
-          onError={(e) => {
-            const v = e.currentTarget
-            if (shouldFallBack(mode, triedSmart.current, v.error?.code, info, smart)) {
-              triedSmart.current = true
-              if (v.currentTime > 0.5) pendingStart.current = v.currentTime
-              flash(TRYING); setLoading(true); setMode('mse')
-              return
-            }
-            if (mode !== 'hls' && isDecodeFailure(v.error?.code) && toHls(v.currentTime)) return
-            if (mode === 'mse') setFailText(SMART_FAILED)
-            if (mode === 'hls') setFailText(HLS_FAILED)
-            setFailed(true); setLoading(false)
-          }}
+          onError={() => { setFailed(true); setLoading(false) }}
           className="absolute inset-0 h-full w-full cursor-pointer object-contain"
         />
         {skip ? (
@@ -307,9 +241,9 @@ export function Player({ media, info, infoPending = false, src, poster, duration
           <div role="alert" className="absolute inset-0 grid content-center justify-items-center gap-2 overflow-y-auto bg-black/85 p-3 text-center text-white sm:gap-3 sm:p-5">
             <span className="hidden size-12 place-items-center rounded-full bg-bad/20 text-xl font-bold text-bad sm:grid">!</span>
             <p className="max-w-lg text-sm font-bold leading-snug sm:text-lg">
-              {failText ? failText : <><span className="sm:hidden">This video could not be played here.</span><span className="hidden sm:inline">This video could not be played from the original stream (the browser cannot decode this file, or Telegram is not connected).</span></>}
+              <span className="sm:hidden">This video could not be played here.</span><span className="hidden sm:inline">This video could not be played from the original stream (this player cannot decode this file, or Telegram is not connected).</span>
             </p>
-            <p className="hidden max-w-lg text-xs text-zinc-400 sm:block">{onOpenNative ? 'The browser cannot decode every file (some HEVC, 10-bit and MKV videos). The native player can.' : 'You can retry the original stream or open it in VLC.'}</p>
+            <p className="hidden max-w-lg text-xs text-zinc-400 sm:block">{onOpenNative ? 'This player cannot decode every file (some HEVC, 10-bit and MKV videos). The native player can.' : 'You can retry the original stream or open it in VLC.'}</p>
             <div className="flex flex-wrap justify-center gap-2">
               {onOpenNative ? <button type="button" onClick={onOpenNative} className="h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg sm:h-10 sm:px-4">Play with the native player</button> : null}
               <button type="button" onClick={() => setAttempt(attempt + 1)} className={onOpenNative ? 'h-9 rounded-xl border border-white/20 bg-white/10 px-3 text-sm font-bold sm:h-10 sm:px-4' : 'h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg sm:h-10 sm:px-4'}>Retry original</button>
@@ -334,7 +268,7 @@ export function Player({ media, info, infoPending = false, src, poster, duration
             <PopMenu label="Buffer status" align="left" button={<><BufferIcon /><span className={cn('size-1.5 rounded-full', buffer >= 99 ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-amber-400')} /><span className="hidden @lg:inline">{buffer >= 99 ? 'Cached' : `${buffer}%`}</span><ChevronIcon /></>}>
               <MenuHead>Buffer status</MenuHead>
               <MenuRow k="Buffered" v={`${buffer}%`} good={buffer >= 99} />
-              <MenuRow k="Playback" v={mode === 'mse' ? 'Smart' : 'Direct'} />
+              <MenuRow k="Playback" v="Direct" />
               {res ? <MenuRow k="Picture" v={res} /> : null}
             </PopMenu>
             </div>

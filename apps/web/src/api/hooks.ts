@@ -1,3 +1,4 @@
+import type { PlayInfo } from '@/features/watch/playInfo'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { withFavorite } from './favorite'
 import { ApiError, api, libraryUrl } from './client'
@@ -224,7 +225,7 @@ export const usePerformerGallery = (id: number) =>
 export const usePlayInfo = (cid: string, mid: number) =>
   useQuery({
     queryKey: ['play-info', cid, mid] as const,
-    queryFn: () => api<import('@/features/watch/smartstream').PlayInfo>(`/api/play/info/${encodeURIComponent(cid)}/${mid}?wait=2`),
+    queryFn: () => api<PlayInfo>(`/api/play/info/${encodeURIComponent(cid)}/${mid}?wait=2`),
     staleTime: 60_000,
     retry: false,
   })

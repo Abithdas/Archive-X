@@ -131,6 +131,20 @@ describe('Player', () => {
     fireEvent.error(container.querySelector('video')!)
     expect(unplayable).toHaveBeenCalledTimes(1)
   })
+  it('never converts a file it cannot decode: a decode error is a failure, handed on, with no conversion request', () => {
+    const asked: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (u: string) => { asked.push(String(u)); return new Response('{}', { status: 404 }) }))
+    const unplayable = vi.fn()
+    const { container } = render(<Player src="/stream/-1/1" media={{ cid: '-1', mid: 1 }} durationHint={120} onOpenVlc={() => {}} onUnplayable={unplayable} />)
+    const v = container.querySelector('video')!
+    Object.defineProperty(v, 'error', { value: { code: 4 }, configurable: true })
+    fireEvent.error(v)
+    expect(screen.getByRole('alert')).toHaveTextContent('could not be played')
+    expect(unplayable).toHaveBeenCalledTimes(1)
+    expect(asked.some((u) => /hls|smart|convert/i.test(u))).toBe(false)
+    expect(screen.queryByText(/Converting/i)).toBeNull()
+    vi.unstubAllGlobals()
+  })
   it('does not mention the native player where there is none (browser)', () => {
     const { container } = render(<Player src="/stream/-1/1" durationHint={120} onOpenVlc={() => {}} />)
     fireEvent.error(container.querySelector('video')!)
