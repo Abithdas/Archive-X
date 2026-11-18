@@ -161,6 +161,22 @@ def register_playback_routes(
             raise HTTPException(404, "That file is not in its folder any more")
         return FileResponse(path, media_type=local_videos.mime_of(path), headers={"Cache-Control": "private, max-age=30", "X-Archive-X-Playback-Delivery": "local-file"})
 
+    local_probes: dict[tuple, dict] = {}
+
+    def _local_probe(path: str) -> dict:
+        """ffprobe of a file on this disk (container, codecs, pixel format): quick, and kept while the file is unchanged."""
+        from ..engines import local_videos
+        try:
+            st = os.stat(path)
+            key = (path, st.st_size, int(st.st_mtime))
+        except OSError:
+            return {}
+        if key not in local_probes:
+            if len(local_probes) > 512:
+                local_probes.clear()
+            local_probes[key] = local_videos.probe(path, timeout=20.0)
+        return local_probes[key]
+
     async def _local_play_info(channel_id: int, message_id: int):
         from ..engines import local_videos
         path = await asyncio.to_thread(local_videos.file_of, db, channel_id, message_id)
@@ -176,6 +192,14 @@ def register_playback_routes(
                 "width": int((row["width"] if row else 0) or 0), "height": int((row["height"] if row else 0) or 0), "fps": float((row["fps"] if row else 0) or 0),
                 "bitrate": int((row["bitrate"] if row else 0) or 0), "codec": str((row["codec"] if row else "") or ""), "audio_codec": str((row["audio_codec"] if row else "") or ""),
                 "streamable": True, "streamability_label": "Local file", "local_file": True}
+        # What the browser can do with it, by the same rule as for a Telegram video: the page uses it to hand a file the browser cannot play straight
+        # to the native player instead of trying an in-browser conversion first.
+        probed = await asyncio.to_thread(_local_probe, path)
+        info["format"] = str(probed.get("format") or "")
+        info["vcodec"] = str(probed.get("vcodec") or info["codec"] or "")
+        info["acodec"] = str(probed.get("acodec") or info["audio_codec"] or "")
+        info["pix_fmt"] = str(probed.get("pix_fmt") or "")
+        info.update(media_tools.browser_verdict(info, info["mime"]))
         return info
 
     @router.get("/stream/{channel_id}/{message_id}")

@@ -2,6 +2,9 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+- **The native player starts at once for videos the browser cannot play.** With Settings, Experience, Native player on "only when the browser cannot play the video" (the default), the page now decides before playing, from the file's container and codecs (AVI, WMV, DTS or AC3 audio, HEVC where this browser has no support, 10-bit video), instead of trying the browser and the slow in-browser conversion first. The decision uses this browser's own answer for HEVC and Dolby audio, and unknown facts never switch a video. Videos from local folders now carry the same codec facts, so they are decided the same way. Needs the desktop app with the native engine installed; not tried on a real PC.
+
 ## 30.4.2 (2026-11-18)
 - **SFW no longer shows adult performers when it has no cast of its own yet.** The performer list, when its answer was empty, asked again through a connection that does not know about the mode, so an SFW library with no movie cast (the normal state before any movie is identified) showed every adult performer. It now stays empty. A test with an adult-only library and a run of every page of the app against it found nothing else.
 - **Live captions for videos from local folders.** Audio tracks, subtitle tracks and live captions asked the Telegram feed for the video, which cannot serve a local file, so they never worked there. They now read the file itself. Checked with the real speech model on a local video: the spoken words came back as captions.

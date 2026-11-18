@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HOLD_MS, MAX_HOLDS, SLOW_FOR_MS, WATCH_MS, afterJump, aspectOf, quiet, stallStep, videoVisible, type StallState } from './nativeLogic'
+import { HOLD_MS, MAX_HOLDS, SLOW_FOR_MS, WATCH_MS, afterJump, aspectOf, needsNative, quiet, stallStep, startsNative, videoVisible, type StallState } from './nativeLogic'
 
 /** Feed the detector one look every 250 ms; `speed` is how fast the position moves (1 = real time). Returns the actions with their times. */
 function run(speed: number, from: StallState, seconds: number, opts: { rate?: number; playing?: boolean } = {}) {
@@ -76,5 +76,39 @@ describe('the stage shape', () => {
     expect(aspectOf({ width: 1920, height: 800 }, { width: 640, height: 480 })).toBeCloseTo(2.4)
     expect(aspectOf(null, { width: 640, height: 480 })).toBeCloseTo(4 / 3)
     expect(aspectOf({ width: 0, height: 0 }, {})).toBeCloseTo(16 / 9)
+  })
+})
+
+describe('which engine starts', () => {
+  const none = () => ''
+  const yes = () => 'probably'
+  it('never sends a video to the native player on unknown facts, or when the browser plays it', () => {
+    expect(needsNative(undefined, none)).toBe(false)
+    expect(needsNative({}, none)).toBe(false)
+    expect(needsNative({ direct_likely: true }, none)).toBe(false)
+  })
+  it('sends a file with a container or codec no browser plays', () => {
+    expect(needsNative({ direct_likely: false, container_ok: false }, yes)).toBe(true)                       // avi, wmv
+    expect(needsNative({ direct_likely: false, container_ok: true, video_ok: false, vcodec: 'mpeg4' }, yes)).toBe(true)
+    expect(needsNative({ direct_likely: false, container_ok: true, video_ok: true, audio_ok: false, acodec: 'dts' }, yes)).toBe(true)
+  })
+  it('trusts the browser\'s own answer for HEVC and Dolby audio', () => {
+    const hevc = { direct_likely: false, container_ok: true, video_ok: false, audio_ok: true, vcodec: 'hevc' }
+    expect(needsNative(hevc, none)).toBe(true)                      // this browser cannot
+    expect(needsNative(hevc, yes)).toBe(false)                      // this browser can (hardware decoding)
+    expect(needsNative({ ...hevc, ten_bit: true }, yes)).toBe(true) // 10-bit HEVC: not trusted
+    const ac3 = { direct_likely: false, container_ok: true, video_ok: true, audio_ok: false, acodec: 'ac3' }
+    expect(needsNative(ac3, none)).toBe(true)
+    expect(needsNative(ac3, yes)).toBe(false)
+  })
+  it('starts by itself only with the engine there, no choice for the browser, and the setting allowing it', () => {
+    const base = { nativeOk: true, chosenWeb: false, mode: 'fallback', asked: false, info: { direct_likely: false, container_ok: false }, canPlayType: none }
+    expect(startsNative(base)).toBe(true)
+    expect(startsNative({ ...base, nativeOk: false })).toBe(false)
+    expect(startsNative({ ...base, chosenWeb: true })).toBe(false)
+    expect(startsNative({ ...base, mode: 'never' })).toBe(false)
+    expect(startsNative({ ...base, info: { direct_likely: true } })).toBe(false)
+    expect(startsNative({ ...base, mode: 'always', info: { direct_likely: true } })).toBe(true)
+    expect(startsNative({ ...base, mode: 'never', asked: true })).toBe(true)
   })
 })

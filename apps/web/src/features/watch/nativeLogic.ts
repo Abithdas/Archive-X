@@ -55,3 +55,26 @@ export function aspectOf(opened: { width: number; height: number } | null, hint:
   }
   return 16 / 9
 }
+
+// ---------------------------------------------------------------- which engine starts --------------------------------------------------------
+/** The browser cannot play this file for certain, and the native player should start at once instead of the in-browser conversion (which is slow and
+ *  plays badly). The server's verdict (`direct_likely` and its parts) is a typical browser's; `canPlayType` is this browser's own answer for the two
+ *  cases it often differs on (HEVC video, Dolby audio). Unknown facts never send a video to the native player. */
+export function needsNative(info: { direct_likely?: boolean; container_ok?: boolean; video_ok?: boolean; audio_ok?: boolean; ten_bit?: boolean; vcodec?: string; acodec?: string } | null | undefined, canPlayType: (type: string) => string): boolean {
+  if (!info || info.direct_likely !== false) return false
+  const ok = (type: string) => canPlayType(type) !== ''
+  if (info.container_ok === false) return true
+  const v = (info.vcodec ?? '').toLowerCase()
+  const a = (info.acodec ?? '').toLowerCase()
+  if (info.video_ok === false && !((v === 'hevc' || v === 'h265') && !info.ten_bit && ok('video/mp4; codecs="hvc1.1.6.L93.B0"'))) return true
+  if (info.audio_ok === false && !((a === 'ac3' && ok('audio/mp4; codecs="ac-3"')) || (a === 'eac3' && ok('audio/mp4; codecs="ec-3"')))) return true
+  return false
+}
+
+/** Whether the page starts the native player by itself for this video: the engine is there, the person did not choose the browser for this video, and
+ *  the setting says "always", or "only when the browser cannot play it" and it cannot (decided up front, before anything is tried). */
+export function startsNative(o: { nativeOk: boolean; chosenWeb: boolean; mode: string; asked: boolean; info: Parameters<typeof needsNative>[0]; canPlayType: (type: string) => string }): boolean {
+  if (!o.nativeOk || o.chosenWeb) return false
+  if (o.mode === 'always' || o.asked) return true
+  return o.mode === 'fallback' && needsNative(o.info, o.canPlayType)
+}

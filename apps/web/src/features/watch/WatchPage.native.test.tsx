@@ -8,6 +8,7 @@ vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn(), succe
 const ITEM = { id: 5, _cid: '-1001', media_id: 9, name: 'A video', filename: 'a.mkv', size: 1e8, duration: 120, width: 1920, height: 1080, resolution_category: '1080p', codec: 'hevc', thumbnail_id: 5, favorite: 0, upload_date: '2025-01-01', channel_title: 'Chan', performers: [], studios: [], tags: [], studio: '' }
 let nativeCalls: string[]
 let mode = 'fallback'
+let playFacts: Record<string, unknown> = { direct_likely: false, name: 'a.mkv', vcodec: 'hevc', acodec: 'aac' }
 
 beforeEach(() => {
   nativeCalls = []
@@ -19,7 +20,7 @@ beforeEach(() => {
     if (u.startsWith('/api/library?')) return json({ total: 1, page: 0, per: 1, items: [ITEM] })
     if (u === '/api/settings/experience') return json({ autoplay: true, native_player: mode, resume_prompt: false })
     if (u.includes('/api/play/device-link/')) return json({ url: 'http://127.0.0.1:1/video/5' })
-    if (u.includes('/api/play/info/')) return json({ direct_likely: false, name: 'a.mkv', vcodec: 'hevc', acodec: 'aac' })
+    if (u.includes('/api/play/info/')) return json(playFacts)
     if (u.includes('/api/play/tracks/')) return json({ audio: [], subtitles: [], captions: { available: false, engine: '', install: '' } })
     return json({}, 404)
   }))
@@ -59,6 +60,16 @@ describe('which engine plays the video', () => {
     fireEvent.error(video()!)                                                                   // the browser cannot decode it
     expect(await screen.findByTestId('native-pane')).toBeInTheDocument()
     expect(video()).toBeNull()
+  })
+
+  it('"fallback" with facts that say the browser cannot play it: the native player starts at once, with no browser attempt or conversion first', async () => {
+    mode = 'fallback'
+    playFacts = { direct_likely: false, container_ok: false, video_ok: false, audio_ok: false, name: 'a.avi', vcodec: 'mpeg4', acodec: 'ac3' }
+    mount()
+    expect(await screen.findByTestId('native-pane')).toBeInTheDocument()
+    expect(video()?.getAttribute('src') ?? null).toBeNull()                                    // the browser was never handed the file
+    expect(nativeCalls).toContain('native_open')
+    playFacts = { direct_likely: false, name: 'a.mkv', vcodec: 'hevc', acodec: 'aac' }
   })
 
   it('"off": nothing switches by itself, but the button on the page does, and switches back', async () => {

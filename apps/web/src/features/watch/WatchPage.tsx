@@ -1,3 +1,4 @@
+import { startsNative } from './nativeLogic'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -130,9 +131,11 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const nativeMode = exp.native_player
   const askedNative = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('engine') === 'native'
   useEffect(() => { setEngine('web'); setChosenWeb(false) }, [cid, mid])
+  const playFacts = playInfo.data
   useEffect(() => {
-    if (nativeOk && !chosenWeb && (nativeMode === 'always' || askedNative)) setEngine('native')
-  }, [nativeOk, nativeMode, chosenWeb, askedNative, cid, mid])
+    const canPlayType = (t: string) => (typeof document === 'undefined' ? '' : document.createElement('video').canPlayType(t))
+    if (startsNative({ nativeOk, chosenWeb, mode: nativeMode, asked: askedNative, info: playFacts, canPlayType })) setEngine('native')
+  }, [nativeOk, nativeMode, chosenWeb, askedNative, cid, mid, playFacts])
   const toBrowser = () => { setChosenWeb(true); setEngine('web') }
   if (video.isPending) return <Skel />
   if (video.isError || !item) {

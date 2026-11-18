@@ -145,3 +145,27 @@ def test_an_error_that_is_not_about_the_card_is_not_hidden(monkeypatch):
     monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(WhisperModel=Model))
     with pytest.raises(RuntimeError, match="damaged"):
         captions.FasterWhisperEngine(model="tiny").prepare()
+
+
+def test_play_info_of_a_folder_video_carries_the_browser_verdict(tmp_path, monkeypatch):
+    """The page uses it to start the native player at once for a file the browser cannot play."""
+    c, _db, ch, mid, root = _folder_video(tmp_path, monkeypatch)
+    info = c.get(f"/api/play/info/{ch}/{mid}").json()
+    assert (info["vcodec"], info["acodec"]) == ("h264", "aac") and info["pix_fmt"] == "yuv420p" and "mp4" in info["format"]
+    assert info["container_ok"] and info["video_ok"] and info["audio_ok"] and info["direct_likely"] is True
+    # a file whose codecs no browser plays gets the opposite verdict
+    odd = root / "Old Film.avi"
+    done = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=160x90:rate=10:duration=2", "-f", "lavfi", "-i", "sine=duration=2", "-c:v", "mpeg4", "-c:a", "ac3", str(odd)], capture_output=True)
+    if done.returncode != 0:
+        pytest.skip("ffmpeg cannot make an avi with ac3 here")
+    sid = ls.source_id_of(ch)
+    c.post(f"/api/local-folders/{sid}/scan", headers={"Origin": "https://testserver"})
+    for _ in range(100):
+        with _db.reading() as conn:
+            row = conn.execute("SELECT message_id FROM local_video_files WHERE path LIKE '%Old Film.avi'").fetchone()
+        if row:
+            break
+        time.sleep(0.1)
+    assert row
+    bad = c.get(f"/api/play/info/{ch}/{int(row['message_id'])}").json()
+    assert bad["direct_likely"] is False and bad["container_ok"] is False and bad["video_ok"] is False and bad["audio_ok"] is False
