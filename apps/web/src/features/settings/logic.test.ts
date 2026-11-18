@@ -3,7 +3,7 @@ import { AUTONEXT_MODES, NATIVE_MODES, PANELS, depsSummary, experienceFrom, icon
 
 const fmt = (n: number) => `${n} B`
 describe('panels', () => {
-  it('lists the eight classic panels in order', () => expect(PANELS.map((p) => p.id)).toEqual(['overview', 'telegram', 'metadata', 'experience', 'appearance', 'storage', 'security', 'system']))
+  it('lists the panels in order', () => expect(PANELS.map((p) => p.id)).toEqual(['overview', 'telegram', 'content', 'metadata', 'experience', 'appearance', 'storage', 'security', 'system']))
   it('recognises panel ids only', () => { expect(isPanel('security')).toBe(true); expect(isPanel('nope')).toBe(false) })
 })
 

@@ -59,6 +59,9 @@ fn database(extra: impl FnOnce(&Connection)) -> (tempfile::TempDir, std::path::P
     ] {
         create_table(&c, &snapshot, t);
     }
+    // the rows these tests make are adult and in the library; the app itself opens in SFW
+    create_table(&c, &snapshot, "settings");
+    c.execute("INSERT INTO settings VALUES ('content_mode','\"nsfw\"')", []).unwrap();
     // the snapshot has columns only; the real table has media_id as its key
     c.execute_batch("CREATE UNIQUE INDEX watch_history_media ON watch_history(media_id)").unwrap();
     c.execute_batch("DROP TABLE scene_markers; CREATE TABLE scene_markers (id INTEGER PRIMARY KEY AUTOINCREMENT, media_id INTEGER, position REAL, title TEXT, note TEXT, tag TEXT, created_at TEXT, updated_at TEXT, source TEXT DEFAULT 'local', provider TEXT, provider_marker_id TEXT); CREATE UNIQUE INDEX psync ON provider_sync_state(provider,entity_type);").unwrap();

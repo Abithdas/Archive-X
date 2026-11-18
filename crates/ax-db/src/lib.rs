@@ -55,15 +55,33 @@ fn connect(path: &Path) -> Result<Connection, DbError> {
     let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX | OpenFlags::SQLITE_OPEN_URI)
         .map_err(|e| DbError::Open(format!("{}: {e}", path.display())))?;
     conn.busy_timeout(BUSY_TIMEOUT)?;
-    // Belt and braces: even a bug in a query can never write through this connection.
-    conn.pragma_update(None, "query_only", "ON")?;
     // The same read settings as the Python side (core/database.py): a 32 MB page cache, 256 MB of memory-mapped file and temporary
     // tables in memory. With SQLite's small defaults a heavy query over a big library re-reads pages again and again, and was several
-    // times slower than Python's under load.
+    // times slower than Python's under load. (temp_store first: changing it deletes temporary views.)
     conn.pragma_update(None, "temp_store", "MEMORY")?;
     conn.pragma_update(None, "cache_size", -32768)?;
     conn.pragma_update(None, "mmap_size", 268_435_456_i64)?;
+    install_visibility(&conn)?;
+    // Belt and braces: even a bug in a query can never write through this connection. (After the views, which are created on this connection.)
+    conn.pragma_update(None, "query_only", "ON")?;
     Ok(conn)
+}
+
+/// The SFW / NSFW content rule (telegram_archive/core/content_mode.py): temporary views that shadow the content tables, so every query on
+/// this connection sees only what the mode allows. The SQL is the Python side's own text (tools/gen_visibility_sql.py keeps the file equal).
+/// A database the backend has not upgraded yet (no `channels.in_library`) is left as it is.
+const VISIBILITY_SQL: &str = include_str!("visibility.sql");
+
+fn install_visibility(conn: &Connection) -> Result<(), DbError> {
+    // Only a database the backend has set up: it has `channels.in_library` and the `settings` table the mode is read from.
+    let upgraded: bool = conn
+        .prepare("SELECT (SELECT COUNT(*) FROM pragma_table_info('channels') WHERE name='in_library') > 0 AND (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='settings') > 0")
+        .and_then(|mut q| q.query_row([], |r| r.get::<_, bool>(0)))
+        .unwrap_or(false);
+    if upgraded {
+        conn.execute_batch(VISIBILITY_SQL)?;
+    }
+    Ok(())
 }
 
 /// The one connection Rust writes through, for the tables Rust owns (docs/adr/0002 and 0007). It never creates the file and opens only

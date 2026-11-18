@@ -14,7 +14,7 @@ def test_performer_videos_and_suggestions_answer_and_do_not_block_the_loop():
     from telegram_archive.core.auth import ensure_web_credentials
     from telegram_archive.core.database import Database
 
-    db = Database(); ensure_web_credentials(db)
+    db = Database(); ensure_web_credentials(db); db.set_setting("content_mode", "nsfw")   # these tests make adult performers; the app opens in SFW
     c = TestClient(create_app(db=db), base_url="https://testserver")
     H = {"Origin": "https://testserver"}
     pw = "correct-horse-battery"

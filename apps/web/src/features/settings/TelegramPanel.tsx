@@ -1,3 +1,4 @@
+import { ChannelMarks } from '@/features/content/ChannelMarks'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ApiError, api } from '@/api/client'
@@ -288,6 +289,8 @@ export function TelegramPanel() {
       ) : (
         <Card title="Signed in" pill={<Pill tone="ok">Connected</Pill>}><p className="text-sm text-muted">Session saved and connected. Use “Log out of Telegram” above only to sign in again or switch account.</p></Card>
       )}
+
+      <ChannelMarks />
 
       {confirm ? (
         <Dialog open onClose={() => setConfirm(null)} title={confirm === 'logout' ? 'Log out of Telegram?' : 'Archive the saved session?'}>

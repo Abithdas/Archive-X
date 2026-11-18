@@ -1,3 +1,4 @@
+import { ContentSwitch } from '@/features/content/ContentSwitch'
 import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState } from 'react'
@@ -75,6 +76,7 @@ export function AccountMenu({ live }: { live: string }) {
       <div ref={pop} id={id} popover="auto" role="menu" aria-label="Account menu" className="t-menu fixed right-4 top-[60px] left-auto bottom-auto m-0 w-[280px] rounded-[18px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
         <div className="t-acc-panel-inner p-2">
         <div className="px-3 pb-1.5 pt-2 text-xs text-muted">Signed in as <b className="text-fg">{name}</b></div>
+        <div className="px-3 pb-2 pt-1"><div className="mb-1 text-xs font-semibold text-muted">Content</div><ContentSwitch compact /></div>
         <button type="button" role="menuitem" className={ROW} onClick={() => { close(); setEditing(true) }}>
           <Icon name="edit" className="text-muted" />Edit profile
         </button>

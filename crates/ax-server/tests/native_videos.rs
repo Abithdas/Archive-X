@@ -55,6 +55,9 @@ fn database(extra: impl FnOnce(&Connection)) -> (tempfile::TempDir, std::path::P
     ] {
         create_table(&c, &snapshot, t);
     }
+    // the rows these tests make are adult and in the library; the app itself opens in SFW
+    create_table(&c, &snapshot, "settings");
+    c.execute("INSERT INTO settings VALUES ('content_mode','\"nsfw\"')", []).unwrap();
     let far = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() + 86_400.0;
     c.execute("INSERT INTO web_sessions VALUES (?1,'admin',?2)", (token_hash("tok"), far)).unwrap();
     // the library views are views in the real database

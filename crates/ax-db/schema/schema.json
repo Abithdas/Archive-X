@@ -857,6 +857,24 @@
    "notnull": true,
    "pk": false,
    "type": "TEXT"
+  },
+  {
+   "name": "in_library",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "content_rating",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "holds",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
   }
  ],
  "data_versions": [
@@ -2927,6 +2945,18 @@
    "notnull": false,
    "pk": false,
    "type": "INTEGER"
+  },
+  {
+   "name": "content_rating",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "tmdb_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
   }
  ],
  "photo_content_analysis": [
@@ -4253,6 +4283,18 @@
    "notnull": false,
    "pk": false,
    "type": "INTEGER"
+  },
+  {
+   "name": "content_rating",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "tmdb_id",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
   }
  ],
  "tag_fts": [
@@ -4355,6 +4397,12 @@
   {
    "name": "normalized_name",
    "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "content_rating",
+   "notnull": true,
    "pk": false,
    "type": "TEXT"
   }

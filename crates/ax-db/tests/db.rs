@@ -180,3 +180,40 @@ async fn a_failed_commit_does_not_poison_later_writes() {
     let n: i64 = setup.query_row("SELECT count(*) FROM t", [], |r| r.get(0)).unwrap();
     assert_eq!(n, 2, "the failed insert was rolled back, the later one kept");
 }
+
+/// The SFW / NSFW rule: reads see only the channels in the library that match the mode (default sfw), and the performers of that mode.
+#[tokio::test]
+async fn reads_follow_the_content_mode() {
+    let (_d, path) = temp_db(true);
+    {
+        let c = Connection::open(&path).unwrap();
+        c.execute_batch(
+            "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+             CREATE TABLE channels (telegram_id TEXT, title TEXT, in_library INTEGER NOT NULL DEFAULT 1, content_rating TEXT NOT NULL DEFAULT 'nsfw');
+             CREATE TABLE media (id INTEGER PRIMARY KEY, source_channel TEXT, filename TEXT);
+             CREATE TABLE performers (id INTEGER PRIMARY KEY, name TEXT, content_rating TEXT NOT NULL DEFAULT 'nsfw');
+             INSERT INTO channels VALUES ('1','Adult',1,'nsfw'),('2','Movies',1,'sfw'),('3','Hidden',0,'nsfw');
+             INSERT INTO media(source_channel,filename) VALUES ('1','a.mp4'),('2','b.mkv'),('3','c.mp4');
+             INSERT INTO performers(name,content_rating) VALUES ('Adult Star','nsfw'),('Movie Actor','sfw');",
+        )
+        .unwrap();
+    }
+    let names = |db: Db| async move {
+        db.read(|c| {
+            let mut q = c.prepare("SELECT filename FROM media ORDER BY id")?;
+            let rows = q.query_map([], |r| r.get::<_, String>(0))?.collect::<Result<Vec<_>, _>>()?;
+            let mut p = c.prepare("SELECT name FROM performers")?;
+            let who = p.query_map([], |r| r.get::<_, String>(0))?.collect::<Result<Vec<_>, _>>()?;
+            Ok((rows, who))
+        })
+        .await
+        .unwrap()
+    };
+    assert_eq!(names(Db::open_read_only(&path).unwrap()).await, (vec!["b.mkv".to_string()], vec!["Movie Actor".to_string()]), "sfw is the default");
+    Connection::open(&path).unwrap().execute("INSERT INTO settings VALUES ('content_mode','\"nsfw\"')", []).unwrap();
+    assert_eq!(
+        names(Db::open_read_only(&path).unwrap()).await,
+        (vec!["a.mp4".to_string()], vec!["Adult Star".to_string()]),
+        "nsfw shows adult channels that are in the library"
+    );
+}

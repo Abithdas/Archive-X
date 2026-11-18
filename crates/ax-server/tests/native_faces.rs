@@ -43,6 +43,9 @@ fn database(extra: impl FnOnce(&Connection)) -> (tempfile::TempDir, std::path::P
     for t in ["web_sessions", "performers", "photo_library_items", "photo_face_groups", "photo_face_detections", "photo_face_analysis"] {
         create_table(&c, &snapshot, t);
     }
+    // the rows these tests make are adult and in the library; the app itself opens in SFW
+    create_table(&c, &snapshot, "settings");
+    c.execute("INSERT INTO settings VALUES ('content_mode','\"nsfw\"')", []).unwrap();
     let far = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() + 86_400.0;
     c.execute("INSERT INTO web_sessions VALUES (?1,'admin',?2)", (token_hash("tok"), far)).unwrap();
     c.execute("INSERT INTO performers(id,name) VALUES (7,'Mia Rivera')", []).unwrap();

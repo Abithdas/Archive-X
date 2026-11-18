@@ -42,6 +42,33 @@ import time
 # Per-request correlation IDs and the HTTP/3 advertisement header.
 # ==============================================================================
 
+class ContentFilterMiddleware:
+    """Mark the requests that show library content, so the database connections they open hide what the SFW / NSFW mode does not allow."""
+
+    # Pages and data of the library. Management screens (Telegram, Transfers, Operations, Settings, jobs, AI) see everything.
+    CONTENT = ("/api/videos", "/api/search", "/api/performers", "/api/studios", "/api/tags", "/api/tag-taxonomy", "/api/photos", "/api/channels",
+               "/api/library", "/api/bootstrap", "/api/play", "/api/thumb", "/api/entities", "/api/entity-lookup", "/api/entity-images",
+               "/api/media", "/api/suggestions", "/api/metadata", "/api/mapping", "/api/channel-maintenance", "/api/identify", "/api/captions")
+
+    def __init__(self, app):
+        self.app = app
+
+    @classmethod
+    def applies(cls, path: str) -> bool:
+        return any(path == p or path.startswith(p + "/") for p in cls.CONTENT)
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http" or not self.applies(str(scope.get("path") or "")):
+            await self.app(scope, receive, send)
+            return
+        from .core.content_mode import FILTER_ACTIVE
+        token = FILTER_ACTIVE.set(True)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            FILTER_ACTIVE.reset(token)
+
+
 class RequestCorrelationMiddleware:
     """Attach one lightweight correlation id to every HTTP request/response."""
 
@@ -545,6 +572,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
     route_usage = RouteUsage(config.LOG_DIR / "route-usage.json")
     app.state.route_usage = route_usage
     app.add_middleware(RouteUsageMiddleware, usage=route_usage)   # innermost, so the route is known when it answers
+    app.add_middleware(ContentFilterMiddleware)
     app.add_middleware(RequestCorrelationMiddleware)
     app.add_middleware(APIRateLimitMiddleware)
     app.add_middleware(BrowserMutationGuardMiddleware)

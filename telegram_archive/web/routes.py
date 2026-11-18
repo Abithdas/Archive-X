@@ -36,6 +36,7 @@ from ..engines import metadata_channel_pipeline
 from ..core.workflows import workflow_snapshot
 from ..operations.torrent_engine import QBittorrentEngine, TorrentEngineError
 from .routes_automation import register_automation_routes
+from .routes_content import register_content_routes
 from .routes_entities import register_entity_routes
 from .routes_entity_pages import register_entity_page_routes
 from .routes_jobs import register_job_routes
@@ -254,6 +255,7 @@ def fts_prefix_query(text: str, max_terms: int = 8) -> str:
 
 # Ordered: registration order decides which route matches first.
 ROUTE_MODULES = (
+    'routes_content',
     'routes_system',
     'routes_telegram',
     'routes_automation',
@@ -718,7 +720,9 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
     # passed between adjacent registrars.
     route_exports: dict[str, object] = {}
     for _module in ROUTE_MODULES:
-        if _module == "routes_system":
+        if _module == "routes_content":
+            register_content_routes(router, db=db, require_auth=require_auth)
+        elif _module == "routes_system":
             route_exports.update(
                 register_system_routes(
                     router,

@@ -29,10 +29,10 @@ beforeEach(() => { localStorage.clear(); document.documentElement.removeAttribut
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Settings', () => {
-  it('lists the eight sections and opens on Overview with the live checks', async () => {
+  it('lists the nine sections and opens on Overview with the live checks', async () => {
     mount()
     const nav = await screen.findByRole('navigation', { name: 'Settings sections' })
-    expect(within(nav).getAllByRole('button').slice(0, 8).map((b) => b.textContent)).toEqual(['Overview', 'Telegram', 'Metadata', 'Experience', 'Appearance', 'Storage & Backup', 'Security', 'System & network'])
+    expect(within(nav).getAllByRole('button').slice(0, 9).map((b) => b.textContent)).toEqual(['Overview', 'Telegram', 'Content', 'Metadata', 'Experience', 'Appearance', 'Storage & Backup', 'Security', 'System & network'])
     const status = await screen.findByRole('region', { name: 'Status' })
     await waitFor(() => expect(within(status).getByText('All found')).toBeInTheDocument())
     expect(within(status).getByText('not connected — CONFIG REQUIRED')).toBeInTheDocument()

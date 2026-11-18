@@ -1062,8 +1062,8 @@ class TelegramService:
         for item in items:
             with self.db.lock:
                 self.db.conn.execute(
-                    """INSERT INTO channels(telegram_id,title,username,role,updated_at)
-                       VALUES(?,?,?,?,?)
+                    """INSERT INTO channels(telegram_id,title,username,role,in_library,updated_at)
+                       VALUES(?,?,?,?,0,?)
                        ON CONFLICT(telegram_id) DO UPDATE SET
                        title=CASE WHEN COALESCE(channels.title_locked,0)=1 THEN channels.title ELSE excluded.title END,
                        username=excluded.username,

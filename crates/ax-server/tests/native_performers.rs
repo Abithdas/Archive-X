@@ -44,6 +44,9 @@ fn database(extra: impl FnOnce(&Connection)) -> (tempfile::TempDir, std::path::P
     for t in ["web_sessions", "performers", "video_performers", "local_video_performers", "performer_image_cache"] {
         create_table(&c, &snapshot, t);
     }
+    // the rows these tests make are adult and in the library; the app itself opens in SFW
+    create_table(&c, &snapshot, "settings");
+    c.execute("INSERT INTO settings VALUES ('content_mode','\"nsfw\"')", []).unwrap();
     c.execute_batch("CREATE TABLE archive_x_library_media (id INTEGER);").unwrap(); // a view in the real database
     let far = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() + 86_400.0;
     c.execute("INSERT INTO web_sessions VALUES (?1,'admin',?2)", (token_hash("tok"), far)).unwrap();

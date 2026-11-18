@@ -1,0 +1,46 @@
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { Icon } from '@/design/Icon'
+import { ContentSwitch } from './ContentSwitch'
+import { pinProblem } from './content'
+import { errorText, useChangePin, useContentMode } from './useContentMode'
+
+const BOX = 'rounded-[18px] border border-line bg-surface p-5'
+const INPUT = 'h-10 w-40 rounded-xl border border-line-2 bg-bg px-3 text-center tracking-[0.3em]'
+
+/** Settings, Content: the switch, and the PIN that guards NSFW. */
+export function ContentPanel() {
+  const state = useContentMode()
+  const change = useChangePin()
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [msg, setMsg] = useState('')
+  const set = state.data?.pin_set ?? false
+  const save = () => {
+    const problem = pinProblem(next)
+    if (problem) { setMsg(problem); return }
+    change.mutate(set ? { current, new: next } : { new: next }, {
+      onSuccess: () => { setCurrent(''); setNext(''); setMsg(''); toast('PIN saved') },
+      onError: (e) => setMsg(errorText(e, 'Could not save the PIN.')),
+    })
+  }
+  return (
+    <div className="grid gap-4">
+      <section aria-label="Content mode" className={BOX}>
+        <h3 className="mb-1 flex items-center gap-3 text-xl font-extrabold"><span className="text-accent"><Icon name="library" className="size-5" /></span>Content</h3>
+        <p className="mb-4 text-sm text-muted">One mode for the whole app. SFW is movies and TV shows; NSFW is adult videos and photos. Pages, search, counts and recommendations show only the chosen mode, and only channels you put in the library.</p>
+        <ContentSwitch />
+      </section>
+      <section aria-label="NSFW PIN" className={BOX}>
+        <h3 className="mb-1 flex items-center gap-3 text-xl font-extrabold"><span className="text-accent"><Icon name="lock" className="size-5" /></span>NSFW PIN</h3>
+        <p className="mb-4 text-sm text-muted">{set ? 'Switching into NSFW asks for this PIN. Switching back to SFW never does.' : 'No PIN yet. You will be asked to choose one the first time you switch into NSFW, or set it here.'}</p>
+        <form className="flex flex-wrap items-center gap-3" onSubmit={(e) => { e.preventDefault(); save() }}>
+          {set ? <input type="password" inputMode="numeric" autoComplete="off" aria-label="Current PIN" placeholder="Current" value={current} onChange={(e) => { setCurrent(e.target.value.replace(/\D/g, '')); setMsg('') }} maxLength={12} className={INPUT} /> : null}
+          <input type="password" inputMode="numeric" autoComplete="off" aria-label="New PIN" placeholder="New PIN" value={next} onChange={(e) => { setNext(e.target.value.replace(/\D/g, '')); setMsg('') }} maxLength={12} className={INPUT} />
+          <button type="submit" disabled={change.isPending || !next} className="h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60">{set ? 'Change PIN' : 'Set PIN'}</button>
+        </form>
+        <p role="status" className="mt-2 min-h-5 text-sm text-bad">{msg}</p>
+      </section>
+    </div>
+  )
+}

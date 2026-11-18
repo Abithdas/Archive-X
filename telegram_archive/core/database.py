@@ -195,18 +195,25 @@ class Database:
             with self.lock:
                 yield self.conn
             return
-        conn = getattr(self._read_local, 'conn', None)
+        # While a request that shows library content runs, the read connection is the filtered one: its tables are shadowed by views that
+        # hide what the content mode (SFW / NSFW) does not allow (core/content_mode.py). Everything else gets the plain connection.
+        from .content_mode import FILTER_ACTIVE, install_views
+        filtered = FILTER_ACTIVE.get()
+        slot = 'fconn' if filtered else 'conn'
+        conn = getattr(self._read_local, slot, None)
         if conn is None:
             path = Path(self.path).resolve()
             uri = f"file:{path.as_posix()}?mode=ro"
             conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
             conn.row_factory = sqlite3.Row
-            conn.execute('PRAGMA query_only=ON')
             conn.execute('PRAGMA busy_timeout=1500')
-            conn.execute('PRAGMA temp_store=MEMORY')
+            conn.execute('PRAGMA temp_store=MEMORY')   # changing temp_store deletes temp views, so this comes before them
             conn.execute('PRAGMA cache_size=-32768')
             conn.execute('PRAGMA mmap_size=268435456')
-            self._read_local.conn = conn
+            if filtered:
+                install_views(conn)   # and they must exist before query_only is switched on
+            conn.execute('PRAGMA query_only=ON')
+            setattr(self._read_local, slot, conn)
             with self._read_conns_lock:
                 self._read_conns.add(conn)
         yield _ReadConnection(conn)
@@ -1990,6 +1997,12 @@ class Database:
             old_value TEXT, new_value TEXT, action TEXT NOT NULL, created_at TEXT NOT NULL
         )""")
         for table, cols in wanted.items():
+            have = {r["name"] for r in self.conn.execute(f"PRAGMA table_info({table})")}
+            for col, typ in cols.items():
+                if col not in have:
+                    self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
+        from .content_mode import VISIBILITY_COLUMNS
+        for table, cols in VISIBILITY_COLUMNS.items():
             have = {r["name"] for r in self.conn.execute(f"PRAGMA table_info({table})")}
             for col, typ in cols.items():
                 if col not in have:

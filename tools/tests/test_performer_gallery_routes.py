@@ -18,7 +18,7 @@ def client(tmp_path_factory):
     from telegram_archive.core.auth import ensure_web_credentials
     old = config.CACHE_DIR
     config.CACHE_DIR = tmp_path_factory.mktemp("cache")
-    db = h.fresh_db()
+    db = h.fresh_db(); db.set_setting("content_mode", "nsfw")   # the performers here are adult; the app opens in SFW
     ensure_web_credentials(db)
     c = TestClient(create_app(db=db), base_url="https://testserver")
     pw = "correct-horse-battery"
@@ -110,6 +110,9 @@ def test_the_people_suggestions_use_the_gallery_pictures(client):
     base.vec_row(db, ava, 1)
     gid = base.make_group(db, range(3), base=target, noise=0.02)
     # a photo that belongs to the group's channel so the groups list returns it
+    with db.lock:   # the test photos' channel is a library channel (adult), so the NSFW mode shows them
+        db.conn.execute("INSERT OR IGNORE INTO channels(telegram_id,title,updated_at) SELECT DISTINCT channel_id,'Test channel','2026-01-01' FROM photo_library_items")
+        db.conn.commit()
     before = c.get("/api/photos/faces/groups").json()
     listed = {g.get("id"): g for g in before.get("groups", [])}
     assert gid in listed and not listed[gid]["profile_image_suggestions"]

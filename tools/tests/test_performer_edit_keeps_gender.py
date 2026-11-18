@@ -13,7 +13,7 @@ def test_edit_form_reports_gender_so_saving_keeps_it():
     from telegram_archive.core.auth import ensure_web_credentials
     from telegram_archive.core.database import Database
 
-    db = Database(); ensure_web_credentials(db)
+    db = Database(); ensure_web_credentials(db); db.set_setting("content_mode", "nsfw")   # these tests make adult performers; the app opens in SFW
     app = create_app(db=db)
     c = TestClient(app, base_url="https://testserver")
     H = {"Origin": "https://testserver"}
@@ -37,7 +37,7 @@ def test_local_performer_search_accepts_words_in_any_order_and_partial_words():
     from telegram_archive.core.auth import ensure_web_credentials
     from telegram_archive.core.database import Database
 
-    db = Database(); ensure_web_credentials(db)
+    db = Database(); ensure_web_credentials(db); db.set_setting("content_mode", "nsfw")   # these tests make adult performers; the app opens in SFW
     c = TestClient(create_app(db=db), base_url="https://testserver")
     H = {"Origin": "https://testserver"}
     pw = "correct-horse-battery"
