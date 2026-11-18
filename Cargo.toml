@@ -1,4 +1,4 @@
-# One Cargo workspace for all the Rust in the repository (docs/plan.md, steps R1 and R2): the libraries and the front door under crates/,
+# One Cargo workspace for all the Rust in the repository (ADR 0006): the libraries and the front door under crates/,
 # and the desktop shell under apps/desktop/. One lock file, one build folder (target/).
 [workspace.package]
 license = "GPL-3.0-or-later"

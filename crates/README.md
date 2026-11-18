@@ -1,6 +1,6 @@
 # Archive X: Rust side of the backend migration
 
-See `docs/rust-migration-history.md`. These crates are members of the single Cargo workspace at the repository root (with the desktop crates); build and test from the root.
+See `docs/plan.md`, section 6. These crates are members of the single Cargo workspace at the repository root (with the desktop crates); build and test from the root.
 
 ## ax-server (phase 2: the front door)
 

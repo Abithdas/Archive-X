@@ -1,7 +1,7 @@
 //! Archive X front door.
 //!
 //! Serves the built web app itself and forwards every other request to the Python backend, so route groups can
-//! move to Rust one at a time (see docs/rust-migration-history.md, phase 2).
+//! move to Rust one at a time (see docs/plan.md, section 6).
 
 use ax_server::{config, server};
 use std::sync::Arc;

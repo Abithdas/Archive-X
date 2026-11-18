@@ -1,6 +1,6 @@
 # Contributing
 
-The migration plan ([docs/plan.md](docs/plan.md)) is the source of truth for what to work on and in what order. These are the rules it relies on.
+The plan ([docs/plan.md](docs/plan.md)) is the source of truth for what to work on and in what order. These are the rules it relies on.
 
 ## Rules
 
