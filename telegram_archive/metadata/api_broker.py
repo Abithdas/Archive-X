@@ -96,7 +96,8 @@ def _request_key(provider: str, url: str, data: bytes | None, headers: Mapping[s
     for key, value in (headers or {}).items():
         key_l = str(key).casefold()
         if key_l in {"authorization", "apikey", "api-key"}:
-            secret_fingerprint += f"{key_l}:{hashlib.pbkdf2_hmac("sha256", str(value).encode(), b"archive-x-key-fingerprint", 1000).hex()}\n"
+            digest = hashlib.pbkdf2_hmac("sha256", str(value).encode(), b"archive-x-key-fingerprint", 1000).hex()
+            secret_fingerprint += f"{key_l}:{digest}\n"
         else:
             safe_headers[key_l] = str(value)
     payload = data or b""
