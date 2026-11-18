@@ -98,6 +98,7 @@ export function ScreenProviders() {
       </div>
       <p role="status" aria-live="polite" className="mt-4 text-sm text-muted">{statusText(status.data)}</p>
       <p className="mt-1 text-xs text-faint">To name the videos that are waiting, run the Metadata box on the Transfers page.</p>
+      <p className="mt-4 text-xs text-faint">This product uses the TMDB API but is not endorsed or certified by TMDB. TV data from TVmaze (CC BY-SA 4.0).</p>
       <ReviewList />
     </section>
   )

@@ -130,6 +130,11 @@ Two tracks run alongside: the **native player** (done: picture in its own window
 | C6 Telegram | grammers (now on Codeberg) | MIT OR Apache-2.0 | The trial already planned |
 | Issues list | Drain3 (Python), logdrain (Rust) | MIT, Apache-2.0 OR MIT | Idea: learn log templates; write our own small version |
 | B5 skip intro | intro-skipper (Jellyfin plugin) | GPL-3.0 | Idea only: compare audio fingerprints of the start of each episode in a season |
+- **E11 NudeNet (photo content tags) carries AGPL.** The package ships an AGPL-3.0 licence file (its metadata says MIT) and its model is made from Ultralytics YOLOv8 (AGPL). It is in `requirements.txt`, so the installer carries it. AGPL can be combined with our GPL, but it is the kind of term rule 9 says to avoid. Replace it (a model with a permissive licence) or drop the feature; decide in D8.
+- **E12 Fonts.** Outfit has its licence text in the fonts folder; Inter has none, and `archive-x-display` and `archive-x-mono` have no stated origin. Find where they came from; add the licence texts (OFL requires them with the font).
+- **E13 TMDB asks for its logo** next to the sentence now shown in Settings, Metadata. Add the logo (their rules for placement apply).
+- **E14 Transitions.dev terms** ("free for personal and commercial use, no redistribution of the library itself"). We ship adapted snippets in a public repository. Read their terms once more (the site could not be opened from the build machine) and, if in doubt, write our own versions of the motions.
+- **E15 What cannot be removed.** FFmpeg (GPL-3.0) and the LAV filters (GPL-2.0-or-later) are bundled and need the source offer already in `THIRD-PARTY-NOTICES.md` (we are GPL ourselves, so they fit). A few MPL-2.0 crates (cssparser, selectors, dtoa-short, option-ext) come in through Tauri; unchanged, they only need their source to stay available. The OpenCV and PyAV wheels carry LGPL FFmpeg parts.
 
 ## 8. Decisions that are yours
 
@@ -140,6 +145,7 @@ Two tracks run alongside: the **native player** (done: picture in its own window
 - **D5** Set the GitHub description and topics? (E7)
 - **D6** Should downloading from sites (a yt-dlp-style source) ever be a feature? It fits technically and is a terms-of-service and legal choice.
 - **D7** A phone as a remote control? The app listens only on this PC by design; a pairing code would need a security design first.
+- **D8** Replace or drop NudeNet (photo content tags)? (E11)
 - Answered: desktop app only (ADR 0005); licence GPL-3.0-or-later (ADR 0008); web player first, native player for what it cannot play.
 
 ## 9. Measured facts kept from the earlier migration rounds
