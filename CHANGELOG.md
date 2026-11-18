@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased
+## 30.3.8 (2026-11-18)
 - **Transfers keep the new name.** A video converted to MP4 for Telegram now has the `.mp4` name in its caption and in the console's "MOVE COMPLETE" line, not the source's `.mkv`, `.avi` or `.mov`.
 - **A long conversion no longer looks stuck.** The conversion step reports its percentage and time left on the job, in the console and in the logs, and that signal is what keeps the watchdog from treating a long conversion as a stalled job. FFmpeg and the PyAV worker are listed under **Running right now** on the Operations page with their pid, run time and progress; a transfer that is working without a visible job row is called out there.
 - **Animations work on PCs where Windows has "animation effects" off.** New Settings, Appearance, **Animations** choice: *Always on* (the default) or *Follow Windows*. The top-bar Telegram pill and the avatar dot now breathe, with a ring and a soft sweep.
