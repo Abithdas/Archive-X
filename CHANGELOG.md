@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased
+## 30.4.2 (2026-11-18)
 - **SFW no longer shows adult performers when it has no cast of its own yet.** The performer list, when its answer was empty, asked again through a connection that does not know about the mode, so an SFW library with no movie cast (the normal state before any movie is identified) showed every adult performer. It now stays empty. A test with an adult-only library and a run of every page of the app against it found nothing else.
 - **Live captions for videos from local folders.** Audio tracks, subtitle tracks and live captions asked the Telegram feed for the video, which cannot serve a local file, so they never worked there. They now read the file itself. Checked with the real speech model on a local video: the spoken words came back as captions.
 - **Live captions on PCs with an NVIDIA card.** The speech engine picks the card when there is one; when the card's libraries are missing (cublas, cudnn) every window failed. The engine now runs once on a second of silence when it loads, so "ready" means it runs, and switches to the processor by itself if the card path fails. I could not reproduce a Telegram failure here (it needs a real Telegram session); if it still fails, the message under the player ("Live captions failed: …") says why.
