@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { Disclosure } from '@/design/Accordion'
 import { Icon } from '@/design/Icon'
@@ -15,7 +14,7 @@ import { Findings } from './Findings'
 import { Issues } from './Issues'
 import { ModelCatalog } from './ModelCatalog'
 import { StepsFeed } from './StepsFeed'
-import { DIAGNOSTICS_PROMPT, EMPTY_HISTORY, EXPLAIN_ISSUES_PROMPT, JOBS_PROMPT, LIBRARY_QUICK, NEED_QUERY, QUICK, RECOMMEND_PROMPT, SAVED, SAVE_FAILED, START_FAILED, STARTED, STARTING, STOPPED, STOP_FAILED, TABS, TEST_FAILED, TESTING, TOOLS_OFF, TOOLS_ON, TOOLS_WAIT, configBody, configFrom, header, isInstalled, libraryPrompt, messageTime, readiness, testPassed, type AiStatus, type AiTab, type Config, type Message } from './ai'
+import { EMPTY_HISTORY, EXPLAIN_ISSUES_PROMPT, QUICK, SAVED, SAVE_FAILED, START_FAILED, STARTED, STARTING, STOPPED, STOP_FAILED, TABS, TEST_FAILED, TESTING, TOOLS_OFF, TOOLS_ON, TOOLS_WAIT, configBody, configFrom, header, isInstalled, messageTime, readiness, testPassed, type AiStatus, type AiTab, type Config, type Message } from './ai'
 import { useAssistant, type LiveTurn } from './useAssistant'
 
 const CARD = 'rounded-2xl border border-line bg-surface p-4'
@@ -71,51 +70,31 @@ function LiveTurnView({ turn }: { turn: LiveTurn }) {
   )
 }
 
-/** Local, private AI assistant: set up in one step, chat, library/diagnostic/job/recommendation analyses, and the local models. */
-export function AiPage() {
+/** Local, private AI assistant: set up in one step, the issue list, chat, the notebook and the local models. */
+export function AiPage({ initialTab = 'issues' }: { initialTab?: AiTab } = {}) {
   const qc = useQueryClient()
   const status = useQuery({ queryKey: ['ai-status'] as const, queryFn: () => api<AiStatus>('/api/ai/status'), staleTime: 0, retry: false, refetchInterval: (q) => (q.state.data?.runtime?.server?.starting ? 2000 : false) })
   const history = useQuery({ queryKey: ['ai-history'] as const, queryFn: () => api<{ messages?: Message[] }>('/api/ai/history'), staleTime: Infinity, retry: false })
   const tools = useQuery({ queryKey: ['ai-tools'] as const, queryFn: () => api<{ local_only?: boolean }>('/api/ai/tools'), staleTime: 60_000, retry: false })
-  const [tab, setTab] = useState<AiTab>('assistant')
+  const [tab, setTab] = useState<AiTab>(initialTab)
   const { rows, turn, ask, busy } = useAssistant(history.data?.messages)
   const [input, setInput] = useState('')
-  const [libQ, setLibQ] = useState('')
-  const [results, setResults] = useState<Partial<Record<AiTab, string>>>({})
-  const [working, setWorking] = useState<Partial<Record<AiTab, boolean>>>({})
   const log = useRef<HTMLDivElement>(null)
   useEffect(() => { const el = log.current; if (el) el.scrollTop = el.scrollHeight }, [rows, turn?.text, turn?.steps.length, turn?.status])
   const refreshed = () => { void qc.invalidateQueries({ queryKey: ['ai-status'] }); void qc.invalidateQueries({ queryKey: ['ai-models'] }) }
   // Asking starts the model when it is asleep; the header and the model list catch up afterwards.
   const send = async (text: string) => { const out = await ask(text); refreshed(); return out }
-  const analyse = async (t: AiTab, prompt: string, empty: string) => {
-    setWorking((w) => ({ ...w, [t]: true }))
-    const out = await send(prompt)
-    setResults((r) => ({ ...r, [t]: out || empty })); setWorking((w) => ({ ...w, [t]: false }))
-  }
-  const diag = () => analyse('diagnostics', DIAGNOSTICS_PROMPT, 'No diagnostics analysis available.')
-  const jobs = () => analyse('jobs', JOBS_PROMPT, 'No job analysis available.')
-  const recs = () => analyse('recommendations', RECOMMEND_PROMPT, 'No recommendations available.')
   const quick = (p: string) => { setTab('assistant'); void send(p) }
-  const open = (t: AiTab) => { setTab(t); if (t === 'models') void status.refetch(); if (t === 'diagnostics') void diag(); if (t === 'jobs') void jobs() }
-  const librarySearch = async () => {
-    const q = libQ.trim()
-    if (!q) return void toast(NEED_QUERY)
-    setWorking((w) => ({ ...w, library: true }))
-    const out = await send(libraryPrompt(q))
-    setResults((r) => ({ ...r, library: out || 'No result' })); setWorking((w) => ({ ...w, library: false }))
-  }
-
+  const open = (t: AiTab) => { setTab(t); if (t === 'models') void status.refetch(); }
   const h = header(status.isError ? { configured: false } : status.data)
   const hdr = status.isError ? { ...h, state: 'AI status unavailable', model: 'Local AI service unavailable' } : h
   const starting = Boolean(status.data?.runtime?.server?.starting) || Boolean(busy && turn?.status.startsWith('Starting'))
   const needsSetup = Boolean(status.data) && !isInstalled(status.data) && tab !== 'models' && tab !== 'findings' && tab !== 'issues'
   const finishedSetup = () => { refreshed(); void history.refetch() }
-  const body = (t: LiveTurn | null, text: string | undefined, isWorking: boolean | undefined, fallback: string) => isWorking && t ? <TurnBody turn={t} /> : text ? <StreamText text={text} instant /> : <span className="text-muted">{fallback}</span>
 
   return (
     <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
-      <PageHead eyebrow="Local intelligence" title="AI Assistance" blurb="Private, local AI for Archive X library intelligence, diagnostics, jobs and recommendations.">
+      <PageHead eyebrow="Local intelligence" title="AI Assistance" blurb="Find what is going wrong, and ask a private local model about it. It diagnoses; it never changes anything.">
         <div className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-2" role="status" aria-live="polite">
           {starting ? <ChatDot label="Starting" className="text-sm" /> : <span aria-hidden="true" className={cn('size-2.5 rounded-full', hdr.ready ? 'bg-good' : 'bg-warn')} />}
           <div className="text-left"><strong className="block text-sm">{starting ? <Shimmer text={hdr.state} /> : hdr.state}</strong><small className="text-xs text-muted">{hdr.model}</small></div>
@@ -156,26 +135,6 @@ export function AiPage() {
               </div>
             </div>
           ) : null}
-          {!needsSetup && tab === 'library' ? (
-            <div className="grid gap-4">
-              <div className={CARD}>
-                <Head title="Library Intelligence" blurb="Ask the local model to inspect the published library without bypassing the publication boundary." />
-                <div className="mb-3 flex flex-wrap gap-2"><input value={libQ} onChange={(e) => setLibQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void librarySearch()} aria-label="Library question" placeholder="e.g. find videos related to a performer, studio or title" className="h-10 min-w-0 flex-1 rounded-xl border border-line-2 bg-bg px-3 text-sm" /><button type="button" className={PRIMARY} disabled={working.library} onClick={() => void librarySearch()}>Search with AI</button></div>
-                <div className="grid gap-2 sm:grid-cols-2">{LIBRARY_QUICK.map((q) => <button key={q.title} type="button" disabled={working.library} onClick={() => { setWorking((w) => ({ ...w, library: true })); void send(q.prompt).then((out) => { setResults((r) => ({ ...r, library: out || 'No result' })); setWorking((w) => ({ ...w, library: false })) }) }} className="rounded-xl border border-line p-3 text-left hover:bg-fg/5 disabled:opacity-60"><b className="block text-sm">{q.title}</b><small className="text-xs text-muted">{q.sub}</small></button>)}</div>
-              </div>
-              <div className={CARD} aria-live="polite">{results.library || working.library ? <div className="text-left text-sm">{body(turn, results.library, working.library, '')}</div> : <Empty>Ask a question above, or choose a ready-made one.</Empty>}</div>
-            </div>
-          ) : null}
-          {!needsSetup && (tab === 'diagnostics' || tab === 'jobs' || tab === 'recommendations') ? (() => {
-            const meta = { diagnostics: ['Diagnostics', 'Explain current operational evidence without exposing raw logs to the model by default.', 'Refresh analysis', diag], jobs: ['Jobs', 'Understand active work, queues and blockers using the bounded jobs tool.', 'Refresh analysis', jobs], recommendations: ['Recommendations', 'Evidence-based suggestions from the current local Archive X state.', 'Get recommendations', recs] } as const
-            const [title, blurb, label, run] = meta[tab]
-            return (
-              <div className={CARD}>
-                <Head title={title} blurb={blurb}><button type="button" className={BTN} disabled={working[tab]} onClick={() => void run()}>{label}</button></Head>
-                <div aria-live="polite" className="text-left text-sm">{body(turn, results[tab], working[tab], 'No analysis requested.')}</div>
-              </div>
-            )
-          })() : null}
           {tab === 'issues' ? <Issues onExplain={isInstalled(status.data) ? () => quick(EXPLAIN_ISSUES_PROMPT) : undefined} /> : null}
           {tab === 'findings' ? <Findings /> : null}
           {tab === 'models' ? <Models status={status.data} onChanged={() => qc.invalidateQueries({ queryKey: ['ai-status'] })} /> : null}

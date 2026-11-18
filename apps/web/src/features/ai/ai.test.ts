@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bytesText, percentOf, ramNote, speedText, setupTotal, DEFAULT_ENDPOINT, isInstalled, DEFAULT_MODEL, QUICK, chatBody, configBody, configFrom, header, libraryPrompt, messageTime, readiness, testPassed, TABS } from './ai'
+import { bytesText, percentOf, ramNote, speedText, setupTotal, DEFAULT_ENDPOINT, isInstalled, DEFAULT_MODEL, QUICK, chatBody, configBody, configFrom, header, messageTime, readiness, testPassed, TABS } from './ai'
 
 describe('setup wording', () => {
   it('turns bytes, speed and progress into short words', () => {
@@ -33,8 +33,8 @@ describe('ai', () => {
     expect(configBody({ ...configFrom(null), context: 10 }).context).toBe(1024); expect(configBody({ ...configFrom(null), context: Number.NaN }).context).toBe(8192)
   })
   it('builds prompts and labels', () => {
-    expect(libraryPrompt('cats')).toMatch(/^Search the published Archive X library for: cats\. /); expect(chatBody('hi', '/ai')).toEqual({ message: 'hi', page: '/ai', selected: null })
-    expect(QUICK).toHaveLength(4); expect(TABS.map((t) => t.value)).toEqual(['issues', 'assistant', 'library', 'diagnostics', 'jobs', 'recommendations', 'findings', 'models'])
+    expect(chatBody('hi', '/ai')).toEqual({ message: 'hi', page: '/ai', selected: null })
+    expect(QUICK).toHaveLength(4); expect(TABS.map((t) => t.value)).toEqual(['issues', 'assistant', 'findings', 'models'])
     expect(testPassed(120, 'ok')).toBe('Model test passed in 120 ms: ok'); expect(messageTime({ role: 'user', created_at: 'x' })).toBe('You · x'); expect(messageTime({ role: 'assistant' })).toBe('Archive X Local AI · ')
   })
 })

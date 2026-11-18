@@ -1,10 +1,9 @@
 /** Pure logic for the AI Assistance page (local llama.cpp assistant). Prompts and wording mirror the classic page. */
 
-export type AiTab = 'issues' | 'assistant' | 'library' | 'diagnostics' | 'jobs' | 'recommendations' | 'findings' | 'models'
+export type AiTab = 'issues' | 'assistant' | 'findings' | 'models'
 export const TABS: Array<{ value: AiTab; label: string; blurb: string }> = [
-  { value: 'issues', label: 'Issues', blurb: 'What is going wrong, no model needed' }, { value: 'assistant', label: 'Assistant', blurb: 'Ask Archive X' }, { value: 'library', label: 'Library Intelligence', blurb: 'Search, metadata, duplicates' },
-  { value: 'diagnostics', label: 'Diagnostics', blurb: 'Explain current health' }, { value: 'jobs', label: 'Jobs', blurb: 'Explain active work' },
-  { value: 'recommendations', label: 'Recommendations', blurb: 'Evidence-based suggestions' }, { value: 'findings', label: 'Findings', blurb: 'What it noticed' }, { value: 'models', label: 'Models', blurb: 'Local runtime and model' },
+  { value: 'issues', label: 'Issues', blurb: 'What is going wrong, no model needed' }, { value: 'assistant', label: 'Assistant', blurb: 'Ask about an issue' },
+  { value: 'findings', label: 'Findings', blurb: 'What it noticed' }, { value: 'models', label: 'Models', blurb: 'Local runtime and model' },
 ]
 
 export interface Message { role: string; content?: string; created_at?: string }
@@ -21,7 +20,6 @@ export const TOOLS_ON = 'Read-only Archive X tools enabled.'
 export const TOOLS_OFF = 'Tool registry unavailable.'
 export const TOOLS_WAIT = 'Read-only tools available when the model is ready.'
 export const CHAT_FAILED = 'Local AI request failed.'
-export const NEED_QUERY = 'Enter a library question.'
 
 export const QUICK = [
   { icon: 'picture', title: 'Find metadata problems', sub: 'Unidentified, partial or repair-needed videos', prompt: 'Find the most useful unresolved metadata problems in the current library and explain what needs attention.' },
@@ -29,15 +27,7 @@ export const QUICK = [
   { icon: 'alert', title: 'Explain diagnostics', sub: 'Use the bounded diagnostics tool', prompt: 'Explain the current diagnostics health and identify the highest-value issue to investigate next.' },
   { icon: 'transfer', title: 'Analyze jobs', sub: 'Explain current work and blockers', prompt: 'Summarize active and recent jobs, including anything waiting, failed or blocked.' },
 ] as const
-export const LIBRARY_QUICK = [
-  { title: 'Unresolved metadata', sub: 'Identify review candidates', prompt: 'Find unresolved metadata in the library and group the results by the reason they need review.' },
-  { title: 'Duplicate review', sub: 'Fingerprint groups', prompt: 'Find duplicate OSHASH groups and explain which groups are most worth reviewing.' },
-] as const
-export const libraryPrompt = (q: string) => `Search the published Archive X library for: ${q}. Return the most useful matching videos, performers, studios or tags and explain the result.`
-export const DIAGNOSTICS_PROMPT = 'Call get_issue_digest, then explain the most important issue in it: what it is, one real log line as evidence, how often and when, the usual cause, and the one thing to check next. Diagnose only: do not suggest code or changes. Do not expose raw secrets.'
 export const EXPLAIN_ISSUES_PROMPT = 'Call get_issue_digest and explain each issue in it in two short sentences, worst first: what is happening and what to check next. Diagnose only; do not write code or changes.'
-export const JOBS_PROMPT = 'Use the jobs tool to summarize active and recent Archive X jobs, their states, dependencies or blockers, and what should be checked next.'
-export const RECOMMEND_PROMPT = 'Based only on current local Archive X state, give up to five useful recommendations for library quality, metadata review, diagnostics, or operational cleanup. Do not make changes and do not recommend overwriting protected manual overrides.'
 export const chatBody = (message: string, page: string) => ({ message, page, selected: null })
 
 export interface Header { ready: boolean; state: string; model: string }

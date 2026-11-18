@@ -22,7 +22,7 @@ const mount = (over: (u: string, i?: RequestInit) => Response | undefined = () =
     if (url === '/api/ai/chat/stream') return ndjson(reply('Answer text'))
     return json({ ok: true })
   }))
-  withRouter(<AiPage />)
+  withRouter(<AiPage initialTab="assistant" />)
   return calls
 }
 const posts = (c: Call[], url: string) => c.filter((x) => x.method === 'POST' && x.url === url)
@@ -122,22 +122,12 @@ describe('AiPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Find duplicates/ }))
     await waitFor(() => expect(posts(calls, '/api/ai/chat/stream')[0]!.body!.message).toBe('Find duplicate video fingerprints and summarize the largest duplicate groups.'))
   })
-  it('opening Diagnostics and Jobs runs the analysis and shows the answer', async () => {
-    const calls = mount()
-    fireEvent.click(await screen.findByRole('button', { name: /^Diagnostics/ }))
-    expect(await answer('Answer text')).toBeInTheDocument()
-    expect(String(posts(calls, '/api/ai/chat/stream')[0]!.body!.message)).toMatch(/^Call get_issue_digest/)
-    fireEvent.click(screen.getByRole('button', { name: /^Jobs/ }))
-    await waitFor(() => expect(String(posts(calls, '/api/ai/chat/stream')[1]!.body!.message)).toMatch(/^Use the jobs tool/))
-  })
-  it('library search needs a question, then asks with the classic prompt', async () => {
-    const calls = mount()
-    fireEvent.click(await screen.findByRole('button', { name: /^Library Intelligence/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Search with AI' })); expect(posts(calls, '/api/ai/chat/stream')).toHaveLength(0)
-    fireEvent.change(screen.getByLabelText('Library question'), { target: { value: 'cats' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Search with AI' }))
-    expect(await answer('Answer text')).toBeInTheDocument()
-    expect(String(posts(calls, '/api/ai/chat/stream')[0]!.body!.message)).toMatch(/^Search the published Archive X library for: cats\./)
+  it('has four parts: Issues first (the page opens on it, no model needed), the chat, the notebook and the models', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/api/ai/status' ? json(STATUS) : json({ ok: true, messages: [], digest: { generated_at: 't', looked_at: { log_events: 0, errors: 0, warnings: 0 }, ok: true, issues: [] }, text: '' }))))
+    withRouter(<AiPage />)
+    const nav = await screen.findByRole('navigation', { name: 'AI Assistance sections' })
+    expect(within(nav).getAllByRole('button').map((b) => b.querySelector('b')?.textContent)).toEqual(['Issues', 'Assistant', 'Findings', 'Models'])
+    expect(await screen.findByRole('heading', { name: 'Issues' })).toBeInTheDocument()
   })
   it('models tab: starts and tests the engine, and keeps the manual paths under Advanced', async () => {
     const calls = mount((u, i) => (u === '/api/ai/test' && i?.method === 'POST' ? json({ ok: true, latency_ms: 321, text: 'pong' }) : u === '/api/ai/runtime/start' ? json({ detail: 'No runtime found' }, 400) : undefined))
@@ -217,7 +207,7 @@ describe('AiPage when the assistant is not set up', () => {
 describe('AiPage while it loads', () => {
   it('says the conversation is loading instead of showing an empty page', async () => {
     vi.stubGlobal('fetch', vi.fn((url: string) => (url === '/api/ai/history' ? new Promise<Response>(() => {}) : Promise.resolve(json({ ok: true })))))
-    withRouter(<AiPage />)
+    withRouter(<AiPage initialTab="assistant" />)
     expect(await screen.findByText('Loading the conversation…')).toBeInTheDocument()
     expect(screen.getByText('Checking local model…')).toBeInTheDocument()
   })
