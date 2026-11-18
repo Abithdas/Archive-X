@@ -619,19 +619,6 @@ async def copy_existing_thumbnail(client, destination, source, thumbnail, video_
     )
 
 
-async def generate_local_thumbnail(video_path, display_name, output_path):
-    """Generate one local video-derived representative thumbnail."""
-    from ..core import internal_media
-    meta = await asyncio.to_thread(internal_media.probe, str(video_path))
-    duration = float(meta.get("duration") or 0)
-    if duration <= 0:
-        raise RuntimeError("local video has no usable duration")
-    return await asyncio.to_thread(
-        internal_media.make_thumbnail, str(video_path), str(output_path),
-        timestamp=duration * 0.35, width=640, height=360,
-    )
-
-
 async def _select_manager_thumbnail(client, source, source_video, tempdir, *, explicit_thumbnail_id=None,
                                     generate_fallback=True, local_video_path=None, display_name=None,
                                     force_snapshot=False):

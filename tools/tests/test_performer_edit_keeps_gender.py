@@ -64,6 +64,6 @@ def test_internal_provider_keys_are_for_the_front_door_only(monkeypatch):
     assert c.get("/internal/provider-keys").status_code == 404
     assert c.get("/internal/provider-keys", headers={"x-archive-x-internal": "wrong"}).status_code == 404
     r = c.get("/internal/provider-keys", headers={"x-archive-x-internal": "0123456789abcdef0123456789abcdef"})
-    assert r.status_code == 200 and set(r.json()) == {"stashdb", "tpdb", "data_dir", "db_path"}
+    assert r.status_code == 200 and set(r.json()) == {"stashdb", "tpdb", "data_dir", "db_path", "playback_asset_dir"}
     remote = TestClient(create_app(db=db), base_url="https://testserver", client=("203.0.113.9", 5000))
     assert remote.get("/internal/provider-keys", headers={"x-archive-x-internal": "0123456789abcdef0123456789abcdef"}).status_code == 404

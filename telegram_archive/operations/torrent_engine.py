@@ -224,7 +224,7 @@ QBIT_DOWNLOAD_ACTIVE_STATES = {
 
 # ==============================================================================
 # SECTION: Engine data types and interface
-# TorrentInfo, EngineFile and the DownloadEngine base class.
+# TorrentInfo and the DownloadEngine base class.
 # ==============================================================================
 
 @dataclass
@@ -300,14 +300,6 @@ class TorrentInfo:
             total_wanted_done=total_wanted_done,
             total_wanted=total_wanted,
         )
-
-
-@dataclass(frozen=True)
-class EngineFile:
-    """One file inside a torrent."""
-    name: str
-    size: int
-    index: int
 
 
 class DownloadEngine:

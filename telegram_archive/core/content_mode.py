@@ -143,10 +143,6 @@ def set_pin(db, new_pin: str) -> None:
     db.set_setting(SETTING_PIN, json.dumps({"salt": salt.hex(), "hash": _hash(new_pin, salt), "iter": _ITER}))
 
 
-def clear_pin(db) -> None:
-    db.set_setting(SETTING_PIN, "")
-
-
 def locked_out(now: float | None = None) -> float:
     """Seconds left of a lockout after too many wrong PINs, else 0."""
     now = time.monotonic() if now is None else now

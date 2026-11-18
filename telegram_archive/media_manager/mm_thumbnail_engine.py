@@ -1797,17 +1797,6 @@ def generate_v20_from_stream(source, display_name, output_path, worker_count=4, 
 # Forward, upload and delete operations.
 # ==============================================================================
 
-async def forward_without_tag(client, entity, message):
-    while True:
-        try:
-            # drop_author=True makes this a copied message rather than a visible
-            # forwarded-from message. It does not download/re-upload the video.
-            return await client.forward_messages(entity, message.id, from_peer=entity, drop_author=True)
-        except FloodWaitError as e:
-            print(f"Telegram requested {e.seconds}s wait. Waiting...")
-            await asyncio.sleep(e.seconds + 2)
-
-
 async def delete_messages(client, entity, ids):
     while True:
         try:
@@ -1830,67 +1819,6 @@ THUMBNAIL_TIMEOUT_SECONDS = 90
 # Creates and applies a thumbnail for a message.
 # ==============================================================================
 
-async def try_embedded_telegram_thumbnail(client, message, output_path):
-    """Use Telegram's own media thumbnail when no companion image message exists.
-
-    This is deliberately attempted before byte-range decoding. It requires only
-    the thumbnail media, not the full video, and avoids Telegram GetFile flood
-    waits for legacy containers that already have an embedded preview.
-    """
-    try:
-        media = getattr(message, "media", None)
-        document = getattr(media, "document", None) if media else None
-        thumbs = list(getattr(document, "thumbs", None) or []) if document else []
-        if not thumbs:
-            return False
-
-        print("  Telegram embedded thumbnail found; using it instead of byte-range decoding...")
-        target = Path(output_path)
-        downloaded = await _download_media_governed(client, 
-            message,
-            file=str(target),
-            thumb=-1,
-        )
-        if not downloaded or not Path(downloaded).exists() or Path(downloaded).stat().st_size <= 0:
-            return False
-        from ..engines.thumbnail_policy import validate_image
-        ok, reason = validate_image(downloaded)
-        if not ok:
-            print(f"  Embedded Telegram thumbnail rejected: {reason}; falling back to source video frame")
-            try:
-                Path(downloaded).unlink(missing_ok=True)
-            except Exception:
-                pass
-            return False
-
-        # Normalize Telegram's thumbnail to the same JPEG output used elsewhere.
-        try:
-            with Image.open(downloaded) as im:
-                rgb = im.convert("RGB")
-                rgb.save(target, "JPEG", quality=JPEG_QUALITY, optimize=False)
-        except Exception:
-            return False
-
-        print(f"  Embedded thumbnail saved: {target}")
-        return True
-    except Exception as exc:
-        wait = flood_wait_seconds(exc)
-        if wait:
-            print(f"  Telegram thumbnail flood wait: {wait}s; waiting once before retry...")
-            await asyncio.sleep(min(wait + 2, 60))
-            try:
-                downloaded = await _download_media_governed(client, 
-                    message, file=str(output_path), thumb=-1
-                )
-                if downloaded and Path(downloaded).exists() and Path(downloaded).stat().st_size > 0:
-                    with Image.open(downloaded) as im:
-                        im.convert("RGB").save(output_path, "JPEG", quality=JPEG_QUALITY, optimize=False)
-                    return True
-            except Exception:
-                pass
-        return False
-
-
 async def create_thumbnail_for_message(client, entity, message, tempdir):
     """Generate a thumbnail file for a Telegram video message."""
     if THUMBNAILS_UNAVAILABLE_REASON:
@@ -1906,8 +1834,7 @@ async def create_thumbnail_for_message(client, entity, message, tempdir):
         # generated video thumbnail. Telegram can replace the real preview with
         # its generic NSFW/placeholder image (the black "NSFW" image seen in
         # the channel). The thumbnail for this workflow must be decoded from
-        # the actual video bytes. The helper try_embedded_telegram_thumbnail()
-        # is intentionally not called here.
+        # the actual video bytes, never from the embedded Telegram preview.
 
         # Legacy containers (WMV/AVI/MKV/FLV/etc.) should NOT enter the
         # MP4-specific index parser first. That parser can spend up to the

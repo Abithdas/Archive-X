@@ -177,10 +177,6 @@ def _mark_moved_source_thumbnail_deleted(db, source, thumbnail_message_id):
     except Exception:
         pass
 
-def vertical_mobile_state_key(source, destination, message_id):
-    return f"{int(source.id)}:{int(destination.id)}:{int(message_id)}"
-
-
 def vertical_mobile_load_state():
     state = load_json(VERTICAL_MOBILE_STATE_FILE, {})
     state.setdefault("version", 3)

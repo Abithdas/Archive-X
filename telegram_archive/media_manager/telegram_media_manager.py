@@ -886,21 +886,6 @@ def is_photo_message(message):
     return bool(message and getattr(message, "photo", None))
 
 
-def is_thumbnail_document(message):
-    if not message or not getattr(message, "document", None):
-        return False
-    mime = (getattr(message.document, "mime_type", "") or "").lower()
-    if mime.startswith("video/"):
-        return False
-    name = ""
-    try:
-        name = (message.file.name or "").lower()
-    except Exception:
-        _swallowed_note("telegram_media_manager.is_thumbnail_document")
-        pass
-    return mime.startswith("image/") or name.endswith((".jpg", ".jpeg", ".png", ".webp"))
-
-
 def safe_video_name(message):
     try:
         name = message.file.name
@@ -941,45 +926,6 @@ async def find_source_thumbnail(client, source, video):
     return None
 
 
-async def forward_source_thumbnail_as_document(client, destination, source, thumbnail, video, tempdir):
-    """Copy a source thumbnail to destination as a DOCUMENT.
-
-    Existing Telegram PHOTO thumbnails are temporarily downloaded because a
-    Telegram photo cannot be reliably forced into document mode by forwarding.
-    Image DOCUMENT thumbnails are copied directly without a full-video download.
-    """
-    target_name = safe_video_name(video) + ".jpg"
-    temp_path = Path(tempdir) / target_name
-
-    if is_photo_message(thumbnail):
-        while True:
-            try:
-                downloaded = await _download_media_governed(client, thumbnail, file=str(temp_path))
-                if not downloaded or not Path(downloaded).exists():
-                    raise RuntimeError("Could not temporarily download source PHOTO thumbnail")
-                print(f"  Copying source PHOTO thumbnail as DOCUMENT: {Path(downloaded).name}")
-                result = await client.send_file(
-                    destination,
-                    str(downloaded),
-                    force_document=True,
-                    progress_callback=progress_printer("THUMBNAIL"),
-                )
-                try:
-                    Path(downloaded).unlink(missing_ok=True)
-                except Exception:
-                    _swallowed_note("telegram_media_manager.forward_source_thumbnail_as_document")
-                    pass
-                return result
-            except FloodWaitError as exc:
-                wait = int(exc.seconds) + 2
-                print(f"\nTelegram requested a {exc.seconds}s wait. Waiting {wait}s...")
-                await asyncio.sleep(wait)
-
-    # Image DOCUMENT: Telegram copy/forward preserves it as a document.
-    print(f"  Copying source thumbnail DOCUMENT -> destination: {source_thumbnail_name(thumbnail) or target_name}")
-    return await forward_without_tag_safe(client, destination, source, thumbnail)
-
-
 async def resolve_saved_entity(client, entity_id: int):
     """Resolve a persisted Telegram entity even when Telethon lacks its access hash.
 
@@ -1004,16 +950,6 @@ async def resolve_saved_entity(client, entity_id: int):
             f"Saved Telegram entity {entity_id} is not available in the current account dialogs; "
             "reselect the source/destination channel instead of retrying the stale entity ID."
         ) from first_exc
-
-
-async def verify_message_exists(client, entity, message_id):
-    """Confirm a destination message exists before source deletion is allowed."""
-    try:
-        check = await client.get_messages(entity, ids=int(message_id))
-        return bool(check and getattr(check, "id", None) is not None)
-    except Exception:
-        return False
-
 
 
 # ---------------------------------------------------------------------------
@@ -1256,7 +1192,7 @@ def configure(*, input_fn=None, print_fn=None, state_dir=None, login=None,
         STARTUP_IMPORT_ERRORS[:] = list(startup_errors)
     if pillow is not None and Image is None:
         Image, ImageDraw, ImageFont = pillow
-    # Never import PyAV into the host process (see generate_local_thumbnail).
+    # Never import PyAV into the host process.
     av = None
 
 

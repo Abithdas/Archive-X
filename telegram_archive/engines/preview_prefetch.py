@@ -219,13 +219,6 @@ def _scan_work_reason(row) -> str:
         return "snapshot files could not be checked"
 
 
-def _row_needs_scan_work(row) -> bool:
-    """Check both saved DB status and on-disk preview/playback artifacts."""
-    return bool(_scan_work_reason(row))
-
-
-
-
 # ==============================================================================
 # SECTION: Paths and local frame files
 # Frame locations, promotion and validation receipts.

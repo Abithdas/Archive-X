@@ -593,60 +593,6 @@ async def _load_moov_playback(source: _PlaybackPreviewRangeSource):
     raise RuntimeError("MP4 moov atom was not found")
 
 
-async def resolve_seek_keyframe_segment(engine, vkey, message, t: float, epoch: int = 0, load_index: bool = False) -> int:
-    """Resolve the same sync-sample segment used by live preview.
-
-    Seek warm and live preview must target the same media region. A simple
-    time/byte ratio can land on the wrong playback range segment for MP4 files with
-    uneven sample sizes, which is why waiting for the preview used to make a
-    subsequent click feel instant while an immediate click could stall.
-    The visual sample index is cached and shared with the live-preview path.
-    """
-    key = (int(vkey[0]), int(vkey[1]))
-    # The Metadata & Assets scan persists the keyframe timeline. Prefer it for
-    # seeks so we do not parse moov or estimate a byte offset from file duration.
-    try:
-        from ..core.playback_index_cache import read_manifest
-        saved_manifest = await asyncio.to_thread(read_manifest, key[0], key[1], int(getattr(getattr(message, "file", None), "size", 0) or 0))
-        saved_keyframes = (saved_manifest or {}).get("keyframes") or []
-        if saved_keyframes:
-            target = max(0.0, float(t))
-            prior = [item for item in saved_keyframes if isinstance(item, (list, tuple)) and len(item) >= 2 and float(item[0]) <= target]
-            chosen = max(prior, key=lambda item: float(item[0])) if prior else min(saved_keyframes, key=lambda item: float(item[0]))
-            offset = max(0, int(chosen[1]))
-            segment_size = max(1024, int((saved_manifest or {}).get("segment_size") or config.PLAYBACK_RANGE_CHUNK_BYTES))
-            return offset // segment_size
-    except Exception:
-        _swallowed_note("media_tools.resolve_seek_keyframe_segment")
-        pass
-    with _DIRECT_PREVIEW_INDEX_LOCK:
-        cached = _DIRECT_PREVIEW_INDEX_CACHE.get(key)
-        index = cached[1] if cached and time.monotonic() - cached[0] <= _DIRECT_PREVIEW_INDEX_TTL else None
-    if index is None and not load_index:
-        # A committed seek must never wait on extra moov downloads; the caller
-        # falls back to the byte-ratio segment until a scrub preview has
-        # loaded and cached the sample index.
-        raise LookupError("MP4 sample index not cached yet")
-    source = _PlaybackPreviewRangeSource(engine, key, message, epoch=epoch, priority=2, kind="preview")
-    if index is None:
-        moov, _ = await _load_moov_playback(source)
-        index = _parse_visual_config(moov)
-        if not index:
-            raise RuntimeError("MP4 visual sample index unavailable")
-        with _DIRECT_PREVIEW_INDEX_LOCK:
-            _DIRECT_PREVIEW_INDEX_CACHE[key] = (time.monotonic(), index)
-            while len(_DIRECT_PREVIEW_INDEX_CACHE) > _DIRECT_PREVIEW_INDEX_MAX:
-                oldest = min(_DIRECT_PREVIEW_INDEX_CACHE.items(), key=lambda kv: kv[1][0])[0]
-                _DIRECT_PREVIEW_INDEX_CACHE.pop(oldest, None)
-    times = [int(x) for x in index["pts"]]
-    sync = list(index.get("sync") or [])
-    if not sync:
-        raise RuntimeError("MP4 has no sync-sample table")
-    target_ticks = int(max(0.0, float(t)) * index["timescale"])
-    sync_idx = min(sync, key=lambda i: (abs(times[i] - target_ticks), times[i]))
-    return int(index["offsets"][sync_idx]) // config.PLAYBACK_RANGE_CHUNK_BYTES
-
-
 async def preview_frame_playback_cache(engine, vkey, message, t: float, width: int = 640,
                                        timeout: float = 2.0, epoch: int = 0,
                                        priority: int = 2, kind: str = "preview") -> bytes:

@@ -228,16 +228,6 @@ def is_image_document(message) -> bool:
         return False
 
 
-def is_thumbnail_document(message) -> bool:
-    if not is_image_document(message):
-        return False
-    try:
-        name = str(getattr(message.file, "name", None) or "").lower()
-        return any(name.endswith(ext) for ext in (".jpg", ".jpeg", ".png", ".webp"))
-    except Exception:
-        return False
-
-
 def is_image_message(message) -> bool:
     return is_photo_message(message) or is_image_document(message)
 
@@ -332,24 +322,6 @@ def human_size(value: int) -> str:
 # Common Telegram operations
 # ---------------------------------------------------------------------------
 
-async def forward_without_tag(client, destination, source_entity, message):
-    """Forward a message without the 'Forwarded from' tag."""
-    while True:
-        try:
-            return await client.send_message(destination, message, comment_to=None)
-        except Exception:
-            _swallowed_note("media_utils.forward_without_tag")
-            pass
-        try:
-            return await client.forward_messages(destination, message, source_entity,
-                                                  drop_author=True, drop_media_captions=False)
-        except Exception as e:
-            if is_flood_wait(e):
-                await asyncio.sleep(flood_wait_seconds(e) + 2)
-                continue
-            raise
-
-
 async def delete_messages(client, entity, ids: list):
     """Delete a list of message IDs with FloodWait handling."""
     int_ids = [int(x) for x in ids if x]
@@ -364,14 +336,6 @@ async def delete_messages(client, entity, ids: list):
                 await asyncio.sleep(flood_wait_seconds(e) + 2)
                 continue
             raise
-
-
-async def verify_message_exists(client, entity, message_id: int) -> bool:
-    try:
-        msg = await client.get_messages(entity, ids=int(message_id))
-        return msg is not None
-    except Exception:
-        return False
 
 
 async def upload_thumbnail_document(client, entity, path, progress_callback=None, *, as_photo: bool = False, file_name: str | None = None) -> Any:
