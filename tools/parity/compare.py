@@ -143,7 +143,7 @@ def expand(path, seeds):
     elif names == ["kind", "entity_id"]:
         out = [path.replace("{kind}", "performers").replace("{entity_id}", str(i)) for i in seeds["performers"]] + [path.replace("{kind}", "studios").replace("{entity_id}", str(i)) for i in seeds["studios"]]
     elif names == ["name"]:
-        out = [path.replace("{name}", "inter-400.woff2")]
+        out = [path.replace("{name}", "outfit-400.woff2")]
     return out
 
 

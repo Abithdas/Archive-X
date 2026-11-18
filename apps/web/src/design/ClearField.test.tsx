@@ -14,7 +14,7 @@ describe('ClearField', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Find' }), { target: { value: 'abc' } })
     expect(screen.getByRole('textbox', { name: 'Find' })).toHaveValue('abc')
     expect(container.querySelectorAll('.ax-char')).toHaveLength(3)
-    expect(container.querySelector('.t-clear')).toHaveClass('has-value')
+    expect(container.querySelector('.mo-clear')).toHaveClass('has-value')
   })
   it('has no clear button while empty, and the button empties the box', () => {
     render(<Harness start="hello" />)

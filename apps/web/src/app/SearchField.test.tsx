@@ -31,10 +31,10 @@ describe('typing', () => {
   it('keeps the real input in charge (text, keyboard, accessibility) and shows the placeholder only while empty', () => {
     const { container } = render(<Harness />)
     expect(box().getAttribute('aria-autocomplete')).toBe('list')
-    expect(container.querySelector('.t-clear')?.classList.contains('has-value')).toBe(false)
-    expect(container.querySelector('.t-clear-placeholder')?.textContent).toBe('Search videos')
+    expect(container.querySelector('.mo-clear')?.classList.contains('has-value')).toBe(false)
+    expect(container.querySelector('.mo-clear-placeholder')?.textContent).toBe('Search videos')
     type('x')
-    expect(container.querySelector('.t-clear')?.classList.contains('has-value')).toBe(true)
+    expect(container.querySelector('.mo-clear')?.classList.contains('has-value')).toBe(true)
     expect(box().value).toBe('x')
   })
   it('has a caret that follows the input', () => {
@@ -112,19 +112,26 @@ describe('suggestions', () => {
 })
 
 describe('clearing', () => {
-  it('dissolves the text: it clears the value at once, flies the old text out, and tidies up after a second', () => {
-    vi.useFakeTimers()
-    const { container } = render(<Harness initial="hello world" />)
-    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }))
-    expect(box().value).toBe('')
-    const wrap = container.querySelector('.t-clear')!
-    expect(wrap.classList.contains('is-clearing')).toBe(true)
-    expect(container.querySelector('.t-clear-mirror')?.textContent).toBe('hello world')
-    act(() => { vi.advanceTimersByTime(300) })
-    expect(parseFloat((container.querySelector('.t-clear-mirror') as HTMLElement).style.opacity)).toBeLessThan(1)
-    act(() => { vi.advanceTimersByTime(1200) })
-    expect(wrap.classList.contains('is-clearing')).toBe(false)
-    expect(container.querySelector('.t-clear-mirror')?.textContent).toBe('')
+  it('dissolves the text: it clears the value at once, sinks the old text, and tidies up when the animations end', async () => {
+    const ends: Array<() => void> = []
+    ;(HTMLElement.prototype as unknown as { animate: unknown }).animate = function () {
+      let end!: () => void
+      const finished = new Promise<void>((r) => { end = r })
+      ends.push(end)
+      return { finished, cancel: () => undefined }
+    }
+    try {
+      const { container } = render(<Harness initial="hello world" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Clear search' }))
+      expect(box().value).toBe('')
+      const wrap = container.querySelector('.mo-clear')!
+      expect(wrap.classList.contains('is-clearing')).toBe(true)
+      expect(container.querySelector('.mo-clear-mirror')?.textContent).toBe('hello\u00a0world')
+      expect(ends.length).toBe(3)
+      await act(async () => { ends.forEach((e) => e()); await Promise.resolve(); await Promise.resolve() })
+      expect(wrap.classList.contains('is-clearing')).toBe(false)
+      expect(container.querySelector('.mo-clear-mirror')?.textContent).toBe('')
+    } finally { delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate }
   })
   it('has no clear button while empty', () => {
     render(<Harness />)

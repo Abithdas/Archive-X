@@ -71,7 +71,7 @@ describe('themed select menu', () => {
     const s = mount()
     openSelectMenu(s)
     const panel = document.querySelector('[role=listbox]')!
-    expect(panel.classList.contains('t-menu')).toBe(true)
-    expect(panel.querySelector(':scope > .t-acc-panel-inner')?.querySelectorAll('button[role=option]')).toHaveLength(3)
+    expect(panel.classList.contains('mo-menu')).toBe(true)
+    expect(panel.querySelector(':scope > .mo-fold-inner')?.querySelectorAll('button[role=option]')).toHaveLength(3)
   })
 })

@@ -12,7 +12,7 @@ describe('Disclosure', () => {
     fireEvent.click(head)
     expect(head).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByText('Hidden text').closest('[inert]')).toBeNull()
-    expect(head.closest('.t-acc')).toHaveAttribute('data-open', 'true')
+    expect(head.closest('.mo-fold')).toHaveAttribute('data-open', 'true')
     fireEvent.click(head)
     expect(seen.mock.calls.map((c) => c[0])).toEqual([true, false])
   })

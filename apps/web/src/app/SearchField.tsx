@@ -2,7 +2,7 @@
  * The header search box.
  *  - Typing: each new letter springs in, and a caret glides between letters (the idea of unlumen UI's "Animated Input"; written here from
  *    its public description, not from its paid source).
- *  - Clearing (×): the text dissolves (Transitions.dev "Input clear with dissolve", see design/clearDissolve.ts).
+ *  - Clearing (×): the text dissolves (see design/clearDissolve.ts).
  *  - Suggestions: a keyboard-driven combobox that lists matching performers and studios with their picture, like a favicon search
  *    (after SmoothUI's favicon-search, MIT, Copyright (c) 2024 Eduardo Calvo).
  */

@@ -1,7 +1,7 @@
 import { prefersReduced } from './motionPref'
 /*
  * The delete effect: the card is displaced and blurred by animated noise while it lifts and fades, and soft smoke puffs rise from where it was.
- * Written for Archive X from the idea of Transitions.dev's "Delete with smoky dissolve" (a paid transition whose code is not used here).
+ * Written for Archive X.
  * It plays on the real element, so call it after the delete worked and before the item leaves the list; the rows below then slide up.
  */
 export const SMOKE_MS = 720

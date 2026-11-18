@@ -32,9 +32,9 @@ function BarMenu({ label, children, disabled }: { label: string; children: (clos
   }
   return (
     <>
-      <button ref={btn} type="button" popoverTarget={id} aria-haspopup="menu" disabled={disabled} onClick={place} className={cn(BAR_BTN, 'inline-flex items-center gap-1.5')}>{label}<span className="t-chev"><Icon name="chevron-down" className="size-3.5" /></span></button>
-      <div ref={pop} id={id} popover="auto" role="menu" aria-label={label} className="t-menu fixed m-0 w-56 rounded-2xl border border-line-2 bg-surface-2 text-fg shadow-[0_18px_40px_-8px_rgb(0_0_0/0.6)] [inset:auto]">
-        <div className="t-acc-panel-inner p-1.5">
+      <button ref={btn} type="button" popoverTarget={id} aria-haspopup="menu" disabled={disabled} onClick={place} className={cn(BAR_BTN, 'inline-flex items-center gap-1.5')}>{label}<span className="mo-chev"><Icon name="chevron-down" className="size-3.5" /></span></button>
+      <div ref={pop} id={id} popover="auto" role="menu" aria-label={label} className="mo-menu fixed m-0 w-56 rounded-2xl border border-line-2 bg-surface-2 text-fg shadow-[0_18px_40px_-8px_rgb(0_0_0/0.6)] [inset:auto]">
+        <div className="mo-fold-inner p-1.5">
         {children(() => pop.current?.hidePopover?.())}
       </div>
       </div>

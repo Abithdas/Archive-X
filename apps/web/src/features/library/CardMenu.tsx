@@ -94,8 +94,8 @@ export function CardMenu({ item, className }: { item: LibraryItem; className?: s
           <i className="size-1 rounded-full bg-current" />
         </span>
       </button>
-      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Video actions" onToggle={(e) => (e.nativeEvent as ToggleEvent).newState === 'open' && (place(), pop.current?.querySelector<HTMLElement>('button')?.focus())} className="t-menu m-0 w-[232px] rounded-[16px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
-        <div className="t-acc-panel-inner p-2">
+      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Video actions" onToggle={(e) => (e.nativeEvent as ToggleEvent).newState === 'open' && (place(), pop.current?.querySelector<HTMLElement>('button')?.focus())} className="mo-menu m-0 w-[232px] rounded-[16px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
+        <div className="mo-fold-inner p-2">
         <div className="px-3 pb-1 pt-1.5 text-xs font-semibold text-faint" aria-hidden="true">Video actions</div>
         <button type="button" role="menuitem" className={OPTION} title="Copy to another Telegram channel, verify the copy, then delete source" onClick={() => { close(); setMoving(true) }}>
           <Icon name="transfer" className="text-muted" />Move / delete source

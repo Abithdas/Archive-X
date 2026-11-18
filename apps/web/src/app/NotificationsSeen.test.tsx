@@ -20,7 +20,7 @@ describe('the bell count', () => {
     vi.stubGlobal('WebSocket', QuietSocket)
     vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes('storage') ? { bytes: 1, files: 1, disk: { total: 10, used: 1, free: 9 } } : String(url).includes('/api/status') ? { events: events(3), jobs: [] } : {}), { status: 200 })))
     const { container } = withRouter(<Shell />)
-    const badge = () => container.querySelector('.ax-bell .t-badge') as HTMLElement
+    const badge = () => container.querySelector('.ax-bell .mo-badge') as HTMLElement
     await waitFor(() => expect(badge().dataset.open).toBe('true'))
     expect(badge().textContent).toBe('3')
     fireEvent.click(screen.getByRole('button', { name: /^Notifications, 3 new/ }))

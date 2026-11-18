@@ -24,18 +24,18 @@ describe('StreamText', () => {
   afterEach(() => vi.useRealTimers())
   it('resolves words one by one, and only the new ones when more text arrives', () => {
     const { container, rerender } = render(<StreamText text="one two three" />)
-    const lit = () => container.querySelectorAll('.t-stream-w.is-in').length
-    expect(container.querySelectorAll('.t-stream-w')).toHaveLength(3); expect(lit()).toBe(0)
+    const lit = () => container.querySelectorAll('.mo-word.is-in').length
+    expect(container.querySelectorAll('.mo-word')).toHaveLength(3); expect(lit()).toBe(0)
     const tick = () => act(() => { vi.advanceTimersByTime(61) })   // one word a gap
     tick(); expect(lit()).toBe(1); tick(); expect(lit()).toBe(2); tick(); expect(lit()).toBe(3)
     rerender(<StreamText text="one two three four" />)
-    expect(container.querySelectorAll('.t-stream-w')).toHaveLength(4); expect(lit()).toBe(3)   // the first three stay put
+    expect(container.querySelectorAll('.mo-word')).toHaveLength(4); expect(lit()).toBe(3)   // the first three stay put
     tick(); expect(lit()).toBe(4)
     expect(container.textContent).toBe('one two three four')
   })
   it('shows an older message at once', () => {
     const { container } = render(<StreamText text="already here" instant />)
-    expect(container.querySelectorAll('.t-stream-w.is-in')).toHaveLength(2)
+    expect(container.querySelectorAll('.mo-word.is-in')).toHaveLength(2)
   })
 })
 
@@ -45,7 +45,7 @@ describe('ThinkingLine', () => {
   it('swaps to the new line: the old one leaves while the new one comes in, then the old one is gone', () => {
     const { container, rerender } = render(<ThinkingLine text="Thinking…" />)
     rerender(<ThinkingLine text="Checking diagnostics" />)
-    const texts = () => [...container.querySelectorAll('.t-think-text')]
+    const texts = () => [...container.querySelectorAll('.mo-status-text')]
     expect(texts()).toHaveLength(2)
     expect(texts()[0]!.classList.contains('is-exit')).toBe(true); expect(texts()[1]!.classList.contains('is-enter-start')).toBe(true)
     act(() => { vi.advanceTimersByTime(60) })
@@ -57,7 +57,7 @@ describe('ThinkingLine', () => {
   it('does nothing when the text has not changed', () => {
     const { container, rerender } = render(<ThinkingLine text="Same" />)
     rerender(<ThinkingLine text="Same" />)
-    expect(container.querySelectorAll('.t-think-text')).toHaveLength(1)
+    expect(container.querySelectorAll('.mo-status-text')).toHaveLength(1)
   })
 })
 

@@ -2,7 +2,7 @@
 export interface DigitPart { ch: string; changed: boolean; old?: string }
 
 /**
- * Compares two formatted numbers for the Transitions.dev "Number subtle change". Characters that stay are plain; each changed one
+ * Compares two formatted numbers for the in-place number change (SubtleNumber). Characters that stay are plain; each changed one
  * carries the old character to fade out. When the lengths differ (999 to 1,000) nothing lines up, so every character is new and
  * fades in without an old one.
  */

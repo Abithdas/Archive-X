@@ -16,13 +16,14 @@ describe('rollReel', () => {
   })
   it('does not call onDone when it is cancelled before the drums land', () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false }))
-    vi.stubGlobal('requestAnimationFrame', () => 1)
-    vi.stubGlobal('cancelAnimationFrame', () => undefined)
-    const el = document.createElement('span')
-    document.body.appendChild(el)
-    const done = vi.fn()
-    const stop = rollReel(el, 60, 7, done)
-    stop()
-    expect(done).not.toHaveBeenCalled()
+    ;(HTMLElement.prototype as unknown as { animate: unknown }).animate = () => ({ finished: new Promise<void>(() => undefined), cancel: () => undefined })
+    try {
+      const el = document.createElement('span')
+      document.body.appendChild(el)
+      const done = vi.fn()
+      const stop = rollReel(el, 60, 7, done)
+      stop()
+      expect(done).not.toHaveBeenCalled()
+    } finally { delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate }
   })
 })

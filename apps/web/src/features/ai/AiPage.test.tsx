@@ -102,7 +102,7 @@ describe('AiPage', () => {
     await act(async () => push({ t: 'status', phase: 'thinking', text: 'Thinking…' }))
     const log = screen.getByRole('log', { name: 'Assistant conversation' })
     expect(within(log).getByRole('status', { name: 'Working' })).toHaveClass('ax-chat-dot')        // the dot beside the status line
-    expect(log.querySelector('.t-think-text')).not.toBeNull()                                       // the shimmering line
+    expect(log.querySelector('.mo-status-text')).not.toBeNull()                                       // the shimmering line
     await act(async () => { push({ t: 'reasoning', text: 'First, ' }); push({ t: 'reasoning', text: 'check the jobs.' }) })
     expect(await within(log).findByText('Reasoning…')).toBeInTheDocument()                           // shimmering title while it thinks
     await act(async () => push({ t: 'delta', text: 'Because.' }))

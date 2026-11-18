@@ -43,8 +43,8 @@ export function PhotoCard({ photo, favorite, onOpen, onRemove, onDifferent }: { 
         className={cn('absolute right-2 top-2 grid size-9 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm hover:bg-black/75 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100')}>
         <span className="flex gap-[3px]" aria-hidden="true"><i className="size-1 rounded-full bg-current" /><i className="size-1 rounded-full bg-current" /><i className="size-1 rounded-full bg-current" /></span>
       </button>
-      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Photo actions" onToggle={(e) => (e.nativeEvent as ToggleEvent).newState === 'open' && (place(), pop.current?.querySelector<HTMLElement>('button')?.focus())} className="t-menu m-0 w-[260px] rounded-[16px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
-        <div className="t-acc-panel-inner p-2">
+      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Photo actions" onToggle={(e) => (e.nativeEvent as ToggleEvent).newState === 'open' && (place(), pop.current?.querySelector<HTMLElement>('button')?.focus())} className="mo-menu m-0 w-[260px] rounded-[16px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
+        <div className="mo-fold-inner p-2">
         <button type="button" role="menuitem" className={OPTION} onClick={() => { close(); onOpen() }}><Icon name="images" className="text-muted" />Open photo</button>
         <button type="button" role="menuitem" className={OPTION} onClick={() => void copy()}><Icon name="duplicate" className="text-muted" />Copy filename</button>
         {onDifferent ? <button type="button" role="menuitem" className={OPTION} onClick={() => { close(); onDifferent() }}><Icon name="user" className="text-muted" />Different person · remove from this group</button> : null}

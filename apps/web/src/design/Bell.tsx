@@ -15,7 +15,7 @@ function BellGlyph() {
   )
 }
 
-/** The bell and its count badge. The badge is a small round disc that slides on diagonally and pops (the Transitions.dev notification-badge snippet).
+/** The bell and its count badge. The badge is a small round disc that slides on diagonally and pops.
  *  The bell rings when a new notice arrives and when the pointer is on it: the bell swings from its top and the clapper swings separately. The number
  *  stays visible while the badge closes. */
 export function Bell({ count, className }: { count: number; className?: string }) {
@@ -35,8 +35,8 @@ export function Bell({ count, className }: { count: number; className?: string }
   return (
     <span className={`ax-bell relative grid place-items-center ${ringing ? 'is-ringing' : ''} ${className ?? ''}`}>
       <BellGlyph />
-      <span className="t-badge" data-open={open ? 'true' : 'false'} aria-hidden="true">
-        <span className="t-badge-dot">{shown.current > 99 ? '99+' : shown.current}</span>
+      <span className="mo-badge" data-open={open ? 'true' : 'false'} aria-hidden="true">
+        <span className="mo-badge-dot">{shown.current > 99 ? '99+' : shown.current}</span>
       </span>
     </span>
   )

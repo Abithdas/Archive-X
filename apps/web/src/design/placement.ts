@@ -22,20 +22,20 @@ export function dropdownPosition(anchor: DOMRect, ref: Element | null | undefine
   return below >= above ? { left, top: b + 4, maxHeight: Math.max(120, below) } : { left, top: Math.max(8, t - Math.max(120, above) - 4), maxHeight: Math.max(120, above) }
 }
 
-/** The height a `.t-menu` popover will have once it has finished opening. While it opens, its box is still growing, so measuring the box would
+/** The height a `.mo-menu` popover will have once it has finished opening. While it opens, its box is still growing, so measuring the box would
  *  give almost nothing and a menu near the bottom of the screen would not flip above its button. */
 export function openHeight(menu: HTMLElement): number {
-  const inner = menu.querySelector<HTMLElement>(':scope > .t-acc-panel-inner')
+  const inner = menu.querySelector<HTMLElement>(':scope > .mo-fold-inner')
   if (!inner) return menu.offsetHeight
   const cs = getComputedStyle(menu)
   const chrome = ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((n, k) => n + (parseFloat(cs[k as 'paddingTop']) || 0), 0)
   return inner.scrollHeight + chrome
 }
 
-/** Cap a `.t-menu` at `maxHeight`; the content scrolls inside it (the box itself must clip, or the opening animation would show overflow). */
+/** Cap a `.mo-menu` at `maxHeight`; the content scrolls inside it (the box itself must clip, or the opening animation would show overflow). */
 export function limitMenu(menu: HTMLElement, maxHeight: number): void {
   menu.style.maxHeight = `${maxHeight}px`
-  const inner = menu.querySelector<HTMLElement>(':scope > .t-acc-panel-inner')
+  const inner = menu.querySelector<HTMLElement>(':scope > .mo-fold-inner')
   if (inner) inner.style.overflowY = 'auto'
   else menu.style.overflowY = 'auto'
 }

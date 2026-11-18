@@ -40,7 +40,7 @@ describe('LoginGate', () => {
     mount({ setup_required: false }, (u) => (u === '/login' ? json({ detail: 'Wrong' }, 401) : undefined))
     const go = await screen.findByRole('button', { name: 'Sign in' }); fill('Username', 'a'); fill('Password', 'b'); fireEvent.click(go)
     await screen.findByText('Wrong username or password.')
-    const field = screen.getByLabelText('Password').closest('.t-input') as HTMLElement
+    const field = screen.getByLabelText('Password').closest('.mo-field') as HTMLElement
     expect(field.classList.contains('is-error')).toBe(true)
     await waitFor(() => expect(field.classList.contains('is-shaking')).toBe(true))
     fireEvent.input(screen.getByLabelText('Password'), { target: { value: 'bc' } })

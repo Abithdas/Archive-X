@@ -4,25 +4,25 @@ import { Reveal } from './Reveal'
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
-const wrap = (el: HTMLElement) => el.closest('.t-skel') as HTMLElement
+const wrap = (el: HTMLElement) => el.closest('.mo-reveal') as HTMLElement
 
 describe('Reveal', () => {
   it('shows the placeholder, pulsing and in the flow, while the content is not there', () => {
     render(<Reveal ready={false} skeleton={<i data-testid="sk" />}><b data-testid="real" /></Reveal>)
     expect(wrap(screen.getByTestId('sk')).dataset.state).toBe('loading')
-    expect(screen.getByTestId('sk').parentElement).toHaveClass('t-skel-skeleton', 'is-pulsing')
+    expect(screen.getByTestId('sk').parentElement).toHaveClass('mo-reveal-skeleton', 'is-pulsing')
     expect(screen.queryByTestId('real')).toBeNull()
   })
   it('shows content that is already there at once, with no placeholder and no animation', () => {
     render(<Reveal ready skeleton={<i data-testid="sk" />}><b data-testid="real" /></Reveal>)
     expect(screen.queryByTestId('sk')).toBeNull()
-    expect(screen.getByTestId('real').parentElement).toHaveClass('t-skel-done')
+    expect(screen.getByTestId('real').parentElement).toHaveClass('mo-reveal-done')
   })
   it('cross-fades when the content arrives, then drops the placeholder', () => {
     const { rerender } = render(<Reveal ready={false} skeleton={<i data-testid="sk" />}><b data-testid="real" /></Reveal>)
     rerender(<Reveal ready skeleton={<i data-testid="sk" />}><b data-testid="real" /></Reveal>)
     const box = wrap(screen.getByTestId('real'))
-    expect(box).toHaveClass('is-layered')                                  // both layers are there, the placeholder over the content
+    expect(box.dataset.state).toBe('revealing')                            // both layers are there, in the same cell
     expect(box).not.toHaveClass('is-revealed')                             // the start state is painted first
     act(() => { vi.advanceTimersByTime(40) })
     expect(box).toHaveClass('is-revealed')

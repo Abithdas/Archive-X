@@ -3,7 +3,7 @@ import { cn } from './cn'
 import { rollReel, showReel } from './spinReel'
 
 /**
- * A number whose digits roll on a drum to the new value and land with a bounce (Transitions.dev "Spinning counter"). For a figure that
+ * A number whose digits roll on a drum to the new value and land with a bounce. For a figure that
  * changes because you did something (a filter, a search) and should read as an event; for counts that tick often, use SubtleNumber.
  * The drums are drawn by script, so the text is exposed through aria-label.
  */
@@ -33,5 +33,5 @@ export function SpinCounter({ value, className }: { value: number; className?: s
     last.current = v
   }, [value])
   useEffect(() => () => stop.current?.(), [])
-  return <span ref={box} role="img" className={cn('t-reel', className)} aria-label={Math.max(0, Math.round(value || 0)).toLocaleString('en-US')} />
+  return <span ref={box} role="img" className={cn('mo-reel', className)} aria-label={Math.max(0, Math.round(value || 0)).toLocaleString('en-US')} />
 }

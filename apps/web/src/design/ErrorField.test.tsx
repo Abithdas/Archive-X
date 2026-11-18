@@ -9,10 +9,10 @@ beforeEach(() => {
 })
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals() })   // unmount while the stubs are still in place
 
-const input = (c: HTMLElement) => c.querySelector('.t-input') as HTMLElement
-const wrap = (c: HTMLElement) => c.querySelector('.t-input-wrap') as HTMLElement
+const input = (c: HTMLElement) => c.querySelector('.mo-field') as HTMLElement
+const wrap = (c: HTMLElement) => c.querySelector('.mo-field-wrap') as HTMLElement
 
-describe('shakeMs', () => it('is the four legs of the shake (80 + 80 + 60 + 60 ms by default)', () => expect(shakeMs()).toBe(280)))
+describe('shakeMs', () => it('is 300 ms by default, and follows --mo-shake-ms when that is set', () => { expect(shakeMs()).toBe(300); const el = document.createElement('div'); el.style.setProperty('--mo-shake-ms', '450ms'); document.body.appendChild(el); expect(shakeMs(el)).toBe(450); el.remove() }))
 
 describe('ErrorField', () => {
   it('is quiet until there is a message', () => {
@@ -44,13 +44,13 @@ describe('ErrorField', () => {
     const { container, rerender } = render(<ErrorField message="Wrong password"><input aria-label="P" /></ErrorField>)
     rerender(<ErrorField message=""><input aria-label="P" /></ErrorField>)
     expect(wrap(container).classList.contains('is-error')).toBe(false)
-    expect(container.querySelector('.t-error-msg')?.textContent).toBe('Wrong password')   // still painted for the fade (CSS hides it after)
+    expect(container.querySelector('.mo-error-msg')?.textContent).toBe('Wrong password')   // still painted for the fade (CSS hides it after)
     expect(input(container).classList.contains('is-shaking')).toBe(false)
   })
   it('leaves the message out of the field when quiet, but still shakes', () => {
     const { container, rerender } = render(<ErrorField quiet message=""><input aria-label="Code" /></ErrorField>)
     rerender(<ErrorField quiet message="Error: bad code"><input aria-label="Code" /></ErrorField>)
-    expect(container.querySelector('.t-error-msg')).toBeNull()
+    expect(container.querySelector('.mo-error-msg')).toBeNull()
     expect(wrap(container).classList.contains('is-error')).toBe(true)
   })
   it('does not change what the input is called: a label next to it is not polluted by the message', () => {

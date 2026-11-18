@@ -4,14 +4,14 @@
  * unchanged: choosing an item sets the select's value and fires its normal `change` event.
  * Multi-selects and list boxes (size > 1) are left alone.
  */
-const PANEL = 't-menu fixed m-0 rounded-[14px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]'
+const PANEL = 'mo-menu fixed m-0 rounded-[14px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]'
 const ROW = 'flex w-full cursor-pointer items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm font-medium hover:bg-fg/5 focus-visible:bg-fg/5 focus-visible:outline-none'
 const ON = 'bg-accent/15 text-accent font-semibold'
 
 import { limitMenu, openHeight, zoomOf } from './placement'
 
 let open: { close: () => void } | null = null
-/** A little longer than --acc-collapse (250 ms): the menu folds shut before it is taken out of the page. */
+/** A little longer than --mo-fold-out (200 ms): the menu folds shut before it is taken out of the page. */
 const CLOSE_MS = 300
 
 export function openSelectMenu(select: HTMLSelectElement): void {
@@ -24,7 +24,7 @@ export function openSelectMenu(select: HTMLSelectElement): void {
   panel.setAttribute('aria-label', select.getAttribute('aria-label') || select.labels?.[0]?.textContent?.trim() || 'Options')
   panel.className = PANEL
   const inner = document.createElement('div')
-  inner.className = 't-acc-panel-inner p-1.5'
+  inner.className = 'mo-fold-inner p-1.5'
   panel.append(inner)
   const rows: HTMLButtonElement[] = []
   options.forEach((o, i) => {

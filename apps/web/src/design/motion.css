@@ -1,0 +1,273 @@
+/* Archive X motion. Every effect here is written for Archive X: our own class names (mo-), our own numbers and our own technique.
+   The behaviours (a heart that pops, a badge that arrives, two icons that trade places, a field that shakes, text that dissolves,
+   a panel that unfolds, digits that roll, words that resolve, a placeholder that gives way to content) are common interface ideas;
+   nothing in this file or in the scripts beside it is copied from another project's code. */
+
+:root {
+  --mo-ease: cubic-bezier(0.2, 0.8, 0.2, 1);                 /* quick start, long settle */
+  --mo-spring: cubic-bezier(0.3, 1.5, 0.5, 1);               /* a small overshoot */
+  --mo-fast: 160ms;
+  --mo-fold-in: 240ms;
+  --mo-fold-out: 200ms;
+  --mo-fold-chevron-ms: 220ms;
+  --mo-revert-ms: 260ms;
+  --mo-shake-ms: 300ms;
+  --mo-like: #f2336b;
+}
+
+/* ── Like: the outline fills, the heart pops once, and a ring of small sparks flies out ─────────────────────────────────────────── */
+.mo-like-heart path { fill: transparent; stroke: currentColor; transition: fill var(--mo-fast) var(--mo-ease); }
+.mo-like[data-liked="true"] .mo-like-heart { color: var(--mo-like); }
+.mo-like[data-liked="true"] .mo-like-heart path { fill: currentColor; }
+.mo-like[data-liked="true"]:not([data-still]) .mo-like-icon { animation: mo-heart-pop 420ms var(--mo-ease); }   /* the pop is on an HTML wrapper: scaling the svg itself would blur it */
+@keyframes mo-heart-pop { 0% { transform: scale(1); } 28% { transform: scale(0.78); } 68% { transform: scale(1.14); } 100% { transform: scale(1); } }
+.mo-sparks { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; color: var(--mo-like); }
+.mo-sparks i { position: absolute; left: -1.5px; top: -1.5px; width: var(--s, 3px); height: var(--s, 3px); border-radius: 50%; background: currentColor; opacity: 0; }
+.mo-like.is-bursting .mo-sparks i { animation: mo-spark var(--dur, 640ms) ease-out var(--delay, 0ms) forwards; }
+@keyframes mo-spark {
+  0%   { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(0.4); }
+  25%  { opacity: 1; transform: rotate(var(--a)) translateY(calc(var(--d) * -0.35)) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--d) * -1)) scale(var(--e, 0.5)); }
+}
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-like-icon, .mo-sparks i { animation: none !important; } } }
+
+/* ── Badge: it arrives from below and to the left, and the number inside pops; closing is quicker than opening ───────────────────── */
+.mo-badge { position: absolute; top: -6px; right: -8px; pointer-events: none; }
+.mo-badge[data-open="true"] { animation: mo-badge-in 280ms var(--mo-ease); }
+@keyframes mo-badge-in { from { transform: translate(-7px, 11px); } to { transform: none; } }
+.mo-badge-dot { display: block; transform: scale(1); opacity: 1; filter: blur(0); transition: transform 420ms var(--mo-spring), opacity 300ms var(--mo-ease), filter 300ms var(--mo-ease); }
+.mo-badge[data-open="false"] .mo-badge-dot { transform: scale(0); opacity: 0; filter: blur(2px); transition: transform 150ms ease-in, opacity 150ms ease-in, filter 150ms ease-in; }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-badge, .mo-badge-dot { animation: none !important; transition: none !important; } } }
+
+/* ── Two icons in one place: the one that leaves shrinks and blurs, the one that arrives grows in ─────────────────────────────────── */
+.mo-swap { position: relative; display: inline-grid; }
+.mo-swap > .mo-glyph { grid-area: 1 / 1; opacity: 0; filter: blur(2px); transform: scale(0.3); transition: opacity 220ms ease, filter 220ms ease, transform 220ms var(--mo-ease); }   /* no will-change: a promoted layer would keep the small raster and blur a big icon */
+.mo-swap[data-state="a"] > .mo-glyph[data-icon="a"], .mo-swap[data-state="b"] > .mo-glyph[data-icon="b"] { opacity: 1; filter: blur(0); transform: none; }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-swap > .mo-glyph { transition: none !important; } } }
+
+/* ── A rejected field: it jolts sideways and settles, a red ring fades in, and the message fades in under it ───────────────────────── */
+.mo-field { transition: border-color 140ms ease-out; }
+.mo-field.is-error { transition: border-color var(--mo-revert-ms) ease-out; }
+.mo-error-msg { opacity: 0; visibility: hidden; transition: opacity var(--mo-revert-ms) ease-out, visibility 0s linear var(--mo-revert-ms); }
+.mo-field-wrap.is-error .mo-error-msg { opacity: 1; visibility: visible; transition: opacity var(--mo-revert-ms) ease-out, visibility 0s; }
+.mo-field.is-shaking { animation: mo-shake var(--mo-shake-ms) ease-out; }
+@keyframes mo-shake { 0% { transform: translateX(0); } 22% { transform: translateX(7px); } 50% { transform: translateX(-7px); } 76% { transform: translateX(3px); } 100% { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-field { animation: none !important; transform: none !important; } } }
+
+/* ── A cleared field: the typed text sinks and fades (script), the placeholder drops in from above, and one soft light sweeps across ── */
+.mo-clear { position: relative; overflow: hidden; }
+.mo-clear-mirror, .mo-clear-placeholder { position: absolute; inset: 0; display: flex; align-items: center; pointer-events: none; white-space: nowrap; overflow: hidden; z-index: 2; }
+.mo-clear-mirror { opacity: 0; }
+.mo-clear.has-value .mo-clear-mirror, .mo-clear.is-clearing .mo-clear-mirror { opacity: 1; }
+.mo-clear.has-value > input, .mo-clear.is-clearing > input { -webkit-text-fill-color: transparent; }
+.mo-clear.has-value .mo-clear-placeholder { opacity: 0; }
+.mo-clear-glow { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 3; background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.16) 50%, transparent 70%); background-size: 60% 100%; background-repeat: no-repeat; background-position: -80% 0; }
+html[data-theme="light"] .mo-clear-glow { background-image: linear-gradient(100deg, transparent 30%, rgb(0 0 0 / 0.1) 50%, transparent 70%); }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-clear-glow { display: none; } } }
+
+/* ── A fold: a panel that opens by growing from nothing (grid rows from 0fr to 1fr, so no height is measured) ──────────────────────── */
+.mo-fold-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--mo-fold-out) var(--mo-ease); }
+.mo-fold[data-open="true"] > .mo-fold-panel, .mo-fold[data-open="true"] .mo-fold-panel { grid-template-rows: 1fr; transition: grid-template-rows var(--mo-fold-in) var(--mo-ease); }
+.mo-fold-inner { overflow: hidden; opacity: 0; contain: paint; transition: opacity var(--mo-fold-out) var(--mo-ease); }
+.mo-fold[data-open="true"] .mo-fold-inner { opacity: 1; transition: opacity var(--mo-fold-in) var(--mo-ease); }
+.mo-fold-chevron { display: inline-flex; transition: transform var(--mo-fold-chevron-ms) var(--mo-ease); }   /* the chevron is mirrored top to bottom, which turns "v" into "^" */
+.mo-fold-chevron path { vector-effect: non-scaling-stroke; }
+.mo-fold[data-open="true"] .mo-fold-chevron { transform: scaleY(-1); }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-fold-panel, .mo-fold-inner, .mo-fold-chevron { transition: none !important; } } }
+
+/* ── Archive X additions ────────────────────────────────────────
+   A card that is already liked when the page loads must not play the pop: the animation is only for a change you make. */
+
+/* The badge on the top bar's bell: a small round disc (15 px, red, white number), on the corner of the 40 px button. */
+.ax-bell .mo-badge { top: -7px; right: -8px; }
+.ax-bell .mo-badge-dot {
+  display: grid; place-items: center; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px; box-sizing: border-box;
+  background-image: linear-gradient(-51.52deg, rgb(238, 41, 51) 13.929%, rgb(236, 2, 72) 112.7%);
+  color: #fff; font-size: 9.5px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 1.5px var(--color-bg);
+}
+/* The bell swings from its top; the clapper inside swings on its own, later and the other way. */
+.ax-bell-body { transform-origin: 128px 36px; }
+.ax-bell-clapper { transform-origin: 128px 200px; }
+.ax-bell.is-ringing .ax-bell-body, .ax-bell:hover .ax-bell-body { animation: ax-bell-swing 1000ms ease-in-out; }
+.ax-bell.is-ringing .ax-bell-clapper, .ax-bell:hover .ax-bell-clapper { animation: ax-clapper-swing 1000ms ease-in-out; }
+@keyframes ax-bell-swing { 0%, 100% { transform: rotate(0); } 12% { transform: rotate(16deg); } 30% { transform: rotate(-13deg); } 48% { transform: rotate(9deg); } 66% { transform: rotate(-5deg); } 82% { transform: rotate(2deg); } }
+@keyframes ax-clapper-swing { 0%, 100% { transform: rotate(0); } 18% { transform: rotate(-26deg); } 38% { transform: rotate(22deg); } 58% { transform: rotate(-14deg); } 78% { transform: rotate(7deg); } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-bell-body, .ax-bell-clapper { animation: none !important; } } }
+
+/* The Telegram plane: while Telegram is live it takes off up and to the right, and comes back in from the lower left. */
+.ax-plane { display: inline-grid; place-items: center; width: 20px; height: 20px; overflow: hidden; flex: none; }
+.ax-plane > svg { width: 16px; height: 16px; }
+.ax-plane[data-live="true"] > svg { animation: ax-plane-fly 3.2s ease-in-out infinite; }
+@keyframes ax-plane-fly {
+  0%, 18% { transform: translate(0, 0); opacity: 1; }
+  38% { transform: translate(18px, -18px); opacity: 0; }
+  39% { transform: translate(-18px, 18px); opacity: 0; }
+  62%, 100% { transform: translate(0, 0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-plane[data-live="true"] > svg { animation: none !important; } } }
+
+/* The search box has its own border, which lights up while typing; the field inside it must not draw a second ring. */
+.ax-field input, .ax-field input:focus-visible { box-shadow: none; outline: 0; }
+
+/* ── Error state: the app's own colours; the shake and the message fade are the snippets above.
+   The field keeps its own border, so the error is a ring around it (no layout shift) that fades in and out with the message. */
+.mo-field { border-radius: 14px; box-shadow: 0 0 0 0 transparent; transition: box-shadow var(--mo-revert-ms, 280ms) ease-out; }
+.mo-field.is-error { box-shadow: 0 0 0 1.5px var(--color-bad); transition: box-shadow var(--mo-revert-ms, 280ms) ease-out; }
+.mo-error-msg { color: var(--color-bad); }
+
+/* ── Header search box ───────────────────────────────────────────
+   The real <input> keeps the text, the selection and the keyboard; its glyphs are transparent and the same letters are drawn one by one
+   on top (.ax-live) so each new one can spring in. Kerning is off in both so the two always line up with the caret. */
+.ax-field { font-kerning: none; font-feature-settings: "liga" 0, "clig" 0; }
+.ax-field input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; outline: 0; background: transparent;
+  font: inherit; font-kerning: none; color: transparent; -webkit-text-fill-color: transparent; caret-color: transparent;
+}
+.ax-field input::selection { background: color-mix(in srgb, var(--color-accent) 35%, transparent); }
+.ax-live { position: absolute; inset: 0; display: flex; align-items: center; overflow: hidden; white-space: pre; pointer-events: none; z-index: 2; }
+.ax-live-inner { display: flex; }
+.ax-search.is-clearing .ax-live { opacity: 0; }
+.ax-char { display: inline-block; white-space: pre; }
+.ax-char-in { animation: ax-char-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: calc(var(--i, 0) * 16ms); }
+@keyframes ax-char-in { from { opacity: 0; transform: translateY(6px) scale(0.6); filter: blur(2px); } to { opacity: 1; transform: none; filter: blur(0); } }
+.ax-caret { position: absolute; left: 0; top: 50%; width: 2px; height: 20px; margin-top: -10px; border-radius: 2px; background: var(--color-accent); pointer-events: none; z-index: 3; opacity: 0; }
+.ax-field:focus-within .ax-caret[data-show="true"] { opacity: 1; animation: ax-caret-blink 1.06s steps(1) infinite; }
+@keyframes ax-caret-blink { 50% { opacity: 0; } }
+.ax-search .mo-clear-placeholder { color: var(--color-faint); }
+.ax-search .mo-clear-glow { mix-blend-mode: screen; }
+html[data-theme="light"] .ax-search .mo-clear-glow { mix-blend-mode: multiply; }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-char-in, .ax-caret { animation: none !important; } } }
+
+/* ── Menus: the accordion, driven by the popover's open state ────
+   The published accordion toggles data-open; a menu opens and closes through the popover API, so the same grid-rows, blur and fade are keyed
+   on :popover-open, with @starting-style for the opening frame and display/overlay transitions so it also animates closed. */
+.mo-menu {
+  display: none; grid-template-rows: 1fr; overflow: hidden;
+  opacity: 0; transform: translateY(-6px) scale(0.97); transform-origin: var(--menu-origin, top right);
+  transition: opacity var(--mo-fold-out) var(--mo-ease), transform var(--mo-fold-out) var(--mo-ease), display var(--mo-fold-out) allow-discrete, overlay var(--mo-fold-out) allow-discrete;
+}
+.mo-menu:popover-open {
+  display: grid; opacity: 1; transform: none;
+  transition: opacity var(--mo-fold-in) var(--mo-ease), transform var(--mo-fold-in) var(--mo-ease), display var(--mo-fold-in) allow-discrete, overlay var(--mo-fold-in) allow-discrete;
+}
+@starting-style { .mo-menu:popover-open { opacity: 0; transform: translateY(-6px) scale(0.97); } }
+.mo-menu > .mo-fold-inner { overflow-y: auto; opacity: 1; transition: none; contain: none; }   /* the menu itself fades; the accordion's own hidden state must not apply inside it */
+/* A trigger's chevron flips like the accordion's while its menu is open (the menu is the trigger's next sibling). */
+.mo-chev { display: inline-flex; transition: transform var(--mo-fold-chevron-ms) var(--mo-ease); }
+:has(+ .mo-menu:popover-open) > .mo-chev { transform: scaleY(-1); }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-menu, .mo-chev { transition: none !important; } } }
+
+/* ── Dropdowns that appear and disappear with their button (the player's menus, the country list) ──
+   They are not popovers, so there is no :popover-open to key on; the same unfold, blur and fade plays when they mount. */
+.mo-drop-down, .mo-drop-up { animation: mo-drop-in var(--mo-fold-in) var(--mo-ease) both; }
+.mo-drop-down { --drop-shift: -6px; transform-origin: top center; }
+.mo-drop-up { --drop-shift: 6px; transform-origin: bottom center; }
+@keyframes mo-drop-in { from { opacity: 0; transform: translateY(var(--drop-shift)) scale(0.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-drop-down, .mo-drop-up { animation: none; } } }
+
+
+/* ── A number that changes in place: the digits that changed slide a little and cross-fade (up when it grows, down when it shrinks) ── */
+.mo-delta { display: inline-flex; align-items: baseline; font-variant-numeric: tabular-nums; }
+.mo-delta-slot { position: relative; display: inline-block; }
+.mo-delta-new { display: inline-block; }
+.mo-delta-old { position: absolute; inset: 0; text-align: center; pointer-events: none; }
+.mo-delta.is-animating .mo-delta-new { animation: mo-delta-in 420ms var(--mo-ease) both; }
+.mo-delta.is-animating .mo-delta-old { animation: mo-delta-out 420ms var(--mo-ease) both; }
+@keyframes mo-delta-in { from { transform: translateY(calc(0.16em * var(--dir, 1))); opacity: 0; filter: blur(0.05em); } }
+@keyframes mo-delta-out { to { transform: translateY(calc(-0.16em * var(--dir, 1))); opacity: 0; filter: blur(0.05em); } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-delta .mo-delta-new { animation: none !important; } .mo-delta .mo-delta-old { display: none; } } }
+
+/* ── A counter that rolls: each digit is a column showing one digit of a strip that slides (script), with the neighbours fading out above and below ── */
+.mo-reel { display: inline-flex; align-items: center; height: 1.2em; font-variant-numeric: tabular-nums; vertical-align: middle; }
+.mo-reel-col { position: relative; display: inline-block; height: 1.2em; line-height: 1.2em; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28%, #000 72%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 28%, #000 72%, transparent); }
+.mo-reel-sizer { visibility: hidden; }
+.mo-reel-strip { position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; will-change: transform; }
+.mo-reel-strip > span { display: block; height: 1.2em; text-align: center; }
+.mo-reel-sep { display: inline-block; height: 1.2em; line-height: 1.2em; }
+
+/* ── Words for the assistant: a sweep of light across a word, a line of status that swaps with a lift, and words that resolve as they arrive ── */
+:root { --mo-shine-base: var(--color-muted); --mo-shine-peak: var(--color-fg); }
+.mo-shine { display: inline-block; color: transparent; -webkit-text-fill-color: transparent; background-image: linear-gradient(100deg, var(--mo-shine-base) 38%, var(--mo-shine-peak) 50%, var(--mo-shine-base) 62%); background-size: 260% 100%; -webkit-background-clip: text; background-clip: text; animation: mo-shine 2.2s linear infinite; }
+@keyframes mo-shine { from { background-position: 130% 0; } to { background-position: -30% 0; } }
+.mo-status { position: relative; display: inline-block; text-align: left; }
+.mo-status-sizer { display: block; visibility: hidden; white-space: nowrap; }
+.mo-status-text { position: absolute; top: 0; left: 0; right: 0; display: block; white-space: nowrap; color: transparent; -webkit-text-fill-color: transparent; background-image: linear-gradient(100deg, var(--mo-shine-base) 38%, var(--mo-shine-peak) 50%, var(--mo-shine-base) 62%); background-size: 260% 100%; -webkit-background-clip: text; background-clip: text; animation: mo-shine 2.2s linear infinite; transition: transform 170ms var(--mo-ease), filter 170ms var(--mo-ease), opacity 170ms var(--mo-ease); }
+.mo-status-text.is-exit { transform: translateY(-7px); filter: blur(2px); opacity: 0; }
+.mo-status-text.is-enter-start { transition: none; transform: translateY(7px); filter: blur(2px); opacity: 0; }
+.mo-word { opacity: 0; filter: blur(1.5px); transition: opacity 320ms var(--mo-ease), filter 320ms var(--mo-ease); }
+.mo-word.is-in { opacity: 1; filter: blur(0); }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) {
+  .mo-shine, .mo-status-text { animation: none !important; background: none; color: var(--mo-shine-base); -webkit-text-fill-color: currentColor; }
+  .mo-status-text { transition: none !important; transform: none !important; filter: none !important; }
+  .mo-word { transition: none !important; filter: none !important; opacity: 1 !important; }
+} }
+
+/* The assistant's breathing dot: scale and fade only, so it animates on the compositor and never moves the text beside it. */
+.ax-chat-dot { display: inline-block; flex: none; width: 0.7em; height: 0.7em; border-radius: 9999px; background: var(--color-accent); vertical-align: -0.04em; animation: ax-chat-dot 1.5s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+@keyframes ax-chat-dot { 0%, 100% { transform: scale(0.55); opacity: 0.45; } 50% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-chat-dot { animation: none; } } }
+
+/* The spinner that turns into a check (written for Archive X) */
+.ax-mark { width: 20px; height: 20px; display: inline-block; flex: none; overflow: visible; }
+.ax-mark .ring { fill: transparent; stroke: var(--color-line-2); stroke-width: 2; transition: stroke 250ms var(--mo-ease), fill 250ms var(--mo-ease); }
+.ax-mark .arc { fill: none; stroke: var(--color-accent); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 14 40; transform-origin: 10px 10px; opacity: 0; transition: opacity 200ms ease; }
+.ax-mark .tick, .ax-mark .cross { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 16; stroke-dashoffset: 16; transition: stroke-dashoffset 320ms 120ms var(--mo-ease); }
+.ax-mark[data-state="active"] .arc { opacity: 1; animation: ax-spin 900ms linear infinite; }
+.ax-mark[data-state="done"] .ring { stroke: var(--color-good); fill: var(--color-good); }
+.ax-mark[data-state="done"] .tick { stroke-dashoffset: 0; }
+.ax-mark[data-state="done"], .ax-mark[data-state="error"] { animation: ax-mark-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.ax-mark[data-state="error"] .ring { stroke: var(--color-bad); fill: var(--color-bad); }
+.ax-mark[data-state="error"] .cross { stroke-dashoffset: 0; }
+@keyframes ax-spin { to { transform: rotate(360deg); } }
+@keyframes ax-mark-pop { 0% { transform: scale(0.8); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-mark, .ax-mark * { animation: none !important; transition: none !important; } .ax-mark[data-state="active"] .arc { opacity: 1; } } }
+
+/* A feed of recent lines: the newest at the bottom, older ones fading out above */
+.ax-feed { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 45%); mask-image: linear-gradient(to bottom, transparent 0, #000 45%); }
+
+
+/* ── A row that slides up into a list (and the rows below a removed one that slide up to close the gap) ── */
+.mo-rise { transform: translateY(26px); opacity: 0; filter: blur(2px); pointer-events: none; transition: transform 300ms var(--mo-ease), opacity 300ms var(--mo-ease), filter 300ms var(--mo-ease); }
+.mo-rise[data-open="true"] { transform: none; opacity: 1; filter: blur(0); pointer-events: auto; transition-duration: 380ms; }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-rise { transition: none !important; } } }
+
+/* ── A placeholder that gives way to the real content. Both are stacked in one grid cell, so the slot is as tall as the taller of the two
+      and never collapses or jumps; the placeholder pulses while it waits, then the two cross-fade and the placeholder is removed. ── */
+.mo-reveal { display: grid; }
+.mo-reveal[data-state="ready"] { display: contents; }
+.mo-reveal > * { grid-area: 1 / 1; min-width: 0; }
+.mo-reveal-skeleton { transition: opacity 380ms ease, filter 380ms ease; }
+.mo-reveal-skeleton.is-pulsing > * { animation: mo-pulse 1s ease-in-out infinite; }
+@keyframes mo-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.mo-reveal-skeleton .after\:animate-sk-sweep::after { animation: none; opacity: 0; }   /* the sweep gives way to the pulse */
+.mo-reveal-content { opacity: 0; filter: blur(2px); transition: opacity 380ms ease, filter 380ms ease; }
+.mo-reveal.is-revealed > .mo-reveal-skeleton { opacity: 0; filter: blur(2px); pointer-events: none; }
+.mo-reveal.is-revealed > .mo-reveal-content { opacity: 1; filter: blur(0); }
+.mo-reveal-done { display: contents; }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-reveal-skeleton, .mo-reveal-content { transition: none !important; } .mo-reveal-skeleton.is-pulsing > * { animation: none !important; } } }
+
+/* ── The smoky dissolve for a deleted card, written for Archive X
+      (paid) transition, not from its code. (Enlarged pictures open in the photo viewer; see ImageZoom.tsx.) ── */
+img[data-zoomable] { cursor: zoom-in; }
+.ax-smoke-layer { position: fixed; pointer-events: none; z-index: 70; overflow: visible; }
+.ax-puff { position: absolute; left: var(--x); top: var(--y); width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%; opacity: 0; filter: blur(9px);
+  background: radial-gradient(circle at 50% 50%, rgb(var(--smoke, 190 196 208) / 0.55), rgb(var(--smoke, 190 196 208) / 0) 70%); animation: ax-puff var(--dur) cubic-bezier(0.2, 0.6, 0.3, 1) var(--delay) both; }
+@keyframes ax-puff { 0% { opacity: 0; transform: translate(0, 0) scale(0.35); } 22% { opacity: var(--o); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.9); } }
+html[data-theme="light"] .ax-puff { --smoke: 90 96 110; }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-puff { display: none; } } }
+
+/* ── Live status dot and pill (top bar): a breathing dot with a ring that spreads, and a soft sweep across the pill ─────────
+   Windows turns "animation effects" off on many PCs, which sets prefers-reduced-motion and used to freeze these. A dot that only
+   changes opacity is safe for everyone, so under reduce it still breathes (opacity only) and the ring and sweep stop. */
+.ax-live-dot { display: inline-block; flex: none; border-radius: 9999px; animation: ax-live-breathe 2.4s ease-in-out infinite; }
+.ax-live-dot:not(.absolute) { position: relative; }   /* on the avatar it is positioned by its own classes (top right) */
+.ax-live-dot::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: inherit; animation: ax-live-ring 2.4s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none; }
+.ax-live-dot[data-live="false"], .ax-live-dot[data-live="false"]::after { animation: none; }
+@keyframes ax-live-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes ax-live-ring { 0% { transform: scale(1); opacity: 0.6; } 80%, 100% { transform: scale(2.8); opacity: 0; } }
+.ax-live-pill { position: relative; overflow: hidden; }
+.ax-live-pill::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(100deg, transparent 35%, color-mix(in srgb, currentColor 22%, transparent) 50%, transparent 65%); background-size: 250% 100%; background-repeat: no-repeat; background-position: 130% 0; animation: ax-live-sweep 3.2s ease-in-out infinite; }
+.ax-live-pill[data-live="false"]::after { animation: none; display: none; }
+@keyframes ax-live-sweep { 0%, 35% { background-position: 130% 0; } 80%, 100% { background-position: -30% 0; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-live-dot::after, .ax-live-pill::after { animation: none; display: none; } } }

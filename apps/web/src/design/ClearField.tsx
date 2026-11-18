@@ -2,7 +2,7 @@
  * A text box with the two motions of the header search box, usable anywhere a search or filter box is needed:
  *  - Typing: each new letter springs in and a caret glides between letters (the idea of unlumen UI's "Animated Input", written from its
  *    public description, not from its paid source).
- *  - Clearing (x): the text dissolves (Transitions.dev "Input clear with dissolve", see clearDissolve.ts).
+ *  - Clearing (x): the text sinks and fades, the placeholder drops in, and a light sweeps across (see clearDissolve.ts).
  * The real <input> keeps the text, the selection and the keyboard; the letters you see are drawn on top of it.
  */
 import { motion, useReducedMotion } from 'motion/react'
@@ -103,10 +103,6 @@ export function ClearField({ value, onChange, placeholder, label, clearLabel = '
     setFresh(0)
     onChange('')
     stop.current = startClear({ ghost: ghost.current, placeholder: phold.current, glow: glow.current }, text, {
-      measure: measureRef.current,
-      padLeft: field.current.offsetLeft,
-      width: wrap.current.clientWidth || 280,
-      dark: document.documentElement.getAttribute('data-theme') !== 'light',
       onDone: () => {
         stop.current = null
         setClearing(false)
@@ -120,7 +116,7 @@ export function ClearField({ value, onChange, placeholder, label, clearLabel = '
   const firstFresh = Math.max(0, chars.length - fresh)
 
   return (
-    <div ref={wrap} className={cn('t-clear ax-search flex items-center gap-2.5 text-faint focus-within:border-accent/50', value && 'has-value', clearing && 'is-clearing', className)}>
+    <div ref={wrap} className={cn('mo-clear ax-search flex items-center gap-2.5 text-faint focus-within:border-accent/50', value && 'has-value', clearing && 'is-clearing', className)}>
       {icon ? <Icon name={icon} className="shrink-0" /> : null}
       <div ref={field} className="ax-field relative h-full min-w-0 flex-1 text-base text-fg">
         <input
@@ -145,8 +141,8 @@ export function ClearField({ value, onChange, placeholder, label, clearLabel = '
             {chars.map((c, i) => <span key={i} className={cn('ax-char', i >= firstFresh && 'ax-char-in')} style={{ '--i': Math.min(i - firstFresh, 12) } as React.CSSProperties}>{c}</span>)}
           </span>
         </div>
-        <div ref={ghost} className="t-clear-mirror" aria-hidden="true" />
-        <div ref={phold} className="t-clear-placeholder text-faint" aria-hidden="true">{placeholder}</div>
+        <div ref={ghost} className="mo-clear-mirror" aria-hidden="true" />
+        <div ref={phold} className="mo-clear-placeholder text-faint" aria-hidden="true">{placeholder}</div>
         <motion.span aria-hidden="true" className="ax-caret" data-show={caret.show && !clearing} animate={{ x: caret.x }} initial={false} transition={reduce ? { duration: 0 } : spring} />
       </div>
       {value ? (
@@ -160,7 +156,7 @@ export function ClearField({ value, onChange, placeholder, label, clearLabel = '
           <Icon name="close" className="size-4" />
         </button>
       ) : trailing}
-      <div ref={glow} className="t-clear-glow" aria-hidden="true" />
+      <div ref={glow} className="mo-clear-glow" aria-hidden="true" />
     </div>
   )
 }

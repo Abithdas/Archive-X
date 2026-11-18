@@ -21,11 +21,10 @@ BUNDLED = [
     ("llama.cpp engine (llama-server)", "MIT", "https://github.com/ggml-org/llama.cpp", "not in the installer: downloaded when the person presses Set up on AI Assistance (release b12400, pinned by SHA-256), run as a separate program on this PC"),
     ("Qwen3 chat models (1.7B, 4B Instruct 2507, 8B), GGUF quantisations by bartowski", "Apache-2.0 (Qwen3 weights; quantisations as published)", "https://huggingface.co/bartowski", "not in the installer: one is downloaded when the person presses Set up (pinned by SHA-256) and used only on this PC"),
     ("Phosphor Icons (the icon sprite)", "MIT, Copyright (c) Phosphor Icons", "https://github.com/phosphor-icons/core", "telegram_archive/web/static/icons/ax-icons.svg"),
-    ("Outfit and Inter fonts", "SIL Open Font License 1.1 (the Outfit licence text is in telegram_archive/web/static/fonts/OUTFIT-LICENSE-OFL.txt)", "https://fonts.google.com/", "telegram_archive/web/static/fonts"),
+    ("Outfit font", "SIL Open Font License 1.1 (the licence text is in telegram_archive/web/static/fonts/OUTFIT-LICENSE-OFL.txt)", "https://fonts.google.com/specimen/Outfit", "telegram_archive/web/static/fonts"),
     ("NudeNet (optional content tags for photos)", "AGPL-3.0 (the LICENSE file in the package; its metadata says MIT) and a model made from Ultralytics YOLOv8 (AGPL-3.0)", "https://github.com/notAI-tech/NudeNet", "requirements.txt; see docs/plan.md, licence clean-up"),
     ("TMDB and TVmaze data", "TMDB: this product uses the TMDB API but is not endorsed or certified by TMDB. TVmaze: data under CC BY-SA 4.0", "https://www.themoviedb.org/ , https://www.tvmaze.com/", "fetched at run time with the person's own key; shown with credit in Settings, Metadata"),
     ("SmoothUI theme toggle and favicon search (adapted)", "MIT, Copyright (c) 2024 Eduardo Calvo", "https://github.com/educlopez/smoothui", "apps/web/src/design/ThemeToggle.tsx and apps/web/src/app/SearchField.tsx, adapted to the app"),
-    ("Transitions.dev motion (like button, notification badge, icon swap, error shake, input clear, accordion, number subtle change, spinning counter, shimmer text, thinking states, streaming text, matrix dot loader, panel reveal)", "Transitions.dev License (free for personal and commercial use, no redistribution of the library itself)", "https://github.com/Jakubantalik/transitions.dev", "apps/web/src/design/transitions.css, the published CSS copied unchanged"),
 ]
 
 

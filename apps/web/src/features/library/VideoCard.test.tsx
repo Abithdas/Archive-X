@@ -125,13 +125,13 @@ describe('VideoCard in select mode', () => {
   it('shows the favourite as a heart: empty when not liked, filled when liked, with no pop for a card that was already liked', async () => {
     const { unmount } = withRouter(<VideoCard item={item({ favorite: 0 })} />)
     const off = await screen.findByRole('button', { name: 'Add to favourites' })
-    expect(off.querySelector('.t-like')?.getAttribute('data-liked')).toBe('false')
-    expect(off.querySelector('svg.t-like-heart')).not.toBeNull()
+    expect(off.querySelector('.mo-like')?.getAttribute('data-liked')).toBe('false')
+    expect(off.querySelector('svg.mo-like-heart')).not.toBeNull()
     unmount()
     withRouter(<VideoCard item={item({ favorite: 1 })} />)
     const on = await screen.findByRole('button', { name: 'Remove from favourites' })
-    expect(on.querySelector('.t-like')?.getAttribute('data-liked')).toBe('true')
-    expect(on.querySelector('.t-like')?.hasAttribute('data-still')).toBe(true)
+    expect(on.querySelector('.mo-like')?.getAttribute('data-liked')).toBe('true')
+    expect(on.querySelector('.mo-like')?.hasAttribute('data-still')).toBe(true)
   })
 })
 

@@ -82,8 +82,7 @@ function SideItem({ n, rail, count }: { n: NavDef; rail: boolean; count: number 
   )
 }
 
-/** Folds the sidebar to its icon rail and opens it again. One button, so the two icons trade places in the same spot (the Transitions.dev
- *  icon swap): the hamburger while the sidebar is minimized (press to open), the X while it is open (press to fold). */
+/** Folds the sidebar to its icon rail and opens it again. One button, so the two icons trade places in the same spot (an icon swap): the hamburger while the sidebar is minimized (press to open), the X while it is open (press to fold). */
 function RailToggle({ rail, onToggle }: { rail: boolean; onToggle: () => void }) {
   const label = rail ? 'Expand sidebar' : 'Collapse sidebar'
   return (

@@ -59,8 +59,8 @@ export function AccountMenu({ live }: { live: string }) {
       <button type="button" popoverTarget={id} aria-label="Account menu" aria-haspopup="menu" className="relative grid size-10 place-items-center rounded-full bg-surface-3 text-[15px] font-bold" title={`${tg ? 'Telegram connected' : 'Telegram not connected'} · live updates: ${live}`}>
         <AccountAvatar className="size-10 text-[15px]" />
       </button>
-      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Account menu" className="t-menu fixed right-4 top-[60px] left-auto bottom-auto m-0 w-[280px] rounded-[18px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
-        <div className="t-acc-panel-inner p-2">
+      <div ref={pop} id={id} popover="auto" role="menu" aria-label="Account menu" className="mo-menu fixed right-4 top-[60px] left-auto bottom-auto m-0 w-[280px] rounded-[18px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
+        <div className="mo-fold-inner p-2">
         <div className="px-3 pb-1.5 pt-2 text-xs text-muted">Signed in as <b className="text-fg">{name}</b></div>
         <div className="flex items-center justify-between gap-3 px-3 pb-2 pt-1"><span className="text-sm font-semibold text-muted">Content</span><ContentSwitch compact onDone={close} /></div>
         <button type="button" role="menuitem" className={ROW} onClick={() => { close(); setEditing(true) }}>

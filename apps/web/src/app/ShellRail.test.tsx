@@ -21,8 +21,8 @@ describe('sidebar collapse button', () => {
     vi.stubGlobal('fetch', quietFetch())
     withRouter(<Shell />)
     const btn = await screen.findByRole('button', { name: 'Collapse sidebar' })
-    const icon = (which: 'a' | 'b') => btn.querySelector(`.t-icon[data-icon="${which}"] use`)?.getAttribute('href')
-    const swap = () => (btn.querySelector('.t-icon-swap') as HTMLElement).dataset.state
+    const icon = (which: 'a' | 'b') => btn.querySelector(`.mo-glyph[data-icon="${which}"] use`)?.getAttribute('href')
+    const swap = () => (btn.querySelector('.mo-swap') as HTMLElement).dataset.state
     expect(icon('a')).toMatch(/#ax-menu$/)       // the hamburger is shown while minimized
     expect(icon('b')).toMatch(/#ax-x$/)      // the X is shown while open
     expect(swap()).toBe('b')                     // open: the X

@@ -32,7 +32,7 @@ export function CountryPhone({ country, local, onChange, inputClass }: { country
           <span>{country.iso}</span><span className="text-muted">+{country.dial}</span><Icon name="chevron-down" className="size-4 text-muted" />
         </button>
         {open ? (
-          <div className={cn(up ? 't-drop-up' : 't-drop-down', 'absolute z-30 w-[min(320px,calc(100vw-48px))] rounded-xl border border-line-2 bg-surface p-2 shadow-[0_18px_50px_rgb(0_0_0/0.5)]', up ? 'bottom-full mb-1' : 'top-full mt-1')}>
+          <div className={cn(up ? 'mo-drop-up' : 'mo-drop-down', 'absolute z-30 w-[min(320px,calc(100vw-48px))] rounded-xl border border-line-2 bg-surface p-2 shadow-[0_18px_50px_rgb(0_0_0/0.5)]', up ? 'bottom-full mb-1' : 'top-full mt-1')}>
             <ClearField inputRef={search} value={q} onChange={setQ} placeholder="Search country…" label="Search country" clearLabel="Clear country search" className="mb-1 h-9 rounded-lg border border-line px-2" />
             <div role="listbox" aria-label="Country calling codes" className="max-h-60 overflow-y-auto">
               {list.length ? list.map((c) => (

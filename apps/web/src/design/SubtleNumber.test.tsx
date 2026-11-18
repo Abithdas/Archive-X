@@ -24,11 +24,11 @@ describe('SubtleNumber', () => {
   it('animates the changed digit upward when the value rises, then settles back to plain text', () => {
     const { container, rerender } = render(<SubtleNumber value={1284} />)
     rerender(<SubtleNumber value={1285} />)
-    const num = container.querySelector('.t-subtle-number') as HTMLElement
+    const num = container.querySelector('.mo-delta') as HTMLElement
     expect(num.classList.contains('is-animating')).toBe(true)
-    expect(num.style.getPropertyValue('--subtle-dir')).toBe('1')
-    expect(container.querySelectorAll('.t-subtle-old')).toHaveLength(1)
-    expect(container.querySelector('.t-subtle-old')?.textContent).toBe('4')
+    expect(num.style.getPropertyValue('--dir')).toBe('1')
+    expect(container.querySelectorAll('.mo-delta-old')).toHaveLength(1)
+    expect(container.querySelector('.mo-delta-old')?.textContent).toBe('4')
     act(() => { vi.advanceTimersByTime(600) })
     expect(container.querySelector('.is-animating')).toBeNull()
     expect(container.textContent).toBe('1,285')
@@ -36,6 +36,6 @@ describe('SubtleNumber', () => {
   it('falls the other way when the value drops', () => {
     const { container, rerender } = render(<SubtleNumber value={50} />)
     rerender(<SubtleNumber value={40} />)
-    expect((container.querySelector('.t-subtle-number') as HTMLElement).style.getPropertyValue('--subtle-dir')).toBe('-1')
+    expect((container.querySelector('.mo-delta') as HTMLElement).style.getPropertyValue('--dir')).toBe('-1')
   })
 })
