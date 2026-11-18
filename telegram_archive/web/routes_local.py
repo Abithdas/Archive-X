@@ -55,6 +55,9 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
                 ls.scan_source(db, sid)
                 from ..engines import local_videos
                 local_videos.process(db, ls.channel_id(sid))   # probe the new videos and build their snapshots
+                from ..engines import screen_identify
+                if screen_identify.configured(db):
+                    screen_identify.run(db, ls.channel_id(sid))   # SFW folders only: movies and shows are named by the providers
             except Exception as exc:   # the failure is stored on the source and shown in Settings
                 db.log(f"Local folder scan failed: {type(exc).__name__}: {exc}", "WARN")
         t = threading.Thread(target=work, name=f"local-scan-{sid}", daemon=True)

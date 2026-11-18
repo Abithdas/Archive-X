@@ -2024,6 +2024,25 @@ class Database:
             snapshots INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY (channel_id, message_id)
         )""")
+        # Movies and TV (SFW): the titles the providers know, their episodes, and which title each video is
+        self.conn.execute("""CREATE TABLE IF NOT EXISTS screen_titles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, tmdb_id INTEGER NOT NULL, imdb_id TEXT NOT NULL DEFAULT '',
+            title TEXT NOT NULL, original_title TEXT NOT NULL DEFAULT '', year INTEGER, release_date TEXT NOT NULL DEFAULT '',
+            overview TEXT NOT NULL DEFAULT '', tagline TEXT NOT NULL DEFAULT '', poster TEXT NOT NULL DEFAULT '', backdrop TEXT NOT NULL DEFAULT '',
+            genres TEXT NOT NULL DEFAULT '[]', companies TEXT NOT NULL DEFAULT '[]', cast_json TEXT NOT NULL DEFAULT '[]', seasons TEXT NOT NULL DEFAULT '[]',
+            rating REAL NOT NULL DEFAULT 0, runtime INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL,
+            UNIQUE(kind, tmdb_id)
+        )""")
+        self.conn.execute("""CREATE TABLE IF NOT EXISTS screen_episodes (
+            title_id INTEGER NOT NULL, season INTEGER NOT NULL, episode INTEGER NOT NULL, name TEXT NOT NULL DEFAULT '', overview TEXT NOT NULL DEFAULT '',
+            air_date TEXT NOT NULL DEFAULT '', still TEXT NOT NULL DEFAULT '', runtime INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (title_id, season, episode)
+        )""")
+        self.conn.execute("""CREATE TABLE IF NOT EXISTS media_screen (
+            media_id INTEGER PRIMARY KEY, title_id INTEGER, season INTEGER, episode INTEGER, state TEXT NOT NULL, confidence REAL NOT NULL DEFAULT 0,
+            source TEXT NOT NULL DEFAULT '', chosen INTEGER NOT NULL DEFAULT 0, candidates TEXT NOT NULL DEFAULT '[]', updated_at TEXT NOT NULL
+        )""")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_media_screen_title ON media_screen(title_id, season, episode)")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_photo_library_local_path ON photo_library_items(channel_id, local_path)")
         from .content_mode import VISIBILITY_COLUMNS
         for table, cols in VISIBILITY_COLUMNS.items():
@@ -2241,7 +2260,7 @@ class Database:
                 self.conn.execute(f"DELETE FROM media WHERE id IN ({ph})", chunk)
             self.conn.commit()
 
-    _PERSISTENT_METADATA_KEYS = ("tpdb_api_token", "tpdb_token", "stashdb_api_key")
+    _PERSISTENT_METADATA_KEYS = ("tpdb_api_token", "tpdb_token", "stashdb_api_key", "tmdb_api_key", "omdb_api_key", "opensubtitles_api_key")
 
 
     # ------------------------------------------------------------------

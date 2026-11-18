@@ -48,7 +48,7 @@ class ContentFilterMiddleware:
     # Pages and data of the library. Management screens (Telegram, Transfers, Operations, Settings, jobs, AI) see everything.
     CONTENT = ("/api/videos", "/api/search", "/api/performers", "/api/studios", "/api/tags", "/api/tag-taxonomy", "/api/photos", "/api/channels",
                "/api/library", "/api/bootstrap", "/api/play", "/api/thumb", "/api/entities", "/api/entity-lookup", "/api/entity-images",
-               "/api/media", "/api/suggestions", "/api/metadata", "/api/mapping", "/api/channel-maintenance", "/api/identify", "/api/captions")
+               "/api/media", "/api/suggestions", "/api/metadata", "/api/mapping", "/api/channel-maintenance", "/api/identify", "/api/captions", "/api/screen")
 
     def __init__(self, app):
         self.app = app

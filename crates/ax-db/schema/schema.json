@@ -2323,6 +2323,68 @@
    "type": ""
   }
  ],
+ "media_screen": [
+  {
+   "name": "media_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "title_id",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "season",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "episode",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "state",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "confidence",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "source",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "chosen",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "candidates",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
  "metadata_cache": [
   {
    "name": "provider",
@@ -3991,6 +4053,178 @@
   {
    "name": "provider_marker_id",
    "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  }
+ ],
+ "screen_episodes": [
+  {
+   "name": "title_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "season",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "episode",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "name",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "overview",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "air_date",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "still",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "runtime",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  }
+ ],
+ "screen_titles": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "kind",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "tmdb_id",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "imdb_id",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "title",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "original_title",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "year",
+   "notnull": false,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "release_date",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "overview",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "tagline",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "poster",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "backdrop",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "genres",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "companies",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "cast_json",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "seasons",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "rating",
+   "notnull": true,
+   "pk": false,
+   "type": "REAL"
+  },
+  {
+   "name": "runtime",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "updated_at",
+   "notnull": true,
    "pk": false,
    "type": "TEXT"
   }

@@ -5,6 +5,7 @@ import { ApiError, api } from '@/api/client'
 import { Icon } from '@/design/Icon'
 import { Switch } from '@/design/Switch'
 import { cn } from '@/design/cn'
+import { ScreenProviders } from '@/features/content/ScreenProviders'
 import { useMetadataSettings, useProviderDashboard, useScanSchedule } from './queries'
 import { DEFAULT_WINDOW, KEYS, keyPlaceholder, keysBody, providerCards, railRange, windowBody, windowFrom, windowProblem, windowSaved, windowStatus, type KeyKind, type ScanWindow } from './providers'
 
@@ -112,6 +113,7 @@ export function MetadataPanel() {
 
         <ProviderRail loading={prov.isPending} failed={prov.isError} data={prov.data} />
       </section>
+      <ScreenProviders />
     </div>
   )
 }
