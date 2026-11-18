@@ -9,25 +9,34 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 from ..core.safe_paths import inside
+from ..engines import local_scanner, local_videos
 from ..playback import captions, tracks
 
 _LOG = logging.getLogger(__name__)
 
 
-def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_url, require_playback_allowed, service: "captions.CaptionService | None" = None) -> dict[str, object]:
+def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_url, require_playback_allowed, service: "captions.CaptionService | None" = None, db=None) -> dict[str, object]:
     root = Path(config.PLAYER_CACHE_DIR) / "tracks"
     svc = service or captions.CaptionService(Path(config.PLAYER_CACHE_DIR))
     track_cache: dict[tuple, dict] = {}
     audio_jobs: dict[tuple, asyncio.Task] = {}
 
-    def src(cid: int, mid: int, ttl: int = 6 * 3600) -> str:
+    async def src(cid: int, mid: int, ttl: int = 6 * 3600) -> str:
+        """What ffmpeg reads for this video: the file itself for a video from a folder on this PC, else the loopback feed that streams it from Telegram."""
+        if db is not None and local_scanner.is_local_channel(cid):
+            path = await asyncio.to_thread(local_videos.file_of, db, cid, mid)
+            if not path:
+                raise HTTPException(404, "That file is not in its folder any more")
+            return path
         return _local_url(cid, mid, ttl=ttl)
 
     async def info(cid: int, mid: int) -> dict:
         key = (cid, mid)
         if key not in track_cache:
             try:
-                track_cache[key] = await tracks.probe_tracks(src(cid, mid))
+                track_cache[key] = await tracks.probe_tracks(await src(cid, mid))
+            except HTTPException:
+                raise
             except FileNotFoundError as exc:
                 raise HTTPException(503, "The video file is not available to read its tracks") from exc
             except Exception as exc:
@@ -53,7 +62,7 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
         cache = inside(root, f"{int(channel_id)}_{int(message_id)}", f"sub_{int(index)}.vtt")
         if not cache.exists():
             try:
-                data = await tracks.subtitle_vtt(src(channel_id, message_id), index)
+                data = await tracks.subtitle_vtt(await src(channel_id, message_id), index)
             except Exception as exc:
                 _LOG.warning("subtitle extraction failed: %s", exc)
                 raise HTTPException(502, "Could not read this subtitle track") from exc
@@ -84,7 +93,7 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
                 _LOG.warning("audio track extraction failed: %s", exc)
                 return {"ready": False, "error": "Could not extract this audio track"}
         if key not in audio_jobs:
-            audio_jobs[key] = asyncio.create_task(tracks.extract_audio_track(src(channel_id, message_id, 24 * 3600), index, p))
+            audio_jobs[key] = asyncio.create_task(tracks.extract_audio_track(await src(channel_id, message_id, 24 * 3600), index, p))
         return {"ready": False}
 
     @router.get("/api/play/audio-track/{channel_id}/{message_id}/{index}.m4a")
@@ -110,7 +119,7 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
         require_playback_allowed(channel_id, message_id)
         if not svc.status()["available"]:
             raise HTTPException(501, "Live captions need the optional faster-whisper package (pip install faster-whisper)")
-        url = src(channel_id, message_id, 3600)
+        url = await src(channel_id, message_id, 3600)
 
         async def wav(s: float, d: float) -> bytes:
             return await tracks.audio_window_wav(url, s, d, track)

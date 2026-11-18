@@ -840,6 +840,7 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                     require_auth=require_auth,
                     _local_url=route_exports["_local_url"],
                     require_playback_allowed=route_exports["require_playback_allowed"],
+                    db=db,
                 )
             )
         elif _module == "routes_playback_compat":

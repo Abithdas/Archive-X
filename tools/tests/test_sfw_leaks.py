@@ -97,3 +97,24 @@ def test_the_front_door_can_ask_which_mode_is_on_but_a_browser_cannot(tmp_path, 
     assert c.get("/internal/content-mode", headers={"x-archive-x-internal": "p" * 32}).json() == {"mode": "sfw"}
     _nsfw(c, H)
     assert c.get("/internal/content-mode", headers={"x-archive-x-internal": "p" * 32}).json() == {"mode": "nsfw"}
+
+
+def test_an_empty_sfw_performer_list_does_not_fall_back_to_the_adult_ones(tmp_path):
+    """The performer list retried an empty answer through an unfiltered connection (for a stale snapshot): in SFW with no movie cast yet, that returned every adult performer."""
+    db = _db(tmp_path)
+    with db.lock:
+        db.conn.execute("INSERT INTO media(source_channel,source_message_id,filename,title,status,streamable) VALUES('-1001',1,'a.mp4','A','SCANNED',1)")
+        db.conn.execute("INSERT INTO performers(name,content_rating,profile,provider_ids) VALUES(?, 'nsfw','bio','{}')", (M + " Performer",))
+        db.conn.execute("INSERT INTO video_performers(video_id,performer_id) VALUES(1,1)")
+        # library-ready, as the Library requires: snapshots, thumbnail and a playback representative
+        db.conn.execute("INSERT OR IGNORE INTO resource_state(media_id,catalogue_state,metadata_state,entity_state,snapshot_state,updated_at) VALUES(1,'COMPLETE','COMPLETE','COMPLETE','READY','x')")
+        db.conn.execute("UPDATE resource_state SET snapshot_state='READY',catalogue_state='COMPLETE' WHERE media_id=1")
+        db.conn.execute("INSERT OR REPLACE INTO timeline_preview_cache(source_channel,video_message_id,path,status,duration,width,height,frame_count,version,updated_at) VALUES('-1001',1,'p','READY',100,1,1,36,7,'x')")
+        db.conn.execute("INSERT OR REPLACE INTO thumbnail_cache(source_channel,video_message_id,mime,width,height,data,source,updated_at) VALUES('-1001',1,'image/jpeg',1,1,x'ffd8ffd9','playback-snapshot','x')")
+        db.conn.execute("INSERT INTO asset_registry(media_id,entity_type,entity_id,asset_type,path,state,content_revision,created_at,updated_at) VALUES(1,'telegram_video','-1001:1','PLAYBACK_REPRESENTATIVE','p','READY',1,'x','x')")
+        db.conn.commit()
+    c, H = _client(db)
+    assert c.get("/api/performers").json() == [] and M not in c.get("/api/performers?brief=1&limit=5000").text
+    assert c.get("/api/studios").json() == [] and c.get("/api/tags").status_code == 200
+    _nsfw(c, H)
+    assert [r["name"] for r in c.get("/api/performers").json()] == [M + " Performer"]       # and NSFW still lists them

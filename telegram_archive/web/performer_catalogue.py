@@ -112,8 +112,12 @@ def list_performers_sync(db, query_params):
 
     # A read connection normally sees the committed performer catalogue. If a
     # just-completed backfill is still outside its snapshot, retry only the
-    # empty, unfiltered case through the primary connection.
-    if not rows and not q:
+    # empty, unfiltered case through the primary connection. Never while the
+    # SFW / NSFW filter is on: the primary connection has no filter, and an
+    # empty answer then simply means this mode has no performers (in SFW that
+    # is the normal state before any movie is identified), not a stale snapshot.
+    from ..core.content_mode import FILTER_ACTIVE
+    if not rows and not q and not FILTER_ACTIVE.get():
         with db.lock:
             primary_count = int(db.conn.execute("SELECT COUNT(*) FROM performers").fetchone()[0] or 0)
             if primary_count:

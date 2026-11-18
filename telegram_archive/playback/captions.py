@@ -49,37 +49,67 @@ class FasterWhisperEngine:
         self.model_name = model or os.environ.get("ARCHIVE_X_WHISPER_MODEL", "small")
         self.cache_dir = cache_dir
         self._model: Any = None
+        self._device = os.environ.get("ARCHIVE_X_WHISPER_DEVICE", "auto")   # "auto" uses an NVIDIA card when there is one; "cpu" never does
         self._lock = threading.Lock()
 
     def prepare(self) -> None:
-        """Load the model, downloading it first time (about 460 MB for "small")."""
+        """Load the model, downloading it first time (about 460 MB for "small"), and run it once on a second of silence, so "ready" means it really runs."""
         with self._lock:
-            self._load()
+            self._warm_up()
 
     def _load(self):
         if self._model is None:
             from faster_whisper import WhisperModel  # type: ignore
             kw = {"download_root": str(self.cache_dir)} if self.cache_dir else {}
-            self._model = WhisperModel(self.model_name, device="auto", compute_type="int8", **kw)
+            self._model = WhisperModel(self.model_name, device=self._device, compute_type="int8", **kw)
         return self._model
+
+    @staticmethod
+    def _gpu_trouble(exc: BaseException) -> bool:
+        """An NVIDIA card is found but its libraries are not (cublas, cudnn, a driver too old): the usual way speech recognition fails on a PC that has a card."""
+        text = f"{type(exc).__name__} {exc}".lower()
+        return any(w in text for w in ("cublas", "cudnn", "cuda", "nvrtc", "cudart"))
+
+    def _warm_up(self) -> None:
+        import numpy as np
+        silence = np.zeros(16000, dtype="float32")
+        for attempt in (0, 1):
+            try:
+                segs, _info = self._load().transcribe(silence, beam_size=1)
+                list(segs)
+                return
+            except Exception as exc:
+                if attempt == 0 and self._device != "cpu" and self._gpu_trouble(exc):
+                    self._model, self._device = None, "cpu"   # carry on without the card
+                    continue
+                raise
 
     def transcribe_wav(self, wav: bytes, task: str = "translate", cancelled=None) -> dict:
         import numpy as np  # installed with faster-whisper
         with wave.open(io.BytesIO(wav)) as w:
             audio = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype("float32") / 32768.0
         with self._lock:
-            model = self._load()
-            segs, info = model.transcribe(
-                audio, task="translate" if task == "translate" else "transcribe", beam_size=5, vad_filter=True,
-                vad_parameters={"min_silence_duration_ms": 500, "speech_pad_ms": 400, "threshold": 0.35},
-                condition_on_previous_text=False, no_speech_threshold=0.7, temperature=[0.0, 0.2, 0.4])
-            cues = []
-            for s in segs:   # segments are produced one at a time, so a window the viewer has left can be abandoned between two of them
-                if cancelled is not None and cancelled():
-                    raise TranscribeCancelled()
-                if s.text.strip():
-                    cues.append({"start": float(s.start), "end": float(s.end), "text": s.text.strip()})
-        return {"language": getattr(info, "language", "") or "", "cues": cues}
+            for attempt in (0, 1):
+                try:
+                    segs, info = self._load().transcribe(
+                        audio, task="translate" if task == "translate" else "transcribe", beam_size=5, vad_filter=True,
+                        vad_parameters={"min_silence_duration_ms": 500, "speech_pad_ms": 400, "threshold": 0.35},
+                        condition_on_previous_text=False, no_speech_threshold=0.7, temperature=[0.0, 0.2, 0.4])
+                    cues = []
+                    for s in segs:   # segments are produced one at a time, so a window the viewer has left can be abandoned between two of them
+                        if cancelled is not None and cancelled():
+                            raise TranscribeCancelled()
+                        if s.text.strip():
+                            cues.append({"start": float(s.start), "end": float(s.end), "text": s.text.strip()})
+                    return {"language": getattr(info, "language", "") or "", "cues": cues}
+                except TranscribeCancelled:
+                    raise
+                except Exception as exc:
+                    if attempt == 0 and self._device != "cpu" and self._gpu_trouble(exc):
+                        self._model, self._device = None, "cpu"
+                        continue
+                    raise
+        return {"language": "", "cues": []}
 
 
 def window_start(t: float) -> float:
