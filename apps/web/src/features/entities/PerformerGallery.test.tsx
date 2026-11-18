@@ -3,6 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PerformerGallery } from './PerformerGallery'
 import { withRouter } from '@/test/withRouter'
 
+HTMLDialogElement.prototype.showModal ||= function (this: HTMLDialogElement) { this.setAttribute('open', '') }
+HTMLDialogElement.prototype.close ||= function (this: HTMLDialogElement) { this.removeAttribute('open') }
+
 const pic = (id: number, provider = 'stashdb', reference = true) => ({ id, provider, width: 300, height: 400, faces: 1, reference, source: 'provider', url: `/api/performers/7/gallery/${id}/image` })
 const state = (over = {}) => ({ ok: true, items: [pic(1), pic(2, 'theporndb', false)], removed: 1, syncing: false, last_synced_at: '', last_result: '', references: 1, ...over })
 afterEach(() => vi.unstubAllGlobals())
@@ -15,6 +18,7 @@ function mockApi(initial: object) {
     calls.push({ url, method })
     if (method === 'DELETE') { current = { ...current, items: current.items.filter((i) => !url.endsWith(`/${i.id}`)), removed: current.removed + 1 }; return new Response('{"ok":true}', { status: 200 }) }
     if (method === 'POST') { current = { ...current, syncing: true }; return new Response('{"ok":true,"started":true,"syncing":true}', { status: 200 }) }
+    if (url.startsWith('/api/photos')) return new Response('{"ok":true,"items":[],"total":0,"page":0,"per":48}', { status: 200 })
     return new Response(JSON.stringify(current), { status: 200 })
   }))
   return calls
@@ -27,7 +31,8 @@ describe('PerformerGallery', () => {
     expect(await screen.findByText('2 pictures · 1 used for face matching · 1 removed')).toBeInTheDocument()
     expect(screen.getAllByTitle('Used for face matching').length).toBe(1)
     expect(screen.getByTitle('Not read yet')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Enlarge: Mia Rivera, picture from StashDB/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open picture: StashDB' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open picture: ThePornDB' })).toBeInTheDocument()
     expect(screen.getByText('Not fetched from the providers yet.')).toBeInTheDocument()
   })
 
@@ -50,7 +55,8 @@ describe('PerformerGallery', () => {
   it('removes a picture for good when it is not this performer', async () => {
     const calls = mockApi(state())
     withRouter(<PerformerGallery id={7} name="Mia Rivera" />)
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Remove this picture: not Mia Rivera' }))[0]!)
+    fireEvent.click(await screen.findByRole('button', { name: 'Open picture: StashDB' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove this picture: not Mia Rivera' }))
     await waitFor(() => expect(calls.some((c) => c.method === 'DELETE' && c.url === '/api/performers/7/gallery/1')).toBe(true))
     expect(await screen.findByText('1 picture · 1 used for face matching · 2 removed')).toBeInTheDocument()
   })
@@ -64,8 +70,8 @@ describe('PerformerGallery', () => {
   it('finds pictures in the performer’s videos, labels them, and can use one as the profile picture', async () => {
     const calls = mockApi(state({ items: [{ ...pic(3, 'snapshot'), source: 'snapshot' }], references: 1, removed: 0 }))
     withRouter(<PerformerGallery id={7} name="Mia Rivera" />)
-    expect(await screen.findByRole('button', { name: /Enlarge: Mia Rivera, picture from From a video/ })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Use this picture as the profile picture of Mia Rivera' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Open picture: From a video' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Use this picture as the profile picture of Mia Rivera' }))
     await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url === '/api/performers/7/gallery/3/use-as-profile')).toBe(true))
     fireEvent.click(screen.getByRole('button', { name: 'Find pictures in videos' }))
     await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url === '/api/performers/7/gallery/from-videos')).toBe(true))

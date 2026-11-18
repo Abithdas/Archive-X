@@ -41,7 +41,7 @@ export function VideoCard({ item }: { item: LibraryItem }) {
     toggle(item._cid, item.id)
   }
   return (
-    <article {...preview.bind} data-glow data-smoke={`card:${item._cid}:${item.id}`} onClickCapture={pick} data-picked={selecting ? picked : undefined} className={cn(CARD, 'transform-gpu transition-[box-shadow,translate,scale] duration-200 ease-[cubic-bezier(.2,.75,.25,1)] will-change-[translate,scale] motion-reduce:transition-none hover:z-40 hover:-translate-y-[3px] hover:scale-[1.025] hover:shadow-[0_12px_26px_rgb(0_0_0/0.24)]', selecting && 'cursor-pointer', picked && 'border-accent ring-2 ring-accent/60')} aria-label={item.name}>
+    <article {...preview.bind} data-glow data-smoke={`card:${item._cid}:${item.id}`} onClickCapture={pick} data-picked={selecting ? picked : undefined} className={cn(CARD, 'transform-gpu transition-[box-shadow,translate,scale] duration-200 ease-[cubic-bezier(.2,.75,.25,1)] will-change-[translate,scale] hover:z-40 hover:-translate-y-[3px] hover:scale-[1.025] hover:shadow-[0_12px_26px_rgb(0_0_0/0.24)]', selecting && 'cursor-pointer', picked && 'border-accent ring-2 ring-accent/60')} aria-label={item.name}>
       <div ref={thumb} className={THUMB}>
         {imgOk ? (
           <img

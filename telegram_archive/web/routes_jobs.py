@@ -15,6 +15,7 @@ from ..core.swallowed import note as _swallowed_note
 from ..core.snapshot_cache import SnapshotCache
 import asyncio
 import json
+import time
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -80,7 +81,22 @@ def register_job_routes(
     @router.get("/api/operations/resources")
     def resource_control_status(request: Request):
         require_auth(request)
-        return _resources_view.get(lambda: {"ok": True, "resources": resources.snapshot() if resources is not None else {}, "resource_leases": db.resource_lease_snapshot(), "execution_lanes": jobs.execution_lane_capacities() if hasattr(jobs, "execution_lane_capacities") else {}, "governor": governor.status()})
+        return _resources_view.get(lambda: {"ok": True, "resources": resources.snapshot() if resources is not None else {}, "resource_leases": db.resource_lease_snapshot(), "execution_lanes": jobs.execution_lane_capacities() if hasattr(jobs, "execution_lane_capacities") else {}, "governor": governor.status(), "processes": _child_processes(), "media_manager": _media_manager_brief()})
+
+    def _child_processes():
+        from ..core.child_processes import snapshot as _snap
+        return _snap()
+
+    def _media_manager_brief():
+        """What the Telegram Media Manager thread is doing right now, whether or not a job row exists for it."""
+        try:
+            from ..media_manager.runner import RUNNER as _mm
+            with _mm.lock:
+                return {"running": bool(_mm.running), "job_id": _mm.job_id or "", "mode": _mm.mode or "",
+                        "operation": str(_mm.operation or ""), "live": str(_mm.live or ""),
+                        "heartbeat_age": round(max(0.0, time.monotonic() - _mm.last_heartbeat), 1)}
+        except Exception:
+            return {"running": False}
 
     # Apply and persist resource control changes.
     @router.post("/api/operations/resources")

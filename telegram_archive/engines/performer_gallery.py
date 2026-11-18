@@ -398,6 +398,13 @@ def use_as_profile_picture(db, performer_id: int, picture_id: int) -> bool:
     except OSError:
         return False
     mime = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}.get(path.suffix.lower(), "image/jpeg")
+    return use_bytes_as_profile(db, performer_id, blob, mime)
+
+
+def use_bytes_as_profile(db, performer_id: int, blob: bytes, mime: str = "image/jpeg") -> bool:
+    """Store picture bytes as the performer's manual, locked profile picture (a photo of theirs from the library, or a gallery picture)."""
+    if not blob:
+        return False
     token = "manual-upload:" + hashlib.sha1(blob).hexdigest()
     with db.lock:
         db.conn.execute("UPDATE performers SET image=?,image_source='manual',image_locked=1,image_crop_version=0 WHERE id=?", (token, int(performer_id)))

@@ -71,9 +71,9 @@
   animation: t-like-burst var(--pdur, var(--like-particle-dur)) ease-out var(--pdelay, 0ms) forwards;
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) {
   .t-like-icon, .t-like-particles i { animation: none !important; }
-}
+} }
 
 
 /* Notification badge */
@@ -118,9 +118,9 @@
     filter    var(--badge-pop-close-dur)  var(--badge-close-ease);
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) {
   .t-badge, .t-badge-dot { animation: none !important; transition: none !important; }
-}
+} }
 
 
 /* Icon swap */
@@ -151,9 +151,9 @@
   transform: scale(var(--icon-swap-start-scale));
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) {
   .t-icon-swap .t-icon { transition: none !important; }
-}
+} }
 
 
 /* Error state shake (tokens, then the snippet) */
@@ -219,9 +219,9 @@
   100%    { transform: translateX(0); }
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) {
   .t-input { animation: none !important; transform: none !important; }
-}
+} }
 
 
 /* Input clear with dissolve (tokens, then the snippet) */
@@ -290,9 +290,9 @@
    `parseFloat(getComputedStyle(root).getPropertyValue(...))`
    so live tweaks apply on the next clear without a reload. */
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) {
   .t-clear-glow { opacity: 0 !important; }
-}
+} }
 
 
 /* Accordion (tokens, then the snippet) */
@@ -342,11 +342,11 @@
   transform: scaleY(-1);
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) {
   .t-acc-panel, .t-acc-panel-inner, .t-acc-chevron {
     transition: none !important;
   }
-}
+} }
 
 /* ── Archive X additions ────────────────────────────────────────
    A card that is already liked when the page loads must not play the pop: the animation is only for a change you make. */
@@ -388,7 +388,7 @@
 .ax-search .t-clear-placeholder { color: var(--color-faint); }
 .ax-search .t-clear-glow { mix-blend-mode: screen; }
 html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
-@media (prefers-reduced-motion: reduce) { .ax-char-in, .ax-caret { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-char-in, .ax-caret { animation: none !important; } } }
 
 /* ── Menus: the accordion, driven by the popover's open state ────
    The published accordion toggles data-open; a menu opens and closes through the popover API, so the same grid-rows, blur and fade are keyed
@@ -407,7 +407,7 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
 /* A trigger's chevron flips like the accordion's while its menu is open (the menu is the trigger's next sibling). */
 .t-chev { display: inline-flex; transition: transform var(--acc-chevron) var(--acc-ease); }
 :has(+ .t-menu:popover-open) > .t-chev { transform: scaleY(-1); }
-@media (prefers-reduced-motion: reduce) { .t-menu, .t-chev { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .t-menu, .t-chev { transition: none !important; } } }
 
 /* ── Dropdowns that appear and disappear with their button (the player's menus, the country list) ──
    They are not popovers, so there is no :popover-open to key on; the same unfold, blur and fade plays when they mount. */
@@ -415,7 +415,7 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
 .t-drop-down { --drop-shift: -6px; transform-origin: top center; }
 .t-drop-up { --drop-shift: 6px; transform-origin: bottom center; }
 @keyframes t-drop-in { from { opacity: 0; transform: translateY(var(--drop-shift)) scale(0.97); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .t-drop-down, .t-drop-up { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .t-drop-down, .t-drop-up { animation: none; } } }
 
 /* ── Number subtle change and spinning counter (Transitions.dev) ───────────────────────────── */
 :root {
@@ -453,17 +453,17 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
 @keyframes t-subtle-out {
   to { transform: translateY(calc(var(--subtle-distance) * var(--subtle-dir, 1) * -1)); opacity: 0; filter: blur(var(--subtle-blur)); }
 }
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) {
   .t-subtle-number .t-subtle-new { animation: none !important; }
   .t-subtle-number .t-subtle-old { display: none; }
-}
+} }
 
 .t-reel { display: inline-flex; align-items: center; height: var(--reel-cell); font-variant-numeric: tabular-nums; vertical-align: middle; }
 .t-reel-col { position: relative; display: inline-block; height: var(--reel-cell); line-height: var(--reel-cell); }
 .t-reel-sizer { visibility: hidden; }
 .t-reel-digit { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; will-change: transform, filter, opacity; }
 .t-reel-sep { display: inline-block; height: var(--reel-cell); line-height: var(--reel-cell); }
-@media (prefers-reduced-motion: reduce) { .t-reel-digit { filter: none !important; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .t-reel-digit { filter: none !important; } } }
 
 /* ── AI agent motion (Transitions.dev: shimmer text, thinking states, streaming text) + a spinner that turns into a check ─── */
 :root {
@@ -500,7 +500,7 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
   animation: t-shimmer var(--shimmer-dur) var(--shimmer-ease) infinite;
 }
 @keyframes t-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0% 0; } }
-@media (prefers-reduced-motion: reduce) { .t-shimmer::before { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .t-shimmer::before { animation: none !important; } } }
 
 .t-think { position: relative; display: inline-block; text-align: left; }
 .t-think-sizer { display: block; visibility: hidden; white-space: nowrap; }
@@ -521,19 +521,19 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
 @keyframes t-think-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0% 0; } }
 .t-think-text.is-exit { transform: translateY(calc(var(--think-distance) * -1)); filter: blur(var(--think-blur)); opacity: 0; }
 .t-think-text.is-enter-start { transition: none; transform: translateY(var(--think-distance)); filter: blur(var(--think-blur)); opacity: 0; }
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) {
   .t-think-text { transition: none !important; transform: none !important; filter: none !important; }
   .t-think-text::before { display: none !important; }
-}
+} }
 
 .t-stream-w { opacity: 0; filter: blur(var(--stream-blur)); transition: opacity var(--stream-fade) var(--stream-ease), filter var(--stream-fade) var(--stream-ease); }
 .t-stream-w.is-in { opacity: 1; filter: blur(0); }
-@media (prefers-reduced-motion: reduce) { .t-stream-w { transition: none !important; filter: none !important; opacity: 1 !important; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .t-stream-w { transition: none !important; filter: none !important; opacity: 1 !important; } } }
 
 /* The assistant's breathing dot: scale and fade only, so it animates on the compositor and never moves the text beside it. */
 .ax-chat-dot { display: inline-block; flex: none; width: 0.7em; height: 0.7em; border-radius: 9999px; background: var(--color-accent); vertical-align: -0.04em; animation: ax-chat-dot 1.5s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
 @keyframes ax-chat-dot { 0%, 100% { transform: scale(0.55); opacity: 0.45; } 50% { transform: scale(1); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .ax-chat-dot { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-chat-dot { animation: none; } } }
 
 /* The spinner that turns into a check (written for Archive X; not from Transitions.dev's paid set) */
 .ax-mark { width: 20px; height: 20px; display: inline-block; flex: none; overflow: visible; }
@@ -548,7 +548,7 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
 .ax-mark[data-state="error"] .cross { stroke-dashoffset: 0; }
 @keyframes ax-spin { to { transform: rotate(360deg); } }
 @keyframes ax-mark-pop { 0% { transform: scale(0.8); } 100% { transform: scale(1); } }
-@media (prefers-reduced-motion: reduce) { .ax-mark, .ax-mark * { animation: none !important; transition: none !important; } .ax-mark[data-state="active"] .arc { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-mark, .ax-mark * { animation: none !important; transition: none !important; } .ax-mark[data-state="active"] .arc { opacity: 1; } } }
 
 /* A feed of recent lines: the newest at the bottom, older ones fading out above */
 .ax-feed { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 45%); mask-image: linear-gradient(to bottom, transparent 0, #000 45%); }
@@ -570,7 +570,7 @@ html[data-theme="light"] .ax-search .t-clear-glow { mix-blend-mode: multiply; }
   transform: translateY(0); opacity: 1; filter: blur(0); pointer-events: auto;
   transition: transform var(--panel-open-dur) var(--panel-ease), opacity var(--panel-open-dur) var(--panel-ease), filter var(--panel-open-dur) var(--panel-ease);
 }
-@media (prefers-reduced-motion: reduce) { .t-panel-slide { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .t-panel-slide { transition: none !important; } } }
 
 /* ── The smoky dissolve for a deleted card, written for Archive X from the behaviour of the Transitions.dev "Delete with smoky dissolve"
       (paid) transition, not from its code. (Enlarged pictures open in the photo viewer; see ImageZoom.tsx.) ── */
@@ -580,4 +580,18 @@ img[data-zoomable] { cursor: zoom-in; }
   background: radial-gradient(circle at 50% 50%, rgb(var(--smoke, 190 196 208) / 0.55), rgb(var(--smoke, 190 196 208) / 0) 70%); animation: ax-puff var(--dur) cubic-bezier(0.2, 0.6, 0.3, 1) var(--delay) both; }
 @keyframes ax-puff { 0% { opacity: 0; transform: translate(0, 0) scale(0.35); } 22% { opacity: var(--o); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.9); } }
 html[data-theme="light"] .ax-puff { --smoke: 90 96 110; }
-@media (prefers-reduced-motion: reduce) { .ax-puff { display: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-puff { display: none; } } }
+
+/* ── Live status dot and pill (top bar): a breathing dot with a ring that spreads, and a soft sweep across the pill ─────────
+   Windows turns "animation effects" off on many PCs, which sets prefers-reduced-motion and used to freeze these. A dot that only
+   changes opacity is safe for everyone, so under reduce it still breathes (opacity only) and the ring and sweep stop. */
+.ax-live-dot { position: relative; display: inline-block; flex: none; border-radius: 9999px; animation: ax-live-breathe 2.4s ease-in-out infinite; }
+.ax-live-dot::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: inherit; animation: ax-live-ring 2.4s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none; }
+.ax-live-dot[data-live="false"], .ax-live-dot[data-live="false"]::after { animation: none; }
+@keyframes ax-live-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes ax-live-ring { 0% { transform: scale(1); opacity: 0.6; } 80%, 100% { transform: scale(2.8); opacity: 0; } }
+.ax-live-pill { position: relative; overflow: hidden; }
+.ax-live-pill::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(100deg, transparent 35%, color-mix(in srgb, currentColor 22%, transparent) 50%, transparent 65%); background-size: 250% 100%; background-repeat: no-repeat; background-position: 130% 0; animation: ax-live-sweep 3.2s ease-in-out infinite; }
+.ax-live-pill[data-live="false"]::after { animation: none; display: none; }
+@keyframes ax-live-sweep { 0%, 35% { background-position: 130% 0; } 80%, 100% { background-position: -30% 0; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-live-dot::after, .ax-live-pill::after { animation: none; display: none; } } }

@@ -1,3 +1,4 @@
+import { prefersReduced } from './motionPref'
 import { useEffect, useMemo, useState } from 'react'
 import { cn } from './cn'
 import { gapFor, isSpace, tokens } from './streamWords'
@@ -10,7 +11,7 @@ export function StreamText({ text, instant = false, className }: { text: string;
   const parts = useMemo(() => tokens(text), [text])
   const total = useMemo(() => parts.filter((p) => !isSpace(p)).length, [parts])
   const [shown, setShown] = useState(instant ? Infinity : 0)
-  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+  const reduce = prefersReduced()
   useEffect(() => {
     if (instant || reduce) { setShown(Infinity); return }
     if (shown >= total) return

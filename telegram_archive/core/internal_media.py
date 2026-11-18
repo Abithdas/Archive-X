@@ -1173,6 +1173,9 @@ def _run_worker(operation: str, payload: dict, on_progress: Optional[Callable[[f
         _worker_cmd(operation, payload), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True, encoding="utf-8", errors="replace", env=env, creationflags=creationflags,
     )
+    from .child_processes import tracked as _tracked
+    _track = _tracked(proc, f"PyAV worker · {operation}", kind="pyav")
+    _handle = _track.__enter__()
     stderr_chunks: list[str] = []
 
     def _drain_stderr():
@@ -1215,6 +1218,7 @@ def _run_worker(operation: str, payload: dict, on_progress: Optional[Callable[[f
                 _swallowed_note("internal_media._run_worker")
                 continue
             if item.get("type") == "progress":
+                _handle.set_progress(float(item.get("value") or 0.0))
                 if on_progress:
                     try:
                         on_progress(float(item.get("value") or 0.0))
@@ -1235,6 +1239,7 @@ def _run_worker(operation: str, payload: dict, on_progress: Optional[Callable[[f
                 _swallowed_note("internal_media._run_worker")
                 pass
         drain.join(5)
+        _track.__exit__(None, None, None)
     if timed_out[0]:
         raise RuntimeError(f"PyAV worker '{operation}' took longer than {int(timeout)}s and was stopped")
     if rc != 0 or result is None:

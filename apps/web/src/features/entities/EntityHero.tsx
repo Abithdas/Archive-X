@@ -1,3 +1,4 @@
+import { originFor } from './origin'
 import { Link, useRouter } from '@tanstack/react-router'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Icon } from '@/design/Icon'
@@ -11,13 +12,14 @@ import type { LibraryItem } from '@/api/types'
 /** Back button plus "Performers › Name". */
 export function BackBar({ to, section, name }: { to: '/performers' | '/studios'; section: string; name: string }) {
   const router = useRouter()
+  const from = originFor(to === '/performers' ? 'performers' : 'studios')
   const back = () => { if (window.history.length > 1) router.history.back(); else void router.navigate({ to }) }
   return (
     <nav aria-label="Breadcrumb" className="mb-[18px] flex min-h-10 items-center gap-3 text-[13px] font-medium text-muted">
       <button type="button" onClick={back} aria-label="Go back" title="Go back" className="grid size-10 shrink-0 place-items-center rounded-xl border border-line bg-surface text-fg hover:bg-surface-2">
         <Icon name="arrow-left" className="size-[18px]" />
       </button>
-      <span className="min-w-0 [overflow-wrap:anywhere]"><Link to={to} className="hover:text-fg hover:underline">{section}</Link> <span aria-hidden="true">›</span> {name}</span>
+      <span className="min-w-0 [overflow-wrap:anywhere]"><Link to={(from?.to ?? to) as '/performers'} className="hover:text-fg hover:underline">{from?.label ?? section}</Link> <span aria-hidden="true">›</span> {name}</span>
     </nav>
   )
 }

@@ -86,6 +86,59 @@ UNIFIED_AUTO_CONTEXT = None
 # Download progress and governed source downloads.
 # ==============================================================================
 
+def _manager_conversion_progress_callback(filename: str, *, db=None, job_id=None):
+    """Progress reporter for the local MP4 conversion step (0..1 fractions).
+
+    Without it a long conversion prints nothing, the job shows no movement and the watchdog sees a quiet job.
+    """
+    db = db or globals().get("MEDIA_MANAGER_DB")
+    job_id = str(job_id or globals().get("TRANSFER_JOB_ID") or "").strip() or None
+    name = str(filename or "video")
+    started = time.monotonic()
+    state = {"last": 0.0, "pct": -5}
+
+    def progress(fraction: float):
+        now = time.monotonic()
+        pct = int(max(0.0, min(1.0, float(fraction or 0.0))) * 100)
+        final = pct >= 100
+        if not final and now - state["last"] < 1.0:
+            return
+        state["last"] = now
+        elapsed = now - started
+        eta = (elapsed * (1 - fraction) / fraction) if fraction > 0.02 else None
+        eta_text = f"{int(eta // 60)}:{int(eta % 60):02d}" if eta is not None else "--:--"
+        line = f"Converting to MP4 · {pct}% · ETA {eta_text} · {name}"
+        runner = globals().get("MEDIA_MANAGER_RUNNER")
+        if runner is not None:
+            try:
+                with runner.lock:
+                    runner.live = line[:200]
+                    runner.operation = line[:200]
+                runner.heartbeat(progress=True)
+            except Exception:
+                _swallowed_note("telegram_media_manager._manager_conversion_progress_callback")
+        if db is not None and job_id:
+            try:
+                db.set_job_transfer_telemetry(
+                    job_id, {"stage": "Converting to MP4", "current_item": name, "file_name": name,
+                             "direction": "convert", "bytes_done": pct, "bytes_total": 100,
+                             "eta_seconds": eta, "transfer_state": "complete" if final else "active"},
+                    min_interval=1.0)
+            except Exception:
+                _swallowed_note("telegram_media_manager._manager_conversion_progress_callback.telemetry")
+        if final or pct >= state["pct"] + 5:
+            state["pct"] = pct
+            print(line, flush=True)
+            if db is not None:
+                try:
+                    db.log(line, "INFO", event="telegram_transfer.conversion_progress", job_id=job_id,
+                           operation="Converting to MP4", details={"filename": name, "percent": pct})
+                except Exception:
+                    _swallowed_note("telegram_media_manager._manager_conversion_progress_callback.log")
+
+    return progress
+
+
 def _manager_download_progress_callback(filename: str, *, db=None, job_id=None):
     """Create the existing-job-line reporter used for large video downloads."""
     from ..engines.transfer_progress import RollingTransferProgress
@@ -1313,6 +1366,9 @@ def _run_ffmpeg_with_progress_sync(cmd, duration: float, label: str, on_progress
 
     drain = threading.Thread(target=_drain_stderr, name=f"ffmpeg-{label}-stderr", daemon=True)
     drain.start()
+    from ..core.child_processes import tracked as _tracked
+    _track = _tracked(proc, f"FFmpeg · {label}", kind="ffmpeg", job_id=globals().get("TRANSFER_JOB_ID"))
+    _handle = _track.__enter__()
     total = float(duration or 0.0)
     last_reported = -1.0
     try:
@@ -1320,6 +1376,7 @@ def _run_ffmpeg_with_progress_sync(cmd, duration: float, label: str, on_progress
             key, _, value = line.strip().partition("=")
             if key in {"out_time_us", "out_time_ms", "out_time"} and total > 0 and on_progress is not None:
                 fraction = max(0.0, min(1.0, _ffmpeg_time_seconds(value) / total))
+                _handle.set_progress(fraction)
                 if fraction - last_reported >= 0.01:
                     last_reported = fraction
                     try:
@@ -1340,7 +1397,9 @@ def _run_ffmpeg_with_progress_sync(cmd, duration: float, label: str, on_progress
         except Exception:
             _swallowed_note("telegram_media_manager._run_ffmpeg_with_progress_sync")
             pass
+        _track.__exit__(None, None, None)
         raise
+    _track.__exit__(None, None, None)
     drain.join(timeout=2)
     if returncode != 0:
         tail = []

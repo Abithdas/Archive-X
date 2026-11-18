@@ -381,6 +381,19 @@ async def copy_media_to_destination(
             pass
 
 
+
+def caption_with_converted_name(caption: str, source_name: str, converted_name: str) -> str:
+    """Swap the source filename (old extension) for the converted file's name in a caption."""
+    if not caption or not source_name or not converted_name or source_name == converted_name:
+        return caption
+    out = caption.replace(source_name, converted_name)
+    stem = Path(source_name).stem
+    if out == caption and stem and Path(converted_name).stem == stem:
+        old_ext = Path(source_name).suffix
+        if old_ext:
+            out = out.replace(stem + old_ext, converted_name)
+    return out
+
 async def _record_verified_transfer_location(db, source, message, destination, destination_video_id, destination_thumb_id, *, client=None, action="TRANSFER", caption=None, video_meta=None, filename=None, file_path=None, destination_message=None):
     """Persist a verified source/destination pair and register the destination in Library."""
     if db is None:
@@ -561,7 +574,12 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
             )
             print("  Step 2/3: normalizing to Telegram-streamable MP4...")
             prepared_video_meta = await asyncio.wait_for(
-                convert_to_streamable_mp4(downloaded_source, output_path),
+                convert_to_streamable_mp4(
+                    downloaded_source, output_path,
+                    on_progress=_manager_conversion_progress_callback(
+                        source_name, db=globals().get("MEDIA_MANAGER_DB"),
+                        job_id=globals().get("TRANSFER_JOB_ID")),
+                ),
                 timeout=CONVERSION_TIMEOUT_SECONDS,
             )
 
@@ -621,6 +639,10 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
             # restart Metadata & Assets/provider work because a transfer item
             # has no cached caption.
             caption = await _prepare_transfer_catalogue_caption(db, source, message)
+        if prepared_display_name and caption:
+            # The upload is the converted MP4, so a filename in the caption must
+            # not keep the source's old extension (.mkv/.avi/.mov/...).
+            caption = caption_with_converted_name(caption, safe_video_name(message), prepared_display_name)
         if prefetched_meta:
             entry["prefetched_metadata"] = prefetched_meta
 
@@ -832,7 +854,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
         entry["source_deleted"] = True
         entry["status"] = "COMPLETE"
         save_state_fn(state)
-        print(f"  MOVE COMPLETE: {safe_video_name(message)}")
+        print(f"  MOVE COMPLETE: {prepared_display_name or safe_video_name(message)}")
         return True
 
 

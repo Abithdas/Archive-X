@@ -18,6 +18,7 @@ export function AccountAvatar({ className = 'size-10 text-[15px]' }: { className
   // A photo that failed is remembered together with the Telegram state it failed in: the account photo cannot be fetched while Telegram is
   // not connected, and it must be tried again once it is (it used to stay hidden for good after the first miss).
   const [broken, setBroken] = useState<string>('')
+  const [noVideo, setNoVideo] = useState(false)
   const url = photoUrl(p.data)
   const attempt = `${url}|${connected ? 1 : 0}`
   const was = useRef(connected)
@@ -30,6 +31,8 @@ export function AccountAvatar({ className = 'size-10 text-[15px]' }: { className
     <span className={`relative grid shrink-0 place-items-center overflow-hidden rounded-full bg-surface-3 font-bold ${className}`}>
       <span aria-hidden="true">{initials(name)}</span>
       {broken !== attempt ? <img key={attempt} src={connected && !p.data?.has_custom_image ? `${url}&c=1` : url} alt="" className="absolute inset-0 size-full object-cover" onError={() => setBroken(attempt)} /> : null}
+      {/* A Telegram profile picture that is a short video plays here, looping and silent; the still picture stays underneath until it does (or for good when there is no video). */}
+      {connected && !p.data?.has_custom_image && !noVideo ? <video key={`v${p.data?.image_version ?? ''}`} src="/api/telegram/me/video" autoPlay loop muted playsInline preload="auto" aria-hidden="true" tabIndex={-1} className="absolute inset-0 size-full object-cover" onError={() => setNoVideo(true)} /> : null}
     </span>
   )
 }

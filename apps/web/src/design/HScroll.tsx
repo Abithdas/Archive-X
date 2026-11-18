@@ -25,7 +25,7 @@ const DRAG_START_PX = 5
  * A row that scrolls sideways by touch (the browser's own), mouse wheel, mouse drag and two arrow buttons that appear only when
  * something is out of view. The scroll bar stays hidden.
  */
-export function HScroll({ children, label, className, arrowTop = 24 }: { children: ReactNode; label: string; className?: string; arrowTop?: number }) {
+export function HScroll({ children, label, className, arrowTop = 24, arrows = true }: { children: ReactNode; label: string; className?: string; arrowTop?: number; arrows?: boolean }) {
   const box = useRef<HTMLDivElement>(null)
   const [edge, setEdge] = useState({ left: false, right: false })
   const drag = useRef<{ x: number; left: number; active: boolean } | null>(null)
@@ -85,8 +85,8 @@ export function HScroll({ children, label, className, arrowTop = 24 }: { childre
       >
         {children}
       </div>
-      {edge.left ? <Arrow dir={-1} top={arrowTop} onClick={() => page(-1)} /> : null}
-      {edge.right ? <Arrow dir={1} top={arrowTop} onClick={() => page(1)} /> : null}
+      {arrows && edge.left ? <Arrow dir={-1} top={arrowTop} onClick={() => page(-1)} /> : null}
+      {arrows && edge.right ? <Arrow dir={1} top={arrowTop} onClick={() => page(1)} /> : null}
     </div>
   )
 }

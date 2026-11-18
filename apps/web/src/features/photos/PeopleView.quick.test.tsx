@@ -58,7 +58,7 @@ describe('new matches to check', () => {
     const card = (await screen.findByRole('region', { name: 'Named people' })).querySelector('article') as HTMLElement
     expect(await within(card).findByRole('button', { name: 'Check faces of Ava Stone, 4 new matches to check' })).toHaveTextContent('Review new matches')
     expect(screen.getByRole('tab', { name: /People/ })).toHaveTextContent('4')
-    expect(screen.getByLabelText('4 new matches to check')).toBeInTheDocument()
+    expect(screen.getAllByLabelText('4 new matches to check')).toHaveLength(2)   // the People tab, and the number on the person's face in the row
   })
   it('shows nothing extra when there are none, or when face learning is not available', async () => {
     mount({ groups: [ava] })

@@ -1,14 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { usePerformerGallery } from '@/api/hooks'
 import { Button } from '@/design/Button'
 import { Empty } from '@/design/Empty'
-import { ZoomImage } from '@/design/ImageZoom'
+import { PhotoViewer } from '@/features/photos/PhotoViewer'
 import { cn } from '@/design/cn'
-import { PerformerPhotos } from './PerformerPhotos'
-import { GALLERY_EMPTY, fromVideosNote, galleryStatus, lastSyncText, providerName, referenceNote, type FromVideosResult } from './gallery'
+import { usePerformerPhotos } from './PerformerPhotos'
+import { indexAfterRemoval, orderGallery, type GalleryEntry } from './unifiedGallery'
+import { GALLERY_EMPTY, fromVideosNote, galleryStatus, lastSyncText, referenceNote, type FromVideosResult } from './gallery'
 
 /**
  * The performer's gallery: every picture the providers hold of them, plus clear faces found in their own videos' snapshots, kept on this PC. They are also what the People check compares photo
@@ -27,14 +28,24 @@ export function PerformerGallery({ id, name }: { id: number; name: string }) {
     onSuccess: (r) => { setVideoNote(fromVideosNote(r)); void qc.invalidateQueries({ queryKey: ['performer-gallery', id] }) },
     onError: () => setVideoNote('Could not look through the videos. Try again.'),
   })
+  const done = (msg: string) => { toast(msg); void qc.invalidateQueries({ queryKey: ['performer', id] }); void qc.invalidateQueries({ queryKey: ['entities'] }) }
   const useAsProfile = useMutation({
-    mutationFn: (pictureId: number) => api(`/api/performers/${id}/gallery/${pictureId}/use-as-profile`, { method: 'POST', json: {} }),
-    onSuccess: () => { toast(`New profile picture for ${name}`); void qc.invalidateQueries({ queryKey: ['performer', id] }); void qc.invalidateQueries({ queryKey: ['entities'] }) },
+    mutationFn: (e: GalleryEntry) => e.galleryId
+      ? api(`/api/performers/${id}/gallery/${e.galleryId}/use-as-profile`, { method: 'POST', json: {} })
+      : api(`/api/performers/${id}/photos/use-as-profile`, { method: 'POST', json: { channel_id: e.photo.channel_id, message_id: e.photo.message_id } }),
+    onSuccess: () => done(`New profile picture for ${name}`),
   })
   const remove = useMutation({
-    mutationFn: (pictureId: number) => api(`/api/performers/${id}/gallery/${pictureId}`, { method: 'DELETE' }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['performer-gallery', id] }),
+    mutationFn: (e: GalleryEntry) => e.galleryId
+      ? api(`/api/performers/${id}/gallery/${e.galleryId}`, { method: 'DELETE' })
+      : api(`/api/performers/${id}/photos/remove`, { method: 'POST', json: { channel_id: e.photo.channel_id, message_id: e.photo.message_id } }),
+    onSuccess: (_r, e) => { void qc.invalidateQueries({ queryKey: [e.galleryId ? 'performer-gallery' : 'performer-photos', id] }) },
   })
+  const photos = usePerformerPhotos(id, name)
+  const entries = useMemo(() => orderGallery(photos.items, q.data?.items ?? [], name), [photos.items, q.data, name])
+  const [open, setOpen] = useState<number | null>(null)
+  const thumbs = useRef(new Map<number, HTMLElement>())
+  const originOf = useCallback((i: number) => thumbs.current.get(i)?.getBoundingClientRect() ?? null, [])
 
   if (q.isPending) return <p role="tabpanel" aria-label="Gallery" className="py-8 text-center text-sm text-muted">Loading the gallery…</p>
   if (q.isError) return <Empty role="tabpanel" aria-label="Gallery" icon="user">The gallery could not be loaded.</Empty>
@@ -56,26 +67,41 @@ export function PerformerGallery({ id, name }: { id: number; name: string }) {
       {useAsProfile.isError ? <p role="alert" className="text-sm text-warn">Could not set the profile picture. Try again.</p> : null}
       {refresh.isError ? <p role="alert" className="text-sm text-warn">Could not start the download. Try again.</p> : null}
       {remove.isError ? <p role="alert" className="text-sm text-warn">Could not remove that picture. Try again.</p> : null}
-      {g.items.length ? (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 2xl:grid-cols-7">
-          {g.items.map((i) => (
-            <li key={i.id} className="group relative overflow-hidden rounded-card border border-line bg-surface">
-              <ZoomImage group={`gallery-${id}`} src={i.url} alt={`${name}, picture from ${providerName(i.provider)}`} loading="lazy" className="aspect-[3/4] w-full object-cover" />
-              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 px-2 py-1.5 text-[11.5px] text-muted">
-                <span title={referenceNote(i)} className={cn('flex w-full min-w-0 items-center gap-1.5 truncate', i.reference ? 'font-semibold text-accent' : '')}>
-                  <span aria-hidden="true" className={cn('size-1.5 shrink-0 rounded-full', i.reference ? 'bg-accent' : 'bg-line')} />{providerName(i.provider)}
-                  <span className="sr-only">{i.reference ? ' (used for face matching)' : ''}</span>
+      {entries.length ? (
+        <>
+          <ul aria-label={`Pictures of ${name}`} className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8">
+            {entries.map((e, i) => (
+              <li key={e.key} className="relative overflow-hidden rounded-xl border border-line bg-surface">
+                <button type="button" ref={(el) => { if (el) thumbs.current.set(i, el); else thumbs.current.delete(i) }} onClick={() => setOpen(i)} aria-label={`Open picture: ${e.label}`} title={e.galleryId ? referenceNote({ faces: e.faces ?? 1, reference: Boolean(e.reference) }) : undefined} className="block aspect-[3/4] w-full">
+                  <img src={e.photo.thumbnail_url} alt="" loading="lazy" draggable={false} className="size-full object-cover transition-transform duration-200 hover:scale-[1.03]" />
+                </button>
+                <span className="pointer-events-none absolute bottom-1 left-1 right-1 flex items-center gap-1 truncate rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] font-semibold text-white backdrop-blur">
+                  <span aria-hidden="true" className={cn('size-1.5 shrink-0 rounded-full', e.reference ? 'bg-accent' : 'bg-white/50')} /><span className="truncate">{e.source === 'photo' ? 'Your photos' : e.label}</span>
                 </span>
-                <button type="button" disabled={useAsProfile.isPending} onClick={() => useAsProfile.mutate(i.id)} aria-label={`Use this picture as the profile picture of ${name}`} title="Use as the profile picture"
-                  className="whitespace-nowrap rounded px-1.5 py-0.5 font-semibold text-muted hover:bg-bg hover:text-fg">Use as profile</button>
-                <button type="button" disabled={remove.isPending} onClick={() => remove.mutate(i.id)} aria-label={`Remove this picture: not ${name}`} title="Not this performer: remove it and never fetch it again"
-                  className="whitespace-nowrap rounded px-1.5 py-0.5 font-semibold text-muted hover:bg-bg hover:text-warn">Remove</button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : <Empty icon="user">{GALLERY_EMPTY}</Empty>}
-      <PerformerPhotos id={id} name={name} />
+              </li>
+            ))}
+          </ul>
+          {photos.q.hasNextPage ? <div className="flex justify-center"><Button disabled={photos.q.isFetchingNextPage} onClick={photos.more}>{photos.q.isFetchingNextPage ? 'Loading…' : 'Show more photos'}</Button></div> : null}
+        </>
+      ) : photos.q.isPending ? <p role="status" className="py-3 text-sm text-muted">Looking for {name} in your photos…</p> : <Empty icon="user">{GALLERY_EMPTY}</Empty>}
+      {open !== null && entries[open] ? (
+        <PhotoViewer
+          items={entries.map((e) => e.photo)} index={open} total={photos.total + g.items.length} onIndex={setOpen} onClose={() => setOpen(null)} onNeedMore={photos.more} origin={originOf}
+          actions={() => {
+            const e = entries[open]
+            if (!e) return null
+            const BTN = 'rounded-full px-3 py-1.5 font-semibold text-white hover:bg-white/15 disabled:opacity-40'
+            return (
+              <>
+                <span className="rounded-full bg-white/15 px-2.5 py-1 font-semibold" title="Where this picture comes from">{e.label}</span>
+                <button type="button" className={BTN} disabled={useAsProfile.isPending} onClick={() => useAsProfile.mutate(e)} aria-label={`Use this picture as the profile picture of ${name}`}>Use as profile picture</button>
+                <button type="button" className={cn(BTN, 'hover:!bg-warn/30')} disabled={remove.isPending} aria-label={`Remove this picture: not ${name}`} title="Not this performer"
+                  onClick={() => remove.mutate(e, { onSuccess: () => { const left = entries.length - 1; const next = indexAfterRemoval(open, left); setOpen(next) } })}>Remove</button>
+              </>
+            )
+          }}
+        />
+      ) : null}
     </div>
   )
 }

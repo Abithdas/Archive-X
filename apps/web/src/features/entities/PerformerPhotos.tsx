@@ -9,8 +9,8 @@ const PER = 48
 export const PHOTOS_EMPTY = 'None of your photos have been matched to this performer yet. Open Photos, People, find the people in your photos and name this one.'
 export const photosHeading = (n: number, total: number) => (total ? `In your photos · ${total.toLocaleString('en-US')}${n < total ? ` (${n.toLocaleString('en-US')} shown)` : ''}` : 'In your photos')
 
-/** The photos of the library in which this performer's face was recognised (the People page names a face; this lists everything it found). Opens in the photo viewer. */
-export function PerformerPhotos({ id, name }: { id: number; name: string }) {
+/** The library photos in which this performer's face was recognised, a page at a time. */
+export function usePerformerPhotos(id: number, name: string) {
   const q = useInfiniteQuery({
     queryKey: ['performer-photos', id] as const,
     initialPageParam: 0,
@@ -25,9 +25,15 @@ export function PerformerPhotos({ id, name }: { id: number; name: string }) {
   })
   const items = useMemo<Photo[]>(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data])
   const total = q.data?.pages[0]?.total ?? 0
+  const more = useCallback(() => { if (q.hasNextPage && !q.isFetchingNextPage) void q.fetchNextPage() }, [q])
+  return { q, items, total, more }
+}
+
+/** The photos of the library in which this performer's face was recognised (the People page names a face; this lists everything it found). Opens in the photo viewer. */
+export function PerformerPhotos({ id, name }: { id: number; name: string }) {
+  const { q, items, total, more } = usePerformerPhotos(id, name)
   const [open, setOpen] = useState<number | null>(null)
   const thumbs = useRef(new Map<number, HTMLElement>())
-  const more = useCallback(() => { if (q.hasNextPage && !q.isFetchingNextPage) void q.fetchNextPage() }, [q])
 
   if (q.isPending) return <p role="status" className="py-3 text-sm text-muted">Looking for {name} in your photos…</p>
   if (q.isError) return <p role="alert" className="py-3 text-sm text-warn">Your photos could not be searched. Try again later.</p>

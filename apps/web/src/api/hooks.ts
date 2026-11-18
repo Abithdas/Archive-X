@@ -167,7 +167,7 @@ export const useDiagnostics = () =>
 
 /** Resource controller snapshot (playback, background lanes, limits). */
 export const useResources = () =>
-  useQuery({ queryKey: ['resources'] as const, queryFn: () => api<{ resources?: Record<string, unknown> }>('/api/operations/resources'), refetchInterval: 5_000, staleTime: 4_000, retry: false })
+  useQuery({ queryKey: ['resources'] as const, queryFn: () => api<{ resources?: Record<string, unknown>; processes?: Array<Record<string, unknown>>; media_manager?: Record<string, unknown> }>('/api/operations/resources'), refetchInterval: 5_000, staleTime: 4_000, retry: false })
 
 export interface LanesPayload { governor?: Record<string, unknown>; resources?: Record<string, unknown>; jobs?: Array<Record<string, unknown>> }
 /** Live transfer lanes (governor slots, resources, lane jobs); polled while the Transfers page is open. */

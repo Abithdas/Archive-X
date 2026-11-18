@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { rollReel } from './spinReel'
+import { setMotion } from './motionPref'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); setMotion('full') })
 
 describe('rollReel', () => {
-  it('calls onDone straight away when motion is reduced (nothing to wait for)', () => {
+  it('calls onDone straight away when the person follows the system and it asks for reduced motion', () => {
+    setMotion('system')
     vi.stubGlobal('matchMedia', () => ({ matches: true }))
     const el = document.createElement('span')
     const done = vi.fn()

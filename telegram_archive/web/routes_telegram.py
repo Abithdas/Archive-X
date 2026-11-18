@@ -378,6 +378,36 @@ def register_telegram_routes(
         return Response(content=data, media_type=mime, headers={
             "Cache-Control": "private, max-age=900", "X-Content-Type-Options": "nosniff"})
 
+    @router.get("/api/telegram/me/video")
+    async def telegram_account_video(request: Request):
+        """The signed-in account's animated profile picture (a short looping MP4), when it has one. 404 otherwise: the still photo is used."""
+        require_auth(request)
+        cached = _channel_profile_photo_cache.get("__me_video__")
+        if cached and time.monotonic() - cached[0] < 6 * 60 * 60:
+            if not cached[1]:
+                raise HTTPException(404, "This Telegram account has no animated profile picture")
+            return Response(content=cached[1], media_type="video/mp4", headers={"Cache-Control": "private, max-age=900", "X-Content-Type-Options": "nosniff"})
+        client = getattr(telegram, "client", None)
+        if client is None or not TELETHON_AVAILABLE or not bool(getattr(telegram, "connected", False)):
+            raise HTTPException(503, "Telegram is not connected")
+        try:
+            photos = await client.get_profile_photos("me", limit=1)
+            sizes = list(getattr(photos[0], "video_sizes", None) or []) if photos else []
+            if not sizes:
+                _channel_profile_photo_cache["__me_video__"] = (time.monotonic(), b"", "video/mp4")
+                raise HTTPException(404, "This Telegram account has no animated profile picture")
+            # The small square one is enough for an avatar; fall back to the largest available.
+            size = next((x for x in sizes if getattr(x, "type", "") == "u"), None) or max(sizes, key=lambda x: int(getattr(x, "size", 0) or 0))
+            data = await client.download_media(photos[0], file=bytes, thumb=size)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(502, f"Could not load the Telegram profile video: {type(exc).__name__}") from exc
+        if not isinstance(data, (bytes, bytearray)) or not data:
+            raise HTTPException(404, "This Telegram account has no animated profile picture")
+        _channel_profile_photo_cache["__me_video__"] = (time.monotonic(), bytes(data), "video/mp4")
+        return Response(content=bytes(data), media_type="video/mp4", headers={"Cache-Control": "private, max-age=900", "X-Content-Type-Options": "nosniff"})
+
     # ---- Local account profile (display name + photo). Never changes the real Telegram profile. ----
     _account_profile_dir = config.DATA_DIR / "account"
     _account_profile_image = _account_profile_dir / "profile-image.bin"

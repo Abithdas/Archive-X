@@ -1,3 +1,4 @@
+import { prefersReduced } from './motionPref'
 /*
  * The "Spinning counter" from Transitions.dev (Jakub Antalik; Transitions.dev License, see THIRD-PARTY-NOTICES.md), typed: each digit is a drum of
  * 0-9 that rolls to its target, the neighbours behind the middle one smaller, fainter and blurrier, landing with an anticipation and a spring past
@@ -124,7 +125,7 @@ function place(col: Col, pos: number, spread: number, middle: number, o: Tokens,
   })
 }
 
-const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+const reduced = () => prefersReduced()
 
 /** Show `to` on the drums with no motion. */
 export function showReel(el: HTMLElement, to: number): void {

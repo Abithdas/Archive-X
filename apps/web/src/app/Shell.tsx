@@ -58,7 +58,7 @@ const SIDE_ACTIVE = '!text-fg [&_svg]:text-accent'
 function ActivityBadge({ count, className }: { count: number; className?: string }) {
   if (!count) return null
   return (
-    <span role="status" aria-label={runningLabel(count)} title={runningLabel(count)} className={cn('grid h-[18px] min-w-[18px] motion-safe:animate-pulse place-items-center rounded-full bg-accent px-1 text-[11px] font-bold leading-none text-accent-fg', className)}>
+    <span role="status" aria-label={runningLabel(count)} title={runningLabel(count)} className={cn('grid h-[18px] min-w-[18px] animate-pulse place-items-center rounded-full bg-accent px-1 text-[11px] font-bold leading-none text-accent-fg', className)}>
       {count > 99 ? '99+' : <SubtleNumber value={count} />}
     </span>
   )
@@ -128,9 +128,9 @@ function TelegramPill() {
   const { data } = useStatus()
   const ok = Boolean(data?.telegram_connected ?? data?.telegram?.connected)
   return (
-    <Link to="/settings" className="hidden h-9 items-center gap-2 rounded-full bg-good/15 px-3 text-[13px] font-semibold text-good sm:inline-flex" title={data?.telegram_status ?? 'Telegram status'}>
+    <Link to="/settings" data-live={ok ? 'true' : 'false'} className={cn('ax-live-pill hidden h-9 items-center gap-2 rounded-full px-3 text-[13px] font-semibold sm:inline-flex', ok ? 'bg-good/15 text-good' : 'bg-bad/15 text-bad')} title={data?.telegram_status ?? 'Telegram status'}>
       <Icon name="send" className="size-4" />
-      <span className={cn('size-1.5 rounded-full', ok ? 'bg-good' : 'bg-bad')} aria-hidden="true" />
+      <span data-live={ok ? 'true' : 'false'} className={cn('ax-live-dot size-2', ok ? 'bg-good' : 'bg-bad')} aria-hidden="true" />
       {ok ? 'Connected' : 'Setup needed'}
     </Link>
   )

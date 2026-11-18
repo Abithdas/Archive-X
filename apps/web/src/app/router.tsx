@@ -1,3 +1,4 @@
+import { noteLeft } from '@/features/entities/origin'
 import { Link, createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
 import { lazy } from 'react'
 const LibraryPage = lazy(() => import('@/features/library/LibraryPage').then((m) => ({ default: m.LibraryPage })))
@@ -82,6 +83,7 @@ const NotFound = () => (
   </div>
 )
 export const router = createRouter({ routeTree, defaultPreload: 'intent', defaultNotFoundComponent: NotFound, defaultErrorComponent: ({ error, reset }) => <ErrorScreen error={error} reset={reset} /> })
+router.subscribe('onResolved', ({ fromLocation, toLocation }) => { if (fromLocation?.pathname !== toLocation.pathname) noteLeft(fromLocation?.pathname) })   // a tab or filter change on the same page is not leaving it
 
 declare module '@tanstack/react-router' {
   interface Register {

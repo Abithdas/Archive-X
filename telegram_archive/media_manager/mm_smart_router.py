@@ -1164,12 +1164,18 @@ async def process_converted_or_fallback(client, source, destinations, record, st
 
         output_name = f"{Path(original_name).stem}.mp4" if Path(original_name).suffix else f"telegram_{msg_id}.mp4"
         output_path = Path(td) / output_name
+        caption = caption_with_converted_name(caption, original_name, output_name)
 
         conversion_error = None
         converted_meta = None
         try:
             converted_meta = await asyncio.wait_for(
-                convert_to_streamable_mp4(input_path, output_path),
+                convert_to_streamable_mp4(
+                    input_path, output_path,
+                    on_progress=_manager_conversion_progress_callback(
+                        original_name or input_path.name, db=globals().get("MEDIA_MANAGER_DB"),
+                        job_id=globals().get("TRANSFER_JOB_ID")),
+                ),
                 timeout=CONVERSION_TIMEOUT_SECONDS,
             )
             print(

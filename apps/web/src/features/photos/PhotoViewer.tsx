@@ -1,5 +1,7 @@
+import { prefersReduced } from '@/design/motionPref'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
+import type { ReactNode } from 'react'
 import { cn } from '@/design/cn'
 import { firstLoaded, loadImage } from './imageCache'
 import { IconClose, IconFit, IconFullscreen, IconNext, IconPause, IconPlay, IconPrev, IconRotateLeft, IconRotateRight, IconZoomIn, IconZoomOut } from './ViewerIcons'
@@ -12,12 +14,14 @@ const NOBAR = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
 const DIVIDER = 'mx-1 hidden h-5 w-px bg-white/25 sm:block'
 
 /** Full-screen photo viewer: preview first, original swapped in when ready; zoom, pan, rotate, slideshow, filmstrip, keyboard. */
-export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, onFavorite, onNeedMore, origin, referrerPolicy }: {
+export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, onFavorite, onNeedMore, origin, referrerPolicy, actions }: {
   items: Photo[]; index: number; total: number; favorites?: ReadonlySet<string>
   onIndex: (i: number) => void; onClose: () => void; onFavorite?: (p: Photo) => void; onNeedMore?: () => void
   /** Where item `i` sits on the page (its thumbnail). When given, the photo grows out of that place on opening and goes back to it on closing. */
   origin?: (i: number) => DOMRect | null
   referrerPolicy?: ReferrerPolicy
+  /** A bar above the controls for what can be done with this picture (and where it comes from). */
+  actions?: (item: Photo) => ReactNode
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const stage = useRef<HTMLDivElement>(null)
@@ -83,7 +87,7 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
   }, [items, index])
 
   const fit = fitScale(nat, paddedBox(box), rot)   // leave some air above and below the photo
-  const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+  const reduced = () => prefersReduced()
 
   /** The move from the photo's place on the page to where it sits in the viewer (and back): where its centre is and how much smaller it is. */
   const flightFrom = (from: DOMRect) => {
@@ -266,6 +270,7 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
       </div>
 
       <div className="shrink-0 px-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+        {actions ? <div role="toolbar" aria-label="Picture actions" className="mx-auto mb-2 flex w-fit max-w-full flex-wrap items-center justify-center gap-1.5 rounded-3xl bg-white/10 px-2 py-1.5 text-xs backdrop-blur">{actions(item)}</div> : null}
         <div ref={toolbar} role="toolbar" aria-label="Photo viewer controls" className="mx-auto mb-2.5 flex w-full max-w-[420px] flex-col gap-0.5 rounded-3xl bg-white/10 p-1.5 backdrop-blur sm:w-fit sm:max-w-full sm:flex-row sm:items-center sm:gap-0.5 sm:rounded-full sm:px-2 sm:py-1">
           <div className="flex items-center justify-center gap-1 sm:gap-0.5">
             <button type="button" className={PILL} onClick={() => go(-1)} disabled={index <= 0} title="Previous photo (←)" aria-label="Previous photo"><IconPrev /></button>

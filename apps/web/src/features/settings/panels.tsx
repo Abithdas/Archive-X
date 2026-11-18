@@ -1,3 +1,4 @@
+import { setMotion, useMotionPref, type MotionPref } from '@/design/motionPref'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
@@ -127,6 +128,7 @@ const SIZE_NOTES: Record<number, string> = { 70: 'Fits more on screen', 100: 'Th
 
 export function AppearancePanel() {
   const { preset, mode, scale } = useAppearance()
+  const motion = useMotionPref()
   const { setTheme, setScale, previewScale } = useAppearanceActions()
   const [status, setStatus] = useState('Appearance preferences are saved automatically.')
   const save = async (fn: () => Promise<void>, ok: string) => {
@@ -159,6 +161,15 @@ export function AppearancePanel() {
           })}
         </ul>
         <p className="mt-3 text-xs text-muted" role="status">{status}</p>
+      </section>
+
+      <section aria-label="Animations" className={BOX}>
+        <Head icon="sparkle" title="Animations" count="Motion and effects" />
+        <Row title="Animations" hint="Breathing dots, shimmer, gliding cards and the photo viewer's pop in and out"><select aria-label="Animations" value={motion} onChange={(e) => setMotion(e.target.value as MotionPref)} className={PICK}>
+          <option value="full">Always on</option>
+          <option value="system">Follow Windows (off when “Show animations” is off)</option>
+        </select></Row>
+        <p className="py-2 text-xs text-muted">Windows can switch animations off for every app (power saver, remote desktop, performance settings). “Always on” plays them anyway.</p>
       </section>
 
       <section aria-label="Appearance" className={BOX}>

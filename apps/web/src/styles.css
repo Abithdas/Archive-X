@@ -85,7 +85,7 @@ body {
 /* Cards fade and rise into place when a grid appears, each a little after the one before (the classic pages did the same). */
 @keyframes card-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .card-in { animation: card-in var(--dur-slow) var(--ease-out) both; animation-delay: calc(min(var(--i, 0), 16) * 40ms); }
-@media (prefers-reduced-motion: reduce) { .card-in { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .card-in { animation: none; } } }
 
 /* Large displays: keep layout around 1600-2100 CSS px so text stays in proportion (same scale as the legacy UI). */
 /* --ax-page-zoom mirrors that zoom so anything sized from the window (dialogs) can divide it back out. */
@@ -95,9 +95,9 @@ body {
 @media (min-width: 2900px) { html { zoom: 1.6; } :root { --ax-page-zoom: 1.6; } }
 @media (min-width: 3600px) { html { zoom: 1.9; } :root { --ax-page-zoom: 1.9; } }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
-}
+} }
 
 /* Card glow: a soft light under the pointer (set by design/glow.ts). Opacity is the only thing that animates. */
 [data-glow]::after {
@@ -106,4 +106,4 @@ body {
   transition: opacity var(--dur-base) var(--ease-out);
 }
 @media (hover: hover) { [data-glow]:hover::after { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { [data-glow]::after { display: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { [data-glow]::after { display: none; } } }

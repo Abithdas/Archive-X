@@ -19,6 +19,7 @@ import { SceneMatchCard } from './SceneMatchCard'
 import { ChannelDuplicateCard } from './ChannelDuplicates'
 import { ResourceControls } from './ResourceControls'
 import { idOf, liveness } from './jobs'
+import { clock, runningNow } from './runningNow'
 import { downloadLogBundle, folderOf } from './logBundle'
 import { attention, diagnosticTiles, filterJobs, filterLog, healthTiles, jobCounts, laneRows, policyLine, resourceCards, telemetryTiles, type JobFilter, type LogLevel, type Tile, type Tone } from './ops'
 import { SubtleNumber } from '@/design/SubtleNumber'
@@ -173,6 +174,30 @@ function ActivityLog({ events }: { events: unknown[] }) {
   )
 }
 
+function RunningNowCard({ data }: { data: ReturnType<typeof runningNow> }) {
+  if (!data.orphanTransfer && !data.processes.length) return null
+  return (
+    <Card title="Running right now" className="mb-4" aside={<span className="rounded-full bg-surface-3 px-2.5 py-1 text-xs font-bold text-muted">{data.processes.length} helper process{data.processes.length === 1 ? '' : 'es'}</span>}>
+      {data.orphanTransfer && (
+        <p role="status" className="mb-3 rounded-xl bg-warn/10 p-3 text-sm text-warn">
+          A Telegram transfer is still working but has no job row: <b>{data.orphanTransfer.operation}</b>
+          {data.orphanTransfer.quietSeconds > 60 ? ` (no signal for ${clock(data.orphanTransfer.quietSeconds)})` : ''}
+        </p>
+      )}
+      <ul className="grid gap-2 md:grid-cols-2">
+        {data.processes.map((p) => (
+          <li key={`${p.pid}-${p.label}`} className="rounded-xl bg-bg p-3 text-sm">
+            <div className="flex items-center justify-between gap-2"><span className="font-semibold">{p.label}</span><span className="text-xs text-muted">pid {p.pid} · {clock(p.seconds)}</span></div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3" aria-label={p.progress === null ? 'Working, no percentage available' : `${p.progress}%`}>
+              <div className={cn('h-full rounded-full bg-accent', p.progress === null && 'w-1/3 animate-pulse')} style={p.progress === null ? undefined : { width: `${p.progress}%` }} />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+}
+
 export function OperationsPage() {
   const status = useStatus()
   const diag = useDiagnostics()
@@ -244,6 +269,8 @@ export function OperationsPage() {
         <Metric dot="bg-good" value={counts.completed} label="Completed" />
         <Metric dot="bg-accent" value={counts.withErrors} label="With errors" />
       </div>
+
+      <RunningNowCard data={runningNow(res.data, jobs)} />
 
       <Card title="Jobs" className="mb-4">
         <div className="mb-3"><Segmented label="Job filter" value={tab} onChange={setTab} options={JOB_TABS} /></div>

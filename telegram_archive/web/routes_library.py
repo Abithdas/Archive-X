@@ -1415,6 +1415,50 @@ def register_library_routes(
         return _FileResponse(path, media_type=mime if mime and mime.startswith("image/") else "image/jpeg",
                              headers={"Cache-Control": "private, max-age=3600", "Content-Disposition": "inline", "X-Content-Type-Options": "nosniff"})
 
+    @router.post("/api/performers/{performer_id}/photos/use-as-profile")
+    async def performer_photo_use_as_profile(performer_id: int, request: Request):
+        """Make one of the library photos recognised as this performer their profile picture (kept: provider syncs do not replace it)."""
+        require_auth(request)
+        body = await request.json()
+        channel_id, message_id = str((body or {}).get("channel_id") or ""), int((body or {}).get("message_id") or 0)
+        if not channel_id or message_id <= 0:
+            raise HTTPException(400, "A photo (channel_id and message_id) is required")
+        path = await _photo_library_file_path(channel_id, message_id, thumbnail=False)
+        import mimetypes as _mt
+        from ..engines import performer_gallery
+
+        def work():
+            data = open(path, "rb").read(25 * 1024 * 1024)
+            mime = _mt.guess_type(str(path))[0] or "image/jpeg"
+            return performer_gallery.use_bytes_as_profile(db, performer_id, data, mime if mime.startswith("image/") else "image/jpeg")
+        if not await asyncio.to_thread(work):
+            raise HTTPException(404, "Photo not found")
+        return {"ok": True}
+
+    @router.post("/api/performers/{performer_id}/photos/remove")
+    async def performer_photo_remove(performer_id: int, request: Request):
+        """"Not this performer": the faces of this photo that were named after the performer go back to unnamed groups (nothing is deleted)."""
+        require_auth(request)
+        body = await request.json()
+        channel_id, message_id = str((body or {}).get("channel_id") or ""), int((body or {}).get("message_id") or 0)
+        if not channel_id or message_id <= 0:
+            raise HTTPException(400, "A photo (channel_id and message_id) is required")
+        from ..engines.photo_face_clustering import _split_face_detection
+
+        def work():
+            with db.reading() as rdb:
+                rows = rdb.execute(
+                    "SELECT d.id FROM photo_face_detections d JOIN photo_library_items p ON p.id=d.photo_id "
+                    "JOIN photo_face_groups g ON g.id=d.group_id WHERE p.channel_id=? AND p.message_id=? AND g.performer_id=?",
+                    (channel_id, message_id, int(performer_id))).fetchall()
+            for r in rows:
+                _split_face_detection(db, int(r["id"]))
+            return len(rows)
+        moved = await asyncio.to_thread(work)
+        if not moved:
+            raise HTTPException(404, "No face of this performer in that photo")
+        return {"ok": True, "moved": moved}
+
     @router.post("/api/photos/{channel_id}/{message_id}/delete")
     async def photo_library_delete(channel_id: str, message_id: int, request: Request):
         """Remove one photo from the local index/cache, optionally deleting its Telegram post too.

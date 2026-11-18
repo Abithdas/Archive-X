@@ -9,7 +9,7 @@ export function BlurImg({ className, onLoad, ...rest }: ImgHTMLAttributes<HTMLIm
       {...rest}
       ref={(el) => { if (el?.complete && el.naturalWidth > 0) setReady(true) }}
       onLoad={(e) => { setReady(true); onLoad?.(e) }}
-      className={cn('transition-[filter,opacity] duration-300 ease-out motion-reduce:transition-none', ready ? 'opacity-100 blur-0' : 'opacity-0 blur-md', className)}
+      className={cn('transition-[filter,opacity] duration-300 ease-out', ready ? 'opacity-100 blur-0' : 'opacity-0 blur-md', className)}
     />
   )
 }
