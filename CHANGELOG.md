@@ -2,6 +2,9 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## 30.3.9 (2026-11-18)
+- **Security fixes from GitHub's code scanning:** one shared check keeps file paths inside their folder (audio, subtitle and caption files, device playlists, channel photos, icons, backup deletion); responses no longer carry raw error text (it goes to the log); provider URLs are matched by host name; the caption tag stripper cannot be slowed down by odd input; the API key fingerprint uses a slow salted hash; caption cleanup in the player uses the browser's HTML parser; the CI workflow has read-only permissions; test data that looked like real keys is built at run time.
+
 ## 30.3.8 (2026-11-18)
 - **Transfers keep the new name.** A video converted to MP4 for Telegram now has the `.mp4` name in its caption and in the console's "MOVE COMPLETE" line, not the source's `.mkv`, `.avi` or `.mov`.
 - **A long conversion no longer looks stuck.** The conversion step reports its percentage and time left on the job, in the console and in the logs, and that signal is what keeps the watchdog from treating a long conversion as a stalled job. FFmpeg and the PyAV worker are listed under **Running right now** on the Operations page with their pid, run time and progress; a transfer that is working without a visible job row is called out there.
