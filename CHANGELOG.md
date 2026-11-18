@@ -2,6 +2,13 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## 30.4.0 (2026-11-18)
+- **SFW and NSFW modes.** One switch for the whole app, in Settings, Content and at the top of the profile-picture menu. The app opens in **SFW**; switching into NSFW asks for a PIN (the first time you choose one). Pages, counts, people, studios, tags, search and direct links show only what belongs to the current mode. **Your existing library is marked NSFW, so it appears after you switch to NSFW.** The words change by mode (Movies & Shows, Cast, Studios & Networks, Genres, and a Series page in SFW) and decode into place with a short scramble animation.
+- **Channel marks.** Settings, Telegram, Channels: for each channel choose in the library or not, SFW or NSFW, and whether it holds videos, photos or both. A channel is wholly one kind. Channels found from now on stay out of the library until you mark them.
+- **Local files.** Settings, Local files: pick a folder on this PC (with a folder browser), choose subfolders to leave out, and mark it SFW or NSFW. Photos and videos are read where they lie and never copied; a folder is re-checked every 15 minutes. Videos get their details and 36 snapshots built in the background and play straight from the disk.
+- **Movies and TV identification (SFW).** Settings, Metadata, Movies & TV providers: TMDB, OpenSubtitles (file hash) and OMDb keys. File names are read, matches fill in title, date, cast, studios or networks and genres; doubtful ones wait in a list for you to pick. The Series page shows each show with its episodes season by season.
+- Not done yet: TVDB, cast photos, posters on the Videos cards, uploading local files to Telegram afterwards, and browser playback of `.mkv`/`.avi` local files (the native player reads them directly).
+
 ## 30.3.9 (2026-11-18)
 - **Security fixes from GitHub's code scanning:** one shared check keeps file paths inside their folder (audio, subtitle and caption files, device playlists, channel photos, icons, backup deletion); responses no longer carry raw error text (it goes to the log); provider URLs are matched by host name; the caption tag stripper cannot be slowed down by odd input; the API key fingerprint uses a slow salted hash; caption cleanup in the player uses the browser's HTML parser; the CI workflow has read-only permissions; test data that looked like real keys is built at run time.
 
