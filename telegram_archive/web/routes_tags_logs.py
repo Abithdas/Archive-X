@@ -770,11 +770,11 @@ def register_tags_logs_routes(
     async def backup_delete(request: Request):
         require_auth(request)
         data = await request.json()
-        repo = repository(db)
-        try:
-            path = inside(repo, os.path.relpath(str(Path(str(data.get("path") or "").strip()).expanduser()), repo))
-        except ValueError:
+        repo_root = os.path.realpath(str(repository(db)))
+        path = os.path.realpath(os.path.expanduser(str(data.get("path") or "").strip()))
+        if not path.startswith(repo_root + os.sep):
             raise HTTPException(400, "Backup must be inside the configured repository")
+        path = Path(path)
         if path.suffix.lower() != ".axbackup" or not path.is_file():
             raise HTTPException(404, "Backup not found")
         path.unlink()

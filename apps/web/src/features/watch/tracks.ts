@@ -16,7 +16,7 @@ export function stampSeconds(s: string): number {
 
 /** The text of a caption line: tags removed and entities decoded by the browser's own HTML parser (nothing is run or loaded from it). */
 const stripTags = (t: string) => {
-  if (typeof DOMParser === 'undefined') return t.replace(/<[^<>]*>/g, '')
+  if (typeof DOMParser === 'undefined') return t.replace(/[<>]/g, '')   // no parser: drop the angle brackets themselves, so no tag can survive
   return (new DOMParser().parseFromString(t, 'text/html').body.textContent ?? '').replace(/\u00a0/g, ' ')
 }
 
