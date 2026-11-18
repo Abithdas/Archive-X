@@ -764,6 +764,7 @@ def _pending_rows(db, limit: int = 0, channels: list[int] | None = None, scope: 
             "WHERE c0.source_channel=m.source_channel AND c0.video_message_id=m.source_message_id))"
         )
     clauses.append("COALESCE(m.status,'')<>'SOURCE_DELETED'")  # V29.4.128
+    clauses.append("CAST(m.source_channel AS INTEGER) > -9000000000000")   # local folders build their own snapshots (engines/local_videos.py); Telegram has nothing for them
     apply_retry_cooldown = not targeted and not allow_failed_retry and scope != "all" and not operator_channel_scan
     if apply_retry_cooldown:
         clauses.append(_COOLDOWN_CLAUSE)

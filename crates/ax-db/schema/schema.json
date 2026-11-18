@@ -1909,6 +1909,50 @@
    "type": "INTEGER"
   }
  ],
+ "local_video_files": [
+  {
+   "name": "channel_id",
+   "notnull": true,
+   "pk": true,
+   "type": "TEXT"
+  },
+  {
+   "name": "message_id",
+   "notnull": true,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "path",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "size",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "mtime",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "probed",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "snapshots",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  }
+ ],
  "local_video_performers": [
   {
    "name": "video_id",

@@ -33,16 +33,20 @@ export interface LocalFolder {
   id: number; path: string; title: string | null; channel_id: string; recursive: number; excluded: string[]
   in_library: number; content_rating: Mode; holds: 'videos' | 'photos' | 'both'
   last_status: 'NEVER' | 'SCANNING' | 'COMPLETE' | 'FAILED'; last_error: string; last_scan_at: string | null
-  photos: number; videos: number; exists: boolean; scan: { running?: boolean; seen?: number; added?: number }
+  photos: number; videos: number; exists: boolean; scan: { running?: boolean; seen?: number; added?: number }; video_work?: { running?: boolean; total?: number; done?: number; failed?: number }
 }
 export interface BrowseResult { path: string; parent: string | null; folders: Array<{ name: string; path: string }> }
 
-export function scanText(f: Pick<LocalFolder, 'last_status' | 'last_error' | 'photos' | 'videos' | 'exists' | 'scan'>): string {
+export function scanText(f: Pick<LocalFolder, 'last_status' | 'last_error' | 'photos' | 'videos' | 'exists' | 'scan' | 'video_work'>): string {
   if (!f.exists) return 'The folder is not there any more (a drive that is unplugged?).'
   if (f.last_status === 'SCANNING' || f.scan?.running) return `Looking through it… ${(f.scan?.seen ?? 0).toLocaleString()} photos so far`
   if (f.last_status === 'FAILED') return f.last_error || 'The last check failed.'
   if (f.last_status === 'NEVER') return 'Not checked yet.'
   const parts = [`${f.photos.toLocaleString()} photo${f.photos === 1 ? '' : 's'}`]
-  if (f.videos) parts.push(`${f.videos.toLocaleString()} video${f.videos === 1 ? '' : 's'} found (playing them from here comes next)`)
+  if (f.videos) {
+    const w = f.video_work
+    const busy = w?.running && (w.total ?? 0) > 0
+    parts.push(`${f.videos.toLocaleString()} video${f.videos === 1 ? '' : 's'}${busy ? ` (preparing snapshots: ${(w?.done ?? 0).toLocaleString()} of ${(w?.total ?? 0).toLocaleString()})` : ''}`)
+  }
   return parts.join(' · ')
 }

@@ -1,8 +1,8 @@
 """Local folders as photo sources: walk a folder, index its images like a channel's photos, keep the index equal to the disk.
 
-A local folder is a row in ``channels`` (telegram_id ``local:<id>``) plus a row in ``local_sources``. Its photos are rows of
+A local folder is a row in ``channels`` (telegram_id = ``channel_id(id)``, a number far below any Telegram id) plus a row in ``local_sources``. Its photos are rows of
 ``photo_library_items`` with ``source_kind='local'`` and ``local_path`` = the file; the file is read where it lies and is never copied.
-Videos are counted here and indexed by the later video step.
+Videos go to ``local_videos`` (rows of ``media``).
 """
 from __future__ import annotations
 
@@ -22,19 +22,22 @@ SOURCE_KIND = "local"
 MAX_FILES = 500_000
 
 
+LOCAL_BASE = -9_000_000_000_000   # below every Telegram channel id (-100…), so the playback routes, which take whole numbers, accept it
+
+
 def channel_id(source_id: int) -> str:
-    return f"local:{int(source_id)}"
+    return str(LOCAL_BASE - int(source_id))
 
 
-def is_local_channel(value: str) -> bool:
-    return str(value or "").startswith("local:")
-
-
-def source_id_of(channel: str) -> int | None:
+def is_local_channel(value) -> bool:
     try:
-        return int(str(channel).split(":", 1)[1]) if is_local_channel(channel) else None
-    except (IndexError, ValueError):
-        return None
+        return int(str(value)) < LOCAL_BASE
+    except (TypeError, ValueError):
+        return False
+
+
+def source_id_of(channel) -> int | None:
+    return LOCAL_BASE - int(str(channel)) if is_local_channel(channel) else None
 
 
 def _skip_dir(name: str) -> bool:
@@ -111,6 +114,7 @@ def scan_source(db, source_id: int) -> dict:
         db.conn.execute("INSERT INTO photo_library_scan_state(channel_id,status,last_scan_at,updated_at) VALUES(?,'RUNNING',?,?) ON CONFLICT(channel_id) DO UPDATE SET status='RUNNING',updated_at=excluded.updated_at", (ch, now, now))
         db.conn.commit()
     photos = videos = added = 0
+    video_paths: list[str] = []
     try:
         if not root.is_dir():
             raise FileNotFoundError(f"The folder is not there: {root}")
@@ -126,6 +130,7 @@ def scan_source(db, source_id: int) -> dict:
         for path, kind in walk_files(root, recursive=bool(row["recursive"]), excluded=excluded):
             if kind == "video":
                 videos += 1
+                video_paths.append(os.path.realpath(path))
                 continue
             full = os.path.realpath(path)
             seen.add(full)
@@ -155,6 +160,8 @@ def scan_source(db, source_id: int) -> dict:
                 batch = []
         if batch:
             _write_batch(db, batch)
+        from . import local_videos
+        local_videos.index_videos(db, ch, video_paths)
         gone = [p for p in known if p not in seen]
         with db.lock:
             for i in range(0, len(gone), 400):

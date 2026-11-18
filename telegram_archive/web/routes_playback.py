@@ -152,10 +152,39 @@ def register_playback_routes(
     # SUBSECTION: Stream and playback session
     # Stream route, telemetry, stop and release.
     # ------------------------------------------------------------------
+    async def _local_file_response(channel_id: int, message_id: int):
+        """A video from a local folder: the file itself, with byte ranges, straight from the disk."""
+        from fastapi.responses import FileResponse
+        from ..engines import local_videos
+        path = await asyncio.to_thread(local_videos.file_of, db, channel_id, message_id)
+        if not path:
+            raise HTTPException(404, "That file is not in its folder any more")
+        return FileResponse(path, media_type=local_videos.mime_of(path), headers={"Cache-Control": "private, max-age=30", "X-Archive-X-Playback-Delivery": "local-file"})
+
+    async def _local_play_info(channel_id: int, message_id: int):
+        from ..engines import local_videos
+        path = await asyncio.to_thread(local_videos.file_of, db, channel_id, message_id)
+        if not path:
+            raise HTTPException(404, "That file is not in its folder any more")
+
+        def read():
+            with db.reading() as conn:
+                return conn.execute("SELECT filename,size,duration,width,height,fps,bitrate,codec,audio_codec FROM media WHERE source_channel=? AND source_message_id=?", (str(channel_id), int(message_id))).fetchone()
+        row = await asyncio.to_thread(read)
+        name = os.path.basename(path)
+        info = {"name": name, "mime": local_videos.mime_of(path), "size": int(os.path.getsize(path)), "duration": float((row["duration"] if row else 0) or 0),
+                "width": int((row["width"] if row else 0) or 0), "height": int((row["height"] if row else 0) or 0), "fps": float((row["fps"] if row else 0) or 0),
+                "bitrate": int((row["bitrate"] if row else 0) or 0), "codec": str((row["codec"] if row else "") or ""), "audio_codec": str((row["audio_codec"] if row else "") or ""),
+                "streamable": True, "streamability_label": "Local file", "local_file": True}
+        return info
+
     @router.get("/stream/{channel_id}/{message_id}")
     async def stream(channel_id: int, message_id: int, request: Request):
         """Browser playback through the persistent, segment-aligned cache."""
         require_auth(request)
+        from ..engines import local_scanner as _ls
+        if _ls.is_local_channel(channel_id):
+            return await _local_file_response(channel_id, message_id)
         from fastapi.responses import Response, StreamingResponse
         from ..playback.stream_server import parse_range, content_disposition, _stream_log
         import time as _time
@@ -973,6 +1002,9 @@ def register_playback_routes(
     async def play_info(channel_id: int, message_id: int, request: Request):
         """GET /api/play/info/{channel_id}/{message_id}: Play info."""
         require_auth(request)
+        from ..engines import local_scanner as _ls
+        if _ls.is_local_channel(channel_id):
+            return await _local_play_info(channel_id, message_id)
         from ..core.split_files import load_split_group, SplitFileError
         try:
             split_group = await asyncio.to_thread(load_split_group, db, str(channel_id), int(message_id))

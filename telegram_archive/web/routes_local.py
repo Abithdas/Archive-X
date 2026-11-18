@@ -53,6 +53,8 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
         def work():
             try:
                 ls.scan_source(db, sid)
+                from ..engines import local_videos
+                local_videos.process(db, ls.channel_id(sid))   # probe the new videos and build their snapshots
             except Exception as exc:   # the failure is stored on the source and shown in Settings
                 db.log(f"Local folder scan failed: {type(exc).__name__}: {exc}", "WARN")
         t = threading.Thread(target=work, name=f"local-scan-{sid}", daemon=True)
@@ -64,7 +66,7 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
         with db.reading() as conn:
             rows = conn.execute(
                 "SELECT s.*, c.title, COALESCE(c.in_library,1) AS in_library, COALESCE(c.content_rating,'nsfw') AS content_rating, COALESCE(c.holds,'both') AS holds "
-                "FROM local_sources s LEFT JOIN channels c ON c.telegram_id='local:'||s.id ORDER BY LOWER(COALESCE(c.title,s.path))").fetchall()
+                "FROM local_sources s LEFT JOIN channels c ON c.telegram_id=CAST(? - s.id AS TEXT) ORDER BY LOWER(COALESCE(c.title,s.path))", (ls.LOCAL_BASE,)).fetchall()
         out = []
         for r in rows:
             d = dict(r)
@@ -74,6 +76,8 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
                 d["excluded"] = []
             d["channel_id"] = ls.channel_id(d["id"])
             d["scan"] = ls.progress(d["id"])
+            from ..engines import local_videos
+            d["video_work"] = local_videos.progress(ls.channel_id(d["id"]))
             d["exists"] = os.path.isdir(d["path"])
             out.append(d)
         return out
@@ -195,7 +199,8 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
                 if not row:
                     raise HTTPException(404, "No such folder")
                 for sql in ("DELETE FROM photo_library_items WHERE channel_id=?", "DELETE FROM photo_library_scan_state WHERE channel_id=?",
-                            "DELETE FROM channels WHERE telegram_id=?"):
+                            "DELETE FROM media WHERE source_channel=?", "DELETE FROM local_video_files WHERE channel_id=?",
+                            "DELETE FROM timeline_preview_cache WHERE source_channel=?", "DELETE FROM channels WHERE telegram_id=?"):
                     db.conn.execute(sql, (ch,))
                 db.conn.execute("DELETE FROM local_sources WHERE id=?", (int(source_id),))
                 db.conn.commit()

@@ -35,7 +35,8 @@ describe('scanText', () => {
   const f = (over: Partial<LocalFolder> = {}) => ({ last_status: 'COMPLETE', last_error: '', photos: 3, videos: 0, exists: true, scan: {}, ...over }) as LocalFolder
   it('says what a folder holds, and what went wrong', () => {
     expect(scanText(f())).toBe('3 photos')
-    expect(scanText(f({ photos: 1, videos: 2 }))).toContain('2 videos found')
+    expect(scanText(f({ photos: 1, videos: 2 }))).toBe('1 photo · 2 videos')
+    expect(scanText(f({ photos: 0, videos: 5, video_work: { running: true, total: 5, done: 2 } }))).toContain('preparing snapshots: 2 of 5')
     expect(scanText(f({ last_status: 'SCANNING', scan: { seen: 1200 } }))).toContain('1,200 photos so far')
     expect(scanText(f({ last_status: 'FAILED', last_error: 'No access' }))).toBe('No access')
     expect(scanText(f({ exists: false }))).toContain('not there')

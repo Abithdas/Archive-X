@@ -7,7 +7,7 @@ HTMLDialogElement.prototype.showModal ||= function (this: HTMLDialogElement) { t
 HTMLDialogElement.prototype.close ||= function (this: HTMLDialogElement) { this.removeAttribute('open') }
 afterEach(() => vi.unstubAllGlobals())
 
-const folder = { id: 1, path: 'E:\\Pictures', title: 'Pictures', channel_id: 'local:1', recursive: 1, excluded: [], in_library: 1, content_rating: 'nsfw', holds: 'both', last_status: 'COMPLETE', last_error: '', last_scan_at: null, photos: 12, videos: 0, exists: true, scan: {} }
+const folder = { id: 1, path: 'E:\\Pictures', title: 'Pictures', channel_id: '-9000000000001', recursive: 1, excluded: [], in_library: 1, content_rating: 'nsfw', holds: 'both', last_status: 'COMPLETE', last_error: '', last_scan_at: null, photos: 12, videos: 0, exists: true, scan: {} }
 
 function mock(folders: object[]) {
   const calls: Array<{ url: string; method: string; body?: Record<string, unknown> }> = []
@@ -28,7 +28,7 @@ describe('LocalFolders', () => {
     withRouter(<LocalFolders />)
     expect(await screen.findByText('12 photos')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'SFW' }))
-    await waitFor(() => expect(calls.find((c) => c.url === '/api/telegram/channel-marks' && c.method === 'POST')?.body).toEqual({ ids: ['local:1'], content_rating: 'sfw' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/telegram/channel-marks' && c.method === 'POST')?.body).toEqual({ ids: ['-9000000000001'], content_rating: 'sfw' }))
   })
   it('says when there are none, and adds a chosen folder with its mark', async () => {
     const calls = mock([])

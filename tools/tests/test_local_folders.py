@@ -143,12 +143,67 @@ def test_routes_add_scan_serve_and_remove_a_folder(tmp_path, folder):
     assert c.post("/api/local-folders", json={"path": str(tmp_path / "nope")}, headers=H).status_code == 400
     assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
     channels = {ch["telegram_id"]: ch for ch in c.get("/api/photos/channels").json()}
-    assert channels[f"local:{sid}"]["photo_count"] == 3 and channels[f"local:{sid}"]["photo_scan_status"] == "COMPLETE"
-    img = c.get(f"/api/photos/local:{sid}/1/image")
+    assert channels[ls.channel_id(sid)]["photo_count"] == 3 and channels[ls.channel_id(sid)]["photo_scan_status"] == "COMPLETE"
+    img = c.get(f"/api/photos/{ls.channel_id(sid)}/1/image")
     assert img.status_code == 200 and img.content[:4] == b"\x89PNG" or img.content[:2] == b"\xff\xd8"
-    assert c.get(f"/api/photos/local:{sid}/1/thumbnail").status_code == 200
+    assert c.get(f"/api/photos/{ls.channel_id(sid)}/1/thumbnail").status_code == 200
     kids = c.get("/api/local-folders/browse", params={"path": str(folder)}).json()
     assert [k["name"] for k in kids["folders"]] == ["trip"]            # hidden folders are not offered
     assert c.delete(f"/api/local-folders/{sid}", headers=H).status_code == 200
     assert c.get("/api/local-folders").json()["folders"] == [] and (folder / "a.png").exists()
     assert photo_cache.resolve_database_cache_path(str(folder / "a.png")) is None   # no longer an allowed place
+
+
+def _make_video(path: Path, seconds: int = 4) -> bool:
+    import shutil
+    import subprocess
+    if not shutil.which("ffmpeg"):
+        return False
+    done = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"testsrc2=size=320x180:rate=15:duration={seconds}", "-pix_fmt", "yuv420p", str(path)], capture_output=True)
+    return done.returncode == 0 and path.is_file()
+
+
+def test_a_local_video_is_listed_probed_streamed_and_gets_its_snapshots(tmp_path):
+    root = tmp_path / "Movies"
+    root.mkdir()
+    if not _make_video(root / "Some Film (2019).mp4"):
+        pytest.skip("ffmpeg is not available")
+    db = Database(tmp_path / "v.db")
+    c, H = _client(db)
+    r = c.post("/api/local-folders", json={"path": str(root), "content_rating": "nsfw", "holds": "videos"}, headers=H)
+    assert r.status_code == 200, r.text
+    sid = r.json()["id"]
+    ch = ls.channel_id(sid)
+    for _ in range(400):                                                # scan, probe and snapshots run in the background
+        work = c.get("/api/local-folders").json()["folders"][0].get("video_work") or {}
+        with db.reading() as conn:
+            row = conn.execute("SELECT probed,snapshots FROM local_video_files WHERE channel_id=?", (ch,)).fetchone()
+        if row and row["snapshots"] and not work.get("running"):
+            break
+        time.sleep(0.1)
+    assert row and (row["probed"], row["snapshots"]) == (1, 1)
+    with db.reading() as conn:
+        m = conn.execute("SELECT * FROM media WHERE source_channel=?", (ch,)).fetchone()
+    assert (m["title"], m["width"], m["height"]) == ("Some Film (2019)", 320, 180) and 3.5 < m["duration"] < 4.5
+    mid = m["source_message_id"]
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
+    info = c.get(f"/api/play/info/{ch}/{mid}").json()
+    assert info["local_file"] is True and info["width"] == 320 and info["mime"] == "video/mp4"
+    full = c.get(f"/stream/{ch}/{mid}")
+    part = c.get(f"/stream/{ch}/{mid}", headers={"Range": "bytes=0-99"})
+    assert full.status_code == 200 and part.status_code == 206 and len(part.content) == 100 and full.content[:100] == part.content
+    assert c.get(f"/api/play/preview-manifest/{ch}/{mid}").json()["ready"] is True
+    assert c.get(f"/api/play/preview-grid/{ch}/{mid}").status_code == 200
+    assert c.get(f"/api/thumb/{ch}/{mid}").headers.get("X-Thumbnail-Status") != "pending"
+    listed = c.get("/api/library").json()
+    rows = next((v for v in listed.values() if isinstance(v, list)), [])
+    assert [v.get("title") for v in rows] == ["Some Film (2019)"]
+    (root / "Some Film (2019).mp4").unlink()                            # gone from the disk, gone from the library
+    assert c.post(f"/api/local-folders/{sid}/scan", headers=H).status_code == 200
+    for _ in range(100):
+        with db.reading() as conn:
+            if not conn.execute("SELECT 1 FROM media WHERE source_channel=?", (ch,)).fetchone():
+                break
+        time.sleep(0.05)
+    with db.reading() as conn:
+        assert not conn.execute("SELECT 1 FROM media WHERE source_channel=?", (ch,)).fetchone()
