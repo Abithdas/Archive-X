@@ -45,6 +45,8 @@ Python is deliberately **one process**: Telegram, jobs, playback and watchers ar
 | Local folder | The file on disk, read in place and never copied. Channel id is `-9,000,000,000,000 - folder id`, so the same routes accept it | Sent from disk by the front door with byte ranges |
 | Uploaded local file | Both | After a verified upload, identity, cast and snapshots are carried to the Telegram copy (`local_upload_bridge`), so nothing is identified or snapshotted twice |
 
+The Transfer Manager uploads a scanned folder by its own route (`/api/local-folders/{id}/upload`), and the Metadata & Assets Manager scans folders by `/api/local-folders/{id}/identify`.
+
 A video appears in the Library only when its snapshots (36 frames), thumbnail and playback representative are ready.
 
 ## 4. Metadata

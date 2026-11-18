@@ -36,4 +36,5 @@ One change per commit, with a message that says what changed and why. A commit t
 - Rust: `cargo test --workspace` from the repository root (it covers the front door, database, launcher and shell crates). `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --check` must be clean.
 - Web: `npm test`, `npm run typecheck` and `npm run unused` in `apps/web/`.
 - SFW / NSFW: anything that reads content must go through the filtered connection or the guard (docs/adr/0011). `tools/tests/test_sfw_leaks.py` must stay green.
+- Outbound HTTP from Python uses the standard library or `core/http_client.py`. `requests` is not part of the installed app, and a test fails if other code imports it. A provider call that only ever ran against stand-in answers has not been run: try it once against the real service.
 - Windows-only behaviour (the native player, reopening the app) is tried on a real PC; CI covers what it can.

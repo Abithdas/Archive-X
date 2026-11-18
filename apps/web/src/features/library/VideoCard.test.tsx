@@ -24,6 +24,22 @@ describe('VideoCard', () => {
     expect(screen.getByText('1:02:05')).toBeInTheDocument()
     expect(screen.getByText('1080p')).toBeInTheDocument()
   })
+  it('marks a video from a folder on this PC with a folder icon in place of the Telegram one, not next to the resolution', async () => {
+    const { container } = withRouter(<VideoCard item={item({ _cid: '-9000000000001', channel_title: 'My Films' })} />)
+    await screen.findByRole('article')
+    const place = screen.getByText('Northlight · My Films')
+    expect(place.parentElement?.querySelector('[title="Folder on this PC"]')).not.toBeNull()
+    expect(place.parentElement?.querySelector('svg.text-\\[\\#4fb3ea\\]')).toBeNull()                      // no Telegram icon on this line
+    const resolution = screen.getByText('1080p')
+    expect(resolution.parentElement?.querySelector('[title="Folder on this PC"]')).toBeNull()      // and nothing beside the resolution
+    expect(container.querySelectorAll('[title="Folder on this PC"]')).toHaveLength(1)
+  })
+  it('keeps the Telegram icon for a Telegram video', async () => {
+    withRouter(<VideoCard item={item()} />)
+    const place = await screen.findByText('Northlight · Main Archive')
+    expect(place.parentElement?.querySelector('[title="Folder on this PC"]')).toBeNull()
+    expect(place.parentElement?.querySelector('svg')).not.toBeNull()
+  })
   it('limits tags to two plus a count', async () => {
     withRouter(<VideoCard item={item()} />)
     expect(await screen.findByText('+3')).toBeInTheDocument()

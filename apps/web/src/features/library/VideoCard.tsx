@@ -58,12 +58,7 @@ export function VideoCard({ item }: { item: LibraryItem }) {
         {selecting ? (
           <input type="checkbox" checked={picked} onChange={() => toggle(item._cid, item.id)} aria-label={`Select ${item.name}`} className="absolute left-2 top-2 z-10 size-5 cursor-pointer accent-[var(--color-accent)]" />
         ) : null}
-        {item.resolution_category || isLocalId(item._cid) ? (
-          <span className="absolute bottom-2 left-2 z-[2] flex items-center gap-1">
-            {item.resolution_category ? <span className={cn(BADGE, 'static')}>{item.resolution_category}</span> : null}
-            {isLocalId(item._cid) ? <span className={cn(BADGE, 'static inline-flex items-center')} title={LOCAL_LABEL}><Icon name="folders" className="size-3" /><span className="sr-only">{LOCAL_LABEL}</span></span> : null}
-          </span>
-        ) : null}
+        {item.resolution_category ? <span className={cn(BADGE, 'bottom-2 left-2 z-[2]')}>{item.resolution_category}</span> : null}
         {duration ? <span className={cn(BADGE, 'bottom-2 right-2 z-[2]')}>{duration}</span> : null}
         {preview.loading ? <Skeleton className="absolute inset-x-0 bottom-0 z-[2] h-[3px] rounded-none" /> : null}
         {preview.ratio !== null || preview.watched > 0 ? (
@@ -110,7 +105,9 @@ export function VideoCard({ item }: { item: LibraryItem }) {
         <div className="mt-1.5 flex h-4 items-center gap-[5px] text-xs text-faint">
           {place ? (
             <>
-              <Icon name="send" className="size-[13px] shrink-0 text-[#4fb3ea]" />
+              {isLocalId(item._cid)
+                ? <span title={LOCAL_LABEL} className="inline-flex shrink-0 text-accent"><Icon name="folders" className="size-[13px]" /><span className="sr-only">{LOCAL_LABEL}</span></span>
+                : <Icon name="send" className="size-[13px] shrink-0 text-[#4fb3ea]" />}
               <span className="truncate">{place}</span>
             </>
           ) : null}

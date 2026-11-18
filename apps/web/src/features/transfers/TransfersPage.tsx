@@ -15,6 +15,9 @@ import { AutomationWorkflow } from './AutomationWorkflow'
 import { TransferWorkflow } from './TransferWorkflow'
 import { AnimatePresence, listItem, motion } from '@/design/motion'
 import { ChannelAvatar } from '@/features/channels/ChannelAvatar'
+import { isLocalChannel } from '@/features/channels/local'
+import { useLocalFolders } from '@/features/content/useContentMode'
+import { folderLabel, folderName, type ScannedFolder } from './transfer'
 import { activeLaneCount, jobPath, laneChips, toLanes, type Lane } from './lanes'
 import { DEFAULT_OPTIONS, joinLaunch, pendingBody, photoFailure, photoLaunch, photoMode, photoRequest, prerequisitePlan, processBody, selectedStages, stageLabels, expandStages, type Preflight, type RunOptions, type Stage } from './metadata'
 
@@ -119,16 +122,22 @@ function MetadataWorkflow() {
   const [step, setStep] = useState(0)
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState<string[]>([])
+  const folderQuery = useLocalFolders()
+  const folders: ScannedFolder[] = (folderQuery.data?.folders ?? []).filter((f) => f.exists !== false).map((f) => ({ id: f.id, path: f.path, title: f.title, content_rating: f.content_rating, videos: f.videos }))
+  const [pickedFolders, setPickedFolders] = useState<number[]>([])
+  const [folderMsg, setFolderMsg] = useState('')
   const [o, setO] = useState<RunOptions>(DEFAULT_OPTIONS)
   const [busy, setBusy] = useState<'' | 'run' | 'pending'>('')
   const [msg, setMsg] = useState('')
   const [ask, setAsk] = useState<null | { labels: string[]; affected: string[]; run: () => void }>(null)
-  const list = (channels.data ?? []).filter((c: Channel) => c.title.toLowerCase().includes(q.trim().toLowerCase()))
+  const telegramChannels = (channels.data ?? []).filter((c: Channel) => !isLocalChannel(c))   // folders on this PC are listed on their own below
+  const list = telegramChannels.filter((c: Channel) => c.title.toLowerCase().includes(q.trim().toLowerCase()))
+  const toggleFolder = (id: number) => setPickedFolders((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
   const set = <K extends keyof RunOptions>(k: K, v: RunOptions[K]) => setO({ ...o, [k]: v })
   const stages = selectedStages(o)
-  const needChannels = !picked.length
-  const needStages = !stages.length && !photoMode(o)
+  const needChannels = !picked.length && !pickedFolders.length
+  const needStages = picked.length > 0 && !stages.length && !photoMode(o)   // stages are for Telegram channels; a folder is simply scanned
 
   const canNext = step === 0 ? !needChannels : step === 1 ? !needStages : true
   const refreshAll = () => { void qc.invalidateQueries({ queryKey: ['lanes'] }); void qc.invalidateQueries({ queryKey: ['status'] }) }
@@ -142,12 +151,31 @@ function MetadataWorkflow() {
     if (!r || r.ok === false || !r.id) throw new ApiError(0, photoFailure(mode, r?.detail ?? ''))
     return photoLaunch(mode, r.id, picked.length)
   }
+  /** Starts the metadata scan of each chosen folder (SFW: movies and shows; NSFW: the scene databases, by file hash). It runs in the background. */
+  const scanFolders = async (): Promise<{ text: string; ok: boolean }> => {
+    const started: string[] = []
+    const failed: string[] = []
+    for (const id of pickedFolders) {
+      const f = folders.find((x) => x.id === id)
+      const name = f ? folderName(f) : String(id)
+      try { await api(`/api/local-folders/${id}/identify`, { method: 'POST', json: {} }); started.push(name) } catch (e) { failed.push(`${name}: ${detail(e, 'could not start')}`) }
+    }
+    return { text: [started.length ? `Metadata scan started for ${started.join(', ')}.` : '', ...failed].filter(Boolean).join(' '), ok: !failed.length }
+  }
   const run = async () => {
-    if (needChannels) return void setMsg('Select at least one channel.')
+    if (needChannels) return void setMsg('Select at least one channel or local folder.')
     if (needStages) return void setMsg('Select at least one processing stage.')
     setBusy('run')
     setMsg('')
+    setFolderMsg('')
     try {
+      if (pickedFolders.length) {
+        const r = await scanFolders()
+        setFolderMsg(r.text)
+        r.ok ? toast(r.text) : toast.error(r.text)
+        refreshAll()
+        if (!picked.length) return   // folders only: nothing more to start
+      }
       let metaText = ''
       const finish = async () => {
         let photoText = ''
@@ -183,7 +211,7 @@ function MetadataWorkflow() {
     }
   }
   const pending = async () => {
-    if (needChannels) return void setMsg('Select at least one channel.')
+    if (!picked.length) return void setMsg('Select at least one channel.')
     if (!selectedStages(o, true).length) return void setMsg('Select at least one processing stage (Inventory is intentionally skipped).')
     setBusy('pending')
     try {
@@ -212,12 +240,21 @@ function MetadataWorkflow() {
           <h3 className="mb-1 text-[15px] font-bold">1 · Channels</h3>
           <p className="mb-3 text-sm text-muted">Choose the Telegram channels that should be inventoried and refreshed.</p>
           <div className="mb-2 flex gap-2"><input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search channels…" aria-label="Search channels" className="h-10 min-w-0 flex-1 rounded-xl border border-line-2 bg-bg px-3 text-sm" />
-            <button type="button" onClick={() => setPicked((channels.data ?? []).map((c) => c.telegram_id))} className="h-10 rounded-xl border border-line-2 px-3 text-xs font-bold">Select all</button>
+            <button type="button" onClick={() => setPicked(telegramChannels.map((c) => c.telegram_id))} className="h-10 rounded-xl border border-line-2 px-3 text-xs font-bold">Select all</button>
             <button type="button" onClick={() => setPicked([])} className="h-10 rounded-xl border border-line-2 px-3 text-xs font-bold">Clear</button></div>
           <div role="group" aria-label="Metadata and Assets channels" className={CHANNEL_LIST}>
             {channels.isPending ? <p className="col-span-full p-3 text-sm text-muted">Loading channels…</p> : list.length ? list.map((c) => <Check key={c.telegram_id} checked={picked.includes(c.telegram_id)} onChange={() => toggle(c.telegram_id)} title={c.title} icon={<ChannelAvatar id={c.telegram_id} title={c.title} image={c.image} />} hint={videosHint(libraryCount.get(c.telegram_id) ?? c.video_count)} />) : <p className="col-span-full p-3 text-sm text-muted">No channels match.</p>}
           </div>
           <p className="mt-2 text-xs text-muted" aria-live="polite">Selected: {picked.length} channel{picked.length === 1 ? '' : 's'}</p>
+          <div className="mt-4">
+            <div className="mb-1 flex items-center justify-between gap-2"><h4 className="text-sm font-bold">Local folders</h4>
+              {folders.length ? <span className="flex gap-2"><button type="button" onClick={() => setPickedFolders(folders.map((f) => f.id))} className="h-8 rounded-lg border border-line-2 px-3 text-xs font-bold">Select all</button><button type="button" onClick={() => setPickedFolders([])} className="h-8 rounded-lg border border-line-2 px-3 text-xs font-bold">Clear</button></span> : null}</div>
+            <p className="mb-2 text-xs text-muted">Folders added in Settings → Local files. A folder is scanned for its metadata: movies and shows for a SFW folder, the scene databases for an NSFW one. Stages below are for Telegram channels.</p>
+            <div role="group" aria-label="Local folders to scan" className={CHANNEL_LIST}>
+              {folderQuery.isPending ? <p className="col-span-full p-3 text-sm text-muted">Loading folders…</p> : folders.length ? folders.map((f) => <Check key={f.id} checked={pickedFolders.includes(f.id)} onChange={() => toggleFolder(f.id)} title={folderName(f)} hint={folderLabel(f).split(' · ').slice(1).join(' · ')} />) : <p className="col-span-full p-3 text-sm text-muted">No folders yet. Add one in Settings → Local files.</p>}
+            </div>
+            <p className="mt-2 text-xs text-muted" aria-live="polite">Selected: {pickedFolders.length} folder{pickedFolders.length === 1 ? '' : 's'}</p>
+          </div>
         </div>
       ) : step === 1 ? (
         <div className="grid gap-4">
@@ -241,11 +278,11 @@ function MetadataWorkflow() {
         <div>
           <h3 className="mb-2 text-[15px] font-bold">3 · Review</h3>
           <dl className="grid gap-1.5 rounded-xl bg-bg p-3 text-sm">
-            {[['Channels', picked.map((id) => channels.data?.find((c) => c.telegram_id === id)?.title ?? id).join(', ') || '—'], ['Scope', o.scope === 'all' ? 'Entire channel' : `First ${o.scope} videos`], ['Stages', [...stageLabels(stages), ...(o.imageScan ? ['Image scan'] : []), ...(o.photoReconcile ? ['Reconcile deleted Telegram images'] : [])].join(' → ') || '—'], ['Force metadata recheck', o.forceMetadata ? 'Yes' : 'No'], ['Force performer/studio recheck', o.forceEntity ? 'Yes' : 'No'], ['Reconcile older history', o.fullInventory ? 'Yes' : 'No']].map(([k, v]) => (
+            {[['Channels', picked.map((id) => channels.data?.find((c) => c.telegram_id === id)?.title ?? id).join(', ') || '—'], ['Local folders', pickedFolders.map((id) => { const f = folders.find((x) => x.id === id); return f ? folderName(f) : String(id) }).join(', ') || '—'], ['Scope', o.scope === 'all' ? 'Entire channel' : `First ${o.scope} videos`], ['Stages', [...stageLabels(stages), ...(o.imageScan ? ['Image scan'] : []), ...(o.photoReconcile ? ['Reconcile deleted Telegram images'] : [])].join(' → ') || '—'], ['Force metadata recheck', o.forceMetadata ? 'Yes' : 'No'], ['Force performer/studio recheck', o.forceEntity ? 'Yes' : 'No'], ['Reconcile older history', o.fullInventory ? 'Yes' : 'No']].map(([k, v]) => (
               <div key={k} className="grid grid-cols-[minmax(0,160px)_minmax(0,1fr)] gap-3"><dt className="text-muted">{k}</dt><dd className="font-semibold [overflow-wrap:anywhere]">{v}</dd></div>
             ))}
           </dl>
-          {needChannels || needStages ? <p role="alert" className="mt-2 text-sm text-warn">{needChannels ? 'Select at least one channel.' : 'Select at least one processing stage.'}</p> : <p className="mt-2 text-sm text-muted">Configuration looks valid. Continue to Run.</p>}
+          {needChannels || needStages ? <p role="alert" className="mt-2 text-sm text-warn">{needChannels ? 'Select at least one channel or local folder.' : 'Select at least one processing stage.'}</p> : <p className="mt-2 text-sm text-muted">Configuration looks valid. Continue to Run.</p>}
         </div>
       ) : (
         <div className="grid gap-3">
@@ -255,6 +292,7 @@ function MetadataWorkflow() {
             <div className="grid gap-1"><button type="button" disabled={!!busy} onClick={() => void pending()} className="h-11 rounded-xl border border-line-2 px-4 text-sm font-bold disabled:opacity-60">{busy === 'pending' ? 'Starting…' : 'Run Pending (no scan)'}</button><small className="max-w-[240px] text-xs text-muted">Processes saved channel/message IDs only; it does not read Telegram history.</small></div>
           </div>
           <p className="min-h-5 text-xs text-muted" aria-live="polite">{msg}</p>
+          {folderMsg ? <p className="text-xs text-muted" aria-live="polite">{folderMsg}</p> : null}
         </div>
       )}
       <div className="mt-auto flex justify-between gap-2 pt-5">

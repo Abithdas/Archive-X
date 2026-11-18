@@ -56,7 +56,7 @@ export const useLocalFolders = () =>
     queryKey: ['local-folders'] as const,
     queryFn: () => api<{ folders: LocalFolder[]; mode: Mode; hidden?: number }>('/api/local-folders'),
     staleTime: 5_000,
-    refetchInterval: (q) => (q.state.data?.folders.some((f) => f.last_status === 'SCANNING' || f.scan?.running) ? 1500 : false),
+    refetchInterval: (q) => (q.state.data?.folders?.some((f) => f.last_status === 'SCANNING' || f.scan?.running) ? 1500 : false),
   })
 
 export const useBrowse = (path: string, enabled: boolean) =>

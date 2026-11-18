@@ -20,33 +20,50 @@ export function ScreenProviders() {
   const settings = useQuery({ queryKey: ['screen-settings'], queryFn: () => api<ScreenSettings>('/api/screen/settings'), enabled: mode.data?.mode === 'sfw' })
   const status = useQuery({ queryKey: ['screen-status'], queryFn: () => api<ScreenStatus>('/api/screen/status'), enabled: mode.data?.mode === 'sfw', refetchInterval: (q) => (q.state.data?.progress.running ? 2000 : false) })
   const [vals, setVals] = useState<Record<Provider, string>>({ tmdb: '', omdb: '', opensubtitles: '' })
-  const [tests, setTests] = useState<Partial<Record<Provider, string>>>({})
+  const [tests, setTests] = useState<Partial<Record<Provider, { state: 'checking' | 'ok' | 'bad'; text: string }>>>({})
   const [busy, setBusy] = useState(false)
   if (mode.data?.mode !== 'sfw') return null
   const refresh = () => void qc.invalidateQueries({ predicate: (q) => ['screen-settings', 'screen-status', 'screen-review'].includes(String(q.queryKey[0])) })
 
+  const note = (p: Provider, state: 'checking' | 'ok' | 'bad', text: string) => setTests((t) => ({ ...t, [p]: { state, text } }))
+  /** Asks the provider whether the saved key is accepted, and says so under its box. */
+  const verify = async (p: Provider) => {
+    note(p, 'checking', 'Checking the key with the provider…')
+    try {
+      const r = await api<{ ok: boolean; error?: string }>('/api/screen/check', { method: 'POST', json: { provider: p } })
+      note(p, r.ok ? 'ok' : 'bad', r.ok ? 'Saved. The provider accepts this key.' : r.error || 'The provider did not accept this key.')
+    } catch (e) { note(p, 'bad', errorText(e, 'Could not check the key.')) }
+  }
+  /** Saves what was typed (the server cleans a pasted link or sentence down to the key) and returns the providers that were saved. */
+  const saveTyped = async (only?: Provider): Promise<Provider[]> => {
+    const typed = PROVIDERS.filter((p) => (!only || p.id === only) && vals[p.id].trim())
+    if (!typed.length) return []
+    await api('/api/screen/settings', { method: 'POST', json: Object.fromEntries(typed.map((p) => [p.field, vals[p.id].trim()])) })
+    setVals((v) => ({ ...v, ...Object.fromEntries(typed.map((p) => [p.id, ''])) }))
+    refresh()
+    return typed.map((p) => p.id)
+  }
   const save = async () => {
     setBusy(true)
     try {
-      const body = Object.fromEntries(PROVIDERS.map((p) => [p.field, vals[p.id].trim()]).filter(([, v]) => v))
-      await api('/api/screen/settings', { method: 'POST', json: body })
-      setVals({ tmdb: '', omdb: '', opensubtitles: '' })
-      toast.success('Keys saved.')
-      refresh()
+      const saved = await saveTyped()
+      toast.success(saved.length ? 'Keys saved. Checking them now.' : 'Nothing new to save.')
+      await Promise.all(saved.map(verify))
     } catch (e) { toast.error(errorText(e, 'Could not save the keys.')) } finally { setBusy(false) }
   }
   const check = async (p: Provider) => {
-    setTests((t) => ({ ...t, [p]: 'Testing…' }))
     try {
-      const typed = vals[p].trim()
-      if (typed) {   // a key that was typed is saved first: testing what is on screen, not what was saved before
-        await api('/api/screen/settings', { method: 'POST', json: { [PROVIDERS.find((x) => x.id === p)!.field]: typed } })
-        setVals((v) => ({ ...v, [p]: '' }))
-        refresh()
-      }
-      const r = await api<{ ok: boolean; error?: string }>('/api/screen/check', { method: 'POST', json: { provider: p } })
-      setTests((t) => ({ ...t, [p]: r.ok ? 'The key works.' : r.error || 'The key was not accepted.' }))
-    } catch (e) { setTests((t) => ({ ...t, [p]: errorText(e, 'Could not test the key.') })) }
+      await saveTyped(p)   // a key that was typed is saved first: testing what is on screen, not what was saved before
+    } catch (e) { return note(p, 'bad', errorText(e, 'Could not save the key.')) }
+    await verify(p)
+  }
+  const remove = async (p: Provider) => {
+    try {
+      await api('/api/screen/settings', { method: 'POST', json: { clear: [PROVIDERS.find((x) => x.id === p)!.field] } })
+      setTests((t) => ({ ...t, [p]: undefined }))
+      refresh()
+      toast('Key removed.')
+    } catch (e) { toast.error(errorText(e, 'Could not remove the key.')) }
   }
   const run = async () => {
     try { await api('/api/screen/identify', { method: 'POST', json: {} }); refresh() } catch (e) { toast.error(errorText(e, 'Could not start.')) }
@@ -57,18 +74,24 @@ export function ScreenProviders() {
       <h3 className="mb-1 flex items-center gap-3 text-xl font-extrabold"><span className="text-accent"><Icon name="library" className="size-5" /></span>Movies &amp; TV providers</h3>
       <p className="mb-4 text-sm text-muted">Archive X reads each file's name, asks these services what it is, and fills in the title, cast, studios or networks and genres. Keys stay on this PC.</p>
       <div className="grid gap-4 md:grid-cols-3">
-        {PROVIDERS.map((p) => (
-          <div key={p.id} className="grid content-start gap-2 rounded-2xl border border-line p-4">
-            <label className="grid gap-1.5 text-xs font-semibold text-muted">{p.label}
-              <input type="password" autoComplete="off" value={vals[p.id]} onChange={(e) => setVals((v) => ({ ...v, [p.id]: e.target.value }))} placeholder={configuredOf(settings.data, p.id) ? `Saved ${String(settings.data?.[p.field] ?? '')} — leave blank to keep` : 'Paste the key'} className={INPUT} />
-            </label>
-            <p className="text-xs text-faint">{p.help}</p>
-            <div className="flex items-center gap-3">
-              <button type="button" disabled={!configuredOf(settings.data, p.id) && !vals[p.id].trim()} onClick={() => void check(p.id)} className={BTN}>Test</button>
-              <span role="status" aria-live="polite" className={cn('text-xs', tests[p.id] && tests[p.id] !== 'Testing…' && tests[p.id] !== 'The key works.' ? 'text-warn' : 'text-muted')}>{tests[p.id]}</span>
+        {PROVIDERS.map((p) => {
+          const saved = configuredOf(settings.data, p.id)
+          const mask = String(settings.data?.[p.field] ?? '')
+          const t = tests[p.id]
+          return (
+            <div key={p.id} className="grid content-start gap-2 rounded-2xl border border-line p-4">
+              <label className="grid gap-1.5 text-xs font-semibold text-muted"><span className="flex items-center justify-between gap-2">{p.label}{saved ? <span className="rounded-full bg-good/15 px-2 py-0.5 text-[11px] font-bold text-good">Saved</span> : null}</span>
+                <input type="password" autoComplete="off" value={vals[p.id]} onChange={(e) => setVals((v) => ({ ...v, [p.id]: e.target.value }))} placeholder={saved ? `Saved${mask && mask !== 'set' ? ` ${mask}` : ''} · paste to replace` : 'Paste the key'} className={INPUT} />
+              </label>
+              <p className="text-xs text-faint">{p.help}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" disabled={!saved && !vals[p.id].trim()} onClick={() => void check(p.id)} className={BTN}>Test</button>
+                {saved ? <button type="button" onClick={() => void remove(p.id)} className={cn(BTN, 'text-muted')} aria-label={`Remove the ${p.id} key`}>Remove</button> : null}
+              </div>
+              <p role="status" aria-live="polite" className={cn('min-h-4 text-xs [overflow-wrap:anywhere]', t?.state === 'ok' ? 'text-good' : t?.state === 'bad' ? 'text-warn' : 'text-muted')}>{t?.text}</p>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-line p-3">
         <Switch checked={Boolean(settings.data?.tvmaze_enabled)} onChange={(v) => void api('/api/screen/settings', { method: 'POST', json: { tvmaze_enabled: v } }).then(refresh).catch((e) => toast.error(errorText(e, 'Could not save.')))} label="Use TVmaze for TV shows" />

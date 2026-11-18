@@ -41,32 +41,52 @@ class ProviderError(RuntimeError):
         self.status, self.detail = status, detail
 
 
-def _why(r) -> str:
+def _why(body: bytes, reason: str = "") -> str:
+    """The provider's own words for a refusal, from its reply: "Invalid API key!", "Unauthorized", the status line when it said nothing."""
+    text = (body or b"").decode("utf-8", "replace").strip()
     try:
-        body = r.json()
+        data = json.loads(text)
     except ValueError:
-        return (r.text or "").strip()[:200] or r.reason or ""
-    if isinstance(body, dict):
+        return text[:200] or reason or ""
+    if isinstance(data, dict):
         for key in ("Error", "status_message", "message", "detail", "error"):
-            if body.get(key):
-                return str(body[key])[:200]
-    return str(body)[:200]
+            if data.get(key):
+                return str(data[key])[:200]
+    return str(data)[:200]
 
 
 def http_fetch(url: str, params: dict, headers: dict) -> dict | list:
-    """The real fetch: JSON over HTTPS, {} when the provider has nothing (404), a ProviderError otherwise. One polite retry when asked to slow down."""
+    """The real fetch: JSON over HTTPS, {} when the provider has nothing (404), a ProviderError when it refuses and says why. One polite retry when asked to slow down.
+
+    Standard library only: the installed app is built from requirements.txt, which does not (and need not) include `requests`.
+    """
     import time
-    import requests
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    query = urllib.parse.urlencode({k: v for k, v in (params or {}).items() if v is not None})
+    full = url + (("&" if "?" in url else "?") + query if query else "")
+    req = urllib.request.Request(full, headers={"User-Agent": "ArchiveX", "Accept": "application/json", **(headers or {})})
     for attempt in (0, 1):
-        r = requests.get(url, params=params, headers=headers, timeout=20)
-        if r.status_code == 404:
-            return {}
-        if r.status_code == 429 and attempt == 0:
-            time.sleep(min(float(r.headers.get("Retry-After", "2") or 2), 10.0))
-            continue
-        if not r.ok:
-            raise ProviderError(r.status_code, _why(r))
-        return r.json()
+        try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                raw = resp.read(16 * 1024 * 1024)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                return {}
+            if exc.code == 429 and attempt == 0:
+                try:
+                    wait = float(exc.headers.get("Retry-After", "2") or 2)
+                except ValueError:
+                    wait = 2.0
+                time.sleep(min(wait, 10.0))
+                continue
+            try:
+                body = exc.read(4000)
+            except Exception:
+                body = b""
+            raise ProviderError(exc.code, _why(body, str(exc.reason or ""))) from exc
+        return json.loads(raw.decode("utf-8")) if raw else {}
     return {}
 
 

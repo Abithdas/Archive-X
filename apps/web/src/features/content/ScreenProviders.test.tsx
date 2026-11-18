@@ -32,7 +32,7 @@ describe('ScreenProviders', () => {
   it('shows the saved key, the counts, and saves a new key', async () => {
     const calls = mount('sfw')
     const tmdb = await screen.findByLabelText(/TMDB/)
-    await waitFor(() => expect(tmdb).toHaveAttribute('placeholder', 'Saved abcd…5678 — leave blank to keep'))
+    await waitFor(() => expect(tmdb).toHaveAttribute('placeholder', 'Saved abcd…5678 · paste to replace'))
     expect(await screen.findByText('4 identified · 1 to check · 2 waiting')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText(/OMDb/), { target: { value: 'omdbkey123' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save keys' }))
@@ -90,6 +90,54 @@ describe('testing a key', () => {
     expect(await screen.findByText(/emails you an activation link/)).toBeInTheDocument()
     expect(calls.findIndex((c) => c.url === '/api/screen/settings' && c.method === 'POST')).toBeLessThan(calls.findIndex((c) => c.url === '/api/screen/check'))   // saved, then tested
     expect(calls.find((c) => c.url === '/api/screen/settings' && c.method === 'POST')?.body).toEqual({ omdb_api_key: 'abc12345' })
+  })
+})
+
+describe('saving and removing keys', () => {
+  function mountWith(settings: Record<string, unknown>, handler: (url: string, init?: RequestInit) => Response | undefined = () => undefined) {
+    const calls: { url: string; method: string; body: unknown }[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : undefined })
+      const x = handler(url, init)
+      if (x) return x
+      if (url === '/api/content-mode') return json({ ok: true, mode: 'sfw', pin_set: true, locked_for: 0 })
+      if (url === '/api/screen/settings' && !init?.method) return json({ tmdb_api_key: '', tmdb_configured: false, omdb_api_key: '', omdb_configured: false, opensubtitles_api_key: '', opensubtitles_configured: false, ...settings })
+      if (url === '/api/screen/status') return json({ progress: {}, counts: {}, pending: 0, configured: false })
+      if (url === '/api/screen/review') return json({ items: [] })
+      return json({ ok: true })
+    }))
+    withRouter(<ScreenProviders />)
+    return calls
+  }
+
+  it('checks a key with its provider right after saving it, and says so under the box', async () => {
+    const calls = mountWith({}, (url) => (url === '/api/screen/check' ? json({ ok: true }) : undefined))
+    fireEvent.change(await screen.findByLabelText(/OMDb/), { target: { value: 'abc12345' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save keys' }))
+    expect(await screen.findByText('Saved. The provider accepts this key.')).toBeInTheDocument()
+    expect(calls.find((c) => c.url === '/api/screen/check')?.body).toEqual({ provider: 'omdb' })
+  })
+
+  it('shows why a saved key was not accepted, in the provider\'s words', async () => {
+    mountWith({}, (url) => (url === '/api/screen/check' ? json({ ok: false, error: 'OMDb does not recognise this key (it said: Invalid API key). OMDb emails you an activation link when you ask for a key: open it, then test again.' }) : undefined))
+    fireEvent.change(await screen.findByLabelText(/OMDb/), { target: { value: 'abc12345' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save keys' }))
+    expect(await screen.findByText(/emails you an activation link/)).toBeInTheDocument()
+  })
+
+  it('shows a Saved mark for a saved key and removes it on request', async () => {
+    const calls = mountWith({ omdb_api_key: 'set', omdb_configured: true })
+    expect(await screen.findByText('Saved')).toBeInTheDocument()
+    expect(await screen.findByPlaceholderText('Saved · paste to replace')).toBeInTheDocument()   // a short key has no readable mask
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the omdb key' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/screen/settings' && c.method === 'POST')?.body).toEqual({ clear: ['omdb_api_key'] }))
+  })
+
+  it('shows the server\'s explanation when a pasted text is not a key', async () => {
+    mountWith({}, (url, init) => (url === '/api/screen/settings' && init?.method === 'POST' ? new Response(JSON.stringify({ detail: 'That is OMDb\'s activation link, not the key.' }), { status: 400, headers: { 'content-type': 'application/json' } }) : undefined))
+    fireEvent.change(await screen.findByLabelText(/OMDb/), { target: { value: 'http://www.omdbapi.com/apikey.aspx?VERIFYKEY=x' } })
+    fireEvent.click(await screen.findAllByRole('button', { name: 'Test' }).then((b) => b[2]!))
+    expect(await screen.findByText(/activation link, not the key/)).toBeInTheDocument()
   })
 })
 

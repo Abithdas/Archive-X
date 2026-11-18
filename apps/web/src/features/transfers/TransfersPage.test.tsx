@@ -59,6 +59,47 @@ describe('Metadata & Assets workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: /Next: Review/ }))
     fireEvent.click(screen.getByRole('button', { name: /Next: Run/ }))
   }
+  const folderRows = { folders: [{ id: 3, path: 'D:\\Films', title: 'Films', content_rating: 'sfw', videos: 12, exists: true }, { id: 4, path: 'D:\\Scenes', title: 'Scenes', content_rating: 'nsfw', videos: 5, exists: true }], mode: 'sfw' }
+  const withFolders = (more: Handler = () => undefined): Handler => (url, init) => {
+    if (url === '/api/local-folders') return json(folderRows)
+    if (url === '/api/source-channels') return json([...channels, { telegram_id: '-9000000000003', title: 'Films', role: 'local' }])
+    return more(url, init)
+  }
+  it('lists local folders after the channels, and a folder is not a channel', async () => {
+    mount(withFolders())
+    const channelBox = await screen.findByRole('group', { name: 'Metadata and Assets channels' })
+    const folderBox = await screen.findByRole('group', { name: 'Local folders to scan' })
+    expect(channelBox).not.toHaveTextContent('Films')                                       // the folder's own channel row is not offered as a Telegram channel
+    expect(folderBox).toHaveTextContent('Films')
+    expect(folderBox).toHaveTextContent('Scenes')
+    expect(channelBox.compareDocumentPosition(folderBox) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox', { name: /Films/ }))
+    expect(screen.getByText('Selected: 1 folder')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Next: Processing Stages/ })).toBeEnabled()    // a folder alone is enough
+  })
+  it('scans only the chosen folders, without Telegram stages or preflight', async () => {
+    const calls = mount(withFolders((url) => (url.startsWith('/api/local-folders/3/identify') ? json({ ok: true, kind: 'movies and shows' }) : undefined)))
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Films/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Next: Processing Stages/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Next: Review/ }))
+    expect(screen.getByText('Local folders').closest('div')).toHaveTextContent('Films')
+    fireEvent.click(screen.getByRole('button', { name: /Next: Run/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+    expect(await screen.findByText('Metadata scan started for Films.')).toBeInTheDocument()
+    expect(calls.some((c) => c.url === '/api/local-folders/3/identify')).toBe(true)
+    expect(calls.some((c) => c.url.includes('/api/metadata-assets/'))).toBe(false)
+  })
+  it('says why a folder could not be scanned and still scans the others', async () => {
+    const calls = mount(withFolders((url) => (url === '/api/local-folders/3/identify' ? json({ detail: 'Add a TMDB key first (Settings → Metadata)' }, 400) : url === '/api/local-folders/4/identify' ? json({ ok: true }) : undefined)))
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Films/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Scenes/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Next: Processing Stages/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Next: Review/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Next: Run/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+    expect(await screen.findByText(/Metadata scan started for Scenes\. Films: Add a TMDB key first/)).toBeInTheDocument()
+    expect(calls.filter((c) => c.url.endsWith('/identify')).map((c) => c.url)).toEqual(['/api/local-folders/3/identify', '/api/local-folders/4/identify'])
+  })
   it('cannot leave the first step without a channel', async () => {
     mount()
     await screen.findByRole('checkbox', { name: /Main Archive/ })

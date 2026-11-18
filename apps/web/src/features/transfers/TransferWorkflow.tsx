@@ -3,14 +3,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { useChannels, useSourceChannels } from '@/api/hooks'
+import { isLocalChannel } from '@/features/channels/local'
+import { useLocalFolders } from '@/features/content/useContentMode'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { Segmented } from '@/design/Segmented'
 import { CARD, CHANNEL_LIST, Check, FIELD, Field, Stepper, detail, videosHint } from './parts'
 import { ChannelAvatar } from '@/features/channels/ChannelAvatar'
 import {
-  DEFAULT_LOCAL, DEFAULT_TELEGRAM, ORIENTATIONS, RESOLUTIONS, SNAPSHOT_CHOICES, describeMaxMinutes, localPayload, planPhotoScan, resolveAsk, startMessage, telegramPayload, validateLocal, validateTelegram,
-  type LocalOptions, type PhotoPlan, type PhotoScan, type Source, type TelegramOptions,
+  DEFAULT_LOCAL, DEFAULT_TELEGRAM, ORIENTATIONS, channelsForFolder, folderLabel, folderName, scannedMessage, validateScanned, RESOLUTIONS, SNAPSHOT_CHOICES, describeMaxMinutes, localPayload, planPhotoScan, resolveAsk, startMessage, telegramPayload, validateLocal, validateTelegram,
+  type LocalOptions, type PhotoPlan, type PhotoScan, type ScannedFolder, type Source, type TelegramOptions,
 } from './transfer'
 
 const STEPS = ['Source', 'Options & Checks', 'Review', 'Run'] as const
@@ -39,11 +41,15 @@ export function TransferWorkflow() {
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
   const [ask, setAsk] = useState<Ask | null>(null)
-  const chans = channels.data ?? []
+  const chans = (channels.data ?? []).filter((c) => !isLocalChannel(c))   // a local folder is a source of its own below, never a Telegram channel
+  const folderQuery = useLocalFolders()
+  const folders: ScannedFolder[] = (folderQuery.data?.folders ?? []).filter((f) => f.exists !== false).map((f) => ({ id: f.id, path: f.path, title: f.title, content_rating: f.content_rating, videos: f.videos }))
+  const [scannedId, setScannedId] = useState<number | null>(null)
+  const scanned = folders.find((f) => f.id === scannedId) ?? null
   const nameOf = (id: string) => chans.find((c) => c.telegram_id === id)?.title ?? id
   const setL = <K extends keyof LocalOptions>(k: K, v: LocalOptions[K]) => setLocal((o) => ({ ...o, [k]: v }))
   const setT = <K extends keyof TelegramOptions>(k: K, v: TelegramOptions[K]) => setTg((o) => ({ ...o, [k]: v }))
-  const problem = source === 'local' ? validateLocal(local) : validateTelegram(tg)
+  const problem = source === 'local' ? (scanned ? validateScanned(scanned, local.destination) : validateLocal(local)) : validateTelegram(tg)
   const canNext = step >= 2 || problem === ''
 
   // The folder chosen last time comes back pre-filled (classic: loadFolderPreference).
@@ -92,11 +98,23 @@ export function TransferWorkflow() {
     if (plan.kind === 'error') return finish(plan.message, false)
     if (plan.kind === 'go') await start(localPayload(local, plan.includeSubfolders), plan.count)
   }
+  const pickScanned = (id: number | null) => {
+    setScannedId(id)
+    setMsg('')
+    if (id !== null) setLocal((o) => ({ ...o, images: false, deleteSource: false, destination: '' }))   // a scanned folder is a video upload; its files stay unless asked, and its channel must be of its own kind
+  }
   const run = async () => {
     if (problem) return finish(problem, false)
     setBusy(true)
     setMsg('')
     try {
+      if (source === 'local' && scanned) {
+        const r = await api<{ seeded: number; rebuilt: number; skipped: number; destination: string }>(`/api/local-folders/${scanned.id}/upload`, { method: 'POST', json: { destination: local.destination, keep_files: !local.deleteSource } })
+        finish(scannedMessage(r), true)
+        void qc.invalidateQueries({ queryKey: ['lanes'] })
+        void qc.invalidateQueries({ queryKey: ['status'] })
+        return
+      }
       if (source === 'telegram') return await start(telegramPayload(tg), null)
       if (!local.images) return await start(localPayload(local), null)
       const scan = await api<PhotoScan>('/api/telegram-transfer/scan-photos', { method: 'POST', json: { folder: local.folder.trim() } }).catch((e: unknown): PhotoScan => ({ detail: detail(e, '') }))
@@ -129,11 +147,11 @@ export function TransferWorkflow() {
 
   const visible = chans.filter((c) => c.title.toLowerCase().includes(q.trim().toLowerCase()) || c.telegram_id.includes(q.trim()))
   const toggle = (id: string) => setT('channels', tg.channels.includes(id) ? tg.channels.filter((x) => x !== id) : [...tg.channels, id])
-  const destination = (value: string, onChange: (v: string) => void, label: string) => (
+  const destination = (value: string, onChange: (v: string) => void, label: string, list = chans) => (
     <Field label={label}>
       <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} className={FIELD}>
         <option value="">— select channel —</option>
-        {chans.map((c) => <option key={c.telegram_id} value={c.telegram_id}>{c.title}</option>)}
+        {list.map((c) => <option key={c.telegram_id} value={c.telegram_id}>{c.title}</option>)}
       </select>
     </Field>
   )
@@ -153,6 +171,15 @@ export function TransferWorkflow() {
             <span className="text-xs text-faint">No CLI needed — Archive X runs this job in the background.</span></div>
           {source === 'local' ? (
             <>
+              <Field label="Folder to upload" hint="A scanned folder is one you added in Settings → Local files: its snapshots and what was identified go with each video, so nothing is made or looked up twice.">
+                <select value={scannedId === null ? '' : String(scannedId)} onChange={(e) => pickScanned(e.target.value ? Number(e.target.value) : null)} aria-label="Folder to upload" className={FIELD}>
+                  <option value="">Any folder on this PC (choose below)</option>
+                  {folders.map((f) => <option key={f.id} value={f.id}>{folderLabel(f)}</option>)}
+                </select>
+              </Field>
+              {scanned ? (
+                <div className="rounded-xl border border-line bg-bg p-3 text-xs text-muted"><b className="block text-sm text-fg">{folderName(scanned)}</b><span className="[overflow-wrap:anywhere]">{scanned.path}</span><br />Videos only. This folder holds {scanned.content_rating.toUpperCase()} media, so only {scanned.content_rating.toUpperCase()} channels can receive it.</div>
+              ) : <>
               <Field label="Source folder">
                 <span className="flex gap-2"><input type="text" value={local.folder} onChange={(e) => setL('folder', e.target.value)} placeholder="Choose a folder or enter its path…" aria-label="Source folder path" autoComplete="off" className={FIELD} />
                   <button type="button" onClick={() => void browse()} className="h-11 shrink-0 rounded-xl border border-line-2 px-3 text-sm font-semibold">Browse…</button>
@@ -160,7 +187,9 @@ export function TransferWorkflow() {
                 <span role="status" className="min-h-4 text-[11px] font-normal text-faint">{folderMsg}</span>
               </Field>
               <Check checked={local.images} onChange={(v) => setL('images', v)} title="Upload images" hint="When enabled, supported images are sent to Telegram as documents. Verified images are added to Photos." />
-              {destination(local.destination, (v) => setL('destination', v), 'Destination channel')}
+              </>}
+              {destination(local.destination, (v) => setL('destination', v), 'Destination channel', scanned ? channelsForFolder(chans, scanned) : chans)}
+              {scanned && !channelsForFolder(chans, scanned).length ? <p className="text-xs text-warn">No Telegram channel is marked {scanned.content_rating.toUpperCase()} yet. Mark one in Settings → Telegram → Channels.</p> : null}
             </>
           ) : (
             <>
@@ -182,7 +211,13 @@ export function TransferWorkflow() {
       ) : step === 1 ? (
         <div className="grid gap-4">
           <div><h3 className="text-[15px] font-bold">2 · Options &amp; Checks</h3></div>
-          {source === 'local' ? (
+          {source === 'local' && scanned ? (
+            <>
+              <p className="text-sm text-muted">A scanned folder is uploaded as it is: every video in it, with its snapshots and what is known about it. Filters and file-size handling do not apply here; use Any folder above for those.</p>
+              <div className="rounded-xl border border-line p-2"><Check checked={local.deleteSource} onChange={(v) => setL('deleteSource', v)} title="Delete local source after verified delivery" hint="Off by default. Each file is deleted from this PC only after Telegram has confirmed it." /></div>
+              {local.deleteSource ? <p role="alert" className="rounded-xl bg-bad/10 px-3 py-2 text-xs text-bad">Files deleted from this PC cannot be brought back from here.</p> : null}
+            </>
+          ) : source === 'local' ? (
             <>
               {!local.images ? (
                 <>
@@ -229,7 +264,7 @@ export function TransferWorkflow() {
           <h3 className="mb-2 text-[15px] font-bold">3 · Review</h3>
           <dl className="grid gap-1.5 rounded-xl bg-bg p-3 text-sm">
             {(source === 'local'
-              ? [['Source', 'Local files'], ['Media', local.images ? 'Images (as documents)' : 'Videos'], ['Folder', local.folder || '—'], ['Destination', local.destination ? nameOf(local.destination) : '—'], ['Include subfolders', local.subfolders ? 'Yes' : 'No'], ['Delete local source after delivery', local.deleteSource ? 'Yes' : 'No'], ...(local.images ? [] : [['Orientation', local.orientation], ['Resolution', local.resolution], ['Length', describeMaxMinutes(local.maxMinutes)], ['Oversized files', local.oversized === 'optimize' ? 'Optimize to fit' : 'Skip']])]
+              ? [['Source', scanned ? 'Scanned local folder' : 'Local files'], ['Media', local.images ? 'Images (as documents)' : 'Videos'], ['Folder', scanned ? folderName(scanned) : local.folder || '—'], ['Destination', local.destination ? nameOf(local.destination) : '—'], ['Include subfolders', scanned ? 'As added in Settings' : local.subfolders ? 'Yes' : 'No'], ['Delete local source after delivery', local.deleteSource ? 'Yes' : 'No'], ...(local.images ? [] : [['Orientation', local.orientation], ['Resolution', local.resolution], ['Length', describeMaxMinutes(local.maxMinutes)], ['Oversized files', local.oversized === 'optimize' ? 'Optimize to fit' : 'Skip']])]
               : [['Source', 'Telegram media'], ['From', tg.channels.map(nameOf).join(', ') || '—'], ['Destination', tg.destination ? nameOf(tg.destination) : '—'], ['Media', `${tg.sourceMedia === 'VIDEO' ? 'Video' : 'File'} → ${tg.destinationMedia === 'VIDEO' ? 'Video' : 'File'}`], ['Orientation', tg.orientation], ['Resolution', tg.resolution], ['Duplicate checks', [tg.dupSource && 'source', tg.dupDestination && 'destination', tg.dupDb && 'database'].filter(Boolean).join(', ') || 'none'], ['Cleanup', tg.cleanup ? `Yes → ${nameOf(tg.trash)}` : 'No'], ['Length', describeMaxMinutes(tg.maxMinutes)], ['Without saved snapshots', tg.snapshots === 'generate' ? 'Make them from Telegram first' : 'Skip them (source kept)']]
             ).map(([k, v]) => <div key={k} className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)] gap-3"><dt className="text-muted">{k}</dt><dd className="font-semibold [overflow-wrap:anywhere]">{v}</dd></div>)}
           </dl>
@@ -238,7 +273,7 @@ export function TransferWorkflow() {
       ) : (
         <div className="grid gap-3">
           <h3 className="text-[15px] font-bold">4 · Run</h3>
-          <div><button type="button" disabled={busy} onClick={() => void run()} className="h-11 rounded-xl bg-accent px-6 text-sm font-extrabold text-accent-fg disabled:opacity-60">{busy ? 'Starting…' : source === 'local' ? (local.images ? 'Start image upload' : 'Start local transfer') : 'Start Telegram transfer'}</button></div>
+          <div><button type="button" disabled={busy} onClick={() => void run()} className="h-11 rounded-xl bg-accent px-6 text-sm font-extrabold text-accent-fg disabled:opacity-60">{busy ? 'Starting…' : source === 'local' ? (scanned ? 'Upload scanned folder' : local.images ? 'Start image upload' : 'Start local transfer') : 'Start Telegram transfer'}</button></div>
           <p className="min-h-5 text-xs text-muted" aria-live="polite">{msg}</p>
         </div>
       )}

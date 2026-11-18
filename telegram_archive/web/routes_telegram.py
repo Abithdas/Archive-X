@@ -17,6 +17,7 @@ from ..core.safe_paths import inside
 import asyncio
 import io
 import json
+import os
 import re
 import sys
 import time
@@ -741,7 +742,14 @@ def register_telegram_routes(
         require_auth(request)
         def _read_library_channels():
             """Read channels and their video counts from the database."""
+            from ..core import content_mode as _cm
+            from ..engines import local_scanner as _ls
+            mode = _cm.get_mode(db)
             with db.reading() as rdb:
+                # Every channel the database has a row for, whatever the mode shows: a channel hidden by the mode (adult in SFW, not in the library,
+                # the other kind) is not an unknown channel, and must not come back as one from the document registry below.
+                known = {str(r[0]) for r in rdb.execute("SELECT telegram_id FROM main.channels")}
+                folders = {int(r[0]): str(r[1] or "") for r in rdb.execute("SELECT id,path FROM main.local_sources")}
                 rows = rdb.execute(
                     "SELECT c.*, COUNT(DISTINCT cm.id) video_count "
                     "FROM channels c JOIN archive_x_library_media cm ON cm.source_channel=c.telegram_id "
@@ -763,10 +771,25 @@ def register_telegram_routes(
                     "LEFT JOIN telegram_channel_registry_state s ON s.channel_id=l.channel_id GROUP BY l.channel_id"
                 ).fetchall()
             out = [dict(r) for r in rows]
+
+            def orphan_entry(source: str, count: int):
+                """A channel with videos but no row of its own. A local folder takes its folder's name; a folder that is gone is not listed at all
+                (its files cannot be played any more); an unnamed Telegram channel is only listed where the mode shows such channels (NSFW)."""
+                if source in known:
+                    return None
+                if _ls.is_local_channel(source):
+                    path = folders.get(_ls.source_id_of(source))
+                    if not path:
+                        return None
+                    return {"id": None, "telegram_id": source, "title": os.path.basename(path.rstrip("/\\")) or "Local folder", "username": None, "video_count": count, "source_only": True}
+                if mode != "nsfw":
+                    return None
+                return {"id": None, "telegram_id": source, "title": "Unknown channel", "username": None, "video_count": count, "source_only": True, "unnamed": True}
+
             for r in orphan:
-                source = str(r["telegram_id"] or "")
-                out.append({"id": None, "telegram_id": source, "title": "Unknown channel",
-                            "username": None, "video_count": int(r["video_count"] or 0), "source_only": True})
+                entry = orphan_entry(str(r["telegram_id"] or ""), int(r["video_count"] or 0))
+                if entry:
+                    out.append(entry)
             by_id = {str(c.get("telegram_id") or ""): c for c in out}
             for row in registry_rows:
                 source = str(row["channel_id"] or "")
@@ -781,8 +804,9 @@ def register_telegram_routes(
                 if channel is None and int(stat.get("known_count") or 0) <= 0:
                     continue
                 if channel is None:
-                    channel = {"id": None, "telegram_id": source, "title": "Unknown channel",
-                               "username": None, "video_count": 0, "source_only": True}
+                    channel = orphan_entry(source, 0)
+                    if channel is None:
+                        continue
                     out.append(channel)
                     by_id[source] = channel
                 channel.update({k: stat.get(k) for k in (

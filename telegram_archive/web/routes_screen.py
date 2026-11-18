@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import threading
 
 from fastapi import APIRouter, HTTPException, Request
@@ -11,6 +12,29 @@ from ..engines import screen_identify as sid
 from ..metadata import screen_ids as si
 
 KEYS = {"tmdb_api_key": "tmdb", "omdb_api_key": "omdb", "opensubtitles_api_key": "opensubtitles"}
+
+
+def clean_key(field: str, raw) -> str:
+    """The key itself from what was pasted: no spaces, quotes or hidden characters, and the key out of a URL or a "key: …" sentence (an e-mail
+    from the provider, a copied address). Raises ValueError, in words, for text that is plainly not a key (OMDb's activation link)."""
+    text = re.sub(r"[\s\u200b\u200c\u200d\ufeff\u00a0]+", " ", str(raw or "")).strip().strip("\"'`<>").strip()
+    if not text:
+        return ""
+    if field == "omdb_api_key":
+        if "verifykey" in text.lower():
+            raise ValueError("That is OMDb's activation link, not the key. Open the link once to activate the key, then paste the key itself: 8 letters and digits, from the same e-mail.")
+        found = re.search(r"apikey=([A-Za-z0-9]+)", text, re.I) or re.search(r"\bkey\b\W{0,4}(?:is\W{0,3})?([A-Za-z0-9]{6,12})\b", text, re.I)
+        if found:
+            text = found.group(1)
+        text = text.replace(" ", "")
+        if not re.fullmatch(r"[A-Za-z0-9]{6,12}", text):
+            raise ValueError("An OMDb key is 8 letters and digits (for example 1a2b3c4d). Copy just the key from OMDb's e-mail.")
+        return text
+    found = re.search(r"api[_-]?key=([A-Za-z0-9._-]+)", text, re.I)
+    if found:
+        text = found.group(1)
+    text = re.sub(r"^(bearer|token)\s+", "", text, flags=re.I).replace(" ", "")
+    return text
 
 
 def _mask(k: str) -> str:
@@ -52,11 +76,17 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         body = await request.json()
         body = body if isinstance(body, dict) else {}
         saved = []
+        cleaned: dict[str, str] = {}
         for key in KEYS:
-            v = str(body.get(key) or "").strip()
+            try:
+                v = clean_key(key, body.get(key))
+            except ValueError as exc:
+                raise HTTPException(400, str(exc))   # nothing is saved when one of the keys is plainly wrong
             if v:
-                db.set_setting(key, v)
-                saved.append(key)
+                cleaned[key] = v
+        for key, v in cleaned.items():
+            db.set_setting(key, v)
+            saved.append(key)
         if "tvmaze_enabled" in body:
             db.set_setting("tvmaze_enabled", "1" if body["tvmaze_enabled"] else "0")
             saved.append("tvmaze_enabled")

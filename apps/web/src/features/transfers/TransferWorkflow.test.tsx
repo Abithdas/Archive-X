@@ -186,3 +186,60 @@ describe('Telegram media', () => {
     expect(calls.find((c) => c.url === '/api/telegram-transfer/start')!.body).toMatchObject({ source: 'telegram', source_channels: ['-1001'], destination_channel: '-1002', duplicate_check: { source: true, destination: true, database: false }, cleanup: { enabled: true, trash_channel: '-1001' } })
   })
 })
+
+describe('A scanned local folder', () => {
+  const folders = [{ id: 3, path: 'D:\\Films', title: 'Films', content_rating: 'sfw', videos: 12, exists: true }, { id: 4, path: 'D:\\Other', title: null, content_rating: 'nsfw', videos: 2, exists: true }]
+  const sourceChannels = [
+    { telegram_id: '-1001', title: 'Family films', content_rating: 'sfw', role: 'available' },
+    { telegram_id: '-1002', title: 'Adult archive', content_rating: 'nsfw', role: 'available' },
+    { telegram_id: '-9000000000003', title: 'Films', content_rating: 'sfw', role: 'local' },
+  ]
+  const withFolders: Handler = (url) => (url === '/api/local-folders' ? json({ folders, mode: 'sfw' }) : url === '/api/source-channels' ? json(sourceChannels) : url.startsWith('/api/local-folders/3/upload') ? json({ seeded: 10, rebuilt: 1, skipped: 1, destination: 'Family films' }) : undefined)
+
+  it('is offered as a source and uploads by its own route, so snapshots and names are reused', async () => {
+    const calls = mount(withFolders)
+    await screen.findByRole('option', { name: 'Films · SFW · 12 videos' })
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Folder to upload' }), { target: { value: '3' } })
+    expect(await screen.findByText(/only SFW channels can receive it/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Source folder path')).toBeNull()                         // the folder is already known: no path to type
+    const dest = await screen.findByRole('combobox', { name: 'Destination channel' })
+    await screen.findByRole('option', { name: 'Family films' })
+    const options = Array.from((dest as HTMLSelectElement).options).map((o) => o.textContent)
+    expect(options).toContain('Family films')
+    expect(options).not.toContain('Adult archive')                                           // a channel holds one kind
+    expect(options).not.toContain('Films')                                                   // and a folder is never a destination
+    fireEvent.change(dest, { target: { value: '-1001' } })
+    toRun()
+    fireEvent.click(await screen.findByRole('button', { name: 'Upload scanned folder' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/local-folders/3/upload')?.body).toEqual({ destination: '-1001', keep_files: true }))
+    expect(calls.some((c) => c.url === '/api/telegram-transfer/start')).toBe(false)
+    expect(await screen.findByText(/Upload to Family films started: 11 videos with snapshots ready/)).toBeInTheDocument()
+  })
+
+  it('keeps the files unless deleting them is chosen, and says what that means', async () => {
+    const calls = mount(withFolders)
+    await screen.findByRole('option', { name: 'Films · SFW · 12 videos' })
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Folder to upload' }), { target: { value: '3' } })
+    await screen.findByRole('option', { name: 'Family films' })
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Destination channel' }), { target: { value: '-1001' } })
+    next(/Next: Options/)
+    expect(screen.getByText(/uploaded as it is/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox', { name: /Delete local source after verified delivery/ }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/cannot be brought back/)
+    next(/Next: Review/); next(/Next: Run/)
+    fireEvent.click(await screen.findByRole('button', { name: 'Upload scanned folder' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/local-folders/3/upload')?.body).toEqual({ destination: '-1001', keep_files: false }))
+  })
+
+  it('needs a destination of its kind, and a folder is never listed as a Telegram source', async () => {
+    mount(withFolders)
+    await screen.findByRole('option', { name: 'Films · SFW · 12 videos' })
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Folder to upload' }), { target: { value: '3' } })
+    expect(await screen.findByRole('button', { name: /Next: Options/ })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Telegram media' }))
+    const group = await screen.findByRole('group', { name: 'Source channels' })
+    expect(group).toHaveTextContent('Family films')
+    expect(group).not.toHaveTextContent('Films ·')
+    expect(Array.from(group.querySelectorAll('label')).map((l) => l.textContent).join('|')).not.toMatch(/(^|\|)Films(\||$)/)
+  })
+})

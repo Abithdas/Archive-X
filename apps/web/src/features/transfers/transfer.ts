@@ -118,3 +118,21 @@ export function startMessage(source: Source, r: { id?: string; detail?: string }
   if (source === 'telegram') return 'Telegram media inspection/preparation queued.'
   return images ? `Image document upload queued (${count} supported photo(s) detected). Already-delivered Telegram documents may be verified and reused instead of uploaded again; verified images are indexed in Photos.` : 'Local preparation/transfer queued.'
 }
+
+/** A folder already added in Settings → Local files (scanned, with its snapshots and names): uploaded by its own route, so nothing is made or looked up twice. */
+export interface ScannedFolder { id: number; path: string; title: string | null; content_rating: 'sfw' | 'nsfw'; videos: number }
+export const folderName = (f: Pick<ScannedFolder, 'path' | 'title'>): string => f.title?.trim() || f.path.split(/[\\/]/).filter(Boolean).pop() || f.path
+export const folderLabel = (f: ScannedFolder): string => `${folderName(f)} · ${f.content_rating.toUpperCase()} · ${f.videos.toLocaleString()} video${f.videos === 1 ? '' : 's'}`
+/** A folder holds one kind, and so does a channel: only the channels of the folder's kind (and never another folder) can receive it. */
+export const channelsForFolder = <T extends { role?: string | null; content_rating?: string | null }>(channels: readonly T[], folder: Pick<ScannedFolder, 'content_rating'>): T[] =>
+  channels.filter((c) => c.role !== 'local' && (c.content_rating ?? 'nsfw') === folder.content_rating)
+export function validateScanned(folder: ScannedFolder | null, destination: string): string {
+  if (!folder) return 'Choose a scanned folder.'
+  if (!folder.videos) return 'This folder has no videos to upload yet.'
+  if (!destination) return 'Choose a destination channel.'
+  return ''
+}
+export function scannedMessage(r: { seeded: number; rebuilt: number; skipped: number; destination: string }): string {
+  const ready = r.seeded + r.rebuilt
+  return `Upload to ${r.destination} started: ${ready.toLocaleString()} video${ready === 1 ? '' : 's'} with snapshots ready${r.rebuilt ? ` (${r.rebuilt.toLocaleString()} made wider first)` : ''}${r.skipped ? `, ${r.skipped.toLocaleString()} will be prepared by the upload` : ''}. Follow it in Operations.`
+}

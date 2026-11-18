@@ -9,6 +9,9 @@ export interface Channel {
   username: string | null
   image: string | null
   role: string | null
+  content_rating?: string | null
+  /** A channel with videos but no row of its own (no name saved): listed last, labelled by the end of its id. */
+  unnamed?: boolean
   video_count: number
   known_count: number
   prepared_count: number
