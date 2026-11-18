@@ -41,6 +41,8 @@ pub const ROUTES: &[&str] = &[
     "marker_delete",
     "library_favorite_toggle",
     "library_bulk_favorite",
+    "local_stream",
+    "cached_stream",
 ];
 
 /// A request that belongs to an enabled native route.
@@ -68,9 +70,11 @@ pub struct Native {
     auth: Auth,
     pub(crate) db: Db,
     pub(crate) writer: Writer,
-    proxy: Arc<Proxy>,
+    pub(crate) proxy: Arc<Proxy>,
     touched: Mutex<HashMap<String, Instant>>,
     touch_interval: Duration,
+    /// Where Python keeps finished playback copies (native_stream.rs), asked once.
+    pub(crate) asset_dir: Mutex<Option<std::path::PathBuf>>,
 }
 
 impl Native {
@@ -101,6 +105,7 @@ impl Native {
             proxy,
             touched: Mutex::new(HashMap::new()),
             touch_interval,
+            asset_dir: Mutex::new(None),
         }))
     }
 
@@ -117,6 +122,14 @@ impl Native {
 
     /// The enabled route this request is for, with the number in its path if it has one.
     pub fn route_for(&self, method: &Method, path: &str) -> Option<Match> {
+        if matches!(*method, Method::GET | Method::HEAD) {
+            if let Some((kind, channel, message)) = crate::native_stream::match_path(path) {
+                let name = if kind == crate::native_stream::FileKind::Local { "local_stream" } else { "cached_stream" };
+                // `kind` carries "head" for a HEAD request (headers only, no body).
+                let head = (*method == Method::HEAD).then_some("head");
+                return self.enabled.get(name).map(|n| Match { name: n, id: None, pair: Some((channel, message)), kind: head, needs_body: false, mutating: false });
+            }
+        }
         if let Some(rest) = path.strip_prefix("/api/media/") {
             let mut it = rest.split('/');
             let (id, tail, marker) = (it.next()?, it.next()?, it.next());
@@ -311,6 +324,14 @@ impl Native {
             }
             "library_list" => {
                 let resp = self.library_list(query, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "local_stream" | "cached_stream" => {
+                let (channel, message) = m.pair?;
+                let kind = if route == "local_stream" { crate::native_stream::FileKind::Local } else { crate::native_stream::FileKind::Cached };
+                let method = if m.kind == Some("head") { Method::HEAD } else { Method::GET };
+                let resp = self.stream_file(kind, channel, message, &method, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }
