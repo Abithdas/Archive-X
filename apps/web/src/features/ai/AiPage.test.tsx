@@ -91,6 +91,32 @@ describe('AiPage', () => {
     fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'More' } })
     expect(screen.getByRole('button', { name: 'Ask' })).toBeEnabled()
   })
+  it('shows a breathing dot and the shimmering status while waiting, the reasoning as it streams, and the dot after the last word until done', async () => {
+    let push!: (e: ChatEvent) => void
+    let end!: () => void
+    const enc = new TextEncoder()
+    const stream = new ReadableStream<Uint8Array>({ start(c) { push = (e) => c.enqueue(enc.encode(JSON.stringify(e) + '\n')); end = () => c.close() } })
+    mount((u) => (u === '/api/ai/chat/stream' ? new Response(stream, { status: 200 }) : undefined))
+    fireEvent.change(await screen.findByLabelText('Message'), { target: { value: 'Why?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    await act(async () => push({ t: 'status', phase: 'thinking', text: 'Thinking…' }))
+    const log = screen.getByRole('log', { name: 'Assistant conversation' })
+    expect(within(log).getByRole('status', { name: 'Working' })).toHaveClass('ax-chat-dot')        // the dot beside the status line
+    expect(log.querySelector('.t-think-text')).not.toBeNull()                                       // the shimmering line
+    await act(async () => { push({ t: 'reasoning', text: 'First, ' }); push({ t: 'reasoning', text: 'check the jobs.' }) })
+    expect(await within(log).findByText('Reasoning…')).toBeInTheDocument()                           // shimmering title while it thinks
+    await act(async () => push({ t: 'delta', text: 'Because.' }))
+    expect(within(log).queryByRole('status', { name: 'Working' })).toBeNull()                       // the status line gives way to the words
+    expect(log.querySelector('.ax-chat-dot')).not.toBeNull()                                        // ... and the dot keeps breathing after them
+    expect(within(log).getByText('Reasoning')).toBeInTheDocument()                                  // the title stops shimmering once the answer starts
+    await act(async () => { push({ t: 'done', text: 'Because.', model: 'Qwen3', latency_ms: 9, tool_calls: 0 }); end() })
+    await waitFor(() => expect(log.querySelector('.ax-chat-dot')).toBeNull())
+  })
+  it('has no matrix dot loader anywhere on the page', async () => {
+    mount()
+    await screen.findByText('Assistant ready')
+    expect(document.querySelector('.t-matrix')).toBeNull()
+  })
   it('quick actions switch to the assistant and ask their prompt', async () => {
     const calls = mount()
     fireEvent.click(await screen.findByRole('button', { name: /Find duplicates/ }))

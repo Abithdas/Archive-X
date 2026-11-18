@@ -146,7 +146,7 @@ export function ThemeToggle({ theme, onToggle, variant = 'sun-moon', className }
       aria-label={label}
       aria-pressed={theme === 'dark'}
       title="Toggle theme"
-      className={`ax-theme-toggle cursor-pointer place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-accent motion-safe:active:scale-[0.97] ${className ?? 'inline-grid'}`}
+      className={`ax-theme-toggle cursor-pointer place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-accent active:scale-[0.97] ${className ?? 'inline-grid'}`}
     >
       {variant === 'switch' ? <SwitchVisual value={theme} canAnimate={canAnimate} /> : <SunMoonGlyph value={theme} size={26} canAnimate={canAnimate} />}
     </button>

@@ -734,6 +734,7 @@ async def identify_with_confidence(db, *, oshash: str | None, filename: str,
     auto_match = (clear_winner and auto_rule
                   and (best_quality >= 0.62 or close_phash or one_clue_plus_visual)
                   and not best_evidence.get("performer_conflict")
+                  and not best.get("cast_conflict")
                   and not website_variant_indexes)
     # HIGH is a candidate-confidence signal only. The pipeline still performs a
     # separate performer-identity conflict check before any automatic application.
@@ -748,7 +749,7 @@ async def identify_with_confidence(db, *, oshash: str | None, filename: str,
             f"Match score {round(evidence['score'] * 100)}% (quality {round(evidence['quality'] * 100)}%); "
             f"signals: {evidence['evidence_text']}; top margin {round(margin * 100)} points. "
             + ("Automatic rule satisfied and uniquely ranked; performer conflicts are still blocked by the pipeline." if candidate_conf == "HIGH"
-               else f"Review required; {'performer conflict' if evidence.get('performer_conflict') else ('ambiguous winner' if margin < 0.12 else 'no automatic rule was satisfied')}. "
+               else f"Review required; {'performer conflict' if evidence.get('performer_conflict') else ('the two providers disagree on the cast' if candidate.get('cast_conflict') else 'ambiguous winner' if margin < 0.12 else 'no automatic rule was satisfied')}. "
                     f"Signals checked: title≥82%={title_strong}, studio+date+performer={studio_date_cast}, "
                     f"two clues+duration≤3s={bool(two_clues_plus_duration)}, one clue+visual≥90%={one_clue_plus_visual}, "
                     f"close PHASH={close_phash}, combined≥95%={combined_fuzzy}.")

@@ -114,6 +114,11 @@ class LocalAIRuntime:
             return DEFAULT_CONTEXT
 
     @property
+    def thinking(self) -> bool:
+        """Whether the model may reason before answering (slower; the reasoning is then shown in the chat as it is written)."""
+        return str(self.db.setting("ai_local_thinking", "0") or "0").strip().lower() in {"1", "true", "yes", "on"}
+
+    @property
     def gpu_layers(self) -> int:
         try:
             return max(0, min(128, int(self.db.setting("ai_local_gpu_layers", 0))))
@@ -134,7 +139,7 @@ class LocalAIRuntime:
 
     def configure(self, *, runtime_path: str | None = None, model_path: str | None = None,
                   model_id: str | None = None, endpoint: str | None = None,
-                  context: int | None = None, gpu_layers: int | None = None) -> dict[str, Any]:
+                  context: int | None = None, gpu_layers: int | None = None, thinking: bool | None = None) -> dict[str, Any]:
         if runtime_path is not None:
             value = str(runtime_path or "").strip()
             self.db.set_setting("ai_local_runtime_path", value)
@@ -157,6 +162,8 @@ class LocalAIRuntime:
         if gpu_layers is not None:
             value = max(0, min(128, int(gpu_layers)))
             self.db.set_setting("ai_local_gpu_layers", value)
+        if thinking is not None:
+            self.db.set_setting("ai_local_thinking", "1" if thinking else "0")
         self._reach_cache = None
         return self.status(fresh=True)
 
@@ -245,6 +252,7 @@ class LocalAIRuntime:
                 "error": error,
                 "context": self.context_size,
                 "gpu_layers": self.gpu_layers,
+                "thinking": self.thinking,
                 "starting": bool(process_alive and not reachable),
                 "idle_minutes": self.idle_minutes,
             },
@@ -388,12 +396,13 @@ class LocalAIRuntime:
         self.touch()
         return self._request("POST", "/chat/completions", payload, timeout=300.0)
 
-    def chat_stream(self, messages: list[dict[str, Any]], *, tools: list[dict[str, Any]] | None = None, max_tokens: int = DEFAULT_MAX_TOKENS):
+    def chat_stream(self, messages: list[dict[str, Any]], *, tools: list[dict[str, Any]] | None = None, max_tokens: int = DEFAULT_MAX_TOKENS, plain: bool = False):
         """Like `chat`, but yields the server's streamed chunks (parsed JSON) as they arrive, so words can be shown while the rest is still being written."""
         payload: dict[str, Any] = {
             "model": self.model_id, "messages": messages, "max_tokens": max(64, min(4096, int(max_tokens))), "temperature": 0.2, "stream": True,
-            "chat_template_kwargs": {"enable_thinking": False},
         }
+        if not plain:     # `plain` leaves out the optional template switch, for a server build that refuses it
+            payload["chat_template_kwargs"] = {"enable_thinking": self.thinking}
         if tools:
             payload["tools"] = tools
             payload["tool_choice"] = "auto"

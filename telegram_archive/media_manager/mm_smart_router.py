@@ -686,12 +686,13 @@ async def _select_manager_thumbnail(client, source, source_video, tempdir, *, ex
         raise RuntimeError("Archive X database is required for 36-frame Telegram contact-sheet delivery")
 
     from ..engines.thumbnail_cache import (
-        ensure_playback_snapshot_sheet, playback_snapshot_sheet_cached_sync,
+        ensure_playback_snapshot_sheet, playback_snapshot_sheet_from_saved_frames_sync,
     )
     channel_id = int(canonical_peer_id(source))
     message_id = int(getattr(source_video, "id", 0) or 0)
     if not generate_fallback:
-        sheet = await asyncio.to_thread(playback_snapshot_sheet_cached_sync, db, channel_id, message_id)
+        # Saved snapshots only: the cached sheet, or one made now from the 36 saved frames (no Telegram download either way).
+        sheet = await asyncio.to_thread(playback_snapshot_sheet_from_saved_frames_sync, db, channel_id, message_id)
     else:
         sheet = await ensure_playback_snapshot_sheet(
             db, type("TelegramAdapter", (), {"client": client, "connected": True})(),
@@ -727,6 +728,15 @@ class ContactSheetUnavailable(RuntimeError):
 
 async def _select_manager_thumbnail_with_retry(*args, **kwargs):
     """Prepare the canonical Archive X contact sheet, retrying once on failure."""
+    if kwargs.get("generate_fallback") is False:
+        # "Use saved snapshots only": one look at what is saved; no second attempt and nothing is made from Telegram.
+        result = await _select_manager_thumbnail(*args, **kwargs)
+        if result and result[0]:
+            return result
+        raise ContactSheetUnavailable(
+            "Needs snapshots: this video has no saved 36-frame snapshot set, and the transfer is set to skip such videos. "
+            "Scan the channel (or choose 'Make missing snapshots from Telegram first') and run the transfer again."
+        )
     last_error = None
     for attempt in (1, 2):
         try:
@@ -1154,12 +1164,18 @@ async def process_converted_or_fallback(client, source, destinations, record, st
 
         output_name = f"{Path(original_name).stem}.mp4" if Path(original_name).suffix else f"telegram_{msg_id}.mp4"
         output_path = Path(td) / output_name
+        caption = caption_with_converted_name(caption, original_name, output_name)
 
         conversion_error = None
         converted_meta = None
         try:
             converted_meta = await asyncio.wait_for(
-                convert_to_streamable_mp4(input_path, output_path),
+                convert_to_streamable_mp4(
+                    input_path, output_path,
+                    on_progress=_manager_conversion_progress_callback(
+                        original_name or input_path.name, db=globals().get("MEDIA_MANAGER_DB"),
+                        job_id=globals().get("TRANSFER_JOB_ID")),
+                ),
                 timeout=CONVERSION_TIMEOUT_SECONDS,
             )
             print(

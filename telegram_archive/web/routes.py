@@ -67,6 +67,21 @@ except ImportError:
 # Watchdog classification and search query helpers.
 # ==============================================================================
 
+PLAYBACK_IDLE_SECONDS = 15.0
+_PLAYBACK_SEEN: dict = {"bytes": -1, "at": 0.0}
+
+
+def _playback_flowing(eng, seen: dict | None = None, now: float | None = None) -> bool:
+    """Whether the playback engine has actually streamed something in the last PLAYBACK_IDLE_SECONDS. A video that is open but paused (its buffer
+    full), ended or abandoned keeps its session, but nothing flows: it is listed as IDLE and is not counted as running work."""
+    seen = _PLAYBACK_SEEN if seen is None else seen
+    now = time.monotonic() if now is None else now
+    served = int(getattr(eng, "bytes_served", 0) or 0)
+    if int(getattr(eng, "active_http_requests", 0) or 0) > 0 or served != seen["bytes"]:
+        seen["bytes"], seen["at"] = served, now
+    return now - float(seen["at"]) <= PLAYBACK_IDLE_SECONDS
+
+
 def _playback_watchdog_classification(state: str, status: dict) -> tuple[str, str]:
     """Report a healthy watchdog during ordinary seeking/buffering.
 
@@ -583,7 +598,9 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                 qos = st.get("playback_qos") or {}
                 state = str(qos.get("state") or "PLAYING").upper()
                 if state == "IDLE": state = "PLAYING"
-                watchdog_state, watchdog_reason = _playback_watchdog_classification(state, st)
+                if not _playback_flowing(eng):
+                    state = "IDLE"     # open but nothing streaming: still listed (so it can be stopped), not counted as running
+                watchdog_state, watchdog_reason = ("HEALTHY", "Open, not streaming") if state == "IDLE" else _playback_watchdog_classification(state, st)
                 current = {
                     "id": "playback", "type": "PLAYBACK", "name": "Playback",
                     "status": state, "progress": 0, "completed": None, "total": None,
@@ -652,6 +669,7 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                 for e in recent_structured_events(150)
             ],
             "paused": bool(jobs.paused),
+            "version": config.APP_VERSION,     # shown under the storage card in the sidebar
             # V29.4.131: change counters; the page refreshes what it shows
             # when one of them moves (videos, entities, channels, settings).
             "data_versions": _data_versions(),

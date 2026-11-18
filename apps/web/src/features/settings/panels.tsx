@@ -1,8 +1,10 @@
+import { setMotion, useMotionPref, type MotionPref } from '@/design/motionPref'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { useStorage } from '@/api/hooks'
+import { hasNativeBridge } from '@/features/watch/nativeBridge'
 import { Icon } from '@/design/Icon'
 import { ThemePreview } from './ThemePreview'
 import { Segmented } from '@/design/Segmented'
@@ -10,7 +12,7 @@ import { Switch } from '@/design/Switch'
 import { cn } from '@/design/cn'
 import { formatBytes } from '@/design/format'
 import { THEMES, SCALE_MAX, SCALE_MIN, SCALE_PRESETS, type Mode } from '@/theme/themes'
-import { AUTONEXT_MODES, experienceFrom, pills, statusRows, type Experience, type PanelId } from './logic'
+import { AUTONEXT_MODES, NATIVE_MODES, experienceFrom, pills, statusRows, type Experience, type NativeMode, type PanelId } from './logic'
 import { useAuthStatus, useExperienceSettings, useIconsStatus, useMetadataSettings, usePreflight, useWebLogin } from './queries'
 import { CustomThemes } from './CustomThemes'
 import { useAppearance, useAppearanceActions } from './useAppearance'
@@ -59,6 +61,9 @@ export function OverviewPanel({ go }: { go: (p: PanelId) => void }) {
   )
 }
 
+/** A drop-down in a settings row: the same height, width and text alignment everywhere, in line with the switches above it. */
+const PICK = 'h-10 w-44 shrink-0 rounded-xl border border-line-2 bg-bg px-3 text-left text-sm font-medium sm:w-64'
+
 function Row({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return <div className="flex items-center justify-between gap-4 border-b border-line py-3"><div className="min-w-0"><b className="block text-[15px]">{title}</b>{hint ? <small className="text-xs text-muted">{hint}</small> : null}</div>{children}</div>
 }
@@ -95,13 +100,19 @@ export function ExperiencePanel() {
       <Row title="Ask to resume playback" hint="Offer to continue where you left off"><Switch label="Ask to resume playback" checked={form.resume_prompt} onChange={(v) => set('resume_prompt', v)} /></Row>
       <Row title="Live seek preview (timeline hover)" hint="Show frames while scrubbing"><Switch label="Live seek preview" checked={form.live_seek_preview} onChange={(v) => set('live_seek_preview', v)} /></Row>
       <p className="py-2 text-xs text-muted">Hover the playback timeline to preview a frame. On touch screens, drag to seek.</p>
+      {hasNativeBridge() ? (
+        <>
+          <Row title="Native player (desktop app)" hint="Plays files the browser cannot"><select aria-label="Native player" value={form.native_player} onChange={(e) => set('native_player', e.target.value as NativeMode)} className={PICK}>
+            {NATIVE_MODES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+          </select></Row>
+          <p className="py-2 text-xs text-muted">The native player plays files the browser cannot (some HEVC, 10-bit and MKV videos) with hardware decoding. It is shown on the same video page, with captions under the picture.</p>
+        </>
+      ) : null}
       <Row title="Ask about partial cache on close"><Switch label="Ask about partial cache on close" checked={form.partial_cache_prompt} onChange={(v) => set('partial_cache_prompt', v)} /></Row>
       <p className="py-2 text-xs text-muted">Off keeps cached bytes automatically without showing the close popup.</p>
-      <label className="mt-2 grid gap-2 text-center text-sm font-semibold">Autoplay source
-        <select value={form.autonext_mode} onChange={(e) => set('autonext_mode', e.target.value)} aria-label="Autoplay source" className="h-12 w-full rounded-xl border border-line-2 bg-bg px-3 text-left text-[15px] font-medium">
-          {AUTONEXT_MODES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-        </select>
-      </label>
+      <Row title="Autoplay source" hint="Which videos come next"><select value={form.autonext_mode} onChange={(e) => set('autonext_mode', e.target.value)} aria-label="Autoplay source" className={PICK}>
+        {AUTONEXT_MODES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+      </select></Row>
       <p className="mt-4 text-xs text-muted">Continue Watching, play position, play count, markers, favorites and recommendation shelves are stored locally. Provider APIs are used for enrichment rather than page rendering.</p>
       <p className="mt-3 text-xs text-muted">Playback QoS prioritizes the browser requested byte range, keeps a short bitrate-based read-ahead window, and preloads only the next queued video prefix at background priority.</p>
       <div className="mt-4 flex items-center gap-3">
@@ -117,6 +128,7 @@ const SIZE_NOTES: Record<number, string> = { 70: 'Fits more on screen', 100: 'Th
 
 export function AppearancePanel() {
   const { preset, mode, scale } = useAppearance()
+  const motion = useMotionPref()
   const { setTheme, setScale, previewScale } = useAppearanceActions()
   const [status, setStatus] = useState('Appearance preferences are saved automatically.')
   const save = async (fn: () => Promise<void>, ok: string) => {
@@ -141,7 +153,7 @@ export function AppearancePanel() {
                   <ThemePreview c={{ bg: p.bg, surface: p.surface, card: p.surface2, thumb: p.surface3, text: p.text, muted: p.text3, accent: p.accent }} />
                   <span className="flex items-center justify-between gap-2 px-1">
                     <b className="truncate text-[13px]">{t.name}</b>
-                    {on ? <span className="inline-flex items-center gap-1 text-[11px] font-bold text-accent"><Icon name="check" className="size-3" />In use</span> : <span className="text-[11px] text-faint opacity-0 group-hover:opacity-100">Use</span>}
+                    {on ? <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-bold text-accent"><Icon name="check" className="size-3" /><span className="sr-only">In use</span></span> : <span className="text-[11px] text-faint opacity-0 group-hover:opacity-100">Use</span>}
                   </span>
                 </button>
               </li>
@@ -149,6 +161,15 @@ export function AppearancePanel() {
           })}
         </ul>
         <p className="mt-3 text-xs text-muted" role="status">{status}</p>
+      </section>
+
+      <section aria-label="Animations" className={BOX}>
+        <Head icon="sparkle" title="Animations" count="Motion and effects" />
+        <Row title="Animations" hint="Breathing dots, shimmer, gliding cards and the photo viewer's pop in and out"><select aria-label="Animations" value={motion} onChange={(e) => setMotion(e.target.value as MotionPref)} className={PICK}>
+          <option value="full">Always on</option>
+          <option value="system">Follow Windows (off when “Show animations” is off)</option>
+        </select></Row>
+        <p className="py-2 text-xs text-muted">Windows can switch animations off for every app (power saver, remote desktop, performance settings). “Always on” plays them anyway.</p>
       </section>
 
       <section aria-label="Appearance" className={BOX}>

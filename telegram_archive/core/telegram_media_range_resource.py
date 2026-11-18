@@ -32,6 +32,20 @@ except ImportError:  # keep application importable for diagnostics/minimal envir
 from ..engines.media_utils import flood_wait_seconds, is_flood_wait, TelegramRangeFloodError
 from .aligned_telegram_range import fetch_aligned_range
 
+def _cover(pieces: list[tuple[int, bytes]], start: int, end: int) -> bytes | None:
+    """[start, end) assembled from (offset, bytes) pieces, or None when they leave a gap."""
+    out = bytearray()
+    cursor = start
+    for offset, data in sorted(pieces, key=lambda p: p[0]):
+        if cursor >= end:
+            break
+        if offset <= cursor < offset + len(data):
+            take = min(end, offset + len(data))
+            out += data[cursor - offset:take - offset]
+            cursor = take
+    return bytes(out) if cursor >= end else None
+
+
 class DirectTelegramRangeSource:
     """Direct Telegram byte-range reader using ONE authorized session.
 
@@ -413,6 +427,7 @@ class DirectTelegramRangeSource:
                     raise TimeoutError("Timed out waiting for overlapping scan byte-range fetch")
         else:
             reservation_tokens = [(aligned_start, min(self.size, aligned_end), None)]
+        fetched: list[tuple[int, bytes]] = []   # what THIS call downloaded, kept in case the shared cache drops it
         try:
             for gap_start, gap_end, _event in reservation_tokens:
                 # Reservation gaps come from existing aligned ranges. Round out
@@ -438,6 +453,7 @@ class DirectTelegramRangeSource:
                         raise RuntimeError(f"Short Telegram range at {cursor}: {len(data)}/{actual}")
                     if cache_key:
                         scan_range_cache.store(cache_key, cursor, data[:actual])
+                        fetched.append((cursor, data[:actual]))
                     cursor += actual
                     # A final EOF response may be shorter than the aligned request.
                     if actual < request_limit:
@@ -449,11 +465,16 @@ class DirectTelegramRangeSource:
             result = scan_range_cache.read(cache_key, start, end - start)
             if result is not None:
                 return result
+            # The shared cache holds 96 MB for every video being scanned. While this call was downloading, other videos' bytes
+            # pushed this one out (the "did not cover" errors that failed snapshots on a busy PC). Use the pieces we hold, and
+            # download again only what is missing, instead of failing the frame.
+            result = _cover(fetched, start, end)
+            if result is not None:
+                return result
+            return self._fetch_precise_no_cache(start, end)
         # Cache-less callers (such as synthetic adapters) still get a precise
         # one-off read, split only at absolute 1 MiB boundaries.
-        if cache_key is None:
-            return self._fetch_precise_no_cache(start, end)
-        raise RuntimeError(f"Shared scan byte cache did not cover {start}:{end}")
+        return self._fetch_precise_no_cache(start, end)
 
     def _fetch_precise_no_cache(self, start: int, end: int) -> bytes:
         pieces = []

@@ -738,6 +738,27 @@ def playback_snapshot_sheet_cached_sync(db, channel_id: int, message_id: int):
         return None
 
 
+def playback_snapshot_sheet_from_saved_frames_sync(db, channel_id: int, message_id: int):
+    """The delivery sheet from what is already saved: the cached sheet, or one composed now from the video's 36 saved frames.
+
+    A video in the Library has its 36 frames, but the one-picture sheet that a Telegram transfer sends is made only when something asks for it. "Use
+    saved snapshots only" used to look for that sheet alone and skip every video that had never been sent, though its frames were all there. Making the
+    sheet from the frames needs no download from Telegram. None when the frames are not all there.
+    """
+    cached = playback_snapshot_sheet_cached_sync(db, channel_id, message_id)
+    if cached:
+        return cached
+    from .preview_prefetch import frame_quality_sync, preview_frames_path
+    frames_dir = preview_frames_path(int(channel_id), int(message_id))
+    quality = frame_quality_sync(frames_dir)
+    if not quality.get("ready") or int(quality.get("frame_count") or 0) != 36:
+        return None
+    target = _cached_contact_sheet_path(channel_id, message_id)
+    _make_contact_sheet_from_frames(frames_dir, target, _contact_sheet_metadata(db, channel_id, message_id))
+    data = target.read_bytes()
+    return (data, "image/jpeg") if len(data) >= 512 else None
+
+
 async def ensure_playback_snapshot_sheet(db, telegram, channel_id: int, message_id: int, *,
                                          message=None, force: bool = False):
     """Ensure a 36-frame contact sheet for Telegram cover/document delivery.

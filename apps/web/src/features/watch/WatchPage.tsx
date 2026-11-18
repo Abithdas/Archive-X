@@ -18,6 +18,7 @@ import { MarkersSection } from './MarkersSection'
 import { QuickEditDialog } from './QuickEditDialog'
 import { Player } from './Player'
 import { hasNativeBridge, native } from './nativeBridge'
+import { NativePane } from './NativePane'
 import { useResume } from './useResume'
 import { frameIndexFor, normaliseChapters, toSegments } from './timelineLogic'
 import { withWidth } from '@/design/responsive'
@@ -32,7 +33,7 @@ export const telegramLink = (cid: string, mid: number) => (/^-100\d+$/.test(cid)
 
 function Skel() {
   return (
-    <SkeletonGroup label="Loading video" className="mx-auto grid w-full max-w-[1500px] gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <SkeletonGroup label="Loading video" className="mx-auto grid w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="grid gap-4 text-sm leading-snug">
         <Skeleton className="aspect-video w-full rounded-[18px]" />
         <div className="text-3xl"><SkeletonLine width="55%" /></div>
@@ -120,6 +121,17 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
     native.available().then((a) => { if (!dead) setNativeOk(a.available) }).catch(() => undefined)
     return () => { dead = true }
   }, [])
+  // Which engine plays this video: the browser's, or the native one in the same place on the same page. The Experience setting decides when the
+  // native one starts by itself ('always', or 'fallback': only when the browser cannot play the file); the person can switch either way for one video.
+  const [engine, setEngine] = useState<'web' | 'native'>('web')
+  const [chosenWeb, setChosenWeb] = useState(false)
+  const nativeMode = exp.native_player
+  const askedNative = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('engine') === 'native'
+  useEffect(() => { setEngine('web'); setChosenWeb(false) }, [cid, mid])
+  useEffect(() => {
+    if (nativeOk && !chosenWeb && (nativeMode === 'always' || askedNative)) setEngine('native')
+  }, [nativeOk, nativeMode, chosenWeb, askedNative, cid, mid])
+  const toBrowser = () => { setChosenWeb(true); setEngine('web') }
   if (video.isPending) return <Skel />
   if (video.isError || !item) {
     const missing = video.error instanceof ApiError && video.error.status === 404
@@ -139,7 +151,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const tags = showTags ? item.tags : item.tags.slice(0, 12)
 
   return (
-    <div className="mx-auto grid w-full max-w-[1500px] gap-5 px-4 pb-10 pt-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="mx-auto grid w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] gap-5 px-4 pb-10 pt-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="grid min-w-0 content-start gap-4">
         <div className="flex items-center justify-between gap-2">
           <button type="button" onClick={() => router.history.back()} aria-label="Go back" title="Go back" className="grid size-10 place-items-center rounded-xl border border-line bg-surface hover:bg-surface-2"><Icon name="arrow-left" /></button>
@@ -147,7 +159,11 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
         </div>
 
         {resume.ready ? (
-          <Player media={{ cid: String(item._cid), mid: item.id }} info={playInfo.data} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay} startAt={resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} onOpenNative={nativeOk ? () => void navigate({ to: '/native/$cid/$mid', params: { cid: String(item._cid), mid: String(item.id) } }) : undefined} />
+          engine === 'native' ? (
+            <NativePane key={`${item._cid}:${item.id}`} media={{ cid: String(item._cid), mid: item.id }} durationHint={item.duration} size={{ width: item.width, height: item.height }} segments={segments} preview={preview} snapshots={snapshots} startAt={resume.startAt} autoPlay={resume.autoPlay} seekRequest={seekRequest} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onBrowser={toBrowser} />
+          ) : (
+          <Player media={{ cid: String(item._cid), mid: item.id }} info={playInfo.data} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay} startAt={resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} onOpenNative={nativeOk ? () => setEngine('native') : undefined} onUnplayable={nativeOk && nativeMode === 'fallback' && !chosenWeb ? () => setEngine('native') : undefined} />
+          )
         ) : (
           <div className="aspect-video w-full rounded-[18px] border border-line bg-black" aria-hidden="true" />
         )}
@@ -224,7 +240,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={vlc} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="brand-vlc" />Open in VLC</button>
             <button type="button" onClick={mpc} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="play" />Open in MPC-HC</button>
-            {nativeOk ? <button type="button" onClick={() => void navigate({ to: '/native/$cid/$mid', params: { cid: String(item._cid), mid: String(item.id) } })} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="play" />Native player (experimental)</button> : null}
+            {nativeOk ? <button type="button" aria-pressed={engine === 'native'} onClick={() => (engine === 'native' ? toBrowser() : setEngine('native'))} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="play" />{engine === 'native' ? 'Use the browser player' : 'Play with the native player'}</button> : null}
             <button type="button" aria-pressed={Boolean(item.favorite)} disabled={fav.isPending} onClick={() => fav.mutate({ mediaId: item.media_id, favorite: !item.favorite }, { onError: () => toast.error('Could not update favourite') })} className={cn('inline-flex h-10 items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold hover:bg-fg/5', item.favorite ? 'border-[#f40051]/60' : 'border-line-2')}>
               <LikeHeart liked={Boolean(item.favorite)} />{item.favorite ? 'Favourited' : 'Favourite'}
             </button>

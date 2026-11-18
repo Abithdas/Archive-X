@@ -65,6 +65,7 @@ form the signed external-player boundary.
 # ------------------------------------------------------------------
 from __future__ import annotations
 from ..core.swallowed import note as _swallowed_note
+from ..core.safe_paths import inside
 from ..core.background_tasks import retain as _retain_task
 
 from ..telegram.client_policy import configure_telethon_client, make_telegram_client, FLOOD_SLEEP_THRESHOLD_SECONDS, REQUEST_RETRIES
@@ -5269,10 +5270,10 @@ class PlaybackEngine:
         try:
             message = await self.get_playback_message(cid, mid)
         except FileNotFoundError as e:
-            return web.Response(status=404, text=str(e))
+            return web.Response(status=404, text="This video is not available")
         except Exception as e:
             _stream_log(f"HTTP metadata error {cid}/{mid}: {type(e).__name__}: {e}")
-            return web.Response(status=503, text=str(e))
+            return web.Response(status=503, text="The video could not be opened right now")
         f = message.file
         size = int(f.size)
         mime = getattr(f, "mime_type", None) or "video/mp4"
@@ -5419,8 +5420,8 @@ async def serve_local_player_feed(state: dict, tokens: StreamTokens, port: int, 
         if not re.fullmatch(r"[0-9a-f]{32}", playlist_id):
             return web.Response(status=404, text="playlist not found")
         playlist_dir = config.PLAYER_CACHE_DIR / "device_playlists"
-        path = playlist_dir / f"{playlist_id}.m3u"
         try:
+            path = inside(playlist_dir, f"{playlist_id}.m3u")
             if not path.is_file():
                 return web.Response(status=404, text="playlist not found")
             # Device playlist links are short-lived. Individual stream tokens

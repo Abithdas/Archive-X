@@ -227,9 +227,10 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
                 endpoint=body.get("endpoint") if "endpoint" in body else None,
                 context=body.get("context") if "context" in body else None,
                 gpu_layers=body.get("gpu_layers") if "gpu_layers" in body else None,
+                thinking=bool(body.get("thinking")) if "thinking" in body else None,
             )
         except (ValueError, TypeError) as exc:
-            raise HTTPException(400, str(exc)) from exc
+            raise HTTPException(400, "The request could not be used") from exc
         db.log("Local AI settings updated", event="ai.configuration.updated")
         return {"ok": True, **result}
 
@@ -237,6 +238,42 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     async def ai_tools(request: Request):
         require_auth(request)
         return {"local_only": True, "tools": ai.tools.definitions()}
+
+    @router.get("/api/ai/findings")
+    async def ai_findings(request: Request, status: str = ""):
+        """The assistant's notebook (problems and ideas it noticed) with how many are in each state, and what it knows about the app."""
+        require_auth(request)
+        st = status.upper()
+
+        def read():
+            ai.tools.knowledge.ensure()
+            return {"findings": ai.tools.findings.list(st if st else None, 100), "counts": ai.tools.findings.counts(), "knowledge": ai.tools.knowledge.counts()}
+        return await asyncio.to_thread(read)
+
+    @router.post("/api/ai/findings/{finding_id}")
+    async def ai_finding_decide(finding_id: int, request: Request):
+        """Accept, reject, mark fixed or reopen one finding. Only changes the notebook."""
+        require_auth(request)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        status = str(body.get("status") or "").upper()
+        try:
+            found = await asyncio.to_thread(ai.tools.findings.decide, finding_id, status)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        if not found:
+            raise HTTPException(404, "Finding not found")
+        db.log(f"AI finding {finding_id} marked {status}", event="ai.finding.decided")
+        return {"ok": True}
+
+    @router.post("/api/ai/knowledge/rebuild")
+    async def ai_knowledge_rebuild(request: Request):
+        """Read the changelog, the docs and the program's docstrings again."""
+        require_auth(request)
+        counts = await asyncio.to_thread(ai.tools.knowledge.rebuild)
+        return {"ok": True, "knowledge": counts}
 
     @router.post("/api/ai/runtime/start")
     async def ai_runtime_start(request: Request):
@@ -389,7 +426,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
         try:
             result = await asyncio.to_thread(ai.reset_conversation, int(active["id"]))
         except LocalAIError as exc:
-            raise HTTPException(502, str(exc)) from exc
+            raise HTTPException(502, "The assistant could not complete the request") from exc
         db.log("AI Assistant conversation reset")
         return result
 

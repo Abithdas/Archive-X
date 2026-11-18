@@ -74,6 +74,46 @@ mod fake {
         assert!(!b.is_running());
     }
 
+    /// A fake backend that says it is ready, waits a moment, then ends with `status`.
+    fn ends_with(status: i32) -> Backend {
+        let dir = tempfile::tempdir().unwrap();
+        let exe = script(&dir, "ends.sh", &format!(r#"echo "ARCHIVE_X_READY {{\"port\": 4243, \"pid\": $$, \"version\": \"t\"}}"; sleep 0.4; exit {status}"#));
+        let b = spawn(&LaunchOptions { exe, ready_timeout: Some(Duration::from_secs(10)), ..Default::default() }).unwrap();
+        std::mem::forget(dir); // the script must outlive the call
+        b
+    }
+
+    fn wait_until_ended(b: &mut Backend) {
+        let t = Instant::now();
+        while b.is_running() && t.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    #[test]
+    fn a_backend_that_stops_by_itself_with_success_is_a_requested_exit_not_a_crash() {
+        let mut b = ends_with(0);
+        assert_eq!(b.exited_cleanly(), None, "still running: nothing to say yet");
+        wait_until_ended(&mut b);
+        assert_eq!(b.exited_cleanly(), Some(true));
+    }
+
+    #[test]
+    fn a_backend_that_ends_with_an_error_status_is_a_crash() {
+        let mut b = ends_with(3);
+        wait_until_ended(&mut b);
+        assert_eq!(b.exited_cleanly(), Some(false));
+    }
+
+    #[test]
+    fn a_backend_that_was_killed_is_a_crash() {
+        let dir = tempfile::tempdir().unwrap();
+        let exe = script(&dir, "lingers.sh", r#"echo "ARCHIVE_X_READY {\"port\": 4244, \"pid\": $$, \"version\": \"t\"}"; sleep 30"#);
+        let mut b = spawn(&LaunchOptions { exe, ready_timeout: Some(Duration::from_secs(10)), ..Default::default() }).unwrap();
+        assert!(!b.shutdown(Duration::from_millis(300)), "no HTTP server in the fake: it is killed");
+        assert_eq!(b.exited_cleanly(), Some(false));
+    }
+
     #[test]
     fn environment_contains_secret_parent_pid_and_desktop_flag() {
         let dir = tempfile::tempdir().unwrap();

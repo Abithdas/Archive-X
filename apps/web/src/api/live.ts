@@ -30,6 +30,9 @@ export function closeReport(e: { code: number; reason: string; wasClean: boolean
 /** At most one report a minute: a flapping connection must not flood the log. */
 export const REPORT_EVERY_MS = 60_000
 
+/** How often the status is fetched instead while the live connection is down. */
+export const POLL_WHILE_NOT_LIVE_MS = 5_000
+
 /** Reconnect delay with exponential backoff, capped. */
 export const backoffMs = (attempt: number) => Math.min(15_000, 500 * 2 ** Math.min(attempt, 5))
 
@@ -85,6 +88,14 @@ export function useLiveStatus(enabled: boolean): LiveState {
       socket?.close()
     }
   }, [enabled, client])
+
+  // While the live connection is not up (blocked by something on the way, or still connecting) the status is asked for every few seconds, so the
+  // running-job counts, notices and the Telegram state keep moving instead of freezing at whatever was loaded first.
+  useEffect(() => {
+    if (!enabled || state === 'live') return
+    const timer = setInterval(() => { void client.invalidateQueries({ queryKey: queryKeys.status }) }, POLL_WHILE_NOT_LIVE_MS)
+    return () => clearInterval(timer)
+  }, [enabled, state, client])
 
   return state
 }

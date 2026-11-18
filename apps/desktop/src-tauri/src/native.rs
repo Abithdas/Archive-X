@@ -10,6 +10,7 @@
 //! (commands "front", "back" and "popup"); `ARCHIVE_X_NATIVE_VIDEO_FRONT=1` or `ARCHIVE_X_NATIVE_VIDEO_BEHIND=1` change the starting layer.
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
 use archive_x_native_player::{Engine, HwAccel, Options, Player, Rect, VideoLayer};
@@ -22,7 +23,12 @@ const PAGE_BACKGROUND: Color = Color(35, 40, 51, 255);
 const TRANSPARENT: Color = Color(0, 0, 0, 0);
 
 #[derive(Default)]
-pub struct NativeState(Mutex<Inner>);
+pub struct NativeState {
+    inner: Mutex<Inner>,
+    /// Bumped by every "close" and every new open. An open that finds it changed when it finishes was cancelled while it was loading (the page was
+    /// left, or another video was chosen): its window is taken down at once instead of being left over the page.
+    generation: AtomicU64,
+}
 
 #[derive(Default)]
 struct Inner {
@@ -166,12 +172,17 @@ pub async fn native_open(
     hw: Option<i32>,
 ) -> Result<Opened, String> {
     let (dll, lav) = locate(&app)?;
-    let mut inner = state.0.lock().map_err(|_| "the player is busy".to_string())?;
-    retire(inner.player.take()); // a new video gets a new player (this closes the old one)
-    if inner.engine.is_none() {
-        inner.engine = Some(Engine::load(&dll).map_err(|e| e.to_string())?);
-    }
-    let engine = inner.engine.clone().ok_or("the engine is not loaded")?;
+    // The lock is held only for short steps. Opening a stream can take many seconds (a slow source), and everything else (hide, close, the
+    // position the page asks for four times a second) used to wait behind it: the video could not be hidden or closed, and the page seemed stuck.
+    let (engine, mine) = {
+        let mut inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
+        retire(inner.player.take()); // a new video gets a new player (this closes the old one)
+        let mine = state.generation.fetch_add(1, Ordering::SeqCst) + 1;
+        if inner.engine.is_none() {
+            inner.engine = Some(Engine::load(&dll).map_err(|e| e.to_string())?);
+        }
+        (inner.engine.clone().ok_or("the engine is not loaded")?, mine)
+    };
     let layer = start_layer();
     let player = engine.create_player(&lav, Options { hw_accel: hw_from(hw), headless: false, video_layer: layer }).map_err(|e| e.to_string())?;
     #[cfg(windows)]
@@ -179,9 +190,14 @@ pub async fn native_open(
     #[cfg(not(windows))]
     let parent: Option<isize> = None;
     player.open(&url, "Archive X", parent, Rect { x, y, w, h }).map_err(|e| e.to_string())?;
-    let _ = window.set_background_color(background_for(layer));
     let s = player.state();
     let opened = Opened { duration: s.duration, width: s.video_width, height: s.video_height, decoder: player.decoder(), layer: layer_name(layer) };
+    let mut inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
+    if state.generation.load(Ordering::SeqCst) != mine {
+        retire(Some(player));
+        return Err("the video was closed while it was opening".into());
+    }
+    let _ = window.set_background_color(background_for(layer));
     inner.player = Some(player);
     Ok(opened)
 }
@@ -199,7 +215,7 @@ fn retire(player: Option<Player>) {
 /// play, pause, stop, seek (seconds), rate (1.0 = normal), volume (0 to 100), mute (1 or 0), audio (track number), front, back, popup, hide, close.
 #[tauri::command]
 pub async fn native_command(window: WebviewWindow, state: State<'_, NativeState>, command: String, value: Option<f64>) -> Result<(), String> {
-    let mut inner = state.0.lock().map_err(|_| "the player is busy".to_string())?;
+    let mut inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
     if command == "hide" {
         if let Some(p) = inner.player.as_ref() {
             p.hide();
@@ -207,6 +223,7 @@ pub async fn native_command(window: WebviewWindow, state: State<'_, NativeState>
         return Ok(());
     }
     if command == "close" {
+        state.generation.fetch_add(1, Ordering::SeqCst);
         retire(inner.player.take());
         let _ = window.set_background_color(Some(PAGE_BACKGROUND));
         return Ok(());
@@ -240,7 +257,7 @@ pub async fn native_command(window: WebviewWindow, state: State<'_, NativeState>
 /// Moves the video window (the page's player area changed: resize, scroll, zoom).
 #[tauri::command]
 pub async fn native_rect(state: State<'_, NativeState>, x: i32, y: i32, w: i32, h: i32) -> Result<(), String> {
-    let inner = state.0.lock().map_err(|_| "the player is busy".to_string())?;
+    let inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
     match inner.player.as_ref() {
         Some(p) => p.set_rect(Rect { x, y, w, h }).map_err(|e| e.to_string()),
         None => Ok(()),
@@ -249,7 +266,7 @@ pub async fn native_rect(state: State<'_, NativeState>, x: i32, y: i32, w: i32, 
 
 #[tauri::command]
 pub async fn native_state(state: State<'_, NativeState>) -> Result<Snapshot, String> {
-    let inner = state.0.lock().map_err(|_| "the player is busy".to_string())?;
+    let inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
     let p = inner.player.as_ref().ok_or("no video is open")?;
     let s = p.state();
     Ok(Snapshot {
@@ -277,14 +294,14 @@ pub async fn native_state(state: State<'_, NativeState>) -> Result<Snapshot, Str
 /// A plain-text report of the player's windows, renderer counters and what is on screen, for the page to show and send to support.
 #[tauri::command]
 pub async fn native_diagnostics(state: State<'_, NativeState>) -> Result<String, String> {
-    let inner = state.0.lock().map_err(|_| "the player is busy".to_string())?;
+    let inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
     let p = inner.player.as_ref().ok_or("no video is open")?;
     Ok(p.diagnostics())
 }
 
 #[tauri::command]
 pub async fn native_tracks(state: State<'_, NativeState>) -> Result<Vec<Track>, String> {
-    let inner = state.0.lock().map_err(|_| "the player is busy".to_string())?;
+    let inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
     let p = inner.player.as_ref().ok_or("no video is open")?;
     Ok(p.audio_tracks().map_err(|e| e.to_string())?.into_iter().map(|t| Track { name: t.name, selected: t.selected }).collect())
 }
@@ -292,7 +309,7 @@ pub async fn native_tracks(state: State<'_, NativeState>) -> Result<Vec<Track>, 
 /// On exit: stop the video and release the engine (DirectShow wants an orderly teardown).
 pub fn shutdown(app: &AppHandle) {
     if let Some(state) = app.try_state::<NativeState>() {
-        if let Ok(mut inner) = state.0.lock() {
+        if let Ok(mut inner) = state.inner.lock() {
             inner.player = None;
         }
     }

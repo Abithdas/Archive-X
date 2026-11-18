@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { withFavorite } from './favorite'
 import { ApiError, api, libraryUrl } from './client'
 import type { Channel, Entity, EntityKind, LibraryItem, LibraryPage, PerformerDetail, LibraryQuery, Status } from './types'
 import { scannedChannels } from '@/features/photos/photos'
@@ -121,11 +122,17 @@ export const useVideo = (cid: string, mid: number) =>
 /** Favourite on/off for one library row, then refresh whatever lists show it. */
 export function useFavorite() {
   const qc = useQueryClient()
+  const KEYS = ['library', 'video', 'performer', 'studio'] as const
   return useMutation({
     mutationFn: (v: { mediaId: number; favorite: boolean }) => api('/api/library/bulk-favorite', { method: 'POST', json: { media_ids: [v.mediaId], favorite: v.favorite } }),
-    onSuccess: () => {
-      for (const k of ['library', 'video', 'performer']) void qc.invalidateQueries({ queryKey: [k] })
+    // The heart answers at once: the cached rows change before the request is sent, and are put back if it fails.
+    onMutate: async (v) => {
+      const before = KEYS.flatMap((k) => qc.getQueriesData({ queryKey: [k] }))
+      for (const k of KEYS) qc.setQueriesData({ queryKey: [k] }, (d: unknown) => (d === undefined ? d : withFavorite(d, v.mediaId, v.favorite)))
+      return { before }
     },
+    onError: (_e, _v, ctx) => { for (const [key, data] of ctx?.before ?? []) qc.setQueryData(key, data) },
+    onSettled: () => { for (const k of KEYS) void qc.invalidateQueries({ queryKey: [k] }) },
   })
 }
 
@@ -160,7 +167,7 @@ export const useDiagnostics = () =>
 
 /** Resource controller snapshot (playback, background lanes, limits). */
 export const useResources = () =>
-  useQuery({ queryKey: ['resources'] as const, queryFn: () => api<{ resources?: Record<string, unknown> }>('/api/operations/resources'), refetchInterval: 5_000, staleTime: 4_000, retry: false })
+  useQuery({ queryKey: ['resources'] as const, queryFn: () => api<{ resources?: Record<string, unknown>; processes?: Array<Record<string, unknown>>; media_manager?: Record<string, unknown> }>('/api/operations/resources'), refetchInterval: 5_000, staleTime: 4_000, retry: false })
 
 export interface LanesPayload { governor?: Record<string, unknown>; resources?: Record<string, unknown>; jobs?: Array<Record<string, unknown>> }
 /** Live transfer lanes (governor slots, resources, lane jobs); polled while the Transfers page is open. */
@@ -202,6 +209,16 @@ export const usePerformerMetadata = (id: number) => useQuery(perfGet<import('@/f
 export const usePerformerCareer = (id: number) => useQuery(perfGet<{ career_counts?: Array<{ provider?: string; count?: number }> }>('performer-career', id, 'career-counts', { career_counts: [] }))
 export const usePerformerSimilar = (id: number, enabled: boolean) =>
   useQuery({ queryKey: ['performer-similar', id] as const, enabled, queryFn: () => api<{ items?: Array<{ id: number; name: string; video_count?: number; image?: string | null } & import('@/features/entities/similarity').SimilarFields>; reason?: string }>(`/api/performers/${id}/similar?limit=40`), staleTime: 60_000, retry: false })
+
+/** The pictures kept for one performer. While a download from the providers runs it checks again every few seconds. */
+export const usePerformerGallery = (id: number) =>
+  useQuery({
+    queryKey: ['performer-gallery', id] as const,
+    queryFn: () => api<import('@/features/entities/gallery').GalleryState>(`/api/performers/${id}/gallery`),
+    refetchInterval: (q) => (q.state.data?.syncing ? 3000 : false),
+    staleTime: 15_000,
+    retry: false,
+  })
 
 /** Codec and container facts for one video (the smart-playback decision); fails quietly when Telegram is not connected. */
 export const usePlayInfo = (cid: string, mid: number) =>

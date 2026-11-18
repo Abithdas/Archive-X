@@ -15,11 +15,12 @@ afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks() })
 const item = { id: 7, _cid: '-1', media_id: 5, name: 'Old title', filename: 'f.mp4', duration: 125, thumbnail_id: 7, performers: ['Ava Stone'], studios: ['Northlight'], studio: 'Northlight', tags: [] } as unknown as LibraryItem
 const json = (b: unknown, code = 200) => new Response(JSON.stringify(b), { status: code })
 type Call = { url: string; method: string; body: Record<string, unknown> | undefined }
-interface Over { lookup?: () => Response; save?: () => Response; performers?: unknown[]; provider?: unknown[]; studios?: unknown[] }
+interface Over { snap?: unknown[]; lookup?: () => Response; save?: () => Response; performers?: unknown[]; provider?: unknown[]; studios?: unknown[] }
 const mount = (o: Over = {}) => {
   const calls: Call[] = []
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined })
+    if (url.startsWith('/api/media/snapshot-suggestions?')) return json({ suggestions: o.snap ?? [] })
     if (url === '/api/media/quick-edit/lookup') return (o.lookup ?? (() => json({ ok: true, matches: [], filename_hints: { performers: ['Ava Stone'], date: '2024-01-02' } })))()
     if (url === '/api/media/quick-edit') return (o.save ?? (() => json({ ok: true, caption_sync: { ok: true, status: 'synced' } })))()
     if (url.startsWith('/api/performers/provider-search')) return json(o.provider ?? [])
@@ -165,5 +166,27 @@ describe('Edit video', () => {
     mount({ save: () => json({}, 500) })
     fireEvent.click(await screen.findByRole('button', { name: 'Save changes' }))
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Save failed. Check the connection and try again.'))
+  })
+  it('offers performers and a studio found in the snapshots; Add stages them and Save applies them, "Not them" is remembered', async () => {
+    const { calls } = mount({ snap: [
+      { kind: 'performer', id: 11, name: 'Mia Frost', score: 0.5, evidence: { frames: 9 } },
+      { kind: 'studio', id: 21, name: 'Brightside', score: 0.93, evidence: { corner: 'tl' } },
+      { kind: 'performer', id: 12, name: 'Not Her', score: 0.45, evidence: { frames: 4 } },
+    ] })
+    const box = await screen.findByRole('region', { name: 'From snapshots' })
+    expect(await within(box).findByText('Face matched in 9 snapshots')).toBeInTheDocument()
+    expect(within(box).getByText('Watermark in the top-left corner matches this studio')).toBeInTheDocument()
+    fireEvent.click(within(box).getByRole('button', { name: 'Add Mia Frost' }))
+    fireEvent.click(within(box).getByRole('button', { name: 'Add Brightside' }))
+    fireEvent.click(within(box).getByRole('button', { name: 'Not Her is not them' }))
+    await waitFor(() => expect(posts(calls, '/api/media/snapshot-suggestions/reject')[0]!.body).toMatchObject({ kind: 'performer', id: 12, message_id: 7 }))
+    expect(within(chips('Selected performers')).getByText('Mia Frost')).toBeInTheDocument()
+    expect(within(chips('Selected studio')).getByText('Brightside')).toBeInTheDocument()
+    expect(within(box).queryByRole('button', { name: 'Add Mia Frost' })).toBeNull()
+    fireEvent.click(within(dlg()).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(posts(calls, '/api/media/quick-edit')).toHaveLength(1))
+    const body = posts(calls, '/api/media/quick-edit')[0]!.body as { performers: Array<{ name: string; id?: number }>; studio: { name: string; id?: number } }
+    expect(body.performers.map((p) => p.name)).toEqual(['Ava Stone', 'Mia Frost'])
+    expect(body.studio).toMatchObject({ name: 'Brightside', id: 21 })
   })
 })

@@ -67,7 +67,7 @@ export function LibraryPage() {
   useEffect(() => { if (page > pages - 1) setPage(pages - 1) }, [page, pages, setPage])   // a wider window means fewer pages
 
   return (
-    <section className="mx-auto flex w-full max-w-[1800px] flex-1 flex-col pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="mx-auto flex w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] flex-1 flex-col pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead title="Videos" blurb="Browse and manage your video library" />
 
       <Toolbar lead={<ChannelMenu channels={channels.data ?? []} selected={picked} onToggle={toggle} onAll={clear} onEdit={setEditChannel} />} onRefresh={() => void refresh()} refreshing={refreshing} onShuffle={(pl) => void shuffleAll(pl)} shuffling={shuffle.busy} />
@@ -90,7 +90,7 @@ export function LibraryPage() {
         <>
           <h2 className="mb-4 flex items-baseline gap-2.5 text-xl font-extrabold tracking-tight">
             Library
-            <span className="text-[13px] font-normal text-muted">
+            <span className="text-[13px] font-normal tracking-normal text-muted">
               <SpinCounter value={library.data.total} /> videos · {selected.length} channel{selected.length === 1 ? '' : 's'}
             </span>
           </h2>

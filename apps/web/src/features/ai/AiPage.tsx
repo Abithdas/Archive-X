@@ -4,13 +4,14 @@ import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { Disclosure } from '@/design/Accordion'
 import { Icon } from '@/design/Icon'
-import { MatrixLoader } from '@/design/MatrixLoader'
+import { ChatDot } from '@/design/ChatDot'
 import { PageHead } from '@/design/PageHead'
 import { Shimmer } from '@/design/Shimmer'
 import { StreamText } from '@/design/StreamText'
 import { ThinkingLine } from '@/design/ThinkingLine'
 import { cn } from '@/design/cn'
 import { AssistantSetup } from './AssistantSetup'
+import { Findings } from './Findings'
 import { ModelCatalog } from './ModelCatalog'
 import { StepsFeed } from './StepsFeed'
 import { DIAGNOSTICS_PROMPT, EMPTY_HISTORY, JOBS_PROMPT, LIBRARY_QUICK, NEED_QUERY, QUICK, RECOMMEND_PROMPT, SAVED, SAVE_FAILED, START_FAILED, STARTED, STARTING, STOPPED, STOP_FAILED, TABS, TEST_FAILED, TESTING, TOOLS_OFF, TOOLS_ON, TOOLS_WAIT, configBody, configFrom, header, isInstalled, libraryPrompt, messageTime, readiness, testPassed, type AiStatus, type AiTab, type Config, type Message } from './ai'
@@ -35,14 +36,26 @@ function Bubble({ role, meta, children }: { role: 'user' | 'assistant'; meta: st
   )
 }
 
-/** What the assistant is doing while it works (a shimmering line that changes with the real step), the tools it used, then its answer arriving word by word. */
+/** The model's reasoning as it is written (only when "Show the model's reasoning" is on): a quiet block that shimmers its title while the model is still thinking. */
+function Reasoning({ text, active }: { text: string; active: boolean }) {
+  return (
+    <Disclosure defaultOpen className="rounded-lg bg-bg/60 p-2.5" summaryClassName="text-xs font-semibold text-muted" summary={active ? <Shimmer text="Reasoning…" /> : 'Reasoning'}>
+      <div className="mt-2 max-h-40 overflow-y-auto text-xs text-muted [overflow-wrap:anywhere]"><StreamText text={text} /></div>
+    </Disclosure>
+  )
+}
+
+/** What the assistant is doing while it works: a breathing dot beside a shimmering line that changes with the real step, the tools it used, its
+ *  reasoning if it shows any, then the answer arriving word by word with the dot still breathing after the last word until it is finished. */
 function TurnBody({ turn }: { turn: LiveTurn }) {
-  const waiting = !turn.text && !turn.done && !turn.error
+  const working = !turn.done && !turn.error
   return (
     <div className="grid gap-2">
       {turn.steps.length ? <StepsFeed label="Steps the assistant took" className="rounded-lg bg-bg/60 p-2.5" steps={turn.steps.map((s, i) => ({ id: `${i}`, label: s.label, state: s.state }))} /> : null}
-      {waiting ? <div className="flex items-center gap-2.5 text-muted"><MatrixLoader variant="scan" label="Working" /><ThinkingLine text={turn.status || 'Thinking…'} /></div> : null}
+      {turn.reasoning ? <Reasoning text={turn.reasoning} active={working && !turn.text} /> : null}
+      {working && !turn.text ? <div className="flex items-center gap-2.5 text-muted"><ChatDot label="Working" className="text-sm" /><ThinkingLine text={turn.status || 'Thinking…'} /></div> : null}
       {turn.text ? <StreamText text={turn.text} /> : null}
+      {working && turn.text ? <div><ChatDot className="text-sm" /></div> : null}
       {turn.error ? <span role="alert" className="text-bad">{turn.error}</span> : null}
     </div>
   )
@@ -95,15 +108,15 @@ export function AiPage() {
   const h = header(status.isError ? { configured: false } : status.data)
   const hdr = status.isError ? { ...h, state: 'AI status unavailable', model: 'Local AI service unavailable' } : h
   const starting = Boolean(status.data?.runtime?.server?.starting) || Boolean(busy && turn?.status.startsWith('Starting'))
-  const needsSetup = Boolean(status.data) && !isInstalled(status.data) && tab !== 'models'
+  const needsSetup = Boolean(status.data) && !isInstalled(status.data) && tab !== 'models' && tab !== 'findings'
   const finishedSetup = () => { refreshed(); void history.refetch() }
   const body = (t: LiveTurn | null, text: string | undefined, isWorking: boolean | undefined, fallback: string) => isWorking && t ? <TurnBody turn={t} /> : text ? <StreamText text={text} instant /> : <span className="text-muted">{fallback}</span>
 
   return (
-    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead eyebrow="Local intelligence" title="AI Assistance" blurb="Private, local AI for Archive X library intelligence, diagnostics, jobs and recommendations.">
         <div className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-2" role="status" aria-live="polite">
-          {starting ? <MatrixLoader variant="orbit" label="Starting" /> : <span aria-hidden="true" className={cn('size-2.5 rounded-full', hdr.ready ? 'bg-good' : 'bg-warn')} />}
+          {starting ? <ChatDot label="Starting" className="text-sm" /> : <span aria-hidden="true" className={cn('size-2.5 rounded-full', hdr.ready ? 'bg-good' : 'bg-warn')} />}
           <div className="text-left"><strong className="block text-sm">{starting ? <Shimmer text={hdr.state} /> : hdr.state}</strong><small className="text-xs text-muted">{hdr.model}</small></div>
         </div>
       </PageHead>
@@ -162,6 +175,7 @@ export function AiPage() {
               </div>
             )
           })() : null}
+          {tab === 'findings' ? <Findings /> : null}
           {tab === 'models' ? <Models status={status.data} onChanged={() => qc.invalidateQueries({ queryKey: ['ai-status'] })} /> : null}
         </main>
       </div>
@@ -199,13 +213,14 @@ function Models({ status, onChanged }: { status: AiStatus | undefined; onChanged
             <button type="button" className={BTN} disabled={busy} onClick={() => void run('/api/ai/runtime/stop', {}, 'Stopping…', () => STOPPED, STOP_FAILED)}>Stop</button>
             <button type="button" className={BTN} disabled={busy} onClick={() => void run('/api/ai/test', {}, TESTING, (r) => testPassed(r.latency_ms, r.text), TEST_FAILED)}>Test model</button>
           </div>
-          <p role="status" aria-live="polite" className="mt-2 min-h-5 text-sm text-muted">{busy ? <span className="inline-flex items-center gap-2"><MatrixLoader variant="twinkle" label="Working" /><Shimmer text={msg} /></span> : msg}</p>
+          <p role="status" aria-live="polite" className="mt-2 min-h-5 text-sm text-muted">{busy ? <span className="inline-flex items-center gap-2"><ChatDot label="Working" className="text-sm" /><Shimmer text={msg} /></span> : msg}</p>
           <Disclosure className="mt-3 border-t border-line pt-3" summaryClassName="text-sm font-bold" summary="Advanced: use your own engine and model file">
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">{field('llama-server executable', 'runtime_path', 'Path to llama-server.exe')}</div>
               <div className="sm:col-span-2">{field('GGUF model file', 'model_path', 'Path to a .gguf model')}</div>
               {field('Model id', 'model_id')}{field('Local endpoint', 'endpoint')}{field('Context tokens', 'context', '', [1024, 16384])}{field('GPU layers', 'gpu_layers', '', [0, 128])}
             </div>
+            <label className="mt-3 flex items-center gap-2 text-left text-sm"><input type="checkbox" checked={cfg.thinking} onChange={(e) => set('thinking', e.target.checked)} className="size-4 accent-[var(--color-accent)]" />Show the model's reasoning while it answers (slower)</label>
             <div className="mt-3"><button type="button" className={BTN} disabled={busy} onClick={() => void run('/api/ai/config', configBody(cfg), 'Saving…', () => SAVED, SAVE_FAILED)}>Save</button></div>
           </Disclosure>
         </div>

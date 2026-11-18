@@ -124,6 +124,13 @@ describe('Player', () => {
     expect(native).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('button', { name: 'Retry original' })).toBeInTheDocument()
   })
+  it('tells the page once when the file cannot be played, so it can switch to the native player by itself', () => {
+    const unplayable = vi.fn()
+    const { container } = render(<Player src="/stream/-1/1" durationHint={120} onOpenVlc={() => {}} onUnplayable={unplayable} />)
+    expect(unplayable).not.toHaveBeenCalled()
+    fireEvent.error(container.querySelector('video')!)
+    expect(unplayable).toHaveBeenCalledTimes(1)
+  })
   it('does not mention the native player where there is none (browser)', () => {
     const { container } = render(<Player src="/stream/-1/1" durationHint={120} onOpenVlc={() => {}} />)
     fireEvent.error(container.querySelector('video')!)

@@ -20,5 +20,5 @@ describe('performer extras', () => {
     const v = [{ studios: ['A', 'B'] }, { studios: ['B'] }, {}]
     expect(studiosFor(v, [{ id: 1, name: 'A' }, { id: 2, name: 'B' }, { id: 3, name: 'C' }]).map((s) => [s.name, s.count])).toEqual([['B', 2], ['A', 1]]); expect(studioCount(v)).toBe(2)
   })
-  it('words empty similar results and lists tabs', () => { expect(similarEmpty('gender_required')).toMatch(/known gender/); expect(similarEmpty()).toMatch(/No similar performers/); expect(PTABS.map((t) => t.value)).toEqual(['videos', 'studios', 'similar', 'suggestions']) })
+  it('words empty similar results and lists tabs', () => { expect(similarEmpty('gender_required')).toMatch(/known gender/); expect(similarEmpty()).toMatch(/No similar performers/); expect(PTABS.map((t) => t.value)).toEqual(['videos', 'studios', 'gallery', 'similar', 'suggestions']) })
 })

@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
+import { prefersReduced } from '@/design/motionPref'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
+import type { ReactNode } from 'react'
 import { cn } from '@/design/cn'
 import { firstLoaded, loadImage } from './imageCache'
 import { IconClose, IconFit, IconFullscreen, IconNext, IconPause, IconPlay, IconPrev, IconRotateLeft, IconRotateRight, IconZoomIn, IconZoomOut } from './ViewerIcons'
@@ -12,12 +14,20 @@ const NOBAR = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
 const DIVIDER = 'mx-1 hidden h-5 w-px bg-white/25 sm:block'
 
 /** Full-screen photo viewer: preview first, original swapped in when ready; zoom, pan, rotate, slideshow, filmstrip, keyboard. */
-export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, onFavorite, onNeedMore }: {
-  items: Photo[]; index: number; total: number; favorites: ReadonlySet<string>
-  onIndex: (i: number) => void; onClose: () => void; onFavorite: (p: Photo) => void; onNeedMore: () => void
+export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, onFavorite, onNeedMore, origin, referrerPolicy, actions }: {
+  items: Photo[]; index: number; total: number; favorites?: ReadonlySet<string>
+  onIndex: (i: number) => void; onClose: () => void; onFavorite?: (p: Photo) => void; onNeedMore?: () => void
+  /** Where item `i` sits on the page (its thumbnail). When given, the photo grows out of that place on opening and goes back to it on closing. */
+  origin?: (i: number) => DOMRect | null
+  referrerPolicy?: ReferrerPolicy
+  /** A bar above the controls for what can be done with this picture (and where it comes from). */
+  actions?: (item: Photo) => ReactNode
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const stage = useRef<HTMLDivElement>(null)
+  const flip = useRef<HTMLDivElement>(null)
+  const opened = useRef(false)
+  const closing = useRef(false)
   const strip = useRef<HTMLDivElement>(null)
   const item = items[index]
   const [box, setBox] = useState({ w: 0, h: 0 })
@@ -59,24 +69,64 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
     setSlow(false)
     const t = setTimeout(() => { if (live) setSlow(true) }, 900)
     const urls = [item.image_url, item.preview_url].filter(Boolean)
-    void firstLoaded(urls).then(({ url, img }) => {
+    void firstLoaded(urls, referrerPolicy).then(({ url, img }) => {
       if (!live) return
       clearTimeout(t); setSlow(false)
       setAnim(false); setMul(1); setRot(0); setPan({ x: 0, y: 0 })
       setNat({ w: item.width || img.naturalWidth, h: item.height || img.naturalHeight })
       setShown({ key, src: url, alt: photoName(item) })
-      if (url !== item.image_url && item.image_url) void loadImage(item.image_url).then(() => { if (live) setShown({ key, src: item.image_url, alt: photoName(item) }) }).catch(() => undefined)
+      if (url !== item.image_url && item.image_url) void loadImage(item.image_url, referrerPolicy).then(() => { if (live) setShown({ key, src: item.image_url, alt: photoName(item) }) }).catch(() => undefined)
     }).catch(() => { if (live) { clearTimeout(t); setSlow(false) } })
     return () => { live = false; clearTimeout(t) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
-  useEffect(() => { if (items.length - index <= 6 && items.length < total) onNeedMore() }, [index, items.length, total, onNeedMore])
+  useEffect(() => { if (onNeedMore && items.length - index <= 6 && items.length < total) onNeedMore() }, [index, items.length, total, onNeedMore])
   // Fetch the neighbours at full quality now (next two, previous one), so Next and Previous are instant.
   useEffect(() => {
-    for (const u of neighborUrls(items, index)) void loadImage(u).catch(() => undefined)
+    for (const u of neighborUrls(items, index)) void loadImage(u, referrerPolicy).catch(() => undefined)
   }, [items, index])
 
   const fit = fitScale(nat, paddedBox(box), rot)   // leave some air above and below the photo
+  const reduced = () => prefersReduced()
+
+  /** The move from the photo's place on the page to where it sits in the viewer (and back): where its centre is and how much smaller it is. */
+  const flightFrom = (from: DOMRect) => {
+    const r = stage.current?.getBoundingClientRect()
+    if (!r || !nat.w || !nat.h || !from.width || !from.height) return null
+    const z = r.width / (stage.current!.clientWidth || r.width || 1) || 1       // the page may be zoomed: on-screen pixels against layout pixels
+    const turned = Math.abs(rot) % 180 === 90
+    const shownW = (turned ? nat.h : nat.w) * fit * z
+    const dx = (from.left + from.width / 2 - (r.left + r.width / 2)) / z
+    const dy = (from.top + from.height / 2 - (r.top + r.height / 2)) / z
+    return { transform: `translate(${dx}px, ${dy}px) scale(${Math.max(0.02, from.width / Math.max(1, shownW))})` }
+  }
+  // The first time a photo is on screen it grows out of its thumbnail (when the page says where that is).
+  useLayoutEffect(() => {
+    if (!shown || opened.current) return
+    opened.current = true
+    const el = flip.current
+    const from = origin?.(index)
+    const dlg = ref.current
+    if (!el || !from || reduced() || typeof el.animate !== 'function') return
+    const start = flightFrom(from)
+    if (!start) return
+    el.animate([{ ...start, opacity: 0.6 }, { transform: 'none', opacity: 1 }], { duration: 340, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' })
+    dlg?.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' })
+  }, [shown]) // eslint-disable-line react-hooks/exhaustive-deps
+  /** Closing goes back to the thumbnail it came from (the one now shown, if the reader moved on), then the viewer is removed. */
+  const close = useCallback(() => {
+    if (closing.current) return
+    closing.current = true
+    const el = flip.current, dlg = ref.current
+    const from = origin?.(index)
+    const start = from && Math.abs(mul - 1) < 0.001 && rot % 360 === 0 ? flightFrom(from) : null
+    if (!el || !dlg || reduced() || typeof el.animate !== 'function') { onClose(); return }
+    const done = () => onClose()
+    const MS = start ? 280 : 160
+    const a = el.animate(start ? [{ transform: 'none', opacity: 1 }, { ...start, opacity: 0.4 }] : [{ opacity: 1 }, { opacity: 0 }], { duration: MS, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' })
+    dlg.animate?.([{ opacity: 1 }, { opacity: 0 }], { duration: MS, easing: 'ease-in', fill: 'forwards' })
+    a.onfinish = done; a.oncancel = done
+  }, [index, mul, rot, nat, box, fit]) // eslint-disable-line react-hooks/exhaustive-deps
   const scale = fit * mul
   const atFit = Math.abs(mul - 1) < 0.001
   const go = useCallback((d: number, wrap = false) => { const t = stepIndex(index, d, items.length, wrap); if (t !== null) onIndex(t) }, [index, items.length, onIndex])
@@ -195,11 +245,11 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
 
   const h = useMemo(() => (item ? hud(item) : null), [item])
   const [from, to] = stripRange(index, items.length)
-  const fav = item ? favorites.has(favKey(item)) : false
+  const fav = item && favorites ? favorites.has(favKey(item)) : false
   if (!item || !h) return null
 
   return createPortal(
-    <dialog ref={ref} aria-label="Photo viewer" onClose={onClose} onCancel={(e) => { e.preventDefault(); onClose() }} onClick={(e) => e.target === ref.current && onClose()}
+    <dialog ref={ref} aria-label="Photo viewer" onClose={() => { if (!closing.current) onClose() }} onCancel={(e) => { e.preventDefault(); close() }} onClick={(e) => e.target === ref.current && close()}
       className="fixed inset-0 m-0 hidden h-[calc(100dvh/var(--ax-page-zoom,1))] max-h-none w-[calc(100vw/var(--ax-page-zoom,1))] max-w-none flex-col bg-black/95 p-0 text-white open:flex">
       <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 px-3 pb-1 pt-[max(8px,env(safe-area-inset-top))] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-x-3 sm:py-2">
         <b className="min-w-0 truncate text-sm sm:col-start-1 sm:row-start-1 sm:max-w-[34vw]" title={h.title}>{h.title}</b>
@@ -209,17 +259,18 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
         </div>
         <div className="flex items-center gap-1 sm:col-start-3 sm:row-start-1">
           <span aria-live="polite" className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold tabular-nums">{counterText(index, total || items.length)}</span>
-          <button type="button" onClick={onClose} aria-label="Close photo viewer" title="Close (Esc)" className={PILL}><IconClose /></button>
+          <button type="button" onClick={close} aria-label="Close photo viewer" title="Close (Esc)" className={PILL}><IconClose /></button>
         </div>
       </div>
 
       <div ref={stage} role="img" aria-label={`${h.title}. Scroll to zoom, drag to pan, scroll over the toolbar or use arrow keys to change photo.`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={(e) => { pointers.current.delete(e.pointerId); pinch.current = null; drag.current = null }} onDoubleClick={(e) => (atFit ? zoomAt(fit * 2.5, { x: e.clientX, y: e.clientY }) : doFit())}
         className={cn('relative min-h-0 flex-1 touch-none select-none overflow-hidden', atFit ? 'cursor-zoom-in' : 'cursor-grab active:cursor-grabbing')}>
-        {shown ? <img src={shown.src} alt={shown.alt} draggable={false} style={{ width: nat.w || undefined, height: nat.h || undefined, maxWidth: 'none', transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) rotate(${rot}deg) scale(${scale})` }} className={cn('absolute left-1/2 top-1/2 origin-center', anim && 'transition-transform duration-150 ease-out')} /> : null}
+        <div ref={flip} className="absolute inset-0">{shown ? <img src={shown.src} alt={shown.alt} referrerPolicy={referrerPolicy} draggable={false} style={{ width: nat.w || undefined, height: nat.h || undefined, maxWidth: 'none', transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) rotate(${rot}deg) scale(${scale})` }} className={cn('absolute left-1/2 top-1/2 origin-center', anim && 'transition-transform duration-150 ease-out')} /> : null}</div>
         {slow ? <div role="status" aria-label="Loading selected photo" className="absolute inset-0 grid place-items-center"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-white" /></div> : null}
       </div>
 
       <div className="shrink-0 px-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+        {actions ? <div role="toolbar" aria-label="Picture actions" className="mx-auto mb-2 flex w-fit max-w-full flex-wrap items-center justify-center gap-1.5 rounded-3xl bg-white/10 px-2 py-1.5 text-xs backdrop-blur">{actions(item)}</div> : null}
         <div ref={toolbar} role="toolbar" aria-label="Photo viewer controls" className="mx-auto mb-2.5 flex w-full max-w-[420px] flex-col gap-0.5 rounded-3xl bg-white/10 p-1.5 backdrop-blur sm:w-fit sm:max-w-full sm:flex-row sm:items-center sm:gap-0.5 sm:rounded-full sm:px-2 sm:py-1">
           <div className="flex items-center justify-center gap-1 sm:gap-0.5">
             <button type="button" className={PILL} onClick={() => go(-1)} disabled={index <= 0} title="Previous photo (←)" aria-label="Previous photo"><IconPrev /></button>
@@ -235,7 +286,7 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
             <span aria-hidden="true" className={DIVIDER} />
             <button type="button" className={PILL} onClick={() => turn(-90)} title="Rotate counter-clockwise (Shift+R)" aria-label="Rotate counter-clockwise"><IconRotateLeft /></button>
             <button type="button" className={PILL} onClick={() => turn(90)} title="Rotate clockwise (R)" aria-label="Rotate clockwise"><IconRotateRight /></button>
-            <button type="button" className={PILL} onClick={() => onFavorite(item)} aria-pressed={fav} title={fav ? 'Remove from favourites' : 'Add to favourites'} aria-label={fav ? 'Remove from favourites' : 'Add to favourites'}><LikeHeart liked={fav} /></button>
+            {onFavorite ? <button type="button" className={PILL} onClick={() => onFavorite(item)} aria-pressed={fav} title={fav ? 'Remove from favourites' : 'Add to favourites'} aria-label={fav ? 'Remove from favourites' : 'Add to favourites'}><LikeHeart liked={fav} /></button> : null}
             <button type="button" className={PILL} onClick={toggleFs} aria-pressed={fs} title="Toggle fullscreen (F)" aria-label="Toggle fullscreen"><IconSwap on={fs} offIcon={<IconFullscreen on={false} />} onIcon={<IconFullscreen on />} /></button>
           </div>
         </div>
@@ -245,8 +296,8 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
             return (
               <button key={`${p.channel_id}:${p.message_id}`} type="button" onClick={() => onIndex(i)} aria-label={`Photo ${i + 1}: ${photoName(p)}`} aria-current={i === index ? 'true' : undefined}
                 className={cn('relative h-12 w-[68px] shrink-0 overflow-hidden rounded-lg border-2 opacity-70 hover:opacity-100 sm:h-14 sm:w-20', i === index ? 'border-accent opacity-100' : 'border-transparent')}>
-                <img src={p.thumbnail_url} alt="" loading="lazy" draggable={false} className="size-full object-cover" />
-                {favorites.has(favKey(p)) ? <span aria-hidden="true" className="absolute right-0.5 top-0 text-xs text-[#f40051]">♥</span> : null}
+                <img src={p.thumbnail_url} alt="" referrerPolicy={referrerPolicy} loading="lazy" draggable={false} className="size-full object-cover" />
+                {favorites?.has(favKey(p)) ? <span aria-hidden="true" className="absolute right-0.5 top-0 text-xs text-[#f40051]">♥</span> : null}
               </button>
             )
           })}

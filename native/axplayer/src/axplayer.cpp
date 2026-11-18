@@ -277,6 +277,19 @@ struct AxPlayer {
 
     bool popup() const { return opt.video_layer == AX_LAYER_POPUP && parent_hwnd != nullptr; }
 
+    // The page's player frame has rounded corners (22 CSS px); the popup is a plain rectangle above it, so it is clipped to the same shape.
+    void round_corners() {
+        if (!window) return;
+        double scale = 1.0;
+        if (auto fn = reinterpret_cast<UINT (WINAPI *)(HWND)>(reinterpret_cast<void *>(GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForWindow"))))
+            if (parent_hwnd) { UINT dpi = fn(parent_hwnd); if (dpi) scale = dpi / 96.0; }
+        int radius = static_cast<int>(22.0 * scale);
+        radius = std::min(radius, std::min(last_w, last_h) / 2);
+        if (radius < 2) { SetWindowRgn(window, nullptr, TRUE); return; }
+        // SetWindowRgn takes ownership of the region.
+        SetWindowRgn(window, CreateRoundRectRgn(0, 0, last_w + 1, last_h + 1, radius * 2, radius * 2), TRUE);
+    }
+
     // Position the video window. A child window goes to the front or the back of its siblings; the popup is placed over the same area on screen.
     void place(int x, int y, int w, int h) {
         last_x = x; last_y = y; last_w = std::max(w, 1); last_h = std::max(h, 1);
@@ -286,8 +299,10 @@ struct AxPlayer {
             ClientToScreen(parent_hwnd, &pt);
             popup_x = pt.x; popup_y = pt.y;
             SetWindowPos(window, nullptr, pt.x, pt.y, last_w, last_h, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+            round_corners();
         } else {
             SetWindowPos(window, opt.video_layer ? HWND_TOP : HWND_BOTTOM, x, y, last_w, last_h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+            SetWindowRgn(window, nullptr, TRUE);
         }
         if (opt.video_layer) RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }

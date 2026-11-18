@@ -5,6 +5,9 @@ import json
 import re
 from typing import Any
 
+from .ai_knowledge import Findings, Knowledge
+from .ai_safety import redact
+
 
 class AIToolRegistry:
     """Read-only library and job tools exposed to the assistant."""
@@ -12,9 +15,15 @@ class AIToolRegistry:
         self.db = db
         self.jobs = jobs
         self.governor = governor
+        self.knowledge = Knowledge(db)
+        self.findings = Findings(db)
 
     def definitions(self) -> list[dict[str, Any]]:
         return [
+            {"type": "function", "function": {"name": "search_knowledge", "description": "Search what Archive X says about itself: changelog, docs, code docstrings.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
+            {"type": "function", "function": {"name": "search_logs", "description": "Recent warnings and errors from the app log, optionally filtered by words.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}}}},
+            {"type": "function", "function": {"name": "list_findings", "description": "Your notebook of earlier problems and ideas (status OPEN, ACCEPTED, REJECTED, FIXED). Do not repeat rejected ones.", "parameters": {"type": "object", "properties": {"status": {"type": "string"}}}}},
+            {"type": "function", "function": {"name": "record_finding", "description": "Write down one real problem or speed-up you found. Never include secrets.", "parameters": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["issue", "idea", "fix", "note"]}, "title": {"type": "string"}, "detail": {"type": "string"}}, "required": ["title"]}}},
             {"type": "function", "function": {"name": "search_library", "description": "Search published Archive X videos, performers, studios, and tags. Read-only.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}, "limit": {"type": "integer", "minimum": 1, "maximum": 20}}, "required": ["query"], "additionalProperties": False}}},
             {"type": "function", "function": {"name": "get_library_stats", "description": "Return bounded local library and job counts. Read-only.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}}},
             {"type": "function", "function": {"name": "get_jobs", "description": "Return active or recent jobs and statuses. Read-only.", "parameters": {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 20}}, "additionalProperties": False}}},
@@ -34,11 +43,15 @@ class AIToolRegistry:
             "get_diagnostics_summary": self.get_diagnostics_summary,
             "find_unresolved_metadata": self.find_unresolved_metadata,
             "find_duplicates": self.find_duplicates,
+            "search_knowledge": self.search_knowledge,
+            "search_logs": self.search_logs,
+            "list_findings": self.list_findings,
+            "record_finding": self.record_finding,
         }
         fn = methods.get(str(name))
         if fn is None:
             raise ValueError("Unknown AI tool")
-        return fn(**args)
+        return redact(fn(**args))     # whatever a tool finds, the model never sees a key, token, password or cookie
 
     def search_library(self, query: str, limit: int = 10) -> dict[str, Any]:
         q = str(query or "").strip()
@@ -95,6 +108,33 @@ class AIToolRegistry:
                 ORDER BY updated_at DESC,id DESC LIMIT ?
             """, (n,)).fetchall()
         return {"count": len(rows), "videos": [dict(x) for x in rows]}
+
+    def search_knowledge(self, query: str) -> dict[str, Any]:
+        self.knowledge.ensure()
+        return {"results": self.knowledge.search(str(query or ""), 5)}
+
+    def search_logs(self, query: str = "") -> dict[str, Any]:
+        words = [w for w in re.findall(r"[a-z0-9_.]{2,}", str(query or "").lower())][:6]
+        rows = []
+        for e in reversed(self.db.recent_events(300)):
+            level = str(e.get("level") or "").upper()
+            text = str(e.get("message") or "")
+            if words:
+                if not all(w in f"{text} {e.get('event') or ''}".lower() for w in words):
+                    continue
+            elif level not in ("WARN", "WARNING", "ERROR"):
+                continue
+            rows.append({"time": e.get("created_at") or e.get("ts"), "level": level, "event": e.get("event"), "message": text[:220]})
+            if len(rows) >= 10:
+                break
+        return {"events": rows}
+
+    def list_findings(self, status: str = "") -> dict[str, Any]:
+        st = str(status or "").upper()
+        return {"findings": [{k: f[k] for k in ("id", "kind", "title", "status")} for f in self.findings.list(st if st else None, 12)], "counts": self.findings.counts()}
+
+    def record_finding(self, title: str, kind: str = "note", detail: str = "") -> dict[str, Any]:
+        return self.findings.record(kind, title, detail)
 
     def find_duplicates(self, limit: int = 10) -> dict[str, Any]:
         n = max(1, min(20, int(limit or 10)))

@@ -20,7 +20,7 @@ export function MenuItem({ children, onClick, active, pressed, label }: { childr
 }
 
 /** A small menu that opens above its button (like the minimal player): closes on outside click, Escape or choosing an item. */
-export function PopMenu({ label, button, children, align = 'left', iconOnly = false }: { label: string; button: ReactNode; children: ReactNode; align?: 'left' | 'right'; iconOnly?: boolean }) {
+export function PopMenu({ label, button, children, align = 'left', iconOnly = false, drop = 'up' }: { label: string; button: ReactNode; children: ReactNode; align?: 'left' | 'right'; iconOnly?: boolean; drop?: 'up' | 'down' }) {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -37,7 +37,7 @@ export function PopMenu({ label, button, children, align = 'left', iconOnly = fa
         className={cn('inline-flex items-center gap-1.5 rounded-md text-xs font-medium text-fg/85 transition-colors hover:bg-fg/10 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent', iconOnly ? 'size-8 justify-center' : 'px-1.5 py-1 @lg:px-2', open && 'bg-fg/10 text-fg')}>{button}</button>
       {open ? (
         <MenuCtx.Provider value={() => setOpen(false)}>
-          <div role="menu" aria-label={label} className={cn('t-drop-up [[data-ov]_&]:[--color-fg:#eceff4] [[data-ov]_&]:[--color-muted:#9aa4b6] [[data-ov]_&]:[--color-surface:#2b313d] [[data-ov]_&]:[--color-line-2:#434c5e] absolute bottom-10 z-50 flex min-w-[9.5rem] flex-col gap-0.5 rounded-xl border border-line-2 bg-surface/95 p-1.5 text-fg shadow-2xl backdrop-blur-xl', align === 'right' ? 'right-0' : 'left-0')}>{children}</div>
+          <div role="menu" aria-label={label} className={cn(drop === 'down' ? 't-drop-down top-10' : 't-drop-up bottom-10', '[[data-ov]_&]:[--color-fg:#eceff4] [[data-ov]_&]:[--color-muted:#9aa4b6] [[data-ov]_&]:[--color-surface:#2b313d] [[data-ov]_&]:[--color-line-2:#434c5e] absolute z-50 flex min-w-[9.5rem] flex-col gap-0.5 rounded-xl border border-line-2 bg-surface/95 p-1.5 text-fg shadow-2xl backdrop-blur-xl', align === 'right' ? 'right-0' : 'left-0')}>{children}</div>
         </MenuCtx.Provider>
       ) : null}
     </div>

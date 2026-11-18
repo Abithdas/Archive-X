@@ -18,7 +18,18 @@ export function SpinCounter({ value, className }: { value: number; className?: s
     stop.current = null
     const v = Math.max(0, Math.round(Number.isFinite(value) ? value : 0))
     if (last.current === null || last.current === v) showReel(el, v)
-    else stop.current = rollReel(el, last.current, v)
+    else {
+      // Hold the old width (digits right-aligned) while the drums roll, then ease to the new width: a number that loses a digit must not
+      // pull the words next to it left in one jump.
+      el.style.transition = 'none'
+      el.style.minWidth = `${el.getBoundingClientRect().width}px`
+      el.style.justifyContent = 'flex-end'
+      stop.current = rollReel(el, last.current, v, () => {
+        el.style.transition = 'min-width 240ms cubic-bezier(0.22, 1, 0.36, 1)'
+        el.style.minWidth = '0px'
+        el.style.justifyContent = ''
+      })
+    }
     last.current = v
   }, [value])
   useEffect(() => () => stop.current?.(), [])

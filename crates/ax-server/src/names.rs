@@ -26,6 +26,9 @@ const SEARCH: &str = "/api/photos/faces/performers/provider-search";
 const LIST: &str = "/api/photos/faces/performers/name-list";
 const SYNC: &str = "/api/photos/faces/performers/name-list/sync";
 const KEYS_TTL: Duration = Duration::from_secs(30);
+/// The wait between two pages asked of a provider. The backend keeps at least half a second between its own StashDB requests; asking faster than that
+/// draws "too many requests" answers, which ended the refresh with an error.
+const PAGE_PAUSE: Duration = Duration::from_millis(600);
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Route {
@@ -50,7 +53,7 @@ pub struct Names {
 impl Names {
     /// `None` unless one of the name routes is switched on.
     pub fn new(routes: &[String], proxy: Arc<Proxy>) -> Option<Arc<Names>> {
-        Names::with_fetch(routes, proxy, Arc::new(Http::default()), Duration::from_millis(350))
+        Names::with_fetch(routes, proxy, Arc::new(Http::default()), PAGE_PAUSE)
     }
 
     pub fn with_fetch(routes: &[String], proxy: Arc<Proxy>, fetch: Arc<dyn Fetch>, pause: Duration) -> Option<Arc<Names>> {

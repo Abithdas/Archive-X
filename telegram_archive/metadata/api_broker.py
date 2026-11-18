@@ -76,11 +76,15 @@ def _state(provider: str) -> tuple[_Policy, _State]:
 
 
 def provider_for_url(url: str) -> str:
-    host = str(url or "").casefold()
-    if "stashdb.org" in host:
-        return "stashdb"
-    if "theporndb.net" in host:
-        return "tpdb"
+    from urllib.parse import urlsplit
+    try:
+        host = (urlsplit(str(url or "")).hostname or "").casefold()
+    except ValueError:
+        return "other"
+    # The host itself or one of its subdomains: "stashdb.org.evil.example" or a path that merely mentions it does not count.
+    for domain, name in (("stashdb.org", "stashdb"), ("theporndb.net", "tpdb")):
+        if host == domain or host.endswith("." + domain):
+            return name
     return "other"
 
 
@@ -92,7 +96,8 @@ def _request_key(provider: str, url: str, data: bytes | None, headers: Mapping[s
     for key, value in (headers or {}).items():
         key_l = str(key).casefold()
         if key_l in {"authorization", "apikey", "api-key"}:
-            secret_fingerprint += f"{key_l}:{hashlib.sha256(str(value).encode()).hexdigest()}\n"
+            digest = hashlib.pbkdf2_hmac("sha256", str(value).encode(), b"archive-x-key-fingerprint", 1000).hex()
+            secret_fingerprint += f"{key_l}:{digest}\n"
         else:
             safe_headers[key_l] = str(value)
     payload = data or b""

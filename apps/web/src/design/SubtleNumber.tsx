@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { cn } from './cn'
-import { diffDigits } from './subtleNumber'
+import { diffDigits } from './digitDiff'
 
 const SHOW_MS = 520   // a little longer than --subtle-dur, then the number goes back to plain text
 

@@ -124,14 +124,14 @@ def refreshable_entity_ids(db, entity_type: str, entity_ids, *, force_recheck: b
         return ids
 
     table = "performers" if kind == "performer" else "studios"
-    placeholders = ",".join("?" for _ in ids)
+    from ..core.sql_batches import batches, marks as _marks
     due_clause = f"({_metadata_due_sql(kind, 'entity')} OR {_artwork_due_sql(kind, 'entity')})"
+    due: list[int] = []
     with db.lock:
-        rows = db.conn.execute(
-            f"SELECT entity.id FROM {table} entity WHERE entity.id IN ({placeholders}) AND {due_clause} ORDER BY entity.id",
-            tuple(ids),
-        ).fetchall()
-    return [int(row[0]) for row in rows]
+        for batch in batches(ids):
+            due.extend(int(row[0]) for row in db.conn.execute(
+                f"SELECT entity.id FROM {table} entity WHERE entity.id IN ({_marks(len(batch))}) AND {due_clause}", tuple(batch)).fetchall())
+    return sorted(due)
 
 
 
@@ -213,14 +213,15 @@ async def run(ctx):
         except (TypeError, ValueError):
             continue
     if video_ids:
+        from ..core.sql_batches import batches, marks as _marks
         with ctx.db.lock:
-            marks = ",".join("?" for _ in video_ids)
-            entity_ids["performer"].update(int(r[0]) for r in ctx.db.conn.execute(
-                f"SELECT DISTINCT performer_id FROM video_performers WHERE video_id IN ({marks})", tuple(sorted(video_ids))
-            ).fetchall())
-            entity_ids["studio"].update(int(r[0]) for r in ctx.db.conn.execute(
-                f"SELECT DISTINCT studio_id FROM video_studios WHERE video_id IN ({marks})", tuple(sorted(video_ids))
-            ).fetchall())
+            for batch in batches(sorted(video_ids)):
+                entity_ids["performer"].update(int(r[0]) for r in ctx.db.conn.execute(
+                    f"SELECT DISTINCT performer_id FROM video_performers WHERE video_id IN ({_marks(len(batch))})", tuple(batch)
+                ).fetchall())
+                entity_ids["studio"].update(int(r[0]) for r in ctx.db.conn.execute(
+                    f"SELECT DISTINCT studio_id FROM video_studios WHERE video_id IN ({_marks(len(batch))})", tuple(batch)
+                ).fetchall())
 
     # Explicit entity/video IDs target only those entities; they must never widen into a bulk scan.
     targeted = bool(entity_ids["performer"] or entity_ids["studio"])

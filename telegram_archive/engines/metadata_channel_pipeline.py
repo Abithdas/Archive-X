@@ -310,8 +310,25 @@ async def _prepare_local_snapshot_assets(
     return failures
 
 
+def _int(value: Any, default: int = 0) -> int:
+    """A whole number from whatever a saved job holds (a number, digits as text, nothing, or junk)."""
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        try:
+            return int(float(value))
+        except (TypeError, ValueError, OverflowError):
+            return default
+
+
+def _dict(value: Any) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
 def _work_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
     """Return a UI-safe hierarchical progress snapshot from the checkpoint."""
+    if not isinstance(payload, dict):
+        payload = {}
     channels = payload.get("channel_queue") if isinstance(payload.get("channel_queue"), list) else []
     selected = _selected_stages(payload)
     total_work = completed_work = 0.0
@@ -325,12 +342,10 @@ def _work_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
         for phase in PHASES:
             if phase not in selected:
                 continue
-            pp = (entry.get("phase_progress") or {}).get(phase)
-            if not isinstance(pp, dict):
-                pp = {}
-            total = max(0, int(pp.get("total") or 0))
-            done = max(0, min(total if total else max(0, int(pp.get("completed") or 0)), int(pp.get("completed") or 0)))
-            state = str((entry.get("phases") or {}).get(phase) or "PENDING").upper()
+            pp = _dict(_dict(entry.get("phase_progress")).get(phase))
+            total = max(0, _int(pp.get("total")))
+            done = max(0, min(total if total else max(0, _int(pp.get("completed"))), _int(pp.get("completed"))))
+            state = str(_dict(entry.get("phases")).get(phase) or "PENDING").upper()
             if state in {"COMPLETED", "COMPLETED_WITH_ERRORS"} and total:
                 done = total
             if not total:
@@ -356,11 +371,11 @@ def _work_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
         channel_rows.append({
             "channel_id": str(entry.get("channel_id") or ""),
             "state": str(entry.get("state") or "PENDING").upper(),
-            "total_videos": int((entry.get("counts") or {}).get("videos") or len(entry.get("videos") or [])),
-            "failed": int((entry.get("counts") or {}).get("failed") or 0),
-            "published_ready": int((entry.get("readiness") or {}).get("published_ready") or (entry.get("counts") or {}).get("published_ready") or 0),
-            "needs_review": int((entry.get("readiness") or {}).get("needs_review") or (entry.get("counts") or {}).get("needs_review") or 0),
-            "needs_snapshots": int((entry.get("readiness") or {}).get("snapshot_pending") or 0),
+            "total_videos": _int(_dict(entry.get("counts")).get("videos")) or len(entry.get("videos") if isinstance(entry.get("videos"), list) else []),
+            "failed": _int(_dict(entry.get("counts")).get("failed")),
+            "published_ready": _int(_dict(entry.get("readiness")).get("published_ready")) or _int(_dict(entry.get("counts")).get("published_ready")),
+            "needs_review": _int(_dict(entry.get("readiness")).get("needs_review")) or _int(_dict(entry.get("counts")).get("needs_review")),
+            "needs_snapshots": _int(_dict(entry.get("readiness")).get("snapshot_pending")),
             "progress": round(channel_done * 100.0 / channel_total, 1) if channel_total else 0.0,
             "completed_work": int(channel_done), "total_work": int(channel_total),
             "remaining_work": max(0, int(channel_total - channel_done)),
@@ -369,21 +384,25 @@ def _work_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
             "error": str(entry.get("error") or ""),
         })
     caption_state = payload.get("caption_reconciliation") if isinstance(payload.get("caption_reconciliation"), dict) else {}
-    caption_total = max(0, int(caption_state.get("total") or 0))
-    caption_completed = min(caption_total, max(0, int(caption_state.get("completed") or 0)))
+    caption_total = max(0, _int(caption_state.get("total")))
+    caption_completed = min(caption_total, max(0, _int(caption_state.get("completed"))))
     if caption_total:
         total_work += caption_total
         completed_work += caption_completed
 
-    current_index = int(payload.get("current_channel_index") or 0)
+    current_index = _int(payload.get("current_channel_index"))
     current = channel_rows[current_index] if 0 <= current_index < len(channel_rows) else None
     current_phase = str(payload.get("current_phase") or "")
     if current and not current_phase:
         current_phase = next((p["phase"] for p in current["phases"] if p["state"] == "PROCESSING"), "")
     clock = payload.get("progress_started_at")
-    if not clock:
+    try:
+        clock = float(clock)
+    except (TypeError, ValueError):
+        clock = 0.0
+    if clock <= 0:
         clock = payload["progress_started_at"] = time.time()
-    elapsed = max(0.0, time.time() - float(clock))
+    elapsed = max(0.0, time.time() - clock)
     remaining_work = max(0, int(total_work - completed_work))
     rate = completed_work / elapsed if elapsed > 1.0 else 0.0
     global_eta = remaining_work / rate if remaining_work and rate > 0 else (0.0 if remaining_work == 0 else None)
@@ -767,60 +786,81 @@ async def _discover_and_store_inventory(ctx, channel_id: str, limit: int, *, ful
             )
     await asyncio.to_thread(_store_split_groups)
     def _store_media_rows():
-        for record in ordered:
+        # Records are written in short chunks: one lock hold and one commit per ~50 ms of work, not one per record. A commit per record cost
+        # a disk flush for every video (slow on a big library or a hard disk), and the chunk limit keeps the database lock free often enough
+        # that the event loop and everything else never wait long (a 95 s wait for a whole batch once got the job killed by the watchdog).
+        position = 0
+        while position < len(ordered):
+            deadline = time.monotonic() + 0.05
             with ctx.db.lock:
-                message_id = int(record.get("id") or 0)
-                if not message_id:
-                    continue
-                filename = str(record.get("name") or f"Telegram video {message_id}")
-                size = int(record.get("size") or 0)
-                duration = float(record.get("duration") or 0)
-                caption_update = "excluded.caption" if full_scan else "CASE WHEN excluded.caption<>'' THEN excluded.caption ELSE media.caption END"
-                ctx.db.conn.execute(
-                    f"""INSERT INTO media(
-                        source_channel,source_message_id,filename,title,size,duration,
-                        width,height,fps,streamable,status,caption,created_at,updated_at
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                    ON CONFLICT(source_channel,source_message_id) DO UPDATE SET
-                        filename=excluded.filename,
-                        title=CASE WHEN media.title IS NULL OR TRIM(media.title)='' OR media.title=media.filename
-                                   THEN excluded.title ELSE media.title END,
-                        size=CASE WHEN excluded.size>0 THEN excluded.size ELSE media.size END,
-                        duration=CASE WHEN excluded.duration>0 THEN excluded.duration ELSE media.duration END,
-                        width=CASE WHEN excluded.width>0 THEN excluded.width ELSE media.width END,
-                        height=CASE WHEN excluded.height>0 THEN excluded.height ELSE media.height END,
-                        caption={caption_update},
-                        status=CASE WHEN media.status='SOURCE_DELETED' THEN excluded.status ELSE media.status END,
-                        streamable=1,updated_at=excluded.updated_at""",
-                    (channel_id, message_id, filename, filename, size, duration,
-                     int(record.get("width") or 0), int(record.get("height") or 0), 0.0, 1,
-                     "SCANNED", str(record.get("caption") or ""), now, now),
-                )
-                from ..core.telegram_registry import register_known_message
-                media_row = ctx.db.conn.execute(
-                    "SELECT id,thumbnail_message_id FROM media WHERE source_channel=? AND source_message_id=?",
-                    (channel_id, message_id),
-                ).fetchone()
-                if record.get("is_split_group") and record.get("thumbnail_message_id") and media_row:
+                while position < len(ordered):
+                    record = ordered[position]
+                    position += 1
+                    message_id = int(record.get("id") or 0)
+                    if not message_id:
+                        continue
+                    filename = str(record.get("name") or f"Telegram video {message_id}")
+                    size = int(record.get("size") or 0)
+                    duration = float(record.get("duration") or 0)
+                    caption_update = "excluded.caption" if full_scan else "CASE WHEN excluded.caption<>'' THEN excluded.caption ELSE media.caption END"
                     ctx.db.conn.execute(
-                        "UPDATE media SET thumbnail_message_id=? WHERE id=?",
-                        (int(record["thumbnail_message_id"]), int(media_row["id"])),
+                        f"""INSERT INTO media(
+                            source_channel,source_message_id,filename,title,size,duration,
+                            width,height,fps,streamable,status,caption,created_at,updated_at
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        ON CONFLICT(source_channel,source_message_id) DO UPDATE SET
+                            filename=excluded.filename,
+                            title=CASE WHEN media.title IS NULL OR TRIM(media.title)='' OR media.title=media.filename
+                                       THEN excluded.title ELSE media.title END,
+                            size=CASE WHEN excluded.size>0 THEN excluded.size ELSE media.size END,
+                            duration=CASE WHEN excluded.duration>0 THEN excluded.duration ELSE media.duration END,
+                            width=CASE WHEN excluded.width>0 THEN excluded.width ELSE media.width END,
+                            height=CASE WHEN excluded.height>0 THEN excluded.height ELSE media.height END,
+                            caption={caption_update},
+                            status=CASE WHEN media.status='SOURCE_DELETED' THEN excluded.status ELSE media.status END,
+                            streamable=1,updated_at=excluded.updated_at""",
+                        (channel_id, message_id, filename, filename, size, duration,
+                         int(record.get("width") or 0), int(record.get("height") or 0), 0.0, 1,
+                         "SCANNED", str(record.get("caption") or ""), now, now),
                     )
-                if not record.get("is_split_group"):
-                    register_known_message(
-                        ctx.db, channel_id=channel_id, message_id=message_id, record=record,
-                        media_id=int(media_row["id"]) if media_row else None,
-                        thumbnail_message_id=int(media_row["thumbnail_message_id"] or 0) if media_row else None,
-                    )
-                # One record at a time, committed: the lock is free between records, so the event loop (and everything else) never waits
-                # for the whole batch (a 95 s wait for it got the job killed by the watchdog).
+                    from ..core.telegram_registry import register_known_message
+                    media_row = ctx.db.conn.execute(
+                        "SELECT id,thumbnail_message_id FROM media WHERE source_channel=? AND source_message_id=?",
+                        (channel_id, message_id),
+                    ).fetchone()
+                    if record.get("is_split_group") and record.get("thumbnail_message_id") and media_row:
+                        ctx.db.conn.execute(
+                            "UPDATE media SET thumbnail_message_id=? WHERE id=?",
+                            (int(record["thumbnail_message_id"]), int(media_row["id"])),
+                        )
+                    if not record.get("is_split_group"):
+                        register_known_message(
+                            ctx.db, channel_id=channel_id, message_id=message_id, record=record,
+                            media_id=int(media_row["id"]) if media_row else None,
+                            thumbnail_message_id=int(media_row["thumbnail_message_id"] or 0) if media_row else None,
+                        )
+                    if time.monotonic() >= deadline:
+                        break
                 ctx.db.conn.commit()
-            time.sleep(0.001)   # Python's lock is not fair: without this pause this thread takes it straight back and a waiting thread can starve
+            time.sleep(0.002)   # Python's lock is not fair: without this pause this thread takes it straight back and a waiting thread can starve
         with ctx.db.lock:
             # Only a complete scan of all Telegram history can prove that older
             # messages disappeared. Incremental passes never tombstone unseen rows.
+            present = {int(item.get("id") or 0) for item in ordered}
+            if scan_stats.get("full_history") and not (present - {0}):
+                known_live = int(ctx.db.conn.execute(
+                    "SELECT COUNT(*) FROM media WHERE source_channel=? AND COALESCE(status,'')<>'SOURCE_DELETED'", (channel_id,)).fetchone()[0] or 0)
+                if known_live:
+                    # Telegram can answer a history walk with nothing (access lost, a search hiccup) and still call it complete.
+                    # Treating that as "every video was deleted" would remove the whole channel from the Library.
+                    _INVENTORY_WARNINGS[(str(getattr(ctx, "job_id", "")), str(channel_id))] = (
+                        f"Telegram returned no videos for the whole history while {known_live:,} are stored; nothing was removed")
+                    ctx.db.log(
+                        f"Collect filenames {channel_id}: Telegram returned no videos for a full history scan, but {known_live:,} are known. "
+                        "Nothing was removed from the Library; check that this account can still read the channel and scan again.",
+                        "WARN")
+                    scan_stats["full_history"] = False
             if scan_stats.get("full_history"):
-                present = {int(item.get("id") or 0) for item in ordered}
                 if split_tables == {"split_file_groups", "split_file_parts"}:
                     missing_split_primary_ids = [int(row["primary_message_id"] or 0) for row in split_groups
                                                  if int(row["primary_message_id"] or 0) not in present]
@@ -856,11 +896,14 @@ async def _discover_and_store_inventory(ctx, channel_id: str, limit: int, *, ful
                     )
             ids = [int(item.get("id") or 0) for item in ordered if int(item.get("id") or 0) > 0]
             if ids:
-                marks = ",".join("?" for _ in ids)
-                rows = ctx.db.conn.execute(
-                    f"SELECT id,source_channel,source_message_id,filename,title FROM media WHERE source_channel=? AND source_message_id IN ({marks}) ORDER BY CAST(source_message_id AS INTEGER) DESC",
-                    [channel_id, *ids],
-                ).fetchall()
+                from ..core.sql_batches import batches, marks as _marks
+                rows = []
+                for batch in batches(ids):
+                    rows.extend(ctx.db.conn.execute(
+                        f"SELECT id,source_channel,source_message_id,filename,title FROM media WHERE source_channel=? AND source_message_id IN ({_marks(len(batch))})",
+                        [channel_id, *batch],
+                    ).fetchall())
+                rows.sort(key=lambda r: int(r["source_message_id"] or 0), reverse=True)
                 for row in rows:
                     ctx.db.conn.execute(
                         "INSERT INTO resource_state(media_id,catalogue_state,updated_at) VALUES(?,?,?) "
@@ -1111,15 +1154,16 @@ def _entity_ids(ctx, channel_id: str, media_ids: list[int]) -> tuple[list[int], 
     """Return unique performer and studio IDs linked to the channel inventory."""
     with ctx.db.lock:
         if media_ids:
-            marks = ",".join("?" for _ in media_ids)
-            params = tuple(media_ids)
-            performers = [int(r[0]) for r in ctx.db.conn.execute(
-                f"SELECT DISTINCT performer_id FROM video_performers WHERE video_id IN ({marks}) ORDER BY performer_id", params
-            ).fetchall()]
-            studios = [int(r[0]) for r in ctx.db.conn.execute(
-                f"SELECT DISTINCT studio_id FROM video_studios WHERE video_id IN ({marks}) ORDER BY studio_id", params
-            ).fetchall()]
-            return performers, studios
+            from ..core.sql_batches import batches, marks as _marks
+            performers_found: set[int] = set()
+            studios_found: set[int] = set()
+            for batch in batches(media_ids):
+                params = tuple(batch)
+                performers_found.update(int(r[0]) for r in ctx.db.conn.execute(
+                    f"SELECT DISTINCT performer_id FROM video_performers WHERE video_id IN ({_marks(len(batch))})", params).fetchall())
+                studios_found.update(int(r[0]) for r in ctx.db.conn.execute(
+                    f"SELECT DISTINCT studio_id FROM video_studios WHERE video_id IN ({_marks(len(batch))})", params).fetchall())
+            return sorted(performers_found), sorted(studios_found)
         performers = [int(r[0]) for r in ctx.db.conn.execute(
             "SELECT DISTINCT vp.performer_id FROM video_performers vp JOIN media m ON m.id=vp.video_id WHERE m.source_channel=? ORDER BY vp.performer_id",
             (channel_id,),
@@ -1908,7 +1952,7 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
     if not snapshot_integrity_scan:
         mark_media_entity_complete(ctx.db, media_ids)
     from ..core.resource_registry import media_readiness_stats
-    readiness=media_readiness_stats(ctx.db, media_ids=media_ids)
+    readiness = await asyncio.to_thread(media_readiness_stats, ctx.db, media_ids=media_ids)   # a whole channel's videos: not on the event loop
     entry["readiness"] = readiness
     entry.setdefault("counts", {}).update({
         "published_ready": readiness["published_ready"],
@@ -2248,8 +2292,8 @@ async def run_local_media(ctx, media_items: list[dict[str, Any]], *, force_metad
     payload["progress"] = _work_snapshot(payload)
     _save(ctx, payload)
     from ..core.resource_registry import media_readiness_stats
-    readiness=media_readiness_stats(ctx.db, media_ids=[int(v["media_id"]) for v in videos])
-    payload["readiness"]=readiness
+    readiness = await asyncio.to_thread(media_readiness_stats, ctx.db, media_ids=[int(v["media_id"]) for v in videos])
+    payload["readiness"] = readiness
     _save(ctx, payload)
     _log_pipeline_event(
         ctx,
@@ -2278,7 +2322,14 @@ def progress_snapshot(detail: str | dict[str, Any] | None) -> dict[str, Any]:
         payload = dict(detail)
     else:
         payload = {}
-    return _work_snapshot(payload)
+    if not isinstance(payload, dict):
+        payload = {}                      # valid JSON that is not an object ("[]", "123", "null")
+    try:
+        return _work_snapshot(payload)
+    except Exception:
+        # A saved job in a shape no version wrote must not take the progress page down with it.
+        _swallowed_note("metadata_channel_pipeline.progress_snapshot")
+        return _work_snapshot({})
 
 
 async def _run_metadata_assets(ctx):
@@ -2312,6 +2363,10 @@ async def _run_metadata_assets(ctx):
     payload["channel_ids"] = channels
     payload.setdefault("current_channel_index", 0)
     payload["stages"] = _selected_stages(payload)
+    if not payload["stages"]:
+        # Without this a job whose saved stages are empty or misspelt "completed" having done nothing at all.
+        raise RuntimeError("This Metadata & Assets job has no valid stage selected (Collect filenames, Match metadata, Performer data, "
+                           "Studio/site data or Playback snapshots); start a new run and tick at least one")
     queue = payload.get("channel_queue")
     if not isinstance(queue, list) or len(queue) != len(channels):
         queue = [{"channel_id": channel, "state": "PENDING", "videos": [], "phases": {}}

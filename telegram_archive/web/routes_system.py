@@ -10,6 +10,8 @@
 from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
+from ..core.safe_paths import inside
+from ..core.snapshot_cache import SnapshotCache
 import asyncio
 import hmac
 import json
@@ -93,7 +95,7 @@ def register_system_routes(
         suffix = Path(name).suffix.lower()
         if "/" in name or "\\" in name or ".." in name or suffix not in {".svg", ".txt"}:
             raise HTTPException(404)
-        path = Path(__file__).resolve().parent / "static" / "icons" / "ax-icons" / name
+        path = inside(Path(__file__).resolve().parent / "static" / "icons" / "ax-icons", name)
         if not path.is_file():
             raise HTTPException(404)
         media = "image/svg+xml" if suffix == ".svg" else "text/plain; charset=utf-8"
@@ -139,9 +141,14 @@ def register_system_routes(
         from ..core import swallowed
         return {"ok": True, "items": swallowed.snapshot(100)}
 
+    _diagnostics_view = SnapshotCache(3.0)   # polled every 5 s by each open Operations page; one answer is shared
+
     @router.get("/api/diagnostics/summary")
     def diagnostics_summary(request: Request):
         require_auth(request)
+        return _diagnostics_view.get(_build_diagnostics_summary)
+
+    def _build_diagnostics_summary():
         from ..core.diagnostics import observability_snapshot, metadata_assets_diagnostics, telegram_transfer_diagnostics, content_automation_diagnostics
         payload = observability_snapshot(recent_limit=60, errors_limit=30)
         from ..core import swallowed
@@ -566,13 +573,14 @@ def register_system_routes(
                 "autonext": bool(db.setting("ta_autonext", "1") not in {"0", "false", "False"}),
                 "autonext_mode": db.setting("ta_autonext_mode", "context"),
                 "theme_mode": ("system" if db.setting("ax_theme_mode", "system") == "auto-time" else db.setting("ax_theme_mode", "system")),
-                "theme_preset": (db.setting("ax_theme_preset", "nord") if db.setting("ax_theme_preset", "nord") in {"nord", "nero-gold", "black-essence","pastel-lavender", "pastel-mint", "minimal-slate", "minimal-sand", "custom"} else "nord"),
+                "theme_preset": (db.setting("ax_theme_preset", "nord") if db.setting("ax_theme_preset", "nord") in {"nord", "nero-gold", "black-essence","pastel-lavender", "pastel-mint", "minimal-slate", "minimal-sand", "teal-coral", "neon-lime", "golden-noir", "custom"} else "nord"),
                 "grid_density": (db.setting("ax_grid_density", "default") if db.setting("ax_grid_density", "default") in {"compact", "default", "spacious"} else "default"),
                 "live_seek_preview": bool(db.setting("ta_live_seek_preview", "1") not in {"0", "false", "False"}),
                 # Include this in bootstrap as well as the dedicated settings route;
                 # otherwise the seeded GET cache can temporarily default it to enabled.
                 "resume_prompt": bool(db.setting("ta_resume_prompt", "1") not in {"0", "false", "False"}),
                 "partial_cache_prompt": bool(db.setting("ta_partial_cache_prompt", "0") not in {"0", "false", "False"}),
+                "native_player": (db.setting("ta_native_player", "fallback") if db.setting("ta_native_player", "fallback") in {"off", "fallback", "always"} else "fallback"),
             }
             from ..core.auth import is_default_login
             web_s = {"username": db.setting("web_username", "admin"), "default_login": is_default_login(db)}

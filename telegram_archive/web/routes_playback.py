@@ -1028,7 +1028,7 @@ def register_playback_routes(
         except HTTPException:
             raise
         except Exception as e:
-            return {"error": str(e), "direct_likely": True}
+            return {"error": type(e).__name__, "direct_likely": True}
         if not info:
             return {"pending": True}
         name = str(info.get("name") or "").lower()

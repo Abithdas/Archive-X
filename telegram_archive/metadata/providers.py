@@ -267,11 +267,26 @@ def _first_provider_url(value: object) -> str | None:
     return None
 
 
+def _dicts(value) -> list:
+    """The dict items of a provider list; anything else (None, text, numbers) is ignored rather than crashing the reader."""
+    return [x for x in value if isinstance(x, dict)] if isinstance(value, (list, tuple)) else []
+
+
+def _as_dict(value, name_key: str = "name") -> dict:
+    """A provider sub-record that may arrive as a dict, a bare name, or nothing."""
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip():
+        return {name_key: value.strip()}
+    return {}
+
+
 def _norm_stashdb(scene: dict) -> dict:
     """Convert a StashDB scene into the shared scene shape."""
+    scene = scene if isinstance(scene, dict) else {}
     performers = []
-    for p in scene.get("performers") or []:
-        person = p.get("performer") or {}
+    for p in _dicts(scene.get("performers")):
+        person = _as_dict(p.get("performer"))
         name = person.get("name")
         if name:
             performers.append({
@@ -282,12 +297,12 @@ def _norm_stashdb(scene: dict) -> dict:
                 "gender": person.get("gender") or person.get("sex"),
                 "provider": "stashdb",
             })
-    studio = scene.get("studio") or {}
-    parent_studio = studio.get("parent") or {}
-    studio_aliases = [str(value).strip() for value in (studio.get("aliases") or []) if str(value or "").strip()]
-    parent_aliases = [str(value).strip() for value in (parent_studio.get("aliases") or []) if str(value or "").strip()]
+    studio = _as_dict(scene.get("studio"))
+    parent_studio = _as_dict(studio.get("parent"))
+    studio_aliases = [str(value).strip() for value in (studio.get("aliases") if isinstance(studio.get("aliases"), list) else []) if str(value or "").strip()]
+    parent_aliases = [str(value).strip() for value in (parent_studio.get("aliases") if isinstance(parent_studio.get("aliases"), list) else []) if str(value or "").strip()]
     studio_url = studio.get("url") or studio.get("profile") or _first_provider_url(studio.get("urls"))
-    image_rows = scene.get("images") or []
+    image_rows = scene.get("images") if isinstance(scene.get("images"), list) else []
     scene_image = scene.get("image") or scene.get("thumbnail") or _entity_image_from_images(image_rows)
     return {
         "source": "stashdb", "id": scene.get("id"), "title": scene.get("title"),
@@ -305,7 +320,7 @@ def _norm_stashdb(scene: dict) -> dict:
         "scene_type": scene.get("type") or "Scene",
         "performers": [p.get("name") for p in performers if p.get("name")],
         "performer_details": performers,
-        "tags": [t.get("name") for t in scene.get("tags") or [] if isinstance(t, dict) and t.get("name")],
+        "tags": [t.get("name") for t in _dicts(scene.get("tags")) if t.get("name")],
         "image": scene_image, "thumbnail": scene.get("thumbnail") or scene_image,
         "profile": scene.get("url") or _first_provider_url(scene.get("urls")),
     }
@@ -346,36 +361,36 @@ async def stashdb_scenes_by_year(db, api_key: str, year: str | int, limit: int =
 
 def _norm_tpdb(scene: dict) -> dict:
     """Convert a ThePornDB scene into the shared scene shape."""
-    site = scene.get("site") or {}
-    parent_site = site.get("parent") or site.get("network") or site.get("parent_site") or {}
-    if isinstance(parent_site, str):
-        parent_site = {"name": parent_site}
+    scene = scene if isinstance(scene, dict) else {}
+    site = _as_dict(scene.get("site"))
+    parent_site = _as_dict(site.get("parent") or site.get("network") or site.get("parent_site"))
     performers = []
-    for p in scene.get("performers") or []:
-        if not isinstance(p, dict):
-            continue
+    for p in _dicts(scene.get("performers")):
         name = p.get("name") or p.get("full_name")
         if name:
+            extras = p.get("extras") if isinstance(p.get("extras"), dict) else (p.get("extra") if isinstance(p.get("extra"), dict) else {})
             performers.append({
                 "name": name,
                 "id": p.get("id") or p.get("_id"),
                 "image": p.get("image") or p.get("thumbnail"),
                 "thumbnail": p.get("thumbnail"),
                 "profile": p.get("url") or p.get("profile"),
+                # ThePornDB keeps a performer's gender under "extras"; it was dropped, so those performers had none until a later refresh.
+                "gender": p.get("gender") or p.get("sex") or extras.get("gender"),
                 "provider": "theporndb",
             })
-    images = scene.get("images") or {}
-    site_images = site.get("images") or {}
+    images = scene.get("images") if isinstance(scene.get("images"), dict) else {}
+    site_images = site.get("images") if isinstance(site.get("images"), dict) else {}
     return {
         "source": "theporndb", "id": scene.get("id") or scene.get("_id"),
         "title": scene.get("title"), "date": scene.get("date"),
         "duration": scene.get("duration") or scene.get("duration_seconds") or scene.get("length"),
-        "fingerprints": [dict(fp) for fp in (scene.get("fingerprints") or scene.get("hashes") or []) if isinstance(fp, dict)],
+        "fingerprints": [dict(fp) for fp in _dicts(scene.get("fingerprints") or scene.get("hashes"))],
         "updated_at": scene.get("last_updated") or scene.get("updated_at"),
         "studio": site.get("name"), "studio_id": site.get("id") or site.get("_id"),
-        "studio_aliases": list(site.get("aliases") or []),
+        "studio_aliases": list(site.get("aliases") if isinstance(site.get("aliases"), (list, tuple)) else []),
         "parent_studio": parent_site.get("name"), "parent_network": parent_site.get("name"),
-        "parent_studio_aliases": list(parent_site.get("aliases") or []),
+        "parent_studio_aliases": list(parent_site.get("aliases") if isinstance(parent_site.get("aliases"), (list, tuple)) else []),
         "studio_url": site.get("url"), "site": site.get("name"),
         "site_url": site.get("url"), "scene_type": scene.get("type") or "Scene",
         # Site/studio logo, when ThePornDB supplies one. Best-effort/optional —
@@ -384,7 +399,7 @@ def _norm_tpdb(scene: dict) -> dict:
                           or site_images.get("logo") or site_images.get("poster")),
         "performers": [p.get("name") for p in performers if p.get("name")],
         "performer_details": performers,
-        "tags": [t.get("name") for t in scene.get("tags") or [] if isinstance(t, dict) and t.get("name")],
+        "tags": [t.get("name") for t in _dicts(scene.get("tags")) if t.get("name")],
         "image": scene.get("image") or images.get("large") or images.get("medium") or images.get("small"),
         "thumbnail": scene.get("thumbnail") or images.get("medium") or images.get("small"),
         "profile": scene.get("url"),
@@ -514,11 +529,13 @@ def apply_scene_match(db, channel_id: int, message_id: int, best: dict, oshash: 
         # Delete FIRST: older code inserted the new studio relationship and
         # then deleted the entire video_studios set, losing the correct site.
         locked = {r["field"] for r in db.conn.execute("SELECT field FROM metadata_mapping_locks WHERE video_id=? AND locked=1", (media_id,)).fetchall()}
-        if "performer" not in locked and not preserve_performers:
-            db.conn.execute("DELETE FROM video_performers WHERE video_id=?", (media_id,))
-        if "site" not in locked and not preserve_site:
-            db.conn.execute("DELETE FROM video_studios WHERE video_id=?", (media_id,))
         studio = str(best.get("studio") or best.get("site") or "").strip()
+        # Replace the earlier links only when this match actually names a cast / a studio. A provider record that simply lacks its cast
+        # or studio used to wipe what the video already had (from its filename or an operator), leaving "Unknown Performer".
+        if "performer" not in locked and not preserve_performers and performers:
+            db.conn.execute("DELETE FROM video_performers WHERE video_id=?", (media_id,))
+        if "site" not in locked and not preserve_site and studio:
+            db.conn.execute("DELETE FROM video_studios WHERE video_id=?", (media_id,))
         if studio and "site" not in locked and not preserve_site:
             field_provenance = best.get("field_provenance") if isinstance(best.get("field_provenance"), dict) else {}
             studio_provider = str(field_provenance.get("studio_id") or provider).strip() or provider
@@ -657,6 +674,62 @@ async def stashdb_by_oshash(db, api_key: str, oshash: str) -> list[dict]:
     scenes = [_norm_stashdb(row) for row in raw_scenes]
     _cache_put(db, "stashdb", f"oshash:{oshash}", scenes)
     return scenes
+
+
+STASHDB_HASH_BATCH = 40
+
+
+async def stashdb_by_oshash_many(db, api_key: str, hashes, *, batch_size: int = STASHDB_HASH_BATCH) -> dict[str, list[dict]]:
+    """Look up many file fingerprints with ONE StashDB request per `batch_size`, and keep each answer in the cache `stashdb_by_oshash` reads.
+
+    Requests to a provider are paced (0.5 s apart for StashDB), so asking about every video on its own made a channel's fingerprint lookups
+    take (videos x 0.5 s): 38 minutes for 4,600 videos. The same query takes a list of fingerprint groups and answers each one, so 40 videos
+    cost one request. The per-video lookup that follows then finds its answer in the cache and sends nothing.
+
+    Never raises. A hash that could not be answered is left out of the result (and uncached), so the normal per-video lookup does it. An
+    answer is only trusted when the reply holds exactly one list per hash asked about: it is never guessed which scene belongs to which file.
+    """
+    _ensure_cache(db)
+    answered: dict[str, list[dict]] = {}
+    pending: list[str] = []
+    seen: set[str] = set()
+    for raw in hashes:
+        try:
+            clean = normalize_stashdb_oshash(str(raw or ""))
+        except ValueError:
+            continue
+        if clean in seen:                 # the same fingerprint written in capitals or twice is asked about once
+            continue
+        seen.add(clean)
+        cached, hit = _cache_get(db, "stashdb", f"oshash:{clean}")
+        if hit:
+            answered[clean] = cached or []
+        else:
+            pending.append(clean)
+    size = max(1, min(100, int(batch_size)))
+    for start in range(0, len(pending), size):
+        chunk = pending[start:start + size]
+        body = json.dumps({"query": _STASHDB_PHASH_QUERY,
+                           "variables": {"fps": [[{"hash": h, "algorithm": "OSHASH"}] for h in chunk]}}).encode()
+        started = time.perf_counter()
+        try:
+            await _throttle("stashdb")
+            data = await asyncio.to_thread(_http, STASHDB_URL, data=body, headers={"Content-Type": "application/json", "ApiKey": api_key})
+            if data.get("errors"):
+                raise RuntimeError("StashDB GraphQL errors: " + json.dumps(data.get("errors"), ensure_ascii=False)[:400])
+            _record_provider_call(db, "stashdb", latency_ms=(time.perf_counter() - started) * 1000.0, entity_type="scene_oshash_batch")
+        except Exception as exc:
+            _provider_stat(db, "stashdb", "errors", 1)
+            _record_provider_call(db, "stashdb", status="ERROR", error=str(exc), latency_ms=(time.perf_counter() - started) * 1000.0, entity_type="scene_oshash_batch")
+            continue
+        root = (data.get("data") or {}).get("findScenesBySceneFingerprints")
+        if not isinstance(root, list) or len(root) != len(chunk) or not all(isinstance(group, list) for group in root):
+            continue
+        for fingerprint, group in zip(chunk, root):
+            scenes = [_norm_stashdb(row) for row in group if isinstance(row, dict)]
+            _cache_put(db, "stashdb", f"oshash:{fingerprint}", scenes)
+            answered[fingerprint] = scenes
+    return answered
 
 
 async def stashdb_by_phash(db, api_key: str, phash: str) -> list[dict]:
@@ -1146,8 +1219,12 @@ FALLBACK_PROVIDER = "theporndb"
 # ==============================================================================
 
 def _norm_entity_name(value: object) -> str:
+    """A comparison key for a name or title that two providers may write differently: no accents, "&" read as "and", no punctuation."""
     import re
-    return re.sub(r"[^a-z0-9]+", "", str(value or "").casefold())
+    import unicodedata
+    text = unicodedata.normalize("NFKD", str(value or "")).casefold().replace("&", " and ")
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+", "", text)
 
 
 def _merge_dict_prefer_primary(primary: dict | None, fallback: dict | None) -> dict:
@@ -1158,6 +1235,27 @@ def _merge_dict_prefer_primary(primary: dict | None, fallback: dict | None) -> d
         if out.get(key) in (None, "", [], {}):
             out[key] = value
     return out
+
+
+def _same_cast_member(a: str, b: str) -> bool:
+    """The same person written two ways by two providers: equal after folding accents/capitals/punctuation, or one small spelling slip."""
+    from difflib import SequenceMatcher
+    ka, kb = _norm_entity_name(a), _norm_entity_name(b)
+    if not ka or not kb:
+        return False
+    if ka == kb:
+        return True
+    return ka[:1] == kb[:1] and min(len(ka), len(kb)) >= 6 and SequenceMatcher(None, ka, kb).ratio() >= 0.92
+
+
+def cast_disagreement(primary_people: list, fallback_people: list) -> tuple[list[str], list[str]]:
+    """Names only the primary lists, and names only the fallback lists. A provider that lists MORE people is not a disagreement (those are
+    on one side only); a disagreement is each provider naming someone the other does not."""
+    def names(items):
+        return [str(i.get("name") if isinstance(i, dict) else i or "").strip() for i in items or [] if (i.get("name") if isinstance(i, dict) else i)]
+    pn, fn = names(primary_people), names(fallback_people)
+    return ([x for x in pn if not any(_same_cast_member(x, y) for y in fn)],
+            [y for y in fn if not any(_same_cast_member(x, y) for x in pn)])
 
 
 def _merge_named_people(primary: list, fallback: list) -> list[dict]:
@@ -1185,6 +1283,27 @@ def _merge_named_people(primary: list, fallback: list) -> list[dict]:
             return
         provider = str(clean.get("provider") or "").strip().casefold()
         ident = str(clean.get("id") or "").strip()
+        variant_of = None
+        if key not in index and not primary_row and len(key) >= 6:
+            # The other provider spells the same cast member a little differently ("Ava Stone" / "Ava Stones"). Without this the scene
+            # listed her twice and the extra spelling became a second performer row. Only a different provider's spelling is folded in:
+            # two similar names inside one provider's own cast stay two people.
+            from difflib import SequenceMatcher
+            for existing_key, pos_ in index.items():
+                other = out[pos_]
+                if "|" in existing_key or str(other.get("provider") or "").strip().casefold() == provider:
+                    continue
+                if existing_key[:1] == key[:1] and min(len(existing_key), len(key)) >= 6 and SequenceMatcher(None, existing_key, key).ratio() >= 0.92:
+                    variant_of = existing_key
+                    break
+        if variant_of is not None:
+            current = out[index[variant_of]]
+            spellings = [str(a) for a in (current.get("aliases") if isinstance(current.get("aliases"), list) else []) if a]
+            if str(clean.get("name")) != str(current.get("name")) and str(clean.get("name")) not in spellings:
+                spellings.append(str(clean.get("name")))
+            key = variant_of
+            clean = {k: v for k, v in clean.items() if k != "name"} | {"name": current.get("name")}
+            clean["aliases"] = spellings
         # Same display name but different IDs in the same source are not enough
         # evidence to merge distinct provider identities.
         if key in index:
@@ -1199,6 +1318,9 @@ def _merge_named_people(primary: list, fallback: list) -> list[dict]:
                     out.append(clean)
                 return
             merged = _merge_dict_prefer_primary(current, clean) if primary_row else _merge_dict_prefer_primary(clean, current)
+            if isinstance(clean.get("aliases"), list) or isinstance(current.get("aliases"), list):
+                merged["aliases"] = _merge_string_list(current.get("aliases") if isinstance(current.get("aliases"), list) else [],
+                                                       clean.get("aliases") if isinstance(clean.get("aliases"), list) else [])
             provider_ids: dict[str, str] = {}
             for person in (current, clean):
                 raw_ids = person.get("provider_ids")
@@ -1268,6 +1390,21 @@ def merge_provider_matches(primary: dict, fallback: dict | None) -> dict:
             merged[key] = fallback[key]
     merged["performers"] = _merge_string_list(primary.get("performers") or [], fallback.get("performers") or [])
     merged["performer_details"] = _merge_named_people(primary.get("performer_details") or [], fallback.get("performer_details") or [])
+    primary_only, fallback_only = cast_disagreement(primary.get("performer_details") or primary.get("performers"),
+                                                    fallback.get("performer_details") or fallback.get("performers"))
+    if primary_only and fallback_only:
+        # Each provider names someone the other does not: the scene is the same but the cast is contested. Trust the primary provider's
+        # cast (plus the other's spellings of the same people); the contested names are recorded, and the scene needs review
+        # instead of being applied automatically on a fingerprint-less match.
+        keep_fallback = [d for d in (fallback.get("performer_details") or [])
+                         if isinstance(d, dict) and any(_same_cast_member(str(d.get("name") or ""), x) for x in
+                                                        [str(q.get("name") or "") for q in (primary.get("performer_details") or []) if isinstance(q, dict)])]
+        merged["performer_details"] = _merge_named_people(primary.get("performer_details") or [], keep_fallback)
+        merged["performers"] = [str(d.get("name")) for d in merged["performer_details"] if d.get("name")]
+        merged["cast_conflict"] = {"primary_only": primary_only, "fallback_only": fallback_only}
+    if merged["performer_details"] and (primary.get("performer_details") or fallback.get("performer_details")):
+        # One list of names, taken from the merged cast, so a spelling variant folded into a person is not listed again beside them.
+        merged["performers"] = [str(d.get("name")) for d in merged["performer_details"] if d.get("name")]
     studio_provider_ids = {}
     for item in (primary, fallback):
         src = str(item.get("source") or "").strip()
@@ -2647,7 +2784,12 @@ def _scene_candidate_equivalent(left: dict, right: dict) -> bool:
         return False
     def norm(value):
         return _norm_entity_name(value)
-    lt, rt = norm(left.get("title")), norm(right.get("title"))
+
+    def title_key(candidate):
+        """The title without a leading studio name ("Brazzers - Office Affair" on one provider, "Office Affair" on the other)."""
+        title, studio = norm(candidate.get("title")), norm(candidate.get("studio") or candidate.get("site"))
+        return title[len(studio):] if studio and title.startswith(studio) and len(title) > len(studio) + 2 else title
+    lt, rt = title_key(left), title_key(right)
     if not lt or not rt:
         return False
     if lt != rt and SequenceMatcher(None, lt, rt).ratio() < 0.94:

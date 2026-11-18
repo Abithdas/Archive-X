@@ -299,7 +299,7 @@ def register_settings_routes(
                     text = await r.text()
                     return {"ok": False, "status": r.status, "error": text[:200]}
         except Exception as e:
-            return {"ok": False, "error": str(e)}
+            return {"ok": False, "error": type(e).__name__}
 
     @router.post("/api/settings/check-stashdb")
     async def check_stashdb(request: Request):
@@ -319,7 +319,7 @@ def register_settings_routes(
                     return {"ok": ok, "user": j.get("data",{}).get("me",{}).get("name","") if ok else "",
                             "error": str(j.get("errors",[""])[0]) if not ok else ""}
         except Exception as e:
-            return {"ok": False, "error": str(e)}
+            return {"ok": False, "error": type(e).__name__}
 
     @router.post("/api/identify")
     async def identify_media(request: Request):

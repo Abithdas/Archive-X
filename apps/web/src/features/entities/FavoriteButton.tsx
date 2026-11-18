@@ -13,16 +13,20 @@ export function FavoriteButton({ kind, id, initial }: { kind: 'performer' | 'stu
   const [on, setOn] = useState(initial)
   const [busy, setBusy] = useState(false)
   useEffect(() => setOn(initial), [initial])
+  // The heart changes at once; the server's answer settles it, and a failure puts it back.
   const toggle = async () => {
+    if (busy) return
+    const before = on
+    setOn(!before)
     setBusy(true)
     try {
       const r = await api<{ ok?: boolean; favorite?: boolean }>(`/api/entities/${kind}/${id}/favorite`, { method: 'POST' })
       setOn(Boolean(r.favorite))
       void qc.invalidateQueries({ queryKey: [kind === 'studio' ? 'studio' : 'performer', id] })
-    } catch (e) { toast.error(e instanceof ApiError && e.detail ? e.detail : 'Could not change the favourite.') } finally { setBusy(false) }
+    } catch (e) { setOn(before); toast.error(e instanceof ApiError && e.detail ? e.detail : 'Could not change the favourite.') } finally { setBusy(false) }
   }
   return (
-    <button type="button" disabled={busy} aria-pressed={on} aria-label={favLabel(on)} title={favLabel(on)} onClick={() => void toggle()}
+    <button type="button" aria-pressed={on} aria-label={favLabel(on)} title={favLabel(on)} onClick={() => void toggle()}
       className={cn(ACTION, on && 'border-[#f40051]/60')}>
       <LikeHeart liked={on} />{favText(on)}
     </button>

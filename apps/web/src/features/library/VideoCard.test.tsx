@@ -66,10 +66,9 @@ describe('VideoCardSkeleton', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Loading videos')
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true')
   })
-  it('animates with a transform-only sweep and honours reduced motion', () => {
+  it('animates with a transform-only sweep', () => {
     const { container } = render(<VideoCardSkeleton />)
     const block = container.querySelector('.after\\:animate-sk-sweep')!
-    expect(block.className).toContain('motion-reduce:after:hidden')
     expect(block.className).toContain('after:-translate-x-full')
   })
 })

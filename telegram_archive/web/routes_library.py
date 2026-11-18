@@ -211,13 +211,10 @@ def register_library_routes(
         """(performer ids, names, normalised picture-face matrix), read and decoded once per request."""
         import numpy as _np
         names = {int(r['id']): str(r['name'] or '').strip() for r in performer_rows}
-        ids, mats = [], []
-        for r in rdb.execute("SELECT performer_id,embedding_json FROM performer_face_embeddings WHERE embedding_json<>'[]'").fetchall():
-            v = _photo_decode_embedding(r['embedding_json'])
-            pid = int(r['performer_id'])
-            if v is not None and names.get(pid):
-                ids.append(pid); mats.append(v)
-        return ids, names, (_np.asarray(mats, dtype=_np.float32) if mats else None)
+        # One row per reference face (profile picture, gallery pictures, varied confirmed faces); a performer can have several rows.
+        from ..engines.performer_gallery import reference_matrix
+        ids, matrix = reference_matrix(rdb, wanted=[pid for pid, n in names.items() if n])
+        return ids, names, matrix
 
     def _photo_profile_picture_suggestions(rdb, vectors, performer_rows, rejected_ids, limit=3, prepared=None):
         """Rank performers whose profile-picture face resembles this group's faces. A suggestion only; the user confirms it."""
@@ -229,15 +226,17 @@ def register_library_routes(
             if matrix is None or not len(ids):
                 return []
             target = _np.asarray(vectors[:32], dtype=_np.float32)
-            scores = (target @ matrix.T).max(axis=0)
+            from ..engines.performer_gallery import best_per_performer
+            ids, best = best_per_performer(ids, (target @ matrix.T).max(axis=0), top=1)      # a performer's best reference
+            scores = _np.asarray(best, dtype=float)
             for i, pid in enumerate(ids):
                 if pid in rejected_ids:
                     scores[i] = -1.0
             order = _np.argsort(-scores)[:max(1, min(5, int(limit)))]
             return [{
                 'id': ids[i], 'name': names[ids[i]], 'image_url': f"/api/performers/{ids[i]}/image",
-                'source': 'profile_image', 'basis': 'profile picture',
-                'reason': "Face resembles this performer's profile picture",
+                'source': 'profile_image', 'basis': 'pictures',
+                'reason': "Face resembles this performer's pictures (profile picture and gallery)",
                 'similarity_score': round(float(scores[i]), 4),
             } for i in order if float(scores[i]) >= _PROFILE_PICTURE_MATCH_THRESHOLD]
         except Exception:
@@ -1415,6 +1414,50 @@ def register_library_routes(
             mime = _mimetypes.guess_type(str(row["filename"] or ""))[0] if row else None
         return _FileResponse(path, media_type=mime if mime and mime.startswith("image/") else "image/jpeg",
                              headers={"Cache-Control": "private, max-age=3600", "Content-Disposition": "inline", "X-Content-Type-Options": "nosniff"})
+
+    @router.post("/api/performers/{performer_id}/photos/use-as-profile")
+    async def performer_photo_use_as_profile(performer_id: int, request: Request):
+        """Make one of the library photos recognised as this performer their profile picture (kept: provider syncs do not replace it)."""
+        require_auth(request)
+        body = await request.json()
+        channel_id, message_id = str((body or {}).get("channel_id") or ""), int((body or {}).get("message_id") or 0)
+        if not channel_id or message_id <= 0:
+            raise HTTPException(400, "A photo (channel_id and message_id) is required")
+        path = await _photo_library_file_path(channel_id, message_id, thumbnail=False)
+        import mimetypes as _mt
+        from ..engines import performer_gallery
+
+        def work():
+            data = open(path, "rb").read(25 * 1024 * 1024)
+            mime = _mt.guess_type(str(path))[0] or "image/jpeg"
+            return performer_gallery.use_bytes_as_profile(db, performer_id, data, mime if mime.startswith("image/") else "image/jpeg")
+        if not await asyncio.to_thread(work):
+            raise HTTPException(404, "Photo not found")
+        return {"ok": True}
+
+    @router.post("/api/performers/{performer_id}/photos/remove")
+    async def performer_photo_remove(performer_id: int, request: Request):
+        """"Not this performer": the faces of this photo that were named after the performer go back to unnamed groups (nothing is deleted)."""
+        require_auth(request)
+        body = await request.json()
+        channel_id, message_id = str((body or {}).get("channel_id") or ""), int((body or {}).get("message_id") or 0)
+        if not channel_id or message_id <= 0:
+            raise HTTPException(400, "A photo (channel_id and message_id) is required")
+        from ..engines.photo_face_clustering import _split_face_detection
+
+        def work():
+            with db.reading() as rdb:
+                rows = rdb.execute(
+                    "SELECT d.id FROM photo_face_detections d JOIN photo_library_items p ON p.id=d.photo_id "
+                    "JOIN photo_face_groups g ON g.id=d.group_id WHERE p.channel_id=? AND p.message_id=? AND g.performer_id=?",
+                    (channel_id, message_id, int(performer_id))).fetchall()
+            for r in rows:
+                _split_face_detection(db, int(r["id"]))
+            return len(rows)
+        moved = await asyncio.to_thread(work)
+        if not moved:
+            raise HTTPException(404, "No face of this performer in that photo")
+        return {"ok": True, "moved": moved}
 
     @router.post("/api/photos/{channel_id}/{message_id}/delete")
     async def photo_library_delete(channel_id: str, message_id: int, request: Request):

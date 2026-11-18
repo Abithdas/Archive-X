@@ -51,7 +51,7 @@ def _entity_favorited(db, entity_type: str, entity_id: int) -> bool:
 
 
 
-_AX_THEME_PRESETS = {'nord', 'nero-gold', 'black-essence', 'pastel-lavender', 'pastel-mint', 'minimal-slate', 'minimal-sand', 'custom'}
+_AX_THEME_PRESETS = {'nord', 'nero-gold', 'black-essence', 'pastel-lavender', 'pastel-mint', 'minimal-slate', 'minimal-sand', 'teal-coral', 'neon-lime', 'golden-noir', 'custom'}
 _AX_THEME_ALIASES = {'nobuf-dark': 'nobuf', 'nobuf-light': 'nobuf', 'solarized-light': 'solarized'}
 
 
@@ -63,6 +63,15 @@ def _safe_theme_preset(value, legacy_mode='system'):
     # Migrate pre-preset installs without changing the user's broad light/dark choice.
     # Light/dark are now paired variants of the same family rather than separate themes.
     return 'nord'
+
+
+_NATIVE_MODES = {'off', 'fallback', 'always'}
+
+
+def _native_mode(value):
+    """How the desktop app's native player is used: 'fallback' (only when the browser cannot play the video), 'always', or 'off' (a button only)."""
+    v = str(value or '').strip().lower()
+    return v if v in _NATIVE_MODES else 'fallback'
 
 
 def _safe_grid_density(value):
@@ -326,7 +335,7 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
             'live_seek_preview': bool(db.setting('ta_live_seek_preview', '1') not in {'0', 'false', 'False'}),
             'resume_prompt': bool(db.setting('ta_resume_prompt', '1') not in {'0', 'false', 'False'}),
             'partial_cache_prompt': bool(db.setting('ta_partial_cache_prompt', '0') not in {'0', 'false', 'False'}),
-
+            'native_player': _native_mode(db.setting('ta_native_player', 'fallback')),
         }
         return keys
 
@@ -335,7 +344,7 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
     async def save_experience_settings(request: Request):
         require_auth(request)
         data = await request.json()
-        allowed = {'autoplay','autonext','autonext_mode','theme_mode','theme_preset','grid_density','ui_scale','live_seek_preview','resume_prompt','partial_cache_prompt'}
+        allowed = {'autoplay','autonext','autonext_mode','theme_mode','theme_preset','grid_density','ui_scale','live_seek_preview','resume_prompt','partial_cache_prompt','native_player'}
         for k in allowed:
             if k not in data:
                 continue
@@ -343,6 +352,10 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
             if k in {'autoplay','autonext','live_seek_preview','resume_prompt','partial_cache_prompt'}:
                 v = '1' if bool(v) else '0'
                 db.set_setting(f'ta_{k}', v)
+            elif k == 'native_player':
+                v = str(v).strip().lower()
+                if v not in _NATIVE_MODES: raise HTTPException(400, 'Invalid native player mode')
+                db.set_setting('ta_native_player', v)
             elif k == 'theme_mode':
                 v = str(v).strip().lower()
                 if v == 'auto-time': v = 'system'

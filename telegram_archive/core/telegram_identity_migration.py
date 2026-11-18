@@ -50,12 +50,12 @@ def _merge_media_rows(conn, raw: str, marked: str, stats: dict) -> None:
     columns = _columns(conn, "media")
     if not {"id", "source_channel", "source_message_id"}.issubset(columns):
         return
-    source_rows = conn.execute("SELECT * FROM media WHERE CAST(source_channel AS TEXT)=?", (raw,)).fetchall()
+    source_rows = conn.execute("SELECT * FROM media WHERE source_channel=?", (raw,)).fetchall()
     for source_row in source_rows:
         src = dict(source_row)
         mid = int(src.get("source_message_id") or 0)
         target_row = conn.execute(
-            "SELECT * FROM media WHERE CAST(source_channel AS TEXT)=? AND CAST(source_message_id AS INTEGER)=? LIMIT 1",
+            "SELECT * FROM media WHERE source_channel=? AND source_message_id=? LIMIT 1",
             (marked, mid),
         ).fetchone()
         if target_row is None:
@@ -265,19 +265,21 @@ def _rekey_pair_table(conn, table: str, channel_col: str, message_col: str, raw:
     cols = _columns(conn, table)
     if not {channel_col, message_col}.issubset(cols):
         return
-    rows = conn.execute(f'SELECT * FROM "{table}" WHERE CAST("{channel_col}" AS TEXT)=?', (raw,)).fetchall()
+    # The comparisons below are written without CAST(): these columns are declared TEXT / INTEGER, and a CAST on the column hides it from the
+    # table's (channel, message) index, so every row looked up below read the whole table (thumbnail rows carry the pictures): a minute or more.
+    rows = conn.execute(f'SELECT * FROM "{table}" WHERE "{channel_col}"=?', (raw,)).fetchall()
     for row in rows:
         rec = dict(row)
         mid = int(rec.get(message_col) or 0)
         target = conn.execute(
-            f'SELECT 1 FROM "{table}" WHERE CAST("{channel_col}" AS TEXT)=? AND CAST("{message_col}" AS INTEGER)=? LIMIT 1',
+            f'SELECT 1 FROM "{table}" WHERE "{channel_col}"=? AND "{message_col}"=? LIMIT 1',
             (marked, mid),
         ).fetchone()
         if target:
-            conn.execute(f'DELETE FROM "{table}" WHERE CAST("{channel_col}" AS TEXT)=? AND CAST("{message_col}" AS INTEGER)=?', (raw, mid))
+            conn.execute(f'DELETE FROM "{table}" WHERE "{channel_col}"=? AND "{message_col}"=?', (raw, mid))
             stats[f"{table}_duplicates_removed"] += 1
         else:
-            conn.execute(f'UPDATE "{table}" SET "{channel_col}"=? WHERE CAST("{channel_col}" AS TEXT)=? AND CAST("{message_col}" AS INTEGER)=?', (marked, raw, mid))
+            conn.execute(f'UPDATE "{table}" SET "{channel_col}"=? WHERE "{channel_col}"=? AND "{message_col}"=?', (marked, raw, mid))
             stats[f"{table}_rekeyed"] += 1
 
 

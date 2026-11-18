@@ -46,5 +46,5 @@ export function studiosFor<T extends { name: string }>(videos: ReadonlyArray<{ s
 export const studioCount = (videos: ReadonlyArray<{ studios?: unknown }>) => new Set(videos.flatMap((v) => (Array.isArray(v.studios) ? v.studios : [])).map((x) => String(x ?? '').trim()).filter(Boolean)).size
 export const STUDIOS_EMPTY = 'No linked studios were found for this performer.'
 export const similarEmpty = (reason?: string) => (reason === 'gender_required' ? 'Similar performers require a known gender on the current profile.' : 'No similar performers with matching personal and physical details were found.')
-export type PTab = 'videos' | 'studios' | 'similar' | 'suggestions'
-export const PTABS: ReadonlyArray<{ value: PTab; label: string }> = [{ value: 'videos', label: 'Videos' }, { value: 'studios', label: 'Studios' }, { value: 'similar', label: 'Similar Performers' }, { value: 'suggestions', label: 'Suggestions' }]
+export type PTab = 'videos' | 'studios' | 'gallery' | 'similar' | 'suggestions'
+export const PTABS: ReadonlyArray<{ value: PTab; label: string }> = [{ value: 'videos', label: 'Videos' }, { value: 'studios', label: 'Studios' }, { value: 'gallery', label: 'Gallery' }, { value: 'similar', label: 'Similar Performers' }, { value: 'suggestions', label: 'Suggestions' }]

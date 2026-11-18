@@ -1,75 +1,46 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ImgHTMLAttributes, type KeyboardEvent } from 'react'
-import { createPortal } from 'react-dom'
-import { flight, frames, targetBox, type Box } from './zoomGeometry'
+import { useCallback, useRef, useState, type ImgHTMLAttributes, type KeyboardEvent } from 'react'
+import { PhotoViewer } from '@/features/photos/PhotoViewer'
+import type { Photo } from '@/features/photos/photos'
 
-const OPEN_MS = 560
-const CLOSE_MS = 420
-const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
-const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
-const boxOf = (el: Element): Box => { const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height } }
+/** One picture the viewer can show, read from a thumbnail on the page. */
+interface Pic { el: HTMLImageElement; src: string; full: string; alt: string }
+
+const picOf = (el: HTMLImageElement): Pic => ({ el, src: el.currentSrc || el.src, full: el.dataset.zoomFull || el.currentSrc || el.src, alt: el.alt })
+const hidden = (el: HTMLElement) => el.style.display === 'none' || el.getClientRects().length === 0
+
+/** The pictures that share a group with this thumbnail, in page order (just itself when it has none). */
+export function picturesOf(thumb: HTMLImageElement): Pic[] {
+  const group = thumb.dataset.zoomGroup
+  if (!group) return [picOf(thumb)]
+  const all = Array.from(document.querySelectorAll<HTMLImageElement>('img[data-zoomable]')).filter((el) => el.dataset.zoomGroup === group && (el === thumb || !hidden(el)))
+  return all.length ? all.map(picOf) : [picOf(thumb)]
+}
+
+/** The viewer's own item for a picture: no size or date is known, so only the name is shown. */
+const photoOf = (p: Pic, i: number, group: string): Photo => ({ id: i + 1, channel_id: group || 'zoom', message_id: i + 1, filename: p.alt, size: 0, width: 0, height: 0, thumbnail_url: p.src, preview_url: p.src, image_url: p.full })
 
 /**
- * An image that opens bigger when you click it, for reviewing a small picture properly: it grows from where it is to half the window with a
- * 3D tilt that settles flat, the page dims behind it, and a second click (or Escape) shrinks it back to its place the same way.
- * Written for Archive X from the idea of Transitions.dev's "Image open tilt" (a paid transition whose code is not used here).
+ * A picture that opens in the photo viewer when you click it: the same viewer as the Photos page (zoom, pan, rotate, full screen, keyboard,
+ * arrows and a strip of the others), and it grows out of the thumbnail and goes back into it. Give pictures the same `group` to page between them.
  * `fullSrc` is the bigger picture to show once open, when the thumbnail is a small version.
  */
-export function ZoomImage({ fullSrc, className, onClick, onKeyDown, ...img }: ImgHTMLAttributes<HTMLImageElement> & { src: string; fullSrc?: string }) {
+export function ZoomImage({ fullSrc, group, className, onClick, onKeyDown, ...img }: ImgHTMLAttributes<HTMLImageElement> & { src: string; fullSrc?: string; group?: string }) {
   const thumb = useRef<HTMLImageElement>(null)
-  const stage = useRef<HTMLDivElement>(null)
-  const backdrop = useRef<HTMLDivElement>(null)
-  const [open, setOpen] = useState(false)
-  const [origin, setOrigin] = useState<Box | null>(null)
-  const closing = useRef(false)
+  const [pics, setPics] = useState<Pic[] | null>(null)
+  const [index, setIndex] = useState(0)
   const label = img.alt ? `Enlarge: ${img.alt}` : 'Enlarge image'
 
   const show = useCallback(() => {
     const el = thumb.current
-    if (!el || open) return
-    setOrigin(boxOf(el)); closing.current = false; setOpen(true)
-  }, [open])
-
-  const target = (): Box => {
-    const el = thumb.current
-    const natural = el && el.naturalWidth && el.naturalHeight ? el.naturalWidth / el.naturalHeight : origin ? origin.width / origin.height : 16 / 9
-    return targetBox(window.innerWidth, window.innerHeight, natural)
-  }
-
-  // Opening: place the stage at its final box, then fly it in from the thumbnail.
-  useLayoutEffect(() => {
-    if (!open || !origin || !stage.current) return
-    const st = stage.current
-    const to = target()
-    Object.assign(st.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` })
-    const f = flight(origin, to, window.innerWidth, window.innerHeight)
-    if (reduced() || typeof st.animate !== 'function') { if (backdrop.current) backdrop.current.style.opacity = '1'; return }
-    st.animate(frames(f, 14).map((k) => ({ transform: k.transform, clipPath: k.clipPath, offset: k.offset })), { duration: OPEN_MS, easing: EASE, fill: 'both' })
-    backdrop.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: OPEN_MS * 0.7, easing: 'ease-out', fill: 'both' })
-  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const hide = useCallback(() => {
-    const st = stage.current
-    if (!open || closing.current) return
-    closing.current = true
-    const finish = () => { setOpen(false); closing.current = false; thumb.current?.focus({ preventScroll: true }) }
-    const el = thumb.current
-    if (!st || !el || reduced() || typeof st.animate !== 'function') return finish()
-    const from = boxOf(el)      // measured again: the page may have moved while the image was open
-    const f = flight(from, target(), window.innerWidth, window.innerHeight)
-    const back = frames(f, 14).reverse().map((k) => ({ transform: k.transform, clipPath: k.clipPath, offset: 1 - k.offset }))
-    const a = st.animate(back, { duration: CLOSE_MS, easing: EASE, fill: 'both' })
-    backdrop.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: CLOSE_MS * 0.9, easing: 'ease-in', fill: 'both' })
-    a.onfinish = finish
-    a.oncancel = finish
-  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!open) return
-    const key = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); hide() } }
-    document.addEventListener('keydown', key, true)
-    window.addEventListener('resize', hide)
-    return () => { document.removeEventListener('keydown', key, true); window.removeEventListener('resize', hide) }
-  }, [open, hide])
+    if (!el || pics) return
+    const list = picturesOf(el)
+    setIndex(Math.max(0, list.findIndex((p) => p.el === el)))
+    setPics(list)
+  }, [pics])
+  const close = useCallback(() => {
+    setPics(null)
+    thumb.current?.focus({ preventScroll: true })
+  }, [])
 
   return (
     <>
@@ -77,20 +48,32 @@ export function ZoomImage({ fullSrc, className, onClick, onKeyDown, ...img }: Im
         {...img}
         ref={thumb}
         data-zoomable=""
+        data-zoom-group={group}
+        data-zoom-full={fullSrc}
         role="button"
         tabIndex={0}
         aria-label={label}
-        aria-expanded={open}
+        aria-expanded={pics !== null}
         className={className}
-        style={{ ...img.style, ...(open ? { visibility: 'hidden' } : null) }}
         onClick={(e) => { onClick?.(e); if (!e.defaultPrevented) show() }}
         onKeyDown={(e: KeyboardEvent<HTMLImageElement>) => { onKeyDown?.(e); if ((e.key === 'Enter' || e.key === ' ') && !e.defaultPrevented) { e.preventDefault(); show() } }}
       />
-      {open ? createPortal(
-        <div className="ax-zoom-root" role="dialog" aria-modal="true" aria-label={img.alt ? `Enlarged: ${img.alt}` : 'Enlarged image'} onClick={hide}>
-          <div ref={backdrop} className="ax-zoom-backdrop" />
-          <div ref={stage} className="ax-zoom-stage"><img src={fullSrc || thumb.current?.currentSrc || img.src} alt={img.alt ?? ''} referrerPolicy={img.referrerPolicy} draggable={false} /></div>
-        </div>, document.body) : null}
+      {pics ? (
+        // The viewer is drawn on the page body, but React still passes its clicks up to this picture's parents (a card that opens something
+        // when clicked, say): they are stopped here. Keys are not: the viewer listens for them on the document, and stopping them here would
+        // stop them reaching it.
+        <span style={{ display: 'contents' }} onClick={(e) => e.stopPropagation()}>
+        <PhotoViewer
+          items={pics.map((p, i) => photoOf(p, i, group ?? ''))}
+          index={Math.min(index, pics.length - 1)}
+          total={pics.length}
+          onIndex={setIndex}
+          onClose={close}
+          origin={(i) => pics[i]?.el.isConnected ? pics[i]!.el.getBoundingClientRect() : null}
+          referrerPolicy={img.referrerPolicy}
+        />
+        </span>
+      ) : null}
     </>
   )
 }

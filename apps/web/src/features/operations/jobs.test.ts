@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alreadyFinished, controlsFor, doneMessage, errorFor, idOf, isTerminal, jobPath, playbackDone, primaryLabel, primaryPath, statusOf, stopConfirm, stopDone } from './jobs'
+import { ageText, alreadyFinished, controlsFor, doneMessage, errorFor, idOf, isTerminal, jobPath, liveness, playbackDone, primaryLabel, primaryPath, statusOf, stopConfirm, stopDone } from './jobs'
 
 describe('which controls a job shows', () => {
   it('pauses a running or queued job', () => {
@@ -62,5 +62,36 @@ describe('wording and requests', () => {
     expect(stopDone({ status: 'CANCELLING' })).toBe('Stop requested; Archive X is finishing cancellation safely.')
     expect(playbackDone({ stopping: true })).toBe('Playback stopped; resource cleanup is finishing.')
     expect(playbackDone({})).toBe('Playback stopped.')
+  })
+})
+
+describe('liveness: working, waiting or stuck', () => {
+  const running = (o: Record<string, unknown> = {}) => ({ id: 'a', type: 'METADATA_ASSETS', status: 'RUNNING', ...o })
+  it('writes ages in seconds, minutes and hours', () => {
+    expect(ageText(5)).toBe('5s'); expect(ageText(125)).toBe('2m 5s'); expect(ageText(3 * 3600 + 120)).toBe('3h 2m')
+  })
+  it('says working, with the last sign of life, for a job that is active', () => {
+    expect(liveness(running({ watchdog_activity_age: 3, watchdog_progress_age: 3 }))).toEqual({ text: 'Working. Last activity 3s ago.', tone: 'ok' })
+    expect(liveness(running())).toEqual({ text: 'Running', tone: 'ok' })
+  })
+  it('mentions missing counted progress when it is active but the counter has not moved', () => {
+    const l = liveness(running({ watchdog_activity_age: 4, watchdog_progress_age: 130 }))!
+    expect(l.text).toContain('No counted progress for 2m 10s'); expect(l.tone).toBe('neutral')
+  })
+  it('calls a long silence quiet, then possibly stuck, and says what to do', () => {
+    expect(liveness(running({ watchdog_activity_age: 50 }))!.tone).toBe('warn')
+    const l = liveness(running({ watchdog_activity_age: 200 }))!
+    expect(l.tone).toBe('bad'); expect(l.text).toContain('may be stuck')
+  })
+  it('explains waiting, pausing and interrupted jobs', () => {
+    expect(liveness({ status: 'QUEUED' })!.text).toBe('Waiting in the queue for its turn')
+    expect(liveness({ status: 'QUEUED', admission_state: 'WAITING', admission_reason: 'lane_busy' })!.text).toBe('Waiting to start: lane busy')
+    expect(liveness({ status: 'PAUSED' })!.text).toContain('Paused')
+    expect(liveness({ status: 'INTERRUPTED' })!.text).toContain('Recover & Resume')
+    expect(liveness(running({ rate_limit_message: 'Telegram asked to wait 30 s' }))!.text).toBe('Waiting: Telegram asked to wait 30 s')
+  })
+  it('says nothing for finished jobs and playback sessions', () => {
+    expect(liveness({ status: 'COMPLETED' })).toBeNull()
+    expect(liveness({ status: 'PLAYING', type: 'PLAYBACK' })).toBeNull()
   })
 })

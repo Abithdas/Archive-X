@@ -75,6 +75,7 @@ class JobContext:
         self._telemetry_stage = str(job.get("current_operation") or "")
         self._telemetry_item = str(job.get("current_item") or "")
         self._last_write = 0.0
+        self._pending_detail: Optional[str] = None
         self.pipeline = getattr(manager, "pipeline_for", lambda _job_id: None)(job_id)
         self.watchdog = getattr(manager, "watchdogs", None)
         if self.watchdog is not None:
@@ -86,15 +87,9 @@ class JobContext:
         """Update this job's ONE row in Active Jobs. Internal stages only change
         the current operation/counters; writes are throttled so tight loops
         cannot flood the database or the dashboard."""
-        current_row = self.db.get_job(self.job_id) or {}
-        current_status = str(current_row.get("status") or "")
-        # Preserve terminal states written by the job lifecycle reconciler.
-        # A late progress/completion report from an interactive runner must
-        # never resurrect COMPLETED/CANCELLED/FAILED back to RUNNING.
-        terminal = {"COMPLETED", "COMPLETED_WITH_ERRORS", "CANCELLED", "FAILED"}
-        fields: dict[str, Any] = {
-            "status": current_status if current_status in ("PAUSING", "CANCEL_REQUESTED", *terminal) else "RUNNING"
-        }
+        # Nothing here reads the database: this is called from tight loops, and each read took the database lock the web server also waits on.
+        # The stored row is read once, when the throttle lets a write through (below).
+        fields: dict[str, Any] = {}
         if completed is not None:
             fields["completed"] = int(completed)
         if total is not None:
@@ -103,8 +98,8 @@ class JobContext:
             progress = min(100.0, 100.0 * float(completed or 0) / float(total))
         if progress is not None:
             fields["progress"] = round(float(progress), 1)
-        if detail is not None and not _would_overwrite_settings(current_row, detail):
-            fields["detail"] = detail
+        if detail is not None:
+            self._pending_detail = detail
         if current_item is not None:
             fields["current_item"] = str(current_item)[:300]
         if operation is not None:
@@ -115,7 +110,6 @@ class JobContext:
         if current_item is not None:
             self._telemetry_item = str(current_item)[:300]
         self._pending.update(fields)
-        self._publish_stage_telemetry()
         if self.pipeline is not None:
             self.pipeline.heartbeat()
         if self.watchdog is not None:
@@ -125,8 +119,18 @@ class JobContext:
         if not force and now - self._last_write < float(getattr(config, "JOB_PROGRESS_PERSIST_INTERVAL_SECONDS", 0.5)):
             return
         self._last_write = now
+        self._publish_stage_telemetry()   # a database write: once per persist interval, not once per report
         pending, self._pending = self._pending, {}
-        if pending:
+        detail_now, self._pending_detail = self._pending_detail, None
+        if pending or detail_now is not None:
+            current_row = self.db.get_job(self.job_id) or {}
+            current_status = str(current_row.get("status") or "")
+            # Preserve terminal states written by the job lifecycle reconciler. A late progress/completion report from an interactive
+            # runner must never resurrect COMPLETED/CANCELLED/FAILED back to RUNNING.
+            terminal = {"COMPLETED", "COMPLETED_WITH_ERRORS", "CANCELLED", "FAILED"}
+            pending["status"] = current_status if current_status in ("PAUSING", "CANCEL_REQUESTED", *terminal) else "RUNNING"
+            if detail_now is not None and not _would_overwrite_settings(current_row, detail_now):
+                pending["detail"] = detail_now
             checkpoint = dict(pending)
             self.db.save_job_checkpoint(
                 self.job_id, checkpoint,

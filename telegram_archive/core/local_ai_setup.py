@@ -24,6 +24,10 @@ from .. import config
 ENGINE_TAG = "b12400"
 _RELEASE = f"https://github.com/ggml-org/llama.cpp/releases/download/{ENGINE_TAG}/"
 CONTEXT_TOKENS = 8192
+# With every layer on a graphics card the weights, the context memory and the working buffers all have to fit in its own memory. The 4B model is
+# about 2.4 GB and its context memory grows with the window (about 0.6 GB at 4,096 tokens, about 1.2 GB at 8,192), so a 4 GB card gets the shorter
+# window; a bigger card can raise it under Models, Advanced.
+GPU_CONTEXT_TOKENS = 4096
 
 
 @dataclass(frozen=True)
@@ -340,7 +344,7 @@ class Setup:
                 raise RuntimeError("A file is missing after the download.")
             self._log("Both files match their checksums.")
             self._step("check", "done", "Checksums match")
-            ai.configure(runtime_path=str(exe), model_path=str(dest), model_id=model.model_id, context=CONTEXT_TOKENS, gpu_layers=engine.gpu_layers)
+            ai.configure(runtime_path=str(exe), model_path=str(dest), model_id=model.model_id, context=GPU_CONTEXT_TOKENS if engine.gpu_layers else CONTEXT_TOKENS, gpu_layers=engine.gpu_layers)
             current = "start"
             self._step("start", "active", "Loading the model into memory (the first time can take a minute)")
             self._log("Starting the assistant…")

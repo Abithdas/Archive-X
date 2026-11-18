@@ -20,6 +20,34 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 
 
+def _channel_ids(raw, *, strict: bool = True) -> list[str]:
+    """Telegram channel ids from a request: a list, or one id sent as a bare string or number. Duplicates and blanks are dropped.
+
+    A bare string used to be walked character by character ("-100123" became the channels "-", "1", "0", ...), and a name that is not a
+    number got as far as the job, which then failed with an unhelpful error. `strict` refuses non-numbers; the lenient form skips them.
+    """
+    if raw is None:
+        return []
+    if isinstance(raw, (str, int)) and not isinstance(raw, bool):
+        raw = [raw]
+    if not isinstance(raw, (list, tuple)):
+        raise HTTPException(400, "Channel ids must be a list of numbers")
+    out: list[str] = []
+    for value in raw:
+        text = str(value if value is not None else "").strip()
+        if not text:
+            continue
+        try:
+            number = int(text)
+        except (TypeError, ValueError):
+            if strict:
+                raise HTTPException(400, f"Channel ids must be numbers, not {text[:40]!r}")
+            continue
+        if number and str(number) not in out:
+            out.append(str(number))
+    return out
+
+
 def register_metadata_assets_routes(
     router: APIRouter,
     *,
@@ -72,11 +100,7 @@ def register_metadata_assets_routes(
         raw_channels = data.get("channel_ids")
         if raw_channels is None:
             raw_channels = [data.get("channel_id")]
-        channels = []
-        for value in raw_channels or []:
-            channel = str(value or "").strip()
-            if channel and channel not in channels:
-                channels.append(channel)
+        channels = _channel_ids(raw_channels)
         if not channels:
             raise HTTPException(400, "Select at least one channel")
 
@@ -144,7 +168,7 @@ def register_metadata_assets_routes(
             "stages": stages,
             "auto_added_prerequisites": {
                 str(k): [str(v) for v in vals if str(v).strip()]
-                for k, vals in (data.get("auto_added_prerequisites") or {}).items()
+                for k, vals in (data.get("auto_added_prerequisites") if isinstance(data.get("auto_added_prerequisites"), dict) else {}).items()
                 if str(k) in {"inventory", "metadata"} and isinstance(vals, list)
             },
             "limit": limit,
@@ -172,17 +196,7 @@ def register_metadata_assets_routes(
         """Resume catalogue items that are not yet Library-ready without a channel scan."""
         require_auth(request)
         data = await request.json()
-        raw_channels = data.get("channel_ids") or data.get("channels") or []
-        channels = []
-        for value in raw_channels:
-            text = str(value or "").strip()
-            try:
-                number = int(text)
-            except (TypeError, ValueError):
-                continue
-            # Only existing Telegram channel/message records are valid inputs.
-            if number and str(number) not in channels:
-                channels.append(str(number))
+        channels = _channel_ids(data.get("channel_ids") or data.get("channels") or [], strict=False)
         if not channels:
             raise HTTPException(400, "Select at least one Telegram channel")
         stage_aliases = {

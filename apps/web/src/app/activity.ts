@@ -25,7 +25,7 @@ interface JobLike { type?: unknown; status?: unknown }
 /**
  * How many jobs are running for each sidebar page, keyed by its path. Pages with nothing running are left out.
  * Entity data (performer and channel pictures and details) belongs to both the Performers and the Studios page.
- * Playback is shown on Videos only while a video is playing, and is not counted under Operations (it is not a job you manage there).
+ * Playback is shown on Videos only while a video is streaming (an open but idle session is not counted), and is not counted under Operations (it is not a job you manage there).
  */
 export function activityByPage(jobs: unknown): Record<string, number> {
   const out: Record<string, number> = {}
@@ -34,7 +34,8 @@ export function activityByPage(jobs: unknown): Record<string, number> {
   for (const j of jobs as JobLike[]) {
     if (!j || typeof j !== 'object') continue
     const type = String(j.type ?? '').toUpperCase()
-    if (!WORKING.has(String(j.status ?? '').toUpperCase()) && type !== 'PLAYBACK') continue
+    const status = String(j.status ?? '').toUpperCase()
+    if (type === 'PLAYBACK' ? status === 'IDLE' : !WORKING.has(status)) continue   // a playback session counts only while it is streaming
     const page = PAGE_OF[type]
     if (page) add(page)
     if (type === 'ENTITY_IMAGE_SYNC') add('/studios')

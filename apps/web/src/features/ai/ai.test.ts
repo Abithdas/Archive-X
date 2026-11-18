@@ -28,13 +28,13 @@ describe('ai', () => {
     expect(readiness(null)[0]).toEqual(['llama-server', 'Missing'])
   })
   it('fills and cleans the model form', () => {
-    expect(configFrom(null)).toEqual({ runtime_path: '', model_path: '', model_id: DEFAULT_MODEL, endpoint: DEFAULT_ENDPOINT, context: 8192, gpu_layers: 0 })
-    expect(configBody({ runtime_path: ' /a ', model_path: ' /m ', model_id: ' id ', endpoint: ' e ', context: 99999, gpu_layers: -4 })).toEqual({ runtime_path: '/a', model_path: '/m', model_id: 'id', endpoint: 'e', context: 16384, gpu_layers: 0 })
+    expect(configFrom(null)).toEqual({ runtime_path: '', model_path: '', model_id: DEFAULT_MODEL, endpoint: DEFAULT_ENDPOINT, context: 8192, gpu_layers: 0, thinking: false })
+    expect(configBody({ runtime_path: ' /a ', model_path: ' /m ', model_id: ' id ', endpoint: ' e ', context: 99999, gpu_layers: -4, thinking: true })).toEqual({ runtime_path: '/a', model_path: '/m', model_id: 'id', endpoint: 'e', context: 16384, gpu_layers: 0, thinking: true })
     expect(configBody({ ...configFrom(null), context: 10 }).context).toBe(1024); expect(configBody({ ...configFrom(null), context: Number.NaN }).context).toBe(8192)
   })
   it('builds prompts and labels', () => {
     expect(libraryPrompt('cats')).toMatch(/^Search the published Archive X library for: cats\. /); expect(chatBody('hi', '/ai')).toEqual({ message: 'hi', page: '/ai', selected: null })
-    expect(QUICK).toHaveLength(4); expect(TABS.map((t) => t.value)).toEqual(['assistant', 'library', 'diagnostics', 'jobs', 'recommendations', 'models'])
+    expect(QUICK).toHaveLength(4); expect(TABS.map((t) => t.value)).toEqual(['assistant', 'library', 'diagnostics', 'jobs', 'recommendations', 'findings', 'models'])
     expect(testPassed(120, 'ok')).toBe('Model test passed in 120 ms: ok'); expect(messageTime({ role: 'user', created_at: 'x' })).toBe('You · x'); expect(messageTime({ role: 'assistant' })).toBe('Archive X Local AI · ')
   })
 })

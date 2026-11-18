@@ -45,11 +45,78 @@ def register_media_routes(
         state = await asyncio.to_thread(_quick_edit_sync, body)   # database work off the event loop
         channel_id, message_id, media_id, changes, updated = state["channel_id"], state["message_id"], state["media_id"], state["changes"], state["updated"]
         resolved_people = state["resolved_people"]
+        edited = tuple(k for k in ("performer", "studio") if k in changes)
+        if edited:
+            await asyncio.to_thread(_settle_snapshot_suggestions, media_id, edited)
         caption_sync = await _sync_catalogue_caption(media_id)
         db.log(f"Video quick edit: channel={channel_id} message={message_id} fields={','.join(changes) or 'none'}")
         return {"ok": True, "changed": changes, "media": dict(updated) if updated else None,
                 "performers": [name for _pid, name in resolved_people],
                 "caption_sync": caption_sync}
+
+    def _settle_snapshot_suggestions(media_id, kinds):
+        """What the person saved decides the snapshot suggestions of this video: taken ones are confirmed (their faces become references)."""
+        from ..engines import snapshot_identity
+        try:
+            with db.lock:
+                people = [int(r[0]) for r in db.conn.execute(
+                    "SELECT performer_id FROM video_performers WHERE video_id=? UNION SELECT performer_id FROM local_video_performers WHERE video_id=?",
+                    (media_id, media_id)).fetchall()]
+                row = db.conn.execute("SELECT studio_id FROM video_studios WHERE video_id=? LIMIT 1", (media_id,)).fetchone()
+            snapshot_identity.settle(db, media_id, people, int(row[0]) if row else None, kinds)
+        except Exception:
+            _swallowed_note("routes_media._settle_snapshot_suggestions")
+
+    def _snapshot_media_id(channel_id, message_id):
+        try:
+            mid = int(message_id)
+        except (TypeError, ValueError):
+            mid = 0
+        with db.lock:
+            row = db.conn.execute("SELECT id FROM media WHERE source_channel=? AND source_message_id=?", (str(channel_id or "").strip(), mid)).fetchone() if mid else None
+        if not row:
+            raise HTTPException(404, "Video not found")
+        return int(row[0])
+
+    @router.get("/api/media/snapshot-suggestions")
+    async def snapshot_suggestions(request: Request, channel_id: str = "", message_id: int = 0):
+        """Performers / studio proposed from this video's snapshots that nobody has accepted or rejected yet."""
+        require_auth(request)
+        from ..engines import snapshot_identity
+        media_id = _snapshot_media_id(channel_id, message_id)
+        return {"suggestions": await asyncio.to_thread(snapshot_identity.suggestions, db, media_id)}
+
+    @router.post("/api/media/snapshot-suggestions/run")
+    async def snapshot_suggestions_run(request: Request):
+        """Look at this one video's snapshots now (its studio's watermark and the faces in it) and return what was found."""
+        require_auth(request)
+        body = await request.json()
+        from ..engines import snapshot_identity
+        media_id = _snapshot_media_id(body.get("channel_id"), body.get("message_id"))
+
+        def work():
+            snapshot_identity.learn_studio_marks(db)
+            try:
+                extract = snapshot_identity.make_extractor()
+            except Exception:
+                _swallowed_note("routes_media.snapshot_suggestions_run.models")
+                extract = None
+            found = snapshot_identity.identify_video(db, media_id, extract=extract)
+            return {"suggestions": snapshot_identity.suggestions(db, media_id), "frames": found["frames"], "faces_checked": extract is not None}
+        return await asyncio.to_thread(work)
+
+    @router.post("/api/media/snapshot-suggestions/reject")
+    async def snapshot_suggestions_reject(request: Request):
+        """"That is not them": this suggestion is not made again for this video."""
+        require_auth(request)
+        body = await request.json()
+        from ..engines import snapshot_identity
+        kind = str(body.get("kind") or "")
+        if kind not in ("performer", "studio") or not str(body.get("id") or "").isdigit():
+            raise HTTPException(400, "kind (performer or studio) and id are required")
+        media_id = _snapshot_media_id(body.get("channel_id"), body.get("message_id"))
+        await asyncio.to_thread(snapshot_identity.reject, db, media_id, kind, int(body["id"]))
+        return {"ok": True}
 
     def _quick_edit_sync(body):
         channel_id = str(body.get("channel_id") or "").strip()

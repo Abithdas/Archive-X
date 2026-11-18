@@ -1,16 +1,19 @@
 import { Link } from '@tanstack/react-router'
 import { useReducer, useState } from 'react'
-import { useEntityLookup, usePerformer, usePerformerCareer, usePerformerMetadata, usePerformerSimilar, useSuggested } from '@/api/hooks'
+import { useEntityLookup, usePerformer, usePerformerCareer, usePerformerGallery, usePerformerMetadata, usePerformerSimilar, useSuggested } from '@/api/hooks'
 import { ApiError } from '@/api/client'
 import { Button } from '@/design/Button'
 import { Skeleton, SkeletonGroup, SkeletonLine } from '@/design/Skeleton'
 import { EntityEditor } from './EntityEditor'
 import { ACTION, ACTION_PRIMARY, Actions, BackBar, Bio, EditingBar, Eyebrow, EntityTabs, HeroCard, MEDIA_FRAME, Pill, Pills, Title, VideosHead, providerTone } from './EntityHero'
+import { PerformerGallery } from './PerformerGallery'
+import { galleryTabCount } from './gallery'
 import { PortraitAdjust } from './PortraitAdjust'
 import { imageStyle, readCrop } from './portrait'
 import { NO_PERFORMER_VIDEOS } from '@/features/library/shuffle'
 import { useShuffle } from '@/features/library/useShuffle'
 import { VideoCard, VideoCardSkeleton } from '@/features/library/VideoCard'
+import { useFitGrid } from '@/features/library/fitGrid'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { FavoriteButton } from './FavoriteButton'
@@ -23,11 +26,12 @@ import type { SimilarFields } from './similarity'
 import { responsive } from '@/design/responsive'
 import { Empty } from '@/design/Empty'
 
-const GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
+const GRID = 'grid gap-4'   // the library's own card size: the columns are measured (useFitGrid), not fixed
 const BIO_LIMIT = 280
 
 export function PerformerPage({ id }: { id: number }) {
   const q = usePerformer(id)
+  const grid = useFitGrid(270, 16)
   const [imgOk, setImgOk] = useState(true)
   const shuffle = useShuffle()
   const [editing, setEditing] = useState(false)
@@ -39,10 +43,11 @@ export function PerformerPage({ id }: { id: number }) {
   const career = usePerformerCareer(id)
   const suggested = useSuggested('performer', id)
   const similar = usePerformerSimilar(id, tab === 'similar')
+  const gallery = usePerformerGallery(id)
 
   if (q.isPending)
     return (
-      <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+      <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
         <SkeletonGroup label="Loading performer" className="grid gap-6">
           <div className="flex gap-5 text-sm leading-snug">
             <Skeleton className="aspect-[3/4] w-32 rounded-card sm:w-44" />
@@ -51,7 +56,7 @@ export function PerformerPage({ id }: { id: number }) {
               <div className="text-sm"><SkeletonLine width="25%" /><SkeletonLine width="90%" /><SkeletonLine width="70%" /></div>
             </div>
           </div>
-          <div className={GRID}>{Array.from({ length: 8 }, (_, i) => <VideoCardSkeleton key={i} />)}</div>
+          <div className={GRID} ref={grid.ref} style={grid.style}>{Array.from({ length: grid.cols * 2 }, (_, i) => <VideoCardSkeleton key={i} />)}</div>
         </SkeletonGroup>
       </section>
     )
@@ -76,7 +81,7 @@ export function PerformerPage({ id }: { id: number }) {
   const crop = readCrop(p.id)
   const imgSrc = `/api/performers/${p.id}/image?v=${encodeURIComponent(p.image ?? '')}`
   return (
-    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <BackBar to="/performers" section="Performers" name={p.name} />
       <HeroCard label="Performer profile" media={
         <div className={cn(MEDIA_FRAME, 'group')}>
@@ -115,13 +120,15 @@ export function PerformerPage({ id }: { id: number }) {
       {adjusting ? <PortraitAdjust id={p.id} name={p.name} src={imgSrc} open onClose={() => setAdjusting(false)} onSaved={refreshFraming} /> : null}
       <DetailsCard label="Performer details" rows={detailRows(p, metadata, videos.length)} related={[]} />
       <EntityTabs label="Performer details" value={tab} onChange={setTab}
-        tabs={PTABS.map((t) => ({ value: t.value, label: t.label, count: t.value === 'videos' ? videos.length : t.value === 'studios' ? studioCount(videos) : t.value === 'suggestions' ? (suggested.data?.length ?? 0) : 0 }))} />
+        tabs={PTABS.map((t) => ({ value: t.value, label: t.label, count: t.value === 'videos' ? videos.length : t.value === 'studios' ? studioCount(videos) : t.value === 'gallery' ? galleryTabCount(gallery.data) : t.value === 'suggestions' ? (suggested.data?.length ?? 0) : 0 }))} />
       {tab === 'videos' ? (
-        videos.length ? <><VideosHead kind="performer" videos={videos} /><div className={GRID} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div><EditingBar videos={videos} /></> : <Empty role="tabpanel" aria-label="Videos" icon="library">No videos for this performer yet.</Empty>
+        videos.length ? <><VideosHead kind="performer" videos={videos} /><div className={GRID} ref={grid.ref} style={grid.style} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div><EditingBar videos={videos} /></> : <Empty role="tabpanel" aria-label="Videos" icon="library">No videos for this performer yet.</Empty>
       ) : tab === 'studios' ? (
         (() => { const items = studiosFor(videos, studios.data ?? []); return items.length ? (
           <PosterGrid label="Studios">{items.map((s) => <StudioPoster key={s.id} id={s.id} name={s.name} image={s.image} count={s.count} />)}</PosterGrid>
         ) : <Empty role="tabpanel" aria-label="Studios" icon="studio">{STUDIOS_EMPTY}</Empty> })()
+      ) : tab === 'gallery' ? (
+        <PerformerGallery id={p.id} name={p.name} />
       ) : tab === 'similar' ? (
         similar.isPending ? <p role="tabpanel" aria-label="Similar Performers" className="py-8 text-center text-sm text-muted">Finding similar performers…</p>
         : (similar.data?.items ?? []).length ? <PerformerGrid items={similar.data!.items!} />

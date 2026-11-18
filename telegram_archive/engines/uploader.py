@@ -1117,6 +1117,8 @@ async def run(ctx: JobContext):
     except Exception:
         cfg = {}
     resolution_filter = normalize_resolution_filter(cfg.get("resolution_filter"))
+    from ..core import duration_filter
+    max_minutes = duration_filter.normalize_max_minutes(cfg.get("max_duration_minutes"))
     orientation = str(cfg.get("orientation") or "BOTH").upper()
     if orientation not in {"HORIZONTAL", "VERTICAL", "BOTH"}:
         orientation = "BOTH"
@@ -1198,9 +1200,11 @@ async def run(ctx: JobContext):
     pending = [v for v in candidates if v not in busy]
     state.pop("resolution_filter_summary", None)
     state.pop("orientation_filter_summary", None)
+    state.pop("duration_filter_summary", None)
     existing_summary = dict(state.get("manifest_summary") or {})
     existing_summary.pop("resolution_filter", None)
     existing_summary.pop("orientation_filter", None)
+    existing_summary.pop("duration_filter", None)
     state["manifest_summary"] = existing_summary
     if busy:
         ctx.db.log(f"Upload Local Files: {len(busy)} file(s) changed in the last {STABLE_AFTER_SECONDS}s "
@@ -1274,6 +1278,29 @@ async def run(ctx: JobContext):
                 f"Upload Local Files: orientation filter {orientation.lower()} kept "
                 f"{len(pending):,}/{checked:,} video(s); {unknown_orientation:,} had unknown dimensions."
             )
+        if max_minutes is not None:
+            checked = len(pending)
+            kept, unknown_duration = [], 0
+            for video in pending:
+                seconds = ((manifest.get(str(video)) or {}).get("probe") or {}).get("duration")
+                if duration_filter.within_limit(seconds, max_minutes):
+                    kept.append(video)
+                elif not duration_filter.known(seconds):
+                    unknown_duration += 1
+            pending = kept
+            state["duration_filter_summary"] = {
+                "selection": duration_filter.describe(max_minutes), "checked": checked, "selected": len(pending),
+                "excluded": checked - len(pending), "unknown_duration": unknown_duration,
+            }
+            summary = dict(state.get("manifest_summary") or {})
+            summary["files"] = len(pending)
+            summary["total_bytes"] = sum(int((manifest.get(str(v)) or {}).get("size") or 0) for v in pending)
+            summary["duration_filter"] = dict(state["duration_filter_summary"])
+            state["manifest_summary"] = summary
+            ctx.db.log(
+                f"Upload Local Files: duration filter ({duration_filter.describe(max_minutes)}) kept "
+                f"{len(pending):,}/{checked:,} video(s); {unknown_duration:,} had no duration and were left out."
+            )
         if pending:
             ctx.db.log(
                 f"Upload Local Files: technical preflight captured {len(pending):,} file(s); "
@@ -1339,6 +1366,8 @@ async def run(ctx: JobContext):
         empty_operation = f"No videos matched {resolution_filter}"
     if not total and orientation != "BOTH" and int((state.get("orientation_filter_summary") or {}).get("checked") or 0) > 0:
         empty_operation = f"No {orientation.lower()} videos found"
+    if not total and max_minutes is not None and int((state.get("duration_filter_summary") or {}).get("checked") or 0) > 0:
+        empty_operation = f"No videos {duration_filter.describe(max_minutes)}"
     ctx.report(
         completed=0, total=total,
         operation=("Preparing first file" if total else empty_operation),

@@ -12,6 +12,8 @@ export interface LocalOptions {
   resolution: string
   orientation: string
   oversized: 'optimize' | 'skip'
+  /** Only videos shorter than this many minutes; empty = any length. */
+  maxMinutes: string
 }
 export interface TelegramOptions {
   channels: string[]
@@ -25,14 +27,30 @@ export interface TelegramOptions {
   dupDb: boolean
   cleanup: boolean
   trash: string
+  /** Videos with no saved 36-frame snapshot set: skip them (the source stays) or make the set from Telegram first. */
+  snapshots: 'existing' | 'generate'
+  /** Only videos shorter than this many minutes; empty = any length. */
+  maxMinutes: string
 }
-export const DEFAULT_LOCAL: LocalOptions = { folder: '', destination: '', images: false, subfolders: false, deleteSource: true, resolution: 'ANY', orientation: 'BOTH', oversized: 'optimize' }
-export const DEFAULT_TELEGRAM: TelegramOptions = { channels: [], destination: '', sourceMedia: 'VIDEO', destinationMedia: 'VIDEO', orientation: 'BOTH', resolution: 'ANY', dupSource: true, dupDestination: true, dupDb: true, cleanup: false, trash: '' }
+export const DEFAULT_LOCAL: LocalOptions = { folder: '', destination: '', images: false, subfolders: false, deleteSource: true, resolution: 'ANY', orientation: 'BOTH', oversized: 'optimize', maxMinutes: '' }
+export const DEFAULT_TELEGRAM: TelegramOptions = { channels: [], destination: '', sourceMedia: 'VIDEO', destinationMedia: 'VIDEO', orientation: 'BOTH', resolution: 'ANY', dupSource: true, dupDestination: true, dupDb: true, cleanup: false, trash: '', snapshots: 'existing', maxMinutes: '' }
+
+/** The limit as a number of minutes: undefined when empty or 0 (no limit), NaN when it is not a positive number. */
+export function parseMaxMinutes(text: string): number | undefined {
+  const t = (text ?? '').trim().replace(',', '.')
+  if (!t) return undefined
+  const n = Number(t)
+  if (!Number.isFinite(n) || n < 0 || n > 24 * 60) return Number.NaN
+  return n === 0 ? undefined : n
+}
+export const MAX_MINUTES_PROBLEM = 'Enter the maximum length as minutes above 0 (for example 10), or leave it empty for any length.'
+export const describeMaxMinutes = (text: string): string => { const n = parseMaxMinutes(text); return n === undefined || Number.isNaN(n) ? 'Any length' : `Shorter than ${n} min` }
 
 /** First problem that blocks the run, or '' when it can start. Same wording as the classic page. */
 export function validateLocal(o: LocalOptions): string {
   if (!o.folder.trim()) return 'Enter a source folder.'
   if (!o.destination) return 'Choose a destination channel.'
+  if (!o.images && Number.isNaN(parseMaxMinutes(o.maxMinutes))) return MAX_MINUTES_PROBLEM
   return ''
 }
 export function validateTelegram(o: TelegramOptions): string {
@@ -40,17 +58,25 @@ export function validateTelegram(o: TelegramOptions): string {
   if (!o.destination) return 'Choose a destination channel.'
   if (o.channels.includes(String(o.destination))) return 'Destination cannot be one of the selected source channels.'
   if (o.cleanup && !o.trash) return 'Choose a trash channel when cleanup is enabled.'
+  if (Number.isNaN(parseMaxMinutes(o.maxMinutes))) return MAX_MINUTES_PROBLEM
   return ''
 }
 
 export function localPayload(o: LocalOptions, includeSubfolders = o.subfolders) {
   const base = { source: 'local', media_type: o.images ? 'PHOTOS' : 'VIDEO', folder: o.folder.trim(), destination_channel: o.destination, include_subfolders: includeSubfolders, delete_local_after_delivery: o.deleteSource }
-  return o.images ? base : { ...base, resolution_filter: o.resolution || 'ANY', orientation: o.orientation || 'BOTH', oversized_file_policy: o.oversized || 'optimize' }
+  const limit = parseMaxMinutes(o.maxMinutes)
+  return o.images ? base : { ...base, resolution_filter: o.resolution || 'ANY', orientation: o.orientation || 'BOTH', oversized_file_policy: o.oversized || 'optimize', ...(limit ? { max_duration_minutes: limit } : {}) }
 }
+export const SNAPSHOT_CHOICES = [
+  ['existing', 'Use saved snapshots only (recommended): skip videos that have none, keep them in the source'],
+  ['generate', 'Make missing snapshots from Telegram first (slower; reads each video from Telegram)'],
+] as const
 export const telegramPayload = (o: TelegramOptions) => ({
   source: 'telegram', source_channels: o.channels, destination_channel: o.destination, source_mode: o.sourceMedia, destination_mode: o.destinationMedia,
   orientation: o.orientation || 'BOTH', resolution_filter: o.resolution || 'ANY',
   duplicate_check: { source: o.dupSource, destination: o.dupDestination, database: o.dupDb }, cleanup: { enabled: o.cleanup, trash_channel: o.trash },
+  snapshot_policy: o.snapshots || 'existing',
+  ...(parseMaxMinutes(o.maxMinutes) ? { max_duration_minutes: parseMaxMinutes(o.maxMinutes) } : {}),
 })
 
 export interface PhotoScan { direct_count?: number; nested_count?: number; recursive_count?: number; recursive_file_count?: number; recursive_extensions?: Record<string, number>; detail?: string }

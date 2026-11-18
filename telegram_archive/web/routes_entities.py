@@ -156,6 +156,83 @@ def register_entity_routes(
 
 
     # ------------------------------------------------------------------
+    # SUBSECTION: Performer gallery
+    # The provider pictures kept on this PC for each performer (engines/performer_gallery.py).
+    # ------------------------------------------------------------------
+    def _gallery_performer(performer_id: int):
+        with db.lock:
+            row = db.conn.execute("SELECT id,name FROM performers WHERE id=?", (int(performer_id),)).fetchone()
+        if not row:
+            raise HTTPException(404, "Performer not found")
+        return row
+
+    @router.get("/api/performers/{performer_id}/gallery")
+    async def performer_gallery_list(performer_id: int, request: Request):
+        """The pictures kept for this performer, whether a download is running, and how many serve as face references."""
+        require_auth(request)
+        _gallery_performer(performer_id)
+        from ..engines import performer_gallery
+        return {"ok": True, **await asyncio.to_thread(performer_gallery.list_pictures, db, performer_id)}
+
+    @router.get("/api/performers/{performer_id}/gallery/{picture_id}/image")
+    async def performer_gallery_image(performer_id: int, picture_id: int, request: Request):
+        require_auth(request)
+        from fastapi.responses import FileResponse
+        from ..engines import performer_gallery
+        path = await asyncio.to_thread(performer_gallery.picture_file, db, performer_id, picture_id)
+        if path is None:
+            raise HTTPException(404, "Picture not found")
+        return FileResponse(path, headers={"Cache-Control": "private, max-age=86400"})
+
+    @router.post("/api/performers/{performer_id}/gallery/refresh")
+    async def performer_gallery_refresh(performer_id: int, request: Request):
+        """Fetch the pictures the providers hold of this performer that are not kept yet (runs in the background)."""
+        require_auth(request)
+        row = _gallery_performer(performer_id)
+        if str(row["name"] or "").strip().casefold() == "unknown performer":
+            raise HTTPException(400, "The Unknown Performer profile has no provider pictures")
+        from ..engines import performer_gallery
+        started = performer_gallery.start_background_sync(db, performer_id)
+        return {"ok": True, "started": started, "syncing": True}
+
+    @router.post("/api/performers/{performer_id}/gallery/from-videos")
+    async def performer_gallery_from_videos(performer_id: int, request: Request):
+        """Search the snapshots of the videos mapped to this performer for their face and keep the best ones as gallery pictures."""
+        require_auth(request)
+        row = _gallery_performer(performer_id)
+        if str(row["name"] or "").strip().casefold() == "unknown performer":
+            raise HTTPException(400, "The Unknown Performer profile has no face to look for")
+        from ..engines import performer_snapshot_faces, snapshot_identity
+
+        def work():
+            try:
+                reader = snapshot_identity.make_face_reader()
+            except Exception:
+                _swallowed_note("routes_entities.performer_gallery_from_videos.models")
+                return {"faces_checked": False, "videos": 0, "added": 0}
+            return {"faces_checked": True, **performer_snapshot_faces.grow_gallery(db, performer_id, reader=reader, max_videos=12)}
+        return {"ok": True, **await asyncio.to_thread(work)}
+
+    @router.post("/api/performers/{performer_id}/gallery/{picture_id}/use-as-profile")
+    async def performer_gallery_use_as_profile(performer_id: int, picture_id: int, request: Request):
+        """Use a gallery picture as the performer's profile picture (kept: provider syncs do not replace it)."""
+        require_auth(request)
+        _gallery_performer(performer_id)
+        from ..engines import performer_gallery
+        if not await asyncio.to_thread(performer_gallery.use_as_profile_picture, db, performer_id, picture_id):
+            raise HTTPException(404, "Picture not found")
+        return {"ok": True}
+
+    @router.delete("/api/performers/{performer_id}/gallery/{picture_id}")
+    async def performer_gallery_remove(performer_id: int, picture_id: int, request: Request):
+        """Remove a picture for good: it is not fetched again and stops being a face reference (this is not the performer)."""
+        require_auth(request)
+        from ..engines import performer_gallery
+        if not await asyncio.to_thread(performer_gallery.remove_picture, db, performer_id, picture_id):
+            raise HTTPException(404, "Picture not found")
+        return {"ok": True}
+
+    # ------------------------------------------------------------------
     # SUBSECTION: Duplicate maintenance
     # Performer and channel duplicate audits.
     # ------------------------------------------------------------------
@@ -682,6 +759,8 @@ def register_entity_routes(
                 db.conn.execute("DELETE FROM performers WHERE id=?", (performer_id,))
                 db.conn.execute("RELEASE SAVEPOINT archive_x_delete_junk_performer")
                 db.conn.commit()
+                from ..engines.performer_gallery import delete_performer_gallery
+                delete_performer_gallery(db, performer_id)
             except Exception:
                 db.conn.execute("ROLLBACK TO SAVEPOINT archive_x_delete_junk_performer")
                 db.conn.execute("RELEASE SAVEPOINT archive_x_delete_junk_performer")

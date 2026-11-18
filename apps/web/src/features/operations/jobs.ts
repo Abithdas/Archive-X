@@ -53,3 +53,44 @@ export const playbackConfirm = { title: 'Stop playback', ok: 'Stop playback', te
 export const PLAYBACK_STOPPING = 'Stopping playback…'
 export const playbackDone = (r: { stopping?: boolean }) => (r.stopping ? 'Playback stopped; resource cleanup is finishing.' : 'Playback stopped.')
 export const PLAYBACK_UNKNOWN = 'Playback stop was requested, but cleanup status is unavailable.'
+
+// ---------------------------------------------------------------- is it working or stuck? ----------------------------------------------------------
+/** "5s", "2m 5s", "1h 3m". */
+export function ageText(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds))
+  if (s < 60) return `${s}s`
+  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
+}
+const age = (v: unknown): number | null => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v))
+/** Seconds without any sign of life at which a running job is called possibly stuck, and at which it is called quiet. */
+export const STUCK_AFTER = 120
+export const QUIET_AFTER = 45
+/** Seconds with no counted progress (but still active) at which that is mentioned. */
+export const NO_PROGRESS_AFTER = 90
+
+export type Liveness = { text: string; tone: 'ok' | 'warn' | 'bad' | 'neutral' }
+/**
+ * One plain sentence that says what an unfinished job is doing right now: working (and how recently it did something), busy without counted
+ * progress, waiting (why), paused, interrupted, or quiet for so long that it may be stuck. null for a finished job and for a playback session.
+ */
+export function liveness(j: Obj): Liveness | null {
+  const st = statusOf(j)
+  if (isTerminal(st) || String(j.type ?? '') === 'PLAYBACK') return null
+  if (isPaused(st)) return { text: st === 'PAUSING' ? 'Pausing after the current step' : 'Paused. Press Resume to continue.', tone: 'warn' }
+  if (isInterrupted(st)) return { text: st === 'RECOVERING' ? 'Recovering from its saved state' : 'Interrupted. Press Recover & Resume to continue from where it stopped.', tone: 'warn' }
+  if (st === 'CANCEL_REQUESTED') return { text: 'Stopping. Waiting for the current step to end.', tone: 'warn' }
+  const limit = String(j.rate_limit_message ?? '').trim()
+  if (limit) return { text: `Waiting: ${limit}`, tone: 'warn' }
+  if (st === 'QUEUED') {
+    const why = String(j.admission_reason ?? '').trim().replaceAll('_', ' ')
+    return { text: why && String(j.admission_state ?? 'READY') !== 'READY' ? `Waiting to start: ${why}` : 'Waiting in the queue for its turn', tone: 'neutral' }
+  }
+  const activity = age(j.watchdog_activity_age) ?? age(j.watchdog_heartbeat_age)
+  const progress = age(j.watchdog_progress_age)
+  if (activity === null) return { text: 'Running', tone: 'ok' }
+  if (activity >= STUCK_AFTER) return { text: `No activity for ${ageText(activity)}. It may be stuck: Stop it and start it again if this goes on.`, tone: 'bad' }
+  if (activity >= QUIET_AFTER) return { text: `Quiet for ${ageText(activity)}. Probably waiting on Telegram, a provider or the disk.`, tone: 'warn' }
+  if (progress !== null && progress >= NO_PROGRESS_AFTER) return { text: `Working. No counted progress for ${ageText(progress)}, last activity ${ageText(activity)} ago.`, tone: 'neutral' }
+  return { text: `Working. Last activity ${ageText(activity)} ago.`, tone: 'ok' }
+}

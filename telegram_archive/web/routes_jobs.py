@@ -12,8 +12,10 @@
 from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
+from ..core.snapshot_cache import SnapshotCache
 import asyncio
 import json
+import time
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -73,10 +75,28 @@ def register_job_routes(
         jobs.submit(jid)
         return {"id": jid}
 
+    # Polled every 5 s by each open Operations page, and building it expires leases (a database write): shared for 2 s.
+    _resources_view = SnapshotCache(2.0)
+
     @router.get("/api/operations/resources")
     def resource_control_status(request: Request):
         require_auth(request)
-        return {"ok": True, "resources": resources.snapshot() if resources is not None else {}, "resource_leases": db.resource_lease_snapshot(), "execution_lanes": jobs.execution_lane_capacities() if hasattr(jobs, "execution_lane_capacities") else {}, "governor": governor.status()}
+        return _resources_view.get(lambda: {"ok": True, "resources": resources.snapshot() if resources is not None else {}, "resource_leases": db.resource_lease_snapshot(), "execution_lanes": jobs.execution_lane_capacities() if hasattr(jobs, "execution_lane_capacities") else {}, "governor": governor.status(), "processes": _child_processes(), "media_manager": _media_manager_brief()})
+
+    def _child_processes():
+        from ..core.child_processes import snapshot as _snap
+        return _snap()
+
+    def _media_manager_brief():
+        """What the Telegram Media Manager thread is doing right now, whether or not a job row exists for it."""
+        try:
+            from ..media_manager.runner import RUNNER as _mm
+            with _mm.lock:
+                return {"running": bool(_mm.running), "job_id": _mm.job_id or "", "mode": _mm.mode or "",
+                        "operation": str(_mm.operation or ""), "live": str(_mm.live or ""),
+                        "heartbeat_age": round(max(0.0, time.monotonic() - _mm.last_heartbeat), 1)}
+        except Exception:
+            return {"running": False}
 
     # Apply and persist resource control changes.
     @router.post("/api/operations/resources")
@@ -118,6 +138,7 @@ def register_job_routes(
             db.set_setting("ax_resource_manual_limits", control["manual_limits"])
             db.set_setting("ax_resource_playback_gate", control["playback_gate"])
             db.log(f"Resource control changed: {control['mode_label']}")
+            _resources_view.clear()   # the change must show in the next poll, not two seconds later
             return {"ok": True, "resources": resources.snapshot(), "resource_leases": db.resource_lease_snapshot(), "governor": governor.status()}
         except (ValueError, TypeError) as exc:
             raise HTTPException(400, str(exc))
@@ -573,6 +594,11 @@ def register_job_routes(
             resolution_filter = normalize_resolution_filter(data.get("resolution_filter"))
         except ValueError as exc:
             raise HTTPException(400, str(exc))
+        from ..core.duration_filter import normalize_max_minutes
+        try:
+            max_duration_minutes = normalize_max_minutes(data.get("max_duration_minutes"))
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
         if not telegram.connected:
             raise HTTPException(503, "Telegram is not connected")
         # Different workflows occupy independent scheduler lanes. The durable
@@ -585,6 +611,8 @@ def register_job_routes(
             "resolution_filter": resolution_filter,
             "media_type": media_type,
         }
+        if max_duration_minutes is not None and media_type == "VIDEO":
+            detail["max_duration_minutes"] = max_duration_minutes
         destination = ""
         if source == "local":
             folder = str(data.get("folder") or "").strip()
@@ -643,6 +671,8 @@ def register_job_routes(
             cleanup=data.get("cleanup") if isinstance(data.get("cleanup"),dict) else {}
             cleanup_enabled=bool(cleanup.get("enabled")); trash=str(cleanup.get("trash_channel") or "").strip()
             if cleanup_enabled and not trash: raise HTTPException(400,"Choose a trash channel when cleanup is enabled")
+            snapshot_policy = str(data.get("snapshot_policy") or "existing").strip().lower()
+            if snapshot_policy not in {"existing", "generate"}: raise HTTPException(400, "Invalid snapshot policy")
             requested_mode = str(data.get("mode") or "").strip().upper()
             from ..media_manager.runner import MODES as MEDIA_MANAGER_MODES
             detail["mode"] = requested_mode if requested_mode in MEDIA_MANAGER_MODES else "TRANSFER"
@@ -654,6 +684,7 @@ def register_job_routes(
                 "orientation": orientation,
                 "duplicate_check": {"source":bool(dup.get("source",True)),"destination":bool(dup.get("destination",True)),"database":bool(dup.get("database",True))},
                 "cleanup": {"enabled":cleanup_enabled,"trash_channel":trash},
+                "snapshot_policy": snapshot_policy,
                 "source_count": len(source_channels),
                 "processing_policy": "INVENTORY_THEN_METADATA_ASSETS_THEN_TRANSFER",
             })

@@ -16,7 +16,7 @@ export function Skeleton({ className, style }: { className?: string; style?: CSS
         'relative block shrink-0 overflow-hidden rounded-md bg-surface-2 [contain:paint]',
         "after:absolute after:inset-0 after:-translate-x-full after:animate-sk-sweep after:content-['']",
         'after:bg-gradient-to-r after:from-transparent after:via-fg/10 after:to-transparent',
-        'motion-reduce:after:hidden',
+
         className,
       )}
     />

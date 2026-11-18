@@ -11,12 +11,12 @@ const Col = ({ title, children }: { title: string; children: ReactNode }) => (
 )
 
 /** One "CC" menu with an Audio column and a Subtitles column: embedded audio tracks, embedded/sidecar subtitles, and live English captions. */
-export function CcMenu({ info, audio, sub, live, altBusy, onAudio, onSub }: { info: TrackInfo; audio: number | null; sub: SubChoice; live: LiveState; altBusy: boolean; onAudio: (t: AudioTrack | null) => void; onSub: (c: SubChoice, language?: string) => void }) {
+export function CcMenu({ info, audio, sub, live, altBusy, onAudio, onSub, drop }: { drop?: 'up' | 'down'; info: TrackInfo; audio: number | null; sub: SubChoice; live: LiveState; altBusy: boolean; onAudio: (t: AudioTrack | null) => void; onSub: (c: SubChoice, language?: string) => void }) {
   const current = audio ?? info.audio[0]?.index
   const on = sub.kind !== 'off'
   const state = live === 'working' ? <span className="text-muted"> …</span> : live === 'error' ? <span className="text-bad"> failed</span> : null
   return (
-    <PopMenu label="Audio and subtitles" align="right" iconOnly button={<span className={on ? 'text-accent' : undefined}><CcIcon /></span>}>
+    <PopMenu label="Audio and subtitles" align="right" drop={drop} iconOnly button={<span className={on ? 'text-accent' : undefined}><CcIcon /></span>}>
       <div className="flex max-w-[calc(100vw-2rem)] flex-col gap-1 sm:flex-row sm:gap-3">
         <Col title="Audio">
           {info.audio.length ? info.audio.map((t: AudioTrack) => (

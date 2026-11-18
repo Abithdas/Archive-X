@@ -1,5 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, cardMotion, motion } from '@/design/motion'
+
+const SECTION = { layout: 'position', transition: { layout: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } } } as const
 import { SubtleNumber } from '@/design/SubtleNumber'
 import { newMatchesText, useReviewCounts, type ReviewCount } from './useFaceReview'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -17,16 +19,15 @@ import { nameMatches } from '@/features/entities/filter'
 import { usePhotoStore } from './store'
 import { FaceReview } from './FaceReview'
 import { NamePicker } from './NamePicker'
-import { NameListStatus } from './NameListStatus'
-import { FaceLearningStatus } from './FaceLearningStatus'
+import { PeopleStatus } from './PeopleStatus'
 import { usePhotoChannels } from '@/api/hooks'
 
-const BTN = 'h-8 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50'
-const PRIMARY = 'h-8 rounded-lg bg-accent px-3 text-xs font-bold text-accent-fg disabled:opacity-50'
+const BTN = 'h-9 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50 sm:h-8'
+const PRIMARY = 'h-9 rounded-lg bg-accent px-3 text-xs font-bold text-accent-fg disabled:opacity-50 sm:h-8'
 const sourceOf = (s: Suggestion) => (s.source === 'profile_image' || s.source === 'confirmed_assignment' || s.source === 'metadata' ? s.source : 'metadata')
 const why = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.detail : fb)
 
-function Circle({ g, size = 'size-24' }: { g: FaceGroup; size?: string }) {
+function Circle({ g, size = 'size-20 sm:size-24' }: { g: FaceGroup; size?: string }) {
   const [ok, setOk] = useState(true)
   return (
     <span className={cn('grid shrink-0 place-items-center overflow-hidden rounded-full bg-surface-2 text-2xl font-bold text-muted', size)}>
@@ -35,23 +36,23 @@ function Circle({ g, size = 'size-24' }: { g: FaceGroup; size?: string }) {
   )
 }
 
-function Card({ g, fresh, naming, setNaming, onOpen, onCheck, onYes, onNo, onName }: { g: FaceGroup; fresh?: ReviewCount; naming: boolean; setNaming: (on: boolean) => void; onOpen: () => void; onCheck: () => void; onYes: (s: Suggestion) => void; onNo: (s: Suggestion) => void; onName: (p: { id: number; name: string }) => void }) {
+function Card({ g, busy, fresh, naming, setNaming, onOpen, onCheck, onYes, onNo, onName }: { g: FaceGroup; busy?: boolean; fresh?: ReviewCount; naming: boolean; setNaming: (on: boolean) => void; onOpen: () => void; onCheck: () => void; onYes: (s: Suggestion) => void; onNo: (s: Suggestion) => void; onName: (p: { id: number; name: string }) => void }) {
   const guess = bestGuess(g)
   const named = Boolean(g.performer_id)
   return (
-    <article aria-label={groupLabel(g)} className={cn('grid shrink-0 content-start justify-items-center gap-2 rounded-2xl border border-line bg-surface p-3 text-center transition-[width] duration-200', naming ? 'w-[280px]' : 'w-[190px]')}>
+    <article aria-label={groupLabel(g)} aria-busy={busy || undefined} className={cn('grid h-full w-full min-w-0 content-start justify-items-center gap-2 rounded-2xl border border-line bg-surface p-3 text-center transition-opacity duration-300', busy && 'opacity-60')}>
       <span className="relative">
         <button type="button" onClick={onOpen} aria-label={`Show photos of ${groupLabel(g)}`} className="rounded-full outline-none ring-accent/60 transition hover:scale-[1.03] focus-visible:ring-2"><Circle g={g} /></button>
         {named && fresh ? <span title={newMatchesText(fresh.suggestions)} aria-hidden="true" className="absolute -right-1.5 -top-1.5 grid h-6 min-w-6 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-accent-fg shadow ring-2 ring-surface"><SubtleNumber value={fresh.suggestions} /></span> : null}
       </span>
       <div className="min-w-0 max-w-full">
-        <b className="block truncate text-sm">{named ? groupLabel(g) : guess ? `Is this ${guess.name}?` : 'Who is this?'}</b>
+        <AnimatePresence mode="wait" initial={false}><motion.b key={named ? 'n' : guess ? `g${guess.id}` : 'x'} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.18 }} className="block truncate text-sm">{named ? groupLabel(g) : guess ? `Is this ${guess.name}?` : 'Who is this?'}</motion.b></AnimatePresence>
         <small className="text-xs text-muted">{Number(g.photo_count ?? 0).toLocaleString()} photos</small>
       </div>
       {named ? <button type="button" className={fresh ? PRIMARY : BTN} onClick={onCheck} aria-label={`Check faces of ${groupLabel(g)}${fresh ? `, ${newMatchesText(fresh.suggestions)}` : ''}`}>{fresh ? 'Review new matches' : 'Check faces'}</button> : naming ? <NamePicker onPick={(p) => { setNaming(false); onName(p) }} onCancel={() => setNaming(false)} /> : guess ? (
         <div className="flex flex-wrap justify-center gap-1.5">
-          <button type="button" className={PRIMARY} onClick={() => onYes(guess)} aria-label={`Yes, this is ${guess.name}`}>Yes</button>
-          <button type="button" className={BTN} onClick={() => onNo(guess)} aria-label={`No, this is not ${guess.name}`}>No</button>
+          <button type="button" className={PRIMARY} disabled={busy} onClick={() => onYes(guess)} aria-label={`Yes, this is ${guess.name}`}>Yes</button>
+          <button type="button" className={BTN} disabled={busy} onClick={() => onNo(guess)} aria-label={`No, this is not ${guess.name}`}>No</button>
           <button type="button" className={BTN} onClick={() => setNaming(true)}>Someone else</button>
         </div>
       ) : <button type="button" className={PRIMARY} onClick={() => setNaming(true)}>Name</button>}
@@ -93,6 +94,9 @@ export function PeopleView() {
   const mark = (id: number, on: boolean) => setAnswering((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
   const all = peopleSections(shown)
   const sec = { ...all, guesses: all.guesses.filter((g) => !answering.has(Number(g.id))) }
+  // A "No" does not take the card away: it stays where it is, shows it is working, and its next suggestion replaces the old one in place.
+  const [rejecting, setRejecting] = useState<ReadonlySet<number>>(new Set())
+  const markNo = (id: number, on: boolean) => setRejecting((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
   const [finding, setFinding] = useState<null | { stage: number; progress: number; text: string }>(null)
   const [ask, setAsk] = useState(false)
   const [showRare, setShowRare] = useState(false)
@@ -113,9 +117,9 @@ export function PeopleView() {
   const name = (g: FaceGroup, p: { id: number; name: string }) => void send(g, assignBody(g, p.id), doneText(p.id, p.name))
   const openScope = (c: ReturnType<typeof scopeChips>[number]) => { setSelected((channels.data?.channels ?? []).map((ch) => String(ch.telegram_id))); setFace({ performerId: null, groupId: null, groupIds: [], label: c.label, scope: c.scope }); setTab('library') }
   const no = async (g: FaceGroup, s: Suggestion) => {
-    mark(Number(g.id), true)
+    markNo(Number(g.id), true)
     try { const r = await api<{ ok?: boolean; detail?: string }>('/api/photos/faces/suggestions/reject', { method: 'POST', json: rejectBody(g, s, sourceOf(s)) }); if (!r?.ok) throw new ApiError(0, r?.detail || ''); await changed() }
-    catch (e) { toast.error(why(e, 'Could not save that.')) } finally { mark(Number(g.id), false) }
+    catch (e) { toast.error(why(e, 'Could not save that.')) } finally { markNo(Number(g.id), false) }
   }
 
   const find = async () => {
@@ -135,12 +139,15 @@ export function PeopleView() {
     } catch (e) { toast.error(why(e, 'Could not start finding people.')) } finally { if (alive.current) setFinding(null) }
   }
 
+  // The cards share the row equally and fill it to the right edge (150 px wide at least on a phone, 180 px from tablet width). The one being named
+  // takes two cells (the whole row on a phone) so its search has room.
+  const GRID = 'relative grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]'
   const grid = (list: FaceGroup[]) => (
-    <div className="relative flex flex-wrap gap-3">
+    <div className={GRID}>
       <AnimatePresence mode="popLayout" initial={false}>
         {list.map((g) => (
-          <motion.div key={g.id} {...cardMotion(0)}>
-            <Card g={g} fresh={g.performer_id ? fresh?.[Number(g.performer_id)] : undefined} naming={namingId === g.id} setNaming={(on) => setNamingId(on ? g.id : null)} onOpen={() => open(g)} onCheck={() => setChecking(g)} onYes={(s) => yes(g, s)} onNo={(s) => void no(g, s)} onName={(p) => name(g, p)} />
+          <motion.div key={g.id} {...cardMotion(0)} className={cn('min-w-0', namingId === g.id && 'col-span-full sm:col-span-2')}>
+            <Card g={g} busy={rejecting.has(Number(g.id))} fresh={g.performer_id ? fresh?.[Number(g.performer_id)] : undefined} naming={namingId === g.id} setNaming={(on) => setNamingId(on ? g.id : null)} onOpen={() => open(g)} onCheck={() => setChecking(g)} onYes={(s) => yes(g, s)} onNo={(s) => void no(g, s)} onName={(p) => name(g, p)} />
           </motion.div>
         ))}
       </AnimatePresence>
@@ -149,20 +156,18 @@ export function PeopleView() {
   const C = analyzeCopy(0)
   return (
     <section aria-label="People" className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p role="status" aria-live="polite" className="max-w-2xl text-sm text-muted">{finding ? '' : (q.isSuccess ? findPeopleHint(groups, q.data?.analysis) : '')}</p>
-        <button type="button" disabled={!!finding} onClick={() => setAsk(true)} className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60"><Icon name="images" className="size-4" />{finding ? 'Finding people…' : 'Find people'}</button>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <PeopleStatus headline={finding ? 'Finding people…' : (q.isSuccess ? findPeopleHint(groups, q.data?.analysis) : '')} />
+        <button type="button" disabled={!!finding} onClick={() => setAsk(true)} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60 sm:h-10 sm:w-auto"><Icon name="images" className="size-4" />{finding ? 'Finding people…' : 'Find people'}</button>
       </div>
       {finding ? <FindProgress {...finding} /> : null}
-      <NameListStatus />
-      <FaceLearningStatus />
 
-      {q.isPending ? <div role="status" aria-label="Loading people" className="flex flex-wrap gap-3">{[0, 1, 2, 3].map((i) => <div key={i} className="grid h-[236px] w-[190px] content-start justify-items-center gap-3 rounded-2xl border border-line bg-surface p-3"><Skeleton className="size-24 rounded-full" /><Skeleton className="h-4 w-28" /><Skeleton className="h-3 w-16" /><Skeleton className="h-8 w-32 rounded-lg" /></div>)}</div>
+      {q.isPending ? <div role="status" aria-label="Loading people" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">{[0, 1, 2, 3].map((i) => <div key={i} className="grid h-[236px] content-start justify-items-center gap-3 rounded-2xl border border-line bg-surface p-3"><Skeleton className="size-24 rounded-full" /><Skeleton className="h-4 w-28" /><Skeleton className="h-3 w-16" /><Skeleton className="h-8 w-32 rounded-lg" /></div>)}</div>
         : q.isError ? <button type="button" onClick={() => void q.refetch()} className={cn(PRIMARY, 'w-fit')}>Could not load people. Retry</button>
         : (<>
-          {sec.guesses.length ? <section aria-label="Is this the right person?" className="grid gap-2"><h2 className="text-lg font-bold">Is this the right person?</h2>{grid(sec.guesses)}</section> : null}
-          {sec.named.length ? <section aria-label="Named people" className="grid gap-2"><h2 className="text-lg font-bold">People</h2>{grid(sec.named)}</section> : null}
-          {sec.toName.length ? <section aria-label="Faces to name" className="grid gap-2"><h2 className="text-lg font-bold">Who are these?</h2>{grid(sec.toName)}</section> : null}
+          {sec.guesses.length ? <motion.section {...SECTION} aria-label="Is this the right person?" className="grid gap-2"><h2 className="text-lg font-bold">Is this the right person?</h2>{grid(sec.guesses)}</motion.section> : null}
+          {sec.named.length ? <motion.section {...SECTION} aria-label="Named people" className="grid gap-2"><h2 className="text-lg font-bold">People</h2>{grid(sec.named)}</motion.section> : null}
+          {sec.toName.length ? <motion.section {...SECTION} aria-label="Faces to name" className="grid gap-2"><h2 className="text-lg font-bold">Who are these?</h2>{grid(sec.toName)}</motion.section> : null}
           {sec.rare.length ? (
             <section aria-label="Other faces" className="grid gap-2">
               <button type="button" onClick={() => setShowRare(!showRare)} aria-expanded={showRare} className="w-fit text-sm font-semibold text-accent hover:underline">{showRare ? 'Hide' : 'Show'} {sec.rare.length.toLocaleString()} faces seen only once or twice</button>

@@ -39,6 +39,7 @@ from typing import Any
 
 from .. import config
 from .ai_persistence import AIPersistence
+from .db_lock import TrackedRLock
 
 
 
@@ -136,7 +137,7 @@ class Database:
     """SQLite persistence facade; see the SUBSECTION banners for its feature groups."""
     def __init__(self, path: Path = config.DB_PATH):
         self.path = path
-        self.lock = threading.RLock()
+        self.lock = TrackedRLock()   # an RLock that knows its holder, so a freeze can be traced to the code that kept it (core/db_lock.py)
         self.conn = sqlite3.connect(str(path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.reference_repair_channels = []
@@ -450,6 +451,113 @@ class Database:
                 embedding_json TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+
+            -- Every provider picture kept for a performer (engines/performer_gallery.py). A picture the user removes stays as REJECTED so it is
+            -- never fetched again; embedding_json is the one face used as a matching reference ('[]' when the picture cannot serve as one).
+            CREATE TABLE IF NOT EXISTS performer_gallery (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                performer_id INTEGER NOT NULL,
+                url_hash TEXT NOT NULL,
+                url TEXT NOT NULL DEFAULT '',
+                provider TEXT NOT NULL DEFAULT '',
+                provider_id TEXT NOT NULL DEFAULT '',
+                file_path TEXT NOT NULL DEFAULT '',
+                sha256 TEXT NOT NULL DEFAULT '',
+                width INTEGER NOT NULL DEFAULT 0,
+                height INTEGER NOT NULL DEFAULT 0,
+                bytes INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                faces INTEGER NOT NULL DEFAULT -1,
+                embedding_json TEXT NOT NULL DEFAULT '[]',
+                source TEXT NOT NULL DEFAULT 'provider',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(performer_id, url_hash)
+            );
+            CREATE INDEX IF NOT EXISTS idx_performer_gallery_performer ON performer_gallery(performer_id, status);
+            CREATE TABLE IF NOT EXISTS performer_gallery_state (
+                performer_id INTEGER PRIMARY KEY,
+                last_synced_at TEXT NOT NULL DEFAULT '',
+                last_result TEXT NOT NULL DEFAULT '',
+                images_found INTEGER NOT NULL DEFAULT 0
+            );
+
+            -- Suggestions of a performer / studio made from a video's own snapshots (engines/snapshot_identity.py): the studio's learned
+            -- watermark per frame corner, the corner marks of each video, faces a person confirmed, and what each video was last checked against.
+            CREATE TABLE IF NOT EXISTS video_snapshot_suggestions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                video_id INTEGER NOT NULL,
+                kind TEXT NOT NULL,
+                entity_id INTEGER NOT NULL,
+                score REAL NOT NULL DEFAULT 0,
+                evidence_json TEXT NOT NULL DEFAULT '{}',
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(video_id, kind, entity_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_video_snapshot_suggestions_video ON video_snapshot_suggestions(video_id, status);
+            CREATE TABLE IF NOT EXISTS video_watermark_marks (
+                video_id INTEGER PRIMARY KEY,
+                marks_json TEXT NOT NULL DEFAULT '{}',
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS studio_watermarks (
+                studio_id INTEGER NOT NULL,
+                corner TEXT NOT NULL,
+                vector_json TEXT NOT NULL,
+                videos INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (studio_id, corner)
+            );
+            CREATE TABLE IF NOT EXISTS video_face_references (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                performer_id INTEGER NOT NULL,
+                video_id INTEGER NOT NULL,
+                embedding_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_video_face_references_performer ON video_face_references(performer_id);
+            CREATE TABLE IF NOT EXISTS video_snapshot_looks (
+                video_id INTEGER PRIMARY KEY,
+                face_refs INTEGER NOT NULL DEFAULT -1,
+                studio_marks INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL
+            );
+
+            -- Which videos of a performer were already searched for their face (engines/performer_snapshot_faces.py); own_refs is how many face
+            -- references the performer had then, so a video searched without any is searched again once they have some.
+            CREATE TABLE IF NOT EXISTS performer_video_faces_done (
+                performer_id INTEGER NOT NULL,
+                video_id INTEGER NOT NULL,
+                own_refs INTEGER NOT NULL DEFAULT 0,
+                added INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (performer_id, video_id)
+            );
+
+            -- What the assistant knows about Archive X itself (core/ai_knowledge.py): pieces of the changelog, the docs and the program's own docstrings.
+            CREATE TABLE IF NOT EXISTS ai_knowledge (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source TEXT NOT NULL,
+                ref TEXT NOT NULL DEFAULT '',
+                title TEXT NOT NULL,
+                body TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_ai_knowledge_source ON ai_knowledge(source);
+            -- The assistant's notebook: problems and ideas it noticed, each accepted, rejected or marked fixed by the person.
+            CREATE TABLE IF NOT EXISTS ai_findings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kind TEXT NOT NULL DEFAULT 'note',
+                title TEXT NOT NULL,
+                title_key TEXT NOT NULL UNIQUE,
+                detail TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'OPEN',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_ai_findings_status ON ai_findings(status, id);
 
             -- What a local detector (NudeNet) can see in each photo: visible body-part regions, kept as plain tags.
             CREATE TABLE IF NOT EXISTS photo_content_analysis (
@@ -2444,6 +2552,16 @@ class Database:
     # Key/value settings read and write.
     # ------------------------------------------------------------------
     def setting(self, key: str, default: Any = None) -> Any:
+        value = self._setting_one(key, default)
+        if key == "tpdb_api_token" and value in (None, "", default):
+            # An older version stored the ThePornDB token as "tpdb_token". The settings page still shows it as saved and the scan's
+            # "is a key configured" check accepts it, so every lookup must too (they used to read only the newer name and fail).
+            legacy = self._setting_one("tpdb_token", None)
+            if legacy not in (None, ""):
+                return legacy
+        return value
+
+    def _setting_one(self, key: str, default: Any = None) -> Any:
         if config.is_secret_key(key):
             secret = config.get_secret(key, None)
             if secret not in (None, ""):

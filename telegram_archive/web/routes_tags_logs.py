@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
+from ..core.safe_paths import inside
 import asyncio
 from .video_lists import name_lists_sql
 import json
@@ -288,7 +289,7 @@ def register_tags_logs_routes(
             report = await asyncio.wait_for(asyncio.to_thread(collect_diagnostics, db=db, launch_id=launch_id, requested_items=requested_items, max_chars=180_000), timeout=15.0)
             body = render_diagnostics_html(report["text"])
         except Exception as exc:
-            body = "<html><body><h1>Archive X Diagnostic Report</h1><pre>" + json.dumps({"partial": True, "error": f"{type(exc).__name__}: {exc}"}, indent=2) + "</pre></body></html>"
+            body = "<html><body><h1>Archive X Diagnostic Report</h1><pre>" + json.dumps({"partial": True, "error": type(exc).__name__}, indent=2) + "</pre></body></html>"
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         return HTMLResponse(content=body, headers={"Content-Disposition": f'attachment; filename="archive-x-diagnostic-report-{stamp}.html"', "Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache", "X-Archive-X-Diagnostic-Report": "1"})
 
@@ -423,7 +424,7 @@ def register_tags_logs_routes(
                         errors.append({
                             "source": f"{row['source_channel']}/{row['message_id']}",
                             "destination": f"{row['target_channel']}/{row['sent_message_id']}",
-                            "error": f"{type(e).__name__}: {e}",
+                            "error": type(e).__name__,
                         })
 
         db.log(f"Telegram cover repair: repaired={repaired}, skipped={skipped}, failed={failed}")
@@ -636,7 +637,7 @@ def register_tags_logs_routes(
                 except Exception as e:
                     failed_count += 1
                     progress.update({"done": progress["done"] + 1, "failed": failed_count})
-                    error = f"{type(e).__name__}: {e}"[:400]
+                    error = type(e).__name__
                     results.append({"channel_id": str(cid), "message_id": mid,
                                     "status": "failed", "error": error})
                     db.log(f"Bulk Send to Telegram failed {cid}/{mid} -> {target}: {error}", "ERROR")
@@ -769,12 +770,11 @@ def register_tags_logs_routes(
     async def backup_delete(request: Request):
         require_auth(request)
         data = await request.json()
-        path = Path(str(data.get("path") or "").strip()).expanduser().resolve()
-        repo = repository(db)
-        try:
-            path.relative_to(repo)
-        except ValueError:
+        repo_root = os.path.realpath(str(repository(db)))
+        path = os.path.realpath(os.path.expanduser(str(data.get("path") or "").strip()))
+        if not path.startswith(repo_root + os.sep):
             raise HTTPException(400, "Backup must be inside the configured repository")
+        path = Path(path)
         if path.suffix.lower() != ".axbackup" or not path.is_file():
             raise HTTPException(404, "Backup not found")
         path.unlink()

@@ -18,7 +18,8 @@ import { LibraryHealth } from './LibraryHealth'
 import { SceneMatchCard } from './SceneMatchCard'
 import { ChannelDuplicateCard } from './ChannelDuplicates'
 import { ResourceControls } from './ResourceControls'
-import { idOf } from './jobs'
+import { idOf, liveness } from './jobs'
+import { clock, runningNow } from './runningNow'
 import { downloadLogBundle, folderOf } from './logBundle'
 import { attention, diagnosticTiles, filterJobs, filterLog, healthTiles, jobCounts, laneRows, policyLine, resourceCards, telemetryTiles, type JobFilter, type LogLevel, type Tile, type Tone } from './ops'
 import { SubtleNumber } from '@/design/SubtleNumber'
@@ -72,6 +73,8 @@ function JobRow({ j }: { j: Obj }) {
   const lead = /^(\d+)%/.exec(prog.text)   // a whole-number percentage at the start: its digits change in place
   const progText = prog.known && lead ? <><SubtleNumber value={Math.round(prog.percent)} />{prog.text.slice(lead[1]!.length)}</> : prog.text
   const st = String(j.status ?? '').toUpperCase()
+  const live = liveness(j)
+  const item = String(j.item || '').trim()
   const [open, setOpen] = useState(false)
   const id = idOf(j)
   const detailed = Boolean(id) && String(j.type ?? '') !== 'PLAYBACK'   // a playback session has no job record
@@ -86,6 +89,8 @@ function JobRow({ j }: { j: Obj }) {
         <span className={cn('block h-full rounded-full bg-accent transition-[width] duration-500', !prog.known && 'w-1/3 animate-pulse')} style={prog.known ? { width: `${prog.percent}%` } : undefined} />
       </div>
       <p className="mt-1 text-[11px] tabular-nums text-faint">{progText}</p>
+      {live ? <p role="status" className={cn('mt-1.5 flex items-start gap-1.5 text-xs leading-4', TONE[live.tone])}><i aria-hidden="true" className={cn('mt-[5px] size-1.5 shrink-0 rounded-full bg-current', live.tone === 'ok' && 'animate-pulse')} /><span className="min-w-0 [overflow-wrap:anywhere]">{live.text}</span></p> : null}
+      {item && item !== String(j.operation || '') ? <p className="mt-0.5 truncate text-[11px] text-faint" title={item}>Now: {item}</p> : null}
       <JobControls j={j} />
       {open ? <JobDetails id={id} onClose={() => setOpen(false)} /> : null}
     </motion.li>
@@ -169,6 +174,30 @@ function ActivityLog({ events }: { events: unknown[] }) {
   )
 }
 
+function RunningNowCard({ data }: { data: ReturnType<typeof runningNow> }) {
+  if (!data.orphanTransfer && !data.processes.length) return null
+  return (
+    <Card title="Running right now" className="mb-4" aside={<span className="rounded-full bg-surface-3 px-2.5 py-1 text-xs font-bold text-muted">{data.processes.length} helper process{data.processes.length === 1 ? '' : 'es'}</span>}>
+      {data.orphanTransfer && (
+        <p role="status" className="mb-3 rounded-xl bg-warn/10 p-3 text-sm text-warn">
+          A Telegram transfer is still working but has no job row: <b>{data.orphanTransfer.operation}</b>
+          {data.orphanTransfer.quietSeconds > 60 ? ` (no signal for ${clock(data.orphanTransfer.quietSeconds)})` : ''}
+        </p>
+      )}
+      <ul className="grid gap-2 md:grid-cols-2">
+        {data.processes.map((p) => (
+          <li key={`${p.pid}-${p.label}`} className="rounded-xl bg-bg p-3 text-sm">
+            <div className="flex items-center justify-between gap-2"><span className="font-semibold">{p.label}</span><span className="text-xs text-muted">pid {p.pid} · {clock(p.seconds)}</span></div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3" aria-label={p.progress === null ? 'Working, no percentage available' : `${p.progress}%`}>
+              <div className={cn('h-full rounded-full bg-accent', p.progress === null && 'w-1/3 animate-pulse')} style={p.progress === null ? undefined : { width: `${p.progress}%` }} />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+}
+
 export function OperationsPage() {
   const status = useStatus()
   const diag = useDiagnostics()
@@ -217,7 +246,7 @@ export function OperationsPage() {
 
   if (status.isPending)
     return (
-      <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+      <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
         <SkeletonGroup label="Loading operations" className="grid gap-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-[68px] rounded-[14px]" />)}</div>
           <Skeleton className="h-52 rounded-[18px]" />
@@ -228,7 +257,7 @@ export function OperationsPage() {
 
   const tele = telemetryTiles(st)
   return (
-    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead eyebrow="Control Center" title="Operations" blurb="Service health, resources, diagnostics and live jobs">
         <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-good/15 px-3 text-xs font-bold text-good"><i className="size-1.5 rounded-full bg-good" />Live</span>
       </PageHead>
@@ -240,6 +269,8 @@ export function OperationsPage() {
         <Metric dot="bg-good" value={counts.completed} label="Completed" />
         <Metric dot="bg-accent" value={counts.withErrors} label="With errors" />
       </div>
+
+      <RunningNowCard data={runningNow(res.data, jobs)} />
 
       <Card title="Jobs" className="mb-4">
         <div className="mb-3"><Segmented label="Job filter" value={tab} onChange={setTab} options={JOB_TABS} /></div>

@@ -554,6 +554,18 @@ async def _identify_video_core(db, *, channel_id, message_id, filename, oshash=N
             outcome["reason"] = identity_reason
             outcome["performer_identity_conflicts"] = identity_conflicts
             outcome["filename_performer_conflict"] = filename_cast_conflict
+    if best is not None:
+        # The video's own snapshots (watermark studio, faces) confirm or contradict the provider candidate; see metadata/evidence_resolver.py.
+        from .evidence_resolver import resolve_for_video
+        verdict = await asyncio.to_thread(resolve_for_video, db, channel_id, message_id, best,
+                                          confidence=confidence, method=outcome.get("method"), score=score)
+        if verdict.reason:
+            if verdict.confidence != confidence:
+                confidence = verdict.confidence
+                best["_archive_confidence"] = confidence
+            best["_archive_reason"] = (str(best.get("_archive_reason") or "") + "; " if best.get("_archive_reason") else "") + verdict.reason
+            outcome["reason"] = best["_archive_reason"]
+            outcome["snapshot_evidence"] = {"agree": verdict.agree, "conflict": verdict.conflict, "promoted": verdict.promoted, "capped": verdict.capped}
     if best is not None and confidence != "HIGH":
         evidence = best.get("_archive_match") if isinstance(best.get("_archive_match"), dict) else {}
         reason_text = str(best.get("_archive_reason") or outcome.get("reason") or "Candidate requires review")

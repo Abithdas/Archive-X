@@ -1,11 +1,13 @@
 import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import type { ReactNode } from 'react'
+import { useMotionPref } from './motionPref'
 
 export { AnimatePresence, motion }
 
 /** Respect the OS "reduce motion" setting everywhere (motion components honour it through this config). */
 export function MotionProvider({ children }: { children: ReactNode }) {
-  return <MotionConfig reducedMotion="user">{children}</MotionConfig>
+  const pref = useMotionPref()   // "full" (the default) plays animations even when the OS switch is off
+  return <MotionConfig reducedMotion={pref === 'system' ? 'user' : 'never'}>{children}</MotionConfig>
 }
 
 /** Shared timings so every animation in the app feels like one system. */

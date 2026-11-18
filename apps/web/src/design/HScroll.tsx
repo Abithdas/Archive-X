@@ -25,7 +25,7 @@ const DRAG_START_PX = 5
  * A row that scrolls sideways by touch (the browser's own), mouse wheel, mouse drag and two arrow buttons that appear only when
  * something is out of view. The scroll bar stays hidden.
  */
-export function HScroll({ children, label, className }: { children: ReactNode; label: string; className?: string }) {
+export function HScroll({ children, label, className, arrowTop = 24, arrows = true }: { children: ReactNode; label: string; className?: string; arrowTop?: number; arrows?: boolean }) {
   const box = useRef<HTMLDivElement>(null)
   const [edge, setEdge] = useState({ left: false, right: false })
   const drag = useRef<{ x: number; left: number; active: boolean } | null>(null)
@@ -85,19 +85,21 @@ export function HScroll({ children, label, className }: { children: ReactNode; l
       >
         {children}
       </div>
-      {edge.left ? <Arrow dir={-1} onClick={() => page(-1)} /> : null}
-      {edge.right ? <Arrow dir={1} onClick={() => page(1)} /> : null}
+      {arrows && edge.left ? <Arrow dir={-1} top={arrowTop} onClick={() => page(-1)} /> : null}
+      {arrows && edge.right ? <Arrow dir={1} top={arrowTop} onClick={() => page(1)} /> : null}
     </div>
   )
 }
 
-function Arrow({ dir, onClick }: { dir: -1 | 1; onClick: () => void }) {
+/** `top` is the height, from the top of the row, of the middle of what the arrows belong to (the row's own padding included). */
+function Arrow({ dir, top, onClick }: { dir: -1 | 1; top: number; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={dir < 0 ? 'Scroll left' : 'Scroll right'}
-      className={cn('absolute top-6 hidden size-8 -translate-y-1/2 place-items-center rounded-full border border-line-2 bg-surface/90 text-fg shadow-md backdrop-blur hover:bg-surface-2 [@media(hover:hover)]:grid', dir < 0 ? 'left-0' : 'right-0')}
+      style={{ top }}
+      className={cn('absolute hidden size-8 -translate-y-1/2 place-items-center rounded-full border border-line-2 bg-surface/90 text-fg shadow-md backdrop-blur hover:bg-surface-2 [@media(hover:hover)]:grid', dir < 0 ? 'left-0' : 'right-0')}
     >
       <Icon name={dir < 0 ? 'arrow-left' : 'arrow-right'} className="size-4" />
     </button>

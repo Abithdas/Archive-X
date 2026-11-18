@@ -1,3 +1,4 @@
+import { prefersReduced } from './motionPref'
 /*
  * The delete effect: the card is displaced and blurred by animated noise while it lifts and fades, and soft smoke puffs rise from where it was.
  * Written for Archive X from the idea of Transitions.dev's "Delete with smoky dissolve" (a paid transition whose code is not used here).
@@ -22,7 +23,7 @@ export function puffs(width: number, height: number, count = 12, random: () => n
 
 const ease = (t: number) => 1 - (1 - t) ** 3
 const smooth = (a: number, b: number, t: number) => { const x = Math.max(0, Math.min(1, (t - a) / (b - a))); return x * x * (3 - 2 * x) }
-const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+const reduced = () => prefersReduced()
 
 /** The animated filter: turbulence pushes the pixels apart (displacement) and a blur grows; both are driven per frame. */
 function makeFilter(id: string) {

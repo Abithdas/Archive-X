@@ -280,7 +280,7 @@ export function TransfersPage() {
   const [tab, setTab] = useState<Tab>('transfer')
   const show = (t: Tab): string => (tab === t ? 'flex min-w-0 flex-col [&>section]:flex-1' : 'hidden min-w-0 flex-col lg:flex [&>section]:flex-1')
   return (
-    <section className="mx-auto w-full max-w-[1800px] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead eyebrow="Transfer Workspace" title="Transfers" blurb="Upload local videos or images, move Telegram media and run release automation.">
         <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-accent/15 px-3 text-xs font-bold text-accent"><i className="size-1.5 rounded-full bg-accent" />Shared job queue</span>
       </PageHead>

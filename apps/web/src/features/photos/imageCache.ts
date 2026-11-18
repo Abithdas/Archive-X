@@ -2,12 +2,13 @@
 const MAX = 24
 const cache = new Map<string, Promise<HTMLImageElement>>()
 
-export function loadImage(url: string): Promise<HTMLImageElement> {
+export function loadImage(url: string, referrerPolicy?: ReferrerPolicy): Promise<HTMLImageElement> {
   const hit = cache.get(url)
   if (hit) return hit
   const p = new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image()
     img.decoding = 'async'
+    if (referrerPolicy) img.referrerPolicy = referrerPolicy   // provider pictures are fetched without saying which page asks
     img.onload = () => { void (img.decode ? img.decode() : Promise.resolve()).catch(() => undefined).then(() => resolve(img)) }
     img.onerror = () => reject(new Error(`Could not load ${url}`))
     img.src = url
@@ -21,5 +22,5 @@ export const isCached = (url: string) => cache.has(url)
 export const clearImageCache = () => cache.clear()
 
 /** The first of these to load; fails only if every one fails. */
-export const firstLoaded = (urls: readonly string[]): Promise<{ url: string; img: HTMLImageElement }> =>
-  Promise.any(urls.map((url) => loadImage(url).then((img) => ({ url, img }))))
+export const firstLoaded = (urls: readonly string[], referrerPolicy?: ReferrerPolicy): Promise<{ url: string; img: HTMLImageElement }> =>
+  Promise.any(urls.map((url) => loadImage(url, referrerPolicy).then((img) => ({ url, img }))))
