@@ -1,7 +1,10 @@
 export type Mode = 'sfw' | 'nsfw'
 export interface ContentState { ok?: boolean; mode: Mode; pin_set: boolean; locked_for: number }
-export interface ChannelMark { kind?: 'telegram' | 'local'; telegram_id: string; title: string; username: string | null; in_library: number; content_rating: Mode; holds: 'videos' | 'photos' | 'both'; videos: number; photos: number }
-export interface MarksPayload { ok?: boolean; mode: Mode; channels: ChannelMark[] }
+export interface ChannelMark { kind?: 'telegram' | 'local'; unnamed?: boolean; telegram_id: string; title: string; username: string | null; in_library: number; content_rating: Mode; holds: 'videos' | 'photos' | 'both'; videos: number; photos: number }
+export interface MarksPayload { ok?: boolean; mode: Mode; channels: ChannelMark[]; hidden?: number }
+
+/** A change to the marks of one channel or folder. */
+export interface Patch { in_library?: boolean; content_rating?: Mode; holds?: string }
 
 export const MODES: ReadonlyArray<{ value: Mode; label: string; hint: string }> = [
   { value: 'sfw', label: 'SFW', hint: 'Movies and TV shows' },
@@ -49,4 +52,27 @@ export function scanText(f: Pick<LocalFolder, 'last_status' | 'last_error' | 'ph
     parts.push(`${f.videos.toLocaleString()} video${f.videos === 1 ? '' : 's'}${busy ? ` (preparing snapshots: ${(w?.done ?? 0).toLocaleString()} of ${(w?.total ?? 0).toLocaleString()})` : ''}`)
   }
   return parts.join(' · ')
+}
+
+/** Changes by channel, grouped by what they change, so choosing "SFW" for forty channels is one request, not forty. */
+export function groupPatches(drafts: Record<string, Patch>): { ids: string[]; patch: Patch }[] {
+  const groups = new Map<string, { ids: string[]; patch: Patch }>()
+  for (const [id, patch] of Object.entries(drafts)) {
+    if (!Object.keys(patch).length) continue
+    const key = JSON.stringify(Object.entries(patch).sort(([a], [b]) => a.localeCompare(b)))
+    const g = groups.get(key) ?? { ids: [], patch }
+    g.ids.push(id)
+    groups.set(key, g)
+  }
+  return [...groups.values()]
+}
+
+/** Add one change to the unsaved ones; a change back to what is saved removes it, so "N unsaved" is only what really differs. */
+export function withPatch(drafts: Record<string, Patch>, id: string, saved: Patch, patch: Patch): Record<string, Patch> {
+  const next = { ...(drafts[id] ?? {}), ...patch } as Record<string, unknown>
+  for (const k of Object.keys(next)) if (next[k] === (saved as Record<string, unknown>)[k]) delete next[k]
+  const out = { ...drafts }
+  if (Object.keys(next).length) out[id] = next as Patch
+  else delete out[id]
+  return out
 }

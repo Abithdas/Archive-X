@@ -45,6 +45,15 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
         _WATCHER = True
         threading.Thread(target=keep_in_step, name="local-folders-rescan", daemon=True).start()
 
+    def identify(channel: str) -> dict:
+        """Name the folder's videos with the providers that fit its mark: movies and shows (TMDB) for SFW, scene databases (by file hash) for NSFW."""
+        from ..engines import local_identify_adult, screen_identify
+        with db.reading() as conn:
+            row = conn.execute("SELECT COALESCE(content_rating,'nsfw') AS r FROM channels WHERE telegram_id=?", (channel,)).fetchone()
+        if row and row["r"] == "sfw":
+            return screen_identify.run(db, channel) if screen_identify.configured(db) else {"ok": False, "error": "Add a TMDB key (Settings → Metadata) to identify movies and shows."}
+        return local_identify_adult.run(db, channel) if local_identify_adult.configured(db) else {"ok": False, "error": "Add a StashDB or ThePornDB key (Settings → Metadata) to identify these videos."}
+
     def start_scan(sid: int) -> bool:
         t = running.get(sid)
         if t and t.is_alive():
@@ -55,9 +64,7 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
                 ls.scan_source(db, sid)
                 from ..engines import local_videos
                 local_videos.process(db, ls.channel_id(sid))   # probe the new videos and build their snapshots
-                from ..engines import screen_identify
-                if screen_identify.configured(db):
-                    screen_identify.run(db, ls.channel_id(sid))   # SFW folders only: movies and shows are named by the providers
+                identify(ls.channel_id(sid))
             except Exception as exc:   # the failure is stored on the source and shown in Settings
                 db.log(f"Local folder scan failed: {type(exc).__name__}: {exc}", "WARN")
         t = threading.Thread(target=work, name=f"local-scan-{sid}", daemon=True)
@@ -88,7 +95,11 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
     @router.get("/api/local-folders")
     async def local_folders(request: Request):
         require_auth(request)
-        return {"ok": True, "mode": cm.get_mode(db), "folders": await asyncio.to_thread(listing)}
+        mode = cm.get_mode(db)
+        found = await asyncio.to_thread(listing)
+        # In SFW, folders in the library as NSFW are not listed (their names and paths would say what they hold).
+        hidden = [f for f in found if mode == "sfw" and f["in_library"] and f["content_rating"] == "nsfw"]
+        return {"ok": True, "mode": mode, "folders": [f for f in found if f not in hidden], "hidden": len(hidden)}
 
     @router.get("/api/local-folders/browse")
     async def browse(request: Request, path: str = ""):
@@ -189,6 +200,29 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
         if not exists:
             raise HTTPException(404, "No such folder")
         return {"ok": True, "started": start_scan(int(source_id))}
+
+    @router.post("/api/local-folders/{source_id}/identify")
+    async def identify_folder(source_id: int, request: Request):
+        """Metadata scan of one folder: reads its videos' names and hashes and asks the providers that fit its mark. Runs in the background."""
+        require_auth(request)
+        ch = ls.channel_id(int(source_id))
+        exists = await asyncio.to_thread(lambda: any(f["id"] == int(source_id) for f in listing()))
+        if not exists:
+            raise HTTPException(404, "No such folder")
+        from ..engines import local_identify_adult, screen_identify
+        with db.reading() as conn:
+            row = conn.execute("SELECT COALESCE(content_rating,'nsfw') AS r FROM channels WHERE telegram_id=?", (ch,)).fetchone()
+        sfw = bool(row and row["r"] == "sfw")
+        if not (screen_identify.configured(db) if sfw else local_identify_adult.configured(db)):
+            raise HTTPException(400, "Add a TMDB key first (Settings → Metadata)" if sfw else "Add a StashDB or ThePornDB key first (Settings → Metadata)")
+
+        def work():
+            try:
+                identify(ch)
+            except Exception as exc:
+                db.log(f"Folder identification failed: {type(exc).__name__}: {exc}"[:300], "WARN")
+        threading.Thread(target=work, name=f"local-identify-{source_id}", daemon=True).start()
+        return {"ok": True, "kind": "movies and shows" if sfw else "scene databases"}
 
     @router.delete("/api/local-folders/{source_id}")
     async def remove_folder(source_id: int, request: Request):

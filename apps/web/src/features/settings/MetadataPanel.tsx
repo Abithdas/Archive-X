@@ -6,6 +6,7 @@ import { Icon } from '@/design/Icon'
 import { Switch } from '@/design/Switch'
 import { cn } from '@/design/cn'
 import { ScreenProviders } from '@/features/content/ScreenProviders'
+import { useContentMode } from '@/features/content/useContentMode'
 import { useMetadataSettings, useProviderDashboard, useScanSchedule } from './queries'
 import { DEFAULT_WINDOW, KEYS, keyPlaceholder, keysBody, providerCards, railRange, windowBody, windowFrom, windowProblem, windowSaved, windowStatus, type KeyKind, type ScanWindow } from './providers'
 
@@ -24,6 +25,7 @@ export function MetadataPanel() {
   const sched = useScanSchedule()
   const prov = useProviderDashboard()
   const m = (meta.data ?? {}) as Obj
+  const sfw = useContentMode().data?.mode === 'sfw'
 
   // ---- keys
   const [vals, setVals] = useState<Record<KeyKind, string>>({ tpdb: '', stash: '' })
@@ -75,6 +77,8 @@ export function MetadataPanel() {
     } catch (e) { setWinMsg(err(e, 'Could not save scan window')) }
   }
 
+  // SFW is movies and shows: the adult providers (ThePornDB, StashDB) and their scan window are not part of it, and are not shown.
+  if (sfw) return <div className="grid gap-4"><ScreenProviders /></div>
   return (
     <div className="grid gap-4">
       <section aria-label="Metadata" className={BOX}>

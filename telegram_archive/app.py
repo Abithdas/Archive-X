@@ -140,6 +140,13 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
     """Build the FastAPI app and wire the database, governor, Telegram, jobs and routes together."""
     set_context(launch_id=os.getenv("ARCHIVE_X_LAUNCH_ID") or "-", component="startup")
     db = db or Database()
+    if os.environ.get("ARCHIVE_X_DESKTOP") == "1":
+        # The desktop app always opens in SFW: NSFW is a choice made each time (with the PIN), never something a restart leaves switched on.
+        from .core import content_mode as _cm
+        try:
+            _cm.set_mode(db, _cm.DEFAULT_MODE)
+        except Exception as exc:
+            db.log(f"Could not reset the content mode at start: {type(exc).__name__}: {exc}"[:200], "WARN")
     governor = TransferGovernor(db)
     from .playback.media_tools import find_ffmpeg
     hardware_profile = detect_hardware_cached(find_ffmpeg(), config.PACKAGE_DIR)
@@ -517,12 +524,12 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
         # Teardown is best-effort per component so one failed service cannot
         # skip job recovery markers or leave the database connection open.
         try:
-            await asyncio.wait_for(page_enricher.stop(), timeout=5)
+            await asyncio.wait_for(page_enricher.stop(), timeout=3)
         except Exception as exc:
             db.log(f"Page enricher shutdown error: {type(exc).__name__}: {exc}", "WARN")
         try:
             # Interrupted work is persisted; Upload Local resumes only after explicit operator choice.
-            await asyncio.wait_for(jobs.stop(), timeout=10)   # a slow job must not hold the window shut: its checkpoint is what the next start resumes from
+            await asyncio.wait_for(jobs.stop(), timeout=6)   # a slow job must not hold the window shut: its checkpoint is what the next start resumes from
         except Exception as exc:
             db.log(f"Job manager shutdown error: {type(exc).__name__}: {exc}", "ERROR", event="shutdown.jobs_failed")
             try:
@@ -533,7 +540,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
         _eng = app_state.get("engine")
         if _eng is not None:
             try:
-                await asyncio.wait_for(_eng.stop(), timeout=6)
+                await asyncio.wait_for(_eng.stop(), timeout=4)
             except Exception as exc:
                 db.log(f"Playback engine shutdown error: {type(exc).__name__}: {exc}", "WARN")
             app_state["engine"] = None
@@ -544,7 +551,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
             except Exception as exc:
                 db.log(f"Local AI shutdown error: {type(exc).__name__}: {exc}", "WARN", event="ai.runtime.shutdown")
         try:
-            await asyncio.wait_for(telegram.disconnect(), timeout=5)   # a dead connection can take far longer than this to give up
+            await asyncio.wait_for(telegram.disconnect(), timeout=3)   # a dead connection can take far longer than this to give up
         except Exception as exc:
             db.log(f"Telegram shutdown error: {type(exc).__name__}: {exc}", "WARN")
         from .core.http_client import close_async_sessions

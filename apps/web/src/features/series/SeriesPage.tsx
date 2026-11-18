@@ -20,9 +20,9 @@ export function SeriesPage() {
         : !items.length ? <Empty icon="library" title="No shows yet">Add a folder of TV shows in Settings → Local files (marked SFW), then identify it in Settings → Metadata.</Empty>
         : (
           <ul aria-label="Shows" className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
-            {items.map((s) => (
-              <li key={s.id} className="m-0">
-                <Link to="/series/$id" params={{ id: String(s.id) }} aria-label={`Open ${s.title}`} className="group relative block aspect-[2/3] overflow-hidden rounded-[23px] border border-white/10 bg-surface-2">
+            {items.map((s, i) => (
+              <li key={s.id} className="card-in m-0" style={{ '--i': i } as React.CSSProperties}>
+                <Link to="/series/$id" params={{ id: String(s.id) }} aria-label={`Open ${s.title}`} className="ax-lift group relative block aspect-[2/3] overflow-hidden rounded-[23px] border border-white/10 bg-surface-2">
                   <img src={s.poster || PLACEHOLDER} alt="" loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
                   <span className="absolute inset-x-0 bottom-0 grid gap-0.5 bg-[linear-gradient(transparent,rgb(13_15_17/0.9)_60%)] p-3 pt-10">
                     <span className="truncate text-sm font-bold text-white" title={s.title}>{s.title}</span>
@@ -65,7 +65,7 @@ export function SeriesDetailPage({ id }: { id: number }) {
                 <ul className="m-0 grid list-none gap-2 p-0">
                   {s.episodes.map((e) => (
                     <li key={`${e.cid}:${e.mid}`} className="m-0">
-                      <Link to="/watch/$cid/$mid" params={{ cid: e.cid, mid: String(e.mid) }} className="flex gap-3 rounded-2xl border border-line bg-surface p-3 hover:bg-fg/5">
+                      <Link to="/watch/$cid/$mid" params={{ cid: e.cid, mid: String(e.mid) }} className="ax-lift flex gap-3 rounded-2xl border border-line bg-surface p-3 hover:bg-fg/5">
                         <span className="w-16 shrink-0 pt-0.5 text-xs font-bold text-accent">{episodeLabel(s.season, e)}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-semibold">{e.name}</span>

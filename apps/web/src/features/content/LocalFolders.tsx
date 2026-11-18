@@ -5,8 +5,10 @@ import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { Segmented } from '@/design/Segmented'
 import { cn } from '@/design/cn'
-import { modeLabel, scanText, type LocalFolder, type Mode } from './content'
-import { errorText, useBrowse, useContentMode, useLocalActions, useLocalFolders, useSetMarks } from './useContentMode'
+import { api } from '@/api/client'
+import { modeLabel, scanText, withPatch, type LocalFolder, type Mode, type Patch } from './content'
+import { SaveBar } from './SaveBar'
+import { errorText, useBrowse, useContentMode, useLocalActions, useLocalFolders, useSaveMarks } from './useContentMode'
 
 const HOLDS = [{ value: 'both', label: 'Videos + photos' }, { value: 'videos', label: 'Videos' }, { value: 'photos', label: 'Photos' }] as const
 const BTN = 'h-9 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50'
@@ -16,12 +18,23 @@ export function LocalFolders() {
   const q = useLocalFolders()
   const mode = useContentMode().data?.mode ?? 'sfw'
   const act = useLocalActions()
-  const marks = useSetMarks()
+  const save = useSaveMarks()
+  const [draft, setDraft] = useState<Record<string, Patch>>({})
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<LocalFolder | null>(null)
   const folders = q.data?.folders ?? []
-  const mark = (f: LocalFolder, body: { in_library?: boolean; content_rating?: Mode; holds?: string }) =>
-    marks.mutate({ ids: [f.channel_id], ...body }, { onSuccess: () => void q.refetch(), onError: (e) => toast.error(errorText(e, 'Could not save.')) })
+  const savedOf = (f: LocalFolder): Patch => ({ in_library: Boolean(f.in_library), content_rating: f.content_rating, holds: f.holds })
+  const mark = (f: LocalFolder, patch: Patch) => setDraft((d) => withPatch(d, f.channel_id, savedOf(f), patch))   // kept aside until Save
+  const commit = () => save.mutate(draft, {
+    onSuccess: () => { setDraft({}); toast.success('Saved.') },
+    onError: (e) => toast.error(errorText(e, 'Could not save. Your changes are still here.')),
+  })
+  const identify = async (f: LocalFolder) => {
+    try {
+      const r = await api<{ kind: string }>(`/api/local-folders/${f.id}/identify`, { method: 'POST', json: {} })
+      toast(`Reading names${r.kind === 'scene databases' ? ' and file hashes' : ''}: asking ${r.kind}. Results appear as they come.`)
+    } catch (e) { toast.error(errorText(e, 'Could not start the metadata scan.')) }
+  }
 
   return (
     <div className="grid gap-4">
@@ -31,16 +44,19 @@ export function LocalFolders() {
           <button type="button" onClick={() => setAdding(true)} className="h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Add a folder</button>
         </div>
         <p className="mb-4 text-sm text-muted">Folders on this PC join the library like channels do. Photos and videos stay where they are; Archive X reads them from there. Mark each folder SFW or NSFW, and it is shown only in that mode ({modeLabel(mode)} now).</p>
+        {q.data?.hidden ? <p className="mb-3 rounded-xl bg-surface-2 px-3 py-2 text-xs text-muted">{q.data.hidden.toLocaleString()} folder{q.data.hidden === 1 ? ' is' : 's are'} in the library as NSFW and not listed in SFW mode.</p> : null}
         {q.isPending ? <p role="status" className="py-3 text-sm text-muted">Loading…</p> : q.isError ? <p role="alert" className="py-3 text-sm text-warn">Could not load the folders.</p> : !folders.length ? <p className="py-3 text-sm text-muted">No folders yet. Add one to see its photos in the Photos page.</p> : (
           <ul className="grid divide-y divide-line rounded-xl border border-line">
-            {folders.map((f) => (
-              <li key={f.id} className={cn('grid gap-2 px-3 py-3', !f.in_library && 'opacity-70')}>
+            {folders.map((f, i) => {
+              const v = { ...savedOf(f), ...draft[f.channel_id] }
+              return (
+              <li key={f.id} style={{ '--i': i } as React.CSSProperties} className={cn('ax-rise grid gap-2 px-3 py-3 transition-[background-color,opacity] duration-200', !v.in_library && 'opacity-70', draft[f.channel_id] && 'bg-accent/10')}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0 flex-1 basis-60"><b className="block truncate text-sm">{f.title || f.path}</b><small className="block truncate text-xs text-muted" title={f.path}>{f.path}</small></div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(f.in_library)} onChange={(e) => mark(f, { in_library: e.target.checked })} aria-label={`${f.title ?? f.path} is in the library`} />In library</label>
-                    <Segmented<Mode> label={`${f.title ?? f.path} content`} value={f.content_rating} onChange={(v) => mark(f, { content_rating: v })} options={[{ value: 'sfw', label: 'SFW' }, { value: 'nsfw', label: 'NSFW' }]} />
-                    <select aria-label={`${f.title ?? f.path} holds`} value={f.holds} onChange={(e) => mark(f, { holds: e.target.value })} className="h-9 rounded-lg border border-line-2 bg-bg px-2 text-sm">
+                    <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(v.in_library)} onChange={(e) => mark(f, { in_library: e.target.checked })} aria-label={`${f.title ?? f.path} is in the library`} />In library</label>
+                    <Segmented<Mode> label={`${f.title ?? f.path} content`} value={v.content_rating ?? 'nsfw'} onChange={(m) => mark(f, { content_rating: m })} options={[{ value: 'sfw', label: 'SFW' }, { value: 'nsfw', label: 'NSFW' }]} />
+                    <select aria-label={`${f.title ?? f.path} holds`} value={v.holds} onChange={(e) => mark(f, { holds: e.target.value })} className="h-9 rounded-lg border border-line-2 bg-bg px-2 text-sm">
                       {HOLDS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
                     </select>
                   </div>
@@ -48,14 +64,17 @@ export function LocalFolders() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p role="status" className={cn('text-xs', f.last_status === 'FAILED' || !f.exists ? 'text-bad' : 'text-muted')}>{scanText(f)}</p>
                   <div className="flex gap-2">
-                    <button type="button" className={BTN} disabled={act.scan.isPending} onClick={() => act.scan.mutate(f.id)}>Check again</button>
+                    <button type="button" className={BTN} disabled={act.scan.isPending} onClick={() => act.scan.mutate(f.id)} title="Look for new, changed and removed files">Check again</button>
+                    {f.videos ? <button type="button" className={BTN} onClick={() => void identify(f)} title={f.content_rating === 'sfw' ? 'Name the movies and shows with TMDB' : 'Look the videos up by file hash in StashDB / ThePornDB'}>Scan metadata</button> : null}
                     <button type="button" className={BTN} onClick={() => setRemoving(f)}>Remove</button>
                   </div>
                 </div>
               </li>
-            ))}
+              )
+            })}
           </ul>
         )}
+        <SaveBar count={Object.keys(draft).length} busy={save.isPending} onSave={commit} onDiscard={() => setDraft({})} />
       </section>
       {adding ? <AddFolder mode={mode} onClose={() => setAdding(false)} onAdd={(b) => act.add.mutate(b, { onSuccess: () => { setAdding(false); toast('Folder added; looking through it now') }, onError: (e) => toast.error(errorText(e, 'Could not add the folder.')) })} busy={act.add.isPending} /> : null}
       {removing ? <Confirm title="Stop using this folder?" text={`${removing.path}\n\nIts photos leave the library. The files on your PC are not touched.`} ok="Remove" danger onCancel={() => setRemoving(null)} onOk={() => act.remove.mutate(removing.id, { onSuccess: () => setRemoving(null), onError: (e) => toast.error(errorText(e, 'Could not remove it.')) })} /> : null}

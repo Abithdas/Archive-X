@@ -88,7 +88,7 @@ fn start_backend(app: tauri::AppHandle) {
     // Watch the backend: if it dies while the app is open, say so instead of showing a dead page. A backend that stops by itself with a success
     // status is not a crash: it is "Exit app" in the page (it checkpoints its jobs and stops), so the app closes with it, quietly.
     loop {
-        std::thread::sleep(Duration::from_secs(2));
+        std::thread::sleep(Duration::from_secs(1));
         let state = app.state::<BackendState>();
         let mut guard = state.0.lock().unwrap();
         let ended: Option<Result<(), String>> = match guard.as_mut() {
@@ -119,7 +119,7 @@ fn stop_backend(app: &tauri::AppHandle) {
     let state = app.state::<BackendState>();
     let taken = state.0.lock().unwrap().take();
     if let Some(mut backend) = taken {
-        backend.shutdown(Duration::from_secs(25));
+        backend.shutdown(Duration::from_secs(12));   // the backend bounds its own cleanup and usually needs a second or two; past this the whole process tree is ended
     }
 }
 

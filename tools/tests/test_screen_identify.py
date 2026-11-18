@@ -1,8 +1,11 @@
 import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 
+# before anything imports the app: keys these tests save must land in a temporary folder, never in the real data folder
+os.environ.update(ARCHIVE_X_DATA_DIR=tempfile.mkdtemp(prefix="axscreen_"), ARCHIVE_X_AUTO_OPEN_BROWSER="0", ARCHIVE_X_LOCAL_RESCAN="0")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -173,3 +176,55 @@ def test_a_direct_link_to_something_the_mode_hides_is_refused(tmp_path):
     g._cache.clear()
     assert [c.get(p).status_code == 404 for p in hidden_paths[:4]] == [False] * 4              # now these are the visible ones
     assert c.get("/api/play/info/-1002/1").status_code == 404                                  # and the SFW film is hidden
+
+
+def test_an_nsfw_folder_is_identified_by_file_hash_and_a_folder_scan_picks_the_right_providers(tmp_path, monkeypatch):
+    from telegram_archive.engines import local_identify_adult as adult
+    big = tmp_path / "Private"
+    big.mkdir()
+    (big / "scene one.mp4").write_bytes(b"\x07" * 200_000)           # long enough to have a hash
+    (big / "tiny.mp4").write_bytes(b"x")                              # too small to have one
+    db = Database(tmp_path / "n.db")
+    c, H = _client(db)
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
+    r = c.post("/api/local-folders", json={"path": str(big), "content_rating": "nsfw", "holds": "videos"}, headers=H)
+    sid_ = r.json()["id"]
+    ch = ls.channel_id(sid_)
+    for _ in range(200):
+        with db.reading() as conn:
+            if conn.execute("SELECT COUNT(*) FROM local_video_files WHERE channel_id=? AND snapshots<>0", (ch,)).fetchone()[0] == 2:
+                break
+        time.sleep(0.05)
+    time.sleep(0.3)
+    assert c.post(f"/api/local-folders/{sid_}/identify", headers=H).status_code == 400             # no key yet: it says so
+    db.set_setting("stashdb_api_key", "k" * 20)
+    seen = []
+
+    async def lookup(_db, file_hash):
+        seen.append(file_hash)
+        return {"source": "stashdb", "title": "Scene One", "performers": []}
+    monkeypatch.setattr(adult, "_lookup", lookup)
+    monkeypatch.setattr(adult.providers, "apply_scene_match", lambda _db, cid, mid, best, oshash=None: True)
+    out = adult.run(db, ch)
+    assert out["ok"] and (out["matched"], out["unmatched"]) == (1, 1) and len(seen) == 1 and len(seen[0]) == 16
+    with db.reading() as conn:
+        assert conn.execute("SELECT oshash FROM media WHERE filename='scene one.mp4'").fetchone()[0] == seen[0]
+    assert c.post(f"/api/local-folders/{sid_}/identify", headers=H).json()["kind"] == "scene databases"
+
+
+def test_sfw_channel_lists_show_no_nsfw_or_orphan_channels(tmp_path):
+    db = Database(tmp_path / "l.db")
+    c, H = _client(db)
+    with db.lock:
+        db.conn.execute("INSERT INTO channels(telegram_id,title,role,in_library,content_rating,holds,updated_at) VALUES('-1001','Adult','available',1,'nsfw','both','2026-01-01')")
+        db.conn.execute("INSERT INTO channels(telegram_id,title,role,in_library,content_rating,holds,updated_at) VALUES('-1002','Films','available',1,'sfw','both','2026-01-01')")
+        for ch in ("-1001", "-1002", "-1003"):          # -1003 has no channel row at all: the "Unknown channel" a library shows for orphans
+            db.conn.execute("INSERT INTO media(source_channel,source_message_id,filename,title,status,streamable) VALUES(?,1,'a.mp4','a','SCANNED',1)", (ch,))
+            db.conn.execute("INSERT INTO photo_library_items(channel_id,message_id,filename,size,width,height,cached_at,created_at,updated_at) VALUES(?,1,'p.jpg',1,1,1,'x','x','x')", (ch,))
+        db.conn.commit()
+    def names(rows):
+        return sorted(str(r.get("title") or r.get("telegram_id")) for r in rows)
+    assert names(c.get("/api/photos/channels").json()) == ["Films"]                      # SFW: no adult channel, no "Unknown channel"
+    assert not {"Adult", "Unknown channel"} & set(names(c.get("/api/channels").json()))
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
+    assert names(c.get("/api/photos/channels").json()) == ["Adult", "Unknown channel"]   # NSFW: the adult channel and the orphan, not the film channel

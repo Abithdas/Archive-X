@@ -5,7 +5,7 @@ import { askFor, modeLabel, pinProblem, switchBody, MODES, type Ask, type Mode }
 import { errorText, useContentMode, useSwitchMode } from './useContentMode'
 
 /** SFW / NSFW. Towards SFW it switches at once; into NSFW it asks for the PIN (or, the first time, for a new one). */
-export function ContentSwitch({ compact = false }: { compact?: boolean }) {
+export function ContentSwitch({ compact = false, onDone }: { compact?: boolean; onDone?: () => void }) {
   const state = useContentMode()
   const change = useSwitchMode()
   const [asking, setAsking] = useState<{ target: Mode; ask: Ask } | null>(null)
@@ -15,17 +15,18 @@ export function ContentSwitch({ compact = false }: { compact?: boolean }) {
   const current = state.data?.mode ?? 'sfw'
 
   const close = () => { setAsking(null); setPin(''); setAgain(''); setError(''); change.reset() }
+  const done = () => { close(); onDone?.() }   // a finished switch closes the PIN dialog and whatever menu it was opened from
   const choose = (target: Mode) => {
     if (!state.data || target === current) return
     const ask = askFor(target, state.data)
-    if (ask === 'none') change.mutate(switchBody(target, ask, ''), { onError: (e) => setError(errorText(e, 'Could not switch.')) })
+    if (ask === 'none') change.mutate(switchBody(target, ask, ''), { onSuccess: onDone, onError: (e) => setError(errorText(e, 'Could not switch.')) })
     else setAsking({ target, ask })
   }
   const submit = () => {
     if (!asking) return
     const problem = pinProblem(pin) ?? (asking.ask === 'create' && pin !== again ? 'The two PINs are different.' : null)
     if (problem) { setError(problem); return }
-    change.mutate(switchBody(asking.target, asking.ask, pin), { onSuccess: close, onError: (e) => setError(errorText(e, 'Could not switch.')) })
+    change.mutate(switchBody(asking.target, asking.ask, pin), { onSuccess: done, onError: (e) => setError(errorText(e, 'Could not switch.')) })
   }
   return (
     <div className={compact ? 'grid gap-1.5' : 'grid gap-2'} data-testid="content-switch" data-ready={state.data ? 'true' : undefined}>
@@ -38,7 +39,7 @@ export function ContentSwitch({ compact = false }: { compact?: boolean }) {
             <p className="text-sm text-muted">{asking.ask === 'create' ? 'NSFW is switched on with a PIN, so a shared screen cannot show it with one click. Choose 4 to 12 digits.' : 'NSFW needs the PIN you chose.'}</p>
             <input autoFocus type="password" inputMode="numeric" autoComplete="off" aria-label={asking.ask === 'create' ? 'New PIN' : 'PIN'} value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setError('') }} maxLength={12} className="h-11 rounded-xl border border-line-2 bg-bg px-3 text-center text-lg tracking-[0.4em]" />
             {asking.ask === 'create' ? <input type="password" inputMode="numeric" autoComplete="off" aria-label="Repeat the PIN" value={again} onChange={(e) => { setAgain(e.target.value.replace(/\D/g, '')); setError('') }} maxLength={12} className="h-11 rounded-xl border border-line-2 bg-bg px-3 text-center text-lg tracking-[0.4em]" /> : null}
-            {error ? <p role="alert" className="text-sm text-bad">{error}</p> : null}
+            {error ? <p key={error} role="alert" className="ax-shake text-sm text-bad">{error}</p> : null}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={close} className="h-11 rounded-xl border border-line-2 px-4 text-sm font-semibold">Cancel</button>
               <button type="submit" disabled={change.isPending} className="h-11 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60">{asking.ask === 'create' ? 'Set PIN and switch' : 'Switch to NSFW'}</button>

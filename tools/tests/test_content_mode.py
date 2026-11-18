@@ -110,8 +110,11 @@ def test_switching_into_nsfw_needs_a_pin_and_channels_follow_the_mode(db):
 
 def test_channel_marks_are_listed_unfiltered_and_can_be_changed(db):
     c, H = _client(db)
+    first = c.get("/api/telegram/channel-marks").json()
+    assert sorted(m["title"] for m in first["channels"]) == ["Hidden", "Movies"] and first["hidden"] == 1   # SFW: the NSFW channel's name is not listed
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
     marks = c.get("/api/telegram/channel-marks").json()["channels"]
-    assert sorted(m["title"] for m in marks) == ["Adult", "Hidden", "Movies"]       # management sees every channel
+    assert sorted(m["title"] for m in marks) == ["Adult", "Hidden", "Movies"]       # NSFW: management sees every channel
     r = c.post("/api/telegram/channel-marks", json={"ids": ["3"], "in_library": True, "content_rating": "sfw"}, headers=H)
     assert r.json()["changed"] == 1
     after = {m["title"]: m for m in c.get("/api/telegram/channel-marks").json()["channels"]}
@@ -150,3 +153,15 @@ def test_counting_videos_per_performer_stays_fast_with_the_filter_on(tmp_path):
         cm.FILTER_ACTIVE.reset(tok)
     assert len(rows) == 1000 and sum(r["n"] for r in rows) == 20000
     assert took < 2.0, f"{took:.1f}s"
+
+
+def test_the_desktop_app_opens_in_sfw_whatever_it_was_left_in(tmp_path, monkeypatch):
+    from telegram_archive.app import create_app
+    db = Database(tmp_path / "d.db")
+    cm.set_mode(db, "nsfw")
+    monkeypatch.delenv("ARCHIVE_X_DESKTOP", raising=False)
+    create_app(db=db)
+    assert cm.get_mode(db) == "nsfw"                       # a browser or a test keeps what was chosen
+    monkeypatch.setenv("ARCHIVE_X_DESKTOP", "1")
+    create_app(db=db)
+    assert cm.get_mode(db) == "sfw"                        # the desktop app starts safe, every time

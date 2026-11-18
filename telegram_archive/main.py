@@ -3,6 +3,7 @@ from __future__ import annotations
 from .core.swallowed import note as _swallowed_note
 import asyncio
 import os
+import sys
 import json
 import threading
 import time
@@ -65,7 +66,8 @@ def _run_desktop_server(app):
 
     async def _serve():
         loop = asyncio.get_running_loop()
-        server = uvicorn.Server(uvicorn.Config(app, log_level="warning", lifespan="on"))
+        # open streams and live-update sockets must not hold the shutdown: after 3 s uvicorn closes them
+        server = uvicorn.Server(uvicorn.Config(app, log_level="warning", lifespan="on", timeout_graceful_shutdown=3))
 
         def _request_stop():
             loop.call_soon_threadsafe(setattr, server, "should_exit", True)
@@ -85,6 +87,16 @@ def _run_desktop_server(app):
         await server.serve(sockets=[sock])
 
     asyncio.run(_serve())
+    # Cleanup is done (the database is closed in the lifespan). A helper thread that is still winding down must not keep the process, and
+    # with it the window's "Exit", waiting.
+    import logging as _logging
+    _logging.shutdown()
+    try:
+        sys.stdout.flush()
+        sys.stderr.flush()
+    except Exception:
+        pass
+    os._exit(0)
 
 
 STARTUP_PHASES: list[tuple[str, float]] = []

@@ -28,6 +28,9 @@ describe('LocalFolders', () => {
     withRouter(<LocalFolders />)
     expect(await screen.findByText('12 photos')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'SFW' }))
+    expect(await screen.findByText('1 change not saved')).toBeInTheDocument()
+    expect(calls.some((c) => c.url === '/api/telegram/channel-marks' && c.method === 'POST')).toBe(false)   // kept aside until Save
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() => expect(calls.find((c) => c.url === '/api/telegram/channel-marks' && c.method === 'POST')?.body).toEqual({ ids: ['-9000000000001'], content_rating: 'sfw' }))
   })
   it('says when there are none, and adds a chosen folder with its mark', async () => {
@@ -40,5 +43,12 @@ describe('LocalFolders', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add this folder' })).toBeEnabled())   // once the chosen folder has been opened
     fireEvent.click(screen.getByRole('button', { name: 'Add this folder' }))
     await waitFor(() => expect(calls.find((c) => c.url === '/api/local-folders' && c.method === 'POST')?.body).toMatchObject({ content_rating: 'sfw', holds: 'both' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Add this folder' })).toBeNull())   // the dialog closes by itself once the folder is added
+  })
+  it('offers a metadata scan for a folder that has videos', async () => {
+    const calls = mock([{ ...folder, videos: 4 }])
+    withRouter(<LocalFolders />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Scan metadata' }))
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/local-folders/1/identify' && c.method === 'POST')).toBe(true))
   })
 })

@@ -77,7 +77,15 @@ def register_content_routes(router: APIRouter, *, db, require_auth):
                     "(SELECT COUNT(*) FROM media m WHERE m.source_channel=c.telegram_id) AS videos, "
                     "(SELECT COUNT(*) FROM photo_library_items p WHERE p.channel_id=c.telegram_id) AS photos "
                     "FROM channels c ORDER BY LOWER(c.title)")]
-        return {"ok": True, "mode": cm.get_mode(db), "channels": await asyncio.to_thread(rows)}
+        mode = cm.get_mode(db)
+        found = await asyncio.to_thread(rows)
+        for r in found:
+            r["unnamed"] = str(r["title"] or "").strip().lower() in ("", "unknown channel", "unknown")
+        # In SFW the names of channels that are in the library as NSFW are not shown here either (the names alone would say what they are).
+        # Channels still outside the library stay listed so they can be sorted; the NSFW ones are managed from NSFW mode.
+        hidden = [r for r in found if mode == "sfw" and r["in_library"] and r["content_rating"] == "nsfw"]
+        shown = [r for r in found if r not in hidden] if hidden else found
+        return {"ok": True, "mode": mode, "channels": shown, "hidden": len(hidden)}
 
     @router.post("/api/telegram/channel-marks")
     async def channel_marks_set(request: Request):

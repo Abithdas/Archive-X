@@ -585,7 +585,8 @@ html[data-theme="light"] .ax-puff { --smoke: 90 96 110; }
 /* ── Live status dot and pill (top bar): a breathing dot with a ring that spreads, and a soft sweep across the pill ─────────
    Windows turns "animation effects" off on many PCs, which sets prefers-reduced-motion and used to freeze these. A dot that only
    changes opacity is safe for everyone, so under reduce it still breathes (opacity only) and the ring and sweep stop. */
-.ax-live-dot { position: relative; display: inline-block; flex: none; border-radius: 9999px; animation: ax-live-breathe 2.4s ease-in-out infinite; }
+.ax-live-dot { display: inline-block; flex: none; border-radius: 9999px; animation: ax-live-breathe 2.4s ease-in-out infinite; }
+.ax-live-dot:not(.absolute) { position: relative; }   /* on the avatar it is positioned by its own classes (top right) */
 .ax-live-dot::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: inherit; animation: ax-live-ring 2.4s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none; }
 .ax-live-dot[data-live="false"], .ax-live-dot[data-live="false"]::after { animation: none; }
 @keyframes ax-live-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }

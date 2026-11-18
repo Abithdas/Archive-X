@@ -85,6 +85,103 @@ pub struct FrontDoorOptions {
     pub dist_dir: PathBuf,
 }
 
+/// A job object that kills every process in it when the launcher goes away (Windows). The backend starts helpers of its own (FFmpeg,
+/// workers); putting the backend and the front door in this job means Exit, a crash, or "End task" leaves nothing running behind.
+mod job {
+    use std::process::Child;
+
+    #[cfg(windows)]
+    mod sys {
+        use std::ffi::c_void;
+        pub type Handle = *mut c_void;
+        #[repr(C)]
+        pub struct BasicLimits {
+            pub per_process_user_time_limit: i64,
+            pub per_job_user_time_limit: i64,
+            pub limit_flags: u32,
+            pub minimum_working_set_size: usize,
+            pub maximum_working_set_size: usize,
+            pub active_process_limit: u32,
+            pub affinity: usize,
+            pub priority_class: u32,
+            pub scheduling_class: u32,
+        }
+        #[repr(C)]
+        pub struct IoCounters {
+            pub counts: [u64; 6],
+        }
+        #[repr(C)]
+        pub struct ExtendedLimits {
+            pub basic: BasicLimits,
+            pub io: IoCounters,
+            pub process_memory_limit: usize,
+            pub job_memory_limit: usize,
+            pub peak_process_memory_used: usize,
+            pub peak_job_memory_used: usize,
+        }
+        pub const KILL_ON_JOB_CLOSE: u32 = 0x2000;
+        pub const EXTENDED_LIMIT_INFORMATION: i32 = 9;
+        #[link(name = "kernel32")]
+        extern "system" {
+            pub fn CreateJobObjectW(attributes: *mut c_void, name: *const u16) -> Handle;
+            pub fn SetInformationJobObject(job: Handle, class: i32, info: *mut c_void, length: u32) -> i32;
+            pub fn AssignProcessToJobObject(job: Handle, process: Handle) -> i32;
+            pub fn CloseHandle(handle: Handle) -> i32;
+        }
+    }
+
+    #[cfg(windows)]
+    pub struct Job(sys::Handle);
+    #[cfg(windows)]
+    unsafe impl Send for Job {}
+
+    #[cfg(windows)]
+    impl Job {
+        pub fn new() -> Option<Job> {
+            unsafe {
+                let handle = sys::CreateJobObjectW(std::ptr::null_mut(), std::ptr::null());
+                if handle.is_null() {
+                    return None;
+                }
+                let mut info: sys::ExtendedLimits = std::mem::zeroed();
+                info.basic.limit_flags = sys::KILL_ON_JOB_CLOSE;
+                let ok = sys::SetInformationJobObject(handle, sys::EXTENDED_LIMIT_INFORMATION, &mut info as *mut _ as *mut std::ffi::c_void, std::mem::size_of::<sys::ExtendedLimits>() as u32);
+                if ok == 0 {
+                    sys::CloseHandle(handle);
+                    return None;
+                }
+                Some(Job(handle))
+            }
+        }
+        /// Put a process in the job. Best effort: the app still works if Windows refuses.
+        pub fn add(&self, child: &Child) {
+            use std::os::windows::io::AsRawHandle;
+            unsafe {
+                sys::AssignProcessToJobObject(self.0, child.as_raw_handle() as sys::Handle);
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    impl Drop for Job {
+        fn drop(&mut self) {
+            unsafe {
+                sys::CloseHandle(self.0);   // closing the last handle kills everything still in the job
+            }
+        }
+    }
+
+    #[cfg(not(windows))]
+    pub struct Job;
+    #[cfg(not(windows))]
+    impl Job {
+        pub fn new() -> Option<Job> {
+            None
+        }
+        pub fn add(&self, _child: &Child) {}
+    }
+}
+
 struct FrontDoor {
     child: Child,
     port: u16,
@@ -93,6 +190,9 @@ struct FrontDoor {
 pub struct Backend {
     child: Child,
     front: Option<FrontDoor>,
+    /// Held for its drop: when it goes, so does every process still in it.
+    #[allow(dead_code)]
+    job: Option<job::Job>,
     pub ready: Ready,
     secret: String,
     /// Recent backend output, kept for diagnostics.
@@ -134,6 +234,10 @@ impl Backend {
             cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW: no console window next to the app
         }
         let mut child = cmd.spawn().map_err(LaunchError::Spawn)?;
+        let job = job::Job::new();
+        if let Some(j) = &job {
+            j.add(&child);
+        }
 
         let log = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
         let (tx, rx) = mpsc::channel::<Result<Ready, LaunchError>>();
@@ -176,7 +280,10 @@ impl Backend {
                         },
                         _ => None,
                     };
-                    return Ok(Backend { child, front, ready, secret, log });
+                    if let (Some(j), Some(f)) = (&job, &front) {
+                        j.add(&f.child);
+                    }
+                    return Ok(Backend { child, front, job, ready, secret, log });
                 }
                 Ok(Err(e)) => {
                     let _ = child.kill();

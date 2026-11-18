@@ -130,6 +130,7 @@ def _client(db):
 def test_routes_add_scan_serve_and_remove_a_folder(tmp_path, folder):
     db = Database(tmp_path / "a.db")
     c, H = _client(db)
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200   # the folder here is NSFW
     r = c.post("/api/local-folders", json={"path": str(folder), "content_rating": "nsfw"}, headers=H)
     assert r.status_code == 200, r.text
     sid = r.json()["id"]
@@ -141,7 +142,6 @@ def test_routes_add_scan_serve_and_remove_a_folder(tmp_path, folder):
     assert (f["photos"], f["videos"], f["content_rating"], f["title"]) == (3, 1, "nsfw", "Pictures")
     assert c.post("/api/local-folders", json={"path": str(folder / "trip"), "content_rating": "sfw"}, headers=H).status_code == 409   # overlaps
     assert c.post("/api/local-folders", json={"path": str(tmp_path / "nope")}, headers=H).status_code == 400
-    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
     channels = {ch["telegram_id"]: ch for ch in c.get("/api/photos/channels").json()}
     assert channels[ls.channel_id(sid)]["photo_count"] == 3 and channels[ls.channel_id(sid)]["photo_scan_status"] == "COMPLETE"
     img = c.get(f"/api/photos/{ls.channel_id(sid)}/1/image")
@@ -170,6 +170,7 @@ def test_a_local_video_is_listed_probed_streamed_and_gets_its_snapshots(tmp_path
         pytest.skip("ffmpeg is not available")
     db = Database(tmp_path / "v.db")
     c, H = _client(db)
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
     r = c.post("/api/local-folders", json={"path": str(root), "content_rating": "nsfw", "holds": "videos"}, headers=H)
     assert r.status_code == 200, r.text
     sid = r.json()["id"]
@@ -186,7 +187,6 @@ def test_a_local_video_is_listed_probed_streamed_and_gets_its_snapshots(tmp_path
         m = conn.execute("SELECT * FROM media WHERE source_channel=?", (ch,)).fetchone()
     assert (m["title"], m["width"], m["height"]) == ("Some Film (2019)", 320, 180) and 3.5 < m["duration"] < 4.5
     mid = m["source_message_id"]
-    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
     info = c.get(f"/api/play/info/{ch}/{mid}").json()
     assert info["local_file"] is True and info["width"] == 320 and info["mime"] == "video/mp4"
     full = c.get(f"/stream/{ch}/{mid}")
@@ -207,3 +207,16 @@ def test_a_local_video_is_listed_probed_streamed_and_gets_its_snapshots(tmp_path
         time.sleep(0.05)
     with db.reading() as conn:
         assert not conn.execute("SELECT 1 FROM media WHERE source_channel=?", (ch,)).fetchone()
+
+
+def test_nsfw_folders_are_not_listed_in_sfw(tmp_path):
+    root = tmp_path / "Private"
+    root.mkdir()
+    db = Database(tmp_path / "h.db")
+    c, H = _client(db)
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
+    assert c.post("/api/local-folders", json={"path": str(root), "content_rating": "nsfw"}, headers=H).status_code == 200
+    assert [f["title"] for f in c.get("/api/local-folders").json()["folders"]] == ["Private"]
+    assert c.post("/api/content-mode", json={"mode": "sfw"}, headers=H).status_code == 200
+    r = c.get("/api/local-folders").json()
+    assert r["folders"] == [] and r["hidden"] == 1                      # neither its name nor its path is shown

@@ -87,6 +87,42 @@ body {
 .card-in { animation: card-in var(--dur-slow) var(--ease-out) both; animation-delay: calc(min(var(--i, 0), 16) * 40ms); }
 @media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .card-in { animation: none; } } }
 
+/* Micro-interactions. Small, quick answers to the hand: a press, a tick, a focus, a hover. They live in the base layer (a utility on an element wins over them)
+   and all of them stop when the person asked for less motion. */
+@keyframes ax-check-pop { 0% { transform: scale(0.75); } 55% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes ax-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+@keyframes ax-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes ax-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes ax-ok-pulse { 0% { box-shadow: 0 0 0 0 rgb(50 199 129 / 0.55); } 100% { box-shadow: 0 0 0 12px rgb(50 199 129 / 0); } }
+@layer base {
+  :where(button, [role="button"], summary) { transition: transform 130ms var(--ease-out, ease-out); }
+  :where(button:not(:disabled), [role="button"]:not([aria-disabled="true"])):active { transform: scale(0.96); }
+  :where(input[type="checkbox"], input[type="radio"]) { accent-color: var(--color-accent); transition: transform 120ms var(--ease-out, ease-out); }
+  :where(input[type="checkbox"], input[type="radio"]):checked { animation: ax-check-pop 240ms var(--ease-out, ease-out); }
+  :where(input[type="checkbox"], input[type="radio"]):active { transform: scale(0.88); }
+  :where(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea) { transition: box-shadow 180ms ease-out, border-color 180ms ease-out; }
+  :where(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea):focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 28%, transparent); }
+  :where(aside a) svg { transition: transform 200ms var(--ease-out, ease-out); }
+  :where(aside a):hover svg { transform: translateX(2px) scale(1.1); }
+}
+@layer components {
+  .ax-rise { animation: ax-rise 320ms var(--ease-out, ease-out) both; animation-delay: calc(min(var(--i, 0), 12) * 28ms); }
+  .ax-lift { transition: transform 220ms var(--ease-out, ease-out), box-shadow 220ms ease-out; }
+  .ax-lift:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgb(0 0 0 / 0.28); }
+  .ax-lift:active { transform: translateY(-1px) scale(0.99); }
+  .ax-shake { animation: ax-shake 380ms ease-in-out; }
+  .ax-float { animation: ax-float 3.2s ease-in-out infinite; }
+  .ax-ok-pulse { animation: ax-ok-pulse 700ms ease-out; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) {
+    :where(button, [role="button"], summary, input, select, textarea, aside a svg) { transition: none; }
+    :where(button:not(:disabled), [role="button"]):active, :where(aside a):hover svg { transform: none; }
+    :where(input[type="checkbox"], input[type="radio"]):checked, .ax-rise, .ax-shake, .ax-float, .ax-ok-pulse { animation: none; }
+    .ax-lift:hover, .ax-lift:active { transform: none; }
+  }
+}
+
 /* Large displays: keep layout around 1600-2100 CSS px so text stays in proportion (same scale as the legacy UI). */
 /* --ax-page-zoom mirrors that zoom so anything sized from the window (dialogs) can divide it back out. */
 :root { --ax-page-zoom: 1; --dur-fast: 120ms; --dur-base: 200ms; --dur-slow: 300ms; --ease-out: cubic-bezier(0.2, 0.75, 0.25, 1); }  /* same values as design/motion.tsx */
