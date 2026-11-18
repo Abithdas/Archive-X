@@ -24,6 +24,7 @@ import { useUi } from './ui'
 import { useAppearance, useAppearanceActions, useAppearanceSync } from '@/features/settings/useAppearance'
 import { scaleForKey } from '@/theme/themes'
 import { useScrollMemory } from './scrollMemory'
+import { ScrambleText } from '@/design/ScrambleText'
 import { useLabels, type Labels } from '@/features/content/labels'
 import { IconSwap } from '@/design/IconSwap'
 import { SubtleNumber } from '@/design/SubtleNumber'
@@ -74,7 +75,7 @@ function SideItem({ n, rail, count }: { n: NavDef; rail: boolean; count: number 
         <>
           {isActive ? <motion.span layoutId="side-pill" transition={spring} aria-hidden="true" className="absolute inset-0 rounded-xl bg-accent/15" /> : null}
           <Icon name={n.icon} className="relative" />
-          <span className={cn('relative', rail && 'sr-only')}>{n.label}</span>
+          <span className={cn('relative', rail && 'sr-only')}><ScrambleText text={n.label} /></span>
           <ActivityBadge count={count} className={rail ? 'absolute right-1.5 top-1.5' : 'ml-auto'} />
         </>
       )}
