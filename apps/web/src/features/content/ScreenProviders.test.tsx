@@ -35,8 +35,13 @@ describe('ScreenProviders', () => {
     await waitFor(() => expect(tmdb).toHaveAttribute('placeholder', 'Saved abcd…5678 · paste to replace'))
     expect(await screen.findByText('4 identified · 1 to check · 2 waiting')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText(/OMDb/), { target: { value: 'omdbkey123' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save keys' }))
+    const save = screen.getAllByRole('button', { name: 'Save' })
+    expect(save.map((b) => (b as HTMLButtonElement).disabled)).toEqual([false, false, false])   // never greyed out
+    fireEvent.click(save[0]!)
+    expect(await screen.findByText('Paste the key into the box first.')).toBeInTheDocument()   // an empty box says what to do instead
+    fireEvent.click(save[2]!)
     await waitFor(() => expect(calls.find((c) => c.url === '/api/screen/settings' && c.method === 'POST')?.body).toEqual({ omdb_api_key: 'omdbkey123' }))
+    expect(screen.queryByRole('button', { name: /Identify what is waiting/ })).toBeNull()      // naming what waits is on the Transfers page
   })
 
   it('lets the person pick the right title for a doubtful match', async () => {
@@ -113,7 +118,7 @@ describe('saving and removing keys', () => {
   it('checks a key with its provider right after saving it, and says so under the box', async () => {
     const calls = mountWith({}, (url) => (url === '/api/screen/check' ? json({ ok: true }) : undefined))
     fireEvent.change(await screen.findByLabelText(/OMDb/), { target: { value: 'abc12345' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save keys' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[2]!)
     expect(await screen.findByText('Saved. The provider accepts this key.')).toBeInTheDocument()
     expect(calls.find((c) => c.url === '/api/screen/check')?.body).toEqual({ provider: 'omdb' })
   })
@@ -121,7 +126,7 @@ describe('saving and removing keys', () => {
   it('shows why a saved key was not accepted, in the provider\'s words', async () => {
     mountWith({}, (url) => (url === '/api/screen/check' ? json({ ok: false, error: 'OMDb does not recognise this key (it said: Invalid API key). OMDb emails you an activation link when you ask for a key: open it, then test again.' }) : undefined))
     fireEvent.change(await screen.findByLabelText(/OMDb/), { target: { value: 'abc12345' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save keys' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[2]!)
     expect(await screen.findByText(/emails you an activation link/)).toBeInTheDocument()
   })
 

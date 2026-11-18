@@ -411,3 +411,39 @@ def test_snapshots_follow_the_file_a_replaced_video_gets_new_ones_and_removing_c
     assert not frames.exists()                                                 # nothing left on the disk
     with db.reading() as conn:
         assert conn.execute("SELECT COUNT(*) FROM timeline_preview_cache WHERE source_channel=?", (ch,)).fetchone()[0] == 0
+
+
+def test_each_mode_lists_only_its_own_folders(tmp_path):
+    a, b = tmp_path / "Films", tmp_path / "Private"
+    a.mkdir(); b.mkdir()
+    db = Database(tmp_path / "m.db")
+    c, H = _client(db)
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
+    assert c.post("/api/local-folders", json={"path": str(a), "content_rating": "sfw"}, headers=H).status_code == 200
+    assert c.post("/api/local-folders", json={"path": str(b), "content_rating": "nsfw"}, headers=H).status_code == 200
+    r = c.get("/api/local-folders").json()
+    assert [f["title"] for f in r["folders"]] == ["Private"] and r["hidden"] == 1      # NSFW does not list the SFW folder
+    assert c.post("/api/content-mode", json={"mode": "sfw"}, headers=H).status_code == 200
+    r = c.get("/api/local-folders").json()
+    assert [f["title"] for f in r["folders"]] == ["Films"] and r["hidden"] == 1
+
+
+def test_a_scan_in_progress_shows_as_a_lane_with_time_and_a_guess(tmp_path):
+    from telegram_archive.engines import local_videos as lv
+    db = Database(tmp_path / "l.db")
+    c, H = _client(db)
+    sid = c.post("/api/local-folders", json={"path": str(tmp_path), "content_rating": "nsfw"}, headers=H)
+    sid = sid.json()["id"] if sid.status_code == 200 else None
+    if sid is None:
+        assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
+        sid = c.post("/api/local-folders", json={"path": str(tmp_path), "content_rating": "nsfw"}, headers=H).json()["id"]
+    time.sleep(0.5)
+    lv._state[sid] = {"running": True, "total": 10, "done": 4, "failed": 0, "workers": 2, "started": time.time() - 40}
+    try:
+        rows = [r for r in c.get("/api/telegram-transfer/lanes").json()["jobs"] if r["type"] == "LOCAL_SCAN"]
+        assert len(rows) == 1
+        row = rows[0]
+        assert (row["completed"], row["total"], row["progress"]) == (4, 10, 40.0)
+        assert 35 <= row["metrics"]["elapsed_s"] <= 50 and 50 <= row["metrics"]["eta_s"] <= 75      # 40 s for 4, so about 60 s for the other 6
+    finally:
+        lv._state.pop(sid, None)

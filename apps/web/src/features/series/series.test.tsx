@@ -95,3 +95,13 @@ describe('missing episodes and movies', () => {
     expect(screen.getByText('None of this season is here (8 episodes)')).toBeInTheDocument()
   })
 })
+
+describe('the Movies | Series switch', () => {
+  it('is on both pages and marks the one that is open', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json({ items: [] })))
+    withRouter(<SeriesPage />)
+    const tabs = await screen.findAllByRole('tab')
+    expect(tabs.map((t) => [t.textContent, t.getAttribute('aria-selected')])).toEqual([['Movies', 'false'], ['Series', 'true']])
+    expect(screen.getByRole('tab', { name: 'Movies' })).toHaveAttribute('href', '/movies')
+  })
+})

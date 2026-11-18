@@ -16,7 +16,7 @@ import { TransferWorkflow } from './TransferWorkflow'
 import { AnimatePresence, listItem, motion } from '@/design/motion'
 import { ChannelAvatar } from '@/features/channels/ChannelAvatar'
 import { isLocalChannel } from '@/features/channels/local'
-import { useLocalFolders } from '@/features/content/useContentMode'
+import { useContentMode, useLocalFolders } from '@/features/content/useContentMode'
 import { folderLabel, folderName, type ScannedFolder } from './transfer'
 import { activeLaneCount, jobPath, laneChips, toLanes, type Lane } from './lanes'
 import { DEFAULT_OPTIONS, joinLaunch, pendingBody, photoFailure, photoLaunch, photoMode, photoRequest, prerequisitePlan, processBody, selectedStages, stageLabels, expandStages, type Preflight, type RunOptions, type Stage } from './metadata'
@@ -33,6 +33,7 @@ function LaneCard({ lane, busy, onAct }: { lane: Lane; busy: boolean; onAct: (l:
           <p className="truncate text-xs text-muted" title={lane.subtitle}>{lane.subtitle}</p>
           {lane.waiting ? <p role="status" className="truncate text-xs font-semibold text-warn" title={lane.waiting}>{lane.waiting}</p> : null}
           {lane.detail ? <p className="truncate text-xs text-faint">{lane.detail}</p> : null}
+          {lane.timing ? <p className="truncate text-xs tabular-nums text-muted" title={lane.timing}>{lane.timing}</p> : null}
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label={`${lane.title} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(lane.pct)}><span className="block h-full rounded-full bg-accent transition-[width]" style={{ width: `${lane.pct}%` }} /></div>
           <div className="mt-1 flex items-center justify-between gap-2"><span className="text-[11px] tabular-nums text-faint">{Math.round(lane.pct)}%</span>
             <span className="flex gap-1.5">{lane.actions.map((a) => <button key={a} type="button" disabled={busy} onClick={() => onAct(lane, a)} className={cn('h-8 rounded-lg px-3 text-xs font-bold disabled:opacity-50', a === 'cancel' ? 'border border-line-2 text-bad hover:bg-bad/10' : 'bg-accent text-accent-fg')}>{label[a]}</button>)}</span>
@@ -122,6 +123,7 @@ function MetadataWorkflow() {
   const [step, setStep] = useState(0)
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState<string[]>([])
+  const sfw = useContentMode().data?.mode === 'sfw'
   const folderQuery = useLocalFolders()
   const folders: ScannedFolder[] = (folderQuery.data?.folders ?? []).filter((f) => f.exists !== false).map((f) => ({ id: f.id, path: f.path, title: f.title, content_rating: f.content_rating, videos: f.videos }))
   const [pickedFolders, setPickedFolders] = useState<number[]>([])
@@ -162,6 +164,10 @@ function MetadataWorkflow() {
     }
     return { text: [started.length ? `Metadata scan started for ${started.join(', ')}.` : '', ...failed].filter(Boolean).join(' '), ok: !failed.length }
   }
+  /** SFW: the movies and shows of the chosen channels that have no name yet are named too (TMDB, OMDb, TVmaze). Runs in the background. */
+  const nameWaiting = async () => {
+    try { await api('/api/screen/identify', { method: 'POST', json: {} }); toast('Naming the movies and shows that are waiting. Results appear as they come.') } catch (e) { toast.error(detail(e, 'Could not start naming the movies and shows.')) }
+  }
   const run = async () => {
     if (needChannels) return void setMsg('Select at least one channel or local folder.')
     if (needStages) return void setMsg('Select at least one processing stage.')
@@ -176,6 +182,7 @@ function MetadataWorkflow() {
         refreshAll()
         if (!picked.length) return   // folders only: nothing more to start
       }
+      if (sfw && picked.length) await nameWaiting()
       let metaText = ''
       const finish = async () => {
         let photoText = ''

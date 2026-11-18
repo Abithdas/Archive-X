@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { useDesktopInfo } from '@/api/hooks'
+import { NsfwPin } from '@/features/content/NsfwPin'
 import { useWebLogin } from './queries'
 import { EMPTY_LOGIN, loginBody, loginProblem, savedMessage, type LoginForm } from './security'
 
@@ -42,6 +43,7 @@ export function SecurityPanel() {
     }
   }
   return (
+    <div className="grid gap-4">
     <section aria-label="Dashboard authentication" className="rounded-[18px] border border-line bg-surface p-5">
       <div className="mb-4 flex items-center justify-between"><h3 className="text-xl font-extrabold">Dashboard authentication</h3><span className="text-xs text-faint">07 / 08</span></div>
       {desktop.data ? <p role="note" className="mb-4 rounded-xl bg-accent/10 p-3 text-sm text-muted">In the desktop app Archive X signs you in automatically with a password that is generated for this computer and never shown. These fields only matter if you open Archive X from a web browser; changing them needs the current password.</p> : null}
@@ -56,5 +58,7 @@ export function SecurityPanel() {
         <div className="flex items-center gap-3"><button type="submit" disabled={busy} className="h-11 rounded-xl bg-accent px-6 text-sm font-bold text-accent-fg disabled:opacity-60">{busy ? 'Saving…' : 'Save'}</button><span role="status" aria-live="polite" className="text-sm text-muted">{msg}</span></div>
       </form>
     </section>
+    <NsfwPin />
+    </div>
   )
 }

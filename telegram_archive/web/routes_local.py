@@ -97,9 +97,9 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config, jobs=N
         require_auth(request)
         mode = cm.get_mode(db)
         found = await asyncio.to_thread(listing)
-        # In SFW, folders in the library as NSFW are not listed (their names and paths would say what they hold).
-        hidden = [f for f in found if mode == "sfw" and f["in_library"] and f["content_rating"] == "nsfw"]
-        return {"ok": True, "mode": mode, "folders": [f for f in found if f not in hidden], "hidden": len(hidden)}
+        # Only the folders of the chosen mode are listed: their names and paths would say what they hold.
+        hidden = [f for f in found if f["content_rating"] != mode]
+        return {"ok": True, "mode": mode, "folders": [f for f in found if f["content_rating"] == mode], "hidden": len(hidden)}
 
     @router.get("/api/local-folders/settings")
     async def local_settings(request: Request):

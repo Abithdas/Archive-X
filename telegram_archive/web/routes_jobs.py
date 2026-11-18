@@ -546,6 +546,11 @@ def register_job_routes(
                     "destination_channel": channel_names.get(str(job.get("destination_channel") or ""), str(job.get("destination_channel") or "")),
                     "metrics": transfer_lane_metrics(job, telemetry_by_job.get(str(job.get("id") or ""), {})),
                 })
+            try:
+                from ..engines import local_scanner
+                rows.extend(local_scanner.lane_rows(db))   # folders on this PC being looked through or prepared
+            except Exception:
+                pass
             return rows
         rows = await asyncio.to_thread(build_rows)   # SQLite reads and the db lock must not run on the event loop
         resource_snapshot = resources.snapshot() if resources is not None else {}

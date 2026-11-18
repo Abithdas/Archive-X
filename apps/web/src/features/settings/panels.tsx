@@ -3,7 +3,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
-import { useStorage } from '@/api/hooks'
+import { useLanes, useStorage } from '@/api/hooks'
+import { rateText, traffic } from '@/features/transfers/lanes'
 import { hasNativeBridge } from '@/features/watch/nativeBridge'
 import { Icon } from '@/design/Icon'
 import { ThemePreview } from './ThemePreview'
@@ -28,6 +29,41 @@ function Head({ icon, title, count, aside }: { icon: string; title: string; coun
   )
 }
 
+/** What is going up to Telegram and what is coming down, live. Details are on the Transfers page. */
+function TrafficCard() {
+  const lanes = useLanes()
+  const t = traffic(lanes.data?.jobs ?? [])
+  const speed = (bps: number) => (bps > 0 ? rateText(bps) : '—')
+  const tile = (arrow: string, label: string, x: { rate: number; count: number }) => (
+    <div data-testid={`traffic-${label.toLowerCase()}`} className="rounded-2xl border border-line bg-bg p-4">
+      <p className="flex items-center gap-2 text-xs font-semibold text-muted"><span aria-hidden className={cn('text-base font-extrabold', x.count ? 'text-accent' : 'text-faint')}>{arrow}</span>{label}</p>
+      <p className="mt-1 text-2xl font-extrabold tabular-nums">{speed(x.rate)}</p>
+      <p className="text-xs text-muted">{x.count ? `${x.count} file${x.count === 1 ? '' : 's'} moving` : 'Nothing moving'}</p>
+    </div>
+  )
+  return (
+    <section aria-label="Uploads and downloads" className={BOX}>
+      <Head icon="transfer" title="Uploads & downloads" count="Live" />
+      {lanes.isError ? <p role="alert" className="text-sm text-warn">Transfer activity is unavailable right now.</p> : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">{tile('↑', 'Upload', t.upload)}{tile('↓', 'Download', t.download)}</div>
+          {t.items.length ? (
+            <ul className="mt-3 grid gap-2" aria-label="Files moving now">
+              {t.items.map((i) => (
+                <li key={i.id} className="rounded-xl bg-bg p-3">
+                  <div className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 truncate font-semibold" title={i.title}><span aria-hidden className="mr-1.5 text-accent">{i.direction === 'upload' ? '↑' : '↓'}</span>{i.title}</span><span className="shrink-0 text-xs tabular-nums text-muted">{Math.round(i.pct)}%</span></div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label={`${i.title} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(i.pct)}><span className="block h-full rounded-full bg-accent transition-[width]" style={{ width: `${i.pct}%` }} /></div>
+                  {i.text ? <p className="mt-1 text-xs tabular-nums text-faint">{i.text}</p> : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </>
+      )}
+    </section>
+  )
+}
+
 export function OverviewPanel({ go }: { go: (p: PanelId) => void }) {
   const auth = useAuthStatus(), pre = usePreflight(), icons = useIconsStatus(), meta = useMetadataSettings(), web = useWebLogin(), storage = useStorage()
   const checks = { auth: auth.data, preflight: pre.data, icons: icons.data, metadata: meta.data, web: web.data, storage: storage.data as Record<string, unknown> | undefined }
@@ -40,6 +76,7 @@ export function OverviewPanel({ go }: { go: (p: PanelId) => void }) {
         <ul className="mb-3 flex flex-wrap gap-2">{pills(checks).map((p) => <li key={p.label} className={cn('inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold', p.ok ? 'bg-good/15 text-good' : 'bg-warn/15 text-warn')}><i className="size-1.5 rounded-full bg-current" />{p.label}</li>)}</ul>
         <p className="text-sm text-muted">Configuration changes are applied through the settings below; live jobs remain in Operations.</p>
       </section>
+      <TrafficCard />
       <section aria-label="Status" className={BOX}>
         <Head icon="operations" title="Status" count="Runtime checks" />
         <ul>

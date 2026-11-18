@@ -10,12 +10,11 @@ export const PANELS = [
   { id: 'overview', title: 'Overview', blurb: 'Connection and system status', icon: 'grid' },
   { id: 'telegram', title: 'Telegram', blurb: 'API, session and sign-in', icon: 'send' },
   { id: 'local', title: 'Local files', blurb: 'Folders on this PC, SFW or NSFW', icon: 'folders' },
-  { id: 'content', title: 'Content', blurb: 'SFW / NSFW and the PIN', icon: 'library' },
   { id: 'metadata', title: 'Metadata', blurb: 'ThePornDB, StashDB, scan window', icon: 'database' },
   { id: 'experience', title: 'Experience', blurb: 'Autoplay, resume, seek preview', icon: 'play' },
   { id: 'appearance', title: 'Appearance', blurb: 'Zoom, themes, custom themes', icon: 'sparkle' },
   { id: 'storage', title: 'Storage & Backup', blurb: 'Cache usage, data folder, backups', icon: 'folders' },
-  { id: 'security', title: 'Security', blurb: 'Dashboard login', icon: 'lock' },
+  { id: 'security', title: 'Security', blurb: 'Dashboard login and the NSFW PIN', icon: 'lock' },
   { id: 'system', title: 'System & network', blurb: 'Hardware, browser, speed test', icon: 'gauge' },
 ] as const
 export type PanelId = (typeof PANELS)[number]['id']

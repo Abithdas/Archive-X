@@ -6,6 +6,7 @@ import { Empty } from '@/design/Empty'
 import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
 import { cn } from '@/design/cn'
+import { ScreenTabs } from './ScreenTabs'
 import { MOVIE_SORTS, movieBadge, sortMovies, versionText, type MovieCard, type MovieDetail, type MovieSort } from './series'
 import { lengthText } from './series'
 
@@ -20,6 +21,7 @@ export function MoviesPage() {
   const items = sortMovies(q.data?.items ?? [], sort, find)
   return (
     <div className="px-4 py-5 md:px-8">
+      <ScreenTabs active="movies" />
       <PageHead title="Movies" blurb="One poster for each movie, with its copies under it">
         <div className="flex flex-wrap items-center gap-2">
           <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a movie" aria-label="Find a movie" className="h-10 w-44 rounded-xl border border-line-2 bg-bg px-3 text-sm" />

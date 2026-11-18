@@ -1,11 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
 import { cn } from '@/design/cn'
-import { ContentPanel } from '@/features/content/ContentPanel'
+import { useScrollRow } from '@/design/useScrollRow'
 import { LocalFolders } from '@/features/content/LocalFolders'
 import { PANELS, isPanel, validationMessage, type PanelId } from './logic'
 import { SecurityPanel } from './SecurityPanel'
@@ -23,6 +23,8 @@ export function SettingsPage() {
   const [panel, setPanel] = useState<PanelId>(read)
   const [validating, setValidating] = useState(false)
   const qc = useQueryClient()
+  const row = useRef<HTMLUListElement>(null)
+  useScrollRow(row)   // in a narrow window the sections are one row that scrolls sideways: the mouse wheel and a drag move it
   const go = (p: PanelId) => { setPanel(p); try { localStorage.setItem(KEY, p) } catch { /* private mode */ } }
   const validate = async () => {
     setValidating(true)
@@ -40,7 +42,7 @@ export function SettingsPage() {
       <PageHead eyebrow="Configuration" title="Settings" blurb="Settings are validated before they are applied" />
       <div className="grid items-start gap-5 lg:grid-cols-[256px_minmax(0,1fr)]">
         <nav aria-label="Settings sections" className="grid gap-1">
-          <ul className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] lg:grid lg:overflow-visible lg:pb-0">
+          <ul ref={row} className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] lg:grid lg:overflow-visible lg:pb-0">
             {PANELS.map((p) => (
               <li key={p.id} className="shrink-0 lg:shrink">
                 <button type="button" aria-current={p.id === panel ? 'page' : undefined} onClick={() => go(p.id)} title={p.blurb} className={cn('flex h-11 w-full items-center gap-3 whitespace-nowrap rounded-xl px-3 text-[15px] font-medium transition-colors', p.id === panel ? 'bg-accent/15 text-fg [&_svg]:text-accent' : 'text-muted hover:bg-fg/5 hover:text-fg')}>
@@ -53,7 +55,7 @@ export function SettingsPage() {
           <button type="button" onClick={() => { void qc.invalidateQueries({ queryKey: ['settings'] }); void qc.invalidateQueries({ queryKey: ['storage'] }); toast('Status refreshed') }} className="h-11 rounded-xl border border-line bg-surface text-sm font-bold hover:bg-surface-2">Refresh status</button>
         </nav>
         <div className="min-w-0" aria-live="polite">
-          {panel === 'overview' ? <OverviewPanel go={go} /> : panel === 'experience' ? <ExperiencePanel /> : panel === 'appearance' ? <AppearancePanel /> : panel === 'telegram' ? <TelegramPanel /> : panel === 'local' ? <LocalFolders /> : panel === 'content' ? <ContentPanel /> : panel === 'security' ? <SecurityPanel /> : panel === 'storage' ? <StoragePanel /> : panel === 'metadata' ? <MetadataPanel /> : panel === 'system' ? <SystemPanel /> : null}
+          {panel === 'overview' ? <OverviewPanel go={go} /> : panel === 'experience' ? <ExperiencePanel /> : panel === 'appearance' ? <AppearancePanel /> : panel === 'telegram' ? <TelegramPanel /> : panel === 'local' ? <LocalFolders /> : panel === 'security' ? <SecurityPanel /> : panel === 'storage' ? <StoragePanel /> : panel === 'metadata' ? <MetadataPanel /> : panel === 'system' ? <SystemPanel /> : null}
           <p className="mt-2 text-right text-xs text-faint">{String(index + 1).padStart(2, '0')} / {String(PANELS.length).padStart(2, '0')}</p>
         </div>
       </div>

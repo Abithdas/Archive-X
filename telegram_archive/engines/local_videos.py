@@ -222,7 +222,7 @@ def process(db, channel: str) -> dict:
         with db.reading() as conn:
             todo = [dict(r) for r in conn.execute("SELECT channel_id,message_id,path,probed,snapshots FROM local_video_files WHERE channel_id=? AND (probed=0 OR snapshots=0) ORDER BY message_id", (channel,))]
         workers = workers_for(db)
-        _state[sid_key] = {"running": True, "total": len(todo), "done": 0, "failed": 0, "workers": workers}
+        _state[sid_key] = {"running": True, "total": len(todo), "done": 0, "failed": 0, "workers": workers, "started": time.time()}
 
         def one(item: dict) -> None:
             try:
@@ -241,6 +241,12 @@ def process(db, channel: str) -> dict:
         with _WORK_LOCK:
             _state[sid_key] = {**_state.get(sid_key, {}), "running": False}
             _working.discard(sid_key)
+
+
+def running_work() -> dict[int, dict]:
+    """The folders whose videos are being prepared now, by source id."""
+    with _WORK_LOCK:
+        return {k: dict(v) for k, v in _state.items() if v.get("running")}
 
 
 def progress(channel: str) -> dict:

@@ -83,3 +83,14 @@ describe('Dashboard authentication', () => {
     expect(await screen.findByRole('note')).toHaveTextContent('generated for this computer')
   })
 })
+
+describe('NSFW PIN', () => {
+  it('lives here, not in a Content section, and sets a first PIN', async () => {
+    const calls = mount({ username: 'admin', default_login: false }, (url) => (url === '/api/content-mode' ? json({ ok: true, mode: 'sfw', pin_set: false, locked_for: 0 }) : undefined))
+    await ready()
+    expect(screen.getByRole('region', { name: 'NSFW PIN' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('New PIN'), { target: { value: '2468' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Set PIN' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/content-mode/pin')?.body).toEqual({ new: '2468' }))
+  })
+})

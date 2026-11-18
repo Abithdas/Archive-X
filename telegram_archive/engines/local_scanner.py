@@ -96,6 +96,48 @@ def progress(source_id: int) -> dict:
         return dict(_progress.get(int(source_id), {}))
 
 
+def _clock(started: float | None, done: int, total: int) -> dict:
+    """Seconds spent so far and, once something is done, a guess of the seconds left."""
+    if not started:
+        return {}
+    spent = max(0.0, time.time() - float(started))
+    out: dict = {"elapsed_s": int(spent)}
+    if done > 0 and total > done:
+        out["eta_s"] = int(spent / done * (total - done))
+    return out
+
+
+def lane_rows(db) -> list[dict]:
+    """Folders being looked through or prepared right now, shaped like the rows of the transfer lanes, so Transfers shows them as jobs."""
+    from . import local_videos
+    with _progress_lock:
+        scans = {k: dict(v) for k, v in _progress.items() if v.get("running")}
+    work = local_videos.running_work()
+    ids = sorted(set(scans) | set(work))
+    if not ids:
+        return []
+    with db.reading() as conn:
+        titles = {int(r["id"]): (r["title"] or r["path"]) for r in conn.execute(
+            "SELECT s.id, s.path, c.title FROM local_sources s LEFT JOIN channels c ON c.telegram_id=CAST(? - s.id AS TEXT)", (LOCAL_BASE,))}
+    rows = []
+    for sid in ids:
+        scan, prep = scans.get(sid), work.get(sid)
+        name = str(titles.get(sid, sid))
+        if scan:
+            found = int(scan.get("seen", 0)) + int(scan.get("videos", 0))
+            op, done, total, started = f"Looking through the folder · {found:,} files found", 0, 0, scan.get("started")
+        else:
+            done, total = int(prep.get("done", 0)), int(prep.get("total", 0))
+            op, started = f"Preparing videos: probing and building snapshots · {done:,} of {total:,}", prep.get("started")
+        rows.append({
+            "id": f"local:{sid}", "type": "LOCAL_SCAN", "status": "RUNNING", "operation": op, "current_item": "",
+            "completed": done, "total": total, "progress": round(100.0 * done / total, 1) if total else 0.0,
+            "source": "local", "workflow": "", "source_channel": name, "destination_channel": "",
+            "metrics": _clock(started, done, total),
+        })
+    return rows
+
+
 def scan_source(db, source_id: int) -> dict:
     """Bring the index of one folder in line with the disk. Returns the counts. Safe to run again at any time."""
     sid = int(source_id)
@@ -131,6 +173,9 @@ def scan_source(db, source_id: int) -> dict:
             if kind == "video":
                 videos += 1
                 video_paths.append(os.path.realpath(path))
+                if videos % 50 == 0:
+                    with _progress_lock:
+                        _progress[sid].update(videos=videos)
                 continue
             full = os.path.realpath(path)
             seen.add(full)
@@ -154,7 +199,7 @@ def scan_source(db, source_id: int) -> dict:
                 added += 1
             batch.append((ch, mid, os.path.basename(full), mime, st.st_size, w, h, _iso(st.st_mtime), SOURCE_KIND, full, now, now, now))
             with _progress_lock:
-                _progress[sid].update(seen=photos, added=added)
+                _progress[sid].update(seen=photos, added=added, videos=videos)
             if len(batch) >= 200:
                 _write_batch(db, batch)
                 batch = []

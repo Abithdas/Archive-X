@@ -4,6 +4,7 @@ import { api } from '@/api/client'
 import { Empty } from '@/design/Empty'
 import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
+import { ScreenTabs } from './ScreenTabs'
 import { episodeLabel, countText, lengthText, missingText, seasonSummary, type SeriesCard, type SeriesDetail } from './series'
 
 const PLACEHOLDER = '/static/icons/ax-placeholder.png'
@@ -14,6 +15,7 @@ export function SeriesPage() {
   const items = q.data?.items ?? []
   return (
     <div className="px-4 py-5 md:px-8">
+      <ScreenTabs active="series" />
       <PageHead title="Series" blurb="Your TV shows, season by season" />
       {q.isPending ? <p role="status" className="py-8 text-center text-sm text-muted">Loading shows…</p>
         : q.isError ? <p role="alert" className="py-8 text-center text-sm text-warn">Could not load the shows.</p>

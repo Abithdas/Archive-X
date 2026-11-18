@@ -32,7 +32,7 @@ Archive X is currently distributed as a Windows x64 desktop app. See the [latest
 1. Sign in to Telegram when asked; your session is stored encrypted on this PC.
 2. Open **Settings, Telegram, Channels** and mark the channels you want in the library (SFW or NSFW). New channels stay out until you mark them.
 3. Optional: **Settings, Local files** to add folders, and **Settings, Metadata** to add API keys for metadata collection (TMDB, OpenSubtitles and OMDb for movies and TV; further metadata APIs in NSFW mode). Each key has a **Test** button.
-4. Use the switch in **Settings, Content** or at the top of the profile menu to change mode. Your existing library is NSFW, so it appears after you switch.
+4. Use the switch at the top of the profile menu (your picture, top right) to change mode; the NSFW PIN is in **Settings, Security**. Your existing library is NSFW, so it appears after you switch.
 
 ## Build from source
 

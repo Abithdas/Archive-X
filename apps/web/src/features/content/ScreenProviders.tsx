@@ -43,13 +43,14 @@ export function ScreenProviders() {
     refresh()
     return typed.map((p) => p.id)
   }
-  const save = async () => {
+  const save = async (p: Provider) => {
+    if (!vals[p].trim()) return note(p, 'bad', 'Paste the key into the box first.')
     setBusy(true)
     try {
-      const saved = await saveTyped()
-      toast.success(saved.length ? 'Keys saved. Checking them now.' : 'Nothing new to save.')
-      await Promise.all(saved.map(verify))
-    } catch (e) { toast.error(errorText(e, 'Could not save the keys.')) } finally { setBusy(false) }
+      await saveTyped(p)
+      toast.success('Key saved. Checking it now.')
+      await verify(p)
+    } catch (e) { note(p, 'bad', errorText(e, 'Could not save the key.')) } finally { setBusy(false) }
   }
   const check = async (p: Provider) => {
     try {
@@ -64,9 +65,6 @@ export function ScreenProviders() {
       refresh()
       toast('Key removed.')
     } catch (e) { toast.error(errorText(e, 'Could not remove the key.')) }
-  }
-  const run = async () => {
-    try { await api('/api/screen/identify', { method: 'POST', json: {} }); refresh() } catch (e) { toast.error(errorText(e, 'Could not start.')) }
   }
 
   return (
@@ -85,6 +83,7 @@ export function ScreenProviders() {
               </label>
               <p className="text-xs text-faint">{p.help}</p>
               <div className="flex flex-wrap items-center gap-2">
+                <button type="button" disabled={busy} onClick={() => void save(p.id)} className={PRIMARY}>Save</button>
                 <button type="button" disabled={!saved && !vals[p.id].trim()} onClick={() => void check(p.id)} className={BTN}>Test</button>
                 {saved ? <button type="button" onClick={() => void remove(p.id)} className={cn(BTN, 'text-muted')} aria-label={`Remove the ${p.id} key`}>Remove</button> : null}
               </div>
@@ -97,11 +96,8 @@ export function ScreenProviders() {
         <Switch checked={Boolean(settings.data?.tvmaze_enabled)} onChange={(v) => void api('/api/screen/settings', { method: 'POST', json: { tvmaze_enabled: v } }).then(refresh).catch((e) => toast.error(errorText(e, 'Could not save.')))} label="Use TVmaze for TV shows" />
         <div className="min-w-0 flex-1"><p className="text-sm font-semibold">Use TVmaze for TV shows</p><p className="text-xs text-muted">No key needed. Show names from your files are sent to tvmaze.com, as TMDB would get them. Used when TMDB has no answer or has no key.</p></div>
       </div>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button type="button" disabled={busy || !Object.values(vals).some((v) => v.trim())} onClick={() => void save()} className={PRIMARY}>Save keys</button>
-        <button type="button" disabled={!status.data?.configured || Boolean(status.data?.progress.running) || !status.data?.pending} onClick={() => void run()} className={BTN}>Identify what is waiting</button>
-        <span role="status" aria-live="polite" className="text-sm text-muted">{statusText(status.data)}</span>
-      </div>
+      <p role="status" aria-live="polite" className="mt-4 text-sm text-muted">{statusText(status.data)}</p>
+      <p className="mt-1 text-xs text-faint">To name the videos that are waiting, run the Metadata box on the Transfers page.</p>
       <ReviewList />
     </section>
   )

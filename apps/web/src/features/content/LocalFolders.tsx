@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
 import { modeLabel, scanText, withPatch, type LocalFolder, type Mode, type Patch } from './content'
 import { SaveBar } from './SaveBar'
-import { errorText, useBrowse, useChannelMarks, useContentMode, useLocalActions, useLocalFolders, useSaveMarks } from './useContentMode'
+import { errorText, useBrowse, useContentMode, useLocalActions, useLocalFolders, useSaveMarks } from './useContentMode'
 
 const HOLDS = [{ value: 'both', label: 'Videos + photos' }, { value: 'videos', label: 'Videos' }, { value: 'photos', label: 'Photos' }] as const
 const BTN = 'h-9 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50'
@@ -26,7 +26,6 @@ export function LocalFolders() {
   const [draft, setDraft] = useState<Record<string, Patch>>({})
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<LocalFolder | null>(null)
-  const [uploading, setUploading] = useState<LocalFolder | null>(null)
   const folders = q.data?.folders ?? []
   const savedOf = (f: LocalFolder): Patch => ({ in_library: Boolean(f.in_library), content_rating: f.content_rating, holds: f.holds })
   const mark = (f: LocalFolder, patch: Patch) => setDraft((d) => withPatch(d, f.channel_id, savedOf(f), patch))   // kept aside until Save
@@ -34,12 +33,6 @@ export function LocalFolders() {
     onSuccess: () => { setDraft({}); toast.success('Saved.') },
     onError: (e) => toast.error(errorText(e, 'Could not save. Your changes are still here.')),
   })
-  const identify = async (f: LocalFolder) => {
-    try {
-      const r = await api<{ kind: string }>(`/api/local-folders/${f.id}/identify`, { method: 'POST', json: {} })
-      toast(`Reading names${r.kind === 'scene databases' ? ' and file hashes' : ''}: asking ${r.kind}. Results appear as they come.`)
-    } catch (e) { toast.error(errorText(e, 'Could not start the metadata scan.')) }
-  }
 
   return (
     <div className="grid gap-4">
@@ -48,11 +41,11 @@ export function LocalFolders() {
           <h3 className="flex items-center gap-3 text-xl font-extrabold"><span className="text-accent"><Icon name="folders" className="size-5" /></span>Local files</h3>
           <button type="button" onClick={() => setAdding(true)} className="h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Add a folder</button>
         </div>
-        <p className="mb-4 text-sm text-muted">Folders on this PC join the library like channels do. Photos and videos stay where they are; Archive X reads them from there. Mark each folder SFW or NSFW, and it is shown only in that mode ({modeLabel(mode)} now).</p>
+        <p className="mb-4 text-sm text-muted">Folders on this PC join the library like channels do. Photos and videos stay where they are; Archive X reads them from there. Mark each folder SFW or NSFW, and it is shown only in that mode ({modeLabel(mode)} now). A folder behaves like a channel: its videos are in the library, and you upload it to Telegram or scan its metadata from the Transfers page.</p>
         <label className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted">Prepare
           <select aria-label="Videos prepared at once" value={prep.data?.workers ?? 2} onChange={(e) => setWorkers(Number(e.target.value))} className="h-8 rounded-lg border border-line-2 bg-bg px-2 text-sm text-fg">{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}</select>
           videos at once (snapshots and details). More is faster on a strong PC, and busier.</label>
-        {q.data?.hidden ? <p className="mb-3 rounded-xl bg-surface-2 px-3 py-2 text-xs text-muted">{q.data.hidden.toLocaleString()} folder{q.data.hidden === 1 ? ' is' : 's are'} in the library as NSFW and not listed in SFW mode.</p> : null}
+        {q.data?.hidden ? <p className="mb-3 rounded-xl bg-surface-2 px-3 py-2 text-xs text-muted">{q.data.hidden.toLocaleString()} folder{q.data.hidden === 1 ? ' is' : 's are'} marked {mode === 'sfw' ? 'NSFW' : 'SFW'} and not listed in {modeLabel(mode)} mode. Switch mode to manage {q.data.hidden === 1 ? 'it' : 'them'}.</p> : null}
         {q.isPending ? <p role="status" className="py-3 text-sm text-muted">Loading…</p> : q.isError ? <p role="alert" className="py-3 text-sm text-warn">Could not load the folders.</p> : !folders.length ? <p className="py-3 text-sm text-muted">No folders yet. Add one to see its photos in the Photos page.</p> : (
           <ul className="grid divide-y divide-line rounded-xl border border-line">
             {folders.map((f, i) => {
@@ -71,12 +64,7 @@ export function LocalFolders() {
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p role="status" className={cn('text-xs', f.last_status === 'FAILED' || !f.exists ? 'text-bad' : 'text-muted')}>{scanText(f)}</p>
-                  <div className="flex gap-2">
-                    <button type="button" className={BTN} disabled={act.scan.isPending} onClick={() => act.scan.mutate(f.id)} title="Look for new, changed and removed files">Check again</button>
-                    {f.videos ? <button type="button" className={BTN} onClick={() => setUploading(f)} title="Send this folder's videos to a Telegram channel, keeping their snapshots and names">Upload to Telegram</button> : null}
-                    {f.videos ? <button type="button" className={BTN} onClick={() => void identify(f)} title={f.content_rating === 'sfw' ? 'Name the movies and shows with TMDB' : 'Look the videos up by file hash in StashDB / ThePornDB'}>Scan metadata</button> : null}
-                    <button type="button" className={BTN} onClick={() => setRemoving(f)}>Remove</button>
-                  </div>
+                  <button type="button" className={BTN} onClick={() => setRemoving(f)}>Remove</button>
                 </div>
               </li>
               )
@@ -85,8 +73,7 @@ export function LocalFolders() {
         )}
         <SaveBar count={Object.keys(draft).length} busy={save.isPending} onSave={commit} onDiscard={() => setDraft({})} />
       </section>
-      {adding ? <AddFolder mode={mode} onClose={() => setAdding(false)} onAdd={(b) => act.add.mutate(b, { onSuccess: () => { setAdding(false); toast('Folder added; looking through it now') }, onError: (e) => toast.error(errorText(e, 'Could not add the folder.')) })} busy={act.add.isPending} /> : null}
-      {uploading ? <UploadFolder folder={uploading} onClose={() => setUploading(null)} /> : null}
+      {adding ? <AddFolder mode={mode} onClose={() => setAdding(false)} onAdd={(b) => act.add.mutate(b, { onSuccess: () => { setAdding(false); toast(b.content_rating === mode ? 'Folder added; looking through it now' : `Folder added as ${modeLabel(b.content_rating)}: it is listed in ${modeLabel(b.content_rating)} mode.`) }, onError: (e) => toast.error(errorText(e, 'Could not add the folder.')) })} busy={act.add.isPending} /> : null}
       {removing ? <Confirm title="Stop using this folder?" text={`${removing.path}\n\nIts photos leave the library. The files on your PC are not touched.`} ok="Remove" danger onCancel={() => setRemoving(null)} onOk={() => act.remove.mutate(removing.id, { onSuccess: () => setRemoving(null), onError: (e) => toast.error(errorText(e, 'Could not remove it.')) })} /> : null}
     </div>
   )
@@ -121,47 +108,6 @@ function AddFolder({ mode, onClose, onAdd, busy }: { mode: Mode; onClose: () => 
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className="h-11 rounded-xl border border-line-2 px-4 text-sm font-semibold">Cancel</button>
           <button type="button" disabled={!current || busy} onClick={() => onAdd({ path: current, content_rating: rating, holds })} className="h-11 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60">Add this folder</button>
-        </div>
-      </div>
-    </Dialog>
-  )
-}
-
-/** Send a folder's videos to a Telegram channel. Their snapshots and names are reused, the files stay on this PC unless asked otherwise. */
-function UploadFolder({ folder, onClose }: { folder: LocalFolder; onClose: () => void }) {
-  const marks = useChannelMarks()
-  const channels = (marks.data?.channels ?? []).filter((c) => c.kind !== 'local' && c.content_rating === folder.content_rating)
-  const [destination, setDestination] = useState('')
-  const [keep, setKeep] = useState(true)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const go = async () => {
-    setBusy(true)
-    setError('')
-    try {
-      const r = await api<{ seeded: number; rebuilt: number; skipped: number; destination: string }>(`/api/local-folders/${folder.id}/upload`, { method: 'POST', json: { destination, keep_files: keep } })
-      const ready = r.seeded + r.rebuilt
-      toast.success(`Upload to ${r.destination} started: ${ready.toLocaleString()} video${ready === 1 ? '' : 's'} with snapshots ready${r.rebuilt ? ` (${r.rebuilt.toLocaleString()} made wider first)` : ''}${r.skipped ? `, ${r.skipped.toLocaleString()} will be prepared by the upload` : ''}. Follow it in Operations.`)
-      onClose()
-    } catch (e) { setError(errorText(e, 'Could not start the upload.')) } finally { setBusy(false) }
-  }
-  return (
-    <Dialog open onClose={onClose} title="Upload to Telegram">
-      <div className="grid gap-3">
-        <p className="text-sm text-muted">The videos of <b className="text-fg">{folder.title || folder.path}</b> are sent to a channel. Their snapshots and what is known about them (names, cast, genres) come with them: nothing is made or looked up twice.</p>
-        <label className="grid gap-1.5 text-xs font-semibold text-muted">Channel ({folder.content_rating.toUpperCase()} channels only: a channel holds one kind)
-          <select aria-label="Destination channel" value={destination} onChange={(e) => setDestination(e.target.value)} className="h-11 rounded-xl border border-line-2 bg-bg px-3 text-sm text-fg">
-            <option value="">{marks.isPending ? 'Loading channels…' : channels.length ? 'Choose a channel' : 'No channel is marked this way yet'}</option>
-            {channels.map((c) => <option key={c.telegram_id} value={c.telegram_id}>{c.title}</option>)}
-          </select>
-        </label>
-        {!marks.isPending && !channels.length ? <p className="text-xs text-muted">Mark a Telegram channel {folder.content_rating.toUpperCase()} in Settings → Telegram → Channels first.</p> : null}
-        <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} className="mt-1" aria-label="Keep the files on this PC" /><span><b>Keep the files on this PC</b><span className="block text-xs text-muted">Recommended. They stay where they are and keep playing from here.</span></span></label>
-        {!keep ? <p role="alert" className="rounded-xl bg-bad/10 px-3 py-2 text-xs text-bad">Each file is deleted from this PC after Telegram has confirmed the upload. Deleted files cannot be brought back from here.</p> : null}
-        {error ? <p role="alert" className="text-sm text-bad">{error}</p> : null}
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="h-11 rounded-xl border border-line-2 px-4 text-sm font-semibold">Cancel</button>
-          <button type="button" disabled={!destination || busy} onClick={() => void go()} className="h-11 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60">{busy ? 'Starting…' : 'Start the upload'}</button>
         </div>
       </div>
     </Dialog>
