@@ -77,11 +77,11 @@ export function ScreenProviders() {
           const mask = String(settings.data?.[p.field] ?? '')
           const t = tests[p.id]
           return (
-            <div key={p.id} className="grid content-start gap-2 rounded-2xl border border-line p-4">
-              <label className="grid gap-1.5 text-xs font-semibold text-muted"><span className="flex items-center justify-between gap-2">{p.label}{saved ? <span className="rounded-full bg-good/15 px-2 py-0.5 text-[11px] font-bold text-good">Saved</span> : null}</span>
+            <div key={p.id} className="flex flex-col gap-2 rounded-2xl border border-line p-4">
+              <label className="grid gap-1.5 text-xs font-semibold text-muted"><span className="flex min-h-8 items-start justify-between gap-2">{p.label}{saved ? <span className="rounded-full bg-good/15 px-2 py-0.5 text-[11px] font-bold text-good">Saved</span> : null}</span>
                 <input type="password" autoComplete="off" value={vals[p.id]} onChange={(e) => setVals((v) => ({ ...v, [p.id]: e.target.value }))} placeholder={saved ? `Saved${mask && mask !== 'set' ? ` ${mask}` : ''} · paste to replace` : 'Paste the key'} className={INPUT} />
               </label>
-              <p className="text-xs text-faint">{p.help}</p>
+              <p className="flex-1 text-xs text-faint">{p.help}</p>
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" disabled={busy} onClick={() => void save(p.id)} className={PRIMARY}>Save</button>
                 <button type="button" disabled={!saved && !vals[p.id].trim()} onClick={() => void check(p.id)} className={BTN}>Test</button>

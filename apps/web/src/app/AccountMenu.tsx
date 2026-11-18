@@ -1,10 +1,9 @@
 import { ContentSwitch } from '@/features/content/ContentSwitch'
-import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { SESSION_LOST_EVENT, api, ApiError } from '@/api/client'
-import { useDesktopInfo, useProfile, useStatus, useStorage } from '@/api/hooks'
+import { useDesktopInfo, useProfile, useStatus } from '@/api/hooks'
 import { displayName } from '@/features/profile/profile'
 import { AccountAvatar, ProfileEditor } from '@/features/profile/ProfileEditor'
 import { Dialog } from '@/design/Dialog'
@@ -13,7 +12,6 @@ import { cn } from '@/design/cn'
 import { install, useInstall } from './pwa'
 import { ThemeToggle } from '@/design/ThemeToggle'
 import { toggleTheme, useTheme } from './theme'
-import { useUi } from './ui'
 
 const ROW = 'flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium hover:bg-fg/5 focus-visible:bg-fg/5 focus-visible:outline-none'
 
@@ -23,7 +21,7 @@ export function telegramDot(known: boolean, connected: boolean): { tone: string;
   return connected ? { tone: 'bg-good', label: 'Telegram connected' } : { tone: 'bg-bad', label: 'Telegram not connected' }
 }
 
-/** Avatar button and its menu: Telegram status, theme, storage, command palette, settings, sign out, exit. */
+/** Avatar button and its menu: content mode, profile, theme, sign out, exit. (Telegram, storage and settings are in Settings; the command palette is Ctrl K.) */
 export function AccountMenu({ live }: { live: string }) {
   const id = useId()
   const pop = useRef<HTMLDivElement>(null)
@@ -32,7 +30,6 @@ export function AccountMenu({ live }: { live: string }) {
   const qc = useQueryClient()
   const profile = useProfile()
   const status = useStatus()
-  const storage = useStorage()
   const desktop = useDesktopInfo()
   const theme = useTheme()
   const name = displayName(profile.data) || 'A'
@@ -41,8 +38,6 @@ export function AccountMenu({ live }: { live: string }) {
   const tg = Boolean(status.data?.telegram_connected ?? status.data?.telegram?.connected)
   const dot = telegramDot(Boolean(status.data), tg)
   const connectedNow = tg
-  const d = storage.data?.disk
-  const pct = d?.total ? Math.round(((d.used || d.total - d.free) / d.total) * 100) : null
   const close = () => pop.current?.hidePopover?.()
 
   const signOut = async () => {
@@ -76,34 +71,19 @@ export function AccountMenu({ live }: { live: string }) {
       <div ref={pop} id={id} popover="auto" role="menu" aria-label="Account menu" className="t-menu fixed right-4 top-[60px] left-auto bottom-auto m-0 w-[280px] rounded-[18px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
         <div className="t-acc-panel-inner p-2">
         <div className="px-3 pb-1.5 pt-2 text-xs text-muted">Signed in as <b className="text-fg">{name}</b></div>
-        <div className="px-3 pb-2 pt-1"><div className="mb-1 text-xs font-semibold text-muted">Content</div><ContentSwitch compact onDone={close} /></div>
+        <div className="flex items-center justify-between gap-3 px-3 pb-2 pt-1"><span className="text-sm font-semibold text-muted">Content</span><ContentSwitch compact onDone={close} /></div>
         <button type="button" role="menuitem" className={ROW} onClick={() => { close(); setEditing(true) }}>
           <Icon name="edit" className="text-muted" />Edit profile
         </button>
-        <Link to="/settings" role="menuitem" onClick={close} className={ROW}>
-          <Icon name="send" className="text-muted" />Telegram
-          <span className={cn('ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold', tg ? 'bg-good/15 text-good' : 'bg-warn/15 text-warn')}>{tg ? 'Connected' : 'Setup needed'}</span>
-        </Link>
         <div className={cn(ROW, 'cursor-default')}>
           <Icon name={theme === 'dark' ? 'moon' : 'sun'} className="text-muted" />Dark theme
           <ThemeToggle theme={theme} onToggle={toggleTheme} variant="switch" className="ml-auto inline-grid" />
         </div>
-        <Link to="/settings" role="menuitem" onClick={close} className={ROW}>
-          <Icon name="database" className="text-muted" />Storage
-          <span className="ml-auto text-xs font-normal text-muted">{pct === null ? '—' : `${pct}% used`}</span>
-        </Link>
-        <button type="button" role="menuitem" className={ROW} onClick={() => { close(); useUi.getState().setPalette(true) }}>
-          <Icon name="search" className="text-muted" />Command palette
-          <kbd className="ml-auto rounded-md border border-line-2 px-1.5 py-0.5 font-sans text-[11px] font-semibold text-muted">Ctrl K</kbd>
-        </button>
         {offer && !desktop.data ? (
           <button type="button" role="menuitem" className={ROW} onClick={() => { close(); void install() }}>
             <Icon name="download" className="text-muted" />Install app
           </button>
         ) : null}
-        <Link to="/settings" role="menuitem" onClick={close} className={ROW}>
-          <Icon name="gear" className="text-muted" />Settings
-        </Link>
         <div role="separator" className="my-1.5 h-px bg-line" />
         {desktop.data ? null : (
           <button type="button" role="menuitem" className={cn(ROW, 'text-[13px]')} onClick={() => void signOut()}>

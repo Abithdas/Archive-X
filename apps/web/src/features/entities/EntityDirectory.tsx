@@ -10,6 +10,7 @@ import { PageHead } from '@/design/PageHead'
 import { Segmented } from '@/design/Segmented'
 import { useSearch } from '@/app/search'
 import { SkeletonGroup } from '@/design/Skeleton'
+import { Reveal } from '@/design/Reveal'
 import { EntityCard, EntityCardSkeleton } from './EntityCard'
 import { useAutoRepair } from './autoRepair'
 import { useFitGrid } from '@/features/library/fitGrid'
@@ -101,25 +102,27 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
         {entities.data ? <span className="ml-auto text-sm text-muted"><SpinCounter value={rows.length} /> {copy.title.toLowerCase()}</span> : null}
       </div>
 
-      {entities.isPending ? (
-        <SkeletonGroup label={`Loading ${copy.title.toLowerCase()}`} className={GRID} ref={grid.ref} style={grid.style}>
-          {Array.from({ length: grid.cols * 2 }, (_, i) => <EntityCardSkeleton key={i} kind={kind} />)}
-        </SkeletonGroup>
-      ) : entities.isError ? (
+      {entities.isError ? (
         <div role="alert" className="grid place-items-center gap-3 rounded-card border border-line py-16 text-center">
           <p className="font-semibold">Could not load {copy.title.toLowerCase()}.</p>
           <Button variant="primary" onClick={() => void entities.refetch()}>Retry</Button>
         </div>
-      ) : !rows.length ? (
+      ) : entities.data && !rows.length ? (
         <Empty icon={kind === 'performers' ? 'user' : 'studio'}>
           {entities.data.length ? (kind === 'performers' && gender !== 'all' && !query.trim() ? `No ${gender} performers. ` : 'No matches. ') : copy.empty}
           {entities.data.length && kind === 'performers' && gender !== 'all' ? <button type="button" onClick={() => setGender('all')} className="font-semibold text-accent underline">Show all performers</button> : null}
         </Empty>
       ) : (
-        <>
+        <Reveal ready={!entities.isPending} skeleton={(
+          <SkeletonGroup label={`Loading ${copy.title.toLowerCase()}`} className={GRID} ref={grid.ref} style={grid.style}>
+            {Array.from({ length: grid.cols * 2 }, (_, i) => <EntityCardSkeleton key={i} kind={kind} />)}
+          </SkeletonGroup>
+        )}>
+        {entities.data ? (<>
           <div className={GRID} ref={grid.ref} style={grid.style}>{visible.map((e, i) => <EntityCard key={e.id} index={i} kind={kind} entity={e} merge={merging ? { keeper: merge.keepId === e.id, selected: merge.mergeIds.includes(e.id), onPick: () => pickCard(e.id) } : undefined} />)}</div>
           <Pagination page={current - 1} pages={pages} per={nominalPer} fit={grid.fit} onPage={(n) => setPage(n + 1)} onPer={(n) => { setPer(n); setPage(1) }} />
-        </>
+        </>) : null}
+        </Reveal>
       )}
       {asking && keep ? (() => { const c = confirmation(keep, ids, all); return <Confirm title={c.title} text={c.text} ok={c.ok} danger onCancel={() => setAsking(false)} onOk={() => void commit()} /> })() : null}
     </section>

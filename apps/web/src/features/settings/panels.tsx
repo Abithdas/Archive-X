@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { useLanes, useStorage } from '@/api/hooks'
 import { rateText, traffic } from '@/features/transfers/lanes'
+import { updateView, useAppUpdate } from './update'
+import { CaptionModel } from './CaptionModel'
 import { hasNativeBridge } from '@/features/watch/nativeBridge'
 import { Icon } from '@/design/Icon'
 import { ThemePreview } from './ThemePreview'
@@ -26,6 +28,39 @@ function Head({ icon, title, count, aside }: { icon: string; title: string; coun
       <h3 className="flex items-center gap-3 text-xl font-extrabold"><span className="text-accent"><Icon name={icon} className="size-5" /></span>{title}</h3>
       <span className="text-xs text-faint">{aside ?? count}</span>
     </div>
+  )
+}
+
+/** Is a newer Archive X there, and if it is being downloaded, how far it has come. Only in the desktop app, which does the updating. */
+function UpdateCard() {
+  const { here, state, check, install } = useAppUpdate()
+  if (!here) return null
+  const s = state.data
+  const v = s ? updateView(s) : null
+  const asking = check.isPending || install.isPending
+  const tone = { ok: 'bg-good/15 text-good', warn: 'bg-warn/15 text-warn', bad: 'bg-bad/15 text-bad', busy: 'bg-accent/15 text-accent', plain: 'bg-surface-3 text-muted' } as const
+  const label = { ok: 'Up to date', warn: 'Update available', bad: 'Failed', busy: s?.phase === 'checking' ? 'Checking' : s?.phase === 'installing' ? 'Installing' : 'Downloading', plain: 'Unknown' } as const
+  return (
+    <section aria-label="App update" className={BOX}>
+      <Head icon="download" title="App update" count="" aside={v ? <span className={cn('rounded-full px-3 py-1 text-[11px] font-bold', tone[v.tone])}>{label[v.tone]}</span> : null} />
+      {state.isError ? <p role="alert" className="text-sm text-warn">The update status is unavailable right now.</p> : !v ? <p role="status" className="text-sm text-muted">Reading the update status…</p> : (
+        <>
+          <p className="text-[15px] font-bold">{v.title}</p>
+          <p className="mt-0.5 whitespace-pre-line text-sm text-muted">{v.detail}</p>
+          {v.bar ? (
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label="Update download" aria-valuemin={0} aria-valuemax={100} aria-valuenow={v.pct ?? 0}><span className="block h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${v.pct ?? 0}%` }} /></div>
+          ) : null}
+          {v.actions.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {v.actions.map((a) => a === 'check'
+                ? <button key={a} type="button" disabled={asking} onClick={() => check.mutate()} className="h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50">{asking && check.isPending ? 'Checking…' : 'Check now'}</button>
+                : <button key={a} type="button" disabled={asking} onClick={() => install.mutate()} className="h-10 rounded-xl bg-accent px-5 text-sm font-bold text-accent-fg disabled:opacity-60">{a === 'retry' ? 'Try the update again' : 'Update now'}</button>)}
+            </div>
+          ) : null}
+          {check.isError || install.isError ? <p role="alert" className="mt-2 text-sm text-warn">The desktop app did not answer. Try again in a moment.</p> : null}
+        </>
+      )}
+    </section>
   )
 }
 
@@ -76,6 +111,7 @@ export function OverviewPanel({ go }: { go: (p: PanelId) => void }) {
         <ul className="mb-3 flex flex-wrap gap-2">{pills(checks).map((p) => <li key={p.label} className={cn('inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold', p.ok ? 'bg-good/15 text-good' : 'bg-warn/15 text-warn')}><i className="size-1.5 rounded-full bg-current" />{p.label}</li>)}</ul>
         <p className="text-sm text-muted">Configuration changes are applied through the settings below; live jobs remain in Operations.</p>
       </section>
+      <UpdateCard />
       <TrafficCard />
       <section aria-label="Status" className={BOX}>
         <Head icon="operations" title="Status" count="Runtime checks" />
@@ -150,6 +186,7 @@ export function ExperiencePanel() {
       <Row title="Autoplay source" hint="Which videos come next"><select value={form.autonext_mode} onChange={(e) => set('autonext_mode', e.target.value)} aria-label="Autoplay source" className={PICK}>
         {AUTONEXT_MODES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
       </select></Row>
+      <CaptionModel />
       <p className="mt-4 text-xs text-muted">Continue Watching, play position, play count, markers, favorites and recommendation shelves are stored locally. Provider APIs are used for enrichment rather than page rendering.</p>
       <p className="mt-3 text-xs text-muted">Playback QoS prioritizes the browser requested byte range, keeps a short bitrate-based read-ahead window, and preloads only the next queued video prefix at background priority.</p>
       <div className="mt-4 flex items-center gap-3">

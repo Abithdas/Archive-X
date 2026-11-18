@@ -11,6 +11,7 @@ import io
 import json
 import os
 import threading
+import time
 import wave
 from pathlib import Path
 from typing import Any, Protocol
@@ -18,6 +19,16 @@ from typing import Any, Protocol
 from ..core.safe_paths import inside
 
 WINDOW = 30.0  # seconds per caption window
+CACHE_TAG = "t2"   # cached windows made before words were timed (cues that started early and stayed on the screen) are not reused
+
+# The speech models offered in Settings. A bigger model is more accurate, not faster: on a processor "large-v3-turbo" runs at about half the speed of "small"
+# (3.7 against 7.6 times real time on a 4-core PC); on an NVIDIA card it is fast. Windows are cached per model, so changing the model never shows the old model's words.
+MODELS: dict[str, dict] = {
+    "small": {"label": "Fast", "size": "460 MB", "note": "Runs well on any PC. Good for English; fair for other languages."},
+    "medium": {"label": "Balanced", "size": "1.5 GB", "note": "Better with accents and other languages, about half as fast as Fast on a processor."},
+    "large-v3-turbo": {"label": "Accurate", "size": "1.6 GB", "note": "The best words. Quick with an NVIDIA card; on a processor it is about half as fast as Fast, so it may fall behind on a slow PC."},
+}
+DEFAULT_MODEL = "small"
 
 
 class CaptionEngine(Protocol):
@@ -40,17 +51,88 @@ def available() -> bool:
         return False
 
 
+MAX_GAP = 0.8        # a pause this long inside one segment starts a new caption
+MAX_CHARS = 84       # about two lines
+MAX_SECONDS = 6.5
+MIN_SHOWN = 0.7      # a caption stays at least this long, so a one-word caption can be read (never past the next caption)
+ONSET_PAD_MS = 150   # the voice detector hears speech a little after it starts; this much is given back
+
+
+def _plausible(w: tuple[str, float, float]) -> tuple[str, float, float]:
+    """Whisper often times the first word after a silence as if it began long before it was said (a one-syllable word 'lasting' seven seconds). A word cannot
+    last that long: its start is moved up to where a word of that length would start, counting back from its end."""
+    text, start, end = w
+    letters = len(text.strip())
+    longest = max(1.0, 0.12 * letters + 0.5)
+    if end - start > longest:
+        start = max(start, end - (0.1 * letters + 0.25))
+    return text, start, end
+
+
+def cues_from_words(words: list[tuple[str, float, float]], chunks: list[tuple[float, float]]) -> list[dict]:
+    """Captions from timed words. Whisper's own segment times are loose: a segment can start before the speech and stay on through the silence after it
+    (and after a long silence the first word is often timed early too). So: split at pauses and at about two lines, and keep each caption inside the stretch of
+    speech the voice detector found, `chunks` ((start, end) seconds), when there are any."""
+    words = [_plausible(w) for w in words]
+    groups: list[list[tuple[str, float, float]]] = []
+    cur: list[tuple[str, float, float]] = []
+    for w in words:
+        if cur:
+            text = "".join(x[0] for x in cur).strip()
+            gap = w[1] - cur[-1][2]
+            span = w[2] - cur[0][1]
+            sentence_end = text.endswith((".", "?", "!", "。", "？", "！"))
+            if gap > MAX_GAP or ((len(text) > MAX_CHARS or span > MAX_SECONDS) and (sentence_end or len(text) > MAX_CHARS + 24 or span > MAX_SECONDS + 3)):
+                groups.append(cur)
+                cur = []
+        cur.append(w)
+    if cur:
+        groups.append(cur)
+    cues: list[dict] = []
+    for g in groups:
+        start, end = g[0][1], g[-1][2]
+        if chunks:
+            home = next((c for c in chunks if c[1] >= start), None)   # the stretch of speech this caption starts in (or the next one, when it starts in silence)
+            if home is not None:
+                start = max(start, home[0])
+                end = min(end, home[1]) if home[1] > start else end
+                if g[-1][1] > home[1]:   # the caption runs on through a pause the detector made: keep the words' own end
+                    end = g[-1][2]
+        text = "".join(x[0] for x in g).strip()
+        if text:
+            cues.append({"start": round(float(start), 2), "end": round(float(max(end, start + 0.2)), 2), "text": text})
+    merged: list[dict] = []
+    for c in cues:   # a fragment of a word or two that ends right where the next caption starts belongs to it ("We" + "will meet again ...")
+        prev = merged[-1] if merged else None
+        if prev is not None and len(prev["text"].split()) <= 2 and prev["end"] - prev["start"] < 1.0 and c["start"] - prev["end"] <= 0.5:
+            c = {"start": prev["start"], "end": c["end"], "text": f"{prev['text']} {c['text']}"}
+            merged[-1] = c
+        else:
+            merged.append(c)
+    cues = merged
+    for i, c in enumerate(cues):   # short ones stay long enough to read, but never over the next caption
+        room = (cues[i + 1]["start"] - c["start"]) if i + 1 < len(cues) else float("inf")
+        c["end"] = round(max(c["end"], c["start"] + min(MIN_SHOWN, max(room - 0.05, 0.2))), 2)
+    return cues
+
+
 class FasterWhisperEngine:
     name = "faster-whisper"
 
     def __init__(self, model: str | None = None, cache_dir: Path | None = None):
         # "small" is the smallest model that handles Chinese/Japanese/Korean reasonably; "base" and "tiny" mostly fail on them.
         # Set ARCHIVE_X_WHISPER_MODEL=medium (or large-v3) for better accuracy on a faster PC.
-        self.model_name = model or os.environ.get("ARCHIVE_X_WHISPER_MODEL", "small")
+        self.model_name = model or os.environ.get("ARCHIVE_X_WHISPER_MODEL", DEFAULT_MODEL)
         self.cache_dir = cache_dir
         self._model: Any = None
         self._device = os.environ.get("ARCHIVE_X_WHISPER_DEVICE", "auto")   # "auto" uses an NVIDIA card when there is one; "cpu" never does
         self._lock = threading.Lock()
+        self._used_device = ""
+
+    @property
+    def device(self) -> str:
+        """"cuda" or "cpu" once the model is loaded (what it really runs on), else what was asked for."""
+        return self._used_device or self._device
 
     def prepare(self) -> None:
         """Load the model, downloading it first time (about 460 MB for "small"), and run it once on a second of silence, so "ready" means it really runs."""
@@ -62,6 +144,10 @@ class FasterWhisperEngine:
             from faster_whisper import WhisperModel  # type: ignore
             kw = {"download_root": str(self.cache_dir)} if self.cache_dir else {}
             self._model = WhisperModel(self.model_name, device=self._device, compute_type="int8", **kw)
+            try:
+                self._used_device = "cuda" if getattr(getattr(self._model, "model", None), "device", "") == "cuda" else "cpu"
+            except Exception:
+                self._used_device = ""
         return self._model
 
     @staticmethod
@@ -80,33 +166,52 @@ class FasterWhisperEngine:
                 return
             except Exception as exc:
                 if attempt == 0 and self._device != "cpu" and self._gpu_trouble(exc):
-                    self._model, self._device = None, "cpu"   # carry on without the card
+                    self._model, self._device, self._used_device = None, "cpu", ""   # carry on without the card
                     continue
                 raise
+
+    @staticmethod
+    def _speech(audio) -> list[tuple[float, float]]:
+        """Where there is speech, (start, end) seconds, from the voice detector that comes with faster-whisper (a little padding at the start, see ONSET_PAD_MS)."""
+        try:
+            from faster_whisper.vad import VadOptions, get_speech_timestamps  # type: ignore
+            found = get_speech_timestamps(audio, VadOptions(threshold=0.35, min_silence_duration_ms=500, speech_pad_ms=ONSET_PAD_MS))
+            return [(c["start"] / 16000.0, c["end"] / 16000.0) for c in found]
+        except Exception:
+            return []   # captions are then timed by the words alone
 
     def transcribe_wav(self, wav: bytes, task: str = "translate", cancelled=None) -> dict:
         import numpy as np  # installed with faster-whisper
         with wave.open(io.BytesIO(wav)) as w:
             audio = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype("float32") / 32768.0
+        chunks = self._speech(audio)
         with self._lock:
             for attempt in (0, 1):
                 try:
                     segs, info = self._load().transcribe(
                         audio, task="translate" if task == "translate" else "transcribe", beam_size=5, vad_filter=True,
                         vad_parameters={"min_silence_duration_ms": 500, "speech_pad_ms": 400, "threshold": 0.35},
-                        condition_on_previous_text=False, no_speech_threshold=0.7, temperature=[0.0, 0.2, 0.4])
-                    cues = []
+                        condition_on_previous_text=False, no_speech_threshold=0.7, temperature=[0.0, 0.2, 0.4],
+                        word_timestamps=True, hallucination_silence_threshold=2.0)
+                    words: list[tuple[str, float, float]] = []
+                    loose: list[dict] = []
                     for s in segs:   # segments are produced one at a time, so a window the viewer has left can be abandoned between two of them
                         if cancelled is not None and cancelled():
                             raise TranscribeCancelled()
-                        if s.text.strip():
-                            cues.append({"start": float(s.start), "end": float(s.end), "text": s.text.strip()})
+                        if not s.text.strip():
+                            continue
+                        timed = [(w.word, float(w.start), float(w.end)) for w in (getattr(s, "words", None) or []) if w.start is not None and w.end is not None]
+                        if timed:
+                            words.extend(timed)
+                        else:   # no word times for this segment: its own, loose ones
+                            loose.append({"start": float(s.start), "end": float(s.end), "text": s.text.strip()})
+                    cues = sorted(cues_from_words(words, chunks) + loose, key=lambda c: c["start"])
                     return {"language": getattr(info, "language", "") or "", "cues": cues}
                 except TranscribeCancelled:
                     raise
                 except Exception as exc:
                     if attempt == 0 and self._device != "cpu" and self._gpu_trouble(exc):
-                        self._model, self._device = None, "cpu"
+                        self._model, self._device, self._used_device = None, "cpu", ""
                         continue
                     raise
         return {"language": "", "cues": []}
@@ -134,9 +239,11 @@ class _Waiter:
 class CaptionService:
     """Caches windows on disk and makes sure one window is never transcribed twice at once."""
 
-    def __init__(self, cache_dir: Path, engine: CaptionEngine | None = None):
+    def __init__(self, cache_dir: Path, engine: CaptionEngine | None = None, model: str | None = None):
         self.cache_dir = Path(cache_dir)
         self.engine = engine
+        self.model = model if model in MODELS else os.environ.get("ARCHIVE_X_WHISPER_MODEL", DEFAULT_MODEL)
+        self.speed = 0.0                                   # audio seconds transcribed per second of work, over the last windows (1.0 is real time)
         self._inflight: dict[tuple, asyncio.Future] = {}
         self._askers: dict[tuple, list] = {}               # per window in flight: the is_gone checks of everyone waiting for it
         self._busy = False                                 # one transcription at a time ...
@@ -164,21 +271,36 @@ class CaptionService:
         except Exception as exc:
             self.model_state, self.model_error = "error", f"{type(exc).__name__}: {exc}"[:300]
 
+    def set_model(self, name: str) -> None:
+        """Use another speech model from now on: the next window loads it (downloading it the first time). Windows already made are kept, per model."""
+        if name not in MODELS:
+            raise ValueError(f"unknown speech model {name!r}")
+        if name == self.model:
+            return
+        self.model = name
+        self.engine = None
+        self.speed = 0.0
+        if self._prep is not None and not self._prep.done():
+            self._prep.cancel()
+        self.model_state, self.model_error = "idle", ""
+
     def status(self) -> dict:
         eng = self.engine
         return {"available": bool(eng) or available(), "engine": getattr(eng, "name", "faster-whisper") if (eng or available()) else "",
                 "install": "" if (eng or available()) else "pip install faster-whisper",
-                "model": self.model_state, "model_error": self.model_error}
+                "model": self.model_state, "model_error": self.model_error,
+                "model_name": self.model, "device": str(getattr(eng, "device", "") or ""), "speed": round(self.speed, 1)}
 
     def _engine(self) -> CaptionEngine:
         if self.engine is None:
             if not available():
                 raise RuntimeError("faster-whisper is not installed")
-            self.engine = FasterWhisperEngine(cache_dir=self.cache_dir / "models")
+            self.engine = FasterWhisperEngine(model=self.model, cache_dir=self.cache_dir / "models")
         return self.engine
 
     def _path(self, key: str, start: float, track: int | None, task: str) -> Path:
-        return inside(Path(self.cache_dir) / "captions", key, f"{'en' if task == 'translate' else 'orig'}_{'a' if track is None else int(track)}_{int(start)}.json")
+        model = "" if self.model == DEFAULT_MODEL else f"{self.model}_"   # the default model's windows keep their old names
+        return inside(Path(self.cache_dir) / "captions", key, f"{model}{'en' if task == 'translate' else 'orig'}_{'a' if track is None else int(track)}_{int(start)}_{CACHE_TAG}.json")
 
     def _stale(self, key: str, start: float) -> bool:
         """Nobody needs this window any more. When the player says where the viewer is (`at`), that is a window behind them or more than one
@@ -291,7 +413,11 @@ class CaptionService:
             await self._take_turn(key, start, lambda: self._all_gone(fk))
             try:
                 wav = await get_wav(start, WINDOW)
+                began = time.monotonic()
                 res = await asyncio.to_thread(self._run_engine, engine, wav, task, key, start)
+                took = max(time.monotonic() - began, 0.01)
+                rate = WINDOW / took
+                self.speed = rate if self.speed == 0.0 else 0.6 * self.speed + 0.4 * rate
             finally:
                 self._give_turn()
             out = {"start": start, "end": start + WINDOW, "language": res.get("language", ""),

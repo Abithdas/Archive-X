@@ -4,34 +4,33 @@ import { useState } from 'react'
 import { api } from '@/api/client'
 import { Empty } from '@/design/Empty'
 import { Icon } from '@/design/Icon'
-import { PageHead } from '@/design/PageHead'
 import { cn } from '@/design/cn'
-import { ScreenTabs } from './ScreenTabs'
+import { Reveal } from '@/design/Reveal'
+import { PosterSkeleton } from './PosterSkeleton'
+import { useScreenView } from './view'
 import { MOVIE_SORTS, movieBadge, sortMovies, versionText, type MovieCard, type MovieDetail, type MovieSort } from './series'
 import { lengthText } from './series'
 
 const PLACEHOLDER = '/static/icons/ax-placeholder.png'
 
-/** The movies in the library: one poster for each, however many copies there are. */
-export function MoviesPage() {
+/** The movies in the library, shown inside Movies & Shows: one poster for each, however many copies there are. */
+export function MoviesList() {
   const [sort, setSort] = useState<MovieSort>('title')
   const [find, setFind] = useState('')
   const [cam, setCam] = useState(false)
   const q = useQuery({ queryKey: ['movies', cam], queryFn: () => api<{ items: MovieCard[] }>(`/api/screen/movies${cam ? '?cam=1' : ''}`) })
   const items = sortMovies(q.data?.items ?? [], sort, find)
   return (
-    <div className="px-4 py-5 md:px-8">
-      <ScreenTabs active="movies" />
-      <PageHead title="Movies" blurb="One poster for each movie, with its copies under it">
+    <div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted">One poster for each movie, with its copies under it</p>
         <div className="flex flex-wrap items-center gap-2">
           <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a movie" aria-label="Find a movie" className="h-10 w-44 rounded-xl border border-line-2 bg-bg px-3 text-sm" />
           <select aria-label="Sort movies" value={sort} onChange={(e) => setSort(e.target.value as MovieSort)} className="h-10 rounded-xl border border-line-2 bg-bg px-3 text-sm">{MOVIE_SORTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
           <label className="inline-flex items-center gap-2 text-sm text-muted"><input type="checkbox" checked={cam} onChange={(e) => setCam(e.target.checked)} />Show cinema recordings</label>
         </div>
-      </PageHead>
-      {q.isPending ? <p role="status" className="py-8 text-center text-sm text-muted">Loading movies…</p>
-        : q.isError ? <p role="alert" className="py-8 text-center text-sm text-warn">Could not load the movies.</p>
-        : !items.length ? <Empty icon="play" title={find ? 'No movie matches' : 'No movies yet'}>{find ? 'Try other words.' : 'Add a folder of movies in Settings → Local files (marked SFW), then identify it in Settings → Metadata.'}</Empty>
+      </div>
+      {q.isError ? <p role="alert" className="py-8 text-center text-sm text-warn">Could not load the movies.</p>
+        : <Reveal ready={!q.isPending} skeleton={<PosterSkeleton label="Loading movies" />}>{!q.data ? null : !items.length ? <Empty icon="play" title={find ? 'No movie matches' : 'No movies yet'}>{find ? 'Try other words.' : 'Add a folder of movies in Settings → Local files (marked SFW), then identify it in Settings → Metadata.'}</Empty>
         : (
           <ul aria-label="Movies" className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
             {items.map((m, i) => (
@@ -47,7 +46,7 @@ export function MoviesPage() {
               </li>
             ))}
           </ul>
-        )}
+        )}</Reveal>}
     </div>
   )
 }
@@ -59,7 +58,7 @@ export function MovieDetailPage({ id }: { id: number }) {
   const d = q.data
   return (
     <div className="px-4 py-5 md:px-8">
-      <Link to="/movies" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-fg"><Icon name="arrow-left" className="size-4" />Movies</Link>
+      <Link to="/videos" onClick={() => useScreenView.getState().setView('movies')} className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-fg"><Icon name="arrow-left" className="size-4" />Movies</Link>
       {q.isPending ? <p role="status" className="py-8 text-center text-sm text-muted">Loading…</p>
         : q.isError || !d ? <p role="alert" className="py-8 text-center text-sm text-warn">This movie is not in the library.</p>
         : (

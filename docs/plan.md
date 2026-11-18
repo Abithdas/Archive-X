@@ -114,6 +114,8 @@ Two tracks run alongside: the **native player** (done: picture in its own window
 - **E6 The `deliverables/` zips** (12 MB, not tracked by git) are from earlier sessions; delete them if you do not need them.
 - **E7 GitHub description and topics** are empty. Set a one-line description and topics (D5).
 - **E8 Two web tests are timing-sensitive** under a full run (a different one failed each time and passed alone). Make them wait for what they check instead of for time.
+- **E9 A Python test depends on the order of the others.** `test_screen_identify.py::test_an_nsfw_folder_is_identified_by_file_hash...` fails when `test_sfw_leaks.py` runs before it in the same process (it also fails on the commit before the last round), and passes alone. A provider key saved by an earlier test is still there; the test should start from no keys.
+- **E10 The caption speech model on a graphics card.** The model choice and the timing were measured on a processor only. Try Accurate on a PC with an NVIDIA card and see the speed Settings, Experience shows.
 
 ## 8. Decisions that are yours
 

@@ -315,9 +315,10 @@ pub fn shutdown(app: &AppHandle) {
     }
 }
 
-/// The command names; build.rs keeps its own copy (it cannot use this module) and the test below checks they agree.
+/// The names of every command the page may call (the player's and the updater's, see updates.rs); build.rs keeps its own copy (it cannot use this module) and the test below checks they agree.
 #[cfg(test)]
-const COMMANDS: &[&str] = &["native_available", "native_open", "native_command", "native_rect", "native_state", "native_tracks", "native_diagnostics"];
+const COMMANDS: &[&str] =
+    &["native_available", "native_open", "native_command", "native_rect", "native_state", "native_tracks", "native_diagnostics", "update_status", "update_check", "update_install"];
 
 #[cfg(test)]
 mod tests {
@@ -342,6 +343,6 @@ mod tests {
             let permission = format!("allow-{}", name.replace('_', "-"));
             assert!(capability.contains(&format!("\"{permission}\"")), "the capability lacks {permission}");
         }
-        assert_eq!(capability.matches("\"allow-").count(), COMMANDS.len(), "the capability allows something that is not a player command");
+        assert_eq!(capability.matches("\"allow-").count(), COMMANDS.len(), "the capability allows something that is not one of these commands");
     }
 }

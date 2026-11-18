@@ -126,7 +126,7 @@ describe('AiPage', () => {
     const calls = mount()
     fireEvent.click(await screen.findByRole('button', { name: /^Diagnostics/ }))
     expect(await answer('Answer text')).toBeInTheDocument()
-    expect(String(posts(calls, '/api/ai/chat/stream')[0]!.body!.message)).toMatch(/^Use the diagnostics tool/)
+    expect(String(posts(calls, '/api/ai/chat/stream')[0]!.body!.message)).toMatch(/^Call get_issue_digest/)
     fireEvent.click(screen.getByRole('button', { name: /^Jobs/ }))
     await waitFor(() => expect(String(posts(calls, '/api/ai/chat/stream')[1]!.body!.message)).toMatch(/^Use the jobs tool/))
   })

@@ -3,23 +3,22 @@ import { Link } from '@tanstack/react-router'
 import { api } from '@/api/client'
 import { Empty } from '@/design/Empty'
 import { Icon } from '@/design/Icon'
-import { PageHead } from '@/design/PageHead'
-import { ScreenTabs } from './ScreenTabs'
+import { Reveal } from '@/design/Reveal'
+import { PosterSkeleton } from './PosterSkeleton'
+import { useScreenView } from './view'
 import { episodeLabel, countText, lengthText, missingText, seasonSummary, type SeriesCard, type SeriesDetail } from './series'
 
 const PLACEHOLDER = '/static/icons/ax-placeholder.png'
 
-/** The TV shows in the library: a poster for each, with how many episodes are here. */
-export function SeriesPage() {
+/** The TV shows in the library, shown inside Movies & Shows: a poster for each, with how many episodes are here. */
+export function SeriesList() {
   const q = useQuery({ queryKey: ['series'], queryFn: () => api<{ items: SeriesCard[] }>('/api/screen/series') })
   const items = q.data?.items ?? []
   return (
-    <div className="px-4 py-5 md:px-8">
-      <ScreenTabs active="series" />
-      <PageHead title="Series" blurb="Your TV shows, season by season" />
-      {q.isPending ? <p role="status" className="py-8 text-center text-sm text-muted">Loading shows…</p>
-        : q.isError ? <p role="alert" className="py-8 text-center text-sm text-warn">Could not load the shows.</p>
-        : !items.length ? <Empty icon="library" title="No shows yet">Add a folder of TV shows in Settings → Local files (marked SFW), then identify it in Settings → Metadata.</Empty>
+    <div>
+      <p className="mb-4 text-sm text-muted">Your TV shows, season by season</p>
+      {q.isError ? <p role="alert" className="py-8 text-center text-sm text-warn">Could not load the shows.</p>
+        : <Reveal ready={!q.isPending} skeleton={<PosterSkeleton label="Loading shows" />}>{!q.data ? null : !items.length ? <Empty icon="library" title="No shows yet">Add a folder of TV shows in Settings → Local files (marked SFW), then identify it in Settings → Metadata.</Empty>
         : (
           <ul aria-label="Shows" className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
             {items.map((s, i) => (
@@ -34,7 +33,7 @@ export function SeriesPage() {
               </li>
             ))}
           </ul>
-        )}
+        )}</Reveal>}
     </div>
   )
 }
@@ -45,7 +44,7 @@ export function SeriesDetailPage({ id }: { id: number }) {
   const d = q.data
   return (
     <div className="px-4 py-5 md:px-8">
-      <Link to="/series" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-fg"><Icon name="arrow-left" className="size-4" />Series</Link>
+      <Link to="/videos" onClick={() => useScreenView.getState().setView('series')} className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-fg"><Icon name="arrow-left" className="size-4" />Series</Link>
       {q.isPending ? <p role="status" className="py-8 text-center text-sm text-muted">Loading…</p>
         : q.isError || !d ? <p role="alert" className="py-8 text-center text-sm text-warn">This show is not in the library.</p>
         : (

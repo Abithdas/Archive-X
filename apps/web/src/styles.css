@@ -143,3 +143,33 @@ body {
 }
 @media (hover: hover) { [data-glow]:hover::after { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { [data-glow]::after { display: none; } } }
+
+/* Skeleton loader and reveal (transitions.dev "skeleton-reveal"). The placeholder pulses; when the data arrives the placeholder and the content
+   cross-fade with a matching cross-blur. The snippet stacks both layers absolutely; here the placeholder is in the flow while it waits (it gives
+   the slot its height) and lies over the content only during the swap (.is-layered), so a page never collapses or jumps because of it. */
+:root {
+  --pulse-dur: 1000ms;
+  --pulse-count: infinite;   /* the snippet pulses once; how long a load takes is not known, so it keeps pulsing until the content is there */
+  --pulse-min: 0.5;
+  --reveal-dur: 400ms;
+  --reveal-blur: 2px;
+  --reveal-ease: ease-in-out;
+}
+.t-skel { position: relative; }
+.t-skel-skeleton, .t-skel-content {
+  transition: opacity var(--reveal-dur) var(--reveal-ease), filter var(--reveal-dur) var(--reveal-ease);
+}
+.t-skel-skeleton { opacity: 1; filter: blur(0); }
+.t-skel-content { opacity: 0; filter: blur(var(--reveal-blur)); }
+.t-skel.is-layered > .t-skel-skeleton { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.t-skel.is-revealed > .t-skel-skeleton { opacity: 0; filter: blur(var(--reveal-blur)); }
+.t-skel.is-revealed > .t-skel-content { opacity: 1; filter: blur(0); }
+.t-skel-done { display: contents; }
+/* The pulse sits on the placeholder's children so the placeholder's own opacity and filter stay free for the cross-fade; it replaces the sweep. */
+.t-skel-skeleton.is-pulsing > * { animation: t-skel-pulse var(--pulse-dur) ease-in-out var(--pulse-count); }
+.t-skel-skeleton .after\:animate-sk-sweep::after { animation: none; opacity: 0; }
+@keyframes t-skel-pulse { 0%, 100% { opacity: 1; } 50% { opacity: var(--pulse-min); } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) {
+  .t-skel-skeleton, .t-skel-content { transition: none !important; }
+  .t-skel-skeleton.is-pulsing > * { animation: none !important; }
+} }

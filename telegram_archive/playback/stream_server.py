@@ -168,12 +168,13 @@ def _ensure_playback_log_handler() -> None:
         # NullHandler that would silence playback.log for the rest of the run.
         logging.getLogger(__name__).warning("Could not initialize playback.log at %s: %s", LOG_PATH, exc)
 
-def _stream_log(message: str) -> None:
+def _stream_log(message: str, level: str = "INFO") -> None:
     try:
         _ensure_playback_log_handler()
-        _log.info(message)
+        level = str(level).upper()
+        _log.log(getattr(logging, level, logging.INFO), message)
         from ..core.diagnostics import record_event
-        record_event(event="playback.message", level="INFO", message=message, details={"component": "playback"})
+        record_event(event="playback.message", level=level, message=message, details={"component": "playback"})
     except Exception as exc:
         logging.getLogger(__name__).debug("Playback event logging failed: %s", exc, exc_info=True)
 

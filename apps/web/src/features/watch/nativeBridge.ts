@@ -50,3 +50,24 @@ export function pixelRect(el: Element, ratio: number = window.devicePixelRatio |
   const r = el.getBoundingClientRect()
   return { x: Math.round(r.left * ratio), y: Math.round(r.top * ratio), w: Math.round(r.width * ratio), h: Math.round(r.height * ratio) }
 }
+
+/** The app's own update, kept by the desktop shell (apps/desktop/src-tauri/src/updates.rs). */
+export type UpdatePhase = 'idle' | 'checking' | 'uptodate' | 'available' | 'downloading' | 'installing' | 'error'
+export interface UpdateState {
+  phase: UpdatePhase
+  current: string
+  version: string | null
+  notes: string | null
+  received: number
+  total: number
+  /** Whole percent downloaded; null while the size is not known. */
+  percent: number | null
+  error: string | null
+  /** Unix seconds of the last finished look for an update. */
+  checkedAt: number | null
+}
+export const updates = {
+  status: () => call<UpdateState>('update_status'),
+  check: () => call<UpdateState>('update_check'),
+  install: () => call<UpdateState>('update_install'),
+}

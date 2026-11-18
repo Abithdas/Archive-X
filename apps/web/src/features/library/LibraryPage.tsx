@@ -21,17 +21,24 @@ import { SelectionBar } from './SelectionBar'
 import { NO_LIBRARY_VIDEOS, collecting, type Player } from './shuffle'
 import { useShuffle } from './useShuffle'
 import { useSelection } from './selection'
+import { Reveal } from '@/design/Reveal'
 import { VideoCard, VideoCardSkeleton } from './VideoCard'
 import { useDebounced } from './useDebounced'
 import { useFitGrid } from './fitGrid'
 import { useLibraryStore } from './store'
 import { SpinCounter } from '@/design/SpinCounter'
 import { useLabels } from '@/features/content/labels'
+import { MoviesList } from '@/features/series/MoviesPage'
+import { SeriesList } from '@/features/series/SeriesPage'
+import { ScreenTabs } from '@/features/series/ScreenTabs'
+import { useScreenView } from '@/features/series/view'
 
 const GRID = 'grid gap-4'
 
 export function LibraryPage() {
   const labels = useLabels()
+  const withScreen = Boolean(labels.movies)   // SFW: Movies and Series are parts of this page
+  const view = useScreenView((st) => (withScreen ? st.view : 'all'))
   const { channels: picked, page, sort, favorites, filters, per: nominalPer, toggle, clear, setPage, setPer, resetFilters } = useLibraryStore()
   const grid = useFitGrid(270, 16)
   const per = grid.fit(nominalPer)   // whole rows of whatever the window shows, so the last row is full
@@ -72,7 +79,9 @@ export function LibraryPage() {
   return (
     <section className="mx-auto flex w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] flex-1 flex-col pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
       <PageHead title={labels.videos} blurb={labels.videosBlurb} />
-
+      {withScreen ? <ScreenTabs /> : null}
+      {view === 'movies' ? <MoviesList /> : view === 'series' ? <SeriesList /> : null}
+      {view !== 'all' ? null : <>
       <Toolbar lead={<ChannelMenu channels={channels.data ?? []} selected={picked} onToggle={toggle} onAll={clear} onEdit={setEditChannel} />} onRefresh={() => void refresh()} refreshing={refreshing} onShuffle={(pl) => void shuffleAll(pl)} shuffling={shuffle.busy} />
 
       {editChannel ? <ChannelEditor id={editChannel} onClose={() => setEditChannel(null)} /> : null}
@@ -83,12 +92,6 @@ export function LibraryPage() {
           <p className="max-w-md text-sm text-muted">The library shows only channels and folders you have put in it for the current mode.</p>
           <ModeEmptyNote />
         </div>
-      ) : library.isPending ? (
-        <SkeletonGroup label="Loading videos" className={GRID} ref={grid.ref} style={grid.style}>
-          {Array.from({ length: grid.cols * 2 }, (_, i) => (
-            <VideoCardSkeleton key={i} index={i} />
-          ))}
-        </SkeletonGroup>
       ) : library.isError ? (
         <div className="rounded-card border border-bad/40 p-6" role="alert">
           <p className="font-semibold">Could not load the library.</p>
@@ -96,7 +99,14 @@ export function LibraryPage() {
           <Button onClick={() => library.refetch()}>Retry</Button>
         </div>
       ) : (
-        <>
+        <Reveal ready={!library.isPending} skeleton={(
+          <SkeletonGroup label="Loading videos" className={GRID} ref={grid.ref} style={grid.style}>
+            {Array.from({ length: grid.cols * 2 }, (_, i) => (
+              <VideoCardSkeleton key={i} index={i} />
+            ))}
+          </SkeletonGroup>
+        )}>
+        {library.data ? (<>
           <h2 className="mb-4 flex items-baseline gap-2.5 text-xl font-extrabold tracking-tight">
             Library
             <span className="text-[13px] font-normal tracking-normal text-muted">
@@ -122,8 +132,10 @@ export function LibraryPage() {
           ) : null}
           {selecting ? <SelectionBar visible={library.data.items} /> : null}
           {library.data.total > 0 ? <Pagination page={page} pages={pages} per={nominalPer} onPage={setPage} onPer={setPer} fit={grid.fit} /> : null}
-        </>
+        </>) : null}
+        </Reveal>
       )}
+      </>}
     </section>
   )
 }

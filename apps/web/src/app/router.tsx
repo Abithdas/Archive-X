@@ -1,9 +1,7 @@
 import { noteLeft } from '@/features/entities/origin'
 import { Link, createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
 import { lazy } from 'react'
-const MoviesPage = lazy(() => import('@/features/series/MoviesPage').then((m) => ({ default: m.MoviesPage })))
 const MovieDetailPage = lazy(() => import('@/features/series/MoviesPage').then((m) => ({ default: m.MovieDetailPage })))
-const SeriesPage = lazy(() => import('@/features/series/SeriesPage').then((m) => ({ default: m.SeriesPage })))
 const SeriesDetailPage = lazy(() => import('@/features/series/SeriesPage').then((m) => ({ default: m.SeriesDetailPage })))
 const LibraryPage = lazy(() => import('@/features/library/LibraryPage').then((m) => ({ default: m.LibraryPage })))
 const EntityDirectory = lazy(() => import('@/features/entities/EntityDirectory').then((m) => ({ default: m.EntityDirectory })))
@@ -16,6 +14,7 @@ const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then(
 const PhotosPage = lazy(() => import('@/features/photos/PhotosPage').then((m) => ({ default: m.PhotosPage })))
 const AiPage = lazy(() => import('@/features/ai/AiPage').then((m) => ({ default: m.AiPage })))
 import { usePhotoStore } from '@/features/photos/store'
+import { useScreenView } from '@/features/series/view'
 import { ErrorScreen } from './ErrorScreen'
 import { Shell } from './Shell'
 
@@ -85,9 +84,10 @@ const routeTree = root.addChildren([
   createRoute({ getParentRoute: () => root, path: '/performers', component: () => <EntityDirectory kind="performers" /> }),
   performer,
   movieDetail,
-  createRoute({ getParentRoute: () => root, path: '/movies', component: MoviesPage }),
+  // Movies and Series are parts of Movies & Shows; an old /movies or /series link opens that part.
+  createRoute({ getParentRoute: () => root, path: '/movies', beforeLoad: () => { useScreenView.getState().setView('movies'); throw redirect({ to: '/videos', replace: true }) } }),
   seriesDetail,
-  createRoute({ getParentRoute: () => root, path: '/series', component: SeriesPage }),
+  createRoute({ getParentRoute: () => root, path: '/series', beforeLoad: () => { useScreenView.getState().setView('series'); throw redirect({ to: '/videos', replace: true }) } }),
   studio,
   watch,
   nativePlayer,

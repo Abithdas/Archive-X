@@ -21,9 +21,10 @@ class AIToolRegistry:
     def definitions(self) -> list[dict[str, Any]]:
         return [
             {"type": "function", "function": {"name": "search_knowledge", "description": "Search what Archive X says about itself: changelog, docs, code docstrings.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
+            {"type": "function", "function": {"name": "get_issue_digest", "description": "START HERE to look for problems: a short ranked list of what is going wrong (made by rules from the logs, failed jobs and ignored errors), each with how often, when, real log lines, the usual cause and where to look. Read-only.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}}},
             {"type": "function", "function": {"name": "search_logs", "description": "Recent warnings and errors from the app log, optionally filtered by words.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}}}},
             {"type": "function", "function": {"name": "list_findings", "description": "Your notebook of earlier problems and ideas (status OPEN, ACCEPTED, REJECTED, FIXED). Do not repeat rejected ones.", "parameters": {"type": "object", "properties": {"status": {"type": "string"}}}}},
-            {"type": "function", "function": {"name": "record_finding", "description": "Write down one real problem or speed-up you found. Never include secrets.", "parameters": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["issue", "idea", "fix", "note"]}, "title": {"type": "string"}, "detail": {"type": "string"}}, "required": ["title"]}}},
+            {"type": "function", "function": {"name": "record_finding", "description": "Write down one real problem or idea you found, with the evidence. You diagnose; you do not fix or change anything. Never include secrets.", "parameters": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["issue", "idea", "note"]}, "title": {"type": "string"}, "detail": {"type": "string"}}, "required": ["title"]}}},
             {"type": "function", "function": {"name": "search_library", "description": "Search published Archive X videos, performers, studios, and tags. Read-only.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}, "limit": {"type": "integer", "minimum": 1, "maximum": 20}}, "required": ["query"], "additionalProperties": False}}},
             {"type": "function", "function": {"name": "get_library_stats", "description": "Return bounded local library and job counts. Read-only.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}}},
             {"type": "function", "function": {"name": "get_jobs", "description": "Return active or recent jobs and statuses. Read-only.", "parameters": {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 20}}, "additionalProperties": False}}},
@@ -44,6 +45,7 @@ class AIToolRegistry:
             "find_unresolved_metadata": self.find_unresolved_metadata,
             "find_duplicates": self.find_duplicates,
             "search_knowledge": self.search_knowledge,
+            "get_issue_digest": self.get_issue_digest,
             "search_logs": self.search_logs,
             "list_findings": self.list_findings,
             "record_finding": self.record_finding,
@@ -112,6 +114,10 @@ class AIToolRegistry:
     def search_knowledge(self, query: str) -> dict[str, Any]:
         self.knowledge.ensure()
         return {"results": self.knowledge.search(str(query or ""), 5)}
+
+    def get_issue_digest(self) -> dict[str, Any]:
+        from . import issue_digest
+        return issue_digest.build(self.db, limit=8)
 
     def search_logs(self, query: str = "") -> dict[str, Any]:
         words = [w for w in re.findall(r"[a-z0-9_.]{2,}", str(query or "").lower())][:6]

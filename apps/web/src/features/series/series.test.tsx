@@ -1,8 +1,8 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { labelsFor } from '@/features/content/labels'
-import { SeriesDetailPage, SeriesPage } from './SeriesPage'
+import { SeriesDetailPage, SeriesList } from './SeriesPage'
 import { episodeLabel, lengthText, seasonSummary } from './series'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -28,13 +28,13 @@ describe('helpers', () => {
 describe('Series pages', () => {
   it('lists shows with their episode counts', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json({ items: [{ id: 1, title: 'Dark', year: 2017, poster: '', overview: '', genres: [], episodes: 2, seasons: 2 }] })))
-    withRouter(<SeriesPage />)
+    withRouter(<SeriesList />)
     expect(await screen.findByRole('link', { name: 'Open Dark' })).toBeInTheDocument()
     expect(screen.getByText('2017 · 2 episodes')).toBeInTheDocument()
   })
   it('says what to do when there are no shows', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json({ items: [] })))
-    withRouter(<SeriesPage />)
+    withRouter(<SeriesList />)
     expect(await screen.findByText('No shows yet')).toBeInTheDocument()
   })
   it('shows a show with its seasons and episodes', async () => {
@@ -81,8 +81,8 @@ describe('missing episodes and movies', () => {
   })
   it('lists movies as one poster each', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json({ items: [{ id: 1, title: 'The Matrix', year: 1999, poster: '', overview: '', genres: [], rating: 8, release_date: '', added: 3, versions: 2, best: '1080p', cam_only: false }] })))
-    const { MoviesPage } = await import('./MoviesPage')
-    withRouter(<MoviesPage />)
+    const { MoviesList } = await import('./MoviesPage')
+    withRouter(<MoviesList />)
     expect(await screen.findByRole('link', { name: 'Open The Matrix' })).toBeInTheDocument()
     expect(screen.getByText('1080p · 2 copies')).toBeInTheDocument()
   })
@@ -96,12 +96,16 @@ describe('missing episodes and movies', () => {
   })
 })
 
-describe('the Movies | Series switch', () => {
-  it('is on both pages and marks the one that is open', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => json({ items: [] })))
-    withRouter(<SeriesPage />)
+describe('the All | Movies | Series switch', () => {
+  it('is one row of tabs that marks the open one and changes it on a click', async () => {
+    const { ScreenTabs } = await import('./ScreenTabs')
+    const { useScreenView } = await import('./view')
+    useScreenView.getState().setView('all')
+    withRouter(<ScreenTabs />)
     const tabs = await screen.findAllByRole('tab')
-    expect(tabs.map((t) => [t.textContent, t.getAttribute('aria-selected')])).toEqual([['Movies', 'false'], ['Series', 'true']])
-    expect(screen.getByRole('tab', { name: 'Movies' })).toHaveAttribute('href', '/movies')
+    expect(tabs.map((t) => [t.textContent, t.getAttribute('aria-selected')])).toEqual([['All', 'true'], ['Movies', 'false'], ['Series', 'false']])
+    fireEvent.click(screen.getByRole('tab', { name: 'Series' }))
+    expect(useScreenView.getState().view).toBe('series')
+    expect(screen.getByRole('tab', { name: 'Series' })).toHaveAttribute('aria-selected', 'true')
   })
 })

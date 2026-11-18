@@ -239,6 +239,14 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
         require_auth(request)
         return {"local_only": True, "tools": ai.tools.definitions()}
 
+    @router.get("/api/ai/digest")
+    async def ai_digest(request: Request):
+        """What is going wrong, ranked, made by rules from the logs, failed jobs and ignored errors. Needs no model: a person or any local model can read it."""
+        require_auth(request)
+        from ..core import issue_digest
+        digest = await asyncio.to_thread(issue_digest.build, db)
+        return {"ok": True, "digest": digest, "text": issue_digest.as_text(digest)}
+
     @router.get("/api/ai/findings")
     async def ai_findings(request: Request, status: str = ""):
         """The assistant's notebook (problems and ideas it noticed) with how many are in each state, and what it knows about the app."""

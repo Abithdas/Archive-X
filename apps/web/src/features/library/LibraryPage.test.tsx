@@ -1,8 +1,9 @@
-import { screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { useLibraryStore } from './store'
 import { LibraryPage } from './LibraryPage'
+import { useScreenView } from '@/features/series/view'
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn(), loading: vi.fn(), dismiss: vi.fn() }), Toaster: () => null }))
 afterEach(() => vi.unstubAllGlobals())
@@ -30,5 +31,36 @@ describe('LibraryPage', () => {
     expect(new URLSearchParams(asked.split('?')[1]).get('channels')).toBe('-1001,-1002')
     await waitFor(() => expect(screen.getByText(/videos? · 2 channels/)).toBeInTheDocument())   // the count itself is a labelled counter
     expect(screen.getByRole('img', { name: '1' })).toBeInTheDocument()
+  })
+
+  function stack(mode: 'sfw' | 'nsfw') {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/api/content-mode') return json({ ok: true, mode, pin_set: true, locked_for: 0 })
+      if (url === '/api/channels') return json(CHANNELS)
+      if (url.startsWith('/api/library?')) return json({ total: 1, page: 0, per: 24, items: [item] })
+      if (url.startsWith('/api/screen/movies')) return json({ items: [{ id: 1, title: 'The Matrix', year: 1999, poster: '', cam_only: false, copies: 1, best: '1080p' }] })
+      if (url.startsWith('/api/screen/series')) return json({ items: [{ id: 2, title: 'Dark', year: 2017, poster: '', overview: '', genres: [], episodes: 2, seasons: 1 }] })
+      return json({})
+    }))
+  }
+  it('in SFW has Movies and Series inside the page, as a switch, not as pages of their own', async () => {
+    useScreenView.getState().setView('all')
+    stack('sfw')
+    withRouter(<LibraryPage />)
+    expect(await screen.findByRole('article', { name: 'First scene' })).toBeInTheDocument()
+    expect((await screen.findAllByRole('tab')).map((t) => t.textContent)).toEqual(['All', 'Movies', 'Series'])
+    fireEvent.click(screen.getByRole('tab', { name: 'Movies' }))
+    expect(await screen.findByRole('link', { name: 'Open The Matrix' })).toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: 'First scene' })).toBeNull()      // the library grid gives way to the movies
+    fireEvent.click(screen.getByRole('tab', { name: 'Series' }))
+    expect(await screen.findByRole('link', { name: 'Open Dark' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'All' }))
+    expect(await screen.findByRole('article', { name: 'First scene' })).toBeInTheDocument()
+  })
+  it('in NSFW has no such switch', async () => {
+    stack('nsfw')
+    withRouter(<LibraryPage />)
+    expect(await screen.findByRole('article', { name: 'First scene' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab')).toBeNull()
   })
 })

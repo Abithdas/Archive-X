@@ -33,14 +33,11 @@ interface NavDef {
   to: string
   label: string
   icon: string
-  /** Other pages that keep this item lit (Series is a switch inside Movies). */
-  also?: string[]
 }
 const groupsFor = (l: Labels): { title: string; items: NavDef[] }[] => [
   { title: 'Library', items: [
     { to: '/photos', label: 'Photos', icon: 'images' },
     { to: '/videos', label: l.videos, icon: 'library' },
-    ...(l.movies ? [{ to: '/movies', label: l.series ? `${l.movies} & ${l.series}` : l.movies, icon: 'play', also: ['/series'] }] : []),
     { to: '/performers', label: l.performers, icon: 'user' },
     { to: '/studios', label: l.studios, icon: 'studio' },
   ] },
@@ -53,7 +50,7 @@ const groupsFor = (l: Labels): { title: string; items: NavDef[] }[] => [
     { to: '/ai', label: 'AI Assistance', icon: 'sparkle' },
   ] },
 ]
-const PHONE_NAV = ['/photos', '/videos', '/movies', '/performers', '/studios', '/transfers']
+const PHONE_NAV = ['/photos', '/videos', '/performers', '/studios', '/transfers']
 const RAIL_KEY = 'ax_next_sidebar_rail'
 
 const SIDE_ITEM = 'relative flex h-11 w-full items-center rounded-xl text-[15px] font-medium text-muted transition-colors hover:bg-fg/5 hover:text-fg'
@@ -69,35 +66,13 @@ function ActivityBadge({ count, className }: { count: number; className?: string
   )
 }
 
-/** True while one of the item's other pages (`also`) is open. */
-function useLit(n: NavDef): boolean {
-  const path = useRouterState({ select: (s) => s.location.pathname })
-  return Boolean(n.also?.some((p) => path === p || path.startsWith(`${p}/`)))
-}
-
-function PhoneItem({ n, count }: { n: NavDef; count: number }) {
-  const lit = useLit(n)
-  return (
-    <Link to={n.to} activeOptions={{ exact: n.to === '/' }} className={cn('relative flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[10.5px] font-semibold text-muted', lit && '!text-accent')} activeProps={{ className: '!text-accent' }}>
-      {({ isActive: here }) => (
-        <>
-          {here || lit ? <motion.span layoutId="phone-nav-marker" transition={spring} aria-hidden="true" className="absolute inset-x-4 top-0 h-[3px] rounded-b-full bg-accent" /> : null}
-          <span className="relative"><Icon name={n.icon} /><ActivityBadge count={count} className="absolute -right-3 -top-1.5 h-4 min-w-4 text-[10px]" /></span>
-          <span className="truncate">{n.label}</span>
-        </>
-      )}
-    </Link>
-  )
-}
-
 function SideItem({ n, rail, count }: { n: NavDef; rail: boolean; count: number }) {
   const layout = rail ? 'justify-center' : 'gap-3 px-3'
-  const lit = useLit(n)
   return (
-    <Link to={n.to} activeOptions={{ exact: n.to === '/' }} className={cn(SIDE_ITEM, layout, lit && SIDE_ACTIVE)} title={rail ? (count ? `${n.label} · ${runningLabel(count)}` : n.label) : undefined} activeProps={{ className: SIDE_ACTIVE }}>
-      {({ isActive: here }) => (
+    <Link to={n.to} activeOptions={{ exact: n.to === '/' }} className={cn(SIDE_ITEM, layout)} title={rail ? (count ? `${n.label} · ${runningLabel(count)}` : n.label) : undefined} activeProps={{ className: SIDE_ACTIVE }}>
+      {({ isActive }) => (
         <>
-          {here || lit ? <motion.span layoutId="side-pill" transition={spring} aria-hidden="true" className="absolute inset-0 rounded-xl bg-accent/15" /> : null}
+          {isActive ? <motion.span layoutId="side-pill" transition={spring} aria-hidden="true" className="absolute inset-0 rounded-xl bg-accent/15" /> : null}
           <Icon name={n.icon} className="relative" />
           <span className={cn('relative', rail && 'sr-only')}><ScrambleText text={n.label} /></span>
           <ActivityBadge count={count} className={rail ? 'absolute right-1.5 top-1.5' : 'ml-auto'} />
@@ -292,7 +267,19 @@ export function Shell(): ReactNode {
         </main>
       </div>
       <nav className="flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Main">
-        {phone.map((n) => <PhoneItem key={n.to} n={n} count={activity[n.to] ?? 0} />)}
+        {phone.map((n) =>
+          (
+            <Link key={n.to} to={n.to} activeOptions={{ exact: n.to === '/' }} className="relative flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[10.5px] font-semibold text-muted" activeProps={{ className: '!text-accent' }}>
+              {({ isActive }) => (
+                <>
+                  {isActive ? <motion.span layoutId="phone-nav-marker" transition={spring} aria-hidden="true" className="absolute inset-x-4 top-0 h-[3px] rounded-b-full bg-accent" /> : null}
+                  <span className="relative"><Icon name={n.icon} /><ActivityBadge count={activity[n.to] ?? 0} className="absolute -right-3 -top-1.5 h-4 min-w-4 text-[10px]" /></span>
+                  <span className="truncate">{n.label}</span>
+                </>
+              )}
+            </Link>
+          ),
+        )}
         <button type="button" onClick={() => useUi.getState().setMore(true)} className="flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[10.5px] font-semibold text-muted">
           <Icon name="grid" />
           <span>More</span>

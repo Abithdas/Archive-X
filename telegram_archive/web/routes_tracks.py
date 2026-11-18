@@ -17,7 +17,13 @@ _LOG = logging.getLogger(__name__)
 
 def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_url, require_playback_allowed, service: "captions.CaptionService | None" = None, db=None) -> dict[str, object]:
     root = Path(config.PLAYER_CACHE_DIR) / "tracks"
-    svc = service or captions.CaptionService(Path(config.PLAYER_CACHE_DIR))
+    saved_model = None
+    if service is None and db is not None:
+        try:
+            saved_model = str(db.setting("captions_model") or "") or None
+        except Exception:
+            saved_model = None
+    svc = service or captions.CaptionService(Path(config.PLAYER_CACHE_DIR), model=saved_model)
     track_cache: dict[tuple, dict] = {}
     audio_jobs: dict[tuple, asyncio.Task] = {}
 
@@ -112,6 +118,24 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
         if prepare and svc.status()["available"]:
             svc.ensure_ready()
         return svc.status()
+
+    @router.get("/api/captions/model")
+    async def captions_model(request: Request):
+        """The speech model in use, the ones to choose from, and how fast the last windows were made (1.0 is real time)."""
+        require_auth(request)
+        return {"ok": True, "model": svc.model, "choices": [{"id": k, **v} for k, v in captions.MODELS.items()], "speed": round(svc.speed, 1), "state": svc.model_state, "device": svc.status()["device"]}
+
+    @router.post("/api/captions/model")
+    async def captions_model_set(request: Request):
+        require_auth(request)
+        body = await request.json()
+        name = str((body or {}).get("model") or "")
+        if name not in captions.MODELS:
+            raise HTTPException(400, "Choose one of: " + ", ".join(captions.MODELS))
+        svc.set_model(name)
+        if db is not None:
+            await asyncio.to_thread(db.set_setting, "captions_model", name)
+        return {"ok": True, "model": svc.model}
 
     @router.get("/api/play/captions/{channel_id}/{message_id}")
     async def play_captions(channel_id: int, message_id: int, request: Request, start: float = 0.0, track: int | None = None, task: str = "translate", at: float | None = None):
