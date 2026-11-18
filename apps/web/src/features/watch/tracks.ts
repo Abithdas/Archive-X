@@ -14,7 +14,11 @@ export function stampSeconds(s: string): number {
   return Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) + Number(m[4]!.padEnd(3, '0')) / 1000
 }
 
-const stripTags = (t: string) => t.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
+/** The text of a caption line: tags removed and entities decoded by the browser's own HTML parser (nothing is run or loaded from it). */
+const stripTags = (t: string) => {
+  if (typeof DOMParser === 'undefined') return t.replace(/<[^<>]*>/g, '')
+  return (new DOMParser().parseFromString(t, 'text/html').body.textContent ?? '').replace(/\u00a0/g, ' ')
+}
 
 /** Cues of a WebVTT (or SRT) file. */
 export function parseVtt(text: string): Cue[] {

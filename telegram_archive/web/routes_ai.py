@@ -230,7 +230,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
                 thinking=bool(body.get("thinking")) if "thinking" in body else None,
             )
         except (ValueError, TypeError) as exc:
-            raise HTTPException(400, str(exc)) from exc
+            raise HTTPException(400, "The request could not be used") from exc
         db.log("Local AI settings updated", event="ai.configuration.updated")
         return {"ok": True, **result}
 
@@ -426,7 +426,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
         try:
             result = await asyncio.to_thread(ai.reset_conversation, int(active["id"]))
         except LocalAIError as exc:
-            raise HTTPException(502, str(exc)) from exc
+            raise HTTPException(502, "The assistant could not complete the request") from exc
         db.log("AI Assistant conversation reset")
         return result
 

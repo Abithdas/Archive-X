@@ -15,6 +15,8 @@ import wave
 from pathlib import Path
 from typing import Any, Protocol
 
+from ..core.safe_paths import inside
+
 WINDOW = 30.0  # seconds per caption window
 
 
@@ -146,7 +148,7 @@ class CaptionService:
         return self.engine
 
     def _path(self, key: str, start: float, track: int | None, task: str) -> Path:
-        return self.cache_dir / "captions" / key / f"{'en' if task == 'translate' else 'orig'}_{'a' if track is None else track}_{int(start)}.json"
+        return inside(Path(self.cache_dir) / "captions", key, f"{'en' if task == 'translate' else 'orig'}_{'a' if track is None else int(track)}_{int(start)}.json")
 
     def _stale(self, key: str, start: float) -> bool:
         """Nobody needs this window any more. When the player says where the viewer is (`at`), that is a window behind them or more than one

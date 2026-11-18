@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
+from ..core.safe_paths import inside
 from ..playback import captions, tracks
+
+_LOG = logging.getLogger(__name__)
 
 
 def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_url, require_playback_allowed, service: "captions.CaptionService | None" = None) -> dict[str, object]:
@@ -25,9 +29,10 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
             try:
                 track_cache[key] = await tracks.probe_tracks(src(cid, mid))
             except FileNotFoundError as exc:
-                raise HTTPException(503, str(exc)) from exc
+                raise HTTPException(503, "The video file is not available to read its tracks") from exc
             except Exception as exc:
-                raise HTTPException(502, f"Could not read tracks: {exc}") from exc
+                _LOG.warning("track probe failed: %s", exc)
+                raise HTTPException(502, "Could not read the tracks of this video") from exc
         return track_cache[key]
 
     @router.get("/api/play/tracks/{channel_id}/{message_id}")
@@ -45,18 +50,19 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
         s = next((x for x in t["subtitles"] if x["index"] == index), None)
         if not s or not s["text"]:
             raise HTTPException(404, "No such text subtitle track")
-        cache = root / f"{channel_id}_{message_id}" / f"sub_{index}.vtt"
+        cache = inside(root, f"{int(channel_id)}_{int(message_id)}", f"sub_{int(index)}.vtt")
         if not cache.exists():
             try:
                 data = await tracks.subtitle_vtt(src(channel_id, message_id), index)
             except Exception as exc:
-                raise HTTPException(502, str(exc)) from exc
+                _LOG.warning("subtitle extraction failed: %s", exc)
+                raise HTTPException(502, "Could not read this subtitle track") from exc
             cache.parent.mkdir(parents=True, exist_ok=True)
             cache.write_bytes(data)
         return Response(cache.read_bytes(), media_type="text/vtt; charset=utf-8", headers={"Cache-Control": "private, max-age=3600"})
 
     def audio_path(cid: int, mid: int, index: int) -> Path:
-        return root / f"{cid}_{mid}" / f"audio_{index}.m4a"
+        return inside(root, f"{int(cid)}_{int(mid)}", f"audio_{int(index)}.m4a")
 
     @router.get("/api/play/audio-track/{channel_id}/{message_id}/{index}/status")
     async def audio_status(channel_id: int, message_id: int, index: int, request: Request):
@@ -75,7 +81,8 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
             exc = job.exception() if not job.cancelled() else None
             audio_jobs.pop(key, None)
             if exc:
-                return {"ready": False, "error": str(exc)}
+                _LOG.warning("audio track extraction failed: %s", exc)
+                return {"ready": False, "error": "Could not extract this audio track"}
         if key not in audio_jobs:
             audio_jobs[key] = asyncio.create_task(tracks.extract_audio_track(src(channel_id, message_id, 24 * 3600), index, p))
         return {"ready": False}

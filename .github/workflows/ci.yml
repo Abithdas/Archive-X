@@ -5,6 +5,10 @@ on:
     branches: [main, archive-x-desktop-app]
   pull_request:
 
+# Read-only by default: no job here writes to the repository.
+permissions:
+  contents: read
+
 jobs:
   frontend:
     runs-on: ubuntu-latest

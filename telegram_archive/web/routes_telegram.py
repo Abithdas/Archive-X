@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
+from ..core.safe_paths import inside
 import asyncio
 import io
 import json
@@ -262,7 +263,7 @@ def register_telegram_routes(
         return row
 
     def _channel_photo_path(cid: str):
-        return Path(config.CACHE_DIR) / "channel_photos" / f"{cid.lstrip('-') or '0'}{'n' if cid.startswith('-') else ''}.img"
+        return inside(Path(config.CACHE_DIR) / "channel_photos", f"{cid.lstrip('-') or '0'}{'n' if cid.startswith('-') else ''}.img")
 
     def _channel_photo_disk(cid: str):
         try:

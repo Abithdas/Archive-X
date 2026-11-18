@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
+from ..core.safe_paths import inside
 from ..core.snapshot_cache import SnapshotCache
 import asyncio
 import hmac
@@ -94,7 +95,7 @@ def register_system_routes(
         suffix = Path(name).suffix.lower()
         if "/" in name or "\\" in name or ".." in name or suffix not in {".svg", ".txt"}:
             raise HTTPException(404)
-        path = Path(__file__).resolve().parent / "static" / "icons" / "ax-icons" / name
+        path = inside(Path(__file__).resolve().parent / "static" / "icons" / "ax-icons", name)
         if not path.is_file():
             raise HTTPException(404)
         media = "image/svg+xml" if suffix == ".svg" else "text/plain; charset=utf-8"

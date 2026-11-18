@@ -12,7 +12,7 @@ describe('studio extras', () => {
     const p = { providers: [provider({ instagram: 'https://www.instagram.com/north', social: [{ platform: 'Reddit', url: 'https://reddit.com/r/north' }, 'https://stashdb.org/studios/1'], website: 'https://north.example', twitter: 'not a url' })] }
     const l = socialLinks({ site_url: 'https://official.example' }, p)
     expect(l.map((x) => x.label)).toEqual(['Official website', 'Instagram', 'Reddit', 'Website']); expect(l[0]!.href).toBe('https://official.example/'); expect(l[1]!.href).toBe('https://www.instagram.com/north')
-    expect(socialLinks({ site_url: 'https://north.example' }, p).filter((x) => x.href.startsWith('https://north.example'))).toHaveLength(1)
+    expect(socialLinks({ site_url: 'https://north.example' }, p).filter((x) => new URL(x.href).origin === 'https://north.example')).toHaveLength(1)
     expect(socialLinks({ site_url: 'javascript:alert(1)' }, null)).toEqual([]); expect(socialLinks({ profile: 'https://youtube.com/@n' }, null)[0]!.label).toBe('YouTube')
   })
   it('picks a brand icon', () => { expect(brandIcon('https://x.com/a')).toBe('brand-x'); expect(brandIcon('https://sub.youtube.com/a')).toBe('brand-youtube'); expect(brandIcon('https://example.org')).toBe('brand-website'); expect(brandIcon('nope')).toBe('brand-website') })

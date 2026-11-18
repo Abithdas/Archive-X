@@ -74,7 +74,7 @@ def test_model_download_falls_back_to_the_mirror(tmp_path, monkeypatch):
 
     def fake(url, dest, digest):
         calls.append(url)
-        if "github.com" in url:
+        if __import__("urllib.parse").parse.urlsplit(url).hostname == "github.com":
             raise OSError("blocked")
         dest.parent.mkdir(parents=True, exist_ok=True); dest.write_bytes(b"x" * 2048)
     monkeypatch.setattr(pf, "_download_checked", fake)

@@ -340,6 +340,11 @@ def _fmt_duration(sec: float) -> str:
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
 
+def _strip_tags(text: str) -> str:
+    """Remove ``<...>`` tags. ``[^<>]`` keeps the match linear on odd input such as many ``<`` in a row."""
+    return re.sub(r"<[^<>]*>", "", text)
+
+
 def render_caption(template: str, v: dict, limit: int = 1024) -> str:
     # Send-to-Telegram / Media Manager captions intentionally exclude tags.
     template = _remove_hashtag_placeholders(template)
@@ -364,9 +369,9 @@ def render_caption(template: str, v: dict, limit: int = 1024) -> str:
 
     for max_tags in (60, 25, 10, 0):
         text = build(max_tags)
-        if len(re.sub(r"<[^>]+>", "", html.unescape(text))) <= limit:
+        if len(_strip_tags(html.unescape(text))) <= limit:
             return text
-    plain = html.unescape(re.sub(r"<[^>]+>", "", build(0)))
+    plain = html.unescape(_strip_tags(build(0)))
     return html.escape(plain[: limit - 1] + "…")
 
 
