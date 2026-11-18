@@ -12,7 +12,7 @@ Browse, search, and play your videos and photos from a Windows desktop app. Orga
 
 - **One library from many places.** Telegram channels and folders on your PC (read where they lie, never copied) appear together. Choose per channel whether it is in the library, whether it is SFW or NSFW, and whether it holds videos, photos or both.
 - **Two modes, one switch.** The app opens in **SFW** every time and shows nothing adult: pages, counts, people, studios, tags, search, direct links and settings all follow the mode. Switching to **NSFW** asks for a PIN. In SFW the app becomes a movie and TV library with a Movies page and a Series page that lists missing episodes.
-- **Know what you have.** Videos are identified from their file names and fingerprints: movies and shows by TMDB, OpenSubtitles and OMDb (TVmaze as a keyless fallback), adult scenes by StashDB and ThePornDB. Doubtful matches wait in a review list for your yes, and an id in a file name (`{tmdb-603}`) settles it.
+- **Know what you have.** Videos are identified from their file names and fingerprints: metadata is collected from public metadata APIs (TMDB, OpenSubtitles, OMDb and TVmaze for movies and shows, and other metadata APIs for NSFW). Doubtful matches wait in a review list for your yes, and an id in a file name (`{tmdb-603}`) settles it.
 - **Play anything.** A built-in player with 36 preview frames under the timeline, watch history and scene markers, plus a native video engine for formats a browser cannot play. Telegram videos play through a persistent cache with read-ahead that follows your position; local videos play straight from the disk.
 - **Organize.** Performers, studios and tags, photo galleries with face grouping, favourites, and bulk edits.
 - **Move media.** Transfer selected videos between channels, or upload a local folder to a channel, keeping what was already identified so nothing is looked up or snapshotted twice.
@@ -31,7 +31,7 @@ Archive X is currently distributed as a Windows x64 desktop app. See the [latest
 
 1. Sign in to Telegram when asked; your session is stored encrypted on this PC.
 2. Open **Settings, Telegram, Channels** and mark the channels you want in the library (SFW or NSFW). New channels stay out until you mark them.
-3. Optional: **Settings, Local files** to add folders, and **Settings, Metadata** to add provider keys (TMDB, OpenSubtitles and OMDb for movies and TV; StashDB and ThePornDB for NSFW). Each key has a **Test** button.
+3. Optional: **Settings, Local files** to add folders, and **Settings, Metadata** to add API keys for metadata collection (TMDB, OpenSubtitles and OMDb for movies and TV; further metadata APIs in NSFW mode). Each key has a **Test** button.
 4. Use the switch in **Settings, Content** or at the top of the profile menu to change mode. Your existing library is NSFW, so it appears after you switch.
 
 ## Build from source

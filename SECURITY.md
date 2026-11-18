@@ -29,14 +29,14 @@ as fast as its severity calls for. Please give a reasonable time to fix a proble
 
 - the web interface and its API (login, sessions, the setup step, anything that reads or changes your library or settings);
 - the front door and the desktop app (the update check, opening files and links, what the web page may ask the shell to do);
-- how media and metadata from Telegram and the metadata providers are handled (image and video parsing, file names, downloads);
+- how media from Telegram and metadata collected from external APIs are handled (image and video parsing, file names, downloads, API keys kept on this PC, and what is sent to those APIs);
 - the local AI assistant: it must never see keys, tokens, passwords or cookies, and an action that changes or deletes anything needs your
   permission first (`telegram_archive/core/ai_safety.py`). A way around either rule is a vulnerability;
 - the installer and the update files published with each release.
 
 ## What is not in scope
 
-- Telegram itself, StashDB, ThePornDB and other services Archive X talks to;
+- Telegram itself and the third-party APIs Archive X collects metadata from (their servers, accounts, rate limits and the data they return);
 - problems that need you to already control the PC or its Windows account, or to hand over your own login;
 - the Windows SmartScreen warning when you run the installer: the installer is not yet signed with a code-signing certificate, which is known;
 - reports that only a scanner produced, with no way to show that the code in question is reachable in Archive X.

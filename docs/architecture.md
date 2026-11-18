@@ -30,7 +30,7 @@ Python is deliberately **one process**: Telegram, jobs, playback and watchers ar
 - **Jobs (`jobs/`).** `JobManager` and `JobOrchestrator` handle admission, dependencies, retries and leases. After an unclean exit every persisted job is marked INTERRUPTED; nothing resumes by itself.
 - **Engines (`engines/`).** Long-running workers: uploader, sender, transfer manager, thumbnail and preview caches, metadata sync, face clustering, delivery ledger, local folder scanning (`local_scanner`, `local_videos`, `local_upload_bridge`) and SFW identification (`screen_identify`).
 - **Media manager (`media_manager/`).** The Telegram-to-Telegram toolkit: router, mover, archiver, duplicate finder, organizer.
-- **Metadata (`metadata/`).** Filename parsing, fingerprints, provider matching. Adult providers (StashDB, ThePornDB) and the movie and TV providers (TMDB, OpenSubtitles, OMDb, TVmaze in `screen_ids.py`) share one review flow.
+- **Metadata (`metadata/`).** Filename parsing, fingerprints, provider matching. Metadata is collected from external APIs: the NSFW metadata APIs (`providers.py`) and the movie and TV APIs (TMDB, OpenSubtitles, OMDb, TVmaze in `screen_ids.py`) share one review flow.
 - **Playback (`playback/`, `systems/playback/`).** The range-streaming engine (`stream_server.py`): 512 KiB segments over raw `upload.getFile`, a sparse disk cache, read-ahead that follows the playhead, a priority scheduler that cancels stale reads on seek, and the external player launchers.
 - **Operations (`operations/`).** Content automation: RSS, a qBittorrent supervisor, ingest.
 - **Core (`core/`).** Auth and sessions, database, resource manager, diagnostics, backup, the local AI runtime, and the content-mode rules.
@@ -49,7 +49,7 @@ A video appears in the Library only when its snapshots (36 frames), thumbnail an
 
 ## 4. Metadata
 
-- **NSFW:** filename and fingerprint matching against StashDB and ThePornDB, suggestions confirmed in the scene-match review; the front door keeps a local copy of the performer name list (`ax-names`) and learns faces (`ax-faces`).
+- **NSFW:** filename and fingerprint matching against the NSFW metadata APIs, suggestions confirmed in the scene-match review; the front door keeps a local copy of the performer name list (`ax-names`) and learns faces (`ax-faces`).
 - **SFW:** `screen_identify` reads file names, resolves each show once per run and fetches whole seasons, keeps answers in `metadata_cache` (30 days for hits, 7 for misses; a refused key is never cached), compares titles by words, lets an explicit id in the name (`{tmdb-603}`, `tt…`) settle a match, and sends doubtful ones to a review list. Movie copies are grouped under one card and ranked by quality.
 
 ## 5. Content modes (SFW and NSFW)
