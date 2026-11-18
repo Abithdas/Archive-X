@@ -119,7 +119,7 @@ fn stop_backend(app: &tauri::AppHandle) {
     let state = app.state::<BackendState>();
     let taken = state.0.lock().unwrap().take();
     if let Some(mut backend) = taken {
-        backend.shutdown(Duration::from_secs(12));   // the backend bounds its own cleanup and usually needs a second or two; past this the whole process tree is ended
+        backend.shutdown(Duration::from_secs(12)); // the backend bounds its own cleanup and usually needs a second or two; past this the whole process tree is ended
     }
 }
 

@@ -145,7 +145,12 @@ mod job {
                 }
                 let mut info: sys::ExtendedLimits = std::mem::zeroed();
                 info.basic.limit_flags = sys::KILL_ON_JOB_CLOSE;
-                let ok = sys::SetInformationJobObject(handle, sys::EXTENDED_LIMIT_INFORMATION, &mut info as *mut _ as *mut std::ffi::c_void, std::mem::size_of::<sys::ExtendedLimits>() as u32);
+                let ok = sys::SetInformationJobObject(
+                    handle,
+                    sys::EXTENDED_LIMIT_INFORMATION,
+                    &mut info as *mut _ as *mut std::ffi::c_void,
+                    std::mem::size_of::<sys::ExtendedLimits>() as u32,
+                );
                 if ok == 0 {
                     sys::CloseHandle(handle);
                     return None;
@@ -166,7 +171,7 @@ mod job {
     impl Drop for Job {
         fn drop(&mut self) {
             unsafe {
-                sys::CloseHandle(self.0);   // closing the last handle kills everything still in the job
+                sys::CloseHandle(self.0); // closing the last handle kills everything still in the job
             }
         }
     }
