@@ -131,7 +131,7 @@ function TelegramPill() {
   const ok = Boolean(data?.telegram_connected ?? data?.telegram?.connected)
   return (
     <Link to="/settings" data-live={ok ? 'true' : 'false'} className={cn('ax-live-pill hidden h-9 items-center gap-2 rounded-full px-3 text-[13px] font-semibold sm:inline-flex', ok ? 'bg-good/15 text-good' : 'bg-bad/15 text-bad')} title={data?.telegram_status ?? 'Telegram status'}>
-      <Icon name="send" className="size-4" />
+      <span className="ax-plane" data-live={ok ? 'true' : 'false'} aria-hidden="true"><Icon name="send" className="size-4" /></span>
       <span data-live={ok ? 'true' : 'false'} className={cn('ax-live-dot size-2', ok ? 'bg-good' : 'bg-bad')} aria-hidden="true" />
       {ok ? 'Connected' : 'Setup needed'}
     </Link>

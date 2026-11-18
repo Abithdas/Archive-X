@@ -39,3 +39,27 @@ describe('sidebar activity counters', () => {
     expect(within(phone).getByRole('link', { name: /Performers/ }).querySelector('[role="status"]')).toBeNull()
   })
 })
+
+describe('the top bar', () => {
+  const mountShell = (telegram: boolean) => {
+    vi.stubGlobal('WebSocket', QuietSocket)
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes('/api/status') ? { jobs: [], telegram_connected: telegram } : String(url).includes('storage') ? { bytes: 1, files: 1, disk: { total: 10, used: 1, free: 9 } } : {}), { status: 200 })))
+    withRouter(<Shell />)
+  }
+  it('has no status dot on the profile picture', async () => {
+    mountShell(true)
+    const account = await screen.findByRole('button', { name: 'Account menu' })
+    await waitFor(() => expect(screen.getByText('Connected')).toBeInTheDocument())
+    expect(account.querySelector('i, .ax-live-dot')).toBeNull()
+  })
+  it('flies the Telegram plane while Telegram is live, and keeps it still when it is not', async () => {
+    mountShell(true)
+    await waitFor(() => expect(screen.getByText('Connected')).toBeInTheDocument())
+    expect(screen.getByText('Connected').closest('a')!.querySelector('.ax-plane')).toHaveAttribute('data-live', 'true')
+  })
+  it('keeps the plane still when Telegram is not connected', async () => {
+    mountShell(false)
+    await waitFor(() => expect(screen.getByText('Setup needed')).toBeInTheDocument())
+    expect(screen.getByText('Setup needed').closest('a')!.querySelector('.ax-plane')).toHaveAttribute('data-live', 'false')
+  })
+})

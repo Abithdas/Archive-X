@@ -15,12 +15,6 @@ import { toggleTheme, useTheme } from './theme'
 
 const ROW = 'flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium hover:bg-fg/5 focus-visible:bg-fg/5 focus-visible:outline-none'
 
-/** The little dot on the avatar says whether Telegram is connected (not whether the live-updates socket is): green, amber while the first answer is awaited, red. */
-export function telegramDot(known: boolean, connected: boolean): { tone: string; label: string } {
-  if (!known) return { tone: 'bg-warn', label: 'Checking Telegram' }
-  return connected ? { tone: 'bg-good', label: 'Telegram connected' } : { tone: 'bg-bad', label: 'Telegram not connected' }
-}
-
 /** Avatar button and its menu: content mode, profile, theme, sign out, exit. (Telegram, storage and settings are in Settings; the command palette is Ctrl K.) */
 export function AccountMenu({ live }: { live: string }) {
   const id = useId()
@@ -36,8 +30,6 @@ export function AccountMenu({ live }: { live: string }) {
   const [editing, setEditing] = useState(false)
   const offer = useInstall((st) => st.offer)
   const tg = Boolean(status.data?.telegram_connected ?? status.data?.telegram?.connected)
-  const dot = telegramDot(Boolean(status.data), tg)
-  const connectedNow = tg
   const close = () => pop.current?.hidePopover?.()
 
   const signOut = async () => {
@@ -64,9 +56,8 @@ export function AccountMenu({ live }: { live: string }) {
 
   return (
     <>
-      <button type="button" popoverTarget={id} aria-label="Account menu" aria-haspopup="menu" className="relative grid size-10 place-items-center rounded-full bg-surface-3 text-[15px] font-bold" title={`${dot.label} · live updates: ${live}`}>
+      <button type="button" popoverTarget={id} aria-label="Account menu" aria-haspopup="menu" className="relative grid size-10 place-items-center rounded-full bg-surface-3 text-[15px] font-bold" title={`${tg ? 'Telegram connected' : 'Telegram not connected'} · live updates: ${live}`}>
         <AccountAvatar className="size-10 text-[15px]" />
-        <i data-live={connectedNow ? 'true' : 'false'} className={cn('ax-live-dot absolute right-0 top-0 size-2.5 border-2 border-bg', dot.tone)} role="status" aria-label={dot.label} />
       </button>
       <div ref={pop} id={id} popover="auto" role="menu" aria-label="Account menu" className="t-menu fixed right-4 top-[60px] left-auto bottom-auto m-0 w-[280px] rounded-[18px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
         <div className="t-acc-panel-inner p-2">
