@@ -13,3 +13,5 @@ One short page per decision that shaped the code, so the reason is not only in s
 | [0007](0007-rust-writes-watch-history.md) | Rust writes its first tables: watch history entity favourites, scene markers |
 | [0008](0008-gpl-3-licence.md) | Licence: GPL-3.0-or-later |
 | [0009](0009-backend-crate-shape.md) | The shape of the Rust backend (target crates and rules) |
+| [0010](0010-front-door-sends-plain-files.md) | The front door sends local-folder videos and finished copies itself; Telegram streaming stays in Python |
+| [0011](0011-content-mode-in-the-data-layer.md) | SFW / NSFW is enforced in the data layer, not in each route |

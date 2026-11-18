@@ -33,6 +33,7 @@ One change per commit, with a message that says what changed and why. A commit t
 ## Tests
 
 - Python: `python -m pytest tools/tests -q`. Each test uses its own data folder; none may depend on another's leftovers.
-- Rust: `cargo test --workspace` in `rust/`, and the launcher, native player and shell tests in `desktop/`. `cargo clippy -- -D warnings` must be clean.
-- Web: `npm test`, `npm run typecheck` and `npm run unused` in `frontend/`.
+- Rust: `cargo test --workspace` from the repository root (it covers the front door, database, launcher and shell crates). `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --check` must be clean.
+- Web: `npm test`, `npm run typecheck` and `npm run unused` in `apps/web/`.
+- SFW / NSFW: anything that reads content must go through the filtered connection or the guard (docs/adr/0011). `tools/tests/test_sfw_leaks.py` must stay green.
 - Windows-only behaviour (the native player, reopening the app) is tried on a real PC; CI covers what it can.

@@ -1,5 +1,7 @@
 # Plan: migrate the Archive X backend to Rust
 
+> History, not a guide. Paths here (`rust/`, `desktop/`, `frontend/`) are from before the workspace move (ADR 0006): they are now `crates/`, `apps/desktop/` and `apps/web/`.
+
 Status: a plan only. Nothing has been ported. Sizes are relative (S, M, L, XL); I have not estimated calendar time because it depends on who does the work.
 
 > **The current working plan is `plan.md`** (clean-up, reorganisation, and the phase order from here). This file is kept as the record of what was done and measured.

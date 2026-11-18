@@ -1,6 +1,6 @@
 # Archive X: clean-up, reorganisation and Rust migration plan
 
-Written 14 November 2026, at commit `21182e0`. This is the working plan from here on. It replaces the phase list in `RUST-MIGRATION-PLAN.md` (which stays as the history of what was done and measured) and it adds the clean-up and the reorganisation that plan did not cover.
+Written 14 November 2026, at commit `21182e0`; progress table and sizes refreshed 18 November 2026 (release 30.4.1 plus the front-door file streaming). Part 1.3 and the later parts are as written on the 14th: the counts there were measured then. This is the working plan from here on. It replaces the phase list in `rust-migration-history.md` (which stays as the history of what was done and measured) and it adds the clean-up and the reorganisation that plan did not cover.
 
 How to read it: Part 1 says where the code stands, with numbers measured for this plan. Part 2 is the rules. Part 3 is the clean-up, Part 4 the reorganisation, Part 5 the migration. Part 6 is the order to do it all in. Part 7 lists the decisions only you can make. Every step says **what** to do, **why**, **how**, and **done when**.
 
@@ -14,7 +14,7 @@ How to read it: Part 1 says where the code stands, with numbers measured for thi
 | C4 remove unused Python | **Started** (also: the generic server mode with HTTPS, LAN access, HTTP/3 and certificates is gone): the watchdog guardian process (about 1,000 lines, never ran in the installed app) is removed together with its settings and the guardian row on the Operations page; the rest waits for C3 part 2 |
 | C5 unused frontend code | **Done** (`knip` in CI) |
 | C6 one version number | **Done** (`tools/release/write_version.py`, written by the release workflow) |
-| C7 prune the documents | **Done** (`docs/README.md` is the index) |
+| C7 prune the documents | **Done** (`docs/README.md` is the index). On 18 November 2026 the superseded `docs/archive/` (old roadmaps, the React migration plan and checklists, the code review, mock-ups, 2 MB) was deleted; it stays in git history before that commit. `architecture.md` was rewritten for the desktop app as it is |
 | R2 one Cargo workspace | **Done** (root `Cargo.toml`, one `Cargo.lock`, one `target/`); the Windows installer build under it is checked by the next Desktop run |
 | R1 folder layout | **Done in a reduced form**: `apps/web`, `apps/desktop`, `crates/` (all Rust libraries and the front door), `native/axplayer`, `packaging/`. The Python tree (`telegram_archive/`, `run.py`, `requirements.txt`) was **not** moved: it is being deleted, and moving it would touch every test for no lasting benefit |
 | R4 standards (part) | **Rust done**: `rustfmt.toml` (wide lines, matching the existing style), the whole Rust code formatted in one mechanical commit, `cargo fmt --check` in CI and the `justfile`, `.editorconfig`. **Not done, on purpose**: Python formatting (the code is being deleted) and web formatting (no formatter or eslint config exists; adding one would reformat 29,000 lines for little gain) |
@@ -22,6 +22,8 @@ How to read it: Part 1 says where the code stands, with numbers measured for thi
 | R5 licence | Done: GPL-3.0-or-later (ADR 0008), LICENSE, THIRD-PARTY-NOTICES.md, shipped in the installer |
 | R3 | Decided (ADR 0009) and every crate has a README; no code moved yet, crates are created when their first content arrives |
 | Phase 0 | Telegram part: trial program written and builds (`tools/phase0/telegram-trial`, workflow `phase0.yml`), waiting for you to run it on your PC (own new session, never Archive X's). Model part (ONNX, whisper.cpp) not started |
+| Product work since (not part of the Rust plan) | **Done and released in 30.4.0 and 30.4.1**: SFW / NSFW modes enforced in the data layer (ADR 0011), channel marks, local folders as a media source (including metadata scan and upload to Telegram that keeps identification and snapshots), movie and TV identification for SFW (TMDB, OpenSubtitles, OMDb, TVmaze), Movies and Series pages, fast and clean exit. See `CHANGELOG.md` |
+| Streaming gateway, step 1 | **Done, not yet released**: the front door sends local-folder videos and finished playback copies itself (ADR 0010; about 5x the throughput of Python on a local file, seeks 3.6 to 1.6 ms). Telegram streaming stays in Python on purpose. Not started: `ax://` thumbnails with the Rust SFW check, batched scan writes, two-stage duplicate detection, a Grammers trial |
 | Phase 1 onward | See the table below |
 
 ---
@@ -33,11 +35,12 @@ How to read it: Part 1 says where the code stands, with numbers measured for thi
 | Area | Files | Lines | Language | Fate |
 |------|------:|------:|----------|------|
 | `telegram_archive/` (backend) | 282 | 101,100 | Python | Rewritten in Rust, then deleted |
-| `frontend/src/` | 347 | 29,000 | TypeScript, React 19 | Kept. It only talks to the HTTP API |
-| `rust/` (front door and new features) | 35 | 6,000 | Rust | Grows into the whole backend |
-| `desktop/` (Tauri shell, launcher, native player) | 56 | 3,600 | Rust, C++ | Kept; merged into one workspace |
-| `tools/` (tests, parity, dependency scan) | 48 | 3,500 | Python | Tests move next to what they test |
-| `docs/` | 25 | 2,100 | Markdown | Pruned and indexed |
+| `apps/web/src/` (was `frontend/src/`) | 456 | n/a | TypeScript, React 19 | Kept. It only talks to the HTTP API |
+| `crates/` and `apps/desktop/` (was `rust/` and `desktop/`) | n/a | 11,900 | Rust | Grows into the whole backend |
+| `native/axplayer/` | n/a | n/a | C++ | Kept |
+| `tools/` (tests, parity, dependency scan, benchmarks) | n/a | n/a | Python | Tests move next to what they test |
+
+The table above was measured on 14 November (282 Python files and 101,100 lines; 347 web files and 29,000 lines; 6,000 + 3,600 lines of Rust). On 18 November: 218 Python files and 106,000 lines (the guardian and the old launchers are gone, content modes and identification were added), 456 web files, 11,900 lines of Rust.
 
 Backend by package (Python lines): core 21,900; engines 21,900; web 16,700; media_manager 10,200; metadata 8,200; playback 7,900; operations 7,300; jobs 3,000; telegram 2,000.
 
@@ -307,9 +310,9 @@ Steps 2, 3, 5 and 6 do not depend on each other and can go in any order. Step 7 
 
 ## 7. Decisions that are yours
 
-1. **Is the desktop app the only way you run Archive X?** If yes, the script launcher, Replit files, hosted mode and the guardian are deleted. If you still open it from another device on your network or run the script version, they stay and need fixing instead.
+1. **Is the desktop app the only way you run Archive X?** *Answered 15 November: yes (ADR 0005).* If yes, the script launcher, Replit files, hosted mode and the guardian are deleted. If you still open it from another device on your network or run the script version, they stay and need fixing instead.
 2. **May the Telegram trial use your account?** It needs a real sign-in. It would run on your PC from a small test program I prepare; nothing is uploaded except to a test channel you choose.
-3. **Which licence, and when does the repository go public?** The in-app updater only works once it is public. Shipping LAV Filters and ffmpeg (GPL) with the installer limits the choice.
+3. **Which licence, and when does the repository go public?** *Licence answered: GPL-3.0-or-later (ADR 0008).* The in-app updater only works once it is public. Shipping LAV Filters and ffmpeg (GPL) with the installer limits the choice.
 4. **Do you use automation, RSS and torrents?** They are 7,300 lines and 12 of their routes have no caller in the React app. Dropping them removes a whole phase.
 5. **Which unused features should stay?** The route counter (step 4) gives the list; you say which of the unused ones you still want.
 

@@ -4,16 +4,19 @@
 
 Browse, search, and play your videos and photos from a Windows desktop app. Organize media by performer, studio, and tag, then move selected items between channels.
 
-[Download the latest Windows release](https://github.com/Abithdas/Archive-X/releases/latest) · [View all releases](https://github.com/Abithdas/Archive-X/releases) · [Read the changelog](CHANGELOG.md)
+[Download the latest Windows release](https://github.com/Abithdas/Archive-X/releases/latest) · [View all releases](https://github.com/Abithdas/Archive-X/releases) · [Changelog](CHANGELOG.md) · [Architecture](docs/architecture.md)
 
-> Archive X runs on your PC. Your library and app data stay local; Telegram is used to access and transfer channel media.
+> Archive X runs on your PC. Your library, caches and settings stay local. Telegram is used only to read and move channel media, and metadata providers only to look up names you ask it to identify.
 
 ## What you can do
 
-- Browse and search media from your Telegram channels.
-- Play videos and view photos in the desktop app.
-- Keep a library organized with performer, studio, and tag details.
-- Move media between channels.
+- **One library from many places.** Telegram channels and folders on your PC (read where they lie, never copied) appear together. Choose per channel whether it is in the library, whether it is SFW or NSFW, and whether it holds videos, photos or both.
+- **Two modes, one switch.** The app opens in **SFW** every time and shows nothing adult: pages, counts, people, studios, tags, search, direct links and settings all follow the mode. Switching to **NSFW** asks for a PIN. In SFW the app becomes a movie and TV library with a Movies page and a Series page that lists missing episodes.
+- **Know what you have.** Videos are identified from their file names and fingerprints: movies and shows by TMDB, OpenSubtitles and OMDb (TVmaze as a keyless fallback), adult scenes by StashDB and ThePornDB. Doubtful matches wait in a review list for your yes, and an id in a file name (`{tmdb-603}`) settles it.
+- **Play anything.** A built-in player with 36 preview frames under the timeline, watch history and scene markers, plus a native video engine for formats a browser cannot play. Telegram videos play through a persistent cache with read-ahead that follows your position; local videos play straight from the disk.
+- **Organize.** Performers, studios and tags, photo galleries with face grouping, favourites, and bulk edits.
+- **Move media.** Transfer selected videos between channels, or upload a local folder to a channel, keeping what was already identified so nothing is looked up or snapshotted twice.
+- **Stay in control.** An Operations page shows what is running, job history and logs; content automation (RSS, qBittorrent) and an optional local AI assistant are built in. Updates install from inside the app.
 
 ## Install
 
@@ -23,6 +26,13 @@ Download the latest release and choose the Windows installer that suits you:
 - **`.msi`** — Windows Installer package.
 
 Archive X is currently distributed as a Windows x64 desktop app. See the [latest release](https://github.com/Abithdas/Archive-X/releases/latest) for downloads and version-specific notes.
+
+### First run
+
+1. Sign in to Telegram when asked; your session is stored encrypted on this PC.
+2. Open **Settings, Telegram, Channels** and mark the channels you want in the library (SFW or NSFW). New channels stay out until you mark them.
+3. Optional: **Settings, Local files** to add folders, and **Settings, Metadata** to add provider keys (TMDB, OpenSubtitles and OMDb for movies and TV; StashDB and ThePornDB for NSFW). Each key has a **Test** button.
+4. Use the switch in **Settings, Content** or at the top of the profile menu to change mode. Your existing library is NSFW, so it appears after you switch.
 
 ## Build from source
 
@@ -59,16 +69,18 @@ The Windows installer is built by the [Desktop GitHub Actions workflow](.github/
 
 | Path | Purpose | Main technologies |
 | --- | --- | --- |
-| `apps/web/` | User interface shown inside the desktop window | TypeScript, React, Vite, Tailwind |
-| `apps/desktop/` | Desktop shell | Rust, Tauri |
-| `crates/` | Rust server, database, naming, face, launcher, and player libraries | Rust |
-| `telegram_archive/` | Telegram integration, database, jobs, streaming, and metadata backend | Python; migration to Rust is in progress |
+| `apps/web/` | User interface shown inside the desktop window | TypeScript, React 19, Vite, Tailwind |
+| `apps/desktop/` | Desktop shell: starts and stops everything, updates | Rust, Tauri 2 |
+| `crates/` | Front door (`ax-server`), database access (`ax-db`), performer names (`ax-names`), face learning (`ax-faces`), launcher, native player wrapper | Rust |
+| `telegram_archive/` | Telegram integration, jobs, metadata, playback cache, content modes | Python (FastAPI, Telethon, SQLite); migration to Rust is in progress |
 | `native/axplayer/` | Native video engine | C++ |
 | `packaging/` | Installer and bundled dependency tooling | Python, shell |
-| `tools/` | Tests, parity checks, release, and dependency-scan scripts | Python |
-| `docs/` | Architecture, plans, and project notes | Markdown |
+| `tools/` | Tests, parity checks, benchmarks, release and dependency-scan scripts | Python |
+| `docs/` | Architecture, decisions, plan | Markdown |
 
-The desktop shell starts the backend and Rust front door, then opens the web interface in its window. The Rust front door serves the web app and handles a growing set of routes, forwarding the rest to the Python backend. See the [migration plan](docs/plan.md) and [documentation index](docs/README.md).
+The desktop shell starts the Python backend and the Rust front door on private loopback ports, then opens the web interface in its window. The front door serves the web app, answers a growing set of routes itself (lists, favourites, watch history, local video files) and forwards the rest to Python. Nothing listens on your network.
+
+Start with [docs/architecture.md](docs/architecture.md); the reasons behind the big choices are in [docs/adr/](docs/adr/README.md), and what is being worked on is in [docs/plan.md](docs/plan.md). All documents are listed in [docs/README.md](docs/README.md).
 
 ## Contributing
 

@@ -106,7 +106,7 @@ buffering state (`EC_BUFFERING_DATA`); a log line saying which decoder is active
 ### Phase 4. Connect the web page (M)
 1. The web UI has **no access to the shell today, on purpose**. Add one narrow capability for the app's own loopback address that
    allows only the player commands (`player_open`, `player_command`, `player_rect`) and the player events. Nothing else is exposed.
-2. `frontend/src/features/watch/nativePlayer.ts`: the same interface the page uses for `<video>` (play, pause, seek, time, duration,
+2. `apps/web/src/features/watch/nativePlayer.ts`: the same interface the page uses for `<video>` (play, pause, seek, time, duration,
    volume, rate, events), backed by those commands. `Player.tsx` picks it when running in the desktop app and the engine is present;
    the browser/phone version keeps `<video>`.
 3. Keep the video window aligned with the page: send the player element's rectangle on resize, scroll, zoom and fullscreen

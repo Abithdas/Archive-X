@@ -1,29 +1,32 @@
-# Archive X frontend (React + Tailwind)
+# Archive X web app
 
-React 19, TypeScript (strict), Vite 7, Tailwind CSS 4, Motion, TanStack Query and Router, Zustand, Sonner, Radix.
-Served by the backend at `/` (see `telegram_archive/web/routes_frontend.py`) and bundled into the desktop app.
-Migration plan: `docs/archive/Archive-X-MIGRATION-PLAN.md`; page-by-page checklists: `docs/archive/Archive-X-UI-PARITY-CHECKLISTS.md`.
+The user interface shown inside the desktop window. React 19, TypeScript (strict), Vite, Tailwind CSS 4, Motion, TanStack Query and Router, Zustand, Sonner, Radix.
+
+It only talks to the HTTP API (and the `/ws` live-status socket). In the desktop app the built files (`dist/`) are served by the Rust front door (`crates/ax-server --dist apps/web/dist`); everything else goes to the Python backend. How the pieces fit: [docs/architecture.md](../../docs/architecture.md).
 
 ```bash
-npm install
-npm run dev          # http://localhost:5173/, proxies /api, /login and /ws to https://127.0.0.1:8443
+npm ci
 npm test             # Vitest
-npm run build        # type-check + production build into dist/ (the backend serves it)
-ARCHIVE_X_BACKEND=https://127.0.0.1:8443 npm run dev
+npm run typecheck    # tsc --noEmit
+npm run unused       # knip: unused files, exports and dependencies (CI runs it)
+npm run build        # type-check + production build into dist/
+npm run check:size   # bundle size budget
+npm run dev          # Vite dev server; proxies /api, /login and /ws to ARCHIVE_X_BACKEND (see vite.config.ts)
 ```
 
-## What exists (phase 0 and a slice of phase 1/2)
-- `src/api`: fetch client with typed errors and session-loss handling, TanStack Query hooks, `/ws` live-status bridge
-  into the query cache (reconnect with backoff).
-- `src/design`: tokens (`styles.css` `@theme`, dark/light), shimmer `Skeleton` (transform-only sweep, reduced-motion
-  safe), `Button`, motion primitives, toast (Sonner).
-- `src/app`: shell (sidebar, phone bottom nav, live indicator, theme toggle), router at the site root.
-- `src/features/auth`: sign-in gate. `src/features/library`: channel selection (persisted), paginated read-only grid,
-  `VideoCard` and a `VideoCardSkeleton` built from the same shell constants so they cannot drift.
+## Layout (`src/`)
 
-Everything else (performers, studios, photos, player, operations, transfers, settings) still lives in the classic UI;
-those routes show a "not migrated yet" page with a link to it.
+| Folder | What is in it |
+|---|---|
+| `api/` | Fetch client with typed errors and session-loss handling, TanStack Query hooks, the `/ws` bridge into the query cache |
+| `app/` | Shell (sidebar, bottom nav on phone widths, account menu, live status), router, theme |
+| `design/` | Tokens, `Button`, `Skeleton`, `Empty`, `ScrambleText`, motion primitives, toast, transitions |
+| `features/` | One folder per area: `library`, `photos`, `entities` (performers, studios, tags), `watch` (player), `series` (shows and movies), `content` (SFW/NSFW switch, channel marks, local folders, providers), `channels`, `operations`, `transfers`, `settings`, `ai`, `auth`, `profile` |
 
-## Next
-Follow the phases in the plan: typed API from Pydantic response models, theme presets, filters and bulk edit, then
-the remaining pages. Keep the parity checklists as the definition of done.
+## Rules that matter
+
+- **Words follow the mode.** Labels that differ between SFW and NSFW (Movies & Shows / Videos, Cast / Performers, ...) come from `features/content/labels.ts`; do not hard-code them.
+- **Edits are drafts until Save.** Lists where many choices are made (channel marks, local folders) collect changes with `withPatch` / `groupPatches` and write them from a `SaveBar`.
+- **Switching modes must not wait on refetches.** Mutations that change the mode close their dialog at once and let the queries refresh in the background.
+- **Motion respects the reduced-motion setting.** New animations go in `design/` or the `@layer` blocks of `styles.css` with a `prefers-reduced-motion` fallback.
+- Run `npm run unused` before pushing; dead exports fail CI.

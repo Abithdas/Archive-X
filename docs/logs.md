@@ -29,4 +29,4 @@ Telegram sessions, certificates and keys, databases and cookie files are never i
 titles are **not** removed: they are often what shows the problem. Nothing is sent anywhere by Archive X; you send the file.
 
 Code: `telegram_archive/core/log_bundle.py`, the route in `web/routes_tags_logs.py` (`GET /api/diagnostics/logs.zip`, `?save=1` from this PC only),
-the button in `frontend/src/features/operations/OperationsPage.tsx`. Tests: `tools/tests/test_log_bundle.py`, `logBundle.test.ts`.
+the button in `apps/web/src/features/operations/OperationsPage.tsx`. Tests: `tools/tests/test_log_bundle.py`, `logBundle.test.ts`.

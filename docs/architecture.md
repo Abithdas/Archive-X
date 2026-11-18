@@ -1,97 +1,81 @@
-# Archive X v29.5.400 — Architecture
+# Archive X: architecture
 
-Archive X is a **single-process, self-hosted Telegram media archive**. It runs a FastAPI web app
-(HTTPS, optional HTTP/3) with a bundled vanilla-JS single-page UI. Behind that sits a durable job
-system that talks to Telegram through one shared Telethon session. All state lives in one SQLite
-database plus on-disk caches. It is built for a Windows PC on a home LAN, with phones and other
-devices as clients.
+Archive X is a **Windows desktop app** that turns Telegram channels and local folders into one private media library. Everything runs on the user's PC: the library, caches and settings stay local, and Telegram is used only to read and move channel media. Desktop only is a decision (ADR 0005): there is no hosted mode, LAN access, HTTPS certificate or web login.
 
-Size: about 165k lines (182 Python files, 58 JS, 178 CSS). Source is under `telegram_archive/`.
-The diagram is in `archive/Archive-X-architecture.svg`.
+Sizes (18 November 2026): about 106,000 lines of Python in `telegram_archive/` (218 files), 456 TypeScript files in `apps/web/src/`, about 11,900 lines of Rust in `crates/` and `apps/desktop/`, and a C++ video engine in `native/axplayer/`. How the Rust side is growing is in [plan.md](plan.md) and [adr/](adr/README.md).
 
-## 1. Runtime shape
-
-| Concern | Where | Notes |
-|---|---|---|
-| Launch | The desktop app (`apps/desktop`) → `crates/launcher-core` → the frozen backend (`packaging/backend/entry.py`) → `telegram_archive.main:main` | From a checkout: `python -m telegram_archive`. The old `.bat`/`.ps1`/`run.py` launchers and hosted (Replit) mode were removed on 15 November 2026 |
-| Startup | `main.py` | Instance lock → cleanup → data migration → open DB → credentials and TLS cert → `create_app()` → serve |
-| Web server | Hypercorn (HTTPS/TCP plus HTTP/3 QUIC) or Uvicorn fallback | Binds `0.0.0.0:8443` by default |
-| Player feed | aiohttp, plain HTTP on `0.0.0.0:8444+` | Serves signed-token streams to VLC, MPC-HC and FFmpeg |
-| App factory | `app.py: create_app()` | Single place that builds and wires every singleton (see §3) |
-| Process model | `core/process_topology.py` | Deliberately **one process**. Telegram, jobs, playback and watchers are process-local singletons, so multi-worker is not supported |
-
-## 2. Layers
-
-**Presentation (`web/ui/`).** Static HTML shell plus about 58 numbered JS files and 178 CSS files, with no framework or
-bundler. `09-app.js` alone is 10.6k lines. The server bundles and ETags the CSS and serves JS with a long cache lifetime.
-Live updates come from an authenticated `/ws` WebSocket that pushes a coalesced status snapshot.
-
-**HTTP layer (`web/`).** `routes.py` builds one router and registers 13 `routes_*.py` modules by domain: system (login and setup), telegram,
-automation, jobs, metadata_assets, playback, playback_compat, settings, library, entities, media, entity_pages and tags_logs.
-`routes_ai`, `routes_experience`, `routes_frontend` and `routes_test_bridge` are wired separately. Every handler calls
-`require_auth()`, which checks a cookie session. ASGI middleware, outermost first: HTTP/3 `Alt-Svc` → security headers →
-gzip/ETag optimizer → browser mutation guard (Origin check) → API rate limit → request correlation.
-
-**Domain and engines.**
-- `telegram/service.py` holds the one shared `TelegramService`, built on Telethon. It handles code, 2FA and QR login, with the session stored encrypted (`encrypted_session.py`).
-- `core/governor.py` (`TransferGovernor`) is the single gate for FloodWait handling and concurrency. No engine may implement its own.
-- `jobs/` has the `JobManager` (worker owner) and `JobOrchestrator` (admission, dependencies, retries, leases). `RecoveryCoordinator` marks every persisted job INTERRUPTED after an unclean restart. Nothing auto-resumes.
-- `engines/` holds the long-running workers: uploader, telegram_sender, transfer_manager, thumbnail and preview caches, metadata sync, face clustering, delivery ledger and others.
-- `media_manager/` is the Telegram-to-Telegram toolkit: router, vertical mover and archiver, duplicate finder, channel organizer. `telegram_media_manager.py` `exec()`s the six `mm_*.py` fragments into one shared namespace.
-- `metadata/` runs the identification pipeline: filename parser → fingerprint and perceptual hash → provider matching (ThePornDB, StashDB) via `api_broker` → suggestions and review.
-- `operations/` covers Content Automation: RSS, a qBittorrent supervisor and torrent engine, then ingest.
-- `playback/` and `systems/playback/` hold the range-streaming engine (`stream_server.py`, 5.5k lines): 512 KiB segments over raw `upload.getFile`, a sparse disk cache, prefetch, and QoS. They also contain the VLC/MPC launchers and a session/controller layer.
-- `core/` supplies cross-cutting services: auth and sessions, resource manager, hardware adaptation, watchdogs and guardian, diagnostics and observability, backup (`.axbackup`, optionally encrypted), the local AI runtime (loopback llama.cpp) and its tool layer.
-
-**Persistence.**
-- `core/database.py` wraps one SQLite connection (`check_same_thread=False`, guarded by `db.lock`) plus read-only handles (`db.reading()`). About 59 `CREATE TABLE` statements. Schema upgrades are in-place `ALTER TABLE` migrations.
-- Secrets (Telegram `api_hash`, provider keys) are moved out of the `settings` table into an encrypted credentials file via `config.get_secret` / `set_secret`.
-- A per-user data directory holds the DB, certificates, the Telegram session, thumbnail and preview caches, and the player cache.
-
-## 3. Wiring in `create_app()`
+## 1. Processes
 
 ```
-Database ─► TransferGovernor ─► TelegramService ─► JobManager(+Orchestrator, Watchdogs)
-   │                │                                   │
-   │                └─► InteractiveResourceManager ◄────┤
-   ├─► SessionStore / LoginRateLimiter                  ├─► PageEnricher
-   ├─► StreamTokens (HMAC secret in settings) ──► aiohttp player feed
-   └─► build_router(...) ─► routes_* modules ─► FastAPI app + middleware
+ Tauri window (apps/desktop)  ──►  ax-server (Rust front door)  ──►  Python backend (telegram_archive)
+   WebView2, splash, tray            serves apps/web, answers            FastAPI on uvicorn, Telethon,
+   starts and stops the rest         native routes, proxies the rest     jobs, metadata, playback, SQLite
+                                                │
+                                                └──► SQLite file (read-only; Rust writes only the tables it owns)
 ```
 
-The lifespan hook starts the jobs (restoring them as interrupted), runs a background preview backfill, starts a Telegram
-connect supervisor and a diagnostics watcher, and launches the player feed. On shutdown it checkpoints jobs and writes a
-clean-shutdown marker.
-
-## 4. Key flows
-
-1. **First run.** The desktop shell starts the backend on a loopback port with a per-launch secret. The backend creates a random web password nobody sees (there is no web login in the desktop app); the window gets its session from `/desktop/session?token=…`. There is no HTTPS, no LAN access and no certificate.
-2. **Login.** `POST /login` → rate-limit check → PBKDF2-SHA256 verify (260k iterations) → random 256-bit session token. Only a SHA-256 hash is persisted in `web_sessions`. The cookie is HttpOnly, Secure and SameSite=Strict. Sessions last 30 days and slide.
-3. **Playback.** The UI asks `/api/play/*`. The shared engine pulls ranges from Telegram through the governor into a sparse cache and serves HTTP ranges to the browser. External players get a signed `?c=&t=` URL from the player feed.
-4. **Ingest and transfer.** Local-folder or Telegram-source jobs go through orchestrator admission, then an engine (uploader, mover or sender). Oversized files are optimized or split, every delivery is written to the delivery ledger, and the metadata pipeline then enriches the item.
-5. **Metadata.** Provider and filename matching produces suggestions, which a user confirms in the scene-match review UI. Results are mirrored to Telegram captions through caption-sync.
-
-## 5. Architectural observations
-
-- **Strength — clear ownership rules.** One Telegram client, one governor, one orchestrator, and no silent resume after a crash. These are enforced by convention and documented in docstrings.
-- **Strength — secrets are handled with care.** The Telegram session and credentials are encrypted at rest, session tokens are stored hashed, and log redaction matches `password`, `token`, `api_hash` and similar names.
-- **Risk — a single process with global singletons.** This rules out horizontal scale and makes tests depend on module state.
-- **Risk — files that are too large.** `09-app.js` (10.6k lines), `stream_server.py` (5.5k), `automation.py` (4.3k), `providers.py` (3.2k) and `database.py` (3.1k).
-- **Risk — namespace-fragment `exec()`.** The `mm_*.py` files cannot be linted or type-checked on their own, because they reference names defined in the host file.
-- **Risk — layered CSS.** The numbered files `142-ax2-…`, `145-ax-final-parity`, `148-reference-exact` and `162-reference-fidelity-final` override earlier files. This makes the cascade order-dependent and fragile.
-- **Risk — exception handling.** There are 1,716 `except Exception` blocks, and 542 of them go straight to `pass`, so failures are silent.
-
-## 6. Structure measured from the Graphify graph
-Graphify indexed 244 files into 6,739 nodes and 17,498 edges (91% extracted, 9% inferred). Full views are in `Archive-X-graphify/`.
-
-| Measure | Result |
+| Part | What it does |
 |---|---|
-| Most-connected nodes | `Database` (109 edges), `now_iso` (105), `PlaybackEngine` (84), `TransferGovernor` (72), `JobManager` (70), `register_playback_routes` (70), `register_library_routes` (68) |
-| Detected communities | 242. The largest map to the files and classes in §2: `uploader`, `telegram_sender`, `automation`, `thumbnail_cache`, `preview_prefetch`, `JobManager`, `PlaybackEngine`, `QBittorrentEngine` |
-| Circular imports | 3 — `core/internal_media ↔ media_manager/telegram_media_manager` (directly and via `engines/telegram_sender`), and `core/workspace_guard → operations/automation → engines/uploader → core/workspace_guard` |
-| Routes | 325 HTTP and WebSocket handlers across 17 route modules; all authenticate directly or through a helper, apart from the intentionally public ones |
+| `apps/desktop` (Tauri 2) | Splash window, starts the backend and front door through `crates/launcher-core`, opens the window on a one-time session URL, quits cleanly. On Windows every child process is held by a kill-on-close job object, so quitting leaves nothing behind. |
+| `crates/ax-server` | The front door. Serves the built web app, answers the routes listed in `native.rs`, and forwards everything else to Python. It also sends plain video files itself (ADR 0010). |
+| `telegram_archive/` | The backend: one process, one Telethon session, one SQLite database, durable jobs. Binds `127.0.0.1` on a free port with a per-launch secret; other programs cannot use its API. |
+| `crates/native-player`, `native/axplayer` | The native video player that draws in its own window above the app (ADR 0004). |
 
-**What the graph says about layering.** The dependency direction is mostly clean: `web → jobs/engines → telegram/core → database`.
-The exceptions are the three cycles above. They sit where `core` (supposedly the lowest layer) imports from `engines`,
-`operations` and `media_manager`. Moving the shared helpers that `internal_media` and `workspace_guard` need into a small
-leaf module would remove all three cycles.
+Python is deliberately **one process**: Telegram, jobs, playback and watchers are process-local singletons.
+
+## 2. Backend layers (`telegram_archive/`)
+
+- **HTTP (`web/`).** `routes.py` builds one router from the `routes_*.py` modules (library, entities, playback, local folders, content, screen identification, telegram, settings, jobs, automation, AI, and others). Every handler calls `require_auth()`. Middleware, outermost first: security headers, gzip/ETag, browser mutation guard (Origin check), API rate limit, request correlation, content filter (section 5).
+- **Telegram (`telegram/`).** One shared `TelegramService` on Telethon, with the session stored encrypted. `core/governor.py` (`TransferGovernor`) is the only gate for FloodWait and concurrency; no engine may do its own.
+- **Jobs (`jobs/`).** `JobManager` and `JobOrchestrator` handle admission, dependencies, retries and leases. After an unclean exit every persisted job is marked INTERRUPTED; nothing resumes by itself.
+- **Engines (`engines/`).** Long-running workers: uploader, sender, transfer manager, thumbnail and preview caches, metadata sync, face clustering, delivery ledger, local folder scanning (`local_scanner`, `local_videos`, `local_upload_bridge`) and SFW identification (`screen_identify`).
+- **Media manager (`media_manager/`).** The Telegram-to-Telegram toolkit: router, mover, archiver, duplicate finder, organizer.
+- **Metadata (`metadata/`).** Filename parsing, fingerprints, provider matching. Adult providers (StashDB, ThePornDB) and the movie and TV providers (TMDB, OpenSubtitles, OMDb, TVmaze in `screen_ids.py`) share one review flow.
+- **Playback (`playback/`, `systems/playback/`).** The range-streaming engine (`stream_server.py`): 512 KiB segments over raw `upload.getFile`, a sparse disk cache, read-ahead that follows the playhead, a priority scheduler that cancels stale reads on seek, and the external player launchers.
+- **Operations (`operations/`).** Content automation: RSS, a qBittorrent supervisor, ingest.
+- **Core (`core/`).** Auth and sessions, database, resource manager, diagnostics, backup, the local AI runtime, and the content-mode rules.
+
+**Persistence.** `core/database.py` wraps one SQLite connection (guarded by `db.lock`) plus read-only handles (`db.reading()`), WAL mode, schema upgrades by in-place migrations. Secrets live in an encrypted credentials file, not in `settings`. Rust opens the same file read-only through `ax-db` (and writes only the tables it owns, ADR 0002 and 0007).
+
+## 3. Media sources
+
+| Source | Where the bytes come from | Playback |
+|---|---|---|
+| Telegram message | MTProto `upload.getFile` through the governor | Python's segment cache and read-ahead |
+| Local folder | The file on disk, read in place and never copied. Channel id is `-9,000,000,000,000 - folder id`, so the same routes accept it | Sent from disk by the front door with byte ranges |
+| Uploaded local file | Both | After a verified upload, identity, cast and snapshots are carried to the Telegram copy (`local_upload_bridge`), so nothing is identified or snapshotted twice |
+
+A video appears in the Library only when its snapshots (36 frames), thumbnail and playback representative are ready.
+
+## 4. Metadata
+
+- **NSFW:** filename and fingerprint matching against StashDB and ThePornDB, suggestions confirmed in the scene-match review; the front door keeps a local copy of the performer name list (`ax-names`) and learns faces (`ax-faces`).
+- **SFW:** `screen_identify` reads file names, resolves each show once per run and fetches whole seasons, keeps answers in `metadata_cache` (30 days for hits, 7 for misses; a refused key is never cached), compares titles by words, lets an explicit id in the name (`{tmdb-603}`, `tt…`) settle a match, and sends doubtful ones to a review list. Movie copies are grouped under one card and ranked by quality.
+
+## 5. Content modes (SFW and NSFW)
+
+The whole app is in one mode, stored in `settings` and reset to **SFW on every desktop start**. Switching to NSFW needs a PIN.
+
+- **Where it is enforced:** the data layer. Read connections get SQLite TEMP views that shadow the content tables (`media`, `channels`, `photo_library_items`, performers, studios, tags, link tables), enabled per request by the `FILTER_ACTIVE` context variable. `ContentFilterMiddleware` switches it on for content paths and runs `core/content_guard.py`, which answers 404 for a direct link to an item of the other mode. The Rust side installs the same views from `crates/ax-db/src/visibility.sql`, generated from the Python text by `tools/gen_visibility_sql.py`, so both sides cannot drift.
+- **The rule:** a channel is wholly SFW or NSFW; a video, photo, performer, studio, tag or local folder belongs to the mode it was marked with. Adult provider settings, searches and name lists, Telegram channel lists, logs and diagnostics are closed in SFW.
+- **New paths must not bypass it.** Anything that reads content (a route, a protocol handler, a job message) goes through the filtered connection or the guard. `tools/tests/test_sfw_leaks.py` seeds adult data and calls every GET route in SFW; it fails on any leak.
+
+## 6. Web app (`apps/web`)
+
+React 19, TypeScript (strict), Vite, Tailwind 4, TanStack Query and Router, Zustand, Motion. Features are folders under `src/features/` (library, photos, entities, watch, series, content, channels, operations, transfers, settings, ai, auth, profile). Words change with the mode through `features/content/labels.ts`. Live status arrives over an authenticated `/ws` socket into the query cache.
+
+## 7. Key flows
+
+1. **Start.** The shell starts the backend with `ARCHIVE_X_DESKTOP=1` and a fresh launch secret, then the front door pointed at it, waits for both ready lines, and opens `/desktop/session?token=…`. Quitting calls the backend's graceful shutdown; the backend also exits by itself if the shell dies.
+2. **Browse.** The page asks `/api/...`. The front door answers the routes it owns (lists, favourites, watch history, markers) from the database; the rest go to Python.
+3. **Play.** Telegram video: `/stream/{channel}/{message}` in Python (cache, read-ahead). Local video and finished copies: the front door reads the file. External players get signed URLs from the player feed.
+4. **Ingest and transfer.** Jobs pass admission, run on an engine, write every delivery to the delivery ledger, then metadata fills in the item.
+
+## 8. Known weak spots
+
+- One Python process with global singletons: no scaling out, and tests depend on module state.
+- Very large files: `stream_server.py` (5.5k lines), `automation.py` (4.3k), `providers.py` (3.2k), `database.py` (3.2k+).
+- The `mm_*.py` media manager fragments are joined with `exec()` into one namespace, so they cannot be linted alone.
+- Many broad `except Exception` blocks that end in `pass`, so some failures are silent (`core/swallowed.py` counts them).
+- Operations, Transfers and job text can still show adult file names in SFW.
+- Not verified on real hardware: folder upload to Telegram, the real metadata providers, and anything Windows-specific beyond a type check.
