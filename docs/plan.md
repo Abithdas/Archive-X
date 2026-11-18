@@ -25,7 +25,7 @@ Sizes on 18 November: about 106,000 lines of Python (218 files), 456 TypeScript 
 6. **Nothing is done without evidence:** a test, a parity run, a measured number, or a result from a real PC. A call to a provider or service that has only run against stand-in answers has not been run: try it once against the real service.
 7. **The SFW rule has no bypass.** Anything that reads content goes through the filtered connection or the guard (ADR 0011); `tools/tests/test_sfw_leaks.py` stays green, and new lists are also tried with an empty SFW library.
 8. **Outbound HTTP from Python uses the standard library or `core/http_client.py`.** `requests` is not part of the installed app.
-9. **Ideas from other projects are ideas only.** No code or design is copied.
+9. **Licences, and what we take from other projects.** Anything new that we depend on is MIT or GPL (a crate licensed "MIT OR Apache-2.0" is taken as MIT; Apache-only, Unlicense, "non-standard" and unknown licences are not used). We never paste a project's code or files in: we read what a project does and why, then write our own. A dependency is allowed only when it passes the licence rule; the licence of each candidate is checked on crates.io (or its repository) before it is added.
 10. **Releases are built by the Desktop workflow only**, and published only when you say so.
 
 ## 3. Verify on a real PC (nothing else is trusted until these are done)
@@ -116,6 +116,20 @@ Two tracks run alongside: the **native player** (done: picture in its own window
 - **E8 Two web tests are timing-sensitive** under a full run (a different one failed each time and passed alone). Make them wait for what they check instead of for time.
 - **E9 A Python test depends on the order of the others.** `test_screen_identify.py::test_an_nsfw_folder_is_identified_by_file_hash...` fails when `test_sfw_leaks.py` runs before it in the same process (it also fails on the commit before the last round), and passes alone. A provider key saved by an earlier test is still there; the test should start from no keys.
 - **E10 The caption speech model on a graphics card.** The model choice and the timing were measured on a processor only. Try Accurate on a PC with an NVIDIA card and see the speed Settings, Experience shows.
+
+### Projects to learn from (written ourselves) or to depend on (licence checked 18 November)
+
+| For | Project | Licence | Use |
+|-----|---------|---------|-----|
+| B4 name parser | hunch (guessit port, Rust) | MIT | May be a dependency; at least use its guessit-derived test cases as our benchmark |
+| B4 | cinekey (release-name parser) | MIT | Second opinion for multi-episode and anime numbering |
+| B7 captions without CUDA | whisper.cpp, whisper-cpp-plus (Rust, streaming and voice detection) | MIT, MIT | May be a dependency. `whisper-rs` is Unlicense: not used |
+| Phase 6 faces | rusty_scrfd (SCRFD detector) | MIT | May be a dependency. `face_id` has a "non-standard" licence: not used, read for the idea only. Check the licence of the model weights too (some published face models are research-only) before shipping any |
+| B12, C4 duplicates | vid_dup_finder_lib, czkawka_core | MIT OR Apache-2.0, MIT | Study how they hash frames; our own fingerprint on the 36 snapshots is the plan |
+| Phase 5 jobs | apalis, apalis-sqlite | MIT OR Apache-2.0, MIT | Study the SQLite job table and the hooked fetch; decide after D4 |
+| C6 Telegram | grammers (now on Codeberg) | MIT OR Apache-2.0 | The trial already planned |
+| Issues list | Drain3 (Python), logdrain (Rust) | MIT, Apache-2.0 OR MIT | Idea: learn log templates; write our own small version |
+| B5 skip intro | intro-skipper (Jellyfin plugin) | GPL-3.0 | Idea only: compare audio fingerprints of the start of each episode in a season |
 
 ## 8. Decisions that are yours
 
