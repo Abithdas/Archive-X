@@ -73,9 +73,9 @@ fn connect(path: &Path) -> Result<Connection, DbError> {
 const VISIBILITY_SQL: &str = include_str!("visibility.sql");
 
 fn install_visibility(conn: &Connection) -> Result<(), DbError> {
-    // Only a database the backend has set up: it has `channels.in_library` and the `settings` table the mode is read from.
+    // Only a database the backend has set up: `channels` has its marks (`in_library`, `content_rating`, `holds`) and there is the `settings` table the mode is read from.
     let upgraded: bool = conn
-        .prepare("SELECT (SELECT COUNT(*) FROM pragma_table_info('channels') WHERE name='in_library') > 0 AND (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='settings') > 0")
+        .prepare("SELECT (SELECT COUNT(*) FROM pragma_table_info('channels') WHERE name IN ('in_library','content_rating','holds')) = 3 AND (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='settings') > 0")
         .and_then(|mut q| q.query_row([], |r| r.get::<_, bool>(0)))
         .unwrap_or(false);
     if upgraded {

@@ -13,7 +13,7 @@ export function ChannelMarks() {
   const set = useSetMarks()
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [find, setFind] = useState('')
-  const rows = useMemo(() => (q.data?.channels ?? []).filter((c) => !find.trim() || c.title.toLowerCase().includes(find.trim().toLowerCase())), [q.data, find])
+  const rows = useMemo(() => (q.data?.channels ?? []).filter((c) => c.kind !== 'local').filter((c) => !find.trim() || c.title.toLowerCase().includes(find.trim().toLowerCase())), [q.data, find])
   const ids = [...picked]
   const apply = (ids: string[], body: { in_library?: boolean; content_rating?: Mode; holds?: string }) =>
     set.mutate({ ids, ...body }, { onError: (e) => toast.error(errorText(e, 'Could not save the marks.')) })

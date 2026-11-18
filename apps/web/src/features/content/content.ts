@@ -1,6 +1,6 @@
 export type Mode = 'sfw' | 'nsfw'
 export interface ContentState { ok?: boolean; mode: Mode; pin_set: boolean; locked_for: number }
-export interface ChannelMark { telegram_id: string; title: string; username: string | null; in_library: number; content_rating: Mode; holds: 'videos' | 'photos' | 'both'; videos: number; photos: number }
+export interface ChannelMark { kind?: 'telegram' | 'local'; telegram_id: string; title: string; username: string | null; in_library: number; content_rating: Mode; holds: 'videos' | 'photos' | 'both'; videos: number; photos: number }
 export interface MarksPayload { ok?: boolean; mode: Mode; channels: ChannelMark[] }
 
 export const MODES: ReadonlyArray<{ value: Mode; label: string; hint: string }> = [
@@ -28,3 +28,21 @@ export function emptyHint(mode: Mode, channels: ReadonlyArray<Pick<ChannelMark, 
 }
 
 export const channelsOfMode = (channels: ChannelMark[], mode: Mode) => channels.filter((c) => c.in_library && c.content_rating === mode)
+
+export interface LocalFolder {
+  id: number; path: string; title: string | null; channel_id: string; recursive: number; excluded: string[]
+  in_library: number; content_rating: Mode; holds: 'videos' | 'photos' | 'both'
+  last_status: 'NEVER' | 'SCANNING' | 'COMPLETE' | 'FAILED'; last_error: string; last_scan_at: string | null
+  photos: number; videos: number; exists: boolean; scan: { running?: boolean; seen?: number; added?: number }
+}
+export interface BrowseResult { path: string; parent: string | null; folders: Array<{ name: string; path: string }> }
+
+export function scanText(f: Pick<LocalFolder, 'last_status' | 'last_error' | 'photos' | 'videos' | 'exists' | 'scan'>): string {
+  if (!f.exists) return 'The folder is not there any more (a drive that is unplugged?).'
+  if (f.last_status === 'SCANNING' || f.scan?.running) return `Looking through it… ${(f.scan?.seen ?? 0).toLocaleString()} photos so far`
+  if (f.last_status === 'FAILED') return f.last_error || 'The last check failed.'
+  if (f.last_status === 'NEVER') return 'Not checked yet.'
+  const parts = [`${f.photos.toLocaleString()} photo${f.photos === 1 ? '' : 's'}`]
+  if (f.videos) parts.push(`${f.videos.toLocaleString()} video${f.videos === 1 ? '' : 's'} found (playing them from here comes next)`)
+  return parts.join(' · ')
+}

@@ -1,3 +1,4 @@
+import { ModeEmptyNote } from '@/features/content/ModeEmptyNote'
 import { aspectOf, assignColumns } from './masonry'
 import { useColumnCount } from './useColumnCount'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
@@ -184,7 +185,7 @@ export function PhotosPage() {
         </div>
       ) : null}
       <PeopleRow groups={faces.data?.groups ?? []} onManage={() => setTab('faces')} fresh={review.data} />
-      {!effective.length ? (channels.isPending ? null : <Empty icon="images" title="No photos yet">{status}</Empty>) : q.isPending ? (
+      {!effective.length ? (channels.isPending ? null : <Empty icon="images" title="No photos yet">{status}<ModeEmptyNote /></Empty>) : q.isPending ? (
         <div role="status" aria-label="Loading photos" className="columns-2 gap-2 sm:columns-3 sm:gap-3 lg:columns-4 xl:columns-6">{[236, 318, 188, 272, 214, 344, 198, 286].map((h, i) => <Skeleton key={i} style={{ height: h }} className="mb-2 break-inside-avoid rounded-xl sm:mb-3" />)}</div>
       ) : q.isError ? (
         <div role="alert" className="rounded-card border border-bad/40 p-6"><p className="font-semibold">Photo library could not be loaded.</p><p className="mt-1 text-sm text-muted">{reason(q.error, 'Check the Operations log and try again.')}</p><button type="button" onClick={() => void q.refetch()} className="mt-3 h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Retry</button></div>

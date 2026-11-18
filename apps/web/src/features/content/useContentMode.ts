@@ -42,3 +42,30 @@ export function useSetMarks() {
 }
 
 export const errorText = (e: unknown, fallback: string) => (e instanceof ApiError && e.detail ? e.detail : fallback)
+
+import type { BrowseResult, LocalFolder } from './content'
+
+export const useLocalFolders = () =>
+  useQuery({
+    queryKey: ['local-folders'] as const,
+    queryFn: () => api<{ folders: LocalFolder[]; mode: Mode }>('/api/local-folders'),
+    staleTime: 5_000,
+    refetchInterval: (q) => (q.state.data?.folders.some((f) => f.last_status === 'SCANNING' || f.scan?.running) ? 1500 : false),
+  })
+
+export const useBrowse = (path: string, enabled: boolean) =>
+  useQuery({ queryKey: ['local-browse', path] as const, queryFn: () => api<BrowseResult>(`/api/local-folders/browse?path=${encodeURIComponent(path)}`), enabled, staleTime: 5_000, retry: false })
+
+export function useLocalActions() {
+  const qc = useQueryClient()
+  const done = async () => {
+    await qc.invalidateQueries({ queryKey: ['local-folders'] })
+    await qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'local-folders' && q.queryKey[0] !== CONTENT_KEY[0] && q.queryKey[0] !== 'local-browse' })
+  }
+  return {
+    add: useMutation({ mutationFn: (b: { path: string; content_rating: Mode; holds?: string }) => api<{ id: number }>('/api/local-folders', { method: 'POST', json: b }), onSuccess: done }),
+    edit: useMutation({ mutationFn: (v: { id: number; body: Record<string, unknown> }) => api(`/api/local-folders/${v.id}`, { method: 'POST', json: v.body }), onSuccess: done }),
+    scan: useMutation({ mutationFn: (id: number) => api(`/api/local-folders/${id}/scan`, { method: 'POST', json: {} }), onSuccess: done }),
+    remove: useMutation({ mutationFn: (id: number) => api(`/api/local-folders/${id}`, { method: 'DELETE' }), onSuccess: done }),
+  }
+}

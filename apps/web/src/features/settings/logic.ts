@@ -9,6 +9,7 @@ export interface StatusRow { icon: string; title: string; sub: string; tone: Ton
 export const PANELS = [
   { id: 'overview', title: 'Overview', blurb: 'Connection and system status', icon: 'grid' },
   { id: 'telegram', title: 'Telegram', blurb: 'API, session and sign-in', icon: 'send' },
+  { id: 'local', title: 'Local files', blurb: 'Folders on this PC, SFW or NSFW', icon: 'folders' },
   { id: 'content', title: 'Content', blurb: 'SFW / NSFW and the PIN', icon: 'library' },
   { id: 'metadata', title: 'Metadata', blurb: 'ThePornDB, StashDB, scan window', icon: 'database' },
   { id: 'experience', title: 'Experience', blurb: 'Autoplay, resume, seek preview', icon: 'play' },

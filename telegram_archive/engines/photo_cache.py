@@ -96,6 +96,21 @@ def cache_path_for_database(path: Path) -> str:
         return str(resolved)
 
 
+# Folders the person added as local photo sources (Settings, Local files). A photo of theirs is read where it lies, so the folder is
+# an allowed place besides the app's own trees. Kept in step by web/routes_local.py and loaded at start-up.
+_LOCAL_ROOTS: set[str] = set()
+
+
+def set_local_roots(paths) -> None:
+    global _LOCAL_ROOTS
+    _LOCAL_ROOTS = {os.path.realpath(str(p)) for p in paths if str(p).strip()}
+
+
+def _in_local_root(resolved: Path) -> bool:
+    text = os.path.realpath(str(resolved))
+    return any(text.startswith(root + os.sep) for root in _LOCAL_ROOTS)
+
+
 def resolve_database_cache_path(value: str | None) -> Path | None:
     """Resolve only paths owned by the app's user-data/cache trees."""
     text = str(value or "").strip()
@@ -108,7 +123,7 @@ def resolve_database_cache_path(value: str | None) -> Path | None:
         resolved = candidate.resolve()
         user_root = Path(config.USER_DATA_DIR).resolve()
         cache_root = Path(config.CACHE_DIR).resolve()
-        if resolved.is_relative_to(user_root) or resolved.is_relative_to(cache_root):
+        if resolved.is_relative_to(user_root) or resolved.is_relative_to(cache_root) or _in_local_root(resolved):
             return resolved
         # Reject arbitrary absolute paths from stale or manually edited DB rows.
         return None

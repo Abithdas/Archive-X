@@ -2001,6 +2001,20 @@ class Database:
             for col, typ in cols.items():
                 if col not in have:
                     self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
+        # Local folders: each is a source of its own, with a row in `channels` (telegram_id "local:<id>") that carries its marks.
+        self.conn.execute("""CREATE TABLE IF NOT EXISTS local_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT NOT NULL UNIQUE,
+            recursive INTEGER NOT NULL DEFAULT 1,
+            excluded TEXT NOT NULL DEFAULT '[]',
+            created_at TEXT NOT NULL,
+            last_scan_at TEXT,
+            last_status TEXT NOT NULL DEFAULT 'NEVER',
+            last_error TEXT NOT NULL DEFAULT '',
+            photos INTEGER NOT NULL DEFAULT 0,
+            videos INTEGER NOT NULL DEFAULT 0
+        )""")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_photo_library_local_path ON photo_library_items(channel_id, local_path)")
         from .content_mode import VISIBILITY_COLUMNS
         for table, cols in VISIBILITY_COLUMNS.items():
             have = {r["name"] for r in self.conn.execute(f"PRAGMA table_info({table})")}

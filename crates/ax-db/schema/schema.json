@@ -1847,6 +1847,68 @@
    "type": "TEXT"
   }
  ],
+ "local_sources": [
+  {
+   "name": "id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  },
+  {
+   "name": "path",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "recursive",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "excluded",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "created_at",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_scan_at",
+   "notnull": false,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_status",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "last_error",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
+  },
+  {
+   "name": "photos",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  },
+  {
+   "name": "videos",
+   "notnull": true,
+   "pk": false,
+   "type": "INTEGER"
+  }
+ ],
  "local_video_performers": [
   {
    "name": "video_id",

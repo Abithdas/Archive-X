@@ -189,10 +189,10 @@ async fn reads_follow_the_content_mode() {
         let c = Connection::open(&path).unwrap();
         c.execute_batch(
             "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-             CREATE TABLE channels (telegram_id TEXT, title TEXT, in_library INTEGER NOT NULL DEFAULT 1, content_rating TEXT NOT NULL DEFAULT 'nsfw');
+             CREATE TABLE channels (telegram_id TEXT, title TEXT, in_library INTEGER NOT NULL DEFAULT 1, content_rating TEXT NOT NULL DEFAULT 'nsfw', holds TEXT NOT NULL DEFAULT 'both');
              CREATE TABLE media (id INTEGER PRIMARY KEY, source_channel TEXT, filename TEXT);
              CREATE TABLE performers (id INTEGER PRIMARY KEY, name TEXT, content_rating TEXT NOT NULL DEFAULT 'nsfw');
-             INSERT INTO channels VALUES ('1','Adult',1,'nsfw'),('2','Movies',1,'sfw'),('3','Hidden',0,'nsfw');
+             INSERT INTO channels(telegram_id,title,in_library,content_rating) VALUES ('1','Adult',1,'nsfw'),('2','Movies',1,'sfw'),('3','Hidden',0,'nsfw');
              INSERT INTO media(source_channel,filename) VALUES ('1','a.mp4'),('2','b.mkv'),('3','c.mp4');
              INSERT INTO performers(name,content_rating) VALUES ('Adult Star','nsfw'),('Movie Actor','sfw');",
         )

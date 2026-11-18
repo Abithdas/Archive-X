@@ -30,27 +30,33 @@ FILTER_ACTIVE: contextvars.ContextVar[bool] = contextvars.ContextVar("ax_content
 
 _MODE_SQL = "COALESCE((SELECT json_extract(value,'$') FROM main.settings WHERE key='content_mode'),'sfw')"
 _CHANNELS_OK = f"COALESCE(in_library,1)=1 AND COALESCE(content_rating,'nsfw')={_MODE_SQL}"
-_VISIBLE_CH = "(SELECT telegram_id FROM main.channels WHERE " + _CHANNELS_OK + ")"
+_HOLDS = {"video": "('videos','both')", "photo": "('photos','both')"}
 
 
-def _channel_ok(col: str) -> str:
+def _visible_channels(kind: str | None = None) -> str:
+    """The channels shown now: in the library, marked like the mode, and (for a kind of content) holding that kind."""
+    extra = f" AND COALESCE(holds,'both') IN {_HOLDS[kind]}" if kind else ""
+    return f"(SELECT telegram_id FROM main.channels WHERE {_CHANNELS_OK}{extra})"
+
+
+def _channel_ok(col: str, kind: str | None = None) -> str:
     """Is the channel in `col` shown? A marked channel by its marks; a channel with no row at all (older data) counts as an NSFW library channel."""
-    return f"({col} IN {_VISIBLE_CH} OR ({_MODE_SQL}='nsfw' AND NOT EXISTS (SELECT 1 FROM main.channels oc WHERE oc.telegram_id={col})))"
+    return f"({col} IN {_visible_channels(kind)} OR ({_MODE_SQL}='nsfw' AND NOT EXISTS (SELECT 1 FROM main.channels oc WHERE oc.telegram_id={col})))"
 
 
-_VISIBLE_MEDIA_IDS = f"(SELECT m.id FROM main.media m WHERE {_channel_ok('m.source_channel')})"
-_VISIBLE_PHOTO_IDS = f"(SELECT p.id FROM main.photo_library_items p WHERE {_channel_ok('p.channel_id')})"
+_VISIBLE_MEDIA_IDS = f"(SELECT m.id FROM main.media m WHERE {_channel_ok('m.source_channel', 'video')})"
+_VISIBLE_PHOTO_IDS = f"(SELECT p.id FROM main.photo_library_items p WHERE {_channel_ok('p.channel_id', 'photo')})"
 
 # One statement per entry; every one is `CREATE TEMP VIEW <table> AS ...` so the view shadows the table of the same name.
 VISIBILITY_VIEWS: tuple[tuple[str, str], ...] = (
     # The library is made of these three views of `media`. A view stored in the database reads the real `media`, never the shadow below,
     # so each is shadowed itself.
-    ("archive_x_published_media", f"SELECT * FROM main.archive_x_published_media WHERE {_channel_ok('source_channel')}"),
-    ("archive_x_catalogued_media", f"SELECT * FROM main.archive_x_catalogued_media WHERE {_channel_ok('source_channel')}"),
-    ("archive_x_library_media", f"SELECT * FROM main.archive_x_library_media WHERE {_channel_ok('source_channel')}"),
+    ("archive_x_published_media", f"SELECT * FROM main.archive_x_published_media WHERE {_channel_ok('source_channel', 'video')}"),
+    ("archive_x_catalogued_media", f"SELECT * FROM main.archive_x_catalogued_media WHERE {_channel_ok('source_channel', 'video')}"),
+    ("archive_x_library_media", f"SELECT * FROM main.archive_x_library_media WHERE {_channel_ok('source_channel', 'video')}"),
     ("channels", f"SELECT * FROM main.channels WHERE {_CHANNELS_OK}"),
-    ("media", f"SELECT * FROM main.media WHERE {_channel_ok('source_channel')}"),
-    ("photo_library_items", f"SELECT * FROM main.photo_library_items WHERE {_channel_ok('channel_id')}"),
+    ("media", f"SELECT * FROM main.media WHERE {_channel_ok('source_channel', 'video')}"),
+    ("photo_library_items", f"SELECT * FROM main.photo_library_items WHERE {_channel_ok('channel_id', 'photo')}"),
     ("photo_face_detections", f"SELECT * FROM main.photo_face_detections WHERE photo_id IN {_VISIBLE_PHOTO_IDS}"),
     ("video_performers", f"SELECT * FROM main.video_performers WHERE video_id IN {_VISIBLE_MEDIA_IDS}"),
     ("local_video_performers", f"SELECT * FROM main.local_video_performers WHERE video_id IN {_VISIBLE_MEDIA_IDS}"),

@@ -73,7 +73,7 @@ def register_content_routes(router: APIRouter, *, db, require_auth):
             with db.reading() as conn:
                 return [dict(r) for r in conn.execute(
                     "SELECT c.telegram_id, c.title, c.username, COALESCE(c.in_library,1) AS in_library, COALESCE(c.content_rating,'nsfw') AS content_rating, "
-                    "COALESCE(c.holds,'both') AS holds, "
+                    "COALESCE(c.holds,'both') AS holds, CASE WHEN c.telegram_id LIKE 'local:%' THEN 'local' ELSE 'telegram' END AS kind, "
                     "(SELECT COUNT(*) FROM media m WHERE m.source_channel=c.telegram_id) AS videos, "
                     "(SELECT COUNT(*) FROM photo_library_items p WHERE p.channel_id=c.telegram_id) AS photos "
                     "FROM channels c ORDER BY LOWER(c.title)")]

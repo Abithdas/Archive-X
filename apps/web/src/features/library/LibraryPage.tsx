@@ -1,3 +1,4 @@
+import { ModeEmptyNote } from '@/features/content/ModeEmptyNote'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -74,7 +75,13 @@ export function LibraryPage() {
 
       {editChannel ? <ChannelEditor id={editChannel} onClose={() => setEditChannel(null)} /> : null}
 
-      {library.isPending ? (
+      {channels.isSuccess && !selected.length ? (
+        <div className="grid place-items-center gap-2 py-16 text-center" data-testid="no-channels">
+          <h2 className="text-xl font-extrabold">No videos in this mode yet</h2>
+          <p className="max-w-md text-sm text-muted">The library shows only channels and folders you have put in it for the current mode.</p>
+          <ModeEmptyNote />
+        </div>
+      ) : library.isPending ? (
         <SkeletonGroup label="Loading videos" className={GRID} ref={grid.ref} style={grid.style}>
           {Array.from({ length: grid.cols * 2 }, (_, i) => (
             <VideoCardSkeleton key={i} index={i} />
@@ -107,6 +114,7 @@ export function LibraryPage() {
           {library.data.items.length === 0 ? (
             <div className="grid place-items-center gap-3 py-12 text-center">
               <p className="text-muted">No videos match these filters.</p>
+              <ModeEmptyNote />
               <Button variant="primary" onClick={resetFilters}>Reset filters</Button>
             </div>
           ) : null}
