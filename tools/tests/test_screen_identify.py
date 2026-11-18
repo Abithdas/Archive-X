@@ -126,3 +126,27 @@ def test_routes_keys_run_and_review(tmp_path, monkeypatch):
     assert c.get("/api/screen/review").json()["items"] == []
     with db.reading() as conn:
         assert conn.execute("SELECT COUNT(*) FROM media WHERE source_channel=?", (ch,)).fetchone()[0] == 2
+
+
+def test_a_show_lists_its_episodes_in_order_and_follows_the_mode(tmp_path, monkeypatch):
+    monkeypatch.setattr(sid, "http_fetch", fake)
+    db = Database(tmp_path / "t.db")
+    c, H = _client(db)
+    db.set_setting("tmdb_api_key", "k" * 32)
+    with db.lock:
+        db.conn.execute("INSERT INTO channels(telegram_id,title,role,in_library,content_rating,holds,updated_at) VALUES('-9000000000001','Shows','local',1,'sfw','videos','2026-01-01')")
+        for i, n in ((1, "Dark.S02E03.mkv"), (2, "Dark.S01E01.mkv")):
+            db.conn.execute("INSERT INTO media(id,source_channel,source_message_id,filename,title,status,duration) VALUES(?,?,?,?,?,'SCANNED',3000)", (i, "-9000000000001", i, n, n))
+        db.conn.commit()
+    screen = sid.make_screen(db, fake)
+    for i, n in ((1, "Dark.S02E03.mkv"), (2, "Dark.S01E01.mkv")):
+        sid.identify_one(db, screen, i, n)
+    listed = c.get("/api/screen/series").json()["items"]                # the app opens in SFW, and this folder is SFW
+    assert [(x["title"], x["episodes"], x["seasons"]) for x in listed] == [("Dark", 2, 2)]
+    detail = c.get(f"/api/screen/series/{listed[0]['id']}").json()
+    assert [(se["season"], [e["episode"] for e in se["episodes"]]) for se in detail["seasons"]] == [(1, [1]), (2, [3])]
+    assert detail["seasons"][1]["episodes"][0]["name"] == "Dark Matter" and detail["genres"] == ["Drama"] and detail["companies"] == ["Netflix"]
+    assert detail["cast"][0]["name"] == "Louis Hofmann"
+    assert c.get("/api/screen/series/999").status_code == 404
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
+    assert c.get("/api/screen/series").json()["items"] == []            # not shown in the other mode

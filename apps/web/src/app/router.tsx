@@ -1,6 +1,8 @@
 import { noteLeft } from '@/features/entities/origin'
 import { Link, createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
 import { lazy } from 'react'
+const SeriesPage = lazy(() => import('@/features/series/SeriesPage').then((m) => ({ default: m.SeriesPage })))
+const SeriesDetailPage = lazy(() => import('@/features/series/SeriesPage').then((m) => ({ default: m.SeriesDetailPage })))
 const LibraryPage = lazy(() => import('@/features/library/LibraryPage').then((m) => ({ default: m.LibraryPage })))
 const EntityDirectory = lazy(() => import('@/features/entities/EntityDirectory').then((m) => ({ default: m.EntityDirectory })))
 const StudioPage = lazy(() => import('@/features/entities/StudioPage').then((m) => ({ default: m.StudioPage })))
@@ -21,6 +23,15 @@ const index = createRoute({ getParentRoute: () => root, path: '/', beforeLoad: (
 // Signed in already: /login (the address the server prints) just goes home. Signed out, the sign-in screen is shown before any page.
 const login = createRoute({ getParentRoute: () => root, path: '/login', beforeLoad: () => { throw redirect({ to: '/photos', replace: true }) } })
 const videos = createRoute({ getParentRoute: () => root, path: '/videos', component: LibraryPage })
+
+const seriesDetail = createRoute({
+  getParentRoute: () => root,
+  path: '/series/$id',
+  component: function SeriesRoute() {
+    const { id } = seriesDetail.useParams()
+    return <SeriesDetailPage id={Number(id)} />
+  },
+})
 
 const performer = createRoute({
   getParentRoute: () => root,
@@ -62,6 +73,8 @@ const routeTree = root.addChildren([
   videos,
   createRoute({ getParentRoute: () => root, path: '/performers', component: () => <EntityDirectory kind="performers" /> }),
   performer,
+  seriesDetail,
+  createRoute({ getParentRoute: () => root, path: '/series', component: SeriesPage }),
   studio,
   watch,
   nativePlayer,

@@ -25,11 +25,13 @@ import { PerformerPoster, PosterGrid, StudioPoster } from './PosterCard'
 import type { SimilarFields } from './similarity'
 import { responsive } from '@/design/responsive'
 import { Empty } from '@/design/Empty'
+import { useLabels } from '@/features/content/labels'
 
 const GRID = 'grid gap-4'   // the library's own card size: the columns are measured (useFitGrid), not fixed
 const BIO_LIMIT = 280
 
 export function PerformerPage({ id }: { id: number }) {
+  const labels = useLabels()
   const q = usePerformer(id)
   const grid = useFitGrid(270, 16)
   const [imgOk, setImgOk] = useState(true)
@@ -82,7 +84,7 @@ export function PerformerPage({ id }: { id: number }) {
   const imgSrc = `/api/performers/${p.id}/image?v=${encodeURIComponent(p.image ?? '')}`
   return (
     <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
-      <BackBar to="/performers" section="Performers" name={p.name} />
+      <BackBar to="/performers" section={labels.performers} name={p.name} />
       <HeroCard label="Performer profile" media={
         <div className={cn(MEDIA_FRAME, 'group')}>
           {imgOk ? (

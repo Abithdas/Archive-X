@@ -26,10 +26,12 @@ import { useDebounced } from './useDebounced'
 import { useFitGrid } from './fitGrid'
 import { useLibraryStore } from './store'
 import { SpinCounter } from '@/design/SpinCounter'
+import { useLabels } from '@/features/content/labels'
 
 const GRID = 'grid gap-4'
 
 export function LibraryPage() {
+  const labels = useLabels()
   const { channels: picked, page, sort, favorites, filters, per: nominalPer, toggle, clear, setPage, setPer, resetFilters } = useLibraryStore()
   const grid = useFitGrid(270, 16)
   const per = grid.fit(nominalPer)   // whole rows of whatever the window shows, so the last row is full
@@ -69,7 +71,7 @@ export function LibraryPage() {
 
   return (
     <section className="mx-auto flex w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] flex-1 flex-col pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
-      <PageHead title="Videos" blurb="Browse and manage your video library" />
+      <PageHead title={labels.videos} blurb={labels.videosBlurb} />
 
       <Toolbar lead={<ChannelMenu channels={channels.data ?? []} selected={picked} onToggle={toggle} onAll={clear} onEdit={setEditChannel} />} onRefresh={() => void refresh()} refreshing={refreshing} onShuffle={(pl) => void shuffleAll(pl)} shuffling={shuffle.busy} />
 

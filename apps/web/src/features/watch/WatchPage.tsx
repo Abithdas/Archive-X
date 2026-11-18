@@ -24,6 +24,7 @@ import { frameIndexFor, normaliseChapters, toSegments } from './timelineLogic'
 import { withWidth } from '@/design/responsive'
 import { AnimatePresence, listItem, motion } from '@/design/motion'
 import { LikeHeart } from '@/design/LikeHeart'
+import { useLabels } from '@/features/content/labels'
 
 const CARD = 'rounded-[18px] border border-line bg-surface p-4'
 const CHIP = 'inline-flex h-7 items-center rounded-full bg-surface-3 px-3 text-xs font-semibold text-muted'
@@ -69,6 +70,7 @@ function UpNext({ items, current }: { items: LibraryItem[]; current: LibraryItem
 }
 
 export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
+  const labels = useLabels()
   const video = useVideo(cid, mid)
   const router = useRouter()
   const navigate = useNavigate()
@@ -184,12 +186,12 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
 
         <section className={CARD} aria-label="Performers and studio">
           <div className="mb-3 flex items-start justify-between gap-3">
-            <div><h2 className="text-base font-bold">Performers &amp; Studio</h2><p className="text-xs text-faint">People and studio linked to this video</p></div>
+            <div><h2 className="text-base font-bold">{labels.performers} &amp; {labels.studios}</h2><p className="text-xs text-faint">People and studio linked to this video</p></div>
             <button type="button" onClick={() => setEditing(true)} title="Edit video title, performers and studio" aria-label="Edit video title, performers and studio" className="grid size-9 shrink-0 place-items-center rounded-xl border border-line-2 text-muted hover:bg-fg/5 hover:text-fg"><Icon name="edit" className="size-4" /></button>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <p className="mb-2 text-xs font-semibold text-faint">Performers</p>
+              <p className="mb-2 text-xs font-semibold text-faint">{labels.performers}</p>
               <ul className="grid gap-2">
                 {item.performers.map((n) => {
                   const id = idOf(performers.data, n)
@@ -222,7 +224,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
 
         {item.tags.length ? (
           <section className={CARD} aria-label="Scene tags">
-            <h2 className="mb-2 text-base font-bold">Scene tags</h2>
+            <h2 className="mb-2 text-base font-bold">{labels.tags === 'Genres' ? 'Genres' : 'Scene tags'}</h2>
             <ul className="flex flex-wrap gap-1.5">{tags.map((t) => <li key={t} className="rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">{t}</li>)}</ul>
             {item.tags.length > 12 ? <button type="button" onClick={() => setShowTags(!showTags)} aria-expanded={showTags} className="mt-2 text-xs font-semibold text-muted hover:text-fg">{showTags ? 'Show fewer' : `Show all ${item.tags.length}`}</button> : null}
           </section>

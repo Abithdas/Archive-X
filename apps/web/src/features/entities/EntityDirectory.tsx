@@ -19,6 +19,7 @@ import { FAILED, IDLE, NEED_SELECTION, SORTS, canCommit, commitLabel, confirmati
 import { Empty } from '@/design/Empty'
 import { useDirectoryView } from './directoryView'
 import { SpinCounter } from '@/design/SpinCounter'
+import { useLabels } from '@/features/content/labels'
 
 const GRID = 'grid gap-[18px]'
 const COPY = {
@@ -27,7 +28,8 @@ const COPY = {
 } as const
 
 export function EntityDirectory({ kind }: { kind: EntityKind }) {
-  const copy = COPY[kind]
+  const labels = useLabels()
+  const copy = kind === 'performers' ? { ...COPY.performers, title: labels.performers, blurb: labels.performersBlurb, empty: labels.performersEmpty } : { ...COPY.studios, title: labels.studios, blurb: labels.studiosBlurb, empty: labels.studiosEmpty }
   const entities = useEntities(kind)
   useAutoRepair(kind)
   const query = useSearch((s) => s.q)

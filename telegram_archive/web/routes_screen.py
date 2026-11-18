@@ -154,3 +154,52 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         except Exception as exc:
             db.log(f"Choosing a title failed: {type(exc).__name__}: {exc}"[:300], "WARN")
             raise HTTPException(502, "The provider could not be reached")
+
+
+    @router.get("/api/screen/series")
+    async def series_list(request: Request):
+        """The TV shows that have episodes in the library (in the current mode), with a poster and how many episodes are here."""
+        require_auth(request)
+
+        def read():
+            with db.reading() as c:
+                rows = c.execute(
+                    "SELECT t.id,t.title,t.year,t.poster,t.overview,t.genres,COUNT(*) AS episodes,COUNT(DISTINCT s.season) AS seasons "
+                    "FROM media_screen s JOIN media m ON m.id=s.media_id JOIN screen_titles t ON t.id=s.title_id "
+                    "WHERE t.kind='tv' AND s.state='MATCHED' GROUP BY t.id ORDER BY LOWER(t.title)").fetchall()
+            return [{"id": r["id"], "title": r["title"], "year": r["year"], "poster": si.image_url(r["poster"], "w342"), "overview": r["overview"],
+                     "genres": json.loads(r["genres"] or "[]"), "episodes": r["episodes"], "seasons": r["seasons"]} for r in rows]
+        return {"items": await asyncio.to_thread(read)}
+
+    @router.get("/api/screen/series/{title_id}")
+    async def series_detail(title_id: int, request: Request):
+        """One show: its details and, season by season, the episodes that are in the library, in order."""
+        require_auth(request)
+
+        def read():
+            with db.reading() as c:
+                t = c.execute("SELECT * FROM screen_titles WHERE id=? AND kind='tv'", (int(title_id),)).fetchone()
+                if not t:
+                    return None
+                eps = c.execute(
+                    "SELECT s.season,s.episode,m.id AS media_id,m.source_channel,m.source_message_id,m.duration,m.title AS media_title,e.name,e.overview,e.air_date,e.still,e.runtime "
+                    "FROM media_screen s JOIN media m ON m.id=s.media_id LEFT JOIN screen_episodes e ON e.title_id=s.title_id AND e.season=s.season AND e.episode=s.episode "
+                    "WHERE s.title_id=? AND s.state='MATCHED' ORDER BY s.season,s.episode,m.id", (int(title_id),)).fetchall()
+            if not eps and not t:
+                return None
+            known = {x["season"]: x for x in json.loads(t["seasons"] or "[]")}
+            seasons: dict = {}
+            for e in eps:
+                key = e["season"] if e["season"] is not None else 0
+                seasons.setdefault(key, []).append({
+                    "episode": e["episode"], "name": e["name"] or e["media_title"], "overview": e["overview"] or "", "air_date": e["air_date"] or "", "still": si.image_url(e["still"] or "", "w300"),
+                    "runtime": e["runtime"] or 0, "duration": e["duration"] or 0, "cid": e["source_channel"], "mid": e["source_message_id"]})
+            return {"id": t["id"], "title": t["title"], "year": t["year"], "overview": t["overview"], "tagline": t["tagline"], "poster": si.image_url(t["poster"], "w500"),
+                    "backdrop": si.image_url(t["backdrop"], "w780"), "genres": json.loads(t["genres"] or "[]"), "companies": json.loads(t["companies"] or "[]"),
+                    "cast": [{"name": p["name"], "character": p.get("character", ""), "profile": si.image_url(p.get("profile", ""), "w185")} for p in json.loads(t["cast_json"] or "[]")][:12],
+                    "rating": t["rating"], "status": t["status"],
+                    "seasons": [{"season": k, "name": (known.get(k) or {}).get("name") or (f"Season {k}" if k else "Specials"), "total": (known.get(k) or {}).get("episodes") or 0, "episodes": v} for k, v in sorted(seasons.items())]}
+        out = await asyncio.to_thread(read)
+        if out is None:
+            raise HTTPException(404, "No such show")
+        return out

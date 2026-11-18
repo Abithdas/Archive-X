@@ -24,6 +24,7 @@ import { useUi } from './ui'
 import { useAppearance, useAppearanceActions, useAppearanceSync } from '@/features/settings/useAppearance'
 import { scaleForKey } from '@/theme/themes'
 import { useScrollMemory } from './scrollMemory'
+import { useLabels, type Labels } from '@/features/content/labels'
 import { IconSwap } from '@/design/IconSwap'
 import { SubtleNumber } from '@/design/SubtleNumber'
 
@@ -32,12 +33,13 @@ interface NavDef {
   label: string
   icon: string
 }
-const GROUPS: { title: string; items: NavDef[] }[] = [
+const groupsFor = (l: Labels): { title: string; items: NavDef[] }[] => [
   { title: 'Library', items: [
     { to: '/photos', label: 'Photos', icon: 'images' },
-    { to: '/videos', label: 'Videos', icon: 'library' },
-    { to: '/performers', label: 'Performers', icon: 'user' },
-    { to: '/studios', label: 'Studios', icon: 'studio' },
+    { to: '/videos', label: l.videos, icon: 'library' },
+    ...(l.series ? [{ to: '/series', label: l.series, icon: 'transfer' }] : []),
+    { to: '/performers', label: l.performers, icon: 'user' },
+    { to: '/studios', label: l.studios, icon: 'studio' },
   ] },
   { title: 'Work', items: [
     { to: '/operations', label: 'Operations', icon: 'operations' },
@@ -48,7 +50,7 @@ const GROUPS: { title: string; items: NavDef[] }[] = [
     { to: '/ai', label: 'AI Assistance', icon: 'sparkle' },
   ] },
 ]
-const PHONE_NAV = ['/photos', '/videos', '/performers', '/studios', '/transfers']
+const PHONE_NAV = ['/photos', '/videos', '/series', '/performers', '/studios', '/transfers']
 const RAIL_KEY = 'ax_next_sidebar_rail'
 
 const SIDE_ITEM = 'relative flex h-11 w-full items-center rounded-xl text-[15px] font-medium text-muted transition-colors hover:bg-fg/5 hover:text-fg'
@@ -237,6 +239,8 @@ export function Shell(): ReactNode {
       /* private mode */
     }
   }
+  const labels = useLabels()
+  const GROUPS = groupsFor(labels)
   const phone = GROUPS.flatMap((g) => g.items).filter((n) => PHONE_NAV.includes(n.to))
   const activity = useActivity()
   return (

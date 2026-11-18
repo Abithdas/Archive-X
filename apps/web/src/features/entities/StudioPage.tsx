@@ -19,11 +19,13 @@ import { FavoriteButton } from './FavoriteButton'
 import { NOT_FOUND, TABS, bioText, imagePath, initial, linkedPerformers, metadataStatus, plural, providerPills, BIO_LIMIT, type Tab } from './studio'
 import { responsive } from '@/design/responsive'
 import { Empty } from '@/design/Empty'
+import { useLabels } from '@/features/content/labels'
 
 const GRID = 'grid gap-4'   // the library's own card size: the columns are measured (useFitGrid), not fixed
 const WRAP = 'mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10'
 
 export function StudioPage({ id }: { id: number }) {
+  const labels = useLabels()
   const q = useStudio(id)
   const grid = useFitGrid(270, 16)
   const performers = useEntityLookup('performers', (q.data?.videos ?? []).flatMap((v) => (Array.isArray(v.performers) ? v.performers : [])))
@@ -68,7 +70,7 @@ export function StudioPage({ id }: { id: number }) {
   const idOf = (name: string) => performers.data?.find((p) => p.name.toLowerCase() === name.toLowerCase())?.id
   return (
     <section className={WRAP}>
-      <BackBar to="/studios" section="Studios" name={site.name} />
+      <BackBar to="/studios" section={labels.studios} name={site.name} />
       <HeroCard label="Studio profile" media={
         <div className={cn(MEDIA_FRAME, 'grid place-items-center')}>
           {logoOk ? <img {...responsive(imagePath(site.id, site.image), '(max-width: 639px) 150px, 200px', [320, 480, 640])} alt="" onError={() => setLogoOk(false)} className="size-full object-contain p-3.5" /> : <span className="text-5xl font-extrabold text-muted" aria-hidden="true">{initial(site.name)}</span>}
