@@ -48,10 +48,12 @@ class ContentFilterMiddleware:
     # Pages and data of the library. Management screens (Telegram, Transfers, Operations, Settings, jobs, AI) see everything.
     CONTENT = ("/api/videos", "/api/search", "/api/performers", "/api/studios", "/api/tags", "/api/tag-taxonomy", "/api/photos", "/api/channels",
                "/api/library", "/api/bootstrap", "/api/play", "/api/thumb", "/api/entities", "/api/entity-lookup", "/api/entity-images",
-               "/api/media", "/api/suggestions", "/api/metadata", "/api/mapping", "/api/channel-maintenance", "/api/identify", "/api/captions", "/api/screen")
+               "/api/media", "/api/suggestions", "/api/metadata", "/api/mapping", "/api/channel-maintenance", "/api/identify", "/api/captions", "/api/screen",
+               "/stream", "/stream-cached", "/stream-compat", "/hls")
 
-    def __init__(self, app):
+    def __init__(self, app, db=None):
         self.app = app
+        self.db = db
 
     @classmethod
     def applies(cls, path: str) -> bool:
@@ -61,6 +63,13 @@ class ContentFilterMiddleware:
         if scope.get("type") != "http" or not self.applies(str(scope.get("path") or "")):
             await self.app(scope, receive, send)
             return
+        if self.db is not None:
+            from .core import content_guard
+            import asyncio
+            if await asyncio.to_thread(content_guard.hidden, self.db, str(scope.get("path") or "")):
+                from fastapi.responses import JSONResponse
+                await JSONResponse({"detail": "Not found"}, status_code=404)(scope, receive, send)
+                return
         from .core.content_mode import FILTER_ACTIVE
         token = FILTER_ACTIVE.set(True)
         try:
@@ -572,7 +581,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
     route_usage = RouteUsage(config.LOG_DIR / "route-usage.json")
     app.state.route_usage = route_usage
     app.add_middleware(RouteUsageMiddleware, usage=route_usage)   # innermost, so the route is known when it answers
-    app.add_middleware(ContentFilterMiddleware)
+    app.add_middleware(ContentFilterMiddleware, db=db)
     app.add_middleware(RequestCorrelationMiddleware)
     app.add_middleware(APIRateLimitMiddleware)
     app.add_middleware(BrowserMutationGuardMiddleware)

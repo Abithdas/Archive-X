@@ -215,6 +215,7 @@ def client(tmp_path):
     from telegram_archive.app import create_app
     from telegram_archive.core.auth import ensure_web_credentials
     db = base.private_db(tmp_path)
+    db.set_setting("content_mode", "nsfw")   # the performers here are adult; the app opens in SFW
     ensure_web_credentials(db)
     c = TestClient(create_app(db=db), base_url="https://testserver", client=("127.0.0.1", 50000))
     pw = "correct-horse-battery"

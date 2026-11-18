@@ -150,3 +150,26 @@ def test_a_show_lists_its_episodes_in_order_and_follows_the_mode(tmp_path, monke
     assert c.get("/api/screen/series/999").status_code == 404
     assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
     assert c.get("/api/screen/series").json()["items"] == []            # not shown in the other mode
+
+
+def test_a_direct_link_to_something_the_mode_hides_is_refused(tmp_path):
+    db = Database(tmp_path / "g.db")
+    c, H = _client(db)
+    with db.lock:
+        db.conn.execute("INSERT INTO channels(telegram_id,title,role,in_library,content_rating,holds,updated_at) VALUES('-1001','Adult','available',1,'nsfw','both','2026-01-01')")
+        db.conn.execute("INSERT INTO channels(telegram_id,title,role,in_library,content_rating,holds,updated_at) VALUES('-1002','Films','available',1,'sfw','both','2026-01-01')")
+        for ch in ("-1001", "-1002"):
+            db.conn.execute("INSERT INTO media(source_channel,source_message_id,filename,title,status) VALUES(?,1,'a.mp4','a','SCANNED')", (ch,))
+            db.conn.execute("INSERT INTO photo_library_items(channel_id,message_id,filename,size,width,height,cached_at,created_at,updated_at) VALUES(?,1,'p.jpg',1,1,1,'x','x','x')", (ch,))
+        db.conn.execute("INSERT INTO performers(name,content_rating) VALUES('Adult Person','nsfw')")
+        db.conn.execute("INSERT INTO performers(name,content_rating) VALUES('Film Actor','sfw')")
+        db.conn.commit()
+    hidden_paths = ["/stream/-1001/1", "/api/play/info/-1001/1", "/api/thumb/-1001/1", "/api/photos/-1001/1/thumbnail", "/api/channels/-1001/videos", "/api/performers/1/gallery", "/hls/-1001/1/index.m3u8"]
+    assert [c.get(p).status_code for p in hidden_paths] == [404] * len(hidden_paths)           # the app opens in SFW
+    assert c.get("/api/performers/2/gallery").status_code != 404                                # the SFW actor
+    assert c.get("/api/play/info/-1002/1").status_code != 404                                  # the SFW film (its route may answer something else)
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
+    import telegram_archive.core.content_guard as g
+    g._cache.clear()
+    assert [c.get(p).status_code == 404 for p in hidden_paths[:4]] == [False] * 4              # now these are the visible ones
+    assert c.get("/api/play/info/-1002/1").status_code == 404                                  # and the SFW film is hidden
