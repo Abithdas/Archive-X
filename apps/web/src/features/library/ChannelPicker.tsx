@@ -2,6 +2,7 @@ import type { Channel } from '@/api/types'
 import { cn } from '@/design/cn'
 import { channelMatches, channelName, isDisplayName, parseCaption, type CaptionNode } from './send'
 import { ClearField } from '@/design/ClearField'
+import { isLocalChannel } from '@/features/channels/local'
 
 function CaptionText({ nodes }: { nodes: CaptionNode[] }) {
   return <>{nodes.map((n, i) => {
@@ -19,7 +20,7 @@ export function ChannelPicker({ channels, q, onQ, target, onTarget, caption, cap
   channels: readonly Channel[]; q: string; onQ: (v: string) => void; target: string; onTarget: (id: string) => void
   caption: string | null; captionLabel: string; remember: boolean; onRemember: (v: boolean) => void
 }) {
-  const shown = channelMatches(channels, q)
+  const shown = channelMatches(channels, q).filter((c) => !isLocalChannel(c))   // a folder on this PC is a source, never a place to send to
   return (
     <>
       <ClearField value={q} onChange={onQ} placeholder="Search channel…" label="Search channel" clearLabel="Clear channel search" className="h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5" />

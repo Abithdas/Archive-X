@@ -163,9 +163,16 @@ def tmdb_headers(key: str) -> tuple[dict, dict]:
     return ({}, {"Authorization": f"Bearer {key}", "Accept": "application/json"}) if key.startswith("eyJ") else ({"api_key": key}, {"Accept": "application/json"})
 
 
+def _is_key_refusal(value) -> bool:
+    """A provider's answer that is about the key, not about the question (OMDb says so with a normal-looking reply)."""
+    return isinstance(value, dict) and value.get("Response") == "False" and "api key" in str(value.get("Error", "")).lower()
+
+
 def _is_miss(value) -> bool:
     """An answer that says "nothing": empty, or a search with no results."""
     if not value:
+        return True
+    if isinstance(value, dict) and value.get("Response") == "False":    # OMDb: "Movie not found!"
         return True
     return isinstance(value, dict) and set(value) <= {"results", "data", "page", "total_pages", "total_results", "movie_results", "tv_results", "person_results"} and not any(
         value.get(k) for k in ("results", "data", "movie_results", "tv_results", "person_results"))
@@ -208,7 +215,7 @@ class Screen:
         if value is None:
             self.calls += 1
             value = self.fetch(url, params, headers) or {}   # an error is raised, never cached: it may pass
-            if self.cache is not None:
+            if self.cache is not None and not _is_key_refusal(value):   # "invalid key" is never kept: it must not outlive the key being fixed or activated
                 self.cache.put(provider, key, value)
         self._memo[key] = value
         return value

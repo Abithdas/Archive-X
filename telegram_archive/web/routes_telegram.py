@@ -724,8 +724,11 @@ def register_telegram_routes(
         """
         require_auth(request)
         def _read_source_channels():
+            from ..core import content_mode as _cm
             with db.reading() as rdb:
-                return [dict(r) for r in rdb.execute("SELECT * FROM channels ORDER BY title").fetchall()]
+                rows = [dict(r) for r in rdb.execute("SELECT * FROM channels ORDER BY title").fetchall()]
+            hidden = _cm.hidden_channels(db)   # SFW: the adult channels' names are not listed
+            return [r for r in rows if str(r.get("telegram_id")) not in hidden]
         return await asyncio.to_thread(_read_source_channels)
 
     @router.get("/api/channels")
@@ -816,7 +819,10 @@ def register_telegram_routes(
         except Exception as e:
             db.log(f"Channel refresh failed: {e}", "ERROR")
             raise HTTPException(502, f"Channel refresh failed: {e}")
-        return {"count": len(items), "channels": items}
+        from ..core import content_mode as _cm
+        hidden = await asyncio.to_thread(_cm.hidden_channels, db)   # SFW: the refresh still happens, but the adult channels' names are not sent back
+        shown = [i for i in items if str(i.get("id") or "") not in hidden]
+        return {"count": len(shown), "channels": shown}
 
 
     # ------------------------------------------------------------------

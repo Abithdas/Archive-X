@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LocalFolders } from './LocalFolders'
 import { withRouter } from '@/test/withRouter'
@@ -44,6 +44,32 @@ describe('LocalFolders', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add this folder' }))
     await waitFor(() => expect(calls.find((c) => c.url === '/api/local-folders' && c.method === 'POST')?.body).toMatchObject({ content_rating: 'sfw', holds: 'both' }))
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Add this folder' })).toBeNull())   // the dialog closes by itself once the folder is added
+  })
+  it('uploads a folder to a channel of the same kind, keeping the files unless told otherwise', async () => {
+    const calls: Array<{ url: string; method: string; body?: Record<string, unknown> }> = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET'
+      calls.push({ url, method, body: init?.body ? JSON.parse(String(init.body)) : undefined })
+      if (url === '/api/local-folders' && method === 'GET') return new Response(JSON.stringify({ ok: true, mode: 'sfw', folders: [{ ...folder, content_rating: 'sfw', videos: 3 }] }), { status: 200 })
+      if (url === '/api/telegram/channel-marks') return new Response(JSON.stringify({ ok: true, mode: 'sfw', channels: [
+        { kind: 'telegram', telegram_id: '-1005', title: 'Films', username: null, in_library: 1, content_rating: 'sfw', holds: 'videos', videos: 1, photos: 0 },
+        { kind: 'telegram', telegram_id: '-1006', title: 'Other kind', username: null, in_library: 1, content_rating: 'nsfw', holds: 'videos', videos: 1, photos: 0 }] }), { status: 200 })
+      if (url === '/api/content-mode') return new Response(JSON.stringify({ ok: true, mode: 'sfw', pin_set: false, locked_for: 0 }), { status: 200 })
+      if (url === '/api/local-folders/1/upload') return new Response(JSON.stringify({ ok: true, job_id: 'j1', destination: 'Films', seeded: 3, rebuilt: 0, skipped: 0, keep_files: true }), { status: 200 })
+      return new Response('{"ok":true}', { status: 200 })
+    }))
+    withRouter(<LocalFolders />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Upload to Telegram' }))
+    const select = await screen.findByLabelText('Destination channel')
+    await waitFor(() => expect(within(select).queryByText('Films')).not.toBeNull())
+    expect(within(select).queryByText('Other kind')).toBeNull()                     // a channel of the other kind is not offered
+    expect(screen.getByRole('button', { name: 'Start the upload' })).toBeDisabled()
+    fireEvent.change(select, { target: { value: '-1005' } })
+    fireEvent.click(screen.getByLabelText('Keep the files on this PC'))
+    expect(await screen.findByText(/deleted from this PC after Telegram has confirmed/)).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Keep the files on this PC'))
+    fireEvent.click(screen.getByRole('button', { name: 'Start the upload' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/local-folders/1/upload')?.body).toEqual({ destination: '-1005', keep_files: true }))
   })
   it('offers a metadata scan for a folder that has videos', async () => {
     const calls = mock([{ ...folder, videos: 4 }])

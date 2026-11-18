@@ -85,7 +85,23 @@ def index_videos(db, channel: str, paths: list[str]) -> dict:
             db.conn.execute("DELETE FROM media WHERE source_channel=? AND source_message_id=?", (channel, mid))
             db.conn.execute("DELETE FROM local_video_files WHERE channel_id=? AND message_id=?", (channel, mid))
         db.conn.commit()
+    for mid, _ in gone:
+        drop_snapshots(db, channel, mid)
     return {"videos": len(seen), "added": added, "removed": len(gone)}
+
+
+def drop_snapshots(db, channel: str, message_id: int) -> None:
+    """Forget a video's snapshots (its file is gone, or its folder was removed): the frames on disk and the saved results."""
+    import shutil
+    from . import preview_prefetch as pp
+    try:
+        shutil.rmtree(pp.preview_frames_path(int(channel), int(message_id)), ignore_errors=True)
+    except (TypeError, ValueError):
+        return
+    with db.lock:
+        db.conn.execute("DELETE FROM timeline_preview_cache WHERE source_channel=? AND video_message_id=?", (str(channel), int(message_id)))
+        db.conn.execute("DELETE FROM thumbnail_cache WHERE source_channel=? AND video_message_id=?", (str(channel), int(message_id)))
+        db.conn.commit()
 
 
 def file_of(db, channel_id: int | str, message_id: int) -> str | None:
@@ -112,8 +128,12 @@ def probe(path: str, timeout: float = 60.0) -> dict:
         return {}
 
 
+FRAME_WIDTH = 960   # as wide as the upload pipeline asks of reusable frames (or the video's own width when that is less), so uploading never rebuilds them
+
+
 def _frame(ffmpeg: str, path: str, t: float, out: Path) -> bool:
-    cmd = [ffmpeg, "-v", "error", "-y", "-ss", f"{max(0.0, t):.3f}", "-i", path, "-frames:v", "1", "-an", "-sn", "-vf", "scale=640:-2", "-q:v", "3", str(out)]
+    out.unlink(missing_ok=True)   # only a frame made now counts: near the very end ffmpeg can finish without writing one, and an old file must not stand in for it
+    cmd = [ffmpeg, "-v", "error", "-y", "-ss", f"{max(0.0, t):.3f}", "-i", path, "-frames:v", "1", "-an", "-sn", "-vf", f"scale='min({FRAME_WIDTH},iw)':-2", "-q:v", "3", str(out)]
     try:
         done = subprocess.run(cmd, capture_output=True, timeout=45, creationflags=_NO_WINDOW, stdin=subprocess.DEVNULL)
         return done.returncode == 0 and out.is_file() and out.stat().st_size > 256
@@ -122,8 +142,8 @@ def _frame(ffmpeg: str, path: str, t: float, out: Path) -> bool:
         return False
 
 
-def build_snapshots(db, channel: str, message_id: int, path: str, duration: float) -> bool:
-    """Write the 36 frames, the sprite and the saved result for one file. True when the set is complete."""
+def build_snapshots(db, channel: str, message_id: int, path: str, duration: float, *, force: bool = False) -> bool:
+    """Write the 36 frames, the sprite and the saved result for one file. True when the set is complete. ``force`` makes every frame again."""
     from ..playback import media_tools
     from . import preview_prefetch as pp
     ffmpeg = media_tools.find_ffmpeg()
@@ -135,7 +155,7 @@ def build_snapshots(db, channel: str, message_id: int, path: str, duration: floa
     folder.mkdir(parents=True, exist_ok=True)
     for i, t in enumerate(times):
         target = pp.preview_frame_path(cid, mid, i)
-        if target.is_file() and target.stat().st_size > pp.MIN_FRAME_BYTES:
+        if not force and target.is_file() and target.stat().st_size > pp.MIN_FRAME_BYTES:
             continue
         # a frame at the very end of a short file can come back empty; step back a little and try again
         if not (_frame(ffmpeg, path, t, target) or _frame(ffmpeg, path, max(0.0, t - 1.0), target) or _frame(ffmpeg, path, 0.0, target)):
@@ -183,7 +203,7 @@ def _prepare_one(db, channel: str, item: dict) -> bool:
     with db.reading() as conn:
         row = conn.execute("SELECT duration FROM media WHERE source_channel=? AND source_message_id=?", (channel, mid)).fetchone()
     duration = float((info.get("duration") if info else None) or (row["duration"] if row else 0) or 0)
-    ok = duration > 0 and build_snapshots(db, channel, mid, path, duration)
+    ok = duration > 0 and build_snapshots(db, channel, mid, path, duration, force=True)   # a new or changed file: whatever frames exist belong to something else
     with db.lock:
         db.conn.execute("UPDATE local_video_files SET snapshots=? WHERE channel_id=? AND message_id=?", (1 if ok else 2, channel, mid))
         db.conn.commit()

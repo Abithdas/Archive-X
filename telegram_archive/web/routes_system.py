@@ -453,6 +453,18 @@ def register_system_routes(
 
     # Read by the Rust front door (never by a browser; the front door refuses /internal/ from clients): the provider keys it needs to keep the
     # local performer name list fresh, and where the data lives. Needs the secret shared at launch and a loopback caller.
+    @router.get("/internal/content-mode")
+    async def internal_content_mode(request: Request):
+        """The front door asks which mode is on before it answers from its own stored lists (same shared secret and loopback rule as the provider keys)."""
+        import hmac
+        from ..core import content_mode as _cm
+        expected = os.getenv("ARCHIVE_X_PROXY_KEY", "").strip().encode()
+        presented = request.headers.get("x-archive-x-internal", "").encode()
+        host = request.client.host if request.client else ""
+        if not expected or not presented or not hmac.compare_digest(presented, expected) or host not in ("127.0.0.1", "::1"):
+            raise HTTPException(404, "Not Found")
+        return JSONResponse({"mode": _cm.get_mode(db)}, headers={"Cache-Control": "no-store"})
+
     @router.get("/internal/provider-keys")
     async def internal_provider_keys(request: Request):
         import hmac

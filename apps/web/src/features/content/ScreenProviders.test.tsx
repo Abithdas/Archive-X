@@ -68,6 +68,31 @@ describe('settling a video by hand', () => {
   })
 })
 
+describe('testing a key', () => {
+  it('works on a key that was just typed, saving it first, and shows the provider\'s own reason', async () => {
+    const calls: { url: string; method: string; body: unknown }[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : undefined })
+      if (url === '/api/content-mode') return json({ ok: true, mode: 'sfw', pin_set: true, locked_for: 0 })
+      if (url === '/api/screen/settings' && !init?.method) return json({ tmdb_api_key: '', tmdb_configured: false, omdb_api_key: '', omdb_configured: false, opensubtitles_api_key: '', opensubtitles_configured: false })
+      if (url === '/api/screen/status') return json({ progress: {}, counts: {}, pending: 0, configured: false })
+      if (url === '/api/screen/review') return json({ items: [] })
+      if (url === '/api/screen/check') return json({ ok: false, error: 'OMDb does not recognise this key (it said: Invalid API key). OMDb emails you an activation link when you ask for a key: open it, then test again.' })
+      return json({ ok: true })
+    }))
+    withRouter(<ScreenProviders />)
+    const test = (await screen.findAllByRole('button', { name: 'Test' }))
+    expect(test.every((b) => (b as HTMLButtonElement).disabled)).toBe(true)                      // nothing typed, nothing saved: nothing to test
+    fireEvent.change(await screen.findByLabelText(/OMDb/), { target: { value: 'abc12345' } })
+    const omdb = screen.getAllByRole('button', { name: 'Test' })[2] as HTMLButtonElement
+    await waitFor(() => expect(omdb.disabled).toBe(false))
+    fireEvent.click(omdb)
+    expect(await screen.findByText(/emails you an activation link/)).toBeInTheDocument()
+    expect(calls.findIndex((c) => c.url === '/api/screen/settings' && c.method === 'POST')).toBeLessThan(calls.findIndex((c) => c.url === '/api/screen/check'))   // saved, then tested
+    expect(calls.find((c) => c.url === '/api/screen/settings' && c.method === 'POST')?.body).toEqual({ omdb_api_key: 'abc12345' })
+  })
+})
+
 describe('TVmaze switch', () => {
   it('is saved when switched', async () => {
     const calls = mount('sfw')

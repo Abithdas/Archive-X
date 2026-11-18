@@ -275,3 +275,139 @@ def test_how_many_videos_are_prepared_at_once_can_be_chosen(tmp_path):
     assert c.post("/api/local-folders/settings", json={"workers": 3}, headers=H).json()["workers"] == 3
     assert c.get("/api/local-folders/settings").json()["workers"] == 3
     assert [c.post("/api/local-folders/settings", json={"workers": w}, headers=H).status_code for w in (0, 5, "many")] == [400, 400, 400]
+
+
+def _prepared_folder(tmp_path, name="Movies", size="320x180", count=1, mode="nsfw"):
+    """A folder with real videos, added and fully prepared (probe + snapshots)."""
+    import subprocess
+    root = tmp_path / name
+    root.mkdir()
+    for i in range(count):
+        done = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"testsrc2=size={size}:rate=15:duration=3", "-pix_fmt", "yuv420p", str(root / f"film {i}.mp4")], capture_output=True)
+        if done.returncode != 0:
+            pytest.skip("ffmpeg is not available")
+    db = Database(tmp_path / "u.db")
+    c, H = _client(db)
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
+    sid = c.post("/api/local-folders", json={"path": str(root), "content_rating": mode, "holds": "videos"}, headers=H).json()["id"]
+    ch = ls.channel_id(sid)
+    for _ in range(600):
+        with db.reading() as conn:
+            ready = conn.execute("SELECT COUNT(*) FROM local_video_files WHERE channel_id=? AND snapshots=1", (ch,)).fetchone()[0]
+        if ready == count:
+            break
+        time.sleep(0.1)
+    time.sleep(0.3)
+    return db, c, H, sid, ch, root
+
+
+def test_a_folder_video_is_made_ready_for_the_upload_job_so_it_builds_no_snapshots(tmp_path):
+    from PIL import Image
+    from telegram_archive.engines import local_upload_bridge as bridge
+    from telegram_archive.engines import thumbnail_cache as tc
+    from telegram_archive.metadata.fingerprint import oshash_file
+    db, c, H, sid, ch, root = _prepared_folder(tmp_path, size="1280x720")
+    with db.reading() as conn:
+        mid = conn.execute("SELECT message_id FROM local_video_files WHERE channel_id=?", (ch,)).fetchone()[0]
+    path = root / "film 0.mp4"
+    from telegram_archive.engines import preview_prefetch as pp
+    first = pp.preview_frame_path(int(ch), mid, 0)
+    assert Image.open(first).width == 960                                        # folder frames are as wide as the upload job asks (they were 640)
+    assert bridge.seed(db, ch, mid) == "seeded"
+    fingerprint = oshash_file(str(path))
+    assert tc.local_playback_snapshot_reusable_sync(db, path, fingerprint) is not None   # the upload job recognises them as ready: it would build nothing
+    assert Image.open(tc.local_playback_snapshot_frames_path(path) / "frame_36.jpg").width == 960
+    with db.reading() as conn:
+        assert conn.execute("SELECT oshash FROM media WHERE source_channel=?", (ch,)).fetchone()[0] == fingerprint
+    # frames from an older version (640 wide) are made wide first, then seeded
+    for i in range(36):
+        f = pp.preview_frame_path(int(ch), mid, i)
+        Image.open(f).resize((640, 360)).save(f, quality=90)
+    assert bridge.seed(db, ch, mid) == "rebuilt"
+    assert Image.open(pp.preview_frame_path(int(ch), mid, 5)).width == 960
+    assert tc.local_playback_snapshot_reusable_sync(db, path, fingerprint) is not None
+
+
+def test_what_is_known_about_a_folder_video_goes_onto_its_telegram_copy(tmp_path):
+    from telegram_archive.engines import local_upload_bridge as bridge
+    from telegram_archive.engines import screen_identify as sid_
+    db, c, H, sid, ch, root = _prepared_folder(tmp_path, mode="sfw")
+    with db.reading() as conn:
+        src = conn.execute("SELECT id,source_message_id FROM media WHERE source_channel=?", (ch,)).fetchone()
+    sid_.apply_match(db, src["id"], {"kind": "movie", "tmdb_id": 603, "title": "The Matrix", "year": 1999, "release_date": "1999-03-30", "cast": [{"name": "Keanu Reeves", "tmdb_id": 6384}], "companies": ["Warner Bros."], "genres": ["Action"]}, None, chosen=True)
+    with db.lock:
+        db.conn.execute("INSERT INTO channels(telegram_id,title,role,in_library,content_rating,holds,updated_at) VALUES('-1005','Films','available',1,'sfw','videos','2026-01-01')")
+        db.conn.execute("INSERT INTO media(id,source_channel,source_message_id,filename,title,status) VALUES(900,'-1005',77,'film 0.mp4','film 0','SCANNED')")
+        db.conn.commit()
+    assert bridge.carry_identity(db, root / "film 0.mp4", 900) is True
+    with db.reading() as conn:
+        m = conn.execute("SELECT title,release_date,identification_state FROM media WHERE id=900").fetchone()
+        assert (m["title"], m["release_date"], m["identification_state"]) == ("The Matrix (1999)", "1999-03-30", "MATCHED")
+        assert [r[0] for r in conn.execute("SELECT p.name FROM video_performers v JOIN performers p ON p.id=v.performer_id WHERE v.video_id=900")] == ["Keanu Reeves"]
+        assert [r[0] for r in conn.execute("SELECT t.name FROM video_tags v JOIN tags t ON t.id=v.tag_id WHERE v.video_id=900")] == ["Action"]
+        s = conn.execute("SELECT state,chosen,title_id FROM media_screen WHERE media_id=900").fetchone()
+        assert (s["state"], s["chosen"]) == ("MATCHED", 1) and s["title_id"]
+        rs = conn.execute("SELECT metadata_state,entity_state FROM resource_state WHERE media_id=900").fetchone()
+        assert (rs["metadata_state"], rs["entity_state"]) == ("COMPLETE", "COMPLETE")        # the channel's own scan has nothing to identify
+    assert bridge.carry_identity(db, tmp_path / "not from a folder.mp4", 900) is False
+    assert bridge.carry_identity(db, root / "film 0.mp4", 0) is False
+
+
+def test_uploading_a_folder_keeps_the_files_and_follows_the_safety_rules(tmp_path, monkeypatch):
+    from telegram_archive.jobs.manager import JobManager
+    submitted = []
+    monkeypatch.setattr(JobManager, "submit", lambda self, jid: submitted.append(jid))
+    monkeypatch.setattr(JobManager, "is_active", lambda self, kind: False)
+    db, c, H, sid, ch, root = _prepared_folder(tmp_path, mode="sfw")
+    with db.lock:
+        db.conn.execute("INSERT INTO channels(telegram_id,title,role,in_library,content_rating,holds,updated_at) VALUES('-1005','Films','available',1,'sfw','videos','2026-01-01')")
+        db.conn.execute("INSERT INTO channels(telegram_id,title,role,in_library,content_rating,holds,updated_at) VALUES('-1006','Adult','available',1,'nsfw','videos','2026-01-01')")
+        db.conn.commit()
+    url = f"/api/local-folders/{sid}/upload"
+    assert c.post(url, json={"destination": "not a number"}, headers=H).status_code == 400
+    assert c.post(url, json={"destination": "-4040"}, headers=H).status_code == 404                  # not a channel the app knows
+    wrong = c.post(url, json={"destination": "-1006"}, headers=H)
+    assert wrong.status_code == 409 and "holds one kind only" in wrong.json()["detail"] and not submitted   # an SFW folder does not go into an NSFW channel
+    r = c.post(url, json={"destination": "-1005"}, headers=H)
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert (out["seeded"], out["rebuilt"], out["skipped"], out["keep_files"]) == (1, 0, 0, True) and submitted == [out["job_id"]]
+    with db.reading() as conn:
+        job = conn.execute("SELECT job_type,destination_channel,detail FROM jobs WHERE id=?", (out["job_id"],)).fetchone()
+    import json as _json
+    detail = _json.loads(job["detail"])
+    assert job["job_type"] == "UPLOAD_LOCAL" and job["destination_channel"] == "-1005"
+    assert detail["delete_local_after_delivery"] is False and detail["folder"] == str(root) and detail["include_subfolders"] is True      # the files stay on this PC
+    gone = c.post(url, json={"destination": "-1005", "keep_files": False}, headers=H).json()
+    assert _json.loads(db.get_job(gone["job_id"])["detail"])["delete_local_after_delivery"] is True                                           # only when asked for
+    assert c.post(f"/api/local-folders/{sid}", json={"excluded": [str(root / "x")]}, headers=H).status_code == 200
+    with db.lock:
+        db.conn.execute("UPDATE local_sources SET excluded='[\"sub\"]' WHERE id=?", (sid,))
+        db.conn.commit()
+    assert c.post(url, json={"destination": "-1005"}, headers=H).status_code == 409                    # left-out subfolders cannot be honoured by the upload yet
+
+
+def test_snapshots_follow_the_file_a_replaced_video_gets_new_ones_and_removing_cleans_up(tmp_path):
+    import subprocess
+    from PIL import Image
+    from telegram_archive.engines import preview_prefetch as pp
+    db, c, H, sid, ch, root = _prepared_folder(tmp_path, size="320x180")
+    with db.reading() as conn:
+        mid = conn.execute("SELECT message_id FROM local_video_files WHERE channel_id=?", (ch,)).fetchone()[0]
+    frames = pp.preview_frames_path(int(ch), mid)
+    assert Image.open(frames / "frame_01.jpg").width == 320
+    # the same file name now holds a different (wider, longer) video: the old snapshots must not stay
+    done = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=15:duration=4", "-pix_fmt", "yuv420p", str(root / "film 0.mp4")], capture_output=True)
+    assert done.returncode == 0
+    assert c.post(f"/api/local-folders/{sid}/scan", headers=H).status_code == 200
+    for _ in range(600):
+        with db.reading() as conn:
+            row = conn.execute("SELECT snapshots,probed FROM local_video_files WHERE channel_id=?", (ch,)).fetchone()
+        if row and row["snapshots"] == 1 and row["probed"] == 1 and Image.open(frames / "frame_01.jpg").width == 640:
+            break
+        time.sleep(0.1)
+    assert Image.open(frames / "frame_01.jpg").width == 640                   # new content, new frames
+    assert c.delete(f"/api/local-folders/{sid}", headers=H).status_code == 200
+    assert not frames.exists()                                                 # nothing left on the disk
+    with db.reading() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM timeline_preview_cache WHERE source_channel=?", (ch,)).fetchone()[0] == 0

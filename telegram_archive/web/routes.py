@@ -729,7 +729,7 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
         elif _module == "routes_screen":
             register_screen_routes(router, db=db, require_auth=require_auth)
         elif _module == "routes_local":
-            register_local_routes(router, db=db, require_auth=require_auth, config=config)
+            register_local_routes(router, db=db, require_auth=require_auth, config=config, jobs=jobs)
         elif _module == "routes_system":
             route_exports.update(
                 register_system_routes(

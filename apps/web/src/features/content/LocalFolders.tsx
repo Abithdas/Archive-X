@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
 import { modeLabel, scanText, withPatch, type LocalFolder, type Mode, type Patch } from './content'
 import { SaveBar } from './SaveBar'
-import { errorText, useBrowse, useContentMode, useLocalActions, useLocalFolders, useSaveMarks } from './useContentMode'
+import { errorText, useBrowse, useChannelMarks, useContentMode, useLocalActions, useLocalFolders, useSaveMarks } from './useContentMode'
 
 const HOLDS = [{ value: 'both', label: 'Videos + photos' }, { value: 'videos', label: 'Videos' }, { value: 'photos', label: 'Photos' }] as const
 const BTN = 'h-9 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50'
@@ -26,6 +26,7 @@ export function LocalFolders() {
   const [draft, setDraft] = useState<Record<string, Patch>>({})
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<LocalFolder | null>(null)
+  const [uploading, setUploading] = useState<LocalFolder | null>(null)
   const folders = q.data?.folders ?? []
   const savedOf = (f: LocalFolder): Patch => ({ in_library: Boolean(f.in_library), content_rating: f.content_rating, holds: f.holds })
   const mark = (f: LocalFolder, patch: Patch) => setDraft((d) => withPatch(d, f.channel_id, savedOf(f), patch))   // kept aside until Save
@@ -72,6 +73,7 @@ export function LocalFolders() {
                   <p role="status" className={cn('text-xs', f.last_status === 'FAILED' || !f.exists ? 'text-bad' : 'text-muted')}>{scanText(f)}</p>
                   <div className="flex gap-2">
                     <button type="button" className={BTN} disabled={act.scan.isPending} onClick={() => act.scan.mutate(f.id)} title="Look for new, changed and removed files">Check again</button>
+                    {f.videos ? <button type="button" className={BTN} onClick={() => setUploading(f)} title="Send this folder's videos to a Telegram channel, keeping their snapshots and names">Upload to Telegram</button> : null}
                     {f.videos ? <button type="button" className={BTN} onClick={() => void identify(f)} title={f.content_rating === 'sfw' ? 'Name the movies and shows with TMDB' : 'Look the videos up by file hash in StashDB / ThePornDB'}>Scan metadata</button> : null}
                     <button type="button" className={BTN} onClick={() => setRemoving(f)}>Remove</button>
                   </div>
@@ -84,6 +86,7 @@ export function LocalFolders() {
         <SaveBar count={Object.keys(draft).length} busy={save.isPending} onSave={commit} onDiscard={() => setDraft({})} />
       </section>
       {adding ? <AddFolder mode={mode} onClose={() => setAdding(false)} onAdd={(b) => act.add.mutate(b, { onSuccess: () => { setAdding(false); toast('Folder added; looking through it now') }, onError: (e) => toast.error(errorText(e, 'Could not add the folder.')) })} busy={act.add.isPending} /> : null}
+      {uploading ? <UploadFolder folder={uploading} onClose={() => setUploading(null)} /> : null}
       {removing ? <Confirm title="Stop using this folder?" text={`${removing.path}\n\nIts photos leave the library. The files on your PC are not touched.`} ok="Remove" danger onCancel={() => setRemoving(null)} onOk={() => act.remove.mutate(removing.id, { onSuccess: () => setRemoving(null), onError: (e) => toast.error(errorText(e, 'Could not remove it.')) })} /> : null}
     </div>
   )
@@ -118,6 +121,47 @@ function AddFolder({ mode, onClose, onAdd, busy }: { mode: Mode; onClose: () => 
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className="h-11 rounded-xl border border-line-2 px-4 text-sm font-semibold">Cancel</button>
           <button type="button" disabled={!current || busy} onClick={() => onAdd({ path: current, content_rating: rating, holds })} className="h-11 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60">Add this folder</button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
+/** Send a folder's videos to a Telegram channel. Their snapshots and names are reused, the files stay on this PC unless asked otherwise. */
+function UploadFolder({ folder, onClose }: { folder: LocalFolder; onClose: () => void }) {
+  const marks = useChannelMarks()
+  const channels = (marks.data?.channels ?? []).filter((c) => c.kind !== 'local' && c.content_rating === folder.content_rating)
+  const [destination, setDestination] = useState('')
+  const [keep, setKeep] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const go = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      const r = await api<{ seeded: number; rebuilt: number; skipped: number; destination: string }>(`/api/local-folders/${folder.id}/upload`, { method: 'POST', json: { destination, keep_files: keep } })
+      const ready = r.seeded + r.rebuilt
+      toast.success(`Upload to ${r.destination} started: ${ready.toLocaleString()} video${ready === 1 ? '' : 's'} with snapshots ready${r.rebuilt ? ` (${r.rebuilt.toLocaleString()} made wider first)` : ''}${r.skipped ? `, ${r.skipped.toLocaleString()} will be prepared by the upload` : ''}. Follow it in Operations.`)
+      onClose()
+    } catch (e) { setError(errorText(e, 'Could not start the upload.')) } finally { setBusy(false) }
+  }
+  return (
+    <Dialog open onClose={onClose} title="Upload to Telegram">
+      <div className="grid gap-3">
+        <p className="text-sm text-muted">The videos of <b className="text-fg">{folder.title || folder.path}</b> are sent to a channel. Their snapshots and what is known about them (names, cast, genres) come with them: nothing is made or looked up twice.</p>
+        <label className="grid gap-1.5 text-xs font-semibold text-muted">Channel ({folder.content_rating.toUpperCase()} channels only: a channel holds one kind)
+          <select aria-label="Destination channel" value={destination} onChange={(e) => setDestination(e.target.value)} className="h-11 rounded-xl border border-line-2 bg-bg px-3 text-sm text-fg">
+            <option value="">{marks.isPending ? 'Loading channels…' : channels.length ? 'Choose a channel' : 'No channel is marked this way yet'}</option>
+            {channels.map((c) => <option key={c.telegram_id} value={c.telegram_id}>{c.title}</option>)}
+          </select>
+        </label>
+        {!marks.isPending && !channels.length ? <p className="text-xs text-muted">Mark a Telegram channel {folder.content_rating.toUpperCase()} in Settings → Telegram → Channels first.</p> : null}
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} className="mt-1" aria-label="Keep the files on this PC" /><span><b>Keep the files on this PC</b><span className="block text-xs text-muted">Recommended. They stay where they are and keep playing from here.</span></span></label>
+        {!keep ? <p role="alert" className="rounded-xl bg-bad/10 px-3 py-2 text-xs text-bad">Each file is deleted from this PC after Telegram has confirmed the upload. Deleted files cannot be brought back from here.</p> : null}
+        {error ? <p role="alert" className="text-sm text-bad">{error}</p> : null}
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="h-11 rounded-xl border border-line-2 px-4 text-sm font-semibold">Cancel</button>
+          <button type="button" disabled={!destination || busy} onClick={() => void go()} className="h-11 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60">{busy ? 'Starting…' : 'Start the upload'}</button>
         </div>
       </div>
     </Dialog>

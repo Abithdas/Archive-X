@@ -10,6 +10,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core import content_mode as _cm
 from ..core.swallowed import note as _swallowed_note
 import asyncio
 import json
@@ -48,7 +49,7 @@ def register_entity_routes(
             limit = max(1, min(10, int(request.query_params.get("limit", "8"))))
         except ValueError:
             limit = 8
-        if len(q) < 2:
+        if len(q) < 2 or _cm.get_mode(db) == "sfw":   # the adult providers are not part of SFW
             return []
         from ..metadata.providers import search_studio_providers
         try:

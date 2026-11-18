@@ -26,6 +26,8 @@ type B = BoxBody<Bytes, Infallible>;
 struct Backend {
     data_dir: String,
     keys: Mutex<(String, String)>,
+    /// What the backend says about the content mode: "nsfw" (the default here, so the stored name list is used) or "sfw".
+    mode: Mutex<String>,
     /// Like the desktop app's backend: every request must carry this launch secret.
     desktop_secret: Option<String>,
 }
@@ -59,6 +61,13 @@ async fn backend_handler(b: Arc<Backend>, req: Request<Incoming>) -> Result<Resp
             } else {
                 let k = b.keys.lock().unwrap().clone();
                 reply(200, &json!({ "stashdb": k.0, "tpdb": k.1, "data_dir": b.data_dir }).to_string())
+            }
+        }
+        "/internal/content-mode" => {
+            if h("x-archive-x-internal") != KEY {
+                reply(404, r#"{"detail":"Not Found"}"#)
+            } else {
+                reply(200, &json!({ "mode": b.mode.lock().unwrap().clone() }).to_string())
             }
         }
         _ => reply(200, r#"{"from":"python"}"#),
@@ -101,6 +110,7 @@ async fn start_with(keys: (&str, &str), desktop_secret: Option<&str>) -> Door {
     let backend = Arc::new(Backend {
         data_dir: dir.path().to_string_lossy().into_owned(),
         keys: Mutex::new((keys.0.into(), keys.1.into())),
+        mode: Mutex::new("nsfw".into()),
         desktop_secret: desktop_secret.map(String::from),
     });
     let bl = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -227,6 +237,27 @@ async fn a_name_nobody_here_knows_goes_to_python_for_a_live_search() {
     assert_eq!(r.body, r#"{"from":"python"}"#);
     let short = send(d.addr, "GET", "/api/photos/faces/performers/provider-search?q=s", IN).await;
     assert_eq!(short.headers.get("x-served-by").map(String::as_str), Some("python"), "one letter is Python's to answer");
+}
+
+#[tokio::test]
+async fn in_sfw_the_stored_adult_name_list_is_not_used_and_the_request_goes_to_the_backend() {
+    let d = start(("stash-key", "")).await;
+    filled(&d).await;
+    let nsfw = send(d.addr, "GET", "/api/photos/faces/performers/provider-search?q=stacy", IN).await;
+    assert_eq!(nsfw.headers.get("x-served-by").map(String::as_str), Some("rust"), "NSFW: the stored list answers");
+    *d.backend.mode.lock().unwrap() = "sfw".into();
+    for (m, p) in [
+        ("GET", "/api/photos/faces/performers/provider-search?q=stacy"),
+        ("GET", "/api/photos/faces/performers/name-list"),
+        ("POST", "/api/photos/faces/performers/name-list/sync"),
+    ] {
+        let r = send(d.addr, m, p, IN).await;
+        assert_eq!(r.headers.get("x-served-by").map(String::as_str), Some("python"), "SFW: {m} {p} is not answered from the adult list");
+        assert!(!r.body.contains("Stacy"), "{}", r.body);
+    }
+    *d.backend.mode.lock().unwrap() = "nsfw".into();
+    let again = send(d.addr, "GET", "/api/photos/faces/performers/provider-search?q=stacy", IN).await;
+    assert_eq!(again.headers.get("x-served-by").map(String::as_str), Some("rust"), "switching back takes effect at once");
 }
 
 #[tokio::test]

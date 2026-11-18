@@ -72,18 +72,21 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         body = await request.json()
         provider = str((body or {}).get("provider") or "")
         screen = sid.make_screen(db, fetch)
+        screen.cache = None   # a key test always asks the provider itself: an old answer says nothing about the key as it is now
 
         def work():
             if provider == "tmdb":
                 if not screen.tmdb:
                     return {"ok": False, "error": "No TMDB key saved"}
                 got = screen._t("/configuration")
-                return {"ok": bool(got)} if got else {"ok": False, "error": "TMDB did not accept the key"}
+                return {"ok": True} if got else {"ok": False, "error": "TMDB did not answer the test"}
             if provider == "omdb":
                 if not screen.omdb:
                     return {"ok": False, "error": "No OMDb key saved"}
                 got = screen.fetch(si.OMDB, {"i": "tt0111161", "apikey": screen.omdb}, {}) or {}
-                return {"ok": got.get("Response") == "True"} if got.get("Response") == "True" else {"ok": False, "error": str(got.get("Error") or "OMDb did not accept the key")}
+                if got.get("Response") == "True":
+                    return {"ok": True}
+                raise sid.ProviderError(401, str(got.get("Error") or "no answer"))
             if provider == "opensubtitles":
                 if not screen.os_key:
                     return {"ok": False, "error": "No OpenSubtitles key saved"}
@@ -96,7 +99,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             raise
         except Exception as exc:
             db.log(f"Provider key check failed ({provider}): {type(exc).__name__}: {exc}"[:300], "WARN")
-            return {"ok": False, "error": "The provider did not accept the key (or could not be reached)"}
+            return {"ok": False, "error": sid.key_trouble(provider, exc)}
 
     @router.post("/api/screen/identify")
     async def screen_identify_start(request: Request):

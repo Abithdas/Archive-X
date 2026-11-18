@@ -7,6 +7,7 @@ import { LikeHeart } from '@/design/LikeHeart'
 import { Icon } from '@/design/Icon'
 import { Skeleton, SkeletonLine } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
+import { LOCAL_LABEL, isLocalId } from '@/features/channels/local'
 import { CardMenu } from './CardMenu'
 import { formatDuration } from './format'
 import { pickKey, useSelection } from './selection'
@@ -57,7 +58,12 @@ export function VideoCard({ item }: { item: LibraryItem }) {
         {selecting ? (
           <input type="checkbox" checked={picked} onChange={() => toggle(item._cid, item.id)} aria-label={`Select ${item.name}`} className="absolute left-2 top-2 z-10 size-5 cursor-pointer accent-[var(--color-accent)]" />
         ) : null}
-        {item.resolution_category ? <span className={cn(BADGE, 'bottom-2 left-2 z-[2]')}>{item.resolution_category}</span> : null}
+        {item.resolution_category || isLocalId(item._cid) ? (
+          <span className="absolute bottom-2 left-2 z-[2] flex items-center gap-1">
+            {item.resolution_category ? <span className={cn(BADGE, 'static')}>{item.resolution_category}</span> : null}
+            {isLocalId(item._cid) ? <span className={cn(BADGE, 'static inline-flex items-center')} title={LOCAL_LABEL}><Icon name="folders" className="size-3" /><span className="sr-only">{LOCAL_LABEL}</span></span> : null}
+          </span>
+        ) : null}
         {duration ? <span className={cn(BADGE, 'bottom-2 right-2 z-[2]')}>{duration}</span> : null}
         {preview.loading ? <Skeleton className="absolute inset-x-0 bottom-0 z-[2] h-[3px] rounded-none" /> : null}
         {preview.ratio !== null || preview.watched > 0 ? (

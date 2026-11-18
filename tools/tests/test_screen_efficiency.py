@@ -240,3 +240,37 @@ def test_tvmaze_is_a_switch_the_person_turns_on_and_ids_and_names_can_be_typed(t
     assert r.status_code == 200 and r.json()["title"] == "The Matrix"
     with db.reading() as conn:
         assert conn.execute("SELECT state,chosen FROM media_screen WHERE media_id=1").fetchone()["chosen"] == 1
+
+
+def test_a_refused_key_says_why_and_the_refusal_is_never_kept(tmp_path, monkeypatch):
+    db = _db(tmp_path)
+    db.set_setting("omdb_api_key", "abc12345")
+    state = {"key_ok": False}
+
+    def omdb(url, params, headers):
+        if "omdbapi" in url:
+            if not state["key_ok"]:
+                raise sid.ProviderError(401, "Invalid API key!")
+            return {"Response": "True", "Title": "The Shawshank Redemption"}
+        return {}
+    monkeypatch.setattr(sid, "http_fetch", omdb)
+    c, H = _client()(db)
+    r = c.post("/api/screen/check", json={"provider": "omdb"}, headers=H).json()
+    assert r["ok"] is False and "activation link" in r["error"] and "Invalid API key" in r["error"]
+    state["key_ok"] = True                                                   # the person clicks the link in OMDb's email
+    assert c.post("/api/screen/check", json={"provider": "omdb"}, headers=H).json() == {"ok": True}   # the test asks again: nothing was remembered
+    # an invalid-key reply that arrives as a normal answer is not written to the cache either
+    seen = []
+
+    class Spy:
+        def get(self, provider, key):
+            return None
+
+        def put(self, provider, key, value):
+            seen.append(value)
+    refusal = {"Response": "False", "Error": "Invalid API key!"}
+    s = si.Screen(lambda u, p, h: refusal if "omdb" in u else {}, omdb="abc", cache=Spy())
+    s.search(si.parse_name("Heat 1995.mkv"))
+    assert refusal not in seen
+    assert sid.key_trouble("tmdb", sid.ProviderError(401, "Invalid API key: You must be granted a valid key.")).startswith("TMDB did not accept the key")
+    assert "OpenSubtitles" in sid.key_trouble("opensubtitles", sid.ProviderError(403, "Forbidden"))

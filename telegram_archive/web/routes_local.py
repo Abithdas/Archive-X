@@ -18,7 +18,7 @@ HOLDS = ("videos", "photos", "both")
 _WATCHER = False
 
 
-def register_local_routes(router: APIRouter, *, db, require_auth, config):
+def register_local_routes(router: APIRouter, *, db, require_auth, config, jobs=None):
     def roots() -> list[str]:
         with db.reading() as conn:
             return [r["path"] for r in conn.execute("SELECT path FROM local_sources")]
@@ -244,6 +244,63 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
         threading.Thread(target=work, name=f"local-identify-{source_id}", daemon=True).start()
         return {"ok": True, "kind": "movies and shows" if sfw else "scene databases"}
 
+    @router.post("/api/local-folders/{source_id}/upload")
+    async def upload_folder(source_id: int, request: Request):
+        """Upload a folder's videos to a Telegram channel (`destination`), by the same upload job as Upload Local Files.
+
+        Their snapshots are recorded where that job looks for them first, so it builds none, and what is known about each video is put on its copy
+        in the channel afterwards. The files stay on this PC unless `keep_files` is false.
+        """
+        require_auth(request)
+        if jobs is None:
+            raise HTTPException(503, "Uploading is not available here")
+        body = await request.json()
+        body = body if isinstance(body, dict) else {}
+        destination = str(body.get("destination") or "").strip()
+        keep_files = body.get("keep_files", True) is not False
+        if not destination.lstrip("-").isdigit():
+            raise HTTPException(400, "Choose the Telegram channel to upload to")
+        ch = ls.channel_id(int(source_id))
+
+        def prepare():
+            with db.reading() as conn:
+                src = conn.execute("SELECT path,recursive,excluded FROM local_sources WHERE id=?", (int(source_id),)).fetchone()
+                mark = conn.execute("SELECT COALESCE(content_rating,'nsfw') AS r FROM channels WHERE telegram_id=?", (ch,)).fetchone()
+                dest = conn.execute("SELECT title,role,COALESCE(content_rating,'nsfw') AS r FROM channels WHERE telegram_id=?", (destination,)).fetchone()
+                rows = conn.execute("SELECT message_id FROM local_video_files WHERE channel_id=? AND snapshots=1 ORDER BY message_id", (ch,)).fetchall()
+            if not src:
+                raise HTTPException(404, "No such folder")
+            if not dest or dest["role"] == "local":
+                raise HTTPException(404, "That is not a Telegram channel this app knows")
+            if dest["r"] != (mark["r"] if mark else "nsfw"):
+                raise HTTPException(409, f"“{dest['title']}” is marked {dest['r'].upper()} and this folder is {(mark['r'] if mark else 'nsfw').upper()}. A channel holds one kind only: mark the channel in Settings → Telegram, or choose another.")
+            try:
+                if json.loads(src["excluded"] or "[]"):
+                    raise HTTPException(409, "This folder leaves out some subfolders, and the upload cannot honour that yet. Remove the left-out subfolders from the list, or add the wanted subfolders as folders of their own.")
+            except ValueError:
+                pass
+            from ..core.workspace_guard import validate_local_upload_folder
+            try:
+                validate_local_upload_folder(db, src["path"])
+            except ValueError as exc:
+                raise HTTPException(409, str(exc))
+            if jobs.is_active("UPLOAD_LOCAL"):
+                raise HTTPException(409, "An upload is already running: see Operations")
+            from ..engines import local_upload_bridge as bridge
+            tally: dict[str, int] = {"seeded": 0, "rebuilt": 0, "skipped": 0}
+            why: list[str] = []
+            for r in rows:
+                out = bridge.seed(db, ch, int(r["message_id"]))
+                key = out.split(":", 1)[0]
+                tally[key] = tally.get(key, 0) + 1
+                if key == "skipped" and len(why) < 5:
+                    why.append(out)
+            detail = json.dumps({"folder": src["path"], "include_subfolders": bool(src["recursive"]), "delete_local_after_delivery": not keep_files, "origin": "local_folder", "local_folder_id": int(source_id)})
+            jid = db.create_job("UPLOAD_LOCAL", "", destination, False, detail=detail)
+            jobs.submit(jid)
+            return {"ok": True, "job_id": jid, "destination": dest["title"], "keep_files": keep_files, **tally, "why": why}
+        return await asyncio.to_thread(prepare)
+
     @router.delete("/api/local-folders/{source_id}")
     async def remove_folder(source_id: int, request: Request):
         """Stop using a folder: its index goes, the files are never touched."""
@@ -251,6 +308,9 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
         ch = ls.channel_id(int(source_id))
 
         def write():
+            from ..engines import local_videos
+            with db.reading() as conn:
+                gone = [int(r["message_id"]) for r in conn.execute("SELECT message_id FROM local_video_files WHERE channel_id=?", (ch,))]
             with db.lock:
                 row = db.conn.execute("SELECT 1 FROM local_sources WHERE id=?", (int(source_id),)).fetchone()
                 if not row:
@@ -261,6 +321,8 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config):
                     db.conn.execute(sql, (ch,))
                 db.conn.execute("DELETE FROM local_sources WHERE id=?", (int(source_id),))
                 db.conn.commit()
+            for mid in gone:      # their snapshots go with them (the frames are real disk space)
+                local_videos.drop_snapshots(db, ch, mid)
         await asyncio.to_thread(write)
         await asyncio.to_thread(refresh_roots)
         db.log(f"Local folder removed: {ch}")

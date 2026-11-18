@@ -38,6 +38,12 @@ export function ScreenProviders() {
   const check = async (p: Provider) => {
     setTests((t) => ({ ...t, [p]: 'Testing…' }))
     try {
+      const typed = vals[p].trim()
+      if (typed) {   // a key that was typed is saved first: testing what is on screen, not what was saved before
+        await api('/api/screen/settings', { method: 'POST', json: { [PROVIDERS.find((x) => x.id === p)!.field]: typed } })
+        setVals((v) => ({ ...v, [p]: '' }))
+        refresh()
+      }
       const r = await api<{ ok: boolean; error?: string }>('/api/screen/check', { method: 'POST', json: { provider: p } })
       setTests((t) => ({ ...t, [p]: r.ok ? 'The key works.' : r.error || 'The key was not accepted.' }))
     } catch (e) { setTests((t) => ({ ...t, [p]: errorText(e, 'Could not test the key.') })) }
@@ -58,8 +64,8 @@ export function ScreenProviders() {
             </label>
             <p className="text-xs text-faint">{p.help}</p>
             <div className="flex items-center gap-3">
-              <button type="button" disabled={!configuredOf(settings.data, p.id)} onClick={() => void check(p.id)} className={BTN}>Test</button>
-              <span role="status" aria-live="polite" className="text-xs text-muted">{tests[p.id]}</span>
+              <button type="button" disabled={!configuredOf(settings.data, p.id) && !vals[p.id].trim()} onClick={() => void check(p.id)} className={BTN}>Test</button>
+              <span role="status" aria-live="polite" className={cn('text-xs', tests[p.id] && tests[p.id] !== 'Testing…' && tests[p.id] !== 'The key works.' ? 'text-warn' : 'text-muted')}>{tests[p.id]}</span>
             </div>
           </div>
         ))}

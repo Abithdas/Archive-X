@@ -22,6 +22,7 @@ import time
 import zipfile
 from pathlib import Path
 
+from ..core import content_mode as _cm
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -97,10 +98,16 @@ def register_tags_logs_routes(
     # SUBSECTION: Logs and diagnostics downloads
     # Log and report downloads.
     # ------------------------------------------------------------------
+    def _no_logs_in_sfw() -> None:
+        """Logs and reports are raw: they carry file and channel names of every channel, adult ones included. They are exported from NSFW mode."""
+        if _cm.get_mode(db) == "sfw":
+            raise HTTPException(403, "Logs can mention adult file and channel names. Switch to NSFW to export them.")
+
     @router.get("/api/log/download")
     async def download_log(request: Request):
         """GET /api/log/download: Download log."""
         require_auth(request)
+        _no_logs_in_sfw()
         from fastapi.responses import Response
         def _read_event_log():
             with db.reading() as rdb:
@@ -185,6 +192,7 @@ def register_tags_logs_routes(
         diagnostic download appear to hang indefinitely.
         """
         require_auth(request)
+        _no_logs_in_sfw()
         from datetime import datetime, timezone
         from fastapi.responses import Response
         from ..core.diagnostics import flush_diagnostics
@@ -278,6 +286,7 @@ def register_tags_logs_routes(
     async def download_diagnostics_report_html(request: Request, scope: str = "current"):
         """Download the same canonical diagnostic evidence as a human-readable HTML report."""
         require_auth(request)
+        _no_logs_in_sfw()
         from datetime import datetime, timezone
         from fastapi.responses import HTMLResponse
         from ..core.diagnostics import flush_diagnostics

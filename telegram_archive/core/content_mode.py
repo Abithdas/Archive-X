@@ -101,6 +101,14 @@ def get_mode(db) -> str:
     return normalise_mode(db.setting(SETTING_MODE, DEFAULT_MODE))
 
 
+def hidden_channels(db) -> set[str]:
+    """In SFW: the channels that are in the library as NSFW. Management lists leave them out, because a name alone says what a channel holds."""
+    if get_mode(db) != "sfw":
+        return set()
+    with db.reading() as conn:   # plain connection: this is the one place that has to see them
+        return {str(r[0]) for r in conn.execute("SELECT telegram_id FROM channels WHERE COALESCE(in_library,1)=1 AND COALESCE(content_rating,'nsfw')='nsfw'")}
+
+
 def set_mode(db, mode: str) -> str:
     mode = normalise_mode(mode)
     db.set_setting(SETTING_MODE, mode)

@@ -856,6 +856,11 @@ async def _commit_verified_local_delivery(
         await asyncio.to_thread(
             _fix_library_extension, ctx.db, str(destination_channel), int(video_id), delivered_filename(source_path),
         )
+    try:   # a video from a local folder arrives with what is already known about it (title, cast, genres, the show it is), so nothing is identified twice
+        from .local_upload_bridge import carry_identity
+        await asyncio.to_thread(carry_identity, ctx.db, source_path, int(delivery_record.get("library_media_id") or 0))
+    except Exception as exc:
+        ctx.db.log(f"Could not carry the identification of {source_path.name} onto its Telegram copy: {type(exc).__name__}: {exc}", "WARN")
 
     try:
         if not is_split:

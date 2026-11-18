@@ -12,6 +12,7 @@
 # ------------------------------------------------------------------
 from __future__ import annotations
 
+from ..core import content_mode as _cm
 from ..core.swallowed import note as _swallowed_note
 import asyncio
 import re
@@ -662,7 +663,7 @@ def register_library_routes(
         """Performers available through the metadata APIs (StashDB, ThePornDB) that match a typed name; nothing is imported."""
         require_auth(request)
         query = str(request.query_params.get("q") or "").strip()[:100]
-        if len(query) < 2:
+        if len(query) < 2 or _cm.get_mode(db) == "sfw":   # the adult providers are not part of SFW
             return {"ok": True, "items": [], "configured": True}
         from ..metadata.providers import search_performer_providers
         configured = bool(db.setting("stashdb_api_key") or db.setting("tpdb_api_token"))
@@ -686,6 +687,8 @@ def register_library_routes(
             raise HTTPException(400, "Request body must be valid JSON")
         if not isinstance(body, dict):
             raise HTTPException(400, "Request body must be an object")
+        if _cm.get_mode(db) == "sfw":
+            raise HTTPException(403, "Performers from the adult providers are not available in SFW")
         name = str(body.get("name") or "").strip()
         provider = str(body.get("provider") or "").strip().lower()
         provider_id = str(body.get("provider_id") or "").strip()
@@ -2609,7 +2612,7 @@ def register_library_routes(
             limit = max(1, min(10, int(request.query_params.get("limit", "8"))))
         except ValueError:
             limit = 8
-        if len(q) < 2:
+        if len(q) < 2 or _cm.get_mode(db) == "sfw":
             return []
         from ..metadata.providers import search_performer_providers
         try:

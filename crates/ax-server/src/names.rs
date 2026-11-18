@@ -110,6 +110,14 @@ impl Names {
         Ok((keys, pick("data_dir").map(|d| PathBuf::from(d).join("performer_names.db"))))
     }
 
+    /// True unless the backend says NSFW is on (asked every time: a switch must take effect at once, not after a cache runs out).
+    async fn sfw(&self) -> bool {
+        match self.proxy.internal_json("/internal/content-mode").await {
+            Ok(v) => v.get("mode").and_then(Value::as_str) != Some("nsfw"),
+            Err(_) => true,
+        }
+    }
+
     async fn keys(&self) -> Keys {
         self.config().await.map(|c| c.0).unwrap_or_default()
     }
@@ -161,6 +169,11 @@ impl Names {
         }
         if let Err(resp) = self.allowed(headers, peer).await {
             return Some(resp);
+        }
+        // The stored list is made of adult performers' names (StashDB, ThePornDB): in SFW it is not consulted at all, and the request goes on to
+        // the backend, which has nothing to offer in SFW either. If the mode cannot be read, SFW is assumed.
+        if self.sfw().await {
+            return None;
         }
         match route {
             Route::Search => {

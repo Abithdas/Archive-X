@@ -33,8 +33,28 @@ def configured(db) -> bool:
     return bool(k["tmdb"] or k["omdb"] or tvmaze_on(db))
 
 
+class ProviderError(RuntimeError):
+    """A provider said no, and said why (its own words are kept: "Invalid API key!", "Unauthorized")."""
+
+    def __init__(self, status: int, detail: str):
+        super().__init__(f"HTTP {status}: {detail}")
+        self.status, self.detail = status, detail
+
+
+def _why(r) -> str:
+    try:
+        body = r.json()
+    except ValueError:
+        return (r.text or "").strip()[:200] or r.reason or ""
+    if isinstance(body, dict):
+        for key in ("Error", "status_message", "message", "detail", "error"):
+            if body.get(key):
+                return str(body[key])[:200]
+    return str(body)[:200]
+
+
 def http_fetch(url: str, params: dict, headers: dict) -> dict | list:
-    """The real fetch: JSON over HTTPS, {} when the provider has nothing (404), an error otherwise. One polite retry when asked to slow down."""
+    """The real fetch: JSON over HTTPS, {} when the provider has nothing (404), a ProviderError otherwise. One polite retry when asked to slow down."""
     import time
     import requests
     for attempt in (0, 1):
@@ -44,9 +64,25 @@ def http_fetch(url: str, params: dict, headers: dict) -> dict | list:
         if r.status_code == 429 and attempt == 0:
             time.sleep(min(float(r.headers.get("Retry-After", "2") or 2), 10.0))
             continue
-        r.raise_for_status()
+        if not r.ok:
+            raise ProviderError(r.status_code, _why(r))
         return r.json()
     return {}
+
+
+def key_trouble(provider: str, exc: Exception) -> str:
+    """What to tell the person when a provider refused its key, in the provider's own terms."""
+    detail = str(getattr(exc, "detail", "") or exc)
+    status = getattr(exc, "status", 0)
+    if provider == "omdb" and ("api key" in detail.lower() or status == 401):
+        return "OMDb does not recognise this key (it said: " + detail.rstrip("!.") + "). OMDb emails you an activation link when you ask for a key: open it, then test again."
+    if provider == "tmdb" and status in (401, 403):
+        return "TMDB did not accept the key. Use the v3 API key, or the long v4 read token, from themoviedb.org → Settings → API."
+    if provider == "opensubtitles" and status in (401, 403):
+        return "OpenSubtitles did not accept the key (it said: " + detail.rstrip("!.") + ")."
+    if status:
+        return f"The provider answered {status}: {detail}"
+    return "Could not reach the provider: " + detail[:120]
 
 
 class DbCache:
@@ -87,12 +123,22 @@ def _entity(db, table: str, name: str, tmdb_id=None, image: str = "") -> int | N
     name = " ".join(str(name).split())
     if not name:
         return None
-    with db.reading() as conn:
-        row = conn.execute(f"SELECT id,content_rating,{'provider_ids' if table != 'tags' else chr(39) + chr(39)} AS provider_ids FROM {table} WHERE LOWER(name)=LOWER(?)", (name,)).fetchone()
+    from .entity_identity import _find_existing
     use = name
-    mine = bool(tmdb_id) and f'"{tmdb_id}"' in str(row["provider_ids"] if row else "")
-    if row and (row["content_rating"] or "nsfw") != "sfw" and not mine:
-        use = name + SUFFIX[table]
+    if table == "tags":
+        with db.reading() as conn:
+            row = conn.execute("SELECT id,content_rating FROM tags WHERE LOWER(name)=LOWER(?)", (name,)).fetchone()
+        if row and (row["content_rating"] or "nsfw") != "sfw":
+            use = name + SUFFIX[table]
+    else:
+        # The matcher also recognises aliases and canonical spellings, so ask it what it would pick: if that record is not already SFW it is somebody
+        # (or some studio) of the adult side with the same name, and it must keep its mark. The TMDB entry gets its own, suffixed record.
+        with db.lock:
+            found = _find_existing(db, table, name, "tmdb", str(tmdb_id) if tmdb_id else None)
+            if found and (found.get("content_rating") or "nsfw") != "sfw":
+                use = name + SUFFIX[table]
+                if _find_existing(db, table, use, "tmdb", str(tmdb_id) if tmdb_id else None):
+                    return None   # even that is taken by an adult record: no link is better than a wrong one
     if table == "tags":
         with db.lock:
             db.conn.execute("INSERT OR IGNORE INTO tags(name) VALUES(?)", (use,))
