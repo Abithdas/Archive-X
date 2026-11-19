@@ -103,7 +103,6 @@ Start with [docs/architecture.md](docs/architecture.md). The reasons for the big
 ## Credits
 
 - Movie and TV data: [TMDB](https://www.themoviedb.org/) (*this product uses the TMDB API but is not endorsed or certified by TMDB*), [TVmaze](https://www.tvmaze.com/) (CC BY-SA 4.0), [OMDb](https://www.omdbapi.com/), [OpenSubtitles](https://www.opensubtitles.com/) and the open [Cinemeta](https://github.com/Stremio/stremio-addon-sdk) catalogue of the Stremio project.
-- The Home and Discover page takes ideas from [dx.bi](https://github.com/notdxbi/dxbi-stremio) (GPL-3.0). No code was copied.
 - Third-party components and their licences: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## Contributing and licence
