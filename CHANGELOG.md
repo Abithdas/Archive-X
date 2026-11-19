@@ -2,6 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## 30.11.2 (2026-11-19)
+
+- Direct streams from configured Stremio add-ons can now play from public HTTPS hosts that resolve only to public IP addresses. Local or private sources still require the existing setting; redirects follow the same checks.
+
 ## 30.11.1 (2026-11-19)
 
 - Native full screen: the video fills the screen above the bar (black bars come from the picture's own shape), with square corners and no light margin at the sides.
