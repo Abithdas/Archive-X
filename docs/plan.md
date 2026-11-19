@@ -2,6 +2,8 @@
 
 One plan for everything that is not finished. It replaces the earlier working plan (clean-up, layout and Rust migration), the Rust migration history, the streaming and architecture v3 proposal, and the lists of ideas and open items from the 30.4.x work. Written 18 November 2026, at release 30.4.2 (30.4.3 building).
 
+A version of this plan grouped by category, with the state of each item, is in [plan-by-category.md](plan-by-category.md).
+
 How to read it: section 1 says what is released and what is only on the branch. Section 2 is the rules. Section 3 is what must be checked on a real PC before anything else is trusted. Sections 4 to 6 are the work, in the order to do it. Section 7 is the clean-up left over. Section 8 is the decisions only you can make. Each item has an id (A1, B2, ...), so you can say "do B1 to B3". Every item says what it is, why, and what "done" means; what could not be checked is written as not checked.
 
 ## 1. Where things stand
