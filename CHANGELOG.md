@@ -7,6 +7,10 @@ One entry per release, newest first. Releases are published from the Desktop wor
 - Direct streams from configured Stremio add-ons can now play from public HTTPS hosts that resolve only to public IP addresses. Local or private sources still require the existing setting; redirects follow the same checks.
 - Add-on stream lists include All and per-add-on tabs, sorting by add-on order, quality, seeds or size, plus quality, language, source and HDR/Dolby Vision filters.
 
+## Unreleased
+
+- Add-on streams that the app plays now open in the page with the app's own player (same controls as the video page), not in a pop-up
+
 ## 30.11.3 (2026-11-19)
 
 - Discover: a poster opens the title's own page (no pop-up; titles without a page of their own still show their details); the side preview stays inside the window and scrolls when it is taller than the screen; Genre in Filters takes several genres at once

@@ -25,7 +25,9 @@ describe('streams from the add-ons on a title page', () => {
     expect(screen.getByText('2 streams of a kind this app does not use were left out.')).toBeInTheDocument()
     fireEvent.click(within(home).getByRole('button', { name: /Dune 1080p/ }))
     const video = document.querySelector('video')!
-    expect(video).toHaveAttribute('src', '/api/screen/stream/tok123'); expect(video).toHaveAttribute('controls')
+    expect(video).toHaveAttribute('src', '/api/screen/stream/tok123')
+    expect(screen.getByRole('region', { name: 'Now playing' })).toBeInTheDocument()   // in the page with the app's own player, not in a pop-up
+    expect(document.querySelector('dialog[open]')).toBeNull()
   })
   it('asks with the season and episode for a show, and shows nothing when no add-on answers', async () => {
     const urls: string[] = []

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '@/api/client'
-import { Dialog } from '@/design/Dialog'
+import { Player } from '@/features/watch/Player'
 import { Icon } from '@/design/Icon'
 
 interface StreamItem {
@@ -148,9 +148,13 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
         </>
       ) : <p className="text-xs text-muted">{d.addons.join(', ')} had nothing playable or openable for this title.</p>}
       {playing?.play ? (
-        <Dialog open onClose={() => setPlaying(null)} title={playing.name} wide>
-          <video src={playing.play} controls autoPlay playsInline className="aspect-video w-full rounded-xl bg-black" />
-        </Dialog>
+        <div className="order-first grid gap-2" role="region" aria-label="Now playing">
+          <div className="flex items-center justify-between gap-3">
+            <p className="m-0 min-w-0 truncate text-sm font-bold" title={playing.name}>{playing.name}</p>
+            <button type="button" onClick={() => setPlaying(null)} className="shrink-0 rounded-full border border-line px-3 py-1 text-xs font-semibold hover:bg-fg/5">Close</button>
+          </div>
+          <div className="overflow-hidden rounded-xl bg-black"><Player key={playing.play} src={playing.play} autoPlay /></div>
+        </div>
       ) : null}
     </section>
   )
