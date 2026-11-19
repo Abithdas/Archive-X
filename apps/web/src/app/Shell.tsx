@@ -204,7 +204,8 @@ function Header({ live, items, activity, top, custom, maximized, floating }: { l
   const performers = useEntities('performers', loadLists)
   const studios = useEntities('studios', loadLists)
   const suggestions = useMemo(() => suggest(performers.data ?? [], studios.data ?? [], q), [performers.data, studios.data, q])
-  const placeholder = path.startsWith('/performers') ? 'Search performer…' : path.startsWith('/studios') ? 'Search studio…' : 'Search videos, performers, studios…'
+  const labels = useLabels()
+  const placeholder = path.startsWith('/performers') ? (labels.performers === 'Cast' ? 'Search cast…' : 'Search performer…') : path.startsWith('/studios') ? 'Search studio…' : path.startsWith('/videos') && labels.videos === 'Home' ? 'Search movies and shows…' : 'Search videos, performers, studios…'
   useEffect(() => set(''), [path.split('/')[1], set])
   useEffect(() => {
     if (focusTick) input.current?.focus()

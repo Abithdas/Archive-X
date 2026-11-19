@@ -1,14 +1,15 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { SfwHome } from './HomePage'
+import { useSearch } from '@/app/search'
 import { useUi } from '@/app/ui'
 import { useHomeTab, useScreenView } from './view'
 
 const toDiscover = async () => fireEvent.click(await screen.findByRole('tab', { name: 'Discover' }))
 
 beforeAll(() => { HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }; HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') } })
-afterEach(() => { vi.unstubAllGlobals(); useHomeTab.setState({ tab: 'home' }); useScreenView.setState({ view: 'all' }) })
+afterEach(() => { vi.unstubAllGlobals(); useHomeTab.setState({ tab: 'home' }); useScreenView.setState({ view: 'all' }); useSearch.setState({ q: '' }) })
 const json = (b: unknown, code = 200) => new Response(JSON.stringify(b), { status: code })
 const found = (n: number, title: string, library: unknown = null) => ({ imdb: `tt000000${n}`, kind: 'movie', title, year: 2000 + n, poster: '', background: '', rating: '7.5', overview: 'A story.', genres: ['Drama'], library })
 const HOME = {
@@ -57,7 +58,7 @@ describe('SFW Home', () => {
     await vi.waitFor(() => expect(urls.some((u) => u.includes('genre=Drama'))).toBe(true))
     fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'series' } })
     await vi.waitFor(() => expect(urls.some((u) => u.includes('type=series'))).toBe(true))
-    fireEvent.change(screen.getByLabelText('Search movies and shows'), { target: { value: 'dune' } })
+    act(() => useSearch.getState().set('dune'))                                                            // typed in the one search box, in the top bar
     await vi.waitFor(() => expect(urls.some((u) => u.includes('search=dune'))).toBe(true))
     expect(screen.queryByRole('region', { name: 'Featured' })).toBeNull()                                  // a search shows only its results
   })
@@ -98,7 +99,7 @@ describe('SFW Home', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Series' }))
     await vi.waitFor(() => expect(urls.some((u) => u.startsWith('/api/screen/series'))).toBe(true))
     fireEvent.click(screen.getByRole('tab', { name: 'For you' }))
-    fireEvent.change(await screen.findByLabelText('Search movies and shows'), { target: { value: 'dune' } })
+    act(() => useSearch.getState().set('dune'))                                                            // typed in the one search box, in the top bar
     expect(await screen.findByRole('tab', { name: 'Discover', selected: true })).toBeInTheDocument()       // a search is always answered by Discover
     await vi.waitFor(() => expect(urls.some((u) => u.includes('search=dune'))).toBe(true))
   })

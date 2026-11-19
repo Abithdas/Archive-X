@@ -9,6 +9,7 @@ import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
 import { cn } from '@/design/cn'
 import { useLabels } from '@/features/content/labels'
+import { useSearch } from '@/app/search'
 import { useUi } from '@/app/ui'
 import { Chips } from './TitleStage'
 import { MoviesList } from './MoviesPage'
@@ -254,11 +255,11 @@ export function SfwHome() {
   const stored = useHomeTab((s) => s.tab)
   const setStored = useHomeTab((s) => s.setTab)
   const home = useQuery({ queryKey: ['screen-home'] as const, queryFn: () => api<HomeData>('/api/screen/home'), staleTime: 30_000 })
-  const [text, setText] = useState('')
+  const text = useSearch((x) => x.q)
+  const setText = useSearch((x) => x.set)
   const [kind, setKind] = useState<Kind>('movie')
   const [genre, setGenre] = useState('')
   const [lib, setLib] = useState<'series' | 'movies'>(view === 'series' ? 'series' : 'movies')
-  const field = useRef<HTMLInputElement>(null)
   const searching = text.trim().length >= 2
   const tab: HomeTab = searching ? 'discover' : view !== 'all' && stored === 'home' ? 'library' : stored
   const go = (t: HomeTab) => { setStored(t); if (t !== 'library') useScreenView.getState().setView('all') }
@@ -267,13 +268,6 @@ export function SfwHome() {
   const setImmersive = useUi((x) => x.setImmersive)
   const bleed = tab === 'home' && !searching && Boolean(d?.billboard.length)
   useEffect(() => { setImmersive(bleed); return () => setImmersive(false) }, [bleed, setImmersive])
-  const searchBox = (glass: boolean) => (
-    <label className="relative block w-full sm:w-80">
-      <span className="sr-only">Search movies and shows</span>
-      <Icon name="search" className={cn('pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2', glass ? 'text-white/80' : 'text-muted')} />
-      <input ref={field} type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search movies and shows" aria-label="Search movies and shows" className={cn('h-11 w-full rounded-xl border pl-9 pr-3 text-sm focus-visible:border-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent', glass ? 'border-white/25 bg-black/35 text-white backdrop-blur placeholder:text-white/70' : 'border-line-2 bg-bg')} />
-    </label>
-  )
   const tabs = (glass: boolean) => (
     <div role="tablist" aria-label="Home" className={cn('flex w-fit gap-1 rounded-full p-1', glass ? 'bg-black/35 text-white backdrop-blur' : 'mb-6 bg-fg/10')}>
       {TABS.map(([id, label]) => (
@@ -286,7 +280,7 @@ export function SfwHome() {
     <section className={cn('flex w-full flex-1 flex-col', !bleed && 'px-4 pb-10 pt-6 sm:px-10')}>
       {bleed ? null : (
         <>
-          <PageHead title={labels.videos} blurb={labels.videosBlurb}>{searchBox(false)}</PageHead>
+          <PageHead title={labels.videos} blurb={labels.videosBlurb} />
           {tabs(false)}
         </>
       )}
@@ -296,7 +290,7 @@ export function SfwHome() {
             {bleed && d ? (
               <div className="relative">
                 <Hero items={d.billboard} />
-                <div className="absolute inset-x-0 top-20 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10">{tabs(true)}{searchBox(true)}</div>
+                <div className="absolute inset-x-0 top-20 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10">{tabs(true)}</div>
               </div>
             ) : null}
             <div className={cn('grid gap-8', bleed && 'relative z-10 px-4 pb-10 sm:px-10')}>
