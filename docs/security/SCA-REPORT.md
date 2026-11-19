@@ -103,3 +103,9 @@ cargo install cargo-audit --locked && (cd rust && cargo audit) && (cd desktop &&
 python tools/sca/licenses.py rust rust        # also: rust desktop, npm frontend, python pip-audit.json
 python tools/sca/check_action_pins.py
 ```
+
+## Open alerts reviewed on 2026-11-19 (not changed in code)
+- **Dependabot #7, `glib` 0.18.5 (RUSTSEC-2024-0429, fixed in 0.20.0).** `glib` is pulled in only by Tauri's Linux GTK 3 stack (`muda`, `gtk`, `atk`). Archive X ships for Windows only: `cargo tree -i glib@0.18.5 --target x86_64-pc-windows-msvc` prints nothing. Tauri 2 pins `gtk` 0.18, which needs `glib` 0.18, so there is no patched version to move to. Dismiss as "vulnerable code is not used", and re-check when Tauri moves to a newer GTK binding.
+- **CodeQL, clear-text logging, `telegram_archive/main.py`.** When the app is started by hand (no launcher secret in the environment) it prints the one-time address to open the desktop session, secret included, to that console. The launcher sets the secret itself and never prints it.
+- **CodeQL, user-controlled path, `routes_local.py`, `routes_telegram.py`, `routes_jobs.py`.** The local-folder picker and the channel and file routes take a path on purpose: this is a single-user app on the person's own PC, behind its login, and choosing a folder is the feature.
+- **CodeQL, error details, eight routes.** Diagnostics and status routes (behind the login) return stored status and error text, such as a model's last error. They return no stack traces.
