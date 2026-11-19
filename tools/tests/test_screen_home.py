@@ -35,6 +35,9 @@ def fake(url, params, headers):
         if "myanimelist_top-series/genre=Action" in url:
             return {"metas": [{"id": "kitsu:3936", "type": "anime", "name": "Fullmetal Alchemist: Brotherhood", "releaseInfo": "2009", "poster": "http://a/1", "description": "Two brothers.", "genres": ["Action", "Adventure"]}]}
         return {"metas": [{"id": "kitsu:12", "type": "anime", "name": "One Piece", "releaseInfo": "1999", "poster": "http://a/2", "genres": ["Action"]}]}
+    if url == "https://anime-kitsu.strem.fun/meta/series/kitsu:12.json":
+        return {"meta": {"id": "kitsu:12", "type": "series", "name": "One Piece", "releaseInfo": "1999", "poster": "http://a/2", "genres": ["Action"], "description": "Pirates.",
+                         "videos": [{"season": 1, "episode": 1, "title": "Romance Dawn", "released": "1999-10-20T00:00:00.000Z"}, {"season": 1, "episode": 2, "title": "Buggy"}]}}
     if url.endswith("/catalog/movie/year.json"):
         return {"metas": [{"imdb_id": "tt9999991", "type": "movie", "name": "Newest", "year": "2026"}]}
     if url.endswith("/catalog/series/imdbRating/genre=Drama.json"):
@@ -105,6 +108,9 @@ def test_discover_lists_catalogues_marks_what_the_library_has_and_validates(tmp_
     assert [i["title"] for i in c.get("/api/screen/discover?type=series&genre=Drama&skip=50").json()["items"]] == ["Breaking Bad"]
     assert c.get("/api/screen/discover?type=movie&search=dune").json()["items"][0]["title"] == "Dune"
     assert c.get("/api/screen/discover?type=music").status_code == 400
+    one = c.get("/api/screen/discover/series/kitsu:12").json()          # an anime from the lists: its own page, with episodes
+    assert one["title"] == "One Piece" and one["overview"] == "Pirates." and [e["name"] for e in one["episodes"][0]["episodes"]] == ["Romance Dawn", "Buggy"] and one["library"] is None
+    assert c.get("/api/screen/discover/series/kitsu:..").status_code == 400
     assert c.get("/api/screen/discover?type=movie&genre=../etc").status_code == 400
     assert c.get("/api/screen/discover?type=movie&genre=Drama,../etc").status_code == 400
     assert [i["title"] for i in c.get("/api/screen/discover?type=series&genre=Drama,Comedy&catalog=featured").json()["items"]] == ["Breaking Bad"]   # several genres: the first goes to the source, a title without genres is kept
@@ -436,3 +442,4 @@ def test_a_stream_is_played_only_from_an_own_source_or_a_public_https_host(monke
         assert ac.stream_origin("https://download.real-debrid.example/x.mkv") == "public" and ac.stream_origin("http://u:p@192.168.1.5/x") == "" and ac.stream_origin("file:///etc/passwd") == ""
     finally:
         ac.set_allow_local(False)
+

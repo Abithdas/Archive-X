@@ -134,7 +134,7 @@ describe('SFW Home', () => {
     expect(screen.getByRole('button', { name: /Filters/ })).toHaveTextContent('1')
   })
 
-  it('shows the anime lists from their own numbers: Kind does not apply, and a title opens from what the list already knows (there is nothing to ask for it)', async () => {
+  it('shows the anime lists from their own numbers: Kind does not apply, and a title opens its own page', async () => {
     const anime = { imdb: 'kitsu:12', kind: 'tv', title: 'One Piece', year: 1999, poster: '', background: '', rating: '', overview: 'Pirates.', genres: ['Action'], library: null }
     const urls = mount((u) => (u.includes('catalog=anime-series') ? json({ ok: true, items: [anime], more: false }) : undefined))
     await toDiscover()
@@ -142,9 +142,7 @@ describe('SFW Home', () => {
     fireEvent.click(within(screen.getByRole('group', { name: 'List' })).getByRole('button', { name: 'Top anime series' }))
     expect(await screen.findByRole('heading', { name: 'Top anime series' })).toBeInTheDocument()
     expect(within(screen.getByRole('group', { name: 'Kind' })).getByRole('button', { name: 'Movies' })).toBeDisabled()
-    fireEvent.click(await screen.findByRole('button', { name: 'Details of One Piece' }))
-    expect(await screen.findByText('Pirates.')).toBeInTheDocument()
-    expect(urls.some((u) => u.includes('/discover/series/kitsu'))).toBe(false)
+    expect(await screen.findByRole('link', { name: 'Open One Piece' })).toHaveAttribute('href', expect.stringContaining('/discover/series/kitsu'))   // an anime opens its own page, with its episodes
   })
 
   it('puts the lists of the add-ons you added in Filters, and asks the server for the one you pick', async () => {

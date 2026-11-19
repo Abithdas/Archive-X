@@ -9,6 +9,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Discover: an anime from the anime lists (Top anime series, Anime airing now, Top anime movies) opens its own page with its story, genres and every season and episode, like other titles, instead of a pop-up without episodes
 - Add-on streams that the app plays now open in the page with the app's own player (same controls as the video page), not in a pop-up
 
 ## 30.11.3 (2026-11-19)

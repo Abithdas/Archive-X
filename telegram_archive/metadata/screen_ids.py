@@ -22,6 +22,7 @@ CINEMETA = "https://v3-cinemeta.strem.io"   # the Stremio project's open movie a
 # Two more open Stremio catalogue add-ons (plain HTTP and JSON, no key): what is on each streaming service (titles with IMDb numbers), and
 # MyAnimeList's top anime lists (titles with Kitsu numbers). Community-hosted, so a list that cannot be reached is simply skipped.
 STREAMING_ADDON = "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club"
+KITSU_ADDON = "https://anime-kitsu.strem.fun"   # the details and episodes of an anime listed by the anime lists (ids like kitsu:1376)
 ANIME_ADDON = "https://1fe84bc728af-stremio-anime-catalogs.baby-beamup.club/%7B%22myanimelist_top-airing%22%3A%22on%22%2C%22myanimelist_top-series%22%3A%22on%22%2C%22myanimelist_top-movies%22%3A%22on%22%7D"
 
 CINEMETA_BASE = 10_000_000_000              # a Cinemeta title is stored as -(BASE + its IMDb number): clear of TMDB ids (positive) and TVmaze ids (small negatives)

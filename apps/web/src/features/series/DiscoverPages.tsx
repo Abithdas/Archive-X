@@ -18,7 +18,8 @@ export interface Title {
   library: { kind: 'tv' | 'movie'; id: number } | null; runtime: string; cast: string[]; director: string[]; trailer: string; seasons: number; episodes?: FoundSeason[]; logo?: string
 }
 
-const ID = /^(tt\d+|tmdb-\d+)$/
+const ID = /^(tt\d+|tmdb-\d+|kitsu:\d+)$/
+const WATCH_ID = /^(tt\d+|tmdb-\d+)$/   // where-to-watch and add-on streams are asked for by IMDb or TMDB number only
 const openIn = (kind: 'tv' | 'movie') => (kind === 'tv' ? '/series/$id' : '/movies/$id')
 const BTN = 'inline-flex h-11 items-center gap-2 rounded-full px-6 text-sm font-bold transition-[transform,background-color,filter] active:scale-[0.97]'
 
@@ -75,8 +76,8 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
     )
   const panel = !d ? null : (
     <div className="grid gap-5">
-      {!lib && ID.test(id) ? <WhereToWatch kind={d.kind} ident={id} title={d.title} /> : lib ? <p className="px-1 text-sm text-muted">You have this in your library, so there is nothing to look for elsewhere.</p> : null}
-      {d.kind === 'movie' ? <AddonStreams kind="movie" ident={id} /> : null}
+      {!lib && WATCH_ID.test(id) ? <WhereToWatch kind={d.kind} ident={id} title={d.title} /> : lib ? <p className="px-1 text-sm text-muted">You have this in your library, so there is nothing to look for elsewhere.</p> : null}
+      {d.kind === 'movie' && WATCH_ID.test(id) ? <AddonStreams kind="movie" ident={id} /> : null}
       {seasons.length ? (
         <section aria-label="Seasons and episodes" className="grid gap-2">
           <h2 className="px-1 text-lg font-bold">Episodes</h2>
@@ -131,8 +132,8 @@ export function DiscoverEpisodePage({ id, season, episode }: { id: string; seaso
     )
   const panel = !d || !ep ? null : (
     <div className="grid gap-3">
-      {d.library ? <p className="px-1 text-sm text-muted">You have this show in your library.</p> : <WhereToWatch kind="tv" ident={id} title={d.title} />}
-      <AddonStreams kind="series" ident={id} season={season} episode={episode} />
+      {d.library ? <p className="px-1 text-sm text-muted">You have this show in your library.</p> : WATCH_ID.test(id) ? <WhereToWatch kind="tv" ident={id} title={d.title} /> : null}
+      {WATCH_ID.test(id) ? <AddonStreams kind="series" ident={id} season={season} episode={episode} /> : null}
       {!d.library ? <p className="px-1 text-xs text-faint">Streaming services list the whole show, so this is where {label(ep)} can be watched too.</p> : null}
     </div>
   )

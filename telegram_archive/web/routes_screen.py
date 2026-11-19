@@ -722,8 +722,35 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def discover_one(kind: str, imdb: str, request: Request):
         """One title from Cinemeta in full (story, cast, genres, rating, trailer), and whether the library has it."""
         require_auth(request)
-        if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}|tmdb-\d{1,9}", imdb):
+        if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}|tmdb-\d{1,9}|kitsu:\d{1,9}", imdb):
             raise HTTPException(400, "Unknown title")
+        if imdb.startswith("kitsu:"):
+            # An anime from the anime lists: Kitsu's own catalogue knows its story and its episodes.
+            if not await asyncio.to_thread(sid.cinemeta_on, db):
+                raise HTTPException(409, "Cinemeta is switched off in Settings, Metadata")
+
+            def kitsu_work():
+                for t in dict.fromkeys((kind, "series", "movie")):
+                    try:
+                        got = _catalog_get(f"/meta/{t}/{imdb}.json", si.KITSU_ADDON)
+                    except Exception as exc:
+                        db.log(f"Discover could not reach the anime catalogue: {type(exc).__name__}: {exc}"[:300], "WARN")
+                        return None
+                    meta = (got or {}).get("meta") if isinstance(got, dict) else None
+                    if isinstance(meta, dict) and meta.get("name"):
+                        card = _card({**meta, "type": "series" if t == "series" else "movie"}, {})
+                        card["imdb"] = imdb
+                        card.update({"runtime": str(meta.get("runtime") or ""), "cast": [], "director": [], "trailer": "", "library": None,
+                                     "seasons": len({v.get("season") for v in (meta.get("videos") or []) if isinstance(v, dict) and (v.get("season") or 0) > 0}) if t == "series" else 0,
+                                     "episodes": _episodes(meta) if t == "series" else [], "logo": meta.get("logo") if isinstance(meta.get("logo"), str) and str(meta.get("logo")).startswith("https://") else ""})
+                        return card
+                return {}
+            card = await asyncio.to_thread(kitsu_work)
+            if card is None:
+                raise HTTPException(502, "The anime catalogue could not be reached")
+            if not card:
+                raise HTTPException(404, "That title is not in the catalogue")
+            return card
         if imdb.startswith("tmdb-"):
             # A title from a streaming list: TMDB knows it by its own number; its IMDb number (for the full details) comes from TMDB too.
             media = "tv" if kind == "series" else "movie"
