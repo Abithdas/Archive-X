@@ -123,7 +123,7 @@ describe('SFW Home', () => {
     await toDiscover()
     fireEvent.click(await screen.findByRole('button', { name: /Filters/ }))
     const lists = screen.getByRole('group', { name: 'List' })
-    for (const l of ['Popular', 'New', 'Featured', 'Netflix', 'HBO Max', 'Disney+', 'Prime Video', 'Apple TV+']) expect(within(lists).getByRole('button', { name: l })).toBeInTheDocument()
+    for (const l of ['Popular', 'New', 'Featured', 'Netflix', 'HBO Max', 'Disney+', 'Prime Video', 'Apple TV+', 'Anime airing now', 'Top anime series', 'Top anime movies']) expect(within(lists).getByRole('button', { name: l })).toBeInTheDocument()
     fireEvent.click(within(lists).getByRole('button', { name: 'Netflix' }))
     expect(await screen.findByRole('heading', { name: 'Netflix movies' })).toBeInTheDocument()
     await vi.waitFor(() => expect(urls.some((u) => u.includes('catalog=netflix'))).toBe(true))
@@ -132,5 +132,18 @@ describe('SFW Home', () => {
     fireEvent.click(within(lists).getByRole('button', { name: 'HBO Max' }))
     expect(await screen.findByText(/comes from TMDB/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Filters/ })).toHaveTextContent('1')
+  })
+
+  it('shows the anime lists from their own numbers: Kind does not apply, and a title opens from what the list already knows (there is nothing to ask for it)', async () => {
+    const anime = { imdb: 'kitsu:12', kind: 'tv', title: 'One Piece', year: 1999, poster: '', background: '', rating: '', overview: 'Pirates.', genres: ['Action'], library: null }
+    const urls = mount((u) => (u.includes('catalog=anime-series') ? json({ ok: true, items: [anime], more: false }) : undefined))
+    await toDiscover()
+    fireEvent.click(await screen.findByRole('button', { name: /Filters/ }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'List' })).getByRole('button', { name: 'Top anime series' }))
+    expect(await screen.findByRole('heading', { name: 'Top anime series' })).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Kind' })).getByRole('button', { name: 'Movies' })).toBeDisabled()
+    fireEvent.click(await screen.findByRole('button', { name: 'Details of One Piece' }))
+    expect(await screen.findByText('Pirates.')).toBeInTheDocument()
+    expect(urls.some((u) => u.includes('/discover/series/kitsu'))).toBe(false)
   })
 })

@@ -94,7 +94,7 @@ export function ScreenProviders() {
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-line p-3">
         <Switch checked={Boolean(settings.data?.tvmaze_enabled)} onChange={(v) => void api('/api/screen/settings', { method: 'POST', json: { tvmaze_enabled: v } }).then(refresh).catch((e) => toast.error(errorText(e, 'Could not save.')))} label="Use TVmaze for TV shows" />
-        <div className="min-w-0 flex-1"><p className="text-sm font-semibold">Use TVmaze for TV shows</p><p className="text-xs text-muted">No key needed. Show names from your files are sent to tvmaze.com, as TMDB would get them. Used when TMDB has no answer or has no key.</p></div>
+        <div className="min-w-0 flex-1"><p className="text-sm font-semibold">Use TVmaze for TV shows</p><p className="text-xs text-muted">No key needed. Show names from your files are sent to tvmaze.com, as TMDB would get them. Used when TMDB has no answer or has no key. Discover's lists use it too, and two more open Stremio catalogue add-ons (Streaming Catalogs for Netflix, HBO Max, Disney+, Prime Video and Apple TV+, and Anime Catalogs for MyAnimeList's lists) that are asked only which list you opened.</p></div>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-line p-3">
         <Switch checked={Boolean(settings.data?.cinemeta_enabled)} onChange={(v) => void api('/api/screen/settings', { method: 'POST', json: { cinemeta_enabled: v } }).then(refresh).catch((e) => toast.error(errorText(e, 'Could not save.')))} label="Use Cinemeta for movies and TV shows" />

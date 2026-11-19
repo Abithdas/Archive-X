@@ -11,6 +11,7 @@ PW = "correct-horse-battery"
 H = {"Origin": "https://testserver"}
 SEEN: list[str] = []
 TMDB_ASKED: list[dict] = []
+ADDON_DOWN: list[bool] = [False]
 
 
 def fake(url, params, headers):
@@ -22,6 +23,17 @@ def fake(url, params, headers):
         return {"metas": [{"imdb_id": "tt0903747", "type": "series", "name": "Breaking Bad", "year": "2008"}]}
     if "/catalog/movie/top/search=dune" in url:
         return {"metas": [{"imdb_id": "tt1160419", "type": "movie", "name": "Dune", "year": "2021"}]}
+    if "stremio-netflix-catalog-addon" in url:
+        if ADDON_DOWN[0]:
+            raise OSError("the add-on is down")
+        if url.endswith("/catalog/movie/nfx.json"):
+            many = [{"imdb_id": f"tt{9000000 + i}", "type": "movie", "name": f"Film {i}", "year": "2020", "genres": ["Drama"] if i % 2 else ["Action"], "poster": "http://p/x", "imdbRating": "7.0"} for i in range(120)]
+            return {"metas": many + [{"imdb_id": "tt0133093", "type": "movie", "name": "The Matrix", "year": "1999", "genres": ["Action"]}]}
+        return {}
+    if "stremio-anime-catalogs" in url:
+        if "myanimelist_top-series/genre=Action" in url:
+            return {"metas": [{"id": "kitsu:3936", "type": "anime", "name": "Fullmetal Alchemist: Brotherhood", "releaseInfo": "2009", "poster": "http://a/1", "description": "Two brothers.", "genres": ["Action", "Adventure"]}]}
+        return {"metas": [{"id": "kitsu:12", "type": "anime", "name": "One Piece", "releaseInfo": "1999", "poster": "http://a/2", "genres": ["Action"]}]}
     if url.endswith("/catalog/movie/year.json"):
         return {"metas": [{"imdb_id": "tt9999991", "type": "movie", "name": "Newest", "year": "2026"}]}
     if url.endswith("/catalog/series/imdbRating/genre=Drama.json"):
@@ -105,26 +117,41 @@ def test_home_has_what_to_continue_what_airs_what_was_added_and_a_billboard(tmp_
     assert {x["title"] for x in home["billboard"]} == {"The Matrix", "Breaking Bad"} and all(x["backdrop"] for x in home["billboard"])
 
 
-def test_discover_has_new_and_featured_from_cinemeta_and_streaming_lists_from_tmdb(tmp_path, monkeypatch):
+def test_discover_has_new_and_featured_from_cinemeta_streaming_lists_from_an_addon_with_tmdb_as_the_backup_and_anime(tmp_path, monkeypatch):
     monkeypatch.setattr(sid, "http_fetch", fake)
+    ADDON_DOWN[0] = False
     db = Database(tmp_path / "s.db")
     _library(db)
     c = _client(db)
     assert [i["title"] for i in c.get("/api/screen/discover?type=movie&catalog=new").json()["items"]] == ["Newest"]
     assert [i["title"] for i in c.get("/api/screen/discover?type=series&catalog=featured&genre=Drama").json()["items"]] == ["Breaking Bad"]
     assert c.get("/api/screen/discover?type=movie&catalog=nope").status_code == 400
-    # a streaming list needs TMDB's key, and says so instead of showing nothing
-    assert c.get("/api/screen/discover?type=movie&catalog=netflix").json() == {"ok": True, "disabled": False, "needs_key": True, "items": [], "more": False}
+    # a streaming list comes from the Streaming Catalogs add-on: no key, whole titles with IMDb numbers, cut into pages and by genre here
+    first = c.get("/api/screen/discover?type=movie&catalog=netflix").json()
+    assert len(first["items"]) == 50 and first["more"] is True and first["next"] == 50 and first["items"][0]["imdb"] == "tt9000000"
+    assert [i["title"] for i in c.get("/api/screen/discover?type=movie&catalog=netflix&skip=100").json()["items"]][-2:] == ["Film 119", "The Matrix"]   # the last page has the rest
+    drama = c.get("/api/screen/discover?type=movie&catalog=netflix&genre=Drama").json()["items"]
+    assert drama and all("Drama" in i["genres"] for i in drama)
+    assert [i["library"] for i in c.get("/api/screen/discover?type=movie&catalog=netflix&skip=100").json()["items"]][-1] == {"kind": "movie", "id": 1}   # marked by its IMDb number
+    # the add-on is down: TMDB's "where to watch" answers when its key is there, and the page says what is missing when it is not
+    ADDON_DOWN[0] = True
+    assert c.get("/api/screen/discover?type=movie&catalog=disney").status_code == 502
     db.set_setting("tmdb_api_key", "k" * 32)
-    got = c.get("/api/screen/discover?type=movie&catalog=netflix&genre=Drama").json()
+    got = c.get("/api/screen/discover?type=movie&catalog=disney&genre=Drama").json()
     assert [i["title"] for i in got["items"]] == ["The Matrix", "Other"] and got["more"] is True and got["next"] == 1
     asked = TMDB_ASKED[-1]
-    assert asked["with_watch_providers"] == 8 and asked["with_genres"] == 18 and asked["page"] == 1 and asked["watch_region"] == "US"
+    assert asked["with_watch_providers"] == 337 and asked["with_genres"] == 18 and asked["page"] == 1 and asked["watch_region"] == "US"
     assert got["items"][0]["imdb"] == "tmdb-603" and got["items"][0]["library"] == {"kind": "movie", "id": 1}     # marked from the library by its TMDB number
-    assert c.get("/api/screen/discover?type=series&catalog=disney&skip=1").json()["items"][0]["title"] == "Breaking Bad"
-    assert TMDB_ASKED[-1]["with_watch_providers"] == 337 and TMDB_ASKED[-1]["page"] == 2
-    assert c.get("/api/screen/discover?type=movie&catalog=prime&genre=Sport").json()["items"] == []           # TMDB has no such genre
-    # the details of a streaming title: through its IMDb number when TMDB has one, from TMDB alone when not
+    assert c.get("/api/screen/discover?type=series&catalog=prime&skip=1").json()["items"][0]["title"] == "Breaking Bad" and TMDB_ASKED[-1]["page"] == 2
+    assert c.get("/api/screen/discover?type=movie&catalog=apple&genre=Sport").json()["items"] == []            # TMDB has no such genre
     assert c.get("/api/screen/discover/movie/tmdb-603").json()["cast"] == ["Keanu Reeves"]
     plain = c.get("/api/screen/discover/movie/tmdb-42").json()
     assert plain["overview"] == "Plain." and plain["genres"] == ["Drama"] and plain["runtime"] == "90 min"
+    # anime (MyAnimeList's lists): Kitsu numbers, so they can be browsed but are never marked as in the library
+    anime = c.get("/api/screen/discover?catalog=anime-airing").json()
+    assert [i["title"] for i in anime["items"]] == ["One Piece"] and anime["items"][0]["imdb"] == "kitsu:12" and anime["items"][0]["kind"] == "tv" and anime["items"][0]["library"] is None
+    assert c.get("/api/screen/discover?catalog=anime-movies").json()["items"][0]["kind"] == "movie"
+    assert c.get("/api/screen/discover?catalog=anime-airing&skip=96").json()["next"] == 97                     # the anime lists page by offset: the next page starts where this one ended
+    assert c.get("/api/screen/discover?catalog=anime-series&genre=Action").json()["items"][0]["overview"] == "Two brothers."
+    c.post("/api/screen/settings", json={"cinemeta_enabled": False}, headers=H)
+    assert c.get("/api/screen/discover?catalog=anime-airing").json()["disabled"] is True and c.get("/api/screen/discover?type=movie&catalog=netflix").json()["disabled"] is True

@@ -225,7 +225,10 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
 
     # Cinemeta's own lists: Popular (top), New (year), Featured (imdbRating). The streaming lists come from TMDB ("where to watch"), so they need its key.
     CATALOGS = {"popular": "top", "new": "year", "featured": "imdbRating"}
-    SERVICES = {"netflix": 8, "hbomax": 1899, "disney": 337, "prime": 119, "apple": 350}
+    SERVICES = {"netflix": 8, "hbomax": 1899, "disney": 337, "prime": 119, "apple": 350}            # TMDB's "where to watch" numbers (the backup source)
+    STREAM_LISTS = {"netflix": "nfx", "hbomax": "hbm", "disney": "dnp", "prime": "amp", "apple": "atp"}   # the same services in the Streaming Catalogs add-on
+    ANIME_LISTS = {"anime-airing": "myanimelist_top-airing", "anime-series": "myanimelist_top-series", "anime-movies": "myanimelist_top-movies"}
+    PAGE = 50
     TMDB_GENRES = {
         "movie": {"Action": 28, "Adventure": 12, "Animation": 16, "Comedy": 35, "Crime": 80, "Documentary": 99, "Drama": 18, "Family": 10751, "Fantasy": 14, "History": 36, "Horror": 27, "Mystery": 9648,
                   "Romance": 10749, "Sci-Fi": 878, "Thriller": 53, "War": 10752, "Western": 37},
@@ -233,15 +236,16 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                "War": 10768, "Western": 37},
     }
 
-    def _catalog_get(path: str):
-        """One Cinemeta answer, kept ten minutes (the catalogues change slowly; the page asks for the same few again and again)."""
-        hit = discover_cache.get(path)
+    def _catalog_get(path: str, base: str = ""):
+        """One catalogue answer (Cinemeta unless another add-on's address is given), kept ten minutes: the catalogues change slowly, and the page asks for the same few again and again."""
+        key = (base or si.CINEMETA) + path
+        hit = discover_cache.get(key)
         if hit and _time.monotonic() - hit[0] < 600:
             return hit[1]
-        got = (fetch or sid.http_fetch)(si.CINEMETA + path, {}, {})
+        got = (fetch or sid.http_fetch)(key, {}, {})
         if len(discover_cache) > 200:
             discover_cache.clear()
-        discover_cache[path] = (_time.monotonic(), got)
+        discover_cache[key] = (_time.monotonic(), got)
         return got
 
     def _in_library(imdb_ids: list[str]) -> dict[str, dict]:
@@ -289,13 +293,53 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             raise HTTPException(400, "type must be movie or series")
         if genre and genre not in GENRES:
             raise HTTPException(400, "Unknown genre")
-        if catalog not in CATALOGS and catalog not in SERVICES:
+        if catalog not in CATALOGS and catalog not in SERVICES and catalog not in ANIME_LISTS:
             raise HTTPException(400, "Unknown list")
         text = re.sub(r"\s+", " ", str(search or "")).strip()[:80]
+        skip_n = max(0, int(skip or 0))
+        if catalog in ANIME_LISTS and not text:
+            if not await asyncio.to_thread(sid.cinemeta_on, db):
+                return {"ok": True, "disabled": True, "items": []}
+            extras = ([f"genre={genre}"] if genre else []) + ([f"skip={min(skip_n, 2000)}"] if skip_n else [])
+
+            def anime_work():
+                try:
+                    got = _catalog_get(f"/catalog/anime/{ANIME_LISTS[catalog]}" + (("/" + "&".join(extras)) if extras else "") + ".json", si.ANIME_ADDON)
+                except Exception as exc:
+                    db.log(f"Discover could not reach the anime list: {type(exc).__name__}: {exc}"[:300], "WARN")
+                    return None
+                metas = [m for m in ((got or {}).get("metas") or []) if isinstance(m, dict) and m.get("id")] if isinstance(got, dict) else []
+                return [{**_card(m, {}), "kind": "movie" if catalog == "anime-movies" else "tv"} for m in metas]
+            anime = await asyncio.to_thread(anime_work)
+            if anime is None:
+                raise HTTPException(502, "The list could not be reached")
+            return {"ok": True, "disabled": False, "items": anime, "more": len(anime) >= 90, "next": min(skip_n, 2000) + len(anime)}
         if catalog in SERVICES and not text:
+            if not await asyncio.to_thread(sid.cinemeta_on, db):
+                return {"ok": True, "disabled": True, "items": []}
+
+            def stream_work():
+                """The service's list from the Streaming Catalogs add-on: about a hundred whole titles with IMDb numbers, so the genre and the pages are cut here."""
+                try:
+                    got = _catalog_get(f"/catalog/{kind}/{STREAM_LISTS[catalog]}.json", si.STREAMING_ADDON)
+                except Exception as exc:
+                    db.log(f"Discover could not reach the {catalog} list: {type(exc).__name__}: {exc}"[:300], "WARN")
+                    return None
+                metas = [m for m in ((got or {}).get("metas") or []) if isinstance(m, dict) and re.fullmatch(r"tt\d{5,10}", str(m.get("imdb_id") or m.get("id") or ""))] if isinstance(got, dict) else []
+                if genre:
+                    metas = [m for m in metas if genre in (m.get("genres") or [])]
+                page = metas[skip_n // PAGE * PAGE:][:PAGE]
+                mine = _in_library([str(m.get("imdb_id") or m.get("id")) for m in page])
+                return [_card(m, mine) for m in page], len(metas) > skip_n // PAGE * PAGE + PAGE, bool(metas)
+            made = await asyncio.to_thread(stream_work)
+            if made is not None and (made[2] or genre):
+                return {"ok": True, "disabled": False, "items": made[0], "more": made[1], "next": skip_n // PAGE * PAGE + PAGE}
+            # the add-on could not be reached (or had nothing): TMDB's "where to watch" is the backup, when its key is there
             media = "tv" if kind == "series" else "movie"
             scr = await asyncio.to_thread(sid.make_screen, db, fetch)
             if not scr.tmdb:
+                if made is None:
+                    raise HTTPException(502, "The list could not be reached")
                 return {"ok": True, "disabled": False, "needs_key": True, "items": [], "more": False}
             ids = TMDB_GENRES[media].get(genre) if genre else None
             if genre and not ids:
