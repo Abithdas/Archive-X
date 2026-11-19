@@ -14,7 +14,6 @@ import { useUi } from '@/app/ui'
 import { Popover } from '@/features/photos/Popover'
 import { useAddons, type Addon } from '@/features/settings/AddonsPanel'
 import { Chips } from './TitleStage'
-import { WhereToWatch } from './WhereToWatch'
 import { MoviesList } from './MoviesPage'
 import { PLACEHOLDER, PosterCard } from './PosterCard'
 import { SeriesList } from './SeriesPage'
@@ -128,7 +127,6 @@ function Details({ item, onClose }: { item: Found; onClose: () => void }) {
           <p className="text-[15px] leading-relaxed">{d.overview || (q.isLoading ? 'Loading…' : 'No description.')}</p>
           {d.director.length ? <p className="text-sm"><span className="text-muted">Directed by </span>{d.director.join(', ')}</p> : null}
           {d.cast.length ? <p className="text-sm"><span className="text-muted">With </span>{d.cast.join(', ')}</p> : null}
-          {!lib && /^(tt\d+|tmdb-\d+)$/.test(item.imdb) ? <WhereToWatch kind={item.kind} ident={item.imdb} title={item.title} /> : null}
           <div className="mt-1 flex flex-wrap items-center gap-2">
             {lib ? <Link to={openIn(lib.kind)} params={{ id: String(lib.id) }} onClick={onClose} className="inline-flex h-10 items-center rounded-xl bg-accent px-5 text-sm font-bold text-accent-fg">Open in your library</Link>
               : <span className="inline-flex h-10 items-center rounded-xl border border-line-2 px-4 text-sm text-muted">Not in your library</span>}
@@ -175,7 +173,6 @@ function DetailPanel({ item }: { item: Found }) {
         <Chips label="Genres" items={d.genres} />
         <Chips label="Cast" items={d.cast.slice(0, 4)} />
         <Chips label="Directors" items={d.director.slice(0, 2)} />
-        {!lib && /^(tt\d+|tmdb-\d+)$/.test(item.imdb) ? <WhereToWatch kind={item.kind} ident={item.imdb} title={item.title} /> : null}
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {lib ? <Link to={openIn(lib.kind)} params={{ id: String(lib.id) }} className="inline-flex h-11 items-center gap-2 rounded-full bg-fg px-6 text-sm font-bold text-bg transition-transform active:scale-[0.97]"><Icon name="play" className="size-4" />Open in your library</Link>
             : <span className="inline-flex h-11 items-center rounded-full border border-line-2 px-5 text-sm text-muted">Not in your library</span>}
