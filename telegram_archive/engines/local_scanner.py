@@ -107,6 +107,49 @@ def _clock(started: float | None, done: int, total: int) -> dict:
     return out
 
 
+RECENT_SECONDS = 600   # a finished metadata scan stays on the lanes this long, so a failure is seen and not just gone
+
+
+def _identify_rows(db) -> list[dict]:
+    """The metadata scans (movies and shows, or scene databases) running now or finished a moment ago, shaped like lane rows."""
+    from . import local_identify_adult, screen_identify
+    now = time.time()
+    rows = []
+    for key, mod, what in (("sfw", screen_identify, "Naming movies and shows"), ("nsfw", local_identify_adult, "Matching scenes by file hash")):
+        st = mod.progress()
+        total, done = int(st.get("total") or 0), int(st.get("done") or 0)
+        running = bool(st.get("running"))
+        finished = float(st.get("finished") or 0)
+        if not total and not running:
+            continue
+        if not running and (not finished or now - finished > RECENT_SECONDS):
+            continue
+        ch = str(st.get("channel") or "")
+        sid = source_id_of(ch) if ch else None
+        failed, matched = int(st.get("failed") or 0), int(st.get("matched") or 0)
+        name = "All folders and channels"
+        if sid is not None:
+            with db.reading() as conn:
+                r = conn.execute("SELECT s.path, c.title FROM local_sources s LEFT JOIN channels c ON c.telegram_id=CAST(? - s.id AS TEXT) WHERE s.id=?", (LOCAL_BASE, sid)).fetchone()
+            name = str((r["title"] or r["path"]) if r else sid)
+        bits = [f"{done:,} of {total:,} looked at", f"{matched:,} named" if matched else "", f"{failed:,} could not be checked" if failed else ""]
+        reason = str(st.get("reason") or "")
+        if running:
+            status, op = "RUNNING", f"{what} · " + " · ".join(b for b in bits if b)
+        else:
+            status = "COMPLETED_WITH_ERRORS" if failed else "COMPLETED"
+            op = f"{what} finished · " + " · ".join(b for b in bits if b)
+        if failed and reason:
+            op += f" · {reason}"
+        rows.append({
+            "id": f"identify:{key}", "type": "LOCAL_SCAN", "status": status, "operation": op, "current_item": "",
+            "completed": done, "total": total, "progress": round(100.0 * done / total, 1) if total else 0.0,
+            "source": "local", "workflow": "", "source_channel": name, "destination_channel": "",
+            "metrics": _clock(st.get("started"), done, total) if running else {},
+        })
+    return rows
+
+
 def lane_rows(db) -> list[dict]:
     """Folders being looked through or prepared right now, shaped like the rows of the transfer lanes, so Transfers shows them as jobs."""
     from . import local_videos
@@ -115,7 +158,7 @@ def lane_rows(db) -> list[dict]:
     work = local_videos.running_work()
     ids = sorted(set(scans) | set(work))
     if not ids:
-        return []
+        return _identify_rows(db)
     with db.reading() as conn:
         titles = {int(r["id"]): (r["title"] or r["path"]) for r in conn.execute(
             "SELECT s.id, s.path, c.title FROM local_sources s LEFT JOIN channels c ON c.telegram_id=CAST(? - s.id AS TEXT)", (LOCAL_BASE,))}
@@ -135,7 +178,7 @@ def lane_rows(db) -> list[dict]:
             "source": "local", "workflow": "", "source_channel": name, "destination_channel": "",
             "metrics": _clock(started, done, total),
         })
-    return rows
+    return rows + _identify_rows(db)
 
 
 def scan_source(db, source_id: int) -> dict:

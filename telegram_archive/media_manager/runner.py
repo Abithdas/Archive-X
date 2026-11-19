@@ -68,6 +68,9 @@ MODES = {
 
 _PROGRESS_RE = re.compile(r"^\s*(?:PROCESS\s+|\[(?:ORPHAN\s+)?)(\d[\d,]*)\s*/\s*(\d[\d,]*)")
 _PREFETCH_RE = re.compile(r"^\s*\[PREFETCH\]\s*(\d[\d,]*)\s*/\s*(\d[\d,]*)")
+# "CHANNEL 1/1 | ITEM 17/116 | ..." starts the 17th file; "MOVE COMPLETE" ends it. Without these the job kept the 116/116 of the metadata
+# pass (which runs first and takes under a second) and showed 100% for the whole transfer.
+_ITEM_RE = re.compile(r"\bITEM\s+(\d[\d,]*)\s*/\s*(\d[\d,]*)")
 _DECOR_RE = re.compile(r"^[\s=\-#_*~]*$")
 
 
@@ -204,7 +207,17 @@ class MediaManagerRunner:
         self.seq += 1
         self.lines.append((self.seq, line))
         self._keep_line(line)
-        m = _PROGRESS_RE.match(line) or _PREFETCH_RE.match(line)
+        item = _ITEM_RE.search(line)
+        if item:
+            self._item = int(item.group(1).replace(",", ""))
+            n = int(item.group(2).replace(",", ""))
+            if n > 0:
+                self.completed, self.total = max(0, min(self._item - 1, n)), n
+        elif "[PREFETCH COMPLETE]" in line:
+            self.completed = 0   # the metadata pass is done; nothing has been moved yet
+        elif getattr(self, "_item", 0) and re.match(r"^\s*(MOVE|COPY) COMPLETE\b", line) and self.total:
+            self.completed = max(self.completed or 0, min(self._item, self.total))
+        m = None if item else (_PROGRESS_RE.match(line) or _PREFETCH_RE.match(line))
         if m:
             idx = int(m.group(1).replace(",", ""))
             tot = int(m.group(2).replace(",", ""))

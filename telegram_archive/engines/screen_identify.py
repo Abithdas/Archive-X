@@ -6,6 +6,7 @@ nothing was found (UNMATCHED). A person's choice is never undone by a later run.
 """
 from __future__ import annotations
 
+import time
 import json
 import os
 import threading
@@ -15,7 +16,7 @@ from ..core.swallowed import note as _swallowed_note
 from ..metadata import screen_ids as si
 
 _lock = threading.Lock()
-_state: dict = {"running": False, "total": 0, "done": 0}
+_state: dict = {"running": False, "total": 0, "done": 0, "channel": "", "started": 0.0, "finished": 0.0, "reason": ""}
 SUFFIX = {"performers": " (Actor)", "studios": " (Studio)", "tags": " (Genre)"}
 
 
@@ -295,7 +296,7 @@ def run(db, channel: str | None = None, fetch=None) -> dict:
         return dict(_state)
     try:
         todo = pending(db, channel)
-        _state.update(running=True, total=len(todo), done=0, failed=0, matched=0, review=0, unmatched=0)
+        _state.update(running=True, total=len(todo), done=0, failed=0, matched=0, review=0, unmatched=0, channel=str(channel or ""), started=time.time(), finished=0.0, reason="")
         screen = make_screen(db, fetch)
         ctx: dict = {"memo": {}, "entities": {}}   # one answer per show for the whole run
         for row in todo:
@@ -304,13 +305,16 @@ def run(db, channel: str | None = None, fetch=None) -> dict:
                 _state[{"MATCHED": "matched", "REVIEW": "review"}.get(out, "unmatched")] += 1
             except Exception as exc:
                 _swallowed_note("screen_identify.run")
-                db.log(f"Identify failed for media {row['id']}: {type(exc).__name__}: {exc}"[:300], "WARN")
+                from ..core.net_errors import explain
+                if not _state["reason"]:          # said once, at the first failure, in plain words; the rest of the run is not a log of the same line
+                    _state["reason"] = explain(exc, "TMDB") or f"{type(exc).__name__}: {exc}"[:160]
+                    db.log(f"Identify failed for media {row['id']}: {_state['reason']}"[:300], "WARN")
                 _state["failed"] += 1
             _state["done"] += 1
         _state["requests"] = screen.calls
         return {"ok": True, **_state}
     finally:
-        _state["running"] = False
+        _state.update(running=False, finished=time.time())
         _lock.release()
 
 

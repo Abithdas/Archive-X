@@ -1323,6 +1323,8 @@ class JobManager:
     # ------------------------------------------------------------------
     async def _run_job(self, jid: str):
         """Acquire execution lanes for a job and run it under them."""
+        from ..core.content_mode import FILTER_ACTIVE
+        FILTER_ACTIVE.set(False)   # a job works on everything it was given; the SFW / NSFW mode decides only what a page shows
         job = self.db.get_job(jid)
         if not job or job["status"] in ("COMPLETED", "COMPLETED_WITH_ERRORS", "CANCELLED", "FAILED"):
             return

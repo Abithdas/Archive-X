@@ -244,6 +244,37 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config, jobs=N
         threading.Thread(target=work, name=f"local-identify-{source_id}", daemon=True).start()
         return {"ok": True, "kind": "movies and shows" if sfw else "scene databases"}
 
+    @router.post("/api/play/make-snapshots/{channel_id}/{message_id}")
+    async def make_snapshots(channel_id: int, message_id: int, request: Request):
+        """Build the 36 snapshots of one video that lives in a folder on this PC (a review or a card with 'No cached snapshot' offers this)."""
+        require_auth(request)
+        from ..engines import local_videos
+        if not ls.is_local_channel(channel_id):
+            raise HTTPException(400, "Only videos from folders on this PC are made here. Telegram videos get theirs from Metadata & Assets, Snapshots.")
+        path = await asyncio.to_thread(local_videos.file_of, db, channel_id, message_id)
+        if not path or not os.path.isfile(path):
+            raise HTTPException(404, "The file is not on this PC any more")
+
+        def work() -> bool:
+            with db.reading() as conn:
+                row = conn.execute("SELECT duration FROM media WHERE source_channel=? AND source_message_id=?", (str(channel_id), int(message_id))).fetchone()
+            duration = float((row["duration"] if row else 0) or 0)
+            if duration <= 0:
+                info = local_videos.probe(path)
+                duration = float(info.get("duration") or 0) if info else 0.0
+                if duration > 0:
+                    with db.lock:
+                        db.conn.execute("UPDATE media SET duration=? WHERE source_channel=? AND source_message_id=?", (duration, str(channel_id), int(message_id)))
+                        db.conn.commit()
+            ok = duration > 0 and local_videos.build_snapshots(db, str(channel_id), int(message_id), path, duration)
+            with db.lock:
+                db.conn.execute("UPDATE local_video_files SET snapshots=? WHERE channel_id=? AND message_id=?", (1 if ok else 2, str(channel_id), int(message_id)))
+                db.conn.commit()
+            return ok
+        if not await asyncio.to_thread(work):
+            raise HTTPException(502, "Snapshots could not be made from this file (ffmpeg could not read it)")
+        return {"ok": True}
+
     @router.post("/api/local-folders/{source_id}/upload")
     async def upload_folder(source_id: int, request: Request):
         """Upload a folder's videos to a Telegram channel (`destination`), by the same upload job as Upload Local Files.

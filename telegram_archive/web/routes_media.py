@@ -396,6 +396,11 @@ def register_media_routes(
             })
         return out
 
+    from ..metadata.scene_links import PROVIDER_NAMES, provider_scene_images, provider_scene_url
+
+    def provider_label(provider):
+        return PROVIDER_NAMES.get(str(provider or '').strip().lower(), str(provider or '').strip() or None)
+
     @router.get("/api/metadata/scene-match-review")
     async def scene_match_review_list(request: Request):
         """Read pending suggestions and unresolved catalogue metadata without starting work."""
@@ -503,7 +508,9 @@ def register_media_routes(
                 "website_variant_conflict": bool(payload.get("_archive_website_variant_conflict")),
                 "release_date": payload.get("date") or payload.get("release_date") or payload.get("production_date"),
                 "provider_image": payload.get("image") or payload.get("thumbnail"),
-                "provider_url": payload.get("profile") or payload.get("url"),
+                "provider_images": provider_scene_images(payload),
+                "provider_url": provider_scene_url(row.get("provider"), row.get("provider_record_id"), payload) or None,
+                "provider_name": provider_label(row.get("provider")),
                 "local_grid_url": f"/api/play/preview-grid/{channel_id}/{message_id}" if channel_id and message_id else None,
                 "channel_id": channel_id, "channel_title": row.get("channel_title") or "Unknown channel",
                 "message_id": message_id, "created_at": row.get("created_at"),

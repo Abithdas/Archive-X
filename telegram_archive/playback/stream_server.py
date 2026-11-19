@@ -5398,6 +5398,14 @@ async def serve_local_player_feed(state: dict, tokens: StreamTokens, port: int, 
             return web.Response(status=403, text="invalid or expired link")
         if not cid:
             return web.Response(status=400, text="missing channel")
+        local_file = state.get("local_file") if state else None
+        if local_file and cid < -9_000_000_000_000:
+            # a folder on this PC: no Telegram engine is involved, so the native player, VLC and MPC-HC get the file itself (with ranges)
+            path = await asyncio.to_thread(local_file, cid, msg_id)
+            if not path or not os.path.isfile(path):
+                return web.Response(status=404, text="the file is not on this PC any more")
+            import mimetypes
+            return web.FileResponse(path, headers={"Content-Type": mimetypes.guess_type(path)[0] or "video/mp4", "Cache-Control": "no-store", "Accept-Ranges": "bytes"})
         get_engine = state.get("get_engine") if state else None
         if not get_engine:
             return web.Response(status=503, text="playback engine not ready")

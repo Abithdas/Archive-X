@@ -322,6 +322,7 @@ def _norm_stashdb(scene: dict) -> dict:
         "performer_details": performers,
         "tags": [t.get("name") for t in _dicts(scene.get("tags")) if t.get("name")],
         "image": scene_image, "thumbnail": scene.get("thumbnail") or scene_image,
+        "images": [c["url"] for c in _image_candidates_from_images(image_rows, limit=6)],
         "profile": scene.get("url") or _first_provider_url(scene.get("urls")),
     }
 
@@ -357,6 +358,23 @@ async def stashdb_scenes_by_year(db, api_key: str, year: str | int, limit: int =
         scene.setdefault("_search_terms", []).append(f"year:{clean_year}")
     _cache_put(db, "stashdb", key, scenes)
     return scenes
+
+
+def _tpdb_scene_images(scene: dict, images: dict) -> list[str]:
+    """Every picture ThePornDB gave for a scene (poster, background, the sized images), the largest of each first, without repeats."""
+    out: list[str] = []
+
+    def add(value: object) -> None:
+        text = str(value or "").strip()
+        if text.lower().startswith(("http://", "https://")) and text not in out:
+            out.append(text)
+    for source in (scene.get("image"), scene.get("poster"), scene.get("background"), images):
+        if isinstance(source, dict):
+            for key in ("full", "large", "medium", "small", "url"):
+                add(source.get(key))
+        else:
+            add(source)
+    return out[:6]
 
 
 def _norm_tpdb(scene: dict) -> dict:
@@ -402,6 +420,7 @@ def _norm_tpdb(scene: dict) -> dict:
         "tags": [t.get("name") for t in _dicts(scene.get("tags")) if t.get("name")],
         "image": scene.get("image") or images.get("large") or images.get("medium") or images.get("small"),
         "thumbnail": scene.get("thumbnail") or images.get("medium") or images.get("small"),
+        "images": _tpdb_scene_images(scene, images),
         "profile": scene.get("url"),
         "description": scene.get("description"),
         "links": scene.get("links"),
@@ -1385,7 +1404,7 @@ def merge_provider_matches(primary: dict, fallback: dict | None) -> dict:
     if not fallback:
         return merged
     for key in ("title", "date", "duration", "fingerprints", "updated_at", "studio", "studio_id", "studio_url", "site",
-                "site_url", "scene_type", "image", "thumbnail", "profile", "description"):
+                "site_url", "scene_type", "image", "thumbnail", "images", "profile", "description"):
         if merged.get(key) in (None, "", [], {}) and fallback.get(key) not in (None, "", [], {}):
             merged[key] = fallback[key]
     merged["performers"] = _merge_string_list(primary.get("performers") or [], fallback.get("performers") or [])
@@ -1419,6 +1438,7 @@ def merge_provider_matches(primary: dict, fallback: dict | None) -> dict:
     if studio_provider_ids:
         merged["studio_provider_ids"] = studio_provider_ids
     merged["tags"] = _merge_string_list(primary.get("tags") or [], fallback.get("tags") or [])
+    merged["images"] = _merge_string_list(primary.get("images") or [], fallback.get("images") or [])[:6]   # pictures from both providers
     p_links = primary.get("links") if isinstance(primary.get("links"), dict) else {}
     f_links = fallback.get("links") if isinstance(fallback.get("links"), dict) else {}
     if p_links or f_links:

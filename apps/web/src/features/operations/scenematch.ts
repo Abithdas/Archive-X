@@ -1,7 +1,7 @@
 /** Scene Match Review: ranked provider candidates for videos, and videos that still need a performer or studio. Nothing changes until a candidate is approved or rejected. */
 export interface Suggestion {
   suggestion_id: number; score?: number; channel_id?: string | number; channel_title?: string; message_id?: number; filename?: string; local_title?: string; candidate_title?: string
-  performers?: string[]; release_date?: string; missing_fields?: string[]; signals?: string; reason?: string; provider?: string; provider_image?: string; provider_url?: string
+  performers?: string[]; release_date?: string; missing_fields?: string[]; signals?: string; reason?: string; provider?: string; provider_image?: string; provider_images?: string[]; provider_name?: string; provider_url?: string
   provider_site?: string; studio?: string; provider_site_url?: string; provider_record_id?: string; website_variant_conflict?: boolean
 }
 export interface Unresolved { media_id: number; channel_id?: string | number; channel_title?: string; message_id?: number; filename?: string; title?: string; duration?: number; studio_name?: string; performers?: string[]; missing_fields?: string[] }
@@ -63,3 +63,15 @@ export const retryToast = (r: { count?: number; id?: unknown; message?: string }
 export const retryStatus = (r: { count?: number; message?: string }) => r.message || `Queued ${Number(r.count || 0).toLocaleString()} unmatched/suggested video(s) for one manual recheck.`
 /** A video-card-shaped object for the quick editor, from a catalogue entry that needs metadata. */
 export const editItem = (u: Unresolved) => ({ id: Number(u.message_id), _cid: String(u.channel_id ?? ''), media_id: u.media_id, name: u.title || u.filename || 'Video', filename: u.filename || '', size: null, duration: Number(u.duration) || 0, width: null, height: null, resolution_category: null, thumbnail_id: Number(u.message_id), favorite: 0 as const, upload_date: null, channel_title: u.channel_title ?? null, performers: u.performers ?? [], studios: u.studio_name ? [u.studio_name] : [], tags: [], studio: u.studio_name || '' })
+
+/** Every provider picture of a candidate that can be shown (http or https), the main one first, without repeats; the older single `provider_image` still counts. */
+export const providerImages = (s: { provider_images?: string[]; provider_image?: string }): string[] => {
+  const out: string[] = []
+  for (const raw of [...(s.provider_images ?? []), s.provider_image ?? '']) {
+    const u = safeHttp(raw)
+    if (u && !out.includes(u)) out.push(u)
+  }
+  return out.slice(0, 6)
+}
+/** The words of the link to the provider's own page. */
+export const providerLinkText = (s: { provider_name?: string; provider?: string }) => `Open on ${s.provider_name || s.provider || 'the provider'}`

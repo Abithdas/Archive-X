@@ -31,10 +31,20 @@ const mount = (over: (u: string, i?: RequestInit) => Response | undefined = () =
 const posts = (c: Call[]) => c.filter((x) => x.method === 'POST')
 
 describe('SceneMatchReview', () => {
+  it('shows every provider picture (up to six, no repeats) and says when there is none', async () => {
+    mount(undefined, () => page({ items: [sug(1, { provider_image: 'https://p/a.jpg', provider_images: ['https://p/a.jpg', 'https://p/b.jpg', 'https://p/c.jpg', 'javascript:alert(1)'] }), sug(2, { provider_image: '', provider_images: [] })] }))
+    const one = await screen.findByRole('article', { name: 'Scene 1' })
+    expect(within(one).getAllByRole('button', { name: /Enlarge: Provider picture \d of 3/ })).toHaveLength(3)
+    expect(within(screen.getByRole('article', { name: 'Scene 2' })).getByText('The provider has no picture for this scene')).toBeInTheDocument()
+  })
+  it('names the provider in the link to its page', async () => {
+    mount(undefined, () => page({ items: [sug(1, { provider_name: 'ThePornDB', provider_url: 'https://theporndb.net/scenes/abc' })] }))
+    expect(await screen.findByRole('link', { name: 'Open on ThePornDB' })).toHaveAttribute('href', 'https://theporndb.net/scenes/abc')
+  })
   it('shows ranked suggestions with score, provider and details, and the videos needing metadata', async () => {
     mount()
     const card = await screen.findByRole('article', { name: 'Scene 1' })
-    expect(within(card).getByText('96.5%')).toBeInTheDocument(); expect(within(card).getByText('StashDB')).toBeInTheDocument(); expect(within(card).getByRole('link', { name: 'Open provider record' })).toHaveAttribute('href', 'https://stashdb.example/s')
+    expect(within(card).getByText('96.5%')).toBeInTheDocument(); expect(within(card).getByText('StashDB')).toBeInTheDocument(); expect(within(card).getByRole('link', { name: 'Open on StashDB' })).toHaveAttribute('href', 'https://stashdb.example/s')
     expect(within(card).getByText('performer')).toBeInTheDocument(); expect(screen.getByRole('article', { name: 'Unresolved 1' })).toHaveTextContent('Missing: studio')
     expect(screen.getByText('2 suggestions · 1 need metadata')).toBeInTheDocument()
   })

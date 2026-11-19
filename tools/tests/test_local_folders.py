@@ -447,3 +447,39 @@ def test_a_scan_in_progress_shows_as_a_lane_with_time_and_a_guess(tmp_path):
         assert 35 <= row["metrics"]["elapsed_s"] <= 50 and 50 <= row["metrics"]["eta_s"] <= 75      # 40 s for 4, so about 60 s for the other 6
     finally:
         lv._state.pop(sid, None)
+
+
+def test_snapshots_can_be_made_on_request_only_for_videos_on_this_pc(tmp_path, folder):
+    db = Database(tmp_path / "a.db")
+    c, H = _client(db)
+    assert c.post("/api/play/make-snapshots/-1001234/5", headers=H).status_code == 400            # a Telegram video: Metadata & Assets makes those
+    assert c.post(f"/api/play/make-snapshots/{ls.channel_id(1)}/5", headers=H).status_code == 404   # no such file on this PC
+
+
+def test_a_metadata_scan_is_a_lane_with_progress_and_says_why_it_failed(tmp_path, folder, monkeypatch):
+    import urllib.error
+    from telegram_archive.engines import local_identify_adult as lia
+    from telegram_archive.engines import local_videos
+    db = Database(tmp_path / "a.db")
+    sid = make_source(db, folder)
+    ch = ls.channel_id(sid)
+    clips = []
+    for n in range(3):
+        f = folder / f"clip{n}.mp4"
+        f.write_bytes(b"v" * 200_000)
+        clips.append(str(f))
+    local_videos.index_videos(db, ch, clips)
+    db.set_setting("stashdb_api_key", "k")
+
+    async def reset(*_a, **_k):
+        raise urllib.error.URLError(ConnectionResetError(10054, "An existing connection was forcibly closed by the remote host"))
+    monkeypatch.setattr(lia, "_lookup", reset)
+    out = lia.run(db, ch)
+    assert out["failed"] == 3 and "closed the connection" in out["reason"]
+    rows = [r for r in ls.lane_rows(db) if r["id"] == "identify:nsfw"]
+    assert len(rows) == 1                                                # shown after it ended, so the failure is seen
+    r = rows[0]
+    assert r["status"] == "COMPLETED_WITH_ERRORS" and r["source_channel"] == "Pictures" and (r["completed"], r["total"]) == (3, 3)
+    assert "3 could not be checked" in r["operation"] and "closed the connection" in r["operation"]
+    monkeypatch.setattr(lia, "_state", {**lia._state, "finished": 1.0})  # long ago
+    assert not [x for x in ls.lane_rows(db) if x["id"] == "identify:nsfw"]

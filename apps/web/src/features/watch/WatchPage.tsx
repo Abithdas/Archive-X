@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { ApiError, thumbUrl } from '@/api/client'
 import { useEntityLookup, useFavorite, useLibrary, useMarkers, usePlayInfo, usePreviewManifest, useVideo } from '@/api/hooks'
 import type { LibraryItem } from '@/api/types'
+import { isLocalId } from '@/features/channels/local'
 import { Icon } from '@/design/Icon'
 import { Skeleton, SkeletonGroup, SkeletonLine } from '@/design/Skeleton'
 import { cn } from '@/design/cn'
@@ -149,7 +150,8 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
     )
   }
 
-  const tg = telegramLink(item._cid, item.id)
+  const local = isLocalId(item._cid)
+  const tg = local ? null : telegramLink(item._cid, item.id)   // a file on this PC has no Telegram message
   const studio = item.studio || item.studios[0] || ''
   const vlc = () => void openExternal(item, 'vlc').then((r) => toast(`Opened in ${r.player ?? 'VLC'}`)).catch((e) => toast.error(`Player error: ${e instanceof ApiError ? e.detail : 'not found'}`))
   const mpc = () => void openExternal(item, 'mpc').then((r) => toast(`Opened in ${r.player ?? 'MPC-HC'}`)).catch((e) => toast.error(`Player error: ${e instanceof ApiError ? e.detail : 'not found'}`))
@@ -177,7 +179,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
 
         <header className="min-w-0">
           <h1 className="text-[clamp(22px,2.4vw,30px)] font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere]">{item.name}</h1>
-          <p className="mt-1 truncate text-xs text-faint">Telegram filename: {item.filename}</p>
+          <p className="mt-1 truncate text-xs text-faint">{local ? 'File name' : 'Telegram filename'}: {item.filename}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {item.resolution_category ? <span className={cn(CHIP, 'bg-good/15 text-good')}>{item.resolution_category}</span> : null}
             {item.duration ? <span className={CHIP}>{formatDuration(item.duration)}</span> : null}

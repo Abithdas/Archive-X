@@ -8,13 +8,14 @@ from __future__ import annotations
 import asyncio
 import os
 import threading
+import time
 
 from ..core.swallowed import note as _swallowed_note
 from ..metadata import providers
 from ..metadata import screen_ids as si
 
 _lock = threading.Lock()
-_state: dict = {"running": False, "total": 0, "done": 0, "matched": 0, "unmatched": 0, "failed": 0}
+_state: dict = {"running": False, "total": 0, "done": 0, "matched": 0, "unmatched": 0, "failed": 0, "channel": "", "started": 0.0, "finished": 0.0, "reason": ""}
 
 
 def configured(db) -> bool:
@@ -50,7 +51,7 @@ def run(db, channel: str) -> dict:
         return dict(_state)
     try:
         todo = pending(db, channel)
-        _state.update(running=True, total=len(todo), done=0, matched=0, unmatched=0, failed=0)
+        _state.update(running=True, total=len(todo), done=0, matched=0, unmatched=0, failed=0, channel=str(channel), started=time.time(), finished=0.0, reason="")
         for row in todo:
             try:
                 path = row["path"] or ""
@@ -68,12 +69,15 @@ def run(db, channel: str) -> dict:
                         _state["unmatched"] += 1
             except Exception as exc:
                 _swallowed_note("local_identify_adult.run")
-                db.log(f"Identify failed for {row.get('filename')}: {type(exc).__name__}: {exc}"[:300], "WARN")
+                from ..core.net_errors import explain
+                if not _state["reason"]:
+                    _state["reason"] = explain(exc, "StashDB / ThePornDB") or f"{type(exc).__name__}: {exc}"[:160]
+                    db.log(f"Identify failed for {row.get('filename')}: {_state['reason']}"[:300], "WARN")
                 _state["failed"] += 1
             _state["done"] += 1
         return {"ok": True, **_state}
     finally:
-        _state["running"] = False
+        _state.update(running=False, finished=time.time())
         _lock.release()
 
 

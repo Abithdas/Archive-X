@@ -170,6 +170,11 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
     tokens = StreamTokens(db)
     # One shared playback engine (all channels), created on first playback.
     app_state = {"engine": None, "get_engine": None, "player_port": config.LOCAL_PLAYER_PORT, "player_host": config.LOCAL_PLAYER_HOST, "hardware_profile": hardware_profile, "internet_test": None}
+    def _local_video_file(channel_id: int, message_id: int):
+        """The file of a video that lives in a folder on this PC (None for a Telegram video); the player feed serves it straight from disk."""
+        from .engines import local_videos
+        return local_videos.file_of(db, channel_id, message_id)
+    app_state["local_file"] = _local_video_file
 
     # Startup and shutdown: starts jobs and background watchers, then stops them on exit.
     @asynccontextmanager

@@ -12,7 +12,7 @@ import { cn } from '@/design/cn'
 import type { LibraryItem } from '@/api/types'
 import { QuickEditDialog } from '@/features/watch/QuickEditDialog'
 import { Frames } from './ChannelDuplicates'
-import { DEFAULT_THRESHOLD, MAX_SELECTION, NO_FILTERS, approveAboveCopy, approveUrl, approvedToast, clamp100, countText, distinctReason, editItem, isFiltered, merge, missingLabel, needs, nextOffsets, oneDone, oneFailed, providerBadge, rejectUrl, rejectedToast, reviewUrl, safeHttp, selectLimit, thresholdOf, visibleText, type Filters, type ReviewPage, type Suggestion, type Unresolved } from './scenematch'
+import { DEFAULT_THRESHOLD, MAX_SELECTION, NO_FILTERS, approveAboveCopy, approveUrl, approvedToast, clamp100, countText, distinctReason, editItem, isFiltered, merge, missingLabel, needs, nextOffsets, oneDone, oneFailed, providerBadge, providerImages, providerLinkText, rejectUrl, rejectedToast, reviewUrl, safeHttp, selectLimit, thresholdOf, visibleText, type Filters, type ReviewPage, type Suggestion, type Unresolved } from './scenematch'
 import { Disclosure } from '@/design/Accordion'
 
 const BTN = 'h-9 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
@@ -21,7 +21,7 @@ const why = (e: unknown, fb: string) => (e instanceof ApiError && e.detail ? e.d
 
 function SuggestionCard({ s, picked, busy, onPick, onAct }: { s: Suggestion; picked: boolean; busy: boolean; onPick: () => void; onAct: (a: 'approve' | 'reject') => void }) {
   const score = clamp100(s.score)
-  const image = safeHttp(s.provider_image), url = safeHttp(s.provider_url), siteUrl = safeHttp(s.provider_site_url)
+  const images = providerImages(s), url = safeHttp(s.provider_url), siteUrl = safeHttp(s.provider_site_url)
   const site = String(s.provider_site || s.studio || '').trim()
   const people = (s.performers ?? []).filter(Boolean).join(', ')
   const meta = [people, s.release_date].filter(Boolean).join(' · ')
@@ -42,11 +42,16 @@ function SuggestionCard({ s, picked, busy, onPick, onAct }: { s: Suggestion; pic
           <span><b>Site</b> {site ? (siteUrl ? <a href={siteUrl} target="_blank" rel="noopener noreferrer" className="text-accent underline">{site}</a> : site) : 'Not listed'}</span>
           {s.provider_record_id ? <span><b>Record ID</b> {s.provider_record_id}</span> : null}
           {s.website_variant_conflict ? <span className="rounded-full bg-warn/15 px-2 text-warn">Possible same content · separate sites</span> : null}
-          {url ? <a href={url} target="_blank" rel="noopener noreferrer" className="font-semibold text-accent underline">Open provider record</a> : null}
+          {url ? <a href={url} target="_blank" rel="noopener noreferrer" className="font-semibold text-accent underline">{providerLinkText(s)}</a> : null}
         </div>
         {needs(s.missing_fields).length ? <div className="flex flex-wrap items-center gap-1.5 text-xs"><span className="text-muted">Needs</span>{needs(s.missing_fields).map((f) => <span key={f} className="rounded-full bg-warn/15 px-2 py-0.5 font-semibold text-warn">{f}</span>)}</div> : null}
         <div className="grid gap-3 lg:grid-cols-[160px_minmax(0,1fr)]">
-          <div><p className="mb-1 text-[11px] text-muted">Provider scene</p>{image ? <ZoomImage src={image} alt="Provider scene candidate" loading="lazy" referrerPolicy="no-referrer" className="aspect-video w-full rounded-lg bg-surface-3 object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} /> : <p className="grid aspect-video place-items-center rounded-lg bg-surface-3 text-xs text-muted">No provider image</p>}</div>
+          <div><p className="mb-1 text-[11px] text-muted">Provider pictures{images.length > 1 ? ` · ${images.length}` : ''}</p>
+            {images.length ? (
+              <div className="grid grid-cols-2 gap-1.5" aria-label="Provider pictures">
+                {images.map((src, i) => <ZoomImage key={src} group={`prov-${s.suggestion_id}`} src={src} alt={`Provider picture ${i + 1} of ${images.length}`} loading="lazy" referrerPolicy="no-referrer" className={cn('aspect-video w-full rounded-lg bg-surface-3 object-cover', i === 0 && images.length % 2 === 1 ? 'col-span-2' : '')} onError={(e) => (e.currentTarget.style.display = 'none')} />)}
+              </div>
+            ) : <p className="grid aspect-video place-items-center rounded-lg bg-surface-3 text-xs text-muted">The provider has no picture for this scene</p>}</div>
           <div><p className="mb-1 text-[11px] text-muted">Video snapshots · 4 of 36</p>{s.message_id ? <Frames cid={cid} mid={Number(s.message_id)} title={local} /> : null}</div>
         </div>
         <Disclosure className="text-xs" summaryClassName="font-semibold" summary={<span>Why this match? <span className="font-normal text-muted">Optional details</span></span>}>

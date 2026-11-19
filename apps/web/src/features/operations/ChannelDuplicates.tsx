@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
@@ -6,6 +6,7 @@ import { usePreviewManifest } from '@/api/hooks'
 import { Confirm } from '@/design/Confirm'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
+import { isLocalId } from '@/features/channels/local'
 import { ZoomImage } from '@/design/ImageZoom'
 import { AnimatePresence, motion, panelItem } from '@/design/motion'
 import { smokeKey } from '@/design/smoke'
@@ -28,10 +29,20 @@ export function Frames({ cid, mid, title }: { cid: string; mid: number; title: s
     return () => io.disconnect()
   }, [seen])
   const m = usePreviewManifest(cid, mid, seen)
+  const qc = useQueryClient()
+  const [making, setMaking] = useState(false)
+  const [madeErr, setMadeErr] = useState('')
+  const missing = seen && !m.isPending && !m.isError && !m.data?.frames_ready
+  const make = async () => {
+    setMaking(true); setMadeErr('')
+    try { await api(`/api/play/make-snapshots/${encodeURIComponent(cid)}/${mid}`, { method: 'POST', json: {} }); await qc.invalidateQueries({ queryKey: ['preview-manifest', cid, mid] }) }
+    catch (e) { setMadeErr(e instanceof ApiError && e.detail ? e.detail : 'Snapshots could not be made.') } finally { setMaking(false) }
+  }
   const rev = String(m.data?.revision ?? m.data?.updated_at ?? '')
   const note = !seen ? 'Loading cached frame…' : m.isPending ? 'Loading cached frame…' : m.isError ? 'Preview unavailable' : m.data?.frames_ready ? '' : 'No cached snapshot'
   return (
-    <div ref={ref} className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Four cached snapshots">
+    <div ref={ref} className="grid gap-2">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Four cached snapshots">
       {SNAPSHOT_FRAMES.map((f, i) => (
         <figure key={f} className="m-0">
           <div className="relative grid aspect-video place-items-center overflow-hidden rounded-lg bg-surface-3 text-center text-[11px] text-muted">
@@ -40,6 +51,15 @@ export function Frames({ cid, mid, title }: { cid: string; mid: number; title: s
           <figcaption className="mt-1 text-[10px] text-faint">Frame {f + 1} / 36</figcaption>
         </figure>
       ))}
+    </div>
+    {missing ? (
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+        {isLocalId(cid)
+          ? <button type="button" disabled={making} onClick={() => void make()} className="inline-flex h-8 items-center rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50">{making ? 'Making snapshots…' : 'Make snapshots'}</button>
+          : <span>Snapshots are made by Metadata &amp; Assets (Transfers, stage Snapshots) once the video has been read from Telegram.</span>}
+        {madeErr ? <span role="alert" className="text-bad">{madeErr}</span> : null}
+      </div>
+    ) : null}
     </div>
   )
 }
