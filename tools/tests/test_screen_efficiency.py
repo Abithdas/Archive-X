@@ -121,7 +121,7 @@ def test_an_id_in_the_name_settles_the_match_and_costs_no_search():
 
 def test_quality_of_a_copy_and_which_copy_comes_first():
     q = si.quality_of
-    assert q("Film.2019.1080p.WEB-DL.x264.mkv") == {"resolution": "1080p", "height": 1080, "cam": False, "source": "WEB-DL"}
+    assert q("Film.2019.1080p.WEB-DL.x264.mkv") == {"resolution": "1080p", "height": 1080, "cam": False, "source": "WEB-DL", "hdr": [], "languages": []}
     assert q("Film.2019.HDCAM.mkv")["cam"] and q("Film DTS.mkv")["cam"] is False and q("Film.TS.x264.mkv")["cam"]
     assert q("clip.mkv", height=1088)["resolution"] == "1080p" and q("clip.mkv", height=0)["resolution"] == ""
     versions = [q("Film.CAM.2160p.mkv"), q("Film.720p.mkv"), q("Film.1080p.mkv")]
