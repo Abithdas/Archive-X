@@ -23,9 +23,9 @@ describe('the bell count', () => {
     const badge = () => container.querySelector('.ax-bell .mo-badge') as HTMLElement
     await waitFor(() => expect(badge().dataset.open).toBe('true'))
     expect(badge().textContent).toBe('3')
-    fireEvent.click(screen.getByRole('button', { name: /^Notifications, 3 new/ }))
+    fireEvent.click(screen.getByRole('link', { name: /^Notifications, 3 new/ }))
     await waitFor(() => expect(badge().dataset.open).toBe('false'))
-    expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Notifications' })).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem('ax_seen_notices') || '[]').length).toBeGreaterThan(0)   // remembered for the next visit
   })
 })

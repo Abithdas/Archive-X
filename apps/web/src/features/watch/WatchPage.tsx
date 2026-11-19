@@ -164,12 +164,13 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const tags = showTags ? item.tags : item.tags.slice(0, 12)
 
   return (
-    <div className="mx-auto grid w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] gap-5 px-4 pb-10 pt-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid w-full gap-4 px-4 pb-10 pt-4 sm:px-10">
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" onClick={() => router.history.back()} aria-label="Go back" title="Go back" className="grid size-10 place-items-center rounded-xl border border-line bg-surface hover:bg-surface-2"><Icon name="arrow-left" /></button>
+        {tg ? <a href={tg} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold hover:bg-surface-2"><Icon name="brand-telegram" />Telegram</a> : null}
+      </div>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="grid min-w-0 content-start gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <button type="button" onClick={() => router.history.back()} aria-label="Go back" title="Go back" className="grid size-10 place-items-center rounded-xl border border-line bg-surface hover:bg-surface-2"><Icon name="arrow-left" /></button>
-          {tg ? <a href={tg} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold hover:bg-surface-2"><Icon name="brand-telegram" />Telegram</a> : null}
-        </div>
 
         {resume.ready ? (
           engine === 'native' ? (
@@ -261,6 +262,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
         </section>
       </div>
       <UpNext items={items} current={item} />
+      </div>
     </div>
   )
 }

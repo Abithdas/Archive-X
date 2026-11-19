@@ -1,7 +1,24 @@
 /** Port of the classic UI's notification rules (25-input-adaptive-runtime.js): which status events and jobs are worth showing,
  *  and how to phrase them without leaking paths, ids, URLs or stack traces. Pure functions so they can be tested. */
 export type Tone = 'error' | 'warning' | 'success' | 'match' | 'info'
+/** What a notice is about, for the filter chips on the Notifications page. */
+export type Category = 'transfers' | 'metadata' | 'backups' | 'playback' | 'jobs' | 'other'
+export const CATEGORIES: ReadonlyArray<{ id: Category; label: string }> = [
+  { id: 'transfers', label: 'Transfers' }, { id: 'metadata', label: 'Metadata' }, { id: 'backups', label: 'Backups' }, { id: 'playback', label: 'Playback' }, { id: 'jobs', label: 'Jobs' },
+]
+export function categoryOf(source: string): Category {
+  if (/\b(backup|restore)\b/i.test(source)) return 'backups'
+  if (/\b(playback|stream|range request)\b/i.test(source)) return 'playback'
+  if (/\b(metadata|scene match(?:ed|es)?|matched \d+ scenes)\b/i.test(source)) return 'metadata'
+  if (/\b(telegram|upload|transfer|download|send|sent|flood[\s_-]?wait)\b/i.test(source)) return 'transfers'
+  return 'other'
+}
+/** The Notifications page filter: everything, what needs attention (errors and warnings), or one category. */
+export type NoticeFilter = 'all' | 'attention' | Category
+export const matchesFilter = (n: Pick<Notice, 'tone' | 'category'>, f: NoticeFilter): boolean => f === 'all' || (f === 'attention' ? n.tone === 'error' || n.tone === 'warning' : n.category === f)
+
 export interface Notice {
+  category: Category
   kind: 'event' | 'job'
   icon: 'alert' | 'check' | 'upload' | 'database' | 'transfer'
   tone: Tone
@@ -108,7 +125,7 @@ export function eventToNotice(e: Row, now = Date.now()): Notice | null {
   const icon: Notice['icon'] = tone === 'error' || tone === 'warning' ? 'alert' : sendOk || /backup/i.test(source) ? 'check' : /upload|transfer/i.test(source) ? 'upload' : scene || /metadata/i.test(source) ? 'database' : 'check'
   const media = String(e.playback_id ?? e.media_id ?? e.message_id ?? '').trim().toLowerCase()
   const key = playbackFail ? `playback.failed|${media || Math.floor(t.date.getTime() / 120_000)}` : `${title.toLowerCase()}|${safeText(raw, 80).toLowerCase()}`
-  return { kind: 'event', icon, tone, title, meta: t.time, date: t.date, key, jobId: String(e.job_id ?? ''), sourceText: safe.toLowerCase() }
+  return { kind: 'event', category: categoryOf(source), icon, tone, title, meta: t.time, date: t.date, key, jobId: String(e.job_id ?? ''), sourceText: safe.toLowerCase() }
 }
 
 const ACTIVE = /^(RUNNING|ACTIVE|PAUSED|RECOVERING|RETRYING|RESUMING|STARTING)$/i
@@ -125,11 +142,11 @@ function jobToNotice(j: Row, now = Date.now()): (Notice & { sourceName: string }
   const pct = Number.isFinite(p) && p > 0 ? `${Math.round(p <= 1 ? p * 100 : p)}%` : ''
   const label = status === 'FAILED' || status === 'ERROR' ? 'Failed' : status === 'CANCELLED' ? 'Stopped' : status.charAt(0) + status.slice(1).toLowerCase()
   const id = String(j.id ?? j.job_id ?? '')
-  return { kind: 'job', icon: FAILED.test(status) ? 'alert' : 'transfer', tone: FAILED.test(status) ? 'error' : 'info', title: name, sourceName: name, jobId: id, meta: [label, pct, t.time].filter(Boolean).join(' · '), date: t.date, key: `job|${(id || name).toLowerCase()}|${status}`, sourceText: '' }
+  return { kind: 'job', category: 'jobs', icon: FAILED.test(status) ? 'alert' : 'transfer', tone: FAILED.test(status) ? 'error' : 'info', title: name, sourceName: name, jobId: id, meta: [label, pct, t.time].filter(Boolean).join(' · '), date: t.date, key: `job|${(id || name).toLowerCase()}|${status}`, sourceText: '' }
 }
 
-/** Newest first, at most eight: recent milestones and failures plus up to four active and three failed jobs. */
-export function buildNotifications(events: Row[], jobs: Row[], now = Date.now()): Notice[] {
+/** Newest first, at most `limit` (eight by default): recent milestones and failures plus up to four active and three failed jobs. */
+export function buildNotifications(events: Row[], jobs: Row[], now = Date.now(), limit = 8): Notice[] {
   const byKey = new Map<string, Notice>()
   for (const e of events.slice(-100)) {
     const n = eventToNotice(e, now)
@@ -141,7 +158,7 @@ export function buildNotifications(events: Row[], jobs: Row[], now = Date.now())
   const seen = new Set(events2.map((r) => r.key))
   const picked = [...cands.filter((r) => !/(?:failed|stopped)/i.test(r.meta)).slice(0, 4), ...cands.filter((r) => /(?:failed|stopped)/i.test(r.meta)).slice(0, 3)]
   for (const r of picked) if (!seen.has(r.key)) { seen.add(r.key); events2.push(r) }
-  return events2.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8)
+  return events2.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, limit)
 }
 
 export function groupByDay(rows: Notice[], now = new Date()): Array<[string, Notice[]]> {

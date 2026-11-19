@@ -36,5 +36,5 @@ a = Analysis([str(ROOT / "packaging" / "backend" / "entry.py")], pathex=[str(ROO
              hiddenimports=hiddenimports, excludes=["tkinter", "pytest", "IPython"], noarchive=False)
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="archive-x-backend", console=True,
-          upx=False, icon=None)          # console=True so the shell can read the ARCHIVE_X_READY line from stdout
+          upx=False, icon=str(ROOT / 'apps' / 'desktop' / 'src-tauri' / 'icons' / 'icon.ico'))          # console=True so the shell can read the ARCHIVE_X_READY line from stdout
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="archive-x-backend")

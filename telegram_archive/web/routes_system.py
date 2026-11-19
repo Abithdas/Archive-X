@@ -79,7 +79,10 @@ def register_system_routes(
         suffix = Path(name).suffix.lower()
         if "/" in name or "\\" in name or ".." in name or suffix not in ICON_TYPES:
             raise HTTPException(404)
-        for folder in ICON_DIRS:
+        folders = ICON_DIRS
+        if name == "archive-x.png":   # the app's own logo always comes from the app: a copy kept in the data folder by an older version must not outlive an update
+            folders = tuple(sorted(ICON_DIRS, key=lambda f: f != Path(__file__).resolve().parent / "static" / "icons"))
+        for folder in folders:
             if folder == config.PACKAGE_DIR.parent and name not in ICON_FILES.values():
                 continue
             path = folder / name

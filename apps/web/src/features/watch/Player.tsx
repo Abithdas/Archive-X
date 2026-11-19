@@ -38,7 +38,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
     window.addEventListener('pagehide', release)
     return () => { window.removeEventListener('pagehide', release); release() }
   }, [mediaCid, mediaMid])
-  useEffect(() => { startApplied.current = false; pendingStart.current = null; setStarted(false); setRes('') }, [src])   // a new video may have its own start position
+  useEffect(() => { startApplied.current = false; pendingStart.current = null; setStarted(false) }, [src])   // a new video may have its own start position
   const box = useRef<HTMLDivElement>(null)
   const [playing, setPlaying] = useState(false)
   const [time, setTime] = useState(0)
@@ -62,7 +62,6 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   const [loop, setLoop] = useState(false)
   const [block, setBlock] = useState(blockingEnabled)
   const [hint, setHint] = useState('')
-  const [res, setRes] = useState('')
   const [ratio, setRatio] = useState(16 / 9)   // the video's own shape, so the frame fits it instead of leaving black bars
   const [isFs, setIsFs] = useState(false)
   const [idle, setIdle] = useState(false)
@@ -168,7 +167,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   return (
     <div ref={box} onPointerMove={isFs ? wake : undefined} onKeyDown={isFs ? wake : undefined} onTouchStart={isFs ? wake : undefined}
       style={isFs ? undefined : ({ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${ratio.toFixed(4)})))` } as React.CSSProperties)}
-      className={cn(isFs ? 'relative h-full w-full bg-black' : cn('relative mx-auto grid w-full sm:w-[var(--pw)]', !overlay && 'gap-4 sm:gap-5'), hideBar && 'cursor-none [&_video]:cursor-none')}>
+      className={cn(isFs ? 'relative h-full w-full bg-black' : cn('relative grid w-full sm:w-[var(--pw)]', !overlay && 'gap-4 sm:gap-5'), hideBar && 'cursor-none [&_video]:cursor-none')}>
       <div data-caption-frame style={isFs ? undefined : { aspectRatio: ratio }} className={cn('@container relative w-full overflow-hidden bg-[#111215]', isFs ? 'absolute inset-0 h-full' : 'rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
         <video
           key={attempt}
@@ -188,7 +187,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
           onLoadedMetadata={(e) => {
             const v = e.currentTarget
             setDur(v.duration || durationHint || 0)
-            if (v.videoWidth) { setRes(`${v.videoWidth} × ${v.videoHeight}`); setRatio(Math.min(2.4, Math.max(0.5, v.videoWidth / v.videoHeight))) }
+            if (v.videoWidth) { setRatio(Math.min(2.4, Math.max(0.5, v.videoWidth / v.videoHeight))) }
             // Start where the viewer chose to resume, once per video (a retry keeps the position it reached).
             if (pendingStart.current !== null) { v.currentTime = clampTime(pendingStart.current, v.duration || durationHint || 0); pendingStart.current = null; startApplied.current = true }
             else if (startAt > 0 && !startApplied.current) { startApplied.current = true; v.currentTime = clampTime(startAt, v.duration || durationHint || 0) }
@@ -241,7 +240,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
           playing={playing} onToggle={toggle} onPrev={onPrev} onNext={onNext}
           rate={rate} onRate={(r) => { setRate(r); flash(`Speed: ${r}x`) }}
           muted={muted} volume={volume} onMute={() => setMuted(!muted)} onVolume={(v) => { setVolume(v); setMuted(false) }}
-          status={{ chip: buffer >= 99 ? 'Cached' : `${buffer}%`, good: buffer >= 99, rows: [{ k: 'Buffered', v: `${buffer}%`, good: buffer >= 99 }, { k: 'Playback', v: 'Direct' }, ...(res ? [{ k: 'Picture', v: res }] : [])] }}
+          status={{ chip: buffer >= 99 ? 'Cached' : `${buffer}%`, good: buffer >= 99, rows: [{ k: 'Buffered', v: `${buffer}%`, good: buffer >= 99 }, { k: 'Playback', v: 'Direct' }] }}
           pip={{ onClick: pip, label: 'Picture in picture', title: 'Picture in picture' }}
           tracksMenu={tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
           onFullscreen={full}

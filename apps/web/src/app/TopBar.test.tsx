@@ -78,7 +78,7 @@ describe('the top bar', () => {
     fireEvent.mouseDown(bar, { button: 0, detail: 2 })
     expect(invoke).toHaveBeenCalledWith('window_toggle_maximize', undefined)
     invoke.mockClear()
-    fireEvent.mouseDown(screen.getByRole('button', { name: /^Notifications/ }), { button: 0, detail: 1 })
+    fireEvent.mouseDown(screen.getByRole('link', { name: /^Notifications/ }), { button: 0, detail: 1 })
     fireEvent.mouseDown(within(screen.getByRole('navigation', { name: 'Pages' })).getByRole('link', { name: /Photos/ }), { button: 0, detail: 1 })
     expect(invoke).not.toHaveBeenCalledWith('window_drag', undefined)
   })

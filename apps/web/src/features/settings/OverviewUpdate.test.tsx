@@ -21,8 +21,14 @@ describe('Overview, app update', () => {
   it('is not there in a browser, where the desktop app does the updating', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{"ok":true,"jobs":[]}', { status: 200 })))
     withRouter(<OverviewPanel go={() => undefined} />)
-    await screen.findByRole('region', { name: 'Uploads and downloads' })
+    await screen.findByRole('region', { name: 'About' })
     expect(screen.queryByRole('region', { name: 'App update' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Uploads and downloads' })).toBeNull()      // not on this page any more
+  })
+  it('sits right above About', async () => {
+    desktop(base, { update_check: { ...base, phase: 'available', version: '30.5.0' } })
+    const card = await screen.findByRole('region', { name: 'App update' })
+    expect(card.nextElementSibling).toBe(screen.getByRole('region', { name: 'About' }))
   })
   it('says it is up to date, and looks again on request', async () => {
     const calls = desktop(base, { update_check: { ...base, phase: 'available', version: '30.5.0' } })

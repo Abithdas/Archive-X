@@ -20,3 +20,9 @@
 !macro NSIS_HOOK_PREUNINSTALL
   !insertmacro ArchiveXStopHelpers
 !macroend
+
+; Windows keeps the icon of every shortcut and of the taskbar in its own cache and does not look again when the program inside changes: after an
+; update the desktop shortcut, the Start menu entry and the pinned taskbar button kept showing the old logo. Tell Explorer that icons changed.
+!macro NSIS_HOOK_POSTINSTALL
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
+!macroend

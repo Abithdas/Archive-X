@@ -64,3 +64,19 @@ describe('groupByDay', () => {
     expect(g.map(([l, r]) => `${l}:${r.length}`)).toEqual(['Today:1', 'Yesterday:1', 'Earlier:1'])
   })
 })
+
+describe('categories', () => {
+  it('sorts what a notice is about, for the filter chips on the Notifications page', async () => {
+    const { categoryOf, matchesFilter } = await import('./notifications')
+    expect(categoryOf('backup verified')).toBe('backups')
+    expect(categoryOf('playback failed')).toBe('playback')
+    expect(categoryOf('range request timed out')).toBe('playback')
+    expect(categoryOf('matched 4 scenes')).toBe('metadata')
+    expect(categoryOf('telegram send failed')).toBe('transfers')
+    expect(categoryOf('something else')).toBe('other')
+    expect(matchesFilter({ tone: 'error', category: 'transfers' }, 'attention')).toBe(true)
+    expect(matchesFilter({ tone: 'success', category: 'transfers' }, 'attention')).toBe(false)
+    expect(matchesFilter({ tone: 'success', category: 'backups' }, 'backups')).toBe(true)
+    expect(matchesFilter({ tone: 'info', category: 'jobs' }, 'all')).toBe(true)
+  })
+})

@@ -1,6 +1,6 @@
 // Archive X service worker: keeps the app's own files so it opens fast and can be installed.
 // It never touches API calls, streams or sockets, and never caches pages, so sign-in state and data are always live.
-const CACHE = 'archive-x-static-v1'
+const CACHE = 'archive-x-static-v2'   // v2: the new logo (the icons keep their names, so an old cache would keep showing the old ones)
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) => {

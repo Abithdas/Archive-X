@@ -5,7 +5,7 @@ import { pinProblem } from './content'
 import { errorText, useChangePin, useContentMode } from './useContentMode'
 
 const BOX = 'rounded-[18px] border border-line bg-surface p-5'
-const INPUT = 'h-10 w-40 rounded-xl border border-line-2 bg-bg px-3 text-center tracking-[0.3em]'
+const INPUT = 'h-10 w-40 rounded-xl border border-line-2 bg-bg px-3 text-center tracking-[0.3em] focus-visible:border-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent'
 
 /** Settings, Security: the PIN that guards NSFW. (The SFW / NSFW switch itself is in the profile menu.) */
 export function NsfwPin() {

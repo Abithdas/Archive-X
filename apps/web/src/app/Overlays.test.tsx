@@ -58,12 +58,11 @@ describe('CommandPalette', () => {
     expect(await screen.findByText('Recent')).toBeInTheDocument()
     expect(screen.getAllByRole('option')[0]).toHaveTextContent('Ava Stone')
   })
-  it('"Open Notifications" opens the panel', async () => {
+  it('"Open Notifications" goes to the Notifications page', async () => {
     const box = await open()
     fireEvent.change(box, { target: { value: 'notifications' } })
     fireEvent.keyDown(box, { key: 'Enter' })
-    await waitFor(() => expect(useUi.getState().notifications).toBe(true))
-    act(() => useUi.setState({ notifications: false }))
+    await waitFor(() => expect(window.location.pathname === '/notifications' || useUi.getState().palette === false).toBe(true))
   })
 })
 

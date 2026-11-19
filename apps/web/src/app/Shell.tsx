@@ -17,7 +17,7 @@ import { runningLabel, useActivity } from './activity'
 import { AccountMenu } from './AccountMenu'
 import { CommandPalette } from './CommandPalette'
 import { MoreSheet } from './MoreSheet'
-import { NotificationsPanel, useUnseenCount } from './NotificationsPanel'
+import { useMarkSeenOnPage, useUnseenCount } from './NotificationsPanel'
 import { useSearch } from './search'
 import { toggleTheme, useTheme } from './theme'
 import { useUi } from './ui'
@@ -184,6 +184,7 @@ function Header({ live, items, activity, top, custom, maximized }: { live: strin
   const path = useRouterState({ select: (s) => s.location.pathname })
   const input = useRef<HTMLInputElement>(null)
   const notices = useUnseenCount()
+  useMarkSeenOnPage(path === '/notifications')
   const theme = useTheme()
   const navigate = useNavigate()
   const [loadLists, setLoadLists] = useState(false)   // the lists the suggestions come from are fetched the first time the box is used
@@ -229,9 +230,9 @@ function Header({ live, items, activity, top, custom, maximized }: { live: strin
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
         <TelegramPill from={top ? 'lg:inline-flex' : 'sm:inline-flex'} />
         <ThemeToggle theme={theme} onToggle={toggleTheme} className={cn(ICON_BTN, 'hidden', top ? 'lg:grid' : 'sm:grid')} />
-        <button type="button" onClick={() => useUi.getState().setNotifications(true)} aria-label={notices ? `Notifications, ${notices} new` : 'Notifications'} title="Notifications" className={cn(ICON_BTN, 'relative')}>
+        <Link to="/notifications" aria-label={notices ? `Notifications, ${notices} new` : 'Notifications'} title="Notifications" className={cn(ICON_BTN, 'relative')}>
           <Bell count={notices} />
-        </button>
+        </Link>
         <AccountMenu live={live} pillFrom={top ? 'lg' : 'sm'} />
       </div>
       {custom ? <WindowButtons maximized={maximized} /> : null}
@@ -344,7 +345,6 @@ export function Shell(): ReactNode {
         </button>
       </nav>
       <CommandPalette />
-      <NotificationsPanel />
       <MoreSheet />
     </div>
   )
