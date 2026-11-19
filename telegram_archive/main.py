@@ -82,8 +82,11 @@ def _run_desktop_server(app):
 
         asyncio.create_task(_announce_when_started())
         if not (os.getenv("ARCHIVE_X_LAUNCH_SECRET") or "").strip():
-            # Started by hand (no desktop shell): the window's hand-off link is the only way in, so print it.
-            print(f"  Open http://127.0.0.1:{port}/desktop/session?token={desktop_mode.launch_secret()}", flush=True)
+            # Started by hand (no desktop shell): the window's hand-off link is the only way in. It carries the launch secret, so it is opened
+            # in the browser rather than printed where a log or a terminal history would keep it.
+            import webbrowser
+            if not webbrowser.open(f"http://127.0.0.1:{port}/desktop/session?token={desktop_mode.launch_secret()}"):
+                print("  Archive X is running, but no browser could be opened. Set ARCHIVE_X_LAUNCH_SECRET and open /desktop/session?token=<it> yourself.", flush=True)
         await server.serve(sockets=[sock])
 
     asyncio.run(_serve())
