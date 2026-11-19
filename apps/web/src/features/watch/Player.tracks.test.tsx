@@ -31,6 +31,23 @@ describe('Player audio / subtitle menu', () => {
     await waitFor(() => expect(screen.getByTestId('caption')).toHaveTextContent('Hello there'))
   })
 
+  it('lists the subtitles of the add-ons (OpenSubtitles and others) and shows the chosen one', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url.includes('/api/play/tracks/')) return json(tracks)
+      if (url.includes('/api/screen/subtitles/')) return json({ ok: true, items: [{ token: 'tok1', language: 'eng', label: 'English · OpenSubtitles v3' }] })
+      if (url.includes('/api/screen/subtitle/tok1')) return Promise.resolve(new Response('1\n00:00:01,000 --> 00:00:03,000\nFrom the add-on\n', { status: 200 }))
+      return Promise.resolve(new Response('', { status: 404 }))
+    }))
+    const { container } = render(<Player src="/stream/-1/1" media={{ cid: '-1', mid: 1 }} durationHint={60} onOpenVlc={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Audio and subtitles' }))
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'English · OpenSubtitles v3' }))
+    const v = container.querySelector('video')!
+    Object.defineProperty(v, 'currentTime', { value: 2, configurable: true, writable: true })
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.some((c) => String(c[0]).includes('/api/screen/subtitle/tok1'))).toBe(true))
+    await act(async () => { fireEvent.timeUpdate(v) })
+    await waitFor(() => expect(screen.getByTestId('caption')).toHaveTextContent('From the add-on'))
+  })
+
   it('has no audio/subtitle menu when the server reports nothing to choose and no engine', async () => {
     vi.stubGlobal('fetch', vi.fn(() => json({ audio: [{ index: 1, ordinal: 0, label: 'a', language: '', default: true }], subtitles: [], captions: { available: false, engine: '', install: 'x' } })))
     render(<Player src="/stream/-1/1" media={{ cid: '-1', mid: 1 }} durationHint={60} onOpenVlc={() => {}} />)

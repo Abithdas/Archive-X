@@ -28,6 +28,9 @@ export function CcMenu({ info, audio, sub, live, altBusy, onAudio, onSub, drop }
           {info.subtitles.filter((s: SubtitleTrack) => s.text).map((s: SubtitleTrack) => (
             <MenuItem key={s.index} active={sub.kind === 'track' && sub.index === s.index} onClick={() => onSub({ kind: 'track', index: s.index }, s.language)}><span className="min-w-0 truncate" title={s.label}>{s.label}</span></MenuItem>
           ))}
+          {(info.addon ?? []).map((a) => (
+            <MenuItem key={a.token} active={sub.kind === 'addon' && sub.token === a.token} onClick={() => onSub({ kind: 'addon', token: a.token }, a.language)}><span className="min-w-0 truncate" title={a.label}>{a.label}</span></MenuItem>
+          ))}
           {info.captions.available ? (<>
             <MenuItem active={sub.kind === 'live' && !sub.original} onClick={() => onSub({ kind: 'live' })}>Live captions → English{sub.kind === 'live' && !sub.original ? state : null}</MenuItem>
             <MenuItem active={sub.kind === 'live' && !!sub.original} onClick={() => onSub({ kind: 'live', original: true })}>Live captions · original language{sub.kind === 'live' && sub.original ? state : null}</MenuItem>

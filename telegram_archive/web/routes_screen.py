@@ -463,6 +463,74 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 resp.close()
         return StreamingResponse(body(), status_code=getattr(resp, "status", 200) or 200, headers=headers)
 
+    # ------------------------------------------------------------------
+    # Subtitles from the person's add-ons (the official OpenSubtitles add-on and others) for a video of the library whose title has an IMDb number.
+    # ------------------------------------------------------------------
+    sub_tokens: dict[str, tuple[float, str]] = {}
+    LANGS = {"eng": "English", "spa": "Spanish", "fre": "French", "fra": "French", "ger": "German", "deu": "German", "ita": "Italian", "por": "Portuguese", "pob": "Portuguese (Brazil)",
+             "rus": "Russian", "jpn": "Japanese", "kor": "Korean", "chi": "Chinese", "zho": "Chinese", "ara": "Arabic", "hin": "Hindi", "tur": "Turkish", "dut": "Dutch", "nld": "Dutch",
+             "pol": "Polish", "swe": "Swedish", "ind": "Indonesian", "vie": "Vietnamese", "tha": "Thai", "ben": "Bengali", "tam": "Tamil", "tel": "Telugu", "heb": "Hebrew", "gre": "Greek"}
+
+    @router.get("/api/screen/subtitles/{cid}/{mid}")
+    async def addon_subtitles(cid: str, mid: int, request: Request):
+        """Subtitle files the person's add-ons have for this video (by its IMDb number, and season and episode for a show), listed by language. Nothing is fetched until one is chosen."""
+        require_auth(request)
+
+        def work():
+            with db.reading() as c:
+                row = c.execute("SELECT t.imdb_id, t.kind, s.season, s.episode FROM media m JOIN media_screen s ON s.media_id=m.id AND s.state='MATCHED' JOIN screen_titles t ON t.id=s.title_id "
+                                "WHERE m.source_channel=? AND m.source_message_id=?", (cid, mid)).fetchone()
+            if not row or not re.fullmatch(r"tt\d{5,10}", str(row["imdb_id"] or "")):
+                return {"ok": True, "items": []}
+            kind = "series" if row["kind"] == "tv" else "movie"
+            ident = row["imdb_id"]
+            sid_ = ident if kind == "movie" else (f"{ident}:{int(row['season'])}:{int(row['episode'])}" if row["season"] is not None and row["episode"] is not None else "")
+            if not sid_:
+                return {"ok": True, "items": []}
+            _sync_local()
+            items: list[dict] = []
+            now = _time.monotonic()
+            for k in [k for k, (at, _u) in sub_tokens.items() if now - at > 7200]:
+                sub_tokens.pop(k, None)
+            for a in _saved_addons():
+                try:
+                    manifest = _addon_json(a["url"] + "/manifest.json")
+                    if not isinstance(manifest, dict) or not _asks_for(manifest, "subtitles", kind, ident):
+                        continue
+                    name = str(manifest.get("name") or a["name"] or "Add-on")[:40]
+                    got = _addon_json(f"{a['url']}/subtitles/{kind}/{si.quote(sid_, safe='')}.json")
+                except Exception:
+                    continue
+                for sub in ((got or {}).get("subtitles") or [])[:120] if isinstance(got, dict) else []:
+                    if not isinstance(sub, dict) or not isinstance(sub.get("url"), str) or not ac.stream_origin(sub["url"]):
+                        continue
+                    lang = str(sub.get("lang") or "")[:12]
+                    if len(sub_tokens) > 600:
+                        sub_tokens.clear()
+                    token = _secrets.token_urlsafe(12)
+                    sub_tokens[token] = (now, sub["url"])
+                    items.append({"token": token, "language": lang, "label": f"{LANGS.get(lang.lower(), lang.upper() or 'Unknown')} · {name}"})
+            items.sort(key=lambda x: (x["language"].lower() != "eng", x["label"]))
+            return {"ok": True, "items": items[:60]}
+        return await asyncio.to_thread(work)
+
+    @router.get("/api/screen/subtitle/{token}")
+    async def addon_subtitle_file(token: str, request: Request):
+        """One subtitle file that was listed, as text the player reads (SRT or WebVTT)."""
+        require_auth(request)
+        hit = sub_tokens.get(token)
+        if not hit:
+            raise HTTPException(404, "That subtitle is no longer available. Open the video again.")
+
+        def read():
+            _sync_local()
+            return ac.subtitle_text(hit[1])
+        try:
+            text = await asyncio.to_thread(read)
+        except Exception as exc:
+            raise HTTPException(502, "The subtitle could not be fetched.") from exc
+        return Response(content=text, media_type="text/vtt; charset=utf-8", headers={"Cache-Control": "no-store"})
+
     @router.post("/api/screen/addons/settings")
     async def addons_settings(request: Request):
         """The switch for add-ons on this PC or network."""

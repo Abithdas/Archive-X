@@ -310,7 +310,7 @@ def test_any_stremio_addon_can_be_added_and_the_one_on_this_pc_needs_the_switch(
     streams = ac.parse_manifest({"name": "Streams only", "resources": ["stream"], "catalogs": []})
     assert streams["lists"] == [] and streams["provides"] == ["Streams"] and "Title pages ask for streams" in streams["note"] and "no lists" in streams["note"]
     subs = ac.parse_manifest({"name": "Subs", "resources": ["subtitles", {"name": "meta", "types": ["movie"]}]})
-    assert subs["provides"] == ["Subtitles", "Details"] and "not used yet" in subs["note"]
+    assert subs["provides"] == ["Subtitles", "Details"] and "subtitle menu" in subs["note"]
     typed = ac.parse_manifest({"name": "Typed", "resources": ["catalog"], "catalogs": [{"type": "movie", "id": "s", "extra": [{"name": "search", "isRequired": True}]}]})
     assert typed["lists"] == [] and typed["provides"] == ["Lists"]
     with pytest.raises(ValueError, match="Stremio add-on"):
@@ -443,3 +443,33 @@ def test_a_stream_is_played_only_from_an_own_source_or_a_public_https_host(monke
     finally:
         ac.set_allow_local(False)
 
+
+
+def test_subtitles_from_an_addon_are_listed_for_a_library_video_and_fetched_on_choice(tmp_path, monkeypatch):
+    from telegram_archive.metadata import addon_client as ac
+    manifests = {"https://os.example": {"name": "OpenSubtitles v3", "resources": ["subtitles"], "types": ["movie", "series"], "idPrefixes": ["tt"], "catalogs": []}}
+    asked: list[str] = []
+
+    def get_json(url):
+        asked.append(url)
+        if url.endswith("/manifest.json"):
+            return manifests[url.split("/manifest.json")[0]]
+        if "/subtitles/movie/tt0133093.json" in url or "/subtitles/series/tt0903747%3A1%3A1.json" in url:
+            return {"subtitles": [{"id": "1", "url": "https://subs5.example/en/1.srt", "lang": "spa"}, {"id": "2", "url": "https://subs5.example/en/2.srt", "lang": "eng"},
+                                  {"id": "3", "url": "http://192.168.1.5/x.srt", "lang": "fre"}]}
+        return {}
+    monkeypatch.setattr(ac, "get_json", get_json)
+    monkeypatch.setattr(ac, "_resolve", lambda host: PUBLIC)
+    monkeypatch.setattr(ac, "open_stream", lambda url, byte_range="": __import__("io").BytesIO(b"1\n00:00:01,000 --> 00:00:02,000\nHello\n"))
+    db = Database(tmp_path / "sub.db")
+    _library(db)
+    c = _client(db)
+    db.set_setting("catalog_addons", [{"id": "0123456789", "url": "https://os.example", "name": "OpenSubtitles v3"}])
+    got = c.get("/api/screen/subtitles/-9000000000001/1").json()
+    assert [i["label"] for i in got["items"]] == ["English · OpenSubtitles v3", "Spanish · OpenSubtitles v3"]      # English first; the home-network file is left out
+    assert all("url" not in i for i in got["items"])
+    assert len(c.get("/api/screen/subtitles/-9000000000001/2").json()["items"]) == 2                              # an episode asks with its season and episode
+    assert c.get("/api/screen/subtitles/-9000000000001/99").json()["items"] == []                                 # not a video the library knows
+    body = c.get("/api/screen/subtitle/" + got["items"][0]["token"])
+    assert body.status_code == 200 and "Hello" in body.text and body.headers["content-type"].startswith("text/vtt")
+    assert c.get("/api/screen/subtitle/nope").status_code == 404

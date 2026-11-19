@@ -136,7 +136,7 @@ describe('SFW Home', () => {
 
   it('shows the anime lists from their own numbers: Kind does not apply, and a title opens its own page', async () => {
     const anime = { imdb: 'kitsu:12', kind: 'tv', title: 'One Piece', year: 1999, poster: '', background: '', rating: '', overview: 'Pirates.', genres: ['Action'], library: null }
-    const urls = mount((u) => (u.includes('catalog=anime-series') ? json({ ok: true, items: [anime], more: false }) : undefined))
+    mount((u) => (u.includes('catalog=anime-series') ? json({ ok: true, items: [anime], more: false }) : undefined))
     await toDiscover()
     fireEvent.click(await screen.findByRole('button', { name: /Filters/ }))
     fireEvent.click(within(screen.getByRole('group', { name: 'List' })).getByRole('button', { name: 'Top anime series' }))

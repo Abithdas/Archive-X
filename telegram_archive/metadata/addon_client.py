@@ -177,6 +177,18 @@ def open_stream(url: str, byte_range: str = ""):
     return urllib.request.build_opener(_StreamGuard).open(urllib.request.Request(url, headers=headers), timeout=TIMEOUT)
 
 
+def subtitle_text(url: str) -> str:
+    """The text of a subtitle file an add-on listed (SRT or WebVTT), from a host a stream could be played from; at most 3 MB, decoded as UTF-8 or else Latin-1."""
+    with open_stream(url) as resp:
+        raw = resp.read(3 * 1024 * 1024 + 1)
+    if len(raw) > 3 * 1024 * 1024:
+        raise ValueError("That subtitle file is too large.")
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1")
+
+
 def classify_streams(streams, addon: str) -> tuple[list[dict], int]:
     """An add-on's streams as the title page shows them: links that open elsewhere, direct streams that play here, direct streams that do not. Anything else is counted and left out."""
     out: list[dict] = []
@@ -227,6 +239,6 @@ def parse_manifest(manifest) -> dict:
     if "stream" in resources:
         notes.append("Title pages ask for streams. Only direct streams from your own sources or public HTTPS hosts are played here.")
     if "subtitles" in resources:
-        notes.append("Subtitles from add-ons are not used yet.")
+        notes.append("Its subtitles are offered in the video player's subtitle menu for titles that have an IMDb number.")
     return {"name": str(manifest.get("name") or "Add-on")[:60], "description": str(manifest.get("description") or "")[:240], "version": str(manifest.get("version") or "")[:20],
             "lists": lists[:40], "provides": provides, "note": " ".join(notes)}

@@ -1,7 +1,7 @@
 import { toast } from 'sonner'
 import { routeThroughApp } from './audioGraph'
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
-import { CAPTION_WINDOW, activeText, initialChoice, loadPrefs, mergeCues, parseVtt, savePrefs, windowStart, type AudioTrack, type Cue, type SubChoice, type TrackInfo } from './tracks'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { CAPTION_WINDOW, activeText, initialChoice, loadPrefs, mergeCues, parseVtt, savePrefs, windowStart, type AddonSub, type AudioTrack, type Cue, type SubChoice, type TrackInfo } from './tracks'
 
 export interface MediaRef { cid: string; mid: number }
 export type LiveState = 'idle' | 'working' | 'error'
@@ -17,7 +17,9 @@ const getJson = async <T,>(url: string, signal?: AbortSignal): Promise<T> => {
 
 /** Audio tracks, subtitle tracks and live English captions of one video; the caller shows `text` and plays `altAudioUrl`. */
 export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVideoElement | null>, time: number, playing: boolean, shift = 0) {
-  const [info, setInfo] = useState<TrackInfo | null>(null)
+  const [info, setInfoBase] = useState<TrackInfo | null>(null)
+  const [addonSubs, setAddonSubs] = useState<AddonSub[]>([])
+  const setInfo = setInfoBase
   const [audio, setAudioState] = useState<number | null>(null)     // null: the video's own audio
   const [sub, setSubState] = useState<SubChoice>({ kind: 'off' })
   const [cues, setCues] = useState<Cue[]>([])
@@ -53,6 +55,33 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
     })
     return () => { dead = true }
   }, [key])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Subtitle files from the person's add-ons (OpenSubtitles and others) for a video of the library that has an IMDb number: listed once per video, fetched when chosen.
+  useEffect(() => {
+    setAddonSubs([])
+    if (!media) return
+    let dead = false
+    getJson<{ items: AddonSub[] }>(`/api/screen/subtitles/${encodeURIComponent(media.cid)}/${media.mid}`).then((r) => {
+      if (dead) return
+      const list = Array.isArray(r.items) ? r.items : []
+      setAddonSubs(list)
+      const prefs = loadPrefs()
+      const want = prefs.sub === 'addon' ? prefs.subLanguage?.toLowerCase().slice(0, 2) : undefined
+      const hit = want ? list.find((x) => x.language.toLowerCase().slice(0, 2) === want) : undefined
+      if (hit) setSubState((cur) => (cur.kind === 'off' ? { kind: 'addon', token: hit.token } : cur))
+    }).catch(() => { /* no add-on subtitles: the menu simply does not list any */ })
+    return () => { dead = true }
+  }, [key])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A subtitle file from an add-on: fetch the whole file once.
+  useEffect(() => {
+    if (sub.kind !== 'addon') return
+    let dead = false
+    fetch(`/api/screen/subtitle/${encodeURIComponent(sub.token)}`, { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
+      .then((t) => { if (!dead) setCues(parseVtt(t)) }).catch(() => { if (!dead) { setCues([]); toast.error('That subtitle could not be loaded. Try another one.', { id: 'addon-sub' }) } })
+    return () => { dead = true }
+  }, [sub])
 
   // An embedded subtitle track: fetch the whole file once.
   useEffect(() => {
@@ -148,14 +177,15 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
   }, [])
   const pickSub = useCallback((c: SubChoice, language = '') => {
     setSubState(c)
-    savePrefs({ ...loadPrefs(), liveOriginal: c.kind === 'live' ? !!c.original : loadPrefs().liveOriginal, sub: c.kind === 'off' ? 'off' : c.kind, subLanguage: c.kind === 'track' ? language || undefined : loadPrefs().subLanguage })
+    savePrefs({ ...loadPrefs(), liveOriginal: c.kind === 'live' ? !!c.original : loadPrefs().liveOriginal, sub: c.kind === 'off' ? 'off' : c.kind, subLanguage: c.kind === 'track' || c.kind === 'addon' ? language || undefined : loadPrefs().subLanguage })
   }, [])
 
-  const text = sub.kind === 'off' ? '' : activeText(cues, sub.kind === 'track' ? time - shift : time)   // a shift of +1 s shows each line one second later
+  const text = sub.kind === 'off' ? '' : activeText(cues, sub.kind === 'track' || sub.kind === 'addon' ? time - shift : time)   // a shift of +1 s shows each line one second later
   void video
   /** One plain line about live captions while they are not showing text yet ('' when nothing needs saying). */
   const liveStatus = sub.kind !== 'live' ? '' : model === 'error' || live === 'error' ? `Live captions failed${liveError ? `: ${liveError}` : ''}` : model !== 'ready' ? 'Live captions: getting the speech model ready…' : live === 'working' && !cues.length ? 'Live captions: listening…' : ''
-  return { info, audio, sub, text, live, liveStatus, altUrl, altBusy, pickAudio, pickSub }
+  const merged = useMemo(() => (info ? { ...info, addon: addonSubs } : info), [info, addonSubs])
+  return { info: merged, audio, sub, text, live, liveStatus, altUrl, altBusy, pickAudio, pickSub }
 }
 export type TrackState = ReturnType<typeof useTracks>
 
