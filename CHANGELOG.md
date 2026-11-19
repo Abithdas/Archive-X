@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Native player: the video window no longer stays behind on the page after you scroll (the player's own timer brought it back after the page had hidden it).
+- A local video whose file is gone now says so instead of "opening the address failed".
 - Top bar on the SFW Home page: the colour change is a smooth fade, and the page no longer jumps when the bar changes (it used to leave and re-enter the layout).
 
 ## 30.11.0 (2026-11-19)

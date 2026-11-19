@@ -171,6 +171,7 @@ struct AxPlayer {
     HWND window = nullptr;
     bool own_window = false;
     HWND parent_hwnd = nullptr;
+    std::atomic<bool> page_hid{false};                       // the page asked for the window to be hidden (ax_hide); follow_parent must not bring it back until it is placed again
     std::atomic<HWND> hide_target{nullptr};                  // the video window, readable from any thread (see ax_hide)
     int last_x = 0, last_y = 0, last_w = 1, last_h = 1;   // where the video window was last put (in the parent window)
     int popup_x = INT_MIN, popup_y = INT_MIN;               // where the popup window is on screen
@@ -294,6 +295,7 @@ struct AxPlayer {
     void place(int x, int y, int w, int h) {
         last_x = x; last_y = y; last_w = std::max(w, 1); last_h = std::max(h, 1);
         if (!window) return;
+        page_hid.store(false);   // placing the window shows it (SWP_SHOWWINDOW below)
         if (popup()) {
             POINT pt{x, y};
             ClientToScreen(parent_hwnd, &pt);
@@ -311,6 +313,7 @@ struct AxPlayer {
     void follow_parent() {
         if (!window || !popup()) return;
         bool want = IsWindowVisible(parent_hwnd) && !IsIconic(parent_hwnd);
+        if (want && page_hid.load()) return;   // hidden by the page (scrolled out of view, a menu open): only place() shows it again
         if (want != (IsWindowVisible(window) != 0)) ShowWindow(window, want ? SW_SHOWNOACTIVATE : SW_HIDE);
         if (!want) return;
         POINT pt{last_x, last_y};
@@ -832,6 +835,7 @@ AXAPI int ax_open(AxPlayer *p, const wchar_t *url, const wchar_t *user_agent, vo
 
 AXAPI void ax_hide(AxPlayer *p) {
     if (!p) return;
+    p->page_hid.store(true);
     if (HWND w = p->hide_target.load()) {
         // ASYNCWINDOWPOS posts the request to the window's thread instead of waiting for it.
         SetWindowPos(w, nullptr, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
