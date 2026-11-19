@@ -54,7 +54,10 @@ describe('SFW Home', () => {
     expect(await screen.findByText(/Keanu Reeves/)).toBeInTheDocument()                                  // the details came from the catalogue
     expect(screen.getByRole('link', { name: 'Watch the trailer' })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=m8e-FF8MsqU')
     fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]!)
+    expect(screen.getByRole('heading', { name: 'Popular movies' })).toBeInTheDocument()
+    expect([...screen.getByLabelText('Genre').querySelectorAll('option')].map((o) => o.textContent)).toEqual(expect.arrayContaining(['All genres', 'Biography', 'History', 'Sport']))
     fireEvent.change(screen.getByLabelText('Genre'), { target: { value: 'Drama' } })
+    expect(await screen.findByRole('heading', { name: 'Drama movies' })).toBeInTheDocument()            // the page says which genre is on
     await vi.waitFor(() => expect(urls.some((u) => u.includes('genre=Drama'))).toBe(true))
     fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'series' } })
     await vi.waitFor(() => expect(urls.some((u) => u.includes('type=series'))).toBe(true))

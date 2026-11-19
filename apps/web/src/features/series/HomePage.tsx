@@ -18,7 +18,7 @@ import { SeriesList } from './SeriesPage'
 import { countText } from './series'
 import { useHomeTab, useScreenView, type HomeTab } from './view'
 
-const GENRES = ['Action', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Family', 'Fantasy', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western']
+const GENRES = ['Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Family', 'Fantasy', 'History', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Sport', 'Thriller', 'War', 'Western']
 
 interface Billboard { id: number; kind: 'tv' | 'movie'; title: string; year: number | null; overview: string; backdrop: string; poster: string; genres: string[]; rating: number | null }
 interface Resume { cid: string; mid: number; title: string; sub: string; image: string; pct: number; left: number }
@@ -195,10 +195,10 @@ function Discover({ text, kind, setKind, genre, setGenre }: { text: string; kind
   return (
     <section aria-label="Discover" className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-extrabold tracking-tight">{search ? `Results for “${search}”` : 'Discover'}</h2>
+        <h2 className="text-xl font-extrabold tracking-tight">{search ? `Results for “${search}”` : genre ? `${genre} ${kind === 'movie' ? 'movies' : 'series'}` : `Popular ${kind === 'movie' ? 'movies' : 'series'}`}</h2>
         <div className="flex flex-wrap items-center gap-3">
           <select aria-label="Kind" value={kind} onChange={(e) => { setKind(e.target.value as Kind); setFocus(null) }} className={SELECT}><option value="movie">Movies</option><option value="series">Series</option></select>
-          <select aria-label="Genre" value={genre} disabled={Boolean(search)} onChange={(e) => { setGenre(e.target.value); setFocus(null) }} className={SELECT}><option value="">Popular</option>{GENRES.map((g) => <option key={g} value={g}>{g}</option>)}</select>
+          <select aria-label="Genre" value={genre} disabled={Boolean(search)} onChange={(e) => { setGenre(e.target.value); setFocus(null) }} className={cn(SELECT, genre && 'border-accent/60 bg-accent/10')}><option value="">All genres</option>{GENRES.map((g) => <option key={g} value={g}>{g}</option>)}</select>
         </div>
       </div>
       {off ? <p role="status" className="rounded-2xl border border-dashed border-line p-6 text-sm text-muted">Discover uses Cinemeta, the Stremio project's open catalogue, and it is switched off. Turn it on in Settings, Metadata.</p>
