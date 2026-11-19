@@ -42,7 +42,7 @@ body:
     id: logs
     attributes:
       label: Logs and screenshots
-      description: In the app, Settings, Overview, "Download logs" gives one zip. Drag it here, or a screenshot.
+      description: On the Operations page, "Download logs (.zip)" gives one zip (it only works in NSFW mode, because logs can name adult files). Drag it here, or a screenshot.
   - type: input
     id: system
     attributes:
