@@ -11,7 +11,7 @@
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use archive_x_native_player::{Engine, HwAccel, Options, Player, Rect, VideoLayer};
 use serde::Serialize;
@@ -33,7 +33,7 @@ pub struct NativeState {
 #[derive(Default)]
 struct Inner {
     engine: Option<Engine>,
-    player: Option<Player>,
+    player: Option<Arc<Player>>,
 }
 
 /// Where the engine and the LAV filters are: the bundled copies, or the paths in ARCHIVE_X_AXPLAYER_DLL / ARCHIVE_X_LAV_DIR (development).
@@ -194,17 +194,17 @@ pub async fn native_open(
     let opened = Opened { duration: s.duration, width: s.video_width, height: s.video_height, decoder: player.decoder(), layer: layer_name(layer) };
     let mut inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
     if state.generation.load(Ordering::SeqCst) != mine {
-        retire(Some(player));
+        retire(Some(Arc::new(player)));
         return Err("the video was closed while it was opening".into());
     }
     let _ = window.set_background_color(background_for(layer));
-    inner.player = Some(player);
+    inner.player = Some(Arc::new(player));
     Ok(opened)
 }
 
 /// Take a player down without making anybody wait: the picture goes at once, and the rest (stopping the stream can take seconds when the
 /// source is slow) happens on its own thread. Waiting here froze the app's window, which shares an input queue with the video window.
-fn retire(player: Option<Player>) {
+fn retire(player: Option<Arc<Player>>) {
     let Some(player) = player else { return };
     player.hide();
     std::thread::spawn(move || {
@@ -228,7 +228,8 @@ pub async fn native_command(window: WebviewWindow, state: State<'_, NativeState>
         let _ = window.set_background_color(Some(PAGE_BACKGROUND));
         return Ok(());
     }
-    let p = inner.player.as_ref().ok_or("no video is open")?;
+    let p = inner.player.clone().ok_or("no video is open")?;
+    drop(inner); // engine calls (a seek on a slow stream) run without the lock, so hide and close never wait behind them
     let v = value.unwrap_or(0.0);
     let result = match command.as_str() {
         "play" => p.play(),
@@ -257,8 +258,8 @@ pub async fn native_command(window: WebviewWindow, state: State<'_, NativeState>
 /// Moves the video window (the page's player area changed: resize, scroll, zoom).
 #[tauri::command]
 pub async fn native_rect(state: State<'_, NativeState>, x: i32, y: i32, w: i32, h: i32) -> Result<(), String> {
-    let inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
-    match inner.player.as_ref() {
+    let player = state.inner.lock().map_err(|_| "the player is busy".to_string())?.player.clone();
+    match player {
         Some(p) => p.set_rect(Rect { x, y, w, h }).map_err(|e| e.to_string()),
         None => Ok(()),
     }
@@ -266,8 +267,7 @@ pub async fn native_rect(state: State<'_, NativeState>, x: i32, y: i32, w: i32, 
 
 #[tauri::command]
 pub async fn native_state(state: State<'_, NativeState>) -> Result<Snapshot, String> {
-    let inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
-    let p = inner.player.as_ref().ok_or("no video is open")?;
+    let p = state.inner.lock().map_err(|_| "the player is busy".to_string())?.player.clone().ok_or("no video is open")?;
     let s = p.state();
     Ok(Snapshot {
         position: s.position,
@@ -294,15 +294,13 @@ pub async fn native_state(state: State<'_, NativeState>) -> Result<Snapshot, Str
 /// A plain-text report of the player's windows, renderer counters and what is on screen, for the page to show and send to support.
 #[tauri::command]
 pub async fn native_diagnostics(state: State<'_, NativeState>) -> Result<String, String> {
-    let inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
-    let p = inner.player.as_ref().ok_or("no video is open")?;
+    let p = state.inner.lock().map_err(|_| "the player is busy".to_string())?.player.clone().ok_or("no video is open")?;
     Ok(p.diagnostics())
 }
 
 #[tauri::command]
 pub async fn native_tracks(state: State<'_, NativeState>) -> Result<Vec<Track>, String> {
-    let inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
-    let p = inner.player.as_ref().ok_or("no video is open")?;
+    let p = state.inner.lock().map_err(|_| "the player is busy".to_string())?.player.clone().ok_or("no video is open")?;
     Ok(p.audio_tracks().map_err(|e| e.to_string())?.into_iter().map(|t| Track { name: t.name, selected: t.selected }).collect())
 }
 

@@ -6,6 +6,12 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 - Direct streams from configured Stremio add-ons can now play from public HTTPS hosts that resolve only to public IP addresses. Local or private sources still require the existing setting; redirects follow the same checks.
 
+## Unreleased
+
+- Native player: hide and close no longer wait behind a slow seek (the player is taken out from under the shared lock before the engine is called)
+- Native player: an engine error after the video opened now shows the error panel instead of an empty picture
+- SFW: the log list and the log zip are closed in SFW like the other log downloads
+
 ## 30.11.1 (2026-11-19)
 
 - Native full screen: the video fills the screen above the bar (black bars come from the picture's own shape), with square corners and no light margin at the sides.

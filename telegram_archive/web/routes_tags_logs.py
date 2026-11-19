@@ -135,6 +135,7 @@ def register_tags_logs_routes(
         window cannot always show a save dialog). Parts that fail or take too long are noted inside the zip instead of losing the rest.
         """
         require_auth(request)
+        _no_logs_in_sfw()
         import shutil
         import tempfile
         from concurrent.futures import ThreadPoolExecutor

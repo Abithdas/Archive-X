@@ -172,6 +172,7 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
       busy = true
       native.state().then((s) => {
         setSnap(s)
+        if (s.error && !s.playing) { setPhase('failed'); setMessage(s.message || 'the engine stopped while playing'); return }
         if (s.playing && !startedRef.current) { startedRef.current = true; setStarted(true) }
         const r = stallStep(stall.current, Date.now(), s.position, { playing: s.playing, rate: rateRef.current })
         stall.current = r.state

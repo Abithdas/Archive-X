@@ -316,6 +316,9 @@ def register_system_routes(
     @router.get("/api/diagnostics/logs")
     async def diagnostics_logs(request: Request, limit: int = 120, level: str = ""):
         require_auth(request)
+        from ..core import content_mode as _cm
+        if _cm.get_mode(db) == "sfw":
+            raise HTTPException(403, "Logs can mention adult file and channel names. Switch to NSFW to read them.")
         from ..core.diagnostics import recent_structured_events
         items = recent_structured_events(limit=max(1, min(int(limit or 120), 500)))
         wanted = str(level or "").strip().upper()

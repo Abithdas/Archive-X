@@ -66,7 +66,7 @@ def test_raw_logs_and_reports_are_exported_from_nsfw_only(tmp_path):
     db = _db(tmp_path)
     db.log(M + " moved " + M + " file.mp4")
     c, H = _client(db)
-    for url in ("/api/log/download", "/api/diagnostics/report", "/api/diagnostics/report/html"):
+    for url in ("/api/log/download", "/api/diagnostics/report", "/api/diagnostics/report/html", "/api/diagnostics/logs", "/api/diagnostics/logs.zip"):
         r = c.get(url)
         assert r.status_code == 403 and M not in r.text, url
     _nsfw(c, H)
