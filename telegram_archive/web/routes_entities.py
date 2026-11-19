@@ -171,7 +171,7 @@ def register_entity_routes(
     async def performer_gallery_list(performer_id: int, request: Request):
         """The pictures kept for this performer, whether a download is running, and how many serve as face references."""
         require_auth(request)
-        _gallery_performer(performer_id)
+        await asyncio.to_thread(_gallery_performer, performer_id)   # takes the database lock: never on the event loop
         from ..engines import performer_gallery
         return {"ok": True, **await asyncio.to_thread(performer_gallery.list_pictures, db, performer_id)}
 
@@ -189,7 +189,7 @@ def register_entity_routes(
     async def performer_gallery_refresh(performer_id: int, request: Request):
         """Fetch the pictures the providers hold of this performer that are not kept yet (runs in the background)."""
         require_auth(request)
-        row = _gallery_performer(performer_id)
+        row = await asyncio.to_thread(_gallery_performer, performer_id)
         if str(row["name"] or "").strip().casefold() == "unknown performer":
             raise HTTPException(400, "The Unknown Performer profile has no provider pictures")
         from ..engines import performer_gallery
@@ -200,7 +200,7 @@ def register_entity_routes(
     async def performer_gallery_from_videos(performer_id: int, request: Request):
         """Search the snapshots of the videos mapped to this performer for their face and keep the best ones as gallery pictures."""
         require_auth(request)
-        row = _gallery_performer(performer_id)
+        row = await asyncio.to_thread(_gallery_performer, performer_id)
         if str(row["name"] or "").strip().casefold() == "unknown performer":
             raise HTTPException(400, "The Unknown Performer profile has no face to look for")
         from ..engines import performer_snapshot_faces, snapshot_identity
@@ -218,7 +218,7 @@ def register_entity_routes(
     async def performer_gallery_use_as_profile(performer_id: int, picture_id: int, request: Request):
         """Use a gallery picture as the performer's profile picture (kept: provider syncs do not replace it)."""
         require_auth(request)
-        _gallery_performer(performer_id)
+        await asyncio.to_thread(_gallery_performer, performer_id)
         from ..engines import performer_gallery
         if not await asyncio.to_thread(performer_gallery.use_as_profile_picture, db, performer_id, picture_id):
             raise HTTPException(404, "Picture not found")

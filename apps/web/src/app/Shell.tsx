@@ -197,7 +197,7 @@ function Header({ live, items, activity, top, custom, maximized }: { live: strin
   }, [focusTick])
   /** In the desktop app the bar is the window's title bar: pressing an empty part of it moves the window, a double press maximises or restores it. */
   const onBarDown = (e: ReactMouseEvent) => {
-    if (e.button !== 0 || (e.target as HTMLElement).closest('a, button, input, textarea, select, [role="combobox"], [role="listbox"], [data-nodrag]')) return
+    if (e.button !== 0 || (e.target as HTMLElement).closest('a, button, input, textarea, select, [role="combobox"], [role="listbox"], [role="menu"], [popover], dialog, [data-nodrag]')) return
     if (e.detail >= 2) void windowActions.toggleMaximize()
     else void windowActions.drag()
   }

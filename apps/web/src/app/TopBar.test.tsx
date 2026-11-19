@@ -83,6 +83,18 @@ describe('the top bar', () => {
     expect(invoke).not.toHaveBeenCalledWith('window_drag', undefined)
   })
 
+  it('does not move or maximize the window when text inside the account menu or a dialog is pressed', async () => {
+    const invoke = desktop()
+    const { container } = mount()
+    await screen.findByRole('button', { name: 'Close window' })
+    const menu = container.querySelector('[role="menu"]')!
+    invoke.mockClear()
+    fireEvent.mouseDown(menu.querySelector('div')!, { button: 0, detail: 1 })
+    fireEvent.mouseDown(menu.querySelector('div')!, { button: 0, detail: 2 })
+    expect(invoke).not.toHaveBeenCalledWith('window_drag', undefined)
+    expect(invoke).not.toHaveBeenCalledWith('window_toggle_maximize', undefined)
+  })
+
   it('brings the native title bar back when the side menu is chosen', async () => {
     const invoke = desktop()
     setNavMode('side')

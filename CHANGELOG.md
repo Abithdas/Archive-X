@@ -2,6 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+- **The app no longer freezes after switching to NSFW.** The studio page's suggested videos, the performer gallery and confirming or rejecting a suggestion waited for the database on the part of the app that serves every page, so while the background matching held the database the whole window stopped answering (the logs show freezes of up to two minutes). They now wait on their own thread.
+- **The account menu and dialogs are no longer part of the window's drag area** (pressing their text could start moving the window).
+
 ## 30.7.0 (2026-11-19)
 - **A green dot on your profile picture while Telegram is connected.** It sits at the top right and breathes with a ring that spreads; it is not shown when Telegram is not connected (the pill beside it says "Setup needed").
 - **The menu is a top bar.** The pages (Photos, Movies and Shows, Cast, Studios, Operations, Transfers, Settings, AI Assistance) sit in one bar along the top with search, the Telegram status, notifications and your account; the page you are on shows its name and the others show their icon (names too on a very wide window). In the desktop app the native title bar is gone and the window's minimize, maximize and close buttons are in that same bar; press an empty part of it to move the window, double-press to maximize. The side menu is still there: Settings, Appearance, "Menu on top" off. The version moved to Settings, Overview, About.

@@ -764,7 +764,7 @@ def register_media_routes(
         if entity_type not in {"performer", "studio"} or entity_id < 1:
             raise HTTPException(400, "entity_type must be performer or studio and entity_id must be positive")
         from ..metadata.suggestions import confirm_entity
-        result = confirm_entity(db, suggestion_id, entity_type, entity_id)
+        result = await asyncio.to_thread(confirm_entity, db, suggestion_id, entity_type, entity_id)
         if result is None:
             raise HTTPException(404, "This suggestion is no longer pending or is not associated with that entity")
         if result.get("conflict") == "already_linked_to_another_studio":
@@ -796,7 +796,7 @@ def register_media_routes(
         if entity_type not in {"performer", "studio"} or entity_id < 1:
             raise HTTPException(400, "entity_type must be performer or studio and entity_id must be positive")
         from ..metadata.suggestions import reject_entity
-        result = reject_entity(db, suggestion_id, entity_type, entity_id)
+        result = await asyncio.to_thread(reject_entity, db, suggestion_id, entity_type, entity_id)
         if result is None:
             raise HTTPException(404, "This relationship is no longer suggested for that entity")
         db.log(
@@ -918,7 +918,7 @@ def register_media_routes(
         """GET /api/studios/{studio_id}/suggested: Site suggested videos."""
         require_auth(request)
         from ..metadata.suggestions import list_for_site, candidate_display_fields
-        rows = list_for_site(db, studio_id, status="PENDING")
+        rows = await asyncio.to_thread(list_for_site, db, studio_id, status="PENDING")  # takes the database lock: never on the event loop
         out = []
         for r in rows:
             def _read_media():
