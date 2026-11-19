@@ -423,7 +423,6 @@ def test_streams_from_addons_open_elsewhere_or_play_only_from_own_or_public_sour
 
 def test_a_stream_is_played_only_from_an_own_source_or_a_public_https_host(monkeypatch):
     from telegram_archive.metadata import addon_client as ac
-    import pytest
     monkeypatch.setattr(ac, "_resolve", lambda host: [(0, 0, 0, "", ("93.184.216.34", 443))])
     ac.set_allow_local(False)
     assert ac.stream_origin("https://archive.org/download/a/b.mp4") == "public" and ac.stream_origin("https://ia800.us.archive.org/x.mp4") == "public"
@@ -432,5 +431,5 @@ def test_a_stream_is_played_only_from_an_own_source_or_a_public_https_host(monke
     try:
         assert ac.stream_origin("http://192.168.1.5:8096/x.mkv") == "own" and ac.stream_origin("http://localhost:11470/x") == "own" and ac.stream_origin("http://nas/x.mkv") == "own"
         assert ac.stream_origin("https://download.real-debrid.example/x.mkv") == "public" and ac.stream_origin("http://u:p@192.168.1.5/x") == "" and ac.stream_origin("file:///etc/passwd") == ""
-     finally:
+    finally:
         ac.set_allow_local(False)
