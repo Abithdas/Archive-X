@@ -7,7 +7,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 - Direct streams from configured Stremio add-ons can now play from public HTTPS hosts that resolve only to public IP addresses. Local or private sources still require the existing setting; redirects follow the same checks.
 - Add-on stream lists include All and per-add-on tabs, sorting by add-on order, quality, seeds or size, plus quality, language, source and HDR/Dolby Vision filters.
 
-## Unreleased
+## 30.11.4 (2026-11-19)
 
 - Trailers play in the app, in a window on the page with YouTube's own embedded player (privacy-enhanced address), instead of opening the browser; a link under the player opens the trailer on YouTube when the owner does not allow embedding. The page security policy now allows that one address for frames
 - Desktop app: links to other websites (Open on Netflix, See every option, Trailer, the add-on links and the credit links) now open in your own browser; before, clicking them did nothing inside the app window
