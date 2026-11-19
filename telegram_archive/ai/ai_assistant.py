@@ -7,7 +7,7 @@ Telegram capabilities.
 """
 from __future__ import annotations
 
-from .swallowed import note as _swallowed_note
+from ..core.swallowed import note as _swallowed_note
 import json
 import os
 import time

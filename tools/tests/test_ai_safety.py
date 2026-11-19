@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from telegram_archive.core.ai_safety import (  # noqa: E402
+from telegram_archive.ai.ai_safety import (  # noqa: E402
     ACTION_TIERS, HIDDEN, NotAllowed, PermissionBroker, Tier, is_secret_name, redact, redact_text,
 )
 
@@ -64,7 +64,7 @@ def test_ordinary_library_text_is_left_alone(text):
 
 
 def test_tool_results_never_carry_secrets(tmp_path):
-    from telegram_archive.core.ai_tools import AIToolRegistry
+    from telegram_archive.ai.ai_tools import AIToolRegistry
     from telegram_archive.core.database import Database
     db = Database(tmp_path / "t.db")
     reg = AIToolRegistry(db)
@@ -75,7 +75,7 @@ def test_tool_results_never_carry_secrets(tmp_path):
 
 
 def test_the_snapshot_and_approved_evidence_are_scrubbed_before_the_model(tmp_path):
-    from telegram_archive.core.ai_assistant import ArchiveXAI
+    from telegram_archive.ai.ai_assistant import ArchiveXAI
     from telegram_archive.core.database import Database
     ai = ArchiveXAI(Database(tmp_path / "t.db"))
     assert "SUPERSECRET99" not in ai._bounded_context("jobs ok\napi_key = SUPERSECRET99\nmore")

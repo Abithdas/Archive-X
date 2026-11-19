@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import config
-from .ai_persistence import AIPersistence
+from ..ai.ai_persistence import AIPersistence
 from .db_lock import TrackedRLock
 
 
@@ -549,7 +549,7 @@ class Database:
                 PRIMARY KEY (performer_id, video_id)
             );
 
-            -- What the assistant knows about Archive X itself (core/ai_knowledge.py): pieces of the changelog, the docs and the program's own docstrings.
+            -- What the assistant knows about Archive X itself (ai/ai_knowledge.py): pieces of the changelog, the docs and the program's own docstrings.
             CREATE TABLE IF NOT EXISTS ai_knowledge (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source TEXT NOT NULL,

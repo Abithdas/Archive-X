@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from telegram_archive.core import local_ai_setup as las
+from telegram_archive.ai import local_ai_setup as las
 
 
 class Reply(io.BytesIO):

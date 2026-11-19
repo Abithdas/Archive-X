@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from telegram_archive.core import issue_digest as dg  # noqa: E402
 from telegram_archive.core import swallowed  # noqa: E402
-from telegram_archive.core.ai_tools import AIToolRegistry  # noqa: E402
+from telegram_archive.ai.ai_tools import AIToolRegistry  # noqa: E402
 from telegram_archive.core.database import Database  # noqa: E402
 
 NOW = 1_800_000_000.0
@@ -93,5 +93,5 @@ def test_the_assistant_has_the_digest_as_a_tool_and_cannot_record_a_fix(tmp_path
     kinds = next(d for d in tools.definitions() if d["function"]["name"] == "record_finding")["function"]["parameters"]["properties"]["kind"]["enum"]
     assert "fix" not in kinds
     assert tools.execute("get_issue_digest")["ok"] in (True, False)
-    from telegram_archive.core.ai_assistant import SYSTEM_INSTRUCTIONS
+    from telegram_archive.ai.ai_assistant import SYSTEM_INSTRUCTIONS
     assert "DIAGNOSE, not to fix" in SYSTEM_INSTRUCTIONS and "get_issue_digest" in SYSTEM_INSTRUCTIONS

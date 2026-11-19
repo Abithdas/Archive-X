@@ -31,7 +31,7 @@ as fast as its severity calls for. Please give a reasonable time to fix a proble
 - the front door and the desktop app (the update check, opening files and links, what the web page may ask the shell to do);
 - how media from Telegram and metadata collected from external APIs are handled (image and video parsing, file names, downloads, API keys kept on this PC, and what is sent to those APIs);
 - the local AI assistant: it must never see keys, tokens, passwords or cookies, and an action that changes or deletes anything needs your
-  permission first (`telegram_archive/core/ai_safety.py`). A way around either rule is a vulnerability;
+  permission first (`telegram_archive/ai/ai_safety.py`). A way around either rule is a vulnerability;
 - the installer and the update files published with each release.
 
 ## What is not in scope

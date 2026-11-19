@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import config
-from .diagnostics import collect_environment, runtime_snapshot_path, observability_snapshot, structured_event_tail, correlation_summary, browser_diagnostics_snapshot, metadata_assets_diagnostics, telegram_transfer_diagnostics, content_automation_diagnostics
+from ..core.diagnostics import collect_environment, runtime_snapshot_path, observability_snapshot, structured_event_tail, correlation_summary, browser_diagnostics_snapshot, metadata_assets_diagnostics, telegram_transfer_diagnostics, content_automation_diagnostics
 
 _SECRET_PATTERNS = [
     (re.compile(r"(?i)(api[_-]?hash\s*[=:]\s*)[^,\s]+"), r"\1<REDACTED>"),

@@ -53,7 +53,7 @@ def bundle_name(now: datetime | None = None) -> str:
 
 def redact(text: str) -> str:
     try:
-        from .ai_evidence import redact_text
+        from ..ai.ai_evidence import redact_text
         text = redact_text(text)
     except Exception:   # the bundle must still be made; the patterns below still apply
         pass

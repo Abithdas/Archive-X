@@ -13,9 +13,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import pytest  # noqa: E402
 
 from telegram_archive import config  # noqa: E402
-from telegram_archive.core import local_ai_setup as las  # noqa: E402
-from telegram_archive.core import local_models as lm  # noqa: E402
-from telegram_archive.core import model_hub as hub  # noqa: E402
+from telegram_archive.ai import local_ai_setup as las  # noqa: E402
+from telegram_archive.ai import local_models as lm  # noqa: E402
+from telegram_archive.ai import model_hub as hub  # noqa: E402
 from telegram_archive.engines import photo_face_clustering as pf  # noqa: E402
 
 

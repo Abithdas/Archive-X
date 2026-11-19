@@ -24,8 +24,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
 from .. import config
-from ..core.ai_assistant import ArchiveXAI, LocalAIError, project_context
-from ..core.ai_evidence import collect_diagnostics, safe_evidence_path
+from ..ai.ai_assistant import ArchiveXAI, LocalAIError, project_context
+from ..ai.ai_evidence import collect_diagnostics, safe_evidence_path
 from ..core.live_test_bridge import READ_ONLY
 from .routes_test_bridge import _browser_smoke, _build_status_payload_for_test
 
@@ -142,7 +142,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     model_tasks: set = set()
 
     def _model_list() -> list[dict[str, Any]]:
-        from ..core import local_models
+        from ..ai import local_models
         out = local_models.catalog(ai.masked_status(), llm_file=local_models.llm_file_of(ai))
         for item in out:
             job = model_jobs.get(item["id"]) or {}
@@ -151,7 +151,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
             progress = {job.get("variant"): int(100 * job.get("done", 0) / job["total"]) if job.get("total") else 0} if item["busy"] else {}
             busy_variant = job.get("variant") if item["busy"] else ""
             if item["id"] == "llm":
-                from ..core import local_ai_setup
+                from ..ai import local_ai_setup
                 run = local_ai_setup.SETUP.snapshot()
                 item["busy"] = run["state"] == "running"
                 item["error"] = run["error"] if run["state"] == "error" and item["state"] == "not_set_up" else item["error"]
@@ -173,7 +173,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     @router.post("/api/ai/models/{model_id}/test")
     async def ai_model_test(model_id: str, request: Request):
         require_auth(request)
-        from ..core import local_models
+        from ..ai import local_models
         if model_id == "llm":
             try:
                 result = await asyncio.to_thread(ai.test)
@@ -192,9 +192,9 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     FAMILIES = {"llm", "faces", "captions", "content", "looks"}
 
     async def _start_install(model_id: str, variant_id: str | None) -> dict[str, Any]:
-        from ..core import local_models
+        from ..ai import local_models
         if model_id == "llm":
-            from ..core import local_ai_setup as setup
+            from ..ai import local_ai_setup as setup
             engines = setup.supported_engines()
             if not engines:
                 raise HTTPException(400, "This computer needs the assistant set up by hand (Models tab, advanced).")
@@ -250,7 +250,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     async def ai_variant_select(model_id: str, variant_id: str, request: Request):
         """Use a size that is already downloaded."""
         require_auth(request)
-        from ..core import local_models
+        from ..ai import local_models
         if model_id not in FAMILIES:
             raise HTTPException(404, "Unknown model")
         try:
@@ -264,13 +264,13 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     async def ai_variant_delete(model_id: str, variant_id: str, request: Request):
         """Delete a downloaded size and give its disk space back. The size in use stays until another is chosen (unless it is the only size)."""
         require_auth(request)
-        from ..core import local_models
+        from ..ai import local_models
         if model_id not in FAMILIES:
             raise HTTPException(404, "Unknown model")
         if (model_jobs.get(model_id) or {}).get("state") == "downloading":
             raise HTTPException(409, "A download is running for this model. Wait for it to finish.")
         if model_id == "llm":
-            from ..core import local_ai_setup
+            from ..ai import local_ai_setup
             if local_ai_setup.SETUP.snapshot()["state"] == "running":
                 raise HTTPException(409, "The assistant is being set up. Wait for it to finish.")
         try:
@@ -384,7 +384,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     @router.get("/api/ai/setup")
     async def ai_setup_state(request: Request):
         require_auth(request)
-        from ..core import local_ai_setup as setup
+        from ..ai import local_ai_setup as setup
         ram = await asyncio.to_thread(setup.memory_gb)
         engines = [{"id": e.key, "label": e.label, "size_mb": e.size_mb, "gpu": e.gpu_layers > 0} for e in setup.supported_engines()]
         return {"ok": True, "supported": bool(engines), "ram_gb": ram, "recommended": setup.recommend(ram), "models": setup.options(ram), "engines": engines,
@@ -393,7 +393,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     @router.post("/api/ai/setup/start")
     async def ai_setup_start(request: Request):
         require_auth(request)
-        from ..core import local_ai_setup as setup
+        from ..ai import local_ai_setup as setup
         try:
             body = await request.json()
         except Exception:
@@ -410,7 +410,7 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
     @router.post("/api/ai/setup/cancel")
     async def ai_setup_cancel(request: Request):
         require_auth(request)
-        from ..core import local_ai_setup as setup
+        from ..ai import local_ai_setup as setup
         setup.SETUP.cancel()
         return {"ok": True}
 

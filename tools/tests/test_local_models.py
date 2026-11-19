@@ -2,7 +2,7 @@ import shutil, sys
 from pathlib import Path
 import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from telegram_archive.core import local_models as lm
+from telegram_archive.ai import local_models as lm
 from telegram_archive.engines import photo_face_clustering as pf, photo_look_tags as lt
 
 SCRATCH = Path("/tmp/claude-0/-home-user/80af0270-c8de-58bc-ba34-4a44bb436260/scratchpad")

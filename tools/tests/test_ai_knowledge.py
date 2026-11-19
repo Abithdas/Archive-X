@@ -6,8 +6,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from telegram_archive.core import ai_knowledge as kb  # noqa: E402
-from telegram_archive.core.ai_tools import AIToolRegistry  # noqa: E402
+from telegram_archive.ai import ai_knowledge as kb  # noqa: E402
+from telegram_archive.ai.ai_tools import AIToolRegistry  # noqa: E402
 from telegram_archive.core.database import Database  # noqa: E402
 
 H = {"Origin": "https://testserver"}

@@ -124,7 +124,7 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
         if db is not None:
             db.set_setting("captions_model", name)
 
-    from ..core import local_models as _lm
+    from ..ai import local_models as _lm
     _lm.CONTROL["get"] = lambda: svc.model
     _lm.CONTROL["set"] = _hub_set
 

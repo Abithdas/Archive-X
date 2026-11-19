@@ -11,7 +11,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
-from .ai_safety import redact_text
+from ..ai.ai_safety import redact_text
 from . import swallowed
 
 # (id, area, severity, pattern, title, usual cause, where to look)

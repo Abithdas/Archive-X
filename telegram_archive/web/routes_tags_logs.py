@@ -115,7 +115,7 @@ def register_tags_logs_routes(
         rows = await asyncio.to_thread(_read_event_log)
         lines = [f"[{r['created_at']}] [{r['level']}] {r['message']}" for r in rows]
         try:
-            from ..core.ai_evidence import redact_text
+            from ..ai.ai_evidence import redact_text
             cli_path = getattr(config, "CLI_LOG_PATH", config.LOG_DIR / "launcher-cli.log")
             if cli_path.exists():
                 cli_lines = cli_path.read_text(encoding="utf-8", errors="replace").splitlines()[-500:]
@@ -143,7 +143,7 @@ def register_tags_logs_routes(
         from fastapi.responses import FileResponse
         from starlette.background import BackgroundTask
         from ..core import log_bundle
-        from ..core.ai_evidence import collect_diagnostics
+        from ..ai.ai_evidence import collect_diagnostics
         from ..core.diagnostics import flush_diagnostics
         from ..playback.media_tools import find_ffmpeg
 
@@ -197,7 +197,7 @@ def register_tags_logs_routes(
         from datetime import datetime, timezone
         from fastapi.responses import Response
         from ..core.diagnostics import flush_diagnostics
-        from ..core.ai_evidence import collect_diagnostics
+        from ..ai.ai_evidence import collect_diagnostics
 
         flush_diagnostics()
         launch_id = os.getenv("ARCHIVE_X_LAUNCH_ID") if str(scope or "current").lower() != "all" else None
@@ -291,7 +291,7 @@ def register_tags_logs_routes(
         from datetime import datetime, timezone
         from fastapi.responses import HTMLResponse
         from ..core.diagnostics import flush_diagnostics
-        from ..core.ai_evidence import collect_diagnostics, render_diagnostics_html
+        from ..ai.ai_evidence import collect_diagnostics, render_diagnostics_html
         flush_diagnostics()
         launch_id = os.getenv("ARCHIVE_X_LAUNCH_ID") if str(scope or "current").lower() != "all" else None
         requested_items = ["PLAYBACK_LOG", "APPLICATION_LOGS", "CLI_LAUNCHER_LOG", "APPLICATION_EVENTS", "RUNTIME_SNAPSHOT", "ENVIRONMENT", "CORRELATION_INDEX", "PROCESS_TOPOLOGY", "BROWSER_DIAGNOSTICS", "METADATA_ASSETS", "TELEGRAM_TRANSFER", "CONTENT_AUTOMATION"]

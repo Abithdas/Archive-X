@@ -95,7 +95,7 @@ class AIToolRegistry:
         return {"found": True, "job": {k: row.get(k) for k in keep if k in row}}
 
     def get_diagnostics_summary(self) -> dict[str, Any]:
-        from .diagnostics import observability_snapshot, recent_structured_events
+        from ..core.diagnostics import observability_snapshot, recent_structured_events
         snap = observability_snapshot(recent_limit=20, errors_limit=10)
         events = recent_structured_events(30)
         return {"observability": snap, "recent_events": [{k: e.get(k) for k in ("ts", "level", "event", "message", "job_id", "operation") if e.get(k) is not None} for e in events]}
@@ -116,7 +116,7 @@ class AIToolRegistry:
         return {"results": self.knowledge.search(str(query or ""), 5)}
 
     def get_issue_digest(self) -> dict[str, Any]:
-        from . import issue_digest
+        from ..core import issue_digest
         return issue_digest.build(self.db, limit=8)
 
     def search_logs(self, query: str = "") -> dict[str, Any]:

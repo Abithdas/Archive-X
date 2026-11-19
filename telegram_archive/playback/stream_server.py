@@ -70,7 +70,7 @@ from ..core.background_tasks import retain as _retain_task
 
 from ..telegram.client_policy import configure_telethon_client, make_telegram_client, FLOOD_SLEEP_THRESHOLD_SECONDS, REQUEST_RETRIES
 from ..telegram.capabilities import TelegramAccountProfile
-from ..systems.playback import PlaybackController
+from .controller import PlaybackController
 import asyncio
 import base64
 import json

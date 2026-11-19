@@ -31,9 +31,9 @@ Python is deliberately **one process**: Telegram, jobs, playback and watchers ar
 - **Engines (`engines/`).** Long-running workers: uploader, sender, transfer manager, thumbnail and preview caches, metadata sync, face clustering, delivery ledger, local folder scanning (`local_scanner`, `local_videos`, `local_upload_bridge`) and SFW identification (`screen_identify`).
 - **Media manager (`media_manager/`).** The Telegram-to-Telegram toolkit: router, mover, archiver, duplicate finder, organizer.
 - **Metadata (`metadata/`).** Filename parsing, fingerprints, provider matching. Metadata is collected from external APIs: the NSFW metadata APIs (`providers.py`) and the movie and TV APIs (TMDB, OpenSubtitles, OMDb, TVmaze in `screen_ids.py`) share one review flow.
-- **Playback (`playback/`, `systems/playback/`).** The range-streaming engine (`stream_server.py`): 512 KiB segments over raw `upload.getFile`, a sparse disk cache, read-ahead that follows the playhead, a priority scheduler that cancels stale reads on seek, and the external player launchers.
+- **Playback (`playback/`, with its session controller in `playback/controller/`).** The range-streaming engine (`stream_server.py`): 512 KiB segments over raw `upload.getFile`, a sparse disk cache, read-ahead that follows the playhead, a priority scheduler that cancels stale reads on seek, and the external player launchers.
 - **Operations (`operations/`).** Content automation: RSS, a qBittorrent supervisor, ingest.
-- **Core (`core/`).** Auth and sessions, database, resource manager, diagnostics, backup, the local AI runtime, and the content-mode rules.
+- **Core (`core/`).** Auth and sessions, database, resource manager, diagnostics, backup, and the content-mode rules. **AI (`ai/`).** The assistant, its tools and safety rules, the local engine and the local model downloads.
 
 **Persistence.** `core/database.py` wraps one SQLite connection (guarded by `db.lock`) plus read-only handles (`db.reading()`), WAL mode, schema upgrades by in-place migrations. Secrets live in an encrypted credentials file, not in `settings`. Rust opens the same file read-only through `ax-db` (and writes only the tables it owns, ADR 0002 and 0007).
 

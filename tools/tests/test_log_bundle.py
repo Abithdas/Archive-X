@@ -140,7 +140,7 @@ def test_saving_names_each_file_by_date_and_time_and_never_overwrites(tmp_path):
 def app(tmp_path, monkeypatch):
     import httpx
     from fastapi import APIRouter, FastAPI
-    from telegram_archive.core import ai_evidence
+    from telegram_archive.ai import ai_evidence
     from telegram_archive.web.routes_tags_logs import register_tags_logs_routes
     logs = make_logs(tmp_path)
     cfg = SimpleNamespace(APP_VERSION="v-test", USER_DATA_DIR=tmp_path, LOG_DIR=logs, CLI_LOG_PATH=logs / "none.log")
@@ -207,7 +207,7 @@ def test_saving_to_a_folder_is_refused_from_another_machine(app):
 def test_a_slow_report_is_left_out_not_waited_for(app, monkeypatch):
     import time
     from concurrent.futures import ThreadPoolExecutor
-    from telegram_archive.core import ai_evidence
+    from telegram_archive.ai import ai_evidence
     monkeypatch.setattr(ai_evidence, "collect_diagnostics", lambda **kw: (_ for _ in ()).throw(RuntimeError("topology scan failed")))
     async def go():
         async with app.client() as c:

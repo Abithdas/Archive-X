@@ -211,7 +211,7 @@ def register_system_routes(
         """Return a fast, bounded playback-only diagnostic report."""
         require_auth(request)
         from ..core.diagnostics import browser_diagnostics_snapshot, recent_structured_events, observability_snapshot
-        from ..core.ai_evidence import _tail_lines
+        from ..ai.ai_evidence import _tail_lines
         eng = ps.get("engine")
         server = eng.status() if eng else {"running": False}
         recent=[x for x in recent_structured_events(100) if str(x.get("event") or "").startswith("playback.")][-40:]
@@ -241,7 +241,7 @@ def register_system_routes(
         if not isinstance(body, dict):
             body = {}
         from ..core.diagnostics import record_event, recent_structured_events
-        from ..core.ai_evidence import _tail_lines
+        from ..ai.ai_evidence import _tail_lines
         eng = ps.get("engine")
         server = eng.status() if eng else {"running": False}
         media = body.get("media") if isinstance(body.get("media"), dict) else {}

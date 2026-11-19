@@ -5,7 +5,7 @@ No cloud endpoint or API credential is accepted by this module.
 """
 from __future__ import annotations
 
-from .swallowed import note as _swallowed_note
+from ..core.swallowed import note as _swallowed_note
 import json
 import os
 import platform

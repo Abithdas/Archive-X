@@ -42,12 +42,12 @@ def available() -> bool:
 
 
 def model_path():
-    from ..core import model_hub as hub
+    from ..ai import model_hub as hub
     return hub.active_dir("content") / "320n.onnx"
 
 
 def model_ready() -> bool:
-    from ..core import model_hub as hub
+    from ..ai import model_hub as hub
     return hub.installed("content", hub.selected("content"))
 
 

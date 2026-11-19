@@ -78,7 +78,7 @@ def _sha(path: Path) -> str:
 def ensure_models(root: Path | None = None) -> Path:
     """Download the three model files once; each is verified before it is kept. Without `root` this is the size chosen under AI, Models."""
     if root is None:
-        from ..core import model_hub as hub
+        from ..ai import model_hub as hub
         return hub.fetch("looks", hub.selected("looks"))
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)

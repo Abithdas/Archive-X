@@ -19,7 +19,7 @@ from typing import Any
 
 from .. import config
 from .ai_safety import redact_text
-from .swallowed import note as _swallowed_note
+from ..core.swallowed import note as _swallowed_note
 
 ROOT = Path(__file__).resolve().parents[2]            # the repository (or install) folder holding CHANGELOG.md and docs/
 PACKAGE = Path(__file__).resolve().parents[1]         # telegram_archive/
