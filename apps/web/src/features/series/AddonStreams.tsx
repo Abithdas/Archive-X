@@ -55,7 +55,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
   }, [kind, ident, season, episode])
   if (!d || !Array.isArray(d.items) || !Array.isArray(d.addons) || (!d.items.length && !d.addons.length)) return null
 
-  const addonNames = d.addons.length ? d.addons : [...new Set(d.items.map((item) => item.addon))]
+  const addonNames = [...new Set(d.addons.length ? d.addons : d.items.map((item) => item.addon))]
   const qualityOptions = [...new Set(d.items.map((item) => item.height ?? 0).filter((height) => height > 0))].sort((a, b) => b - a)
   const languageOptions = [...new Set(d.items.flatMap((item) => item.languages ?? []))].sort((a, b) => a.localeCompare(b))
   const sourceOptions = [...new Set(d.items.map((item) => item.source ?? '').filter(Boolean))].sort((a, b) => a.localeCompare(b))
