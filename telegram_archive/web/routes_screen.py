@@ -419,6 +419,9 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                     name = str(manifest.get("name") or a["name"] or "Add-on")[:40]
                     got = _addon_json(f"{a['url']}/stream/{kind}/{si.quote(sid_, safe='')}.json")
                     found, skip = ac.classify_streams((got or {}).get("streams") if isinstance(got, dict) else [], name)
+                    for stream in found:
+                        tags = si.quality_of(stream.get("name") or "")
+                        stream.update({"height": tags["height"], "quality": tags["resolution"], "source": tags["source"], "hdr": tags["hdr"], "languages": tags["languages"]})
                 except Exception:
                     continue
                 asked.append(name)
