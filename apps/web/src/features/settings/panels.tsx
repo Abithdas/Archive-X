@@ -205,7 +205,7 @@ export function AppearancePanel() {
                   className={cn('group relative grid w-full gap-2.5 rounded-2xl border p-2.5 text-left transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5', on ? 'border-accent shadow-[0_0_0_1px_var(--color-accent)]' : 'border-line-2 hover:border-fg/30')}>
                   <ThemePreview c={{ bg: p.bg, surface: p.surface, card: p.surface2, thumb: p.surface3, text: p.text, muted: p.text3, accent: p.accent }} />
                   <span className="flex items-center justify-between gap-2 px-1">
-                    <b className="truncate text-[13px]">{t.name}</b>
+                    <b className="line-clamp-2 text-[12px] leading-tight" title={t.name}>{t.name}</b>
                     {on ? <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-bold text-accent"><Icon name="check" className="size-3" /><span className="sr-only">In use</span></span> : <span className="text-[11px] text-faint opacity-0 group-hover:opacity-100">Use</span>}
                   </span>
                 </button>
