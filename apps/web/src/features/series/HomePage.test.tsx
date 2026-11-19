@@ -2,9 +2,13 @@ import { fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { SfwHome } from './HomePage'
+import { useUi } from '@/app/ui'
+import { useHomeTab, useScreenView } from './view'
+
+const toDiscover = async () => fireEvent.click(await screen.findByRole('tab', { name: 'Discover' }))
 
 beforeAll(() => { HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }; HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') } })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); useHomeTab.setState({ tab: 'home' }); useScreenView.setState({ view: 'all' }) })
 const json = (b: unknown, code = 200) => new Response(JSON.stringify(b), { status: code })
 const found = (n: number, title: string, library: unknown = null) => ({ imdb: `tt000000${n}`, kind: 'movie', title, year: 2000 + n, poster: '', background: '', rating: '7.5', overview: 'A story.', genres: ['Drama'], library })
 const HOME = {
@@ -41,6 +45,7 @@ describe('SFW Home', () => {
 
   it('Discover marks what you have, opens the details of a title, and finds more by genre and by search', async () => {
     const urls = mount()
+    await toDiscover()
     const list = await screen.findByRole('list', { name: 'Catalogue' })
     expect(within(list).getByText('In your library')).toBeInTheDocument()
     fireEvent.click(within(list).getByRole('button', { name: 'Details of Dune' }))
@@ -59,12 +64,14 @@ describe('SFW Home', () => {
 
   it('says so when Cinemeta is switched off, instead of an empty page', async () => {
     mount((u) => (u.startsWith('/api/screen/discover') && !u.includes('/discover/') ? json({ ok: true, disabled: true, items: [] }) : undefined))
+    await toDiscover()
     expect(await screen.findByText(/it is switched off/)).toBeInTheDocument()
   })
 
   it('on a wide window the details stay beside the posters and follow the title you pick, with no pop-up', async () => {
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('min-width'), addEventListener: () => undefined, removeEventListener: () => undefined }))
     mount()
+    await toDiscover()
     const list = await screen.findByRole('list', { name: 'Catalogue' })
     const panel = await screen.findByRole('complementary', { name: 'Details' })
     expect(within(panel).getByText('The Matrix')).toBeInTheDocument()                                  // the first title is shown at once
@@ -79,5 +86,28 @@ describe('SFW Home', () => {
     expect(feat.querySelectorAll('img').length).toBe(2)
     expect(feat.querySelectorAll('.mo-dot').length).toBe(2)
     expect(feat.querySelectorAll('.mo-dot-fill').length).toBe(1)
+  })
+
+  it('has For you, Discover and Library under one heading; popular rows lead to Discover, the Library part lists your series and movies, and a search jumps to Discover', async () => {
+    const urls = mount()
+    expect(await screen.findByRole('region', { name: 'Featured' })).toBeInTheDocument()                    // For you is where it opens
+    const row = await screen.findByRole('region', { name: 'Popular movies' })
+    fireEvent.click(within(row).getByRole('button', { name: 'See all →' }))
+    expect(await screen.findByRole('list', { name: 'Catalogue' })).toBeInTheDocument()                     // "See all" opens Discover
+    fireEvent.click(screen.getByRole('tab', { name: 'Library' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Series' }))
+    await vi.waitFor(() => expect(urls.some((u) => u.startsWith('/api/screen/series'))).toBe(true))
+    fireEvent.click(screen.getByRole('tab', { name: 'For you' }))
+    fireEvent.change(await screen.findByLabelText('Search movies and shows'), { target: { value: 'dune' } })
+    expect(await screen.findByRole('tab', { name: 'Discover', selected: true })).toBeInTheDocument()       // a search is always answered by Discover
+    await vi.waitFor(() => expect(urls.some((u) => u.includes('search=dune'))).toBe(true))
+  })
+
+  it('lets the featured picture run under the top bar while it is on screen, and gives the bar back otherwise', async () => {
+    mount()
+    await screen.findByRole('region', { name: 'Featured' })
+    expect(useUi.getState().immersive).toBe(true)
+    await toDiscover()
+    await vi.waitFor(() => expect(useUi.getState().immersive).toBe(false))
   })
 })

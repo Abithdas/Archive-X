@@ -192,7 +192,7 @@ function WindowButtons({ maximized }: { maximized: boolean }) {
 
 const ICON_BTN = 'grid size-10 place-items-center rounded-xl text-muted hover:bg-fg/5 hover:text-fg'
 
-function Header({ live, items, activity, top, custom, maximized }: { live: string; items: NavDef[]; activity: Record<string, number>; top: boolean; custom: boolean; maximized: boolean }) {
+function Header({ live, items, activity, top, custom, maximized, floating }: { live: string; items: NavDef[]; activity: Record<string, number>; top: boolean; custom: boolean; maximized: boolean; floating: boolean }) {
   const { q, set } = useSearch()
   const focusTick = useUi((s) => s.focusSearch)
   const path = useRouterState({ select: (s) => s.location.pathname })
@@ -216,7 +216,7 @@ function Header({ live, items, activity, top, custom, maximized }: { live: strin
     else void windowActions.drag()
   }
   return (
-    <header onMouseDown={custom ? onBarDown : undefined} className={cn('sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-bg/85 px-4 backdrop-blur-md sm:px-10', custom && 'select-none pr-0 sm:pr-0')}>
+    <header onMouseDown={custom ? onBarDown : undefined} className={cn('top-0 z-20 flex h-16 items-center gap-3 border-b px-4 transition-[background-color,border-color,backdrop-filter] duration-300 sm:px-10', floating ? 'absolute inset-x-0 border-b-0 bg-[linear-gradient(180deg,rgb(0_0_0/0.62),transparent)]' : 'sticky border-line bg-bg/85 backdrop-blur-md', custom && 'select-none pr-0 sm:pr-0')}>
       <Link to="/videos" aria-label="Archive X" className={cn('flex shrink-0 items-center gap-2.5 text-lg font-extrabold', top ? '' : 'md:hidden')}>
         <img src="/static/icons/archive-x.png" alt="" className="size-8 object-contain" />
         {top ? <span className={cn('hidden', custom ? 'min-[2100px]:inline' : 'min-[1800px]:inline')}>Archive X</span> : null}
@@ -289,6 +289,16 @@ export function Shell(): ReactNode {
   const section = useRouterState({ select: (s) => s.location.pathname.split('/')[1] || 'home' })
   const mainRef = useRef<HTMLElement>(null)
   useScrollMemory(mainRef)
+  const immersive = useUi((s) => s.immersive)
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const el = mainRef.current
+    if (!el) return
+    const f = () => setScrolled(el.scrollTop > 48)
+    f()
+    el.addEventListener('scroll', f, { passive: true })
+    return () => el.removeEventListener('scroll', f)
+  }, [fullPath])
   const live = useLiveStatus(true)
   useAppearanceSync()
   useEffect(() => installGlow(), [])
@@ -332,8 +342,8 @@ export function Shell(): ReactNode {
         {rail ? null : <StorageCard />}
         {rail ? null : <VersionLine />}
       </aside> : null}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <Header live={live} items={items} activity={activity} top={nav === 'top'} custom={chrome.custom} maximized={chrome.maximized} />
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <Header live={live} items={items} activity={activity} top={nav === 'top'} custom={chrome.custom} maximized={chrome.maximized} floating={immersive && !scrolled} />
         <main ref={mainRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <motion.div key={section} {...fadeThrough} className="flex min-h-0 flex-1 flex-col"><ErrorBoundary resetKey={fullPath}><Suspense fallback={<div role="status" aria-label="Loading page" className="grid flex-1 place-items-center py-24"><span className="size-6 animate-spin rounded-full border-2 border-line border-t-accent" /></div>}><Outlet /></Suspense></ErrorBoundary></motion.div>
         </main>

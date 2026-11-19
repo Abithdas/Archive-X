@@ -61,12 +61,15 @@ describe('LibraryPage', () => {
   it('in SFW the videos page is Home: movies and shows as cards, and Discover, never one card for each episode', async () => {
     stack('sfw')
     withRouter(<LibraryPage />)
-    expect(await screen.findByRole('region', { name: 'Discover' })).toBeInTheDocument()
+    expect(await screen.findByRole('tab', { name: 'For you' })).toBeInTheDocument()
     expect(screen.queryByRole('article', { name: 'First scene' })).toBeNull()
     expect(screen.queryByRole('tab', { name: 'All' })).toBeNull()                      // the old All | Movies | Series switch is gone
-    fireEvent.click(screen.getByRole('button', { name: 'All series' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Discover' }))
+    expect(await screen.findByRole('region', { name: 'Discover' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Library' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Series' }))
     expect(await screen.findByRole('link', { name: 'Open Dark' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'All movies' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Movies' }))
     expect(await screen.findByRole('link', { name: 'Open The Matrix' })).toBeInTheDocument()
   })
   it('in NSFW has no such switch', async () => {

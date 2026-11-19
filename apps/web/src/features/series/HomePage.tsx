@@ -9,12 +9,13 @@ import { Icon } from '@/design/Icon'
 import { PageHead } from '@/design/PageHead'
 import { cn } from '@/design/cn'
 import { useLabels } from '@/features/content/labels'
+import { useUi } from '@/app/ui'
 import { Chips } from './TitleStage'
 import { MoviesList } from './MoviesPage'
 import { PLACEHOLDER, PosterCard } from './PosterCard'
 import { SeriesList } from './SeriesPage'
 import { countText } from './series'
-import { useScreenView } from './view'
+import { useHomeTab, useScreenView, type HomeTab } from './view'
 
 const GENRES = ['Action', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Family', 'Fantasy', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western']
 
@@ -30,10 +31,10 @@ interface FoundOne extends Found { runtime: string; cast: string[]; director: st
 const openIn = (kind: 'tv' | 'movie') => (kind === 'tv' ? '/series/$id' : '/movies/$id')
 
 /** A row of things to scroll sideways, under a heading; arrows appear on the sides when something is out of view. */
-function Row({ title, hint, children, arrowTop = 132 }: { title: string; hint?: string; children: ReactNode; arrowTop?: number }) {
+function Row({ title, hint, children, arrowTop = 132, onSeeAll }: { title: string; hint?: string; children: ReactNode; arrowTop?: number; onSeeAll?: () => void }) {
   return (
     <section aria-label={title} className="grid gap-3">
-      <div className="flex items-baseline justify-between gap-3"><h2 className="text-xl font-extrabold tracking-tight">{title}</h2>{hint ? <span className="text-[13px] text-muted">{hint}</span> : null}</div>
+      <div className="flex items-baseline justify-between gap-3"><h2 className="text-xl font-extrabold tracking-tight">{title}</h2>{onSeeAll ? <button type="button" onClick={onSeeAll} className="text-[13px] font-semibold text-muted transition-colors hover:text-fg">See all →</button> : hint ? <span className="text-[13px] text-muted">{hint}</span> : null}</div>
       <HScroll label={`${title}, scroll sideways`} arrowTop={arrowTop} className="-mx-2 flex snap-x gap-4 px-2 pb-3 pt-1">{children}</HScroll>
     </section>
   )
@@ -64,22 +65,27 @@ function Hero({ items }: { items: Billboard[] }) {
   const b = items[at]
   if (!b) return null
   return (
-    <section aria-label="Featured" className="relative isolate min-h-[340px] overflow-hidden rounded-[22px] border border-line bg-surface-2 sm:min-h-[460px]">
-      {items.map((x, k) => <img key={x.id} src={x.backdrop || x.poster || PLACEHOLDER} alt="" aria-hidden="true" style={{ animationPlayState: k === at ? 'running' : 'paused' }} className={cn('mo-hero-img absolute inset-0 -z-10 size-full object-cover', k === at ? 'opacity-100' : 'opacity-0')} />)}
-      <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgb(13_15_17/0.9)_0%,rgb(13_15_17/0.5)_50%,transparent_100%),linear-gradient(0deg,rgb(13_15_17/0.85)_0%,transparent_60%)]" />
-      <div key={b.id} className="mo-enter flex min-h-[inherit] max-w-2xl flex-col justify-end gap-3 p-6 sm:p-10">
-        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">From your library</span>
-        <h2 className="text-3xl font-extrabold leading-tight text-white sm:text-5xl">{b.title}</h2>
-        <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-white/85">{[b.year, b.kind === 'tv' ? 'Series' : 'Movie', b.genres.join(', '), b.rating ? `${Number(b.rating).toFixed(1)} rating` : ''].filter(Boolean).map((t) => <span key={String(t)}>{t}</span>)}</p>
-        {b.overview ? <p className="line-clamp-3 text-sm leading-relaxed text-white/85">{b.overview}</p> : null}
-        <div className="mt-1 flex items-center gap-4">
-          <Link to={openIn(b.kind)} params={{ id: String(b.id) }} className="inline-flex h-11 items-center rounded-xl bg-accent px-6 text-sm font-bold text-accent-fg transition-[filter,transform] hover:brightness-110 active:scale-[0.97]">Open</Link>
-          {n > 1 ? <span className="flex gap-1.5" aria-hidden="true">{items.map((x, k) => (
-            <button key={x.id} type="button" tabIndex={-1} onClick={() => setI(k)} className={cn('mo-dot relative h-1 overflow-hidden rounded-full bg-white/30', k === at ? 'w-10' : 'w-6')}>
-              {k === at ? <span key={i} className={cn('absolute inset-0 bg-accent', still ? '' : 'mo-dot-fill')} /> : null}
-            </button>))}</span> : null}
+    <section aria-label="Featured" className="relative isolate -mb-28 min-h-[min(84vh,780px)] overflow-hidden bg-surface-2">
+      {items.map((x, k) => <img key={x.id} src={x.backdrop || x.poster || PLACEHOLDER} alt="" aria-hidden="true" style={{ animationPlayState: k === at ? 'running' : 'paused' }} className={cn('mo-hero-img absolute inset-0 -z-10 size-full object-cover object-[70%_25%]', k === at ? 'opacity-100' : 'opacity-0')} />)}
+      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(0deg,var(--color-bg)_2%,color-mix(in_srgb,var(--color-bg)_65%,transparent)_20%,transparent_50%),linear-gradient(90deg,rgb(0_0_0/0.82)_0%,rgb(0_0_0/0.45)_38%,transparent_70%)]" />
+      <div key={b.id} className="mo-enter relative flex min-h-[inherit] max-w-3xl flex-col justify-end gap-4 px-4 pb-40 pt-44 text-white sm:px-10">
+        <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/80">From your library</span>
+        <h2 className="text-[clamp(40px,6.2vw,92px)] font-black leading-[0.92] tracking-[-0.04em] drop-shadow-xl">{b.title}</h2>
+        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[15px] font-medium text-white/90">
+          {b.year ? <span>{b.year}</span> : null}
+          <span className="rounded border border-white/60 px-1.5 text-xs font-semibold">{b.kind === 'tv' ? 'Series' : 'Movie'}</span>
+          {b.genres.length ? <span>{b.genres.slice(0, 3).join(' · ')}</span> : null}
+          {b.rating ? <span>{Number(b.rating).toFixed(1)} rating</span> : null}
+        </p>
+        {b.overview ? <p className="line-clamp-3 max-w-xl text-base leading-relaxed text-white/90">{b.overview}</p> : null}
+        <div className="mt-1 flex items-center gap-3">
+          <Link to={openIn(b.kind)} params={{ id: String(b.id) }} className="inline-flex h-12 items-center gap-2 rounded-lg bg-white px-6 text-[15px] font-bold text-black transition-[transform,background-color] hover:bg-white/90 active:scale-[0.97]"><Icon name="play" className="size-4" />Open</Link>
         </div>
       </div>
+      {n > 1 ? <span className="absolute bottom-44 right-4 flex gap-2 sm:right-10" aria-hidden="true">{items.map((x, k) => (
+        <button key={x.id} type="button" tabIndex={-1} onClick={() => setI(k)} className={cn('mo-dot relative h-[3px] overflow-hidden rounded-full bg-white/35', k === at ? 'w-12' : 'w-8')}>
+          {k === at ? <span key={i} className={cn('absolute inset-0 bg-white', still ? '' : 'mo-dot-fill')} /> : null}
+        </button>))}</span> : null}
     </section>
   )
 }
@@ -159,15 +165,14 @@ function DetailPanel({ item }: { item: Found }) {
   )
 }
 
+type Kind = 'movie' | 'series'
 const SELECT = 'h-11 min-w-40 rounded-xl border border-line-2 bg-surface px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50'
 
 /**
  * Discover: what is popular in Cinemeta's open catalogues, by kind and genre, with a search; the titles you already have are marked.
  * On a wide window the pointer resting on a poster shows that title's details in a panel beside the grid; on a narrow one a click opens them.
  */
-function Discover({ text }: { text: string }) {
-  const [kind, setKind] = useState<'movie' | 'series'>('movie')
-  const [genre, setGenre] = useState('')
+function Discover({ text, kind, setKind, genre, setGenre }: { text: string; kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void }) {
   const [open, setOpen] = useState<Found | null>(null)
   const [focus, setFocus] = useState<Found | null>(null)
   const wide = useWide()
@@ -191,7 +196,7 @@ function Discover({ text }: { text: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-extrabold tracking-tight">{search ? `Results for “${search}”` : 'Discover'}</h2>
         <div className="flex flex-wrap items-center gap-3">
-          <select aria-label="Kind" value={kind} onChange={(e) => { setKind(e.target.value as 'movie' | 'series'); setFocus(null) }} className={SELECT}><option value="movie">Movies</option><option value="series">Series</option></select>
+          <select aria-label="Kind" value={kind} onChange={(e) => { setKind(e.target.value as Kind); setFocus(null) }} className={SELECT}><option value="movie">Movies</option><option value="series">Series</option></select>
           <select aria-label="Genre" value={genre} disabled={Boolean(search)} onChange={(e) => { setGenre(e.target.value); setFocus(null) }} className={SELECT}><option value="">Popular</option>{GENRES.map((g) => <option key={g} value={g}>{g}</option>)}</select>
         </div>
       </div>
@@ -221,32 +226,80 @@ function Discover({ text }: { text: string }) {
   )
 }
 
+/** A row of what is popular in the open catalogue (movies or series), under For you; "See all" opens it in Discover. */
+function PopularRow({ kind, onSeeAll }: { kind: Kind; onSeeAll: () => void }) {
+  const [open, setOpen] = useState<Found | null>(null)
+  const q = useQuery({ queryKey: ['discover-popular', kind] as const, queryFn: () => api<FoundPage>(`/api/screen/discover?type=${kind}&skip=0`), staleTime: 5 * 60_000, retry: false, select: (p) => ({ ...p, items: p.items.slice(0, 14) }) })
+  if (!q.data?.items.length) return null
+  return (
+    <>
+      <Row title={kind === 'movie' ? 'Popular movies' : 'Popular series'} onSeeAll={onSeeAll}>
+        {q.data.items.map((it) => <PosterCard key={`${it.kind}:${it.imdb}`} image={it.poster} title={it.title} sub={it.year ? String(it.year) : ''} rating={it.rating} className="w-[168px] shrink-0 snap-start" corner={it.library ? <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-accent-fg">In your library</span> : null} onClick={() => setOpen(it)} />)}
+      </Row>
+      {open ? <Details item={open} onClose={() => setOpen(null)} /> : null}
+    </>
+  )
+}
+
+const TABS: ReadonlyArray<readonly [HomeTab, string]> = [['home', 'For you'], ['discover', 'Discover'], ['library', 'Library']]
+
 /**
- * Home for movies and shows (SFW): what to carry on with, what airs this week, what you added, your series and movies, and, below, Discover.
- * One page for what Home and Discover are in other apps; everything from your library comes first.
+ * Home for movies and shows (SFW), in three parts under one heading: For you (what to carry on with, what airs, what was added, and what is
+ * popular), Discover (the open catalogue by kind and genre, with details beside the posters) and Library (all your series or movies).
+ * Typing in the search box shows Discover's results from any part.
  */
 export function SfwHome() {
   const labels = useLabels()
   const view = useScreenView((s) => s.view)
+  const stored = useHomeTab((s) => s.tab)
+  const setStored = useHomeTab((s) => s.setTab)
   const home = useQuery({ queryKey: ['screen-home'] as const, queryFn: () => api<HomeData>('/api/screen/home'), staleTime: 30_000 })
   const [text, setText] = useState('')
-  const [all, setAll] = useState<'series' | 'movies' | null>(view === 'series' ? 'series' : view === 'movies' ? 'movies' : null)
+  const [kind, setKind] = useState<Kind>('movie')
+  const [genre, setGenre] = useState('')
+  const [lib, setLib] = useState<'series' | 'movies'>(view === 'series' ? 'series' : 'movies')
   const field = useRef<HTMLInputElement>(null)
   const searching = text.trim().length >= 2
+  const tab: HomeTab = searching ? 'discover' : view !== 'all' && stored === 'home' ? 'library' : stored
+  const go = (t: HomeTab) => { setStored(t); if (t !== 'library') useScreenView.getState().setView('all') }
+  const seeAll = (k: Kind) => { setKind(k); setGenre(''); go('discover') }
   const d = home.data
+  const setImmersive = useUi((x) => x.setImmersive)
+  const bleed = tab === 'home' && !searching && Boolean(d?.billboard.length)
+  useEffect(() => { setImmersive(bleed); return () => setImmersive(false) }, [bleed, setImmersive])
+  const searchBox = (glass: boolean) => (
+    <label className="relative block w-full sm:w-80">
+      <span className="sr-only">Search movies and shows</span>
+      <Icon name="search" className={cn('pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2', glass ? 'text-white/80' : 'text-muted')} />
+      <input ref={field} type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search movies and shows" aria-label="Search movies and shows" className={cn('h-11 w-full rounded-xl border pl-9 pr-3 text-sm focus-visible:border-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent', glass ? 'border-white/25 bg-black/35 text-white backdrop-blur placeholder:text-white/70' : 'border-line-2 bg-bg')} />
+    </label>
+  )
+  const tabs = (glass: boolean) => (
+    <div role="tablist" aria-label="Home" className={cn('flex w-fit gap-1 rounded-full p-1', glass ? 'bg-black/35 text-white backdrop-blur' : 'mb-6 bg-fg/10')}>
+      {TABS.map(([id, label]) => (
+        <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => { setText(''); go(id) }}
+          className={cn('rounded-full px-5 py-2 text-sm font-semibold transition-[background-color,color] duration-300', tab === id ? (glass ? 'bg-white text-black' : 'bg-fg text-bg') : glass ? 'text-white/85 hover:text-white' : 'text-fg/80 hover:text-fg')}>{label}</button>
+      ))}
+    </div>
+  )
   return (
-    <section className="flex w-full flex-1 flex-col px-4 pb-10 pt-6 sm:px-10">
-      <PageHead title={labels.videos} blurb={labels.videosBlurb}>
-        <label className="relative block w-full sm:w-80">
-          <span className="sr-only">Search movies and shows</span>
-          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-          <input ref={field} type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search movies and shows" aria-label="Search movies and shows" className="h-11 w-full rounded-xl border border-line-2 bg-bg pl-9 pr-3 text-sm focus-visible:border-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent" />
-        </label>
-      </PageHead>
-      <div className="grid gap-8">
-        {searching ? null : (
+    <section className={cn('flex w-full flex-1 flex-col', !bleed && 'px-4 pb-10 pt-6 sm:px-10')}>
+      {bleed ? null : (
+        <>
+          <PageHead title={labels.videos} blurb={labels.videosBlurb}>{searchBox(false)}</PageHead>
+          {tabs(false)}
+        </>
+      )}
+      <div key={tab} className={cn('mo-enter', bleed ? 'flex flex-col' : 'grid gap-8')}>
+        {tab === 'home' ? (
           <>
-            {d?.billboard.length ? <Hero items={d.billboard} /> : null}
+            {bleed && d ? (
+              <div className="relative">
+                <Hero items={d.billboard} />
+                <div className="absolute inset-x-0 top-20 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10">{tabs(true)}{searchBox(true)}</div>
+              </div>
+            ) : null}
+            <div className={cn('grid gap-8', bleed && 'relative z-10 px-4 pb-10 sm:px-10')}>
             {d?.continue.length ? (
               <Row title="Continue watching" hint="Where you stopped" arrowTop={80}>
                 {d.continue.map((r) => (
@@ -271,18 +324,22 @@ export function SfwHome() {
                 {d.recent.map((r) => <Poster key={`${r.kind}:${r.id}`} to={openIn(r.kind)} params={{ id: String(r.id) }} image={r.poster} title={r.title} sub={r.year ? String(r.year) : r.kind === 'tv' ? 'Series' : 'Movie'} />)}
               </Row>
             ) : null}
-            <section aria-label="Your library" className="grid gap-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-xl font-extrabold tracking-tight">Your library</h2>
-                <div role="group" aria-label="Which part" className="flex gap-1.5">
-                  {([['series', 'Series'], ['movies', 'Movies']] as const).map(([v, label]) => <button key={v} type="button" aria-pressed={all === v} onClick={() => setAll(all === v ? null : v)} className={cn('h-8 rounded-full border px-3 text-[13px] font-semibold transition-colors', all === v ? 'border-accent/50 bg-accent/15 text-fg' : 'border-line text-muted hover:bg-fg/5 hover:text-fg')}>{all === v ? `Hide ${label.toLowerCase()}` : `All ${label.toLowerCase()}`}</button>)}
-                </div>
-              </div>
-              {all === 'series' ? <SeriesList /> : all === 'movies' ? <MoviesList /> : <p className="text-sm text-muted">Choose Series or Movies to see everything you have, one card for each.</p>}
-            </section>
+            <PopularRow kind="movie" onSeeAll={() => seeAll('movie')} />
+            <PopularRow kind="series" onSeeAll={() => seeAll('series')} />
+            </div>
           </>
+        ) : tab === 'discover' ? <Discover text={text} kind={kind} setKind={setKind} genre={genre} setGenre={setGenre} />
+        : (
+          <section aria-label="Your library" className="grid gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xl font-extrabold tracking-tight">Your library</h2>
+              <div role="group" aria-label="Which part" className="flex gap-1.5">
+                {([['series', 'Series'], ['movies', 'Movies']] as const).map(([v, label]) => <button key={v} type="button" aria-pressed={lib === v} onClick={() => setLib(v)} className={cn('h-9 rounded-full border px-4 text-sm font-semibold transition-colors', lib === v ? 'border-accent/50 bg-accent/15 text-fg' : 'border-line text-muted hover:bg-fg/5 hover:text-fg')}>{label}</button>)}
+              </div>
+            </div>
+            {lib === 'series' ? <SeriesList /> : <MoviesList />}
+          </section>
         )}
-        <Discover text={text} />
       </div>
     </section>
   )
