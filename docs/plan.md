@@ -1,8 +1,6 @@
 # Archive X: the plan
 
-One plan for everything that is not finished. It replaces the earlier working plan (clean-up, layout and Rust migration), the Rust migration history, the streaming and architecture v3 proposal, and the lists of ideas and open items from the 30.4.x work. Written 18 November 2026, at release 30.4.2 (30.4.3 building).
-
-A version of this plan grouped by category, with the state of each item, is in [plan-by-category.md](plan-by-category.md).
+One plan for everything that is not finished. It replaces the earlier working plan (clean-up, layout and Rust migration), the Rust migration history, the streaming and architecture v3 proposal, and the lists of ideas and open items from the 30.4.x work. Written 18 November 2026; the state table in section 1 was brought up to date on 19 November (release 30.11.x).
 
 How to read it: section 1 says what is released and what is only on the branch. Section 2 is the rules. Section 3 is what must be checked on a real PC before anything else is trusted. Sections 4 to 6 are the work, in the order to do it. Section 7 is the clean-up left over. Section 8 is the decisions only you can make. Each item has an id (A1, B2, ...), so you can say "do B1 to B3". Every item says what it is, why, and what "done" means; what could not be checked is written as not checked.
 
@@ -10,12 +8,12 @@ How to read it: section 1 says what is released and what is only on the branch. 
 
 | State | What |
 |-------|------|
-| Released (30.4.2) | SFW and NSFW modes enforced in the data layer; channel marks; local folders (scan, metadata scan, snapshots, upload to Telegram); movie and TV identification (TMDB, OpenSubtitles, OMDb, TVmaze); Movies and Series pages; fast and clean exit; movie and TV lookups that work in the installed app; key check on save; scanned folders in Transfers and Metadata; Library channel list without phantom "Unknown channel"; adult performers no longer shown in an empty SFW; live captions for local files with a CPU fallback |
-| Building (30.4.3) | The native player starts at once for videos the web player cannot play; the in-page conversion (client-side remux and HLS) is removed |
-| On the branch, not released | Nothing else |
+| Released by 30.4.2 | SFW and NSFW modes enforced in the data layer; channel marks; local folders (scan, metadata scan, snapshots, upload to Telegram); movie and TV identification (TMDB, OpenSubtitles, OMDb, TVmaze); Movies and Series pages; fast and clean exit; movie and TV lookups that work in the installed app; key check on save; scanned folders in Transfers and Metadata; Library channel list without phantom "Unknown channel"; adult performers no longer shown in an empty SFW; live captions for local files with a CPU fallback |
+| Released since (30.11.1 is the latest; 30.11.3 is building; see [CHANGELOG.md](../CHANGELOG.md)) | The native player starts at once for videos the web player cannot play; Discover and the combined Home page for SFW; add-on streams; Auto items per page; a smoother top bar; fewer freezes and a faster start; local-folder videos in VLC, MPC-HC and Random play |
+| On the branch, not released | Nothing: everything is on `main` |
 | Not verified on a real PC | Everything Windows-specific, native-player fallback, Telegram live captions, folder upload to real Telegram, valid provider keys (section 3) |
 
-Sizes on 18 November: about 106,000 lines of Python (218 files), 456 TypeScript files, about 11,900 lines of Rust, a C++ video engine. How it is built: [architecture.md](architecture.md). Why: [adr/](adr/README.md).
+Sizes on 18 November (about 108,000 lines of Python and 498 TypeScript files by 19 November): about 106,000 lines of Python (218 files), 456 TypeScript files, about 11,900 lines of Rust, a C++ video engine. How it is built: [architecture.md](architecture.md). Why: [adr/](adr/README.md).
 
 ## 2. Rules
 
@@ -36,7 +34,7 @@ All of these are built and tested with stand-ins or on Linux. The only way to cl
 
 | Id | Check | Done when |
 |----|-------|-----------|
-| A1 | Install 30.4.3 over the old build; start, switch modes, exit | The app starts in SFW, the PIN switches to NSFW, Exit leaves no process behind (the Windows job object is only type-checked) |
+| A1 | Install the newest build over the old one; start, switch modes, exit | The app starts in SFW, the PIN switches to NSFW, Exit leaves no process behind (the Windows job object is only type-checked) |
 | A2 | **Live captions on a Telegram video** | Captions appear. If not, the line under the player ("Live captions failed: …") is the lead. The engine now falls back to the CPU when the graphics-card path fails; this is untested on real hardware |
 | A3 | **Provider keys: OMDb, TMDB, OpenSubtitles** with real keys | Each key's check says it works. OMDb refuses a new key until its activation link is opened. Only wrong keys were ever tried against the live services |
 | A4 | **Native player for a file the web view cannot play** (an AVI, a DTS or AC3 film, a 10-bit HEVC) | It opens in the native player without trying anything else first, plays, seeks, shows captions. Never verified on a real PC |
