@@ -9,7 +9,7 @@ interface Streams { ok: boolean; items: StreamItem[]; skipped: number; addons: s
 
 /**
  * What the person's own add-ons offer for a title. A link opens where it points (YouTube, a service's page) in the browser; a stream from their own
- * sources (a media server at home, with the switch in Settings, Addons) or a public-domain host plays here; any other direct stream is listed and not played.
+ * sources (a media server at home, with the switch in Settings, Addons) or a public HTTPS host plays here; any other direct stream is listed and not played.
  * Torrents are never used.
  */
 export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' | 'series'; ident: string; season?: number; episode?: number }) {
