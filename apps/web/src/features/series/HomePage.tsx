@@ -11,6 +11,7 @@ import { cn } from '@/design/cn'
 import { useLabels } from '@/features/content/labels'
 import { useSearch } from '@/app/search'
 import { useUi } from '@/app/ui'
+import { Popover } from '@/features/photos/Popover'
 import { Chips } from './TitleStage'
 import { MoviesList } from './MoviesPage'
 import { PLACEHOLDER, PosterCard } from './PosterCard'
@@ -167,7 +168,34 @@ function DetailPanel({ item }: { item: Found }) {
 }
 
 type Kind = 'movie' | 'series'
-const SELECT = 'h-11 min-w-40 rounded-xl border border-line-2 bg-surface px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50'
+const OPTION = 'h-9 rounded-full border px-3.5 text-[13px] font-semibold transition-colors'
+
+/** One filter for Discover, like the one on the Photos page: a pill with a count of what is chosen, opening a panel with the kind and the genre. */
+function DiscoverFilters({ kind, setKind, genre, setGenre, off }: { kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void; off: boolean }) {
+  const count = (kind === 'series' ? 1 : 0) + (genre ? 1 : 0)
+  const pick = (on: boolean) => cn(OPTION, on ? 'border-accent/60 bg-accent/15 text-fg' : 'border-line text-muted hover:bg-fg/5 hover:text-fg')
+  return (
+    <div className={cn(off && 'pointer-events-none opacity-50')} aria-disabled={off || undefined}>
+      <Popover label="Filters" icon={<Icon name="filter" className="size-4" />} badge={count} active={count > 0} align="right">
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <h3 className="text-sm font-bold">Kind</h3>
+            <div role="group" aria-label="Kind" className="flex gap-1.5">
+              {([['movie', 'Movies'], ['series', 'Series']] as const).map(([v, label]) => <button key={v} type="button" aria-pressed={kind === v} onClick={() => setKind(v)} className={pick(kind === v)}>{label}</button>)}
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <h3 className="text-sm font-bold">Genre</h3>
+            <div role="group" aria-label="Genre" className="flex flex-wrap gap-1.5">
+              {['', ...GENRES].map((g) => <button key={g || 'all'} type="button" aria-pressed={genre === g} onClick={() => setGenre(g)} className={pick(genre === g)}>{g || 'All genres'}</button>)}
+            </div>
+          </div>
+          {count ? <button type="button" onClick={() => { setKind('movie'); setGenre('') }} className="justify-self-start text-[13px] font-semibold text-muted hover:text-fg">Clear filters</button> : null}
+        </div>
+      </Popover>
+    </div>
+  )
+}
 
 /**
  * Discover: what is popular in Cinemeta's open catalogues, by kind and genre, with a search; the titles you already have are marked.
@@ -196,10 +224,7 @@ function Discover({ text, kind, setKind, genre, setGenre }: { text: string; kind
     <section aria-label="Discover" className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-extrabold tracking-tight">{search ? `Results for “${search}”` : genre ? `${genre} ${kind === 'movie' ? 'movies' : 'series'}` : `Popular ${kind === 'movie' ? 'movies' : 'series'}`}</h2>
-        <div className="flex flex-wrap items-center gap-3">
-          <select aria-label="Kind" value={kind} onChange={(e) => { setKind(e.target.value as Kind); setFocus(null) }} className={SELECT}><option value="movie">Movies</option><option value="series">Series</option></select>
-          <select aria-label="Genre" value={genre} disabled={Boolean(search)} onChange={(e) => { setGenre(e.target.value); setFocus(null) }} className={cn(SELECT, genre && 'border-accent/60 bg-accent/10')}><option value="">All genres</option>{GENRES.map((g) => <option key={g} value={g}>{g}</option>)}</select>
-        </div>
+        <DiscoverFilters kind={kind} setKind={(k) => { setKind(k); setFocus(null) }} genre={genre} setGenre={(g) => { setGenre(g); setFocus(null) }} off={Boolean(search)} />
       </div>
       {off ? <p role="status" className="rounded-2xl border border-dashed border-line p-6 text-sm text-muted">Discover uses Cinemeta, the Stremio project's open catalogue, and it is switched off. Turn it on in Settings, Metadata.</p>
         : q.isError ? <p role="alert" className="rounded-2xl border border-dashed border-line p-6 text-sm text-warn">The catalogue could not be reached. Check the internet connection and try again.</p>

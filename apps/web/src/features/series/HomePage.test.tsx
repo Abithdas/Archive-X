@@ -55,11 +55,14 @@ describe('SFW Home', () => {
     expect(screen.getByRole('link', { name: 'Watch the trailer' })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=m8e-FF8MsqU')
     fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]!)
     expect(screen.getByRole('heading', { name: 'Popular movies' })).toBeInTheDocument()
-    expect([...screen.getByLabelText('Genre').querySelectorAll('option')].map((o) => o.textContent)).toEqual(expect.arrayContaining(['All genres', 'Biography', 'History', 'Sport']))
-    fireEvent.change(screen.getByLabelText('Genre'), { target: { value: 'Drama' } })
+    fireEvent.click(screen.getByRole('button', { name: /Filters/ }))                                     // one Filters button, like the Photos page
+    const genres = screen.getByRole('group', { name: 'Genre' })
+    for (const g of ['All genres', 'Biography', 'History', 'Sport']) expect(within(genres).getByRole('button', { name: g })).toBeInTheDocument()
+    fireEvent.click(within(genres).getByRole('button', { name: 'Drama' }))
     expect(await screen.findByRole('heading', { name: 'Drama movies' })).toBeInTheDocument()            // the page says which genre is on
     await vi.waitFor(() => expect(urls.some((u) => u.includes('genre=Drama'))).toBe(true))
-    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'series' } })
+    fireEvent.click(within(screen.getByRole('group', { name: 'Kind' })).getByRole('button', { name: 'Series' }))
+    expect(screen.getByRole('button', { name: /Filters/ })).toHaveTextContent('2')                           // the count of what is chosen: series and Drama
     await vi.waitFor(() => expect(urls.some((u) => u.includes('type=series'))).toBe(true))
     act(() => useSearch.getState().set('dune'))                                                            // typed in the one search box, in the top bar
     await vi.waitFor(() => expect(urls.some((u) => u.includes('search=dune'))).toBe(true))
