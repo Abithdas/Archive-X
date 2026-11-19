@@ -48,3 +48,35 @@ pub fn window_close(window: WebviewWindow) -> Result<(), String> {
 pub fn window_drag(window: WebviewWindow) -> Result<(), String> {
     window.start_dragging().map_err(text)
 }
+
+/// Opens a web address in the person's own browser. The page's `target="_blank"` links do nothing inside the app window, so the page asks here.
+/// Only plain http(s) addresses are accepted, and the program is started with the address as one argument (no shell), so nothing in it is interpreted.
+#[tauri::command]
+pub fn open_external(url: String) -> Result<(), String> {
+    let u = url.trim();
+    let plain = (u.starts_with("https://") || u.starts_with("http://")) && u.len() <= 2000 && !u.chars().any(|c| c.is_control() || c.is_whitespace() || matches!(c, '"' | '<' | '>' | '^' | '`' | '|' | '\\'));
+    if !plain {
+        return Err("That is not a web address that can be opened.".into());
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        std::process::Command::new("rundll32").args(["url.dll,FileProtocolHandler", u]).creation_flags(0x0800_0000).spawn().map(|_| ()).map_err(|e| e.to_string())
+    }
+    #[cfg(not(windows))]
+    {
+        std::process::Command::new("xdg-open").arg(u).spawn().map(|_| ()).map_err(|e| e.to_string())
+    }
+}
+
+#[cfg(test)]
+mod open_external_tests {
+    use super::open_external;
+
+    #[test]
+    fn only_plain_web_addresses_are_opened() {
+        for bad in ["file:///c:/windows/system32/calc.exe", "javascript:alert(1)", "calc.exe", "https://a.example/x y", "https://a.example/\"&calc", "https://a.example/a|b", ""] {
+            assert!(open_external(bad.into()).is_err(), "{bad}");
+        }
+    }
+}

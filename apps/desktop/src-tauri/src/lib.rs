@@ -175,7 +175,8 @@ pub fn run() {
             window::window_toggle_maximize,
             window::window_is_maximized,
             window::window_close,
-            window::window_drag
+            window::window_drag,
+            window::open_external
         ])
         .setup(|app| {
             let handle = app.handle().clone();

@@ -12,20 +12,20 @@ export const regionOf = (language = typeof navigator === 'undefined' ? '' : navi
  * Where a title you do not have can be watched legitimately: the services that offer it in your country, and a link to the list (TMDB's page about it).
  * Nothing plays here; you open the service. The data comes from JustWatch through TMDB, which asks for the credit shown below.
  */
-export function WhereToWatch({ kind, ident, title = '' }: { kind: 'movie' | 'tv'; ident: string; title?: string }) {
+export function WhereToWatch({ kind, ident, title = '', flat = false }: { kind: 'movie' | 'tv'; ident: string; title?: string; flat?: boolean }) {
   const region = regionOf()
   const q = useQuery({ queryKey: ['where-to-watch', kind, ident, region, title] as const, queryFn: () => api<Where>(`/api/screen/where/${kind === 'tv' ? 'series' : 'movie'}/${ident}?region=${region}${title ? `&title=${encodeURIComponent(title)}` : ''}`), staleTime: 30 * 60_000, retry: false })
   if (q.isError || !q.data) return null
   const d = q.data
   return (
-    <section aria-label="Where to watch" className="grid gap-2">
-      <h3 className="text-sm font-bold">Where to watch</h3>
+    <section aria-label="Where to watch" className={flat ? 'grid gap-4' : 'grid gap-2'}>
+      {flat ? null : <h3 className="text-sm font-bold">Where to watch</h3>}
       {d.needs_key ? <p className="text-xs text-muted">Add a free TMDB key in Settings, Metadata to see where to watch.</p>
         : !d.groups?.length ? <p className="text-xs text-muted">Not offered by a streaming service in {d.region} right now.</p>
         : d.groups.map((g) => (
-          <div key={g.key} className="flex flex-wrap items-center gap-1.5">
-            <span className="w-24 shrink-0 text-[11px] font-bold uppercase tracking-wide text-faint">{g.label}</span>
-            <ul aria-label={g.label} className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+          <div key={g.key} className={flat ? 'flex flex-wrap items-center gap-2' : 'flex flex-wrap items-center gap-1.5'}>
+            <span className={flat ? 'w-20 shrink-0 text-[11px] font-bold uppercase tracking-wide text-faint' : 'w-24 shrink-0 text-[11px] font-bold uppercase tracking-wide text-faint'}>{g.label}</span>
+            <ul aria-label={g.label} className={flat ? 'm-0 flex list-none flex-wrap gap-2 p-0' : 'm-0 flex list-none flex-wrap gap-1.5 p-0'}>
               {g.providers.map((p) => <li key={p.name}>{p.open
                 ? <a href={p.open} target="_blank" rel="noreferrer" title={`Open ${p.name} in your browser`} aria-label={`Open on ${p.name}`} className="inline-flex items-center gap-1.5 rounded-full bg-fg/10 py-1 pl-1 pr-3 text-[13px] font-semibold transition-colors hover:bg-fg hover:text-bg">{p.logo ? <img src={p.logo} alt="" loading="lazy" className="size-5 rounded-full" /> : null}{p.name}<span aria-hidden="true" className="text-xs opacity-70">↗</span></a>
                 : <span className="inline-flex items-center gap-1.5 rounded-full bg-fg/10 py-1 pl-1 pr-3 text-[13px] font-semibold">{p.logo ? <img src={p.logo} alt="" loading="lazy" className="size-5 rounded-full" /> : null}{p.name}</span>}</li>)}

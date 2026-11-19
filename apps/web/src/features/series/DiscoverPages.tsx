@@ -72,8 +72,8 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
             : <span className={cn(BTN, 'border border-line-2 font-semibold text-muted')}>Not in your library</span>}
           {d.trailer ? <a href={`https://www.youtube.com/watch?v=${d.trailer}`} target="_blank" rel="noreferrer" className={cn(BTN, 'border border-line-2 font-semibold hover:bg-fg/10')}>Trailer ↗</a> : null}
         </div>
-        <div className="mt-2 grid max-w-2xl gap-5 rounded-[22px] border border-line bg-surface/70 p-4 backdrop-blur-xl empty:hidden">
-      {!lib && WATCH_ID.test(id) ? <WhereToWatch kind={d.kind} ident={id} title={d.title} /> : lib ? <p className="px-1 text-sm text-muted">You have this in your library, so there is nothing to look for elsewhere.</p> : null}
+        <div className="grid gap-4 empty:hidden">
+      {!lib && WATCH_ID.test(id) ? <WhereToWatch kind={d.kind} ident={id} title={d.title} flat /> : lib ? <p className="px-1 text-sm text-muted">You have this in your library, so there is nothing to look for elsewhere.</p> : null}
         </div>
       </div>
     )
@@ -131,8 +131,8 @@ export function DiscoverEpisodePage({ id, season, episode }: { id: string; seaso
           {next ? <Link to="/discover/$kind/$id/$season/$episode" params={to(next)} className={cn(BTN, 'border border-line-2 font-semibold hover:bg-fg/10')}>{label(next)} →</Link> : null}
           {d.library ? <Link to="/series/$id" params={{ id: String(d.library.id) }} className={cn(BTN, 'bg-accent text-accent-fg hover:brightness-110')}><Icon name="play" className="size-4" />Open in your library</Link> : null}
         </div>
-        <div className="mt-2 grid max-w-2xl gap-3 rounded-[22px] border border-line bg-surface/70 p-4 backdrop-blur-xl">
-      {d.library ? <p className="px-1 text-sm text-muted">You have this show in your library.</p> : WATCH_ID.test(id) ? <WhereToWatch kind="tv" ident={id} title={d.title} /> : null}
+        <div className="grid gap-4">
+      {d.library ? <p className="px-1 text-sm text-muted">You have this show in your library.</p> : WATCH_ID.test(id) ? <WhereToWatch kind="tv" ident={id} title={d.title} flat /> : null}
       {!d.library ? <p className="px-1 text-xs text-faint">Streaming services list the whole show, so this is where {label(ep)} can be watched too.</p> : null}
         </div>
       </div>
