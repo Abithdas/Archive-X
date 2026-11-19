@@ -15,10 +15,12 @@ describe('stream stats', () => {
   })
 })
 describe('picture and sound', () => {
-  it('has no filter when untouched and clamps stored values', () => {
+  it('has no filter when untouched, draws sharpen and colour when asked, and clamps stored values', () => {
     expect(pictureFilter(DEFAULT_PS)).toBeUndefined()
-    expect(pictureFilter({ ...DEFAULT_PS, contrast: 120 })).toBe('brightness(100%) contrast(120%) saturate(100%)')
-    expect(normalizePS({ brightness: 999, boost: 10, saturation: Number.NaN })).toEqual({ ...DEFAULT_PS, brightness: 150, boost: 100 })
+    expect(pictureFilter({ ...DEFAULT_PS, enhance: 'sharpen' })).toBe('url(#ax-sharpen)')
+    expect(pictureFilter({ ...DEFAULT_PS, enhance: 'vivid' })).toBe('contrast(1.06) saturate(1.2)')
+    expect(pictureFilter({ ...DEFAULT_PS, enhance: 'both' })).toBe('url(#ax-sharpen) contrast(1.06) saturate(1.2)')
+    expect(normalizePS({ boost: 10, enhance: 'nonsense' as never, brightness: 130 } as never)).toEqual(DEFAULT_PS)   // the old brightness, contrast and colour are gone
     expect(isDefaultPS(normalizePS(null))).toBe(true)
   })
   it('keeps zoom and sound to the known choices and works out the zoom', () => {

@@ -14,6 +14,7 @@ import type { PreviewInfo } from './Timeline'
 import type { Segment } from './timelineLogic'
 import type { AudioTrack, TrackInfo } from './tracks'
 import { useTracks } from './useTracks'
+import { loadPrefs as loadPlayerPrefs, savePrefs as savePlayerPrefs } from './playerPrefs'
 
 const noop = () => undefined
 
@@ -42,9 +43,10 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
   const [snap, setSnap] = useState<Snapshot | null>(null)
   const [nativeTracks, setNativeTracks] = useState<NativeTrack[]>([])
   const [audioPick, setAudioPick] = useState(0)
-  const [volume, setVolume] = useState(1)
-  const [muted, setMuted] = useState(false)
-  const [rate, setRate] = useState(1)
+  const [saved] = useState(loadPlayerPrefs)   // volume, mute and speed carry over from the last video
+  const [volume, setVolume] = useState(saved.volume)
+  const [muted, setMuted] = useState(saved.muted)
+  const [rate, setRate] = useState(saved.rate)
   const [holding, setHolding] = useState(false)
   const [jump, setJump] = useState<{ to: number; at: number } | null>(null)
   const [shown, setShown] = useState(false)
@@ -65,7 +67,7 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
   const shownRef = useRef(false)
   const stall = useRef<StallState>(quiet())
   const weHeld = useRef(false)
-  const rateRef = useRef(1)
+  const rateRef = useRef(saved.rate)
   const startRef = useRef(startAt)
   const playRef = useRef(autoPlay)
   const playedSent = useRef(false)
@@ -109,6 +111,10 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
       if (dead) { void native.command('close').catch(noop); return }
       setOpened(o)
       setPhase('ready')
+      // What the person set last time (volume, mute, speed) is applied to this video too.
+      await native.command('volume', Math.round(saved.volume * 100)).catch(noop)
+      if (saved.muted) await native.command('mute', 1).catch(noop)
+      if (saved.rate !== 1) await native.command('rate', saved.rate).catch(noop)
       // Only the window above the app shows the picture on every PC tried so far, and it is the one the pane lays out for.
       if (o.layer !== 'popup') await native.command('popup').catch(noop)
       await native.command('hide').catch(noop)   // the frames are shown first; the picture comes when playback starts (see sync)
@@ -197,9 +203,9 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
     if (weHeld.current) { weHeld.current = false; setHolding(false); stall.current = { ...stall.current, holdUntil: null } }   // the person decides, not the refill
     send(playing || holding ? 'pause' : 'play')
   }
-  const pickRate = (r: number) => { setRate(r); rateRef.current = r; send('rate', r) }
-  const setVol = (v: number) => { setVolume(v); setMuted(false); send('volume', Math.round(v * 100)); send('mute', 0) }
-  const flipMute = () => { send('mute', muted ? 0 : 1); setMuted(!muted) }
+  const pickRate = (r: number) => { setRate(r); rateRef.current = r; send('rate', r); savePlayerPrefs({ rate: r }) }
+  const setVol = (v: number) => { setVolume(v); setMuted(false); send('volume', Math.round(v * 100)); send('mute', 0); savePlayerPrefs({ volume: v, muted: false }) }
+  const flipMute = () => { send('mute', muted ? 0 : 1); setMuted(!muted); savePlayerPrefs({ muted: !muted }) }
   const flash = (text: string) => { setHint(text); clearTimeout(hintTimer.current); hintTimer.current = setTimeout(() => setHint(''), 900) }
   useEffect(() => () => clearTimeout(hintTimer.current), [])
   const full = () => (document.fullscreenElement ? void document.exitFullscreen() : void box.current?.requestFullscreen?.())

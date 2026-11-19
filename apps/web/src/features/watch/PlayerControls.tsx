@@ -8,7 +8,7 @@ import { Timeline, type PreviewInfo } from './Timeline'
 import type { Segment } from './timelineLogic'
 import { DEFAULT_STYLE, SIZE_STEP, clampSize, sizeLabel, type CaptionBg, type CaptionStyle } from './captionStyle'
 import type { TrackState } from './useTracks'
-import { DEFAULT_PS, PS_RANGE, SOUNDS, ZOOMS, isDefaultPS, type PictureSound } from './pictureSound'
+import { DEFAULT_PS, ENHANCES, PS_RANGE, SOUNDS, ZOOMS, isDefaultPS, type PictureSound } from './pictureSound'
 
 /** The two engines (the browser's <video> and the native player) share this bar, these menus and the shortcuts: only the picture's source differs. */
 export const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const
@@ -98,7 +98,6 @@ export function CaptionStyleItems({ style, onChange, head = true }: { style: Cap
   )
 }
 
-const SLIDERS: Array<['brightness' | 'contrast' | 'saturation' | 'boost', string]> = [['brightness', 'Brightness'], ['contrast', 'Contrast'], ['saturation', 'Colour'], ['boost', 'Volume boost']]
 const PILL = 'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors'
 const Pills = <T extends string>({ label, items, value, onPick }: { label: string; items: Array<[T, string]>; value: T; onPick: (v: T) => void }) => (
   <div role="radiogroup" aria-label={label} className="flex max-w-[16rem] flex-wrap gap-1.5 px-2.5 py-1">
@@ -107,14 +106,16 @@ const Pills = <T extends string>({ label, items, value, onPick }: { label: strin
 )
 const Note = ({ children }: { children: ReactNode }) => <p className="max-w-[16rem] px-2.5 pb-1 text-[11px] leading-snug text-muted">{children}</p>
 
-/** Picture (zoom, brightness, contrast, colour), Sound (normal, dialogue boost, night mode, volume boost) and Subtitle sync. */
+/** Picture (zoom, enhancement), Sound (normal, dialogue boost, night mode, volume boost) and Subtitle sync. */
 export function PictureSoundItems({ value, onChange, boostFailed, sync }: { value: PictureSound; onChange: (patch: Partial<PictureSound>) => void; boostFailed?: boolean; sync?: { seconds: number; on: boolean; onChange: (s: number) => void } }) {
   return (
     <>
       <MenuHead>Picture</MenuHead>
       <Pills label="Picture zoom" items={ZOOMS} value={value.zoom} onPick={(zoom) => onChange({ zoom })} />
       <Note>Zoom crops the edges. Remove black bars fills the window when the video does not match it.</Note>
-      {SLIDERS.slice(0, 3).map(([k, label]) => <PsSlider key={k} k={k} label={label} value={value[k]} onChange={onChange} />)}
+      <MenuHead>Picture enhancement</MenuHead>
+      <Pills label="Picture enhancement" items={ENHANCES} value={value.enhance} onPick={(enhance) => onChange({ enhance })} />
+      <Note>{value.enhance === 'off' ? 'The picture as it is in the file.' : value.enhance === 'sharpen' ? 'Brings out edges and fine detail in soft or low-resolution video.' : value.enhance === 'vivid' ? 'A little more contrast and colour for dull, washed-out video.' : 'Sharper detail and richer colour together.'}</Note>
       <MenuHead>Sound</MenuHead>
       <Pills label="Sound mode" items={SOUNDS} value={value.sound} onPick={(sound) => onChange({ sound })} />
       <Note>{value.sound === 'night' ? 'Evens out loud and quiet scenes so you can keep the volume down.' : value.sound === 'dialogue' ? 'Lifts the range where speech sits.' : 'The sound as it is in the file.'}</Note>
@@ -135,7 +136,7 @@ export function PictureSoundItems({ value, onChange, boostFailed, sync }: { valu
     </>
   )
 }
-function PsSlider({ k, label, value, onChange }: { k: 'brightness' | 'contrast' | 'saturation' | 'boost'; label: string; value: number; onChange: (patch: Partial<PictureSound>) => void }) {
+function PsSlider({ k, label, value, onChange }: { k: 'boost'; label: string; value: number; onChange: (patch: Partial<PictureSound>) => void }) {
   return (
     <label className="flex items-center justify-between gap-3 px-2.5 py-1 text-xs"><span className="text-muted">{label}</span>
       <span className="flex items-center gap-2"><input type="range" aria-label={label} min={PS_RANGE[k][0]} max={PS_RANGE[k][1]} step={5} value={value} onChange={(e) => onChange({ [k]: Number(e.target.value) })} className="w-24 accent-[var(--color-accent)]" /><output className="w-9 text-right font-semibold tabular-nums">{value}%</output></span></label>

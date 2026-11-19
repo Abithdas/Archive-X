@@ -7,3 +7,7 @@ configure({ asyncUtilTimeout: 4000 })
 
 // jsdom has no canvas; code that measures text with one (the search box's caret) falls back to an estimate, so say "none" quietly.
 HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext
+
+// What a page remembers on this PC (the player's volume and speed, for one) must not leak from one test into the next.
+import { afterEach } from 'vitest'
+afterEach(() => { try { localStorage.clear() } catch { /* no storage */ } })

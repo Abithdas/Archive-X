@@ -10,7 +10,8 @@ import type { Segment } from './timelineLogic'
 import { DOUBLE_TAP_MS, KEEP_SKIPPING_MS, registerTap, type TapState } from './tapseek'
 import { CcMenu } from './CcMenu'
 import { blockingEnabled, resumeAudio, routeThroughApp, setBlocking, setBoost, setSoundMode } from './audioGraph'
-import { loadPS, normalizePS, pictureFilter, savePS, zoomScale, type PictureSound } from './pictureSound'
+import { SHARPEN_ID, loadPS, normalizePS, pictureFilter, savePS, zoomScale, type PictureSound } from './pictureSound'
+import { loadPrefs as loadPlayerPrefs, savePrefs as savePlayerPrefs } from './playerPrefs'
 import { sampleOf, statRows, type StreamFacts, type StreamSample } from './streamStats'
 import { CaptionOverlay } from './CaptionOverlay'
 import { releasePlayback } from './release'
@@ -46,9 +47,11 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   const [time, setTime] = useState(0)
   const [dur, setDur] = useState(durationHint ?? 0)
   const [buffered, setBuffered] = useState(0)
-  const [rate, setRate] = useState<number>(1)
-  const [muted, setMuted] = useState(false)
-  const [volume, setVolume] = useState(1)
+  const [saved] = useState(loadPlayerPrefs)   // volume, mute and speed carry over from the last video
+  const [rate, setRate] = useState<number>(saved.rate)
+  const [muted, setMuted] = useState(saved.muted)
+  const [volume, setVolume] = useState(saved.volume)
+  useEffect(() => { savePlayerPrefs({ volume, muted, rate }) }, [volume, muted, rate])
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   useEffect(() => { if (failed) onUnplayable?.() }, [failed]) // eslint-disable-line react-hooks/exhaustive-deps -- the page switches to the native player once, when this video cannot be played here
@@ -178,6 +181,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
       style={isFs ? undefined : ({ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${ratio.toFixed(4)})))` } as React.CSSProperties)}
       className={cn(isFs ? 'relative h-full w-full bg-black' : cn('relative grid w-full sm:w-[var(--pw)]', !overlay && 'gap-4 sm:gap-5'), hideBar && 'cursor-none [&_video]:cursor-none')}>
       <div data-caption-frame style={isFs ? undefined : { aspectRatio: ratio }} className={cn('@container relative w-full overflow-hidden bg-[#111215]', isFs ? 'absolute inset-0 h-full' : 'rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
+        <svg aria-hidden="true" focusable="false" className="pointer-events-none absolute size-0"><filter id={SHARPEN_ID} colorInterpolationFilters="sRGB"><feConvolveMatrix order="3" kernelMatrix="0 -0.6 0 -0.6 3.4 -0.6 0 -0.6 0" divisor="1" preserveAlpha="true" /></filter></svg>
         <video
           key={attempt}
           ref={video}
