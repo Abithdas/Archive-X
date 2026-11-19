@@ -17,7 +17,7 @@ Browse, search and play movies, series, videos and photos from one Windows deskt
 <p align="center"><a href="https://htmlpreview.github.io/?https://github.com/Abithdas/Archive-X/blob/main/docs/ui-reference/index.html"><b>See every screen: the UI reference</b></a> (placeholder titles; open it in a browser, click a picture to enlarge)</p>
 
 > **Note**
-> Archive X is a personal fan project I made for my own use and decided to share. It was built with the help of [Claude Code](https://www.anthropic.com/claude-code), Anthropic's AI coding assistant. It isn't affiliated with Telegram, Anthropic or any of the metadata providers it can look names up in.
+> Archive X is a personal project I made for my own use and decided to share. It was built with the help of [Claude Code](https://www.anthropic.com/claude-code), Anthropic's AI coding assistant. It isn't affiliated with Telegram, Anthropic or any of the metadata providers it can look names up in.
 
 ## Install
 

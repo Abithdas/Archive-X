@@ -3,6 +3,7 @@
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
 ## Unreleased
+- **About note:** it says "personal project" instead of "personal fan project" (Settings, Overview and the README).
 - **Project page:** a new README with a Home screenshot and a link to a **UI reference** (`docs/ui-reference/index.html`): every main screen of the current app (Home, Discover, Movies, Series, show and movie pages, Player, Notifications, Operations, Appearance, light theme, phone width), captured from the real interface with made-up titles. The theme names in Appearance wrap onto two lines instead of being cut off.
 
 ## 30.8.0 (2026-11-19)

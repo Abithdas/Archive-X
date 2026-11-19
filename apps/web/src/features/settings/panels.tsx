@@ -100,7 +100,7 @@ export function OverviewPanel({ go }: { go: (p: PanelId) => void }) {
       <section aria-label="About" className={BOX}>
         <h3 className="mb-2 flex flex-wrap items-baseline gap-3 text-xl font-extrabold">About{version ? <span className="text-sm font-medium text-muted" title="The release running now">Archive X {version}</span> : null}</h3>
         <p className="text-sm text-muted">
-          Archive X is a personal fan project I made for my own use and decided to share. It was built with the help of{' '}
+          Archive X is a personal project I made for my own use and decided to share. It was built with the help of{' '}
           <a href="https://www.anthropic.com/claude-code" target="_blank" rel="noreferrer" className="font-semibold text-accent underline">Claude Code</a>, Anthropic's AI coding assistant.
           It isn't affiliated with Telegram, Anthropic or any of the metadata providers it can look names up in.
         </p>
