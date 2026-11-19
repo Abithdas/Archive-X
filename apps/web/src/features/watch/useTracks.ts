@@ -16,7 +16,10 @@ const getJson = async <T,>(url: string, signal?: AbortSignal): Promise<T> => {
 }
 
 /** Audio tracks, subtitle tracks and live English captions of one video; the caller shows `text` and plays `altAudioUrl`. */
-export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVideoElement | null>, time: number, playing: boolean, shift = 0) {
+/** A title played from an add-on stream: it has no file of the library to probe, so only the subtitle files the add-ons list for it are offered. */
+export interface AddonRef { kind: 'movie' | 'series'; ident: string; season?: number; episode?: number; filename?: string }
+
+export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVideoElement | null>, time: number, playing: boolean, shift = 0, addon?: AddonRef) {
   const [info, setInfoBase] = useState<TrackInfo | null>(null)
   const [addonSubs, setAddonSubs] = useState<AddonSub[]>([])
   const setInfo = setInfoBase
@@ -34,7 +37,7 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
   const gen = useRef(0)
   const [retry, setRetry] = useState(0)
   const [tick, setTick] = useState(0)   // a slow heartbeat while live captions run: whatever is missing gets asked for again even if nothing else changed
-  const key = media ? `${media.cid}/${media.mid}` : ''
+  const key = media ? `${media.cid}/${media.mid}` : addon ? `addon/${addon.ident}/${addon.season ?? ''}/${addon.episode ?? ''}/${addon.filename ?? ''}` : ''
 
   // Track list, once per video. What the viewer chose last time carries over at once: live captions keep going on the next video
   // without waiting for the track list (which can be slow or fail on a remote file).
@@ -42,6 +45,7 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
     const prefs = loadPrefs()
     setInfo(null); setAudioState(null); setCues([]); setAltUrl(null); setLive('idle'); setLiveError(''); fetched.current = new Set()
     setSubState(prefs.sub === 'live' ? { kind: 'live', original: !!prefs.liveOriginal } : { kind: 'off' })
+    if (!media && addon) { setInfo({ audio: [], subtitles: [], captions: { available: false, engine: 'stream', install: '' } }); setSubState({ kind: 'off' }) }
     if (!media) return
     let dead = false
     getJson<TrackInfo>(`/api/play/tracks/${encodeURIComponent(media.cid)}/${media.mid}`).then((i) => {
@@ -59,9 +63,11 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
   // Subtitle files from the person's add-ons (OpenSubtitles and others) for a video of the library that has an IMDb number: listed once per video, fetched when chosen.
   useEffect(() => {
     setAddonSubs([])
-    if (!media) return
+    if (!media && !addon) return
     let dead = false
-    getJson<{ items: AddonSub[] }>(`/api/screen/subtitles/${encodeURIComponent(media.cid)}/${media.mid}`).then((r) => {
+    const url = media ? `/api/screen/subtitles/${encodeURIComponent(media.cid)}/${media.mid}`
+      : `/api/screen/subtitles-for/${addon!.kind}/${addon!.ident}?season=${addon!.season ?? ''}&episode=${addon!.episode ?? ''}&filename=${encodeURIComponent(addon!.filename ?? '')}`
+    getJson<{ items: AddonSub[] }>(url).then((r) => {
       if (dead) return
       const list = Array.isArray(r.items) ? r.items : []
       setAddonSubs(list)

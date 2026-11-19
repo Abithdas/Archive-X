@@ -472,6 +472,9 @@ def test_subtitles_from_an_addon_are_listed_for_a_library_video_and_fetched_on_c
     assert all("url" not in i for i in got["items"])
     assert len(c.get("/api/screen/subtitles/-9000000000001/2").json()["items"]) == 2                              # an episode asks with its season and episode
     assert c.get("/api/screen/subtitles/-9000000000001/99").json()["items"] == []                                 # not a video the library knows
+    streamed = c.get("/api/screen/subtitles-for/series/tt0903747?season=1&episode=1&filename=x.mkv").json()      # a title played from an add-on stream, not from the library
+    assert [i["label"] for i in streamed["items"]] == ["English · OpenSubtitles v3", "Spanish · OpenSubtitles v3"] and all("url" not in i for i in streamed["items"])
+    assert c.get("/api/screen/subtitles-for/series/tt0903747").json()["items"] == [] and c.get("/api/screen/subtitles-for/movie/nope").status_code == 400
     body = c.get("/api/screen/subtitle/" + got["items"][0]["token"])
     assert body.status_code == 200 and "Hello" in body.text and body.headers["content-type"].startswith("text/vtt")
     assert c.get("/api/screen/subtitle/nope").status_code == 404

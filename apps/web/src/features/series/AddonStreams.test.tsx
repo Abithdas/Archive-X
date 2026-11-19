@@ -24,10 +24,15 @@ describe('streams from the add-ons on a title page', () => {
     expect(within(home).getByText('Not played here (cdn.example)')).toBeInTheDocument()
     expect(screen.getByText('2 streams of a kind this app does not use were left out.')).toBeInTheDocument()
     fireEvent.click(within(home).getByRole('button', { name: /Dune 1080p/ }))
-    const video = document.querySelector('video')!
-    expect(video).toHaveAttribute('src', '/api/screen/stream/tok123')
-    expect(screen.getByRole('region', { name: 'Now playing' })).toBeInTheDocument()   // in the page with the app's own player, not in a pop-up
+    expect(await screen.findByText('Add-on player page')).toBeInTheDocument()   // a page of its own with the app's player, not a small box in the panel
     expect(document.querySelector('dialog[open]')).toBeNull()
+  })
+  it('opens the whole row, not only its title', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(DATA)))
+    withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
+    const home = await screen.findByRole('list', { name: 'Home server' })
+    fireEvent.click(within(home).getByText('Play'))
+    expect(await screen.findByText('Add-on player page')).toBeInTheDocument()
   })
   it('asks with the season and episode for a show, and shows nothing when no add-on answers', async () => {
     const urls: string[] = []

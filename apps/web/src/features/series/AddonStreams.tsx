@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '@/api/client'
-import { Player } from '@/features/watch/Player'
+import { useNavigate } from '@tanstack/react-router'
 import { Icon } from '@/design/Icon'
 
 interface StreamItem {
@@ -59,7 +59,7 @@ function compareKnown(a: number, b: number, descending: boolean): number {
  * Torrents are never used.
  */
 export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' | 'series'; ident: string; season?: number; episode?: number }) {
-  const [playing, setPlaying] = useState<StreamItem | null>(null)
+  const navigate = useNavigate()
   const [group, setGroup] = useState(() => (kind === 'series' ? lastBinge(ident) : ''))
   const [selectedAddon, setSelectedAddon] = useState('')
   const [sort, setSort] = useState<StreamSort>('addon')
@@ -67,11 +67,15 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
   const [language, setLanguage] = useState('')
   const [source, setSource] = useState('')
   const [hdr, setHdr] = useState<HdrFilter>('all')
+  const open = (item: StreamItem) => {
+    if (!item.play) return
+    if (kind === 'series' && item.bingeGroup) { rememberBinge(ident, item.bingeGroup); setGroup(item.bingeGroup) }
+    void navigate({ to: '/addon-play', search: { src: item.play, name: item.name, kind, ident, season, episode } })
+  }
   const extra = kind === 'series' ? '?season=' + (season ?? '') + '&episode=' + (episode ?? '') : ''
   const q = useQuery({ queryKey: ['addon-streams', kind, ident, season ?? null, episode ?? null] as const, queryFn: () => api<Streams>('/api/screen/streams/' + kind + '/' + ident + extra), retry: false, staleTime: 5 * 60_000, enabled: /^tt\d+$/.test(ident) && (kind === 'movie' || (season !== undefined && episode !== undefined)) })
   const d = q.data
   useEffect(() => {
-    setPlaying(null)
     setSelectedAddon('')
     setSort('addon')
     setQuality('')
@@ -133,14 +137,14 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
             <ul key={name} aria-label={name} className="m-0 grid list-none gap-1 p-0">
               {rows.filter(({ item }) => item.addon === name).map(({ item, index }) => (
                 <li key={name + ':' + item.name + ':' + index} className="m-0">
-                  <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-xl border border-line px-3 py-2">
+                  <div onClick={item.kind === 'play' ? () => open(item) : undefined} className={'grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-xl border border-line px-3 py-2' + (item.kind === 'play' ? ' cursor-pointer transition-colors hover:bg-fg/5' : '')}>
                     <div className="grid min-w-14 place-items-center rounded-lg bg-fg/5 px-2 py-2 text-center">
                       <span className="text-[13px] font-black">{qualityLabel(item.height ?? 0) || '—'}</span>
                       {(item.hdr ?? []).length ? <span className="text-[9px] font-bold uppercase text-muted">{(item.hdr ?? []).includes('DV') ? 'Dolby Vision' : 'HDR'}</span> : null}
                     </div>
                     <div className="min-w-0">
                       {item.kind === 'link' ? <a href={item.href} target="_blank" rel="noreferrer" className="line-clamp-2 block break-words text-[13px] font-semibold hover:underline" title={item.name}>{item.name}<span aria-hidden="true" className="ml-1 opacity-60">↗</span></a>
-                        : item.kind === 'play' ? <button type="button" onClick={() => { setPlaying(item); if (kind === 'series' && item.bingeGroup) { rememberBinge(ident, item.bingeGroup); setGroup(item.bingeGroup) } }} className="line-clamp-2 block w-full break-words text-left text-[13px] font-semibold hover:underline" title={item.name}>{item.name}</button>
+                        : item.kind === 'play' ? <button type="button" onClick={() => open(item)} className="line-clamp-2 block w-full break-words text-left text-[13px] font-semibold hover:underline" title={item.name}>{item.name}</button>
                         : <p className="m-0 line-clamp-2 break-words text-[13px] font-semibold text-muted" title={item.name}>{item.name}</p>}
                       <p className="m-0 mt-0.5 flex flex-wrap items-center gap-x-1 text-[10px] text-muted">
                         {[item.addon, item.source, (item.languages ?? []).join(', ')].filter(Boolean).join(' · ')}
@@ -157,15 +161,6 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
           {d.skipped ? <p className="text-[11px] text-faint">{d.skipped} stream{d.skipped === 1 ? '' : 's'} of a kind this app does not use {d.skipped === 1 ? 'was' : 'were'} left out.</p> : null}
         </>
       ) : <p className="text-xs text-muted">{d.addons.join(', ')} had nothing playable or openable for this title.</p>}
-      {playing?.play ? (
-        <div className="order-first grid gap-2" role="region" aria-label="Now playing">
-          <div className="flex items-center justify-between gap-3">
-            <p className="m-0 min-w-0 truncate text-sm font-bold" title={playing.name}>{playing.name}</p>
-            <button type="button" onClick={() => setPlaying(null)} className="shrink-0 rounded-full border border-line px-3 py-1 text-xs font-semibold hover:bg-fg/5">Close</button>
-          </div>
-          <div className="overflow-hidden rounded-xl bg-black"><Player key={playing.play} src={playing.play} autoPlay /></div>
-        </div>
-      ) : null}
     </section>
   )
 }

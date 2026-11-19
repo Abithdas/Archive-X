@@ -1,5 +1,7 @@
 ## Unreleased
 
+- A stream from an add-on opens on a page of its own with the same player as your videos, instead of a small box in the side panel; the whole row is clickable, not only the title
+- The subtitle files your add-ons list (OpenSubtitles and others) are in the player's CC menu for add-on streams too; the side panel's scroll bar is hidden
 - Anime title pages now ask your add-ons for streams (and Where to watch, and the add-on extras), using the IMDb number and episode numbering the anime catalogue lists for the show
 
 # Changelog

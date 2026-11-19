@@ -152,7 +152,7 @@ export function PlaybackItems({ tracks, loop, onLoop }: { tracks: TrackState; lo
         <MenuItem active={tracks.sub.kind !== 'live'} onClick={(close) => { if (tracks.sub.kind === 'live') tracks.pickSub({ kind: 'off' }); close() }}>Off</MenuItem>
         <MenuItem active={tracks.sub.kind === 'live' && !tracks.sub.original} onClick={(close) => { tracks.pickSub({ kind: 'live' }); close() }}>English (translated)</MenuItem>
         <MenuItem active={tracks.sub.kind === 'live' && !!tracks.sub.original} onClick={(close) => { tracks.pickSub({ kind: 'live', original: true }); close() }}>Original language</MenuItem>
-      </>) : <span className="max-w-[13rem] px-2.5 py-1 text-[11px] leading-snug text-muted">{tracks.info ? <>Needs <code>pip install faster-whisper</code></> : 'Loading…'}</span>}
+      </>) : <span className="max-w-[13rem] px-2.5 py-1 text-[11px] leading-snug text-muted">{tracks.info?.captions.engine === 'stream' ? 'Live captions are for videos in your library.' : tracks.info ? <>Needs <code>pip install faster-whisper</code></> : 'Loading…'}</span>}
       <MenuHead>Playback</MenuHead>
       <MenuItem onClick={onLoop} label="Loop" pressed={loop}>Auto-repeat <span className={loop ? 'text-emerald-400' : 'text-muted'}>{loop ? 'ON' : 'OFF'}</span></MenuItem>
     </>

@@ -502,6 +502,35 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
              "rus": "Russian", "jpn": "Japanese", "kor": "Korean", "chi": "Chinese", "zho": "Chinese", "ara": "Arabic", "hin": "Hindi", "tur": "Turkish", "dut": "Dutch", "nld": "Dutch",
              "pol": "Polish", "swe": "Swedish", "ind": "Indonesian", "vie": "Vietnamese", "tha": "Thai", "ben": "Bengali", "tam": "Tamil", "tel": "Telugu", "heb": "Hebrew", "gre": "Greek"}
 
+    def _subs_for(kind: str, ident: str, sid_: str, filename: str, size: int) -> dict:
+        """Subtitle files the person's add-ons list for one title (and episode), as tokens: the address behind each is only ever read through the token."""
+        _sync_local()
+        items: list[dict] = []
+        now = _time.monotonic()
+        for k in [k for k, (at, _u) in sub_tokens.items() if now - at > 7200]:
+            sub_tokens.pop(k, None)
+        for a in _saved_addons():
+            try:
+                manifest = _addon_json(a["url"] + "/manifest.json")
+                if not isinstance(manifest, dict) or not _asks_for(manifest, "subtitles", kind, ident):
+                    continue
+                name = str(manifest.get("name") or a["name"] or "Add-on")[:40]
+                extra = "&".join(p for p in (f"filename={si.quote(filename, safe='')}" if filename else "", f"videoSize={int(size)}" if size else "") if p)   # what the add-on matches the file by
+                got = _addon_json(f"{a['url']}/subtitles/{kind}/{si.quote(sid_, safe='')}" + (f"/{extra}" if extra else "") + ".json")
+            except Exception:
+                continue
+            for sub in ((got or {}).get("subtitles") or [])[:120] if isinstance(got, dict) else []:
+                if not isinstance(sub, dict) or not isinstance(sub.get("url"), str) or not ac.stream_origin(sub["url"]):
+                    continue
+                lang = str(sub.get("lang") or "")[:12]
+                if len(sub_tokens) > 600:
+                    sub_tokens.clear()
+                token = _secrets.token_urlsafe(12)
+                sub_tokens[token] = (now, sub["url"])
+                items.append({"token": token, "language": lang, "label": f"{LANGS.get(lang.lower(), lang.upper() or 'Unknown')} · {name}"})
+        items.sort(key=lambda x: (x["language"].lower() != "eng", x["label"]))
+        return {"ok": True, "items": items[:60]}
+
     @router.get("/api/screen/subtitles/{cid}/{mid}")
     async def addon_subtitles(cid: str, mid: int, request: Request):
         """Subtitle files the person's add-ons have for this video (by its IMDb number, and season and episode for a show), listed by language. Nothing is fetched until one is chosen."""
@@ -518,33 +547,19 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             sid_ = ident if kind == "movie" else (f"{ident}:{int(row['season'])}:{int(row['episode'])}" if row["season"] is not None and row["episode"] is not None else "")
             if not sid_:
                 return {"ok": True, "items": []}
-            _sync_local()
-            items: list[dict] = []
-            now = _time.monotonic()
-            for k in [k for k, (at, _u) in sub_tokens.items() if now - at > 7200]:
-                sub_tokens.pop(k, None)
-            for a in _saved_addons():
-                try:
-                    manifest = _addon_json(a["url"] + "/manifest.json")
-                    if not isinstance(manifest, dict) or not _asks_for(manifest, "subtitles", kind, ident):
-                        continue
-                    name = str(manifest.get("name") or a["name"] or "Add-on")[:40]
-                    extra = "&".join(p for p in (f"filename={si.quote(str(row['filename']), safe='')}" if row["filename"] else "", f"videoSize={int(row['size'])}" if row["size"] else "") if p)   # what the add-on matches the file by
-                    got = _addon_json(f"{a['url']}/subtitles/{kind}/{si.quote(sid_, safe='')}" + (f"/{extra}" if extra else "") + ".json")
-                except Exception:
-                    continue
-                for sub in ((got or {}).get("subtitles") or [])[:120] if isinstance(got, dict) else []:
-                    if not isinstance(sub, dict) or not isinstance(sub.get("url"), str) or not ac.stream_origin(sub["url"]):
-                        continue
-                    lang = str(sub.get("lang") or "")[:12]
-                    if len(sub_tokens) > 600:
-                        sub_tokens.clear()
-                    token = _secrets.token_urlsafe(12)
-                    sub_tokens[token] = (now, sub["url"])
-                    items.append({"token": token, "language": lang, "label": f"{LANGS.get(lang.lower(), lang.upper() or 'Unknown')} · {name}"})
-            items.sort(key=lambda x: (x["language"].lower() != "eng", x["label"]))
-            return {"ok": True, "items": items[:60]}
+            return _subs_for(kind, ident, sid_, str(row["filename"] or ""), int(row["size"] or 0))
         return await asyncio.to_thread(work)
+
+    @router.get("/api/screen/subtitles-for/{kind}/{ident}")
+    async def addon_subtitles_for(kind: str, ident: str, request: Request, season: int | None = None, episode: int | None = None, filename: str = ""):
+        """The same list for a title being played from an add-on stream rather than from the library."""
+        require_auth(request)
+        if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident):
+            raise HTTPException(400, "Unknown title")
+        sid_ = ident if kind == "movie" else (f"{ident}:{int(season)}:{int(episode)}" if season is not None and episode is not None else "")
+        if not sid_:
+            return {"ok": True, "items": []}
+        return await asyncio.to_thread(_subs_for, kind, ident, sid_, filename[:300], 0)
 
     @router.get("/api/screen/subtitle/{token}")
     async def addon_subtitle_file(token: str, request: Request):

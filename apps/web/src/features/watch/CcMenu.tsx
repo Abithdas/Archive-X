@@ -34,7 +34,7 @@ export function CcMenu({ info, audio, sub, live, altBusy, onAudio, onSub, drop }
           {info.captions.available ? (<>
             <MenuItem active={sub.kind === 'live' && !sub.original} onClick={() => onSub({ kind: 'live' })}>Live captions → English{sub.kind === 'live' && !sub.original ? state : null}</MenuItem>
             <MenuItem active={sub.kind === 'live' && !!sub.original} onClick={() => onSub({ kind: 'live', original: true })}>Live captions · original language{sub.kind === 'live' && sub.original ? state : null}</MenuItem>
-          </>) : <span className="max-w-[14rem] px-2.5 py-1 text-[11px] leading-snug text-muted">Live captions need <code>pip install faster-whisper</code></span>}
+          </>) : <span className="max-w-[14rem] px-2.5 py-1 text-[11px] leading-snug text-muted">{info.captions.engine === 'stream' ? 'Live captions are for videos in your library.' : <>Live captions need <code>pip install faster-whisper</code></>}</span>}
         </Col>
       </div>
     </PopMenu>

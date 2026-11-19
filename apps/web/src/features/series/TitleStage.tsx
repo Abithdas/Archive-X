@@ -23,7 +23,7 @@ export function TitleStage({ backdrop, back, onBack, backLabel, left, panel, pan
           <Link to={back} onClick={onBack} aria-label={backLabel} className="grid size-10 place-items-center self-start rounded-full bg-fg/10 text-fg backdrop-blur transition-colors hover:bg-fg/20"><Icon name="arrow-left" className="size-5" /></Link>
           {left}
         </div>
-        {panel ? <aside aria-label={panelLabel} className="mo-panel-in self-start rounded-[26px] border border-line bg-surface/80 p-4 shadow-2xl backdrop-blur-xl lg:sticky lg:top-20 lg:max-h-[calc(100dvh-100px)] lg:overflow-y-auto">{panel}</aside> : null}
+        {panel ? <aside aria-label={panelLabel} className="mo-panel-in self-start rounded-[26px] border border-line bg-surface/80 p-4 shadow-2xl backdrop-blur-xl lg:sticky lg:top-20 lg:max-h-[calc(100dvh-100px)] lg:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{panel}</aside> : null}
       </div>
     </div>
   )

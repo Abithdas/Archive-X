@@ -9,6 +9,7 @@ const LibraryPage = lazy(() => import('@/features/library/LibraryPage').then((m)
 const EntityDirectory = lazy(() => import('@/features/entities/EntityDirectory').then((m) => ({ default: m.EntityDirectory })))
 const StudioPage = lazy(() => import('@/features/entities/StudioPage').then((m) => ({ default: m.StudioPage })))
 const PerformerPage = lazy(() => import('@/features/entities/PerformerPage').then((m) => ({ default: m.PerformerPage })))
+const AddonPlayPage = lazy(() => import('@/features/series/AddonPlayPage').then((m) => ({ default: m.AddonPlayPage })))
 const WatchPage = lazy(() => import('@/features/watch/WatchPage').then((m) => ({ default: m.WatchPage })))
 const OperationsPage = lazy(() => import('@/features/operations/OperationsPage').then((m) => ({ default: m.OperationsPage })))
 const TransfersPage = lazy(() => import('@/features/transfers/TransfersPage').then((m) => ({ default: m.TransfersPage })))
@@ -90,6 +91,24 @@ const watch = createRoute({
   },
 })
 
+// A stream from an add-on, in the same player as the library's videos. Only the app's own stream addresses are accepted.
+const addonPlay = createRoute({
+  getParentRoute: () => root,
+  path: '/addon-play',
+  validateSearch: (s: Record<string, unknown>) => ({
+    src: typeof s.src === 'string' && /^\/api\/screen\/stream\/[\w-]{8,60}$/.test(s.src) ? s.src : '',
+    name: typeof s.name === 'string' ? s.name.slice(0, 300) : '',
+    kind: s.kind === 'movie' ? 'movie' as const : 'series' as const,
+    ident: typeof s.ident === 'string' && /^tt\d{5,10}$/.test(s.ident) ? s.ident : '',
+    season: Number.isInteger(Number(s.season)) && s.season !== undefined && s.season !== '' ? Number(s.season) : undefined,
+    episode: Number.isInteger(Number(s.episode)) && s.episode !== undefined && s.episode !== '' ? Number(s.episode) : undefined,
+  }),
+  component: function AddonPlayRoute() {
+    const play = addonPlay.useSearch()
+    return play.src ? <AddonPlayPage play={play} /> : <p role="alert" className="p-10 text-center text-sm text-warn">That stream is not available. Go back and pick it again.</p>
+  },
+})
+
 // The native player is no longer a page of its own: it plays inside the video page. An old /native/... link opens that page with it chosen.
 const nativePlayer = createRoute({
   getParentRoute: () => root,
@@ -99,6 +118,7 @@ const nativePlayer = createRoute({
 
 const routeTree = root.addChildren([
   index,
+  addonPlay,
   login,
   videos,
   createRoute({ getParentRoute: () => root, path: '/performers', component: () => <EntityDirectory kind="performers" /> }),

@@ -6,6 +6,7 @@ import type { ReactElement } from 'react'
 export function withRouter(ui: ReactElement, path = '/') {
   const root = createRootRoute()
   const routes = ['/', '/performers', '/performers/$id', '/studios', '/studios/$id', '/photos', '/ai', '/watch/$cid/$mid'].map((p) => createRoute({ getParentRoute: () => root, path: p, component: () => ui }))
+  routes.push(createRoute({ getParentRoute: () => root, path: '/addon-play', component: () => <p>Add-on player page</p> }))
   const router = createRouter({ routeTree: root.addChildren(routes), history: createMemoryHistory({ initialEntries: [path] }) })
   return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><RouterProvider router={router} /></QueryClientProvider>)
 }
