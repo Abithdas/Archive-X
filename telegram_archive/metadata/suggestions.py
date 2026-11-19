@@ -442,31 +442,32 @@ def list_for_site(db, site_id: int, status: str = "PENDING", *, include_linked: 
         text = "".join(ch for ch in text if not unicodedata.combining(ch))
         return " ".join(text.split())
 
-    with db.lock:
-        site = db.conn.execute(
+    # Read on its own connection: this walks every pending suggestion, and under the shared database lock it froze the whole app for up to a minute.
+    with db.reading() as rdb:
+        site = rdb.execute(
             "SELECT id, name, provider_ids FROM studios WHERE id=?",
             (int(site_id),),
         ).fetchone()
         if not site:
             return []
-        rows = db.conn.execute(
+        rows = rdb.execute(
             "SELECT * FROM metadata_suggestions WHERE status=? ORDER BY score DESC, id",
             (status,),
         ).fetchall()
-        associated_rows = db.conn.execute(
+        associated_rows = rdb.execute(
             """SELECT suggestion_id FROM metadata_suggestion_studios
                WHERE studio_id=?""", (int(site_id),),
         ).fetchall()
         associated_suggestion_ids = {int(r["suggestion_id"]) for r in associated_rows}
         rejected_video_ids = {
-            int(r["video_id"]) for r in db.conn.execute(
+            int(r["video_id"]) for r in rdb.execute(
                 """SELECT video_id FROM metadata_entity_suggestion_decisions
                    WHERE entity_type='studio' AND entity_id=? AND decision='REJECTED'""",
                 (int(site_id),),
             ).fetchall()
         }
         mapped_entity_video_ids = {
-            int(r["video_id"]) for r in db.conn.execute(
+            int(r["video_id"]) for r in rdb.execute(
                 """SELECT video_id FROM metadata_mapping_locks
                    WHERE field='site' AND locked=1"""
             ).fetchall()
@@ -474,7 +475,7 @@ def list_for_site(db, site_id: int, status: str = "PENDING", *, include_linked: 
         mapped_video_ids = set()
         if not include_linked:
             mapped_video_ids = {
-                int(r["video_id"]) for r in db.conn.execute(
+                int(r["video_id"]) for r in rdb.execute(
                     "SELECT video_id FROM video_studios WHERE studio_id=?",
                     (int(site_id),),
                 ).fetchall()

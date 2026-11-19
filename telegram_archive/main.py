@@ -146,6 +146,7 @@ def main():
         write_default_config()
     with _phase("database open + schema checks"):
         db = Database()
+    print("  database steps: " + ", ".join(f"{k} {v}s" for k, v in getattr(db, "startup_steps", {}).items()), flush=True)
     with _phase("asset store"):
         try:
             asset_result = db.hydrate_persistent_asset_store()

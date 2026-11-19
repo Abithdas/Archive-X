@@ -158,12 +158,18 @@ class Database:
         self.conn.execute("PRAGMA temp_store=MEMORY")
         self.conn.execute("PRAGMA mmap_size=268435456")
         self.ai_persistence = AIPersistence(self)
-        self.init_schema()
-        self._create_v6_indexes()
-        self._migrate_secret_settings()
+        # How long each step of opening takes, so a slow start can be traced to its step (printed by main.py, kept in the log).
+        self.startup_steps: dict[str, float] = {}
+        def step(name, fn):
+            t0 = time.monotonic()
+            fn()
+            self.startup_steps[name] = round(time.monotonic() - t0, 2)
+        step("schema", self.init_schema)
+        step("indexes", self._create_v6_indexes)
+        step("secrets", self._migrate_secret_settings)
         # V29.4.131: change counters the web UI watches to refresh itself.
         from . import change_tracking
-        change_tracking.ensure(self)
+        step("change tracking", lambda: change_tracking.ensure(self))
 
     def _create_v6_indexes(self):
         """Additive indexes for high-frequency V6 reads."""

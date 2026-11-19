@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Less freezing: the studio's suggested videos read on their own connection instead of holding the shared database lock for up to a minute (the log showed 30 to 48 second freezes there).
+- Faster start: transfers already reconciled are no longer rewritten at every launch (1,578 of them were), and the log now lists how long each step of opening the database takes, so the remaining slow step can be named.
 - Videos, Performers and Studios: Items per page now starts on Auto: as many cards as the screen holds (at least two rows, no page scrollbar), following the window size and the display size. Choosing 24, 36 or 48 still sets the number.
 - The counts above the lists line up: on Videos the count is at the right like Performers and Studios, and the Studios row has the same height as Performers.
 - The green dot on the profile picture is hidden whenever the Connected pill is shown (it stayed visible on wide windows).

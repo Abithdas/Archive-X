@@ -793,7 +793,7 @@ def mark_verified_transfer_source_hidden(
         already_deleted = bool(source_deleted or previous_state == "MOVED_BY_ARCHIVE_X")
         target_state = "MOVED_BY_ARCHIVE_X" if already_deleted else "MOVED_PENDING_DELETE"
         locations_retired = 0
-        if location:
+        if location and previous_state != target_state:   # already in that state: nothing to write (this ran for every verified transfer at every start)
             db.conn.execute(
                 "UPDATE telegram_document_locations SET location_state=?,last_seen_at=? "
                 "WHERE channel_id=? AND message_id=?",
@@ -803,6 +803,15 @@ def mark_verified_transfer_source_hidden(
 
         cleanup_queued = 0
         document_id = str((location["document_id"] if location else "") or "")
+        settled = not hidden and not locations_retired
+        if settled and db.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='telegram_move_cleanup'"
+        ).fetchone() and db.conn.execute(
+            "SELECT 1 FROM telegram_move_cleanup WHERE source_channel=? AND source_message_id=?", (source_channel, source_message_id),
+        ).fetchone():
+            # Reconciled before and the cleanup is already queued or done: leave it as it is (a repeat would push its retry time back each start).
+            db.conn.commit()
+            return {"verified": True, "source_rows_hidden": 0, "locations_retired": 0, "cleanup_queued": 0, "location_state": target_state}
         if already_deleted:
             if db.conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='telegram_move_cleanup'").fetchone():
                 db.conn.execute(
