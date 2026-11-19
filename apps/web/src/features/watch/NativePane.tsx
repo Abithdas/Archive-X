@@ -50,12 +50,15 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
   const [rate, setRate] = useState(1)
   const [holding, setHolding] = useState(false)
   const [jump, setJump] = useState<{ to: number; at: number } | null>(null)
-  const [shown, setShown] = useState(true)
+  const [shown, setShown] = useState(false)
+  // As in the browser player: the snapshot frames are the picture until the video has played; then the video is shown.
+  const [started, setStarted] = useState(false)
+  const startedRef = useRef(false)
   const [mini, setMini] = useState(false)
   const miniRef = useRef(false)
   const [scrolling, setScrolling] = useState(false)
   const scrollingRef = useRef(false)
-  const shownRef = useRef(true)
+  const shownRef = useRef(false)
   const stall = useRef<StallState>(quiet())
   const weHeld = useRef(false)
   const rateRef = useRef(1)
@@ -98,6 +101,7 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
       setPhase('ready')
       // Only the window above the app shows the picture on every PC tried so far, and it is the one the pane lays out for.
       if (o.layer !== 'popup') await native.command('popup').catch(noop)
+      await native.command('hide').catch(noop)   // the frames are shown first; the picture comes when playback starts (see sync)
       if (startRef.current > 1) await native.command('seek', startRef.current).catch(noop)
       if (playRef.current) await native.command('play')
       setNativeTracks(await native.tracks().catch(() => []))
@@ -112,7 +116,7 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
     const top = document.querySelector('header')?.getBoundingClientRect().bottom ?? 0
     // While the page is scrolling the picture steps aside and comes back where it settles: moving a separate window in step with the page always
     // lags a little, and the lag showed as a black box left over the page.
-    const visible = !scrollingRef.current && (miniRef.current ? !covered() : videoVisible(el.getBoundingClientRect(), { top, bottom: window.innerHeight, left: 0, right: window.innerWidth }, covered()))
+    const visible = startedRef.current && !scrollingRef.current && (miniRef.current ? !covered() : videoVisible(el.getBoundingClientRect(), { top, bottom: window.innerHeight, left: 0, right: window.innerWidth }, covered()))
     if (visible) {
       void native.rect(rect()).catch(noop)
       if (!shownRef.current) { shownRef.current = true; setShown(true); void native.command('popup').catch(noop) }
@@ -152,6 +156,7 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
       busy = true
       native.state().then((s) => {
         setSnap(s)
+        if (s.playing && !startedRef.current) { startedRef.current = true; setStarted(true) }
         const r = stallStep(stall.current, Date.now(), s.position, { playing: s.playing, rate: rateRef.current })
         stall.current = r.state
         if (r.action === 'pause') { weHeld.current = true; setHolding(true); send('pause') }
@@ -163,6 +168,7 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
     }, 250)
     return () => clearInterval(t)
   }, [phase, send, onTime, onPlayed, onEnd, onNext, autoNext])
+  useEffect(() => { if (started) sync() }, [started, sync])
   useEffect(() => {
     if (!jump || !snap) return
     if (Math.abs(snap.position - jump.to) <= 2.5 || Date.now() - jump.at > 15_000) setJump(null)
@@ -211,8 +217,14 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
       style={{ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${shape.toFixed(4)})))` } as CSSProperties}>
       <div ref={stage} data-testid="stage" style={{ aspectRatio: shape }} className="relative w-full overflow-hidden rounded-[18px] bg-[#111215] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]">
         {phase === 'ready' && mini ? <div role="status" className="absolute inset-0 grid place-items-center content-center gap-2 p-4 text-center text-sm text-white/70"><p>Playing in the mini player.</p><button type="button" onClick={flipMini} className="h-9 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Back to the page</button></div> : null}
-        {phase === 'ready' && !shown && !scrolling && !mini ? <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-white/70">The picture is hidden while a menu is open or it is scrolled partly out of view. The sound keeps playing.</p> : null}
+        {phase === 'ready' && started && !shown && !scrolling && !mini ? <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-white/70">The picture is hidden while a menu is open or it is scrolled partly out of view. The sound keeps playing.</p> : null}
         {status ? <span role="status" className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">{status}</span> : null}
+        {snapshots && !started && !broken ? <SnapshotGrid data={snapshots} onPick={(t) => { seekTo(t); send('play') }} /> : null}
+        {phase === 'ready' && !started && !broken ? (
+          <button type="button" onClick={toggle} aria-label="Play" className="absolute left-1/2 top-1/2 z-20 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-[#1e1f23]/80 text-white shadow-xl backdrop-blur-md transition-[scale] duration-200 hover:scale-105 active:scale-95 sm:size-14">
+            <span className="ml-0.5"><PlayIcon /></span>
+          </button>
+        ) : null}
         {broken ? (
           <div role="alert" className="absolute inset-0 grid content-center justify-items-center gap-3 bg-black/85 p-5 text-center text-white">
             <p className="max-w-lg text-sm font-bold">{phase === 'failed' ? `The native player could not play this video: ${message}` : message || 'The native player is not available.'}</p>
@@ -261,15 +273,6 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
           </div>
         </div>
       </div>
-
-      {snapshots ? (
-        <section aria-label="Snapshot frames" className="grid gap-2">
-          <h2 className="text-sm font-bold">Snapshots <span className="font-medium text-muted">· {snapshots.times.length} frames · click one to jump there</span></h2>
-          <div className="relative w-full overflow-hidden rounded-[14px] bg-black" style={{ aspectRatio: shape }}>
-            <SnapshotGrid data={snapshots} onPick={(t) => { seekTo(t); if (!playing) send('play') }} />
-          </div>
-        </section>
-      ) : null}
     </div>
   )
 }
