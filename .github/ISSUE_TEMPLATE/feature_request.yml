@@ -1,0 +1,19 @@
+name: Idea or request
+description: Suggest something Archive X could do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: want
+    attributes:
+      label: What would you like?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What are you trying to do that is hard today?
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Which mode
+      options: [SFW, NSFW, Both]
