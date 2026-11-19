@@ -12,7 +12,7 @@ import { Chips, TitleStage } from './TitleStage'
 import { useScreenView } from './view'
 import { COPY_SORTS, MOVIE_SORTS, copyBadge, movieBadge, sortCopies, sortMovies, versionText, type CopySort, type MovieCard, type MovieDetail, type MovieSort } from './series'
 import { lengthText } from './series'
-import { ListFilters } from './ListFilters'
+import { ListFilters } from './FilterPanel'
 import { NO_FILTER, filterCount, matchesFilter, type ListFilter } from './listFilters'
 
 

@@ -10,7 +10,7 @@ import { PLACEHOLDER, PosterCard } from './PosterCard'
 import { PosterSkeleton } from './PosterSkeleton'
 import { Chips, TitleStage } from './TitleStage'
 import { useScreenView } from './view'
-import { ListFilters } from './ListFilters'
+import { ListFilters } from './FilterPanel'
 import { NO_FILTER, filterCount, matchesFilter, type ListFilter } from './listFilters'
 import { episodeLabel, countText, lengthText, missingText, seasonSummary, type SeriesCard, type SeriesDetail } from './series'
 
