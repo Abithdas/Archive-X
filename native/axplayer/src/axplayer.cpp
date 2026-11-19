@@ -285,6 +285,8 @@ struct AxPlayer {
         if (auto fn = reinterpret_cast<UINT (WINAPI *)(HWND)>(reinterpret_cast<void *>(GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForWindow"))))
             if (parent_hwnd) { UINT dpi = fn(parent_hwnd); if (dpi) scale = dpi / 96.0; }
         int radius = static_cast<int>(22.0 * scale);
+        // Full screen: the window spans the whole width of the app, so it is a plain rectangle (rounded corners there showed the page behind).
+        if (parent_hwnd) { RECT pc{}; if (GetClientRect(parent_hwnd, &pc) && last_w >= (pc.right - pc.left) - 2) radius = 0; }
         radius = std::min(radius, std::min(last_w, last_h) / 2);
         if (radius < 2) { SetWindowRgn(window, nullptr, TRUE); return; }
         // SetWindowRgn takes ownership of the region.

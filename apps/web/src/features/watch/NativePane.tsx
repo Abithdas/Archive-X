@@ -89,10 +89,9 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
       return { x: Math.round((window.innerWidth - w - 16) * ratio), y: Math.round((window.innerHeight - h - 16) * ratio), w: Math.round(w * ratio), h: Math.round(h * ratio) }
     }
     if (stage.current && document.fullscreenElement === box.current) {
-      // Full screen: the stage is the whole screen above the bar; the picture keeps its own shape inside it, centred.
+      // Full screen: the window is the whole stage (everything above the bar); the engine keeps the picture's shape inside it and the rest is black.
       const r = stage.current.getBoundingClientRect(); const ratio = deviceScale(stage.current)
-      const w = Math.min(r.width, r.height * shapeRef.current); const h = w / shapeRef.current
-      return { x: Math.round((r.left + (r.width - w) / 2) * ratio), y: Math.round((r.top + (r.height - h) / 2) * ratio), w: Math.round(w * ratio), h: Math.round(h * ratio) }
+      return { x: Math.round(r.left * ratio), y: Math.round(r.top * ratio), w: Math.round(r.width * ratio), h: Math.round(r.height * ratio) }
     }
     return stage.current ? pixelRect(stage.current) : { x: 0, y: 0, w: 0, h: 0 }
   }, [])
@@ -240,9 +239,9 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
   return (
     // One page for both engines (see PlayerControls.tsx): the same frame, the same bar, menus and keys. The one difference is that the controls cannot sit
     // on the picture, because the native picture is a window above the page; in full screen the bar stays under the picture for the same reason.
-    <div ref={box} className={cn('@container relative grid outline-none', isFs ? 'h-full w-full grid-rows-[minmax(0,1fr)_auto] gap-2 bg-black p-2' : 'w-full gap-4 sm:w-[var(--pw)] sm:gap-5')} data-testid="native-pane" tabIndex={-1}
+    <div ref={box} className={cn('@container relative grid outline-none', isFs ? 'h-full w-full grid-rows-[minmax(0,1fr)_auto] gap-2 bg-black' : 'w-full gap-4 sm:w-[var(--pw)] sm:gap-5')} data-testid="native-pane" tabIndex={-1}
       style={isFs ? undefined : ({ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${shape.toFixed(4)})))` } as CSSProperties)}>
-      <div ref={stage} data-testid="stage" style={isFs ? undefined : { aspectRatio: shape }} className={cn('relative w-full overflow-hidden bg-[#111215]', isFs ? 'h-full min-h-0' : 'rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
+      <div ref={stage} data-testid="stage" style={isFs ? undefined : { aspectRatio: shape }} className={cn('relative w-full overflow-hidden', isFs ? 'h-full min-h-0 bg-black' : 'bg-[#111215] rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
         {phase === 'ready' && mini ? <div role="status" className="absolute inset-0 grid place-items-center content-center gap-2 p-4 text-center text-sm text-white/70"><p>Playing in the mini player.</p><button type="button" onClick={flipMini} className="h-9 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Back to the page</button></div> : null}
         {phase === 'ready' && started && !shown && !scrolling && !mini ? <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-white/70">The picture is hidden while a menu is open or it is scrolled partly out of view. The sound keeps playing.</p> : null}
         {status ? <span role="status" className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">{status}</span> : null}
