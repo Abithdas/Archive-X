@@ -48,9 +48,9 @@ describe('SFW Home', () => {
     expect(await screen.findByText(/Keanu Reeves/)).toBeInTheDocument()                                  // the details came from the catalogue
     expect(screen.getByRole('link', { name: 'Watch the trailer' })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=m8e-FF8MsqU')
     fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]!)
-    fireEvent.click(screen.getByRole('button', { name: 'Drama' }))
+    fireEvent.change(screen.getByLabelText('Genre'), { target: { value: 'Drama' } })
     await vi.waitFor(() => expect(urls.some((u) => u.includes('genre=Drama'))).toBe(true))
-    fireEvent.click(screen.getByRole('tab', { name: 'Series' }))
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'series' } })
     await vi.waitFor(() => expect(urls.some((u) => u.includes('type=series'))).toBe(true))
     fireEvent.change(screen.getByLabelText('Search movies and shows'), { target: { value: 'dune' } })
     await vi.waitFor(() => expect(urls.some((u) => u.includes('search=dune'))).toBe(true))
@@ -60,5 +60,24 @@ describe('SFW Home', () => {
   it('says so when Cinemeta is switched off, instead of an empty page', async () => {
     mount((u) => (u.startsWith('/api/screen/discover') && !u.includes('/discover/') ? json({ ok: true, disabled: true, items: [] }) : undefined))
     expect(await screen.findByText(/it is switched off/)).toBeInTheDocument()
+  })
+
+  it('on a wide window the details stay beside the posters and follow the title you pick, with no pop-up', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('min-width'), addEventListener: () => undefined, removeEventListener: () => undefined }))
+    mount()
+    const list = await screen.findByRole('list', { name: 'Catalogue' })
+    const panel = await screen.findByRole('complementary', { name: 'Details' })
+    expect(within(panel).getByText('The Matrix')).toBeInTheDocument()                                  // the first title is shown at once
+    fireEvent.click(within(list).getByRole('button', { name: 'Details of Dune' }))
+    expect(await within(await screen.findByRole('complementary', { name: 'Details' })).findByText('Dune')).toBeInTheDocument()
+    expect(document.querySelector('dialog[open]')).toBeNull()
+  })
+
+  it('the featured picture has a dot for each title and the active one fills as time runs out', async () => {
+    mount((u) => (u.startsWith('/api/screen/home') ? json({ ...HOME, billboard: [HOME.billboard[0], { ...HOME.billboard[0], id: 2, title: 'Dune' }] }) : undefined))
+    const feat = await screen.findByRole('region', { name: 'Featured' })
+    expect(feat.querySelectorAll('img').length).toBe(2)
+    expect(feat.querySelectorAll('.mo-dot').length).toBe(2)
+    expect(feat.querySelectorAll('.mo-dot-fill').length).toBe(1)
   })
 })

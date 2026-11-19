@@ -6,12 +6,13 @@ import { Empty } from '@/design/Empty'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { Reveal } from '@/design/Reveal'
+import { PLACEHOLDER, PosterCard } from './PosterCard'
 import { PosterSkeleton } from './PosterSkeleton'
+import { Chips, TitleStage } from './TitleStage'
 import { useScreenView } from './view'
 import { MOVIE_SORTS, movieBadge, sortMovies, versionText, type MovieCard, type MovieDetail, type MovieSort } from './series'
 import { lengthText } from './series'
 
-const PLACEHOLDER = '/static/icons/ax-placeholder.png'
 
 /** The movies in the library, shown inside Movies & Shows: one poster for each, however many copies there are. */
 export function MoviesList() {
@@ -32,17 +33,11 @@ export function MoviesList() {
       {q.isError ? <p role="alert" className="py-8 text-center text-sm text-warn">Could not load the movies.</p>
         : <Reveal ready={!q.isPending} skeleton={<PosterSkeleton label="Loading movies" />}>{!q.data ? null : !items.length ? <Empty icon="play" title={find ? 'No movie matches' : 'No movies yet'}>{find ? 'Try other words.' : 'Add a folder of movies in Settings → Local files (marked SFW), then identify it in Settings → Metadata.'}</Empty>
         : (
-          <ul aria-label="Movies" className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
+          <ul aria-label="Movies" className="m-0 grid list-none grid-cols-2 gap-x-4 gap-y-5 p-0 sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
             {items.map((m, i) => (
               <li key={m.id} className="card-in m-0" style={{ '--i': i } as React.CSSProperties}>
-                <Link to="/movies/$id" params={{ id: String(m.id) }} aria-label={`Open ${m.title}`} className="ax-lift group relative block aspect-[2/3] overflow-hidden rounded-[23px] border border-white/10 bg-surface-2">
-                  <img src={m.poster || PLACEHOLDER} alt="" loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
-                  <span className={cn('absolute right-2 top-2 rounded-full px-2 py-0.5 text-[11px] font-bold', m.cam_only ? 'bg-warn/90 text-black' : 'bg-black/65 text-white')}>{movieBadge(m)}</span>
-                  <span className="absolute inset-x-0 bottom-0 grid gap-0.5 bg-[linear-gradient(transparent,rgb(13_15_17/0.9)_60%)] p-3 pt-10">
-                    <span className="truncate text-sm font-bold text-white" title={m.title}>{m.title}</span>
-                    <span className="text-xs text-white/80">{m.year ?? ''}</span>
-                  </span>
-                </Link>
+                <PosterCard to="/movies/$id" params={{ id: String(m.id) }} image={m.poster} title={m.title} sub={m.year ? String(m.year) : ''} rating={m.rating ? m.rating.toFixed(1) : null}
+                  corner={<span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold', m.cam_only ? 'bg-warn/90 text-black' : 'bg-black/65 text-white')}>{movieBadge(m)}</span>} />
               </li>
             ))}
           </ul>
@@ -51,47 +46,47 @@ export function MoviesList() {
   )
 }
 
-/** One movie: the story, the cast, and every copy of it, best first. */
+/** One movie, laid out like a streaming app: the artwork across the page, the story on the left, and every copy of it, best first, in a panel on the right. */
 export function MovieDetailPage({ id }: { id: number }) {
   const [cam, setCam] = useState(false)
   const q = useQuery({ queryKey: ['movies', id, cam], queryFn: () => api<MovieDetail>(`/api/screen/movies/${id}${cam ? '?cam=1' : ''}`) })
   const d = q.data
-  return (
-    <div className="px-4 py-5 md:px-8">
-      <Link to="/videos" onClick={() => useScreenView.getState().setView('movies')} className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-fg"><Icon name="arrow-left" className="size-4" />Movies</Link>
-      {q.isPending ? <p role="status" className="py-8 text-center text-sm text-muted">Loading…</p>
-        : q.isError || !d ? <p role="alert" className="py-8 text-center text-sm text-warn">This movie is not in the library.</p>
-        : (
-          <>
-            <header className="mb-6 flex flex-col gap-5 sm:flex-row">
-              <img src={d.poster || PLACEHOLDER} alt="" className="aspect-[2/3] w-40 shrink-0 rounded-2xl border border-line object-cover" />
-              <div className="grid content-start gap-2">
-                <h1 className="text-[clamp(25px,2vw,32px)] font-extrabold tracking-[-0.03em]">{d.title}{d.year ? <span className="ml-2 text-lg font-semibold text-muted">{d.year}</span> : null}</h1>
-                {d.tagline ? <p className="text-sm italic text-muted">{d.tagline}</p> : null}
-                <p className="max-w-3xl text-[15px] text-muted">{d.overview}</p>
-                <ul aria-label="Genres" className="m-0 flex list-none flex-wrap gap-1.5 p-0">{d.genres.map((g) => <li key={g} className="rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">{g}</li>)}</ul>
-                {d.companies.length ? <p className="text-xs text-faint">{d.companies.join(' · ')}</p> : null}
-                {d.cast.length ? <p className="text-sm"><span className="font-semibold">Cast: </span><span className="text-muted">{d.cast.slice(0, 8).map((c) => c.name).join(', ')}</span></p> : null}
-              </div>
-            </header>
-            <section aria-label="Copies" className="grid gap-2">
-              <h2 className="flex items-center justify-between text-lg font-bold">{d.versions.length === 1 ? 'Watch' : `Choose a copy (${d.versions.length})`}
-                <label className="inline-flex items-center gap-2 text-xs font-medium text-muted"><input type="checkbox" checked={cam} onChange={(e) => setCam(e.target.checked)} />Show cinema recordings</label></h2>
-              <ul className="m-0 grid list-none gap-2 p-0">
-                {d.versions.map((v, i) => (
-                  <li key={`${v.cid}:${v.mid}`} className="m-0">
-                    <Link to="/watch/$cid/$mid" params={{ cid: v.cid, mid: String(v.mid) }} className="ax-lift flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 hover:bg-fg/5">
-                      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent/15 text-accent"><Icon name="play" className="size-5" /></span>
-                      <span className="min-w-0 flex-1"><span className="block font-semibold">{versionText(v) || v.filename}{i === 0 && d.versions.length > 1 ? <span className="ml-2 rounded-full bg-good/15 px-2 py-0.5 text-[11px] font-bold text-good">Best</span> : null}</span>
-                        <span className="block truncate text-xs text-faint" title={v.filename}>{v.filename}</span></span>
-                      <span className="shrink-0 text-xs text-faint">{lengthText({ duration: v.duration, runtime: d.runtime })}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </>
-        )}
-    </div>
+  const best = d?.versions[0]
+  const left = q.isPending ? <p role="status" className="py-8 text-sm text-muted">Loading…</p>
+    : q.isError || !d ? <p role="alert" className="py-8 text-sm text-warn">This movie is not in the library.</p>
+    : (
+      <div className="mo-enter mt-auto grid max-w-2xl gap-4 pt-16">
+        <h1 className="text-[clamp(34px,5vw,64px)] font-black leading-[0.95] tracking-[-0.04em] drop-shadow-lg">{d.title}</h1>
+        {d.tagline ? <p className="text-sm italic text-fg/70">{d.tagline}</p> : null}
+        <p aria-label="Facts" className="m-0 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-semibold">
+          {d.year ? <span>{d.year}</span> : null}
+          {d.runtime ? <span>{d.runtime} min</span> : null}
+          {d.rating ? <span className="inline-flex items-center gap-1.5">{d.rating.toFixed(1)}<span className="rounded bg-amber-400 px-1 text-[11px] font-black text-black">RATING</span></span> : null}
+        </p>
+        <p className="max-w-xl text-[15px] leading-relaxed text-fg/80">{d.overview}</p>
+        <Chips label="Genres" items={d.genres} />
+        <Chips label="Cast" items={d.cast.slice(0, 6).map((c) => c.name)} title={(n) => d.cast.find((c) => c.name === n)?.character} />
+        {d.companies.length ? <p className="text-xs text-faint">{d.companies.join(' · ')}</p> : null}
+        {best ? <Link to="/watch/$cid/$mid" params={{ cid: best.cid, mid: String(best.mid) }} className="mt-2 inline-flex h-12 w-fit items-center gap-2 rounded-full bg-accent px-6 text-[15px] font-bold text-accent-fg transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"><Icon name="play" className="size-4" />Play</Link> : null}
+      </div>
+    )
+  const panel = !d ? null : (
+    <section aria-label="Copies" className="grid gap-2">
+      <h2 className="flex items-center justify-between px-1 text-lg font-bold">{d.versions.length === 1 ? 'Watch' : `Choose a copy (${d.versions.length})`}</h2>
+      <label className="inline-flex items-center gap-2 px-1 text-xs font-medium text-muted"><input type="checkbox" checked={cam} onChange={(e) => setCam(e.target.checked)} />Show cinema recordings</label>
+      <ul className="m-0 grid list-none gap-1 p-0">
+        {d.versions.map((v, i) => (
+          <li key={`${v.cid}:${v.mid}`} className="mo-enter m-0" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
+            <Link to="/watch/$cid/$mid" params={{ cid: v.cid, mid: String(v.mid) }} className="group flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-fg/10 focus-visible:bg-fg/10">
+              <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full border border-line-2 transition-colors group-hover:bg-fg group-hover:text-bg"><Icon name="play" className="size-4" /></span>
+              <span className="min-w-0 flex-1"><span className="block font-semibold">{versionText(v) || v.filename}{i === 0 && d.versions.length > 1 ? <span className="ml-2 rounded-full bg-good/15 px-2 py-0.5 text-[11px] font-bold text-good">Best</span> : null}</span>
+                <span className="block truncate text-xs text-muted" title={v.filename}>{v.filename}</span></span>
+              <span className="shrink-0 text-xs text-muted">{lengthText({ duration: v.duration, runtime: d.runtime })}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
+  return <TitleStage backdrop={d ? d.backdrop || d.poster || PLACEHOLDER : undefined} back="/videos" onBack={() => useScreenView.getState().setView('movies')} backLabel="Back to movies" left={left} panel={panel} panelLabel="Copies of this movie" />
 }

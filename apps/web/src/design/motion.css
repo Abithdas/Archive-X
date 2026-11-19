@@ -271,3 +271,21 @@ html[data-theme="light"] .ax-puff { --smoke: 90 96 110; }
 .ax-live-pill[data-live="false"]::after { animation: none; display: none; }
 @keyframes ax-live-sweep { 0%, 35% { background-position: 130% 0; } 80%, 100% { background-position: -30% 0; } }
 @media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .ax-live-dot::after, .ax-live-pill::after { animation: none; display: none; } } }
+
+/* ── Posters, the featured picture and the details panel: the streaming-app look of Home, Discover and the title pages ──────────────── */
+.mo-poster { transition: transform 600ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 350ms cubic-bezier(0.16, 1, 0.3, 1), outline-color 200ms ease; outline: 2px solid transparent; outline-offset: -2px; }
+@media (hover: hover) { .mo-poster:hover { transform: scale(1.035); box-shadow: 0 18px 48px rgb(0 0 0 / 0.5); } }
+.mo-poster:focus-visible { transform: scale(1.035); box-shadow: 0 18px 48px rgb(0 0 0 / 0.5); outline-color: var(--color-accent); }
+.mo-poster[data-active="true"] { outline-color: var(--color-fg); box-shadow: 0 18px 48px rgb(0 0 0 / 0.5); }
+.mo-hero-img { transition: opacity 1200ms cubic-bezier(0.4, 0, 0.2, 1); animation: mo-kenburns 16s linear both; }   /* a slow push-in while it is shown; paused (not reset) while it fades out */
+@keyframes mo-kenburns { from { transform: scale(1); } to { transform: scale(1.08); } }
+.mo-dot { transition: width 400ms cubic-bezier(0.16, 1, 0.3, 1), background-color 200ms ease; }
+.mo-dot-fill { transform-origin: left; animation: mo-dot-fill var(--mo-dot-ms, 9000ms) linear forwards; }   /* the time left on the featured title */
+@keyframes mo-dot-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.mo-enter { animation: mo-enter 500ms cubic-bezier(0.2, 0.85, 0.25, 1) both; }
+@keyframes mo-enter { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.mo-panel-in { animation: mo-panel-in 400ms cubic-bezier(0.2, 0.85, 0.25, 1) both; }
+@keyframes mo-panel-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+.mo-fade-in { animation: mo-fade-in 550ms ease both; }
+@keyframes mo-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-poster, .mo-dot, .mo-hero-img { transition: none !important; transform: none !important; } .mo-hero-img, .mo-dot-fill, .mo-enter, .mo-panel-in, .mo-fade-in { animation: none !important; } .mo-dot-fill { transform: none; } } }
