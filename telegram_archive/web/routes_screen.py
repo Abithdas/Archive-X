@@ -845,7 +845,8 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 continue
             thumb = str(v.get("thumbnail") or "")
             seasons.setdefault(v["season"], []).append({"episode": int(v.get("episode") or v.get("number")), "name": str(v.get("title") or v.get("name") or "")[:160], "overview": str(v.get("overview") or v.get("description") or "")[:1200],
-                                                          "released": str(v.get("released") or "")[:10], "thumb": thumb if thumb.startswith("https://") else ""})
+                                                          "released": str(v.get("released") or "")[:10], "thumb": thumb if thumb.startswith("https://") else "",
+                                                          **({"ws": v["imdbSeason"], "we": v["imdbEpisode"]} if isinstance(v.get("imdbSeason"), int) and isinstance(v.get("imdbEpisode"), int) else {})})
         return [{"season": k, "episodes": sorted(rows, key=lambda e: e["episode"])} for k, rows in sorted(seasons.items())]
 
     @router.get("/api/screen/discover/{kind}/{imdb}")
@@ -870,6 +871,8 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                     if isinstance(meta, dict) and meta.get("name"):
                         card = _card({**meta, "type": "series" if t == "series" else "movie"}, {})
                         card["imdb"] = imdb
+                        # Streams are asked for by IMDb number; the anime catalogue gives it, and the season and episode numbers IMDb uses.
+                        card["watch"] = str(meta.get("imdb_id") or "") if re.fullmatch(r"tt\d{5,10}", str(meta.get("imdb_id") or "")) else ""
                         card.update({"runtime": str(meta.get("runtime") or ""), "cast": [], "director": [], "trailer": "", "library": None,
                                      "seasons": len({v.get("season") for v in (meta.get("videos") or []) if isinstance(v, dict) and (v.get("season") or 0) > 0}) if t == "series" else 0,
                                      "episodes": _episodes(meta) if t == "series" else [], "logo": meta.get("logo") if isinstance(meta.get("logo"), str) and str(meta.get("logo")).startswith("https://") else ""})

@@ -12,11 +12,11 @@ import { WhereToWatch } from './WhereToWatch'
 import { useHomeTab } from './view'
 import { countText } from './series'
 
-export interface FoundEpisode { episode: number; name: string; overview: string; released: string; thumb: string }
+export interface FoundEpisode { episode: number; name: string; overview: string; released: string; thumb: string; ws?: number; we?: number }
 export interface FoundSeason { season: number; episodes: FoundEpisode[] }
 export interface Title {
   imdb: string; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string; background: string; rating: string; overview: string; genres: string[]
-  library: { kind: 'tv' | 'movie'; id: number } | null; runtime: string; cast: string[]; director: string[]; trailer: string; seasons: number; episodes?: FoundSeason[]; logo?: string
+  library: { kind: 'tv' | 'movie'; id: number } | null; runtime: string; cast: string[]; director: string[]; trailer: string; seasons: number; episodes?: FoundSeason[]; logo?: string; watch?: string
 }
 
 const ID = /^(tt\d+|tmdb-\d+|kitsu:\d+)$/
@@ -49,6 +49,7 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
   const q = useTitle(kind, id)
   const d = q.data
   const seasons = d?.episodes ?? []
+  const wid = WATCH_ID.test(id) ? id : d?.watch ?? ''   // an anime page is Kitsu's number; its streams are asked for by the IMDb number it lists
   const [pick, setPick] = useState<number | null>(null)
   useEffect(() => setPick(null), [id])
   const shown = seasons.find((s) => s.season === (pick ?? seasons.find((x) => x.season > 0)?.season ?? seasons[0]?.season)) ?? null
@@ -74,14 +75,14 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
           <TrailerButton id={d.trailer} title={d.title} className={cn(BTN, 'border border-line-2 font-semibold hover:bg-fg/10')} />
         </div>
         <div className="grid gap-4 empty:hidden">
-      {!lib && WATCH_ID.test(id) ? <WhereToWatch kind={d.kind} ident={id} title={d.title} flat /> : lib ? <p className="px-1 text-sm text-muted">You have this in your library, so there is nothing to look for elsewhere.</p> : null}
+      {!lib && wid ? <WhereToWatch kind={d.kind} ident={wid} title={d.title} flat /> : lib ? <p className="px-1 text-sm text-muted">You have this in your library, so there is nothing to look for elsewhere.</p> : null}
         </div>
       </div>
     )
-  const panel = !d || (!seasons.length && !WATCH_ID.test(id)) ? null : (
+  const panel = !d || (!seasons.length && !wid) ? null : (
     <div className="grid gap-5">
-      {d.kind === 'movie' && WATCH_ID.test(id) ? <AddonStreams kind="movie" ident={id} /> : null}
-      {WATCH_ID.test(id) && id.startsWith('tt') ? <AddonExtras kind={d.kind === 'tv' ? 'series' : 'movie'} ident={id} /> : null}
+      {d.kind === 'movie' && wid ? <AddonStreams kind="movie" ident={wid} /> : null}
+      {wid.startsWith('tt') ? <AddonExtras kind={d.kind === 'tv' ? 'series' : 'movie'} ident={wid} /> : null}
       {seasons.length ? (
         <section aria-label="Seasons and episodes" className="grid gap-2">
           <h2 className="px-1 text-lg font-bold">Episodes</h2>
@@ -113,6 +114,7 @@ export function DiscoverEpisodePage({ id, season, episode }: { id: string; seaso
   const all = (d?.episodes ?? []).flatMap((s) => s.episodes.map((e) => ({ season: s.season, ...e })))
   const at = all.findIndex((e) => e.season === season && e.episode === episode)
   const ep = at >= 0 ? all[at] : undefined
+  const wid = WATCH_ID.test(id) ? id : d?.watch ?? ''
   const prev = at > 0 ? all[at - 1] : undefined
   const next = at >= 0 ? all[at + 1] : undefined
   const to = (e: { season: number; episode: number }) => ({ kind: 'series', id, season: String(e.season), episode: String(e.episode) })
@@ -133,14 +135,14 @@ export function DiscoverEpisodePage({ id, season, episode }: { id: string; seaso
           {d.library ? <Link to="/series/$id" params={{ id: String(d.library.id) }} className={cn(BTN, 'bg-accent text-accent-fg hover:brightness-110')}><Icon name="play" className="size-4" />Open in your library</Link> : null}
         </div>
         <div className="grid gap-4">
-      {d.library ? <p className="px-1 text-sm text-muted">You have this show in your library.</p> : WATCH_ID.test(id) ? <WhereToWatch kind="tv" ident={id} title={d.title} flat /> : null}
+      {d.library ? <p className="px-1 text-sm text-muted">You have this show in your library.</p> : wid ? <WhereToWatch kind="tv" ident={wid} title={d.title} flat /> : null}
       {!d.library ? <p className="px-1 text-xs text-faint">Streaming services list the whole show, so this is where {label(ep)} can be watched too.</p> : null}
         </div>
       </div>
     )
-  const panel = !d || !ep || !WATCH_ID.test(id) ? null : (
+  const panel = !d || !ep || !wid ? null : (
     <div className="grid gap-3">
-      <AddonStreams kind="series" ident={id} season={season} episode={episode} />
+      <AddonStreams kind="series" ident={wid} season={ep.ws ?? season} episode={ep.we ?? episode} />
     </div>
   )
   return <TitleStage backdrop={ep?.thumb || d?.background || d?.poster || undefined} back={`/discover/series/${id}`} backLabel="Back to the show" left={left} panel={panel} panelLabel="From your add-ons" />

@@ -1,3 +1,7 @@
+## Unreleased
+
+- Anime title pages now ask your add-ons for streams (and Where to watch, and the add-on extras), using the IMDb number and episode numbering the anime catalogue lists for the show
+
 # Changelog
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.

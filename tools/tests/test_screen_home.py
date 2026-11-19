@@ -36,8 +36,8 @@ def fake(url, params, headers):
             return {"metas": [{"id": "kitsu:3936", "type": "anime", "name": "Fullmetal Alchemist: Brotherhood", "releaseInfo": "2009", "poster": "http://a/1", "description": "Two brothers.", "genres": ["Action", "Adventure"]}]}
         return {"metas": [{"id": "kitsu:12", "type": "anime", "name": "One Piece", "releaseInfo": "1999", "poster": "http://a/2", "genres": ["Action"]}]}
     if url == "https://anime-kitsu.strem.fun/meta/series/kitsu:12.json":
-        return {"meta": {"id": "kitsu:12", "type": "series", "name": "One Piece", "releaseInfo": "1999", "poster": "http://a/2", "genres": ["Action"], "description": "Pirates.",
-                         "videos": [{"season": 1, "episode": 1, "title": "Romance Dawn", "released": "1999-10-20T00:00:00.000Z"}, {"season": 1, "episode": 2, "title": "Buggy"}]}}
+        return {"meta": {"id": "kitsu:12", "type": "series", "name": "One Piece", "releaseInfo": "1999", "poster": "http://a/2", "genres": ["Action"], "description": "Pirates.", "imdb_id": "tt0388629",
+                         "videos": [{"season": 1, "episode": 1, "title": "Romance Dawn", "released": "1999-10-20T00:00:00.000Z", "imdbSeason": 1, "imdbEpisode": 1}, {"season": 1, "episode": 2, "title": "Buggy"}]}}
     if url.endswith("/catalog/movie/year.json"):
         return {"metas": [{"imdb_id": "tt9999991", "type": "movie", "name": "Newest", "year": "2026"}]}
     if url.endswith("/catalog/series/imdbRating/genre=Drama.json"):
@@ -110,6 +110,7 @@ def test_discover_lists_catalogues_marks_what_the_library_has_and_validates(tmp_
     assert c.get("/api/screen/discover?type=music").status_code == 400
     one = c.get("/api/screen/discover/series/kitsu:12").json()          # an anime from the lists: its own page, with episodes
     assert one["title"] == "One Piece" and one["overview"] == "Pirates." and [e["name"] for e in one["episodes"][0]["episodes"]] == ["Romance Dawn", "Buggy"] and one["library"] is None
+    assert one["watch"] == "tt0388629" and one["episodes"][0]["episodes"][0]["ws"] == 1 and "ws" not in one["episodes"][0]["episodes"][1]   # streams are asked for by the IMDb number and its episode numbering
     assert c.get("/api/screen/discover/series/kitsu:..").status_code == 400
     assert c.get("/api/screen/discover?type=movie&genre=../etc").status_code == 400
     assert c.get("/api/screen/discover?type=movie&genre=Drama,../etc").status_code == 400
