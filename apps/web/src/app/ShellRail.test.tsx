@@ -1,7 +1,8 @@
 import { fireEvent, screen } from '@testing-library/react'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { Shell } from './Shell'
+import { setNavMode } from './navMode'
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
@@ -9,7 +10,8 @@ beforeAll(() => {
   HTMLElement.prototype.hidePopover = function () {}
   vi.stubGlobal('matchMedia', (q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }))
 })
-afterEach(() => { vi.unstubAllGlobals(); try { localStorage.clear() } catch { /* none */ } })
+beforeEach(() => setNavMode('side'))   // these are the side menu's tests
+afterEach(() => { vi.unstubAllGlobals(); setNavMode('top'); try { localStorage.clear() } catch { /* none */ } })
 
 class QuietSocket { onopen = null; onclose = null; onmessage = null; onerror = null; close() {} }
 

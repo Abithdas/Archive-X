@@ -74,7 +74,7 @@ export function SearchField({ value, onChange, placeholder, suggestions, onPick,
   const pick = (s: Suggestion) => { setOpen(false); setActive(-1); onPick(s) }
 
   return (
-    <div ref={box} className="relative min-w-0 max-w-[407px] flex-1">
+    <div ref={box} className="relative min-w-[140px] max-w-[407px] flex-1">
       <ClearField
         value={value}
         onChange={(v) => { onChange(v); setOpen(true) }}

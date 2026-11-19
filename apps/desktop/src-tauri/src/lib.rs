@@ -2,7 +2,7 @@
 //!
 //! Flow: show the splash page → start the frozen backend (desktop mode, loopback, per-launch secret) → open the
 //! one-time session URL in the same window → on exit, stop the backend gracefully (jobs are checkpointed).
-//! The Archive X web UI loaded from the backend gets no Tauri IPC access except the video player and the app update commands (capabilities/native-player.json).
+//! The Archive X web UI loaded from the backend gets no Tauri IPC access except the video player, the app update commands and the window's own buttons (capabilities/native-player.json).
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -15,6 +15,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 mod lifecycle;
 mod native;
 mod updates;
+mod window;
 
 use lifecycle::{ExitDecision, Lifecycle, SecondLaunch, RELAUNCH_ENV};
 
@@ -168,7 +169,13 @@ pub fn run() {
             native::native_diagnostics,
             updates::update_status,
             updates::update_check,
-            updates::update_install
+            updates::update_install,
+            window::window_chrome,
+            window::window_minimize,
+            window::window_toggle_maximize,
+            window::window_is_maximized,
+            window::window_close,
+            window::window_drag
         ])
         .setup(|app| {
             let handle = app.handle().clone();

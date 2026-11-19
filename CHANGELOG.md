@@ -2,6 +2,9 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+- **The menu is a top bar.** The pages (Photos, Movies and Shows, Cast, Studios, Operations, Transfers, Settings, AI Assistance) sit in one bar along the top with search, the Telegram status, notifications and your account; the page you are on shows its name and the others show their icon (names too on a very wide window). In the desktop app the native title bar is gone and the window's minimize, maximize and close buttons are in that same bar; press an empty part of it to move the window, double-press to maximize. The side menu is still there: Settings, Appearance, "Menu on top" off. The version moved to Settings, Overview, About.
+
 ## 30.6.0 (2026-11-19)
 - **New logo.** The app icon (installer, window, taskbar), the web icons, the sidebar and sign-in picture, and a README banner use the new Archive X mark. The mark is no longer cut into a circle, and every size is built from the two master pictures in `docs/brand` by `tools/brand/make_icons.py`.
 - **Cinemeta as a keyless source for movies and TV shows (off by default).** Settings, Metadata has a switch, "Use Cinemeta for movies and TV shows". When on, and TMDB has no answer or no key, titles from file names are looked up at cinemeta.strem.io (the Stremio project's open catalog): poster, background, cast, genres, IMDb rating, runtime, status and every episode with its air date, so the Series page can list missing episodes without any key.

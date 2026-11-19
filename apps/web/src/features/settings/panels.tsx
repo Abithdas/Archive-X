@@ -20,6 +20,9 @@ import { useAuthStatus, useExperienceSettings, useIconsStatus, useMetadataSettin
 import { CustomThemes } from './CustomThemes'
 import { useAppearance, useAppearanceActions } from './useAppearance'
 import { Disclosure } from '@/design/Accordion'
+import { setNavMode, useNavMode } from '@/app/navMode'
+import { useStatus } from '@/api/hooks'
+import { versionLabel } from '@/app/versionLabel'
 
 const BOX = 'rounded-[18px] border border-line bg-surface p-5'
 function Head({ icon, title, count, aside }: { icon: string; title: string; count: string; aside?: ReactNode }) {
@@ -103,6 +106,7 @@ export function OverviewPanel({ go }: { go: (p: PanelId) => void }) {
   const auth = useAuthStatus(), pre = usePreflight(), icons = useIconsStatus(), meta = useMetadataSettings(), web = useWebLogin(), storage = useStorage()
   const checks = { auth: auth.data, preflight: pre.data, icons: icons.data, metadata: meta.data, web: web.data, storage: storage.data as Record<string, unknown> | undefined }
   const rows = statusRows(checks, formatBytes)
+  const version = versionLabel(useStatus().data?.version)
   const tone = (t: string) => (t === 'ok' ? 'bg-good/15 text-good' : t === 'warn' ? 'bg-warn/15 text-warn' : 'bg-surface-3 text-muted')
   return (
     <div className="grid gap-4">
@@ -131,7 +135,7 @@ export function OverviewPanel({ go }: { go: (p: PanelId) => void }) {
           <pre className="mt-2 max-h-64 overflow-auto rounded-xl bg-bg p-3 text-xs text-muted">{JSON.stringify({ telegram: auth.data, dependencies: pre.data, icons: icons.data }, null, 2)}</pre></Disclosure>
       </section>
       <section aria-label="About" className={BOX}>
-        <h3 className="mb-2 text-xl font-extrabold">About</h3>
+        <h3 className="mb-2 flex flex-wrap items-baseline gap-3 text-xl font-extrabold">About{version ? <span className="text-sm font-medium text-muted" title="The release running now">Archive X {version}</span> : null}</h3>
         <p className="text-sm text-muted">
           Archive X is a personal fan project I made for my own use and decided to share. It was built with the help of{' '}
           <a href="https://www.anthropic.com/claude-code" target="_blank" rel="noreferrer" className="font-semibold text-accent underline">Claude Code</a>, Anthropic's AI coding assistant.
@@ -216,8 +220,12 @@ export function AppearancePanel() {
   const save = async (fn: () => Promise<void>, ok: string) => {
     try { await fn(); setStatus(ok) } catch { setStatus('Applied locally; server save failed.') }
   }
+  const nav = useNavMode()
   return (
     <div className="grid gap-4">
+      <section aria-label="Menu" className={BOX}>
+        <Row title="Menu on top" hint="The pages sit in a bar along the top, with search and your account. In the desktop app the window's minimize, maximize and close buttons are in it too."><Switch label="Menu on top" checked={nav === 'top'} onChange={(v) => setNavMode(v ? 'top' : 'side')} /></Row>
+      </section>
       <section aria-label="Themes" className={BOX}>
         <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
           <h3 className="flex items-center gap-3 text-xl font-extrabold"><span className="text-accent"><Icon name="sparkle" className="size-5" /></span>Themes</h3>

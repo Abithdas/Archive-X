@@ -1,7 +1,7 @@
 import { fadeThrough, motion, spring } from '@/design/motion'
 import { installGlow } from '@/design/glow'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
-import type { ReactNode } from 'react'
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorBoundary } from './ErrorScreen'
 import { useEntities, useStatus, useStorage } from '@/api/hooks'
@@ -21,6 +21,9 @@ import { NotificationsPanel, useUnseenCount } from './NotificationsPanel'
 import { useSearch } from './search'
 import { toggleTheme, useTheme } from './theme'
 import { useUi } from './ui'
+import { useNavMode } from './navMode'
+import { versionLabel } from './versionLabel'
+import { useCustomChrome, windowActions } from './windowChrome'
 import { useAppearance, useAppearanceActions, useAppearanceSync } from '@/features/settings/useAppearance'
 import { scaleForKey } from '@/theme/themes'
 import { useScrollMemory } from './scrollMemory'
@@ -118,18 +121,18 @@ function StorageCard() {
 }
 
 /** The app's version under the storage card, so it is always clear which release is running ("v30.3.2"; a development build says "dev"). */
-export const versionLabel = (v: string | undefined): string => { const t = String(v ?? '').trim(); return !t ? '' : /^\d/.test(t) ? `v${t}` : t }
+export { versionLabel }
 function VersionLine() {
   const { data } = useStatus()
   const label = versionLabel(data?.version)
   return label ? <p className="mt-2 text-center text-[11px] font-medium text-faint" title="Archive X version">Archive X {label}</p> : null
 }
 
-function TelegramPill() {
+function TelegramPill({ from }: { from: string }) {
   const { data } = useStatus()
   const ok = Boolean(data?.telegram_connected ?? data?.telegram?.connected)
   return (
-    <Link to="/settings" data-live={ok ? 'true' : 'false'} className={cn('ax-live-pill hidden h-9 items-center gap-2 rounded-full px-3 text-[13px] font-semibold sm:inline-flex', ok ? 'bg-good/15 text-good' : 'bg-bad/15 text-bad')} title={data?.telegram_status ?? 'Telegram status'}>
+    <Link to="/settings" data-live={ok ? 'true' : 'false'} className={cn('ax-live-pill hidden h-9 items-center gap-2 rounded-full px-3 text-[13px] font-semibold', from, ok ? 'bg-good/15 text-good' : 'bg-bad/15 text-bad')} title={data?.telegram_status ?? 'Telegram status'}>
       <span className="ax-plane" data-live={ok ? 'true' : 'false'} aria-hidden="true"><Icon name="send" className="size-4" /></span>
       <span data-live={ok ? 'true' : 'false'} className={cn('ax-live-dot size-2', ok ? 'bg-good' : 'bg-bad')} aria-hidden="true" />
       {ok ? 'Connected' : 'Setup needed'}
@@ -137,9 +140,45 @@ function TelegramPill() {
   )
 }
 
+/** One page in the top bar: its icon, the jobs running on it, and its name: always for the page you are on, for every page only when the window is very wide. */
+function TopLink({ n, count }: { n: NavDef; count: number }) {
+  return (
+    <Link to={n.to} activeOptions={{ exact: n.to === '/' }} title={count ? `${n.label} · ${runningLabel(count)}` : n.label} className="relative flex h-10 shrink-0 items-center gap-2 rounded-xl px-2.5 text-[14px] font-medium text-muted transition-colors hover:bg-fg/5 hover:text-fg lg:px-3" activeProps={{ className: '!text-fg [&_svg]:text-accent' }}>
+      {({ isActive }) => (
+        <>
+          {isActive ? <motion.span layoutId="top-pill" transition={spring} aria-hidden="true" className="absolute inset-x-2.5 -bottom-[13px] h-[3px] rounded-t-full bg-accent" /> : null}
+          <Icon name={n.icon} className="relative size-[18px]" />
+          <span className={cn('relative', isActive ? 'sr-only lg:not-sr-only' : 'sr-only 2xl:not-sr-only')}>{n.label}</span>
+          <ActivityBadge count={count} className="relative" />
+        </>
+      )}
+    </Link>
+  )
+}
+
+/** The window's own minimise, maximise and close, on the right of the top bar (desktop app only; the native title bar is hidden then). */
+function WindowButtons({ maximized }: { maximized: boolean }) {
+  const base = 'grid h-16 w-12 place-items-center text-muted transition-colors hover:bg-fg/10 hover:text-fg'
+  return (
+    <div data-nodrag className="ml-1 flex shrink-0 self-stretch">
+      <button type="button" onClick={() => void windowActions.minimize()} aria-label="Minimize window" title="Minimize" className={base}>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true"><path d="M1 6h10" /></svg>
+      </button>
+      <button type="button" onClick={() => void windowActions.toggleMaximize()} aria-label={maximized ? 'Restore window' : 'Maximize window'} title={maximized ? 'Restore' : 'Maximize'} className={base}>
+        {maximized
+          ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true"><rect x="1" y="3.2" width="7.6" height="7.6" rx="1" /><path d="M3.4 3.2V2.2a1 1 0 0 1 1-1h6.4a1 1 0 0 1 1 1v6.4a1 1 0 0 1-1 1h-1" /></svg>
+          : <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true"><rect x="1.2" y="1.2" width="9.6" height="9.6" rx="1.2" /></svg>}
+      </button>
+      <button type="button" onClick={() => void windowActions.close()} aria-label="Close window" title="Close" className={cn(base, 'hover:!bg-[#e81123] hover:!text-white')}>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" /></svg>
+      </button>
+    </div>
+  )
+}
+
 const ICON_BTN = 'grid size-10 place-items-center rounded-xl text-muted hover:bg-fg/5 hover:text-fg'
 
-function Header({ live }: { live: string }) {
+function Header({ live, items, activity, top, custom, maximized }: { live: string; items: NavDef[]; activity: Record<string, number>; top: boolean; custom: boolean; maximized: boolean }) {
   const { q, set } = useSearch()
   const focusTick = useUi((s) => s.focusSearch)
   const path = useRouterState({ select: (s) => s.location.pathname })
@@ -156,9 +195,23 @@ function Header({ live }: { live: string }) {
   useEffect(() => {
     if (focusTick) input.current?.focus()
   }, [focusTick])
+  /** In the desktop app the bar is the window's title bar: pressing an empty part of it moves the window, a double press maximises or restores it. */
+  const onBarDown = (e: ReactMouseEvent) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('a, button, input, textarea, select, [role="combobox"], [role="listbox"], [data-nodrag]')) return
+    if (e.detail >= 2) void windowActions.toggleMaximize()
+    else void windowActions.drag()
+  }
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-bg/85 px-4 backdrop-blur-md sm:px-10">
-      <img src="/static/icons/archive-x.png" alt="" className="size-8 object-contain md:hidden" />
+    <header onMouseDown={custom ? onBarDown : undefined} className={cn('sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-bg/85 px-4 backdrop-blur-md sm:px-10', custom && 'select-none pr-0 sm:pr-0')}>
+      <Link to="/videos" aria-label="Archive X" className={cn('flex shrink-0 items-center gap-2.5 text-lg font-extrabold', top ? '' : 'md:hidden')}>
+        <img src="/static/icons/archive-x.png" alt="" className="size-8 object-contain" />
+        {top ? <span className="hidden 2xl:inline">Archive X</span> : null}
+      </Link>
+      {top ? (
+        <nav aria-label="Pages" className="hidden shrink-0 items-center gap-0.5 md:flex">
+          {items.map((n) => <TopLink key={n.to} n={n} count={activity[n.to] ?? 0} />)}
+        </nav>
+      ) : null}
       <SearchField
         value={q}
         onChange={set}
@@ -172,13 +225,14 @@ function Header({ live }: { live: string }) {
         inputRef={input}
       />
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-        <TelegramPill />
-        <ThemeToggle theme={theme} onToggle={toggleTheme} className={cn(ICON_BTN, 'hidden sm:grid')} />
+        <TelegramPill from={top ? 'lg:inline-flex' : 'sm:inline-flex'} />
+        <ThemeToggle theme={theme} onToggle={toggleTheme} className={cn(ICON_BTN, 'hidden', top ? 'lg:grid' : 'sm:grid')} />
         <button type="button" onClick={() => useUi.getState().setNotifications(true)} aria-label={notices ? `Notifications, ${notices} new` : 'Notifications'} title="Notifications" className={cn(ICON_BTN, 'relative')}>
           <Bell count={notices} />
         </button>
         <AccountMenu live={live} />
       </div>
+      {custom ? <WindowButtons maximized={maximized} /> : null}
     </header>
   )
 }
@@ -242,9 +296,12 @@ export function Shell(): ReactNode {
   const GROUPS = groupsFor(labels)
   const phone = GROUPS.flatMap((g) => g.items).filter((n) => PHONE_NAV.includes(n.to))
   const activity = useActivity()
+  const nav = useNavMode()
+  const chrome = useCustomChrome(nav === 'top')
+  const items = GROUPS.flatMap((g) => g.items)
   return (
-    <div className="flex h-full flex-col md:flex-row">
-      <aside className={cn('hidden shrink-0 flex-col gap-0.5 overflow-y-auto overflow-x-hidden border-r border-line pb-4 transition-[width] duration-200 md:flex', rail ? 'w-[84px] px-2.5' : 'w-[248px] px-3')} aria-label="Main">
+    <div className={cn('flex h-full flex-col', nav === 'side' && 'md:flex-row')}>
+      {nav === 'side' ? <aside className={cn('hidden shrink-0 flex-col gap-0.5 overflow-y-auto overflow-x-hidden border-r border-line pb-4 transition-[width] duration-200 md:flex', rail ? 'w-[84px] px-2.5' : 'w-[248px] px-3')} aria-label="Main">
         <div className={cn('flex shrink-0 items-center text-lg font-extrabold', rail ? 'h-[92px] flex-col justify-center gap-1' : 'h-16 gap-2.5 px-1.5')}>
           <RailToggle rail={rail} onToggle={toggleRail} />
           <img src="/static/icons/archive-x.png" alt="" className="size-9 object-contain" />
@@ -258,9 +315,9 @@ export function Shell(): ReactNode {
         ))}
         {rail ? null : <StorageCard />}
         {rail ? null : <VersionLine />}
-      </aside>
+      </aside> : null}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <Header live={live} />
+        <Header live={live} items={items} activity={activity} top={nav === 'top'} custom={chrome.custom} maximized={chrome.maximized} />
         <main ref={mainRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <motion.div key={section} {...fadeThrough} className="flex min-h-0 flex-1 flex-col"><ErrorBoundary resetKey={fullPath}><Suspense fallback={<div role="status" aria-label="Loading page" className="grid flex-1 place-items-center py-24"><span className="size-6 animate-spin rounded-full border-2 border-line border-t-accent" /></div>}><Outlet /></Suspense></ErrorBoundary></motion.div>
         </main>

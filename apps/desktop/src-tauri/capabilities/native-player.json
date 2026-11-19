@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "native-player",
-  "description": "The Archive X page, served from the local backend on this PC, may drive the native video player and look at and start an app update, and nothing else: no files, no shell, no other windows.",
+  "description": "The Archive X page, served from the local backend on this PC, may drive the native video player, look at and start an app update, and move, shrink, grow or close its own window (the buttons of its top bar), and nothing else: no files, no shell, no other windows.",
   "windows": ["main"],
   "remote": { "urls": ["http://127.0.0.1:*", "https://127.0.0.1:*"] },
   "permissions": [
@@ -14,6 +14,12 @@
     "allow-native-diagnostics",
     "allow-update-status",
     "allow-update-check",
-    "allow-update-install"
+    "allow-update-install",
+    "allow-window-chrome",
+    "allow-window-minimize",
+    "allow-window-toggle-maximize",
+    "allow-window-is-maximized",
+    "allow-window-close",
+    "allow-window-drag"
   ]
 }

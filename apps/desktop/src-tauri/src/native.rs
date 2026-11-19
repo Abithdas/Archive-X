@@ -318,7 +318,8 @@ pub fn shutdown(app: &AppHandle) {
 /// The names of every command the page may call (the player's and the updater's, see updates.rs); build.rs keeps its own copy (it cannot use this module) and the test below checks they agree.
 #[cfg(test)]
 const COMMANDS: &[&str] =
-    &["native_available", "native_open", "native_command", "native_rect", "native_state", "native_tracks", "native_diagnostics", "update_status", "update_check", "update_install"];
+    &["native_available", "native_open", "native_command", "native_rect", "native_state", "native_tracks", "native_diagnostics", "update_status", "update_check", "update_install",
+    "window_chrome", "window_minimize", "window_toggle_maximize", "window_is_maximized", "window_close", "window_drag"];
 
 #[cfg(test)]
 mod tests {

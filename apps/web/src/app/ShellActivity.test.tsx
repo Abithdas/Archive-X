@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { Shell } from './Shell'
+import { setNavMode } from './navMode'
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
@@ -9,7 +10,7 @@ beforeAll(() => {
   HTMLElement.prototype.hidePopover = function () {}
   vi.stubGlobal('matchMedia', (q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }))
 })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); setNavMode('top') })
 
 class QuietSocket { onopen = null; onclose = null; onmessage = null; onerror = null; close() {} }
 
@@ -22,6 +23,7 @@ const status = { jobs: [
 
 describe('sidebar activity counters', () => {
   it('shows how many jobs are running on the pages they belong to, and nothing on idle pages', async () => {
+    setNavMode('side')
     vi.stubGlobal('WebSocket', QuietSocket)
     vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes('/api/status') ? status : String(url).includes('storage') ? { bytes: 10, files: 3, disk: { total: 1000, used: 100, free: 900 } } : {}), { status: 200 })))
     withRouter(<Shell />)

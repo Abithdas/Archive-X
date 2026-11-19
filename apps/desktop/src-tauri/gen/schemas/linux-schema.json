@@ -237,6 +237,42 @@
           "markdownDescription": "Enables the update_status command without any pre-configured scope."
         },
         {
+          "description": "Enables the window_chrome command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-window-chrome",
+          "markdownDescription": "Enables the window_chrome command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the window_close command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-window-close",
+          "markdownDescription": "Enables the window_close command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the window_drag command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-window-drag",
+          "markdownDescription": "Enables the window_drag command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the window_is_maximized command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-window-is-maximized",
+          "markdownDescription": "Enables the window_is_maximized command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the window_minimize command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-window-minimize",
+          "markdownDescription": "Enables the window_minimize command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the window_toggle_maximize command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-window-toggle-maximize",
+          "markdownDescription": "Enables the window_toggle_maximize command without any pre-configured scope."
+        },
+        {
           "description": "Denies the native_available command without any pre-configured scope.",
           "type": "string",
           "const": "deny-native-available",
@@ -295,6 +331,42 @@
           "type": "string",
           "const": "deny-update-status",
           "markdownDescription": "Denies the update_status command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the window_chrome command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-window-chrome",
+          "markdownDescription": "Denies the window_chrome command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the window_close command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-window-close",
+          "markdownDescription": "Denies the window_close command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the window_drag command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-window-drag",
+          "markdownDescription": "Denies the window_drag command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the window_is_maximized command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-window-is-maximized",
+          "markdownDescription": "Denies the window_is_maximized command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the window_minimize command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-window-minimize",
+          "markdownDescription": "Denies the window_minimize command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the window_toggle_maximize command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-window-toggle-maximize",
+          "markdownDescription": "Denies the window_toggle_maximize command without any pre-configured scope."
         },
         {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",
