@@ -12,6 +12,8 @@ import { Chips, TitleStage } from './TitleStage'
 import { useScreenView } from './view'
 import { MOVIE_SORTS, movieBadge, sortMovies, versionText, type MovieCard, type MovieDetail, type MovieSort } from './series'
 import { lengthText } from './series'
+import { ListFilters } from './ListFilters'
+import { NO_FILTER, filterCount, matchesFilter, type ListFilter } from './listFilters'
 
 
 /** The movies in the library, shown inside Movies & Shows: one poster for each, however many copies there are. */
@@ -19,19 +21,22 @@ export function MoviesList() {
   const [sort, setSort] = useState<MovieSort>('title')
   const [find, setFind] = useState('')
   const [cam, setCam] = useState(false)
+  const [filter, setFilter] = useState<ListFilter>(NO_FILTER)
   const q = useQuery({ queryKey: ['movies', cam], queryFn: () => api<{ items: MovieCard[] }>(`/api/screen/movies${cam ? '?cam=1' : ''}`) })
-  const items = sortMovies(q.data?.items ?? [], sort, find)
+  const all = q.data?.items ?? []
+  const items = sortMovies(all, sort, find).filter((m) => matchesFilter(filter, m))
+  const narrowed = Boolean(find.trim()) || filterCount(filter) > 0
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted">One poster for each movie, with its copies under it</p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted">One poster for each movie, with its copies under it{q.data ? <span className="ml-2 text-faint">· {narrowed ? `${items.length.toLocaleString()} of ${all.length.toLocaleString()}` : all.length.toLocaleString()} movies</span> : null}</p>
         <div className="flex flex-wrap items-center gap-2">
           <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a movie" aria-label="Find a movie" className="h-10 w-44 rounded-xl border border-line-2 bg-bg px-3 text-sm" />
-          <select aria-label="Sort movies" value={sort} onChange={(e) => setSort(e.target.value as MovieSort)} className="h-10 rounded-xl border border-line-2 bg-bg px-3 text-sm">{MOVIE_SORTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+          <ListFilters items={all} value={filter} onChange={setFilter} sort={{ value: sort, options: MOVIE_SORTS, onChange: (v) => setSort(v as MovieSort) }} />
           <label className="inline-flex items-center gap-2 text-sm text-muted"><input type="checkbox" checked={cam} onChange={(e) => setCam(e.target.checked)} />Show cinema recordings</label>
         </div>
       </div>
       {q.isError ? <p role="alert" className="py-8 text-center text-sm text-warn">Could not load the movies.</p>
-        : <Reveal ready={!q.isPending} skeleton={<PosterSkeleton label="Loading movies" />}>{!q.data ? null : !items.length ? <Empty icon="play" title={find ? 'No movie matches' : 'No movies yet'}>{find ? 'Try other words.' : 'Add a folder of movies in Settings → Local files (marked SFW), then identify it in Settings → Metadata.'}</Empty>
+        : <Reveal ready={!q.isPending} skeleton={<PosterSkeleton label="Loading movies" />}>{!q.data ? null : !items.length ? <Empty icon="play" title={narrowed ? 'No movie matches' : 'No movies yet'}>{narrowed ? 'Try other words, or clear the filters.' : 'Add a folder of movies in Settings → Local files (marked SFW), then identify it in Settings → Metadata.'}</Empty>
         : (
           <ul aria-label="Movies" className="m-0 grid list-none grid-cols-2 gap-x-4 gap-y-5 p-0 sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
             {items.map((m, i) => (

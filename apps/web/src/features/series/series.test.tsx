@@ -96,3 +96,34 @@ describe('missing episodes and movies', () => {
     expect(screen.getByText('None of this season is here (8 episodes)')).toBeInTheDocument()
   })
 })
+
+describe('Filters on the Movies and Series lists', () => {
+  const uhd = { res: [2160], sources: ['BluRay'], hdr: ['HDR'], langs: ['German'] }
+  const web = { res: [720], sources: ['WEB-DL'], hdr: [], langs: [] }
+  it('narrow the movies by quality, source, HDR and language, and say how many are shown', async () => {
+    const movie = (id: number, title: string, f: object) => ({ id, title, year: 2020, poster: '', overview: '', genres: [], rating: 7, release_date: '', added: id, versions: 1, best: '', cam_only: false, ...f })
+    vi.stubGlobal('fetch', vi.fn(async () => json({ items: [movie(1, 'Dune', uhd), movie(2, 'Heat', web)] })))
+    const { MoviesList } = await import('./MoviesPage')
+    withRouter(<MoviesList />)
+    expect(await screen.findByText('Dune')).toBeInTheDocument()
+    expect(screen.getByText('· 2 movies')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
+    for (const g of ['Quality', 'Source', 'HDR / DV', 'Language']) expect(screen.getByRole('group', { name: g })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '4K' }))
+    expect(screen.queryByText('Heat')).toBeNull(); expect(screen.getByText('Dune')).toBeInTheDocument()
+    expect(screen.getByText('· 1 of 2 movies')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+    expect(await screen.findByText('Heat')).toBeInTheDocument()
+  })
+  it('narrow the shows the same way', async () => {
+    const show = (id: number, title: string, f: object) => ({ id, title, year: 2017, poster: '', overview: '', genres: [], episodes: 2, seasons: 1, ...f })
+    vi.stubGlobal('fetch', vi.fn(async () => json({ items: [show(1, 'Dark', uhd), show(2, 'Lost', web)] })))
+    withRouter(<SeriesList />)
+    expect(await screen.findByText('Dark')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'WEB-DL' }))
+    expect(screen.queryByText('Dark')).toBeNull(); expect(screen.getByText('Lost')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Find a show'), { target: { value: 'zzz' } })
+    expect(await screen.findByText('No show matches')).toBeInTheDocument()
+  })
+})

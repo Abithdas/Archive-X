@@ -328,3 +328,22 @@ def test_any_stremio_addon_can_be_added_and_the_one_on_this_pc_needs_the_switch(
     assert added.status_code == 200 and added.json()["items"][0]["url"] == "http://127.0.0.1:7000"
     c.post("/api/screen/addons/settings", json={"allow_local": False}, headers=H)
     ac.set_allow_local(False)
+
+
+def test_movies_and_series_carry_what_their_copies_have_for_the_filters(tmp_path):
+    from telegram_archive.metadata import screen_ids as si
+    q = si.quality_of("Dune.2021.2160p.UHD.BluRay.HDR.DV.German.x265.mkv")
+    assert (q["height"], q["source"], q["hdr"], q["languages"]) == (2160, "BluRay", ["HDR", "DV"], ["German"])
+    assert si.quality_of("Film.1080p.WEB-DL.MULTi.mkv")["languages"] == ["Multi"] and si.quality_of("Film.720p.mkv")["hdr"] == []
+    assert si.facets_of([si.quality_of("a.1080p.WEB-DL.mkv"), si.quality_of("a.2160p.BluRay.HDR.mkv")]) == {"res": [2160, 1080], "sources": ["BluRay", "WEB-DL"], "hdr": ["HDR"], "langs": []}
+    db = Database(tmp_path / "f.db")
+    _library(db)
+    with db.lock:
+        db.conn.execute("UPDATE media SET filename='The.Matrix.1999.2160p.BluRay.HDR.mkv' WHERE id=1")
+        db.conn.execute("UPDATE media SET filename='Breaking.Bad.S01E01.720p.WEB-DL.FRENCH.mkv' WHERE id=2")
+        db.conn.commit()
+    c = _client(db)
+    movie = c.get("/api/screen/movies").json()["items"][0]
+    assert (movie["res"], movie["sources"], movie["hdr"]) == ([2160], ["BluRay"], ["HDR"])
+    show = c.get("/api/screen/series").json()["items"][0]
+    assert (show["res"], show["sources"], show["langs"]) == ([720], ["WEB-DL"], ["French"])

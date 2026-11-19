@@ -1,4 +1,5 @@
-export interface SeriesCard { id: number; title: string; year: number | null; poster: string; overview: string; genres: string[]; episodes: number; seasons: number }
+export interface SeriesCard extends Partial<Facets> { id: number; title: string; year: number | null; poster: string; overview: string; genres: string[]; episodes: number; seasons: number }
+import type { Facets } from './listFilters'
 export interface EpisodeRow { episode: number | null; name: string; overview: string; air_date: string; still: string; runtime: number; duration: number; cid: string; mid: number }
 export interface SeasonBlock { season: number; name: string; total: number; episodes: EpisodeRow[]; missing?: number[] }
 export interface SeriesDetail {
@@ -37,7 +38,7 @@ export function missingText(missing: readonly number[]): string {
   return runs.join(', ')
 }
 
-export interface MovieCard { id: number; title: string; year: number | null; poster: string; overview: string; genres: string[]; rating: number; release_date: string; added: number; versions: number; best: string; cam_only: boolean }
+export interface MovieCard extends Partial<Facets> { id: number; title: string; year: number | null; poster: string; overview: string; genres: string[]; rating: number; release_date: string; added: number; versions: number; best: string; cam_only: boolean }
 export interface MovieVersion { cid: string; mid: number; media_id: number; filename: string; resolution: string; height: number; source: string; cam: boolean; codec: string; size: number; duration: number }
 export interface MovieDetail {
   id: number; title: string; year: number | null; overview: string; tagline: string; poster: string; backdrop: string; genres: string[]; companies: string[]; rating: number; runtime: number

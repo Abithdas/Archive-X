@@ -57,8 +57,19 @@ _SOURCES = [(re.compile(r"web[ ._-]?dl|webrip", re.I), "WEB-DL"), (re.compile(r"
             (re.compile(r"dvd(?:rip|scr)?", re.I), "DVD")]
 
 
+_DV = re.compile(r"(?<![a-z0-9])(?:dv|dovi|dolby[ ._-]?vision)(?![a-z0-9])", re.I)
+_HDR = re.compile(r"(?<![a-z0-9])(?:hdr(?:10\+?)?|hlg)(?![a-z0-9])", re.I)
+_LANGS = [(re.compile(r"(?<![a-z0-9])multi(?:[ ._-]?(?:audio|lang))?(?![a-z0-9])", re.I), "Multi"), (re.compile(r"(?<![a-z0-9])dual[ ._-]?audio(?![a-z0-9])", re.I), "Dual audio"),
+          (re.compile(r"(?<![a-z0-9])(?:german|deutsch|ger)(?![a-z0-9])", re.I), "German"), (re.compile(r"(?<![a-z0-9])(?:french|truefrench|vostfr|vff|vfq)(?![a-z0-9])", re.I), "French"),
+          (re.compile(r"(?<![a-z0-9])(?:italian|ita)(?![a-z0-9])", re.I), "Italian"), (re.compile(r"(?<![a-z0-9])(?:spanish|castellano|latino|esp)(?![a-z0-9])", re.I), "Spanish"),
+          (re.compile(r"(?<![a-z0-9])(?:portuguese|dublado|por)(?![a-z0-9])", re.I), "Portuguese"), (re.compile(r"(?<![a-z0-9])(?:russian|rus)(?![a-z0-9])", re.I), "Russian"),
+          (re.compile(r"(?<![a-z0-9])(?:hindi|hin)(?![a-z0-9])", re.I), "Hindi"), (re.compile(r"(?<![a-z0-9])(?:japanese|jpn)(?![a-z0-9])", re.I), "Japanese"),
+          (re.compile(r"(?<![a-z0-9])(?:korean|kor)(?![a-z0-9])", re.I), "Korean"), (re.compile(r"(?<![a-z0-9])(?:chinese|mandarin|cantonese)(?![a-z0-9])", re.I), "Chinese"),
+          (re.compile(r"(?<![a-z0-9])english(?![a-z0-9])", re.I), "English")]
+
+
 def quality_of(name: str, height: int = 0) -> dict:
-    """``{resolution, height, cam, source}`` for a file: the name's own tags first, the real picture height when the name says nothing.
+    """``{resolution, height, cam, source, hdr, languages}`` for a file: the name's own tags first, the real picture height when the name says nothing.
     A cinema recording ("CAM", "HDTS", "TS") is flagged so it can be kept out of sight when a better copy exists."""
     text = os.path.splitext(str(name))[0]
     tagged = next((h for rx, h in _RES if rx.search(text)), 0)
@@ -66,7 +77,18 @@ def quality_of(name: str, height: int = 0) -> dict:
     picture = 2160 if h >= 2000 else 1080 if h >= 1000 else 720 if h >= 700 else 576 if h >= 560 else 480 if h >= 300 else 0
     best = tagged or picture
     source = next((label for rx, label in _SOURCES if rx.search(text)), "")
-    return {"resolution": f"{best}p" if best else "", "height": best, "cam": bool(_CAM.search(text)), "source": source}
+    hdr = ["HDR"] if _HDR.search(text) else []
+    if _DV.search(text):
+        hdr.append("DV")
+    return {"resolution": f"{best}p" if best else "", "height": best, "cam": bool(_CAM.search(text)), "source": source, "hdr": hdr,
+            "languages": [label for rx, label in _LANGS if rx.search(text)]}
+
+
+def facets_of(qualities) -> dict:
+    """What the copies of one title have between them (for the Movies and Series filters): picture heights, release sources, HDR and Dolby Vision, and the languages the names tag."""
+    qs = list(qualities)
+    return {"res": sorted({int(q["height"]) for q in qs if q.get("height")}, reverse=True), "sources": sorted({q["source"] for q in qs if q.get("source")}),
+            "hdr": sorted({h for q in qs for h in q.get("hdr", [])}), "langs": sorted({l for q in qs for l in q.get("languages", [])})}
 
 
 def version_sort_key(q: dict) -> tuple:

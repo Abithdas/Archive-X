@@ -709,8 +709,12 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                     "SELECT t.id,t.title,t.year,t.poster,t.overview,t.genres,COUNT(*) AS episodes,COUNT(DISTINCT s.season) AS seasons "
                     "FROM media_screen s JOIN media m ON m.id=s.media_id JOIN screen_titles t ON t.id=s.title_id "
                     "WHERE t.kind='tv' AND s.state='MATCHED' GROUP BY t.id ORDER BY LOWER(t.title)").fetchall()
+                files = c.execute("SELECT s.title_id AS tid, m.filename, m.height FROM media_screen s JOIN media m ON m.id=s.media_id JOIN screen_titles t ON t.id=s.title_id WHERE t.kind='tv' AND s.state='MATCHED'").fetchall()
+            quality: dict[int, list] = {}
+            for f in files:
+                quality.setdefault(f["tid"], []).append(si.quality_of(f["filename"] or "", f["height"] or 0))
             return [{"id": r["id"], "title": r["title"], "year": r["year"], "poster": si.image_url(r["poster"], "w342"), "overview": r["overview"],
-                     "genres": json.loads(r["genres"] or "[]"), "episodes": r["episodes"], "seasons": r["seasons"]} for r in rows]
+                     "genres": json.loads(r["genres"] or "[]"), "episodes": r["episodes"], "seasons": r["seasons"], **si.facets_of(quality.get(r["id"], []))} for r in rows]
         return {"items": await asyncio.to_thread(read)}
 
     @router.get("/api/screen/series/{title_id}")
@@ -757,7 +761,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         for r in rows:
             q = si.quality_of(r["filename"] or "", r["height"] or 0)
             copies.append({"cid": r["source_channel"], "mid": r["source_message_id"], "media_id": r["media_id"], "filename": r["filename"] or "", "resolution": q["resolution"], "height": q["height"],
-                           "source": q["source"], "cam": q["cam"], "codec": r["codec"] or "", "size": r["size"] or 0, "duration": r["duration"] or 0})
+                           "source": q["source"], "cam": q["cam"], "codec": r["codec"] or "", "size": r["size"] or 0, "duration": r["duration"] or 0, "hdr": q["hdr"], "languages": q["languages"]})
         copies.sort(key=lambda v: si.version_sort_key(v))
         if hide_cam and any(not v["cam"] for v in copies):
             copies = [v for v in copies if not v["cam"]]
@@ -782,7 +786,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 first = rs[0]
                 out.append({"id": tid, "title": first["title"], "year": first["year"], "poster": si.image_url(first["poster"], "w342"), "overview": first["overview"], "genres": json.loads(first["genres"] or "[]"),
                             "rating": first["rating"] or 0, "release_date": first["release_date"] or "", "added": max(r["media_id"] for r in rs), "versions": len(v), "best": v[0]["resolution"] if v else "",
-                            "cam_only": bool(v) and all(x["cam"] for x in v)})
+                            "cam_only": bool(v) and all(x["cam"] for x in v), **si.facets_of({"height": x["height"], "source": x["source"], "hdr": x["hdr"], "languages": x["languages"]} for x in v)})
             return sorted(out, key=lambda m: m["title"].lower())
         return {"items": await asyncio.to_thread(read)}
 

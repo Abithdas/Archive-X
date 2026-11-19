@@ -10,18 +10,35 @@ import { PLACEHOLDER, PosterCard } from './PosterCard'
 import { PosterSkeleton } from './PosterSkeleton'
 import { Chips, TitleStage } from './TitleStage'
 import { useScreenView } from './view'
+import { ListFilters } from './ListFilters'
+import { NO_FILTER, filterCount, matchesFilter, type ListFilter } from './listFilters'
 import { episodeLabel, countText, lengthText, missingText, seasonSummary, type SeriesCard, type SeriesDetail } from './series'
 
 
 /** The TV shows in the library, shown inside Movies & Shows: a poster for each, with how many episodes are here. */
+const SERIES_SORTS = [{ value: 'title', label: 'A to Z' }, { value: 'year', label: 'Newest release' }, { value: 'episodes', label: 'Most episodes' }] as const
+type SeriesSort = (typeof SERIES_SORTS)[number]['value']
+
 export function SeriesList() {
   const q = useQuery({ queryKey: ['series'], queryFn: () => api<{ items: SeriesCard[] }>('/api/screen/series') })
-  const items = q.data?.items ?? []
+  const [sort, setSort] = useState<SeriesSort>('title')
+  const [find, setFind] = useState('')
+  const [filter, setFilter] = useState<ListFilter>(NO_FILTER)
+  const all = q.data?.items ?? []
+  const text = find.trim().toLowerCase()
+  const by: Record<SeriesSort, (a: SeriesCard, b: SeriesCard) => number> = { title: (a, b) => a.title.localeCompare(b.title), year: (a, b) => (b.year ?? 0) - (a.year ?? 0) || a.title.localeCompare(b.title), episodes: (a, b) => b.episodes - a.episodes || a.title.localeCompare(b.title) }
+  const items = all.filter((x) => (!text || x.title.toLowerCase().includes(text)) && matchesFilter(filter, x)).sort(by[sort])
+  const narrowed = Boolean(text) || filterCount(filter) > 0
   return (
     <div>
-      <p className="mb-4 text-sm text-muted">Your TV shows, season by season</p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted">Your TV shows, season by season{q.data ? <span className="ml-2 text-faint">· {narrowed ? `${items.length.toLocaleString()} of ${all.length.toLocaleString()}` : all.length.toLocaleString()} shows</span> : null}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a show" aria-label="Find a show" className="h-10 w-44 rounded-xl border border-line-2 bg-bg px-3 text-sm" />
+          <ListFilters items={all} value={filter} onChange={setFilter} sort={{ value: sort, options: SERIES_SORTS, onChange: (v) => setSort(v as SeriesSort) }} />
+        </div>
+      </div>
       {q.isError ? <p role="alert" className="py-8 text-center text-sm text-warn">Could not load the shows.</p>
-        : <Reveal ready={!q.isPending} skeleton={<PosterSkeleton label="Loading shows" />}>{!q.data ? null : !items.length ? <Empty icon="library" title="No shows yet">Add a folder of TV shows in Settings → Local files (marked SFW), then identify it in Settings → Metadata.</Empty>
+        : <Reveal ready={!q.isPending} skeleton={<PosterSkeleton label="Loading shows" />}>{!q.data ? null : !items.length ? <Empty icon="library" title={narrowed ? 'No show matches' : 'No shows yet'}>{narrowed ? 'Try other words, or clear the filters.' : 'Add a folder of TV shows in Settings → Local files (marked SFW), then identify it in Settings → Metadata.'}</Empty>
         : (
           <ul aria-label="Shows" className="m-0 grid list-none grid-cols-2 gap-x-4 gap-y-5 p-0 sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
             {items.map((x, i) => (
