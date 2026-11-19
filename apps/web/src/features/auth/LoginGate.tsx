@@ -64,7 +64,7 @@ function LoginForm() {
     <main className="grid h-full place-items-center p-4">
       <form onSubmit={(e) => void submit(e)} onInput={() => { if (error) setError('') }} className="grid w-full max-w-sm gap-3 rounded-card border border-line bg-surface p-6">
         <div className="grid justify-items-center gap-1 text-center">
-          <img src="/static/icons/archive-x.png" alt="" className="size-14 rounded-2xl" onError={(e) => (e.currentTarget.style.display = 'none')} />
+          <img src="/static/icons/archive-x.png" alt="" className="size-14 object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
           <h1 className="text-2xl font-extrabold">Archive X</h1>
           <p className="text-sm text-muted">{setup ? SETUP_SUBTITLE : SIGN_IN_SUBTITLE}</p>
         </div>

@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/brand/banner.png" alt="Archive X: movies, series, collections" width="640"></p>
+
 # Archive X
 
 **A private, local-first media library for your Telegram channels.**

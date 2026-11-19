@@ -158,7 +158,7 @@ function Header({ live }: { live: string }) {
   }, [focusTick])
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-bg/85 px-4 backdrop-blur-md sm:px-10">
-      <img src="/static/icons/archive-x.png" alt="" className="size-8 rounded-full md:hidden" />
+      <img src="/static/icons/archive-x.png" alt="" className="size-8 object-contain md:hidden" />
       <SearchField
         value={q}
         onChange={set}
@@ -247,7 +247,7 @@ export function Shell(): ReactNode {
       <aside className={cn('hidden shrink-0 flex-col gap-0.5 overflow-y-auto overflow-x-hidden border-r border-line pb-4 transition-[width] duration-200 md:flex', rail ? 'w-[84px] px-2.5' : 'w-[248px] px-3')} aria-label="Main">
         <div className={cn('flex shrink-0 items-center text-lg font-extrabold', rail ? 'h-[92px] flex-col justify-center gap-1' : 'h-16 gap-2.5 px-1.5')}>
           <RailToggle rail={rail} onToggle={toggleRail} />
-          <img src="/static/icons/archive-x.png" alt="" className="size-9 rounded-full" />
+          <img src="/static/icons/archive-x.png" alt="" className="size-9 object-contain" />
           {rail ? null : 'Archive X'}
         </div>
         {GROUPS.map((g, i) => (
