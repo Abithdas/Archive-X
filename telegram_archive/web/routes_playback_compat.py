@@ -515,21 +515,28 @@ def register_playback_compat_routes(
         if player == "vlc" and not vlc_launcher.find_vlc():
             raise HTTPException(400, "VLC was not found on this PC")
 
-        engine, first_message = await _engine_message(items[0]["channel_id"], items[0]["message_id"])
-        first_key = (items[0]["channel_id"], items[0]["message_id"])
-        engine.set_play_order([(x["channel_id"], x["message_id"]) for x in items])
-        # External players should become visible quickly. One foreground segment
-        # is enough to prove the signed HTTP path and let VLC/MPC-HC start; the
-        # remaining head/tail ranges are admitted as background work. The previous
-        # four-segment blocking warm-up made startup unnecessarily dependent on
-        # Telegram latency, especially for large HEVC files.
-        try:
-            await engine.warm_first_segment(first_key, first_message, timeout=15.0, segments=1)
-            engine.prepare_video(first_key, first_message, head_segments=2)
-        except Exception as e:
-            db.log(f"External playback: first segment warm-up failed ({type(e).__name__}: {e})", "ERROR")
-            raise HTTPException(503, f"Playback warm-up failed: {e}")
-        engine.begin_video(first_key, first_message, 0)
+        # A video in a folder on this PC has no Telegram message: the player feed serves the file itself, so only the Telegram videos need the engine.
+        def _is_local(item) -> bool:
+            return int(item["channel_id"]) < -9_000_000_000_000
+        tg_items = [x for x in items if not _is_local(x)]
+        first_message = None
+        if tg_items:
+            first = tg_items[0]
+            engine, first_message = await _engine_message(first["channel_id"], first["message_id"])
+            first_key = (first["channel_id"], first["message_id"])
+            engine.set_play_order([(x["channel_id"], x["message_id"]) for x in tg_items])
+            # External players should become visible quickly. One foreground segment
+            # is enough to prove the signed HTTP path and let VLC/MPC-HC start; the
+            # remaining head/tail ranges are admitted as background work. The previous
+            # four-segment blocking warm-up made startup unnecessarily dependent on
+            # Telegram latency, especially for large HEVC files.
+            try:
+                await engine.warm_first_segment(first_key, first_message, timeout=15.0, segments=1)
+                engine.prepare_video(first_key, first_message, head_segments=2)
+            except Exception as e:
+                db.log(f"External playback: first segment warm-up failed ({type(e).__name__}: {e})", "ERROR")
+                raise HTTPException(503, f"Playback warm-up failed: {e}")
+            engine.begin_video(first_key, first_message, 0)
 
         cache_dir = Path(config.DATA_DIR) / "player_cache" / "playlists"
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -550,7 +557,7 @@ def register_playback_compat_routes(
             playlist_path = cache_dir / f"{kind}_{secrets.token_hex(6)}.m3u"
             lines = ["#EXTM3U"]
             for i, item in enumerate(items):
-                name = item["name"] or (first_message.file.name if i == 0 else "") or f"Telegram video {item['message_id']}"
+                name = item["name"] or (first_message.file.name if (i == 0 and first_message is not None) else "") or f"Telegram video {item['message_id']}"
                 name = name.replace("\r", " ").replace("\n", " ")
                 lines.extend([f"#EXTINF:-1,{name}", _local_url(item["channel_id"], item["message_id"])])
             playlist_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -566,7 +573,7 @@ def register_playback_compat_routes(
         # when the user closes the player window directly (not through Archive X).
         vlc_launcher.register_session(
             result["pid"],
-            [(x["channel_id"], x["message_id"]) for x in items],
+            [(x["channel_id"], x["message_id"]) for x in tg_items],
         )
         # Server-side monitoring remains active even if the browser tab closes.
         # The task lives on the app loop so playback-engine teardown is not called

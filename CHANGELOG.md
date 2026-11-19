@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Native full screen: the video fills the screen above the bar (black bars come from the picture's own shape), with square corners and no light margin at the sides.
+- VLC, MPC-HC and Random play all now work for videos from a local folder (they went through Telegram, which a file on this PC does not have).
 - Less freezing: the studio's suggested videos read on their own connection instead of holding the shared database lock for up to a minute (the log showed 30 to 48 second freezes there).
 - Faster start: transfers already reconciled are no longer rewritten at every launch (1,578 of them were), and the log now lists how long each step of opening the database takes, so the remaining slow step can be named.
 - Videos, Performers and Studios: Items per page now starts on Auto: as many cards as the screen holds (at least two rows, no page scrollbar), following the window size and the display size. Choosing 24, 36 or 48 still sets the number.
