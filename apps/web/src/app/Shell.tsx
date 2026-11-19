@@ -192,7 +192,7 @@ function WindowButtons({ maximized }: { maximized: boolean }) {
 
 const ICON_BTN = 'grid size-10 place-items-center rounded-xl text-muted hover:bg-fg/5 hover:text-fg'
 
-function Header({ live, items, activity, top, custom, maximized, floating }: { live: string; items: NavDef[]; activity: Record<string, number>; top: boolean; custom: boolean; maximized: boolean; floating: boolean }) {
+function Header({ live, items, activity, top, custom, maximized, floating, overlay }: { live: string; items: NavDef[]; activity: Record<string, number>; top: boolean; custom: boolean; maximized: boolean; floating: boolean; overlay: boolean }) {
   const { q, set } = useSearch()
   const focusTick = useUi((s) => s.focusSearch)
   const path = useRouterState({ select: (s) => s.location.pathname })
@@ -217,7 +217,10 @@ function Header({ live, items, activity, top, custom, maximized, floating }: { l
     else void windowActions.drag()
   }
   return (
-    <header onMouseDown={custom ? onBarDown : undefined} className={cn('top-0 z-20 flex h-16 items-center gap-3 border-b px-4 transition-[background-color,border-color,backdrop-filter] duration-300 sm:px-10', floating ? 'absolute inset-x-0 border-b-0 bg-[linear-gradient(180deg,rgb(0_0_0/0.62),transparent)]' : 'sticky border-line bg-bg/85 backdrop-blur-md', custom && 'select-none pr-0 sm:pr-0')}>
+    <header onMouseDown={custom ? onBarDown : undefined} className={cn('isolate top-0 z-20 flex h-16 items-center gap-3 px-4 sm:px-10', overlay ? 'absolute inset-x-0' : 'sticky', custom && 'select-none pr-0 sm:pr-0')}>
+      {/* Two layers cross-fade by opacity (a gradient cannot animate into a colour, and switching the bar between floating and in-flow moved the page). */}
+      <span aria-hidden="true" className={cn('pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgb(0_0_0/0.62),transparent)] transition-opacity duration-300', floating ? 'opacity-100' : 'opacity-0')} />
+      <span aria-hidden="true" className={cn('pointer-events-none absolute inset-0 -z-10 border-b border-line bg-bg/90 backdrop-blur-md transition-opacity duration-300', floating ? 'opacity-0' : 'opacity-100')} />
       <Link to="/videos" aria-label="Archive X" className={cn('flex shrink-0 items-center gap-2.5 text-lg font-extrabold', top ? '' : 'md:hidden')}>
         <img src="/static/icons/archive-x.png" alt="" className="size-8 object-contain" />
         {top ? <span className={cn('hidden', custom ? 'min-[2100px]:inline' : 'min-[1800px]:inline')}>Archive X</span> : null}
@@ -350,7 +353,7 @@ export function Shell(): ReactNode {
         {rail ? null : <VersionLine />}
       </aside> : null}
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        <Header live={live} items={items} activity={activity} top={nav === 'top'} custom={chrome.custom} maximized={chrome.maximized} floating={immersive && !scrolled} />
+        <Header live={live} items={items} activity={activity} top={nav === 'top'} custom={chrome.custom} maximized={chrome.maximized} floating={immersive && !scrolled} overlay={immersive} />
         <main ref={mainRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <motion.div key={section} {...fadeThrough} className="flex min-h-0 flex-1 flex-col"><ErrorBoundary resetKey={fullPath}><Suspense fallback={<div role="status" aria-label="Loading page" className="grid flex-1 place-items-center py-24"><span className="size-6 animate-spin rounded-full border-2 border-line border-t-accent" /></div>}><Outlet /></Suspense></ErrorBoundary></motion.div>
         </main>
