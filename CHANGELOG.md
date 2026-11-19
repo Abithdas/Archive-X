@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased
+## 30.8.0 (2026-11-19)
 - **Studios and actors of movies and shows get their pictures.** Until now an SFW studio was made from a name only, and the picture search asked only the adult providers (StashDB, ThePornDB), so with no adult key nothing was ever found and the TMDB key you saved was not used for it. A movie or show now keeps the studio logos TMDB sends with it, and studios and actors already in your library get theirs from TMDB by name the next time the page asks for missing pictures (opening Cast or Studios & Networks does). The adult providers are no longer asked about an SFW name.
 - **Home and Discover in one page (movies and shows).** The page that was "Movies & Shows" with All / Movies / Series switches is now **Home**: a billboard of titles from your library, Continue watching, Airing this week, Recently added, your series and movies (one card each, never one for each episode), and below them **Discover**: the popular movies and series from Cinemeta's open catalogue, by genre, with a search, "In your library" marked on what you have, and a details window with the story, cast, rating and a link to the trailer. Discover asks Cinemeta only while it is switched on in Settings, Metadata. A cast member's or a studio's page also shows movies and shows, not episodes.
 - **The assistant starts even when port 8080 is taken** (qBittorrent uses it): it takes another free port and remembers it.
