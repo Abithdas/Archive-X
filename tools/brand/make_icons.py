@@ -44,6 +44,10 @@ def main() -> None:
     out = Image.new("RGBA", banner.size, (0, 0, 0, 0))
     out.paste(banner, (0, 0), mask)
     out.resize((out.width // 2, out.height // 2), Image.LANCZOS).save(BRAND / "banner.png", optimize=True)
+    card = Image.new("RGBA", (1280, 640), DARK)                                          # the picture GitHub and chat apps show when the repository is shared
+    fit = word.resize((1040, round(word.height * 1040 / word.width)), Image.LANCZOS)
+    card.alpha_composite(fit, ((1280 - fit.width) // 2, (640 - fit.height) // 2))
+    card.convert("RGB").save(BRAND / "social-preview.png", optimize=True)
 
 
 if __name__ == "__main__":
