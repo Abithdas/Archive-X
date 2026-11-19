@@ -93,7 +93,7 @@ The recipe for moving one route: read the Python handler; write down its paramet
 
 | Phase | What | State |
 |-------|------|-------|
-| 0 | Prove the risky parts: Telegram with `grammers`; face, tag and caption models through ONNX Runtime and whisper.cpp | The trial program is written (`tools/phase0/telegram-trial`) and waits for you to run it on your PC; the model part is not started |
+| 0 | Prove the risky parts: Telegram with `grammers`; face, tag and caption models through ONNX Runtime and whisper.cpp | The Telegram trial program was removed from the repository once the app itself connected to Telegram; the model part is not started |
 | 1 | Reading in Rust | Done for: photo channels, performer list, People row, channel, studio and tag video lists, library list, tags, studio metadata, photos. Not ported on purpose: job and lane status (live Python memory), performer metadata (Python writes first), studio family counts, searches (full-text index) |
 | 2 | Streaming | Local files and finished copies in Rust (C1). The Telegram stream server (5,500 lines) stays in Python until C6 |
 | 3 | Writes without Telegram | Done: watch history, entity favourites, scene markers, video favourites. Next: performer and studio edits, tags, face naming and merging, settings |
