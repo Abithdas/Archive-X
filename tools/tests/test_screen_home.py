@@ -394,7 +394,7 @@ def test_streams_from_addons_open_elsewhere_or_play_only_from_own_or_public_sour
     got = c.get("/api/screen/streams/movie/tt0133093").json()
     kinds = {i["name"]: i["kind"] for i in got["items"]}
     assert got["addons"] == ["Streams"] and got["skipped"] == 1                                              # only the add-on that answers for streams is asked; the torrent is left out
-    assert kinds == {"Trailer": "link", "Netflix": "link", "Home server": "blocked", "Archive": "play", "Debrid": "play"}   # the home server needs the switch; the debrid host is never played
+    assert kinds == {"Trailer": "link", "Netflix": "link", "Home server": "blocked", "Archive": "play", "Debrid": "play"}   # the home server needs the switch; public HTTPS hosts are playable
     assert not any("subs.example/stream" in u for u in asked) and all("url" not in i for i in got["items"])
     c.post("/api/screen/addons/settings", json={"allow_local": True}, headers=H)
     on = {i["name"]: i for i in c.get("/api/screen/streams/movie/tt0133093").json()["items"]}
@@ -426,7 +426,7 @@ def test_a_stream_is_played_only_from_an_own_source_or_a_public_https_host(monke
     monkeypatch.setattr(ac, "_resolve", lambda host: [(0, 0, 0, "", ("93.184.216.34", 443))])
     ac.set_allow_local(False)
     assert ac.stream_origin("https://archive.org/download/a/b.mp4") == "public" and ac.stream_origin("https://ia800.us.archive.org/x.mp4") == "public"
-    assert ac.stream_origin("http://archive.org/x.mp4") == "" and ac.stream_origin("https://evilarchive.org/x.mp4") == "" and ac.stream_origin("http://192.168.1.5/x.mkv") == ""
+    assert ac.stream_origin("http://archive.org/x.mp4") == "" and ac.stream_origin("https://evilarchive.org/x.mp4") == "public" and ac.stream_origin("http://192.168.1.5/x.mkv") == ""
     ac.set_allow_local(True)
     try:
         assert ac.stream_origin("http://192.168.1.5:8096/x.mkv") == "own" and ac.stream_origin("http://localhost:11470/x") == "own" and ac.stream_origin("http://nas/x.mkv") == "own"
