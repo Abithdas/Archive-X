@@ -214,10 +214,11 @@ def process(db, channel: str) -> dict:
     """Probe every unprobed video of a folder, then build snapshots for the ones that have none, a few at a time. Safe to run again."""
     from concurrent.futures import ThreadPoolExecutor
     sid_key = int(channel)
+    work_key = (id(db), sid_key)   # one run per folder of one library; another database (a test, a restored copy) has its own folders with the same numbers
     with _WORK_LOCK:
-        if sid_key in _working:
+        if work_key in _working:
             return dict(_state.get(sid_key, {}))
-        _working.add(sid_key)
+        _working.add(work_key)
     try:
         with db.reading() as conn:
             todo = [dict(r) for r in conn.execute("SELECT channel_id,message_id,path,probed,snapshots FROM local_video_files WHERE channel_id=? AND (probed=0 OR snapshots=0) ORDER BY message_id", (channel,))]
@@ -240,7 +241,7 @@ def process(db, channel: str) -> dict:
     finally:
         with _WORK_LOCK:
             _state[sid_key] = {**_state.get(sid_key, {}), "running": False}
-            _working.discard(sid_key)
+            _working.discard(work_key)
 
 
 def running_work() -> dict[int, dict]:

@@ -159,6 +159,8 @@ def test_play_info_of_a_folder_video_carries_the_browser_verdict(tmp_path, monke
     if done.returncode != 0:
         pytest.skip("ffmpeg cannot make an avi with ac3 here")
     sid = ls.source_id_of(ch)
+    from conftest import wait_for_scans
+    wait_for_scans()                                                  # the first scan is still preparing its video: a scan asked for now would be ignored
     c.post(f"/api/local-folders/{sid}/scan", headers={"Origin": "https://testserver"})
     for _ in range(100):
         with _db.reading() as conn:

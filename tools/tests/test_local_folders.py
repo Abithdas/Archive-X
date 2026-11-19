@@ -2,6 +2,7 @@
 import os
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -483,3 +484,33 @@ def test_a_metadata_scan_is_a_lane_with_progress_and_says_why_it_failed(tmp_path
     assert "3 could not be checked" in r["operation"] and "closed the connection" in r["operation"]
     monkeypatch.setattr(lia, "_state", {**lia._state, "finished": 1.0})  # long ago
     assert not [x for x in ls.lane_rows(db) if x["id"] == "identify:nsfw"]
+
+
+def test_a_folder_being_prepared_in_one_library_does_not_block_the_same_folder_number_in_another(tmp_path, monkeypatch):
+    """The CI failure of 19 November: a run left over from an earlier test held folder number 1, so the next one returned at once and nothing was probed."""
+    from telegram_archive.engines import local_videos as lv
+    clip = tmp_path / "one.mp4"
+    if not _make_video(clip, seconds=2):
+        pytest.skip("ffmpeg is not available")
+    ch = ls.channel_id(1)
+    first, second = Database(tmp_path / "a.db"), Database(tmp_path / "b.db")
+    lv.index_videos(first, ch, [str(clip)])
+    lv.index_videos(second, ch, [str(clip)])
+    release, started, seen = threading.Event(), threading.Event(), []
+
+    def prepare(db, channel, item):
+        seen.append(id(db))
+        if db is first:
+            started.set()
+            release.wait(30)
+        return True
+    monkeypatch.setattr(lv, "_prepare_one", prepare)
+    t = threading.Thread(target=lv.process, args=(first, ch), daemon=True)
+    t.start()
+    assert started.wait(30)                    # the first library is busy with its folder 1
+    try:
+        lv.process(second, ch)                 # the second library has a folder 1 as well, and must be prepared
+        assert id(second) in seen
+    finally:
+        release.set()
+        t.join(30)

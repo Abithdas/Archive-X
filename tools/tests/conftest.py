@@ -13,3 +13,23 @@ import os as _os
 ISOLATED = ["test_inventory_off_loop.py", "test_performer_identity_index.py", "test_job_detail_kept.py", "test_snapshot_scan_heartbeat.py"]
 if _os.environ.get("AX_ISOLATED") != "1":
     collect_ignore += ISOLATED
+
+
+# A folder scan runs in a background thread (scan, probe, snapshots, identify). One that outlives its test would still be using that test's
+# database and stubs while the next test runs, so every test waits for them to finish.
+import threading as _threading
+import time as _time
+
+import pytest as _pytest
+
+
+def wait_for_scans(timeout: float = 90.0) -> None:
+    deadline = _time.time() + timeout
+    while _time.time() < deadline and any(t.name.startswith("local-scan-") and t.is_alive() for t in _threading.enumerate()):
+        _time.sleep(0.05)
+
+
+@_pytest.fixture(autouse=True)
+def _no_scan_outlives_its_test():
+    yield
+    wait_for_scans()
