@@ -8,6 +8,9 @@ Browse, search, and play your videos and photos from a Windows desktop app. Orga
 
 > Archive X runs on your PC. Your library, caches and settings stay local. Telegram is used only to read and move channel media, and metadata providers only to look up names you ask it to identify.
 
+> **Note**
+> Archive X is a personal fan project I made for my own use and decided to share. It was built with the help of [Claude Code](https://www.anthropic.com/claude-code), Anthropic's AI coding assistant. It isn't affiliated with Telegram, Anthropic or any of the metadata providers it can look names up in.
+
 ## What you can do
 
 - **One library from many places.** Telegram channels and folders on your PC (read where they lie, never copied) appear together. Choose per channel whether it is in the library, whether it is SFW or NSFW, and whether it holds videos, photos or both.
