@@ -16,10 +16,16 @@ interface StreamItem {
   source?: string
   hdr?: string[]
   languages?: string[]
+  bingeGroup?: string
 }
 interface Streams { ok: boolean; items: StreamItem[]; skipped: number; addons: string[] }
 type StreamSort = 'addon' | 'quality' | 'seeds' | 'largest' | 'smallest'
 type HdrFilter = 'all' | 'hdr' | 'dv' | 'none'
+
+const bingeKey = (ident: string) => `archive-x:binge:${ident}`
+/** The label (Stremio's "bingeGroup") of the stream played last for this show, so the next episode offers the same kind first. */
+const lastBinge = (ident: string): string => { try { return localStorage.getItem(bingeKey(ident)) ?? '' } catch { return '' } }
+const rememberBinge = (ident: string, group: string) => { try { localStorage.setItem(bingeKey(ident), group) } catch { /* private mode */ } }
 
 function qualityLabel(height: number): string {
   if (height >= 2000) return '4K'
@@ -54,6 +60,7 @@ function compareKnown(a: number, b: number, descending: boolean): number {
  */
 export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' | 'series'; ident: string; season?: number; episode?: number }) {
   const [playing, setPlaying] = useState<StreamItem | null>(null)
+  const [group, setGroup] = useState(() => (kind === 'series' ? lastBinge(ident) : ''))
   const [selectedAddon, setSelectedAddon] = useState('')
   const [sort, setSort] = useState<StreamSort>('addon')
   const [quality, setQuality] = useState('')
@@ -71,6 +78,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
     setLanguage('')
     setSource('')
     setHdr('all')
+    setGroup(kind === 'series' ? lastBinge(ident) : '')
   }, [kind, ident, season, episode])
   if (!d || !Array.isArray(d.items) || !Array.isArray(d.addons) || (!d.items.length && !d.addons.length)) return null
 
@@ -92,7 +100,8 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
         : sort === 'largest' ? compareKnown(a.size, b.size, true)
           : sort === 'smallest' ? compareKnown(a.size, b.size, false)
             : 0
-    return order || a.index - b.index
+    const same = (x: typeof a) => (group && x.item.bingeGroup === group ? 1 : 0)
+    return same(b) - same(a) || order || a.index - b.index
   })
   const visibleAddons = addonNames.filter((name) => rows.some(({ item }) => item.addon === name))
   const selectClass = 'h-8 max-w-full appearance-none rounded-full border border-line bg-surface-2 px-3 pr-7 text-[11px] font-semibold text-fg outline-none transition-colors hover:bg-fg/10 focus-visible:ring-2 focus-visible:ring-accent'
@@ -131,10 +140,11 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
                     </div>
                     <div className="min-w-0">
                       {item.kind === 'link' ? <a href={item.href} target="_blank" rel="noreferrer" className="block truncate text-[13px] font-semibold hover:underline" title={item.name}>{item.name}<span aria-hidden="true" className="ml-1 opacity-60">↗</span></a>
-                        : item.kind === 'play' ? <button type="button" onClick={() => setPlaying(item)} className="block w-full truncate text-left text-[13px] font-semibold hover:underline" title={item.name}>{item.name}</button>
+                        : item.kind === 'play' ? <button type="button" onClick={() => { setPlaying(item); if (kind === 'series' && item.bingeGroup) { rememberBinge(ident, item.bingeGroup); setGroup(item.bingeGroup) } }} className="block w-full truncate text-left text-[13px] font-semibold hover:underline" title={item.name}>{item.name}</button>
                         : <p className="m-0 truncate text-[13px] font-semibold text-muted" title={item.name}>{item.name}</p>}
                       <p className="m-0 mt-0.5 truncate text-[10px] text-muted">
                         {[item.addon, item.source, (item.languages ?? []).join(', ')].filter(Boolean).join(' · ')}
+                        {group && item.bingeGroup === group ? <span className="ml-2 rounded-full bg-accent/15 px-1.5 py-px text-[10px] font-bold text-accent">Same as last episode</span> : null}
                         {item.kind === 'play' ? <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-accent"><Icon name="play" className="size-3" />Play</span> : item.kind === 'blocked' && item.host ? <span className="ml-2">Not played here ({item.host})</span> : null}
                       </p>
                     </div>

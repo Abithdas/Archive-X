@@ -392,7 +392,7 @@ def test_streams_from_addons_open_elsewhere_or_play_only_from_own_or_public_sour
             return manifests[base]
         if "/stream/movie/tt0133093.json" in url or "/stream/series/tt0903747%3A1%3A2.json" in url:
             return {"streams": [{"name": "Trailer", "ytId": "abcdefghijk"}, {"name": "Netflix", "externalUrl": "https://www.netflix.com/title/20557937"}, {"name": "Torrent", "infoHash": "abc"},
-                                {"name": "Home server", "url": "http://192.168.1.5:8096/Videos/1/stream.mkv"}, {"name": "Archive", "url": "https://archive.org/download/film/film.mp4"},
+                                {"name": "Home server", "url": "http://192.168.1.5:8096/Videos/1/stream.mkv"}, {"name": "Archive", "url": "https://archive.org/download/film/film.mp4", "behaviorHints": {"bingeGroup": "arch-720p"}},
                                 {"name": "Debrid", "url": "https://download.real-debrid.example/d/AB/film.mkv"}]}
         return {}
     monkeypatch.setattr(ac, "get_json", get_json)
@@ -405,6 +405,7 @@ def test_streams_from_addons_open_elsewhere_or_play_only_from_own_or_public_sour
     assert got["addons"] == ["Streams"] and got["skipped"] == 1                                              # only the add-on that answers for streams is asked; the torrent is left out
     assert kinds == {"Trailer": "link", "Netflix": "link", "Home server": "blocked", "Archive": "play", "Debrid": "play"}   # the home server needs the switch; public HTTPS hosts are playable
     assert not any("subs.example/stream" in u for u in asked) and all("url" not in i for i in got["items"])
+    assert next(i for i in got["items"] if i["name"] == "Archive")["bingeGroup"] == "arch-720p"
     c.post("/api/screen/addons/settings", json={"allow_local": True}, headers=H)
     on = {i["name"]: i for i in c.get("/api/screen/streams/movie/tt0133093").json()["items"]}
     assert on["Home server"]["kind"] == "play" and on["Archive"]["kind"] == "play" and on["Debrid"]["kind"] == "play"

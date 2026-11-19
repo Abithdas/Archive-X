@@ -52,3 +52,22 @@ describe('extra details from the add-ons', () => {
     expect(screen.queryByRole('region', { name: 'More from your add-ons' })).toBeNull()
   })
 })
+
+describe('same kind of stream on the next episode (bingeGroup)', () => {
+  it('remembers the kind played and offers it first on the next episode', async () => {
+    localStorage.clear()
+    const eps = { ok: true, skipped: 0, addons: ['A'], items: [
+      { addon: 'A', name: 'Other 1080p', kind: 'play', play: '/api/screen/stream/t1', bingeGroup: 'a-1080' },
+      { addon: 'A', name: 'Mine 720p', kind: 'play', play: '/api/screen/stream/t2', bingeGroup: 'a-720' },
+    ] }
+    vi.stubGlobal('fetch', vi.fn(async () => json(eps)))
+    const first = withRouter(<AddonStreams kind="series" ident="tt0903747" season={1} episode={1} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Mine 720p/ }))
+    first.unmount()
+    withRouter(<AddonStreams kind="series" ident="tt0903747" season={1} episode={2} />)
+    const list = await screen.findByRole('list', { name: 'A' })
+    const names = within(list).getAllByRole('button').map((b) => b.textContent)
+    expect(names[0]).toBe('Mine 720p')                                  // the kind played last time comes first
+    expect(screen.getByText('Same as last episode')).toBeInTheDocument()
+  })
+})

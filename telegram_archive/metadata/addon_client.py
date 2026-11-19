@@ -206,7 +206,10 @@ def classify_streams(streams, addon: str) -> tuple[list[dict], int]:
             out.append({"addon": addon, "name": name, "kind": "link", "href": ext})
         elif url.startswith(("http://", "https://")):
             origin = stream_origin(url)
-            out.append({"addon": addon, "name": name, "kind": "play" if origin else "blocked", "url": url if origin else "", "host": (urllib.parse.urlsplit(url).hostname or "")[:80]})
+            hints = st.get("behaviorHints") if isinstance(st.get("behaviorHints"), dict) else {}
+            binge = str(hints.get("bingeGroup") or "")[:80]     # streams with the same label are "the same kind": the next episode starts with the one that matches
+            out.append({"addon": addon, "name": name, "kind": "play" if origin else "blocked", "url": url if origin else "", "host": (urllib.parse.urlsplit(url).hostname or "")[:80],
+                        **({"bingeGroup": binge} if binge else {})})
         else:
             skipped += 1
     return out[:60], skipped
