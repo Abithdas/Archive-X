@@ -454,7 +454,7 @@ def test_subtitles_from_an_addon_are_listed_for_a_library_video_and_fetched_on_c
         asked.append(url)
         if url.endswith("/manifest.json"):
             return manifests[url.split("/manifest.json")[0]]
-        if "/subtitles/movie/tt0133093.json" in url or "/subtitles/series/tt0903747%3A1%3A1.json" in url:
+        if "/subtitles/movie/tt0133093" in url or "/subtitles/series/tt0903747%3A1%3A1" in url:
             return {"subtitles": [{"id": "1", "url": "https://subs5.example/en/1.srt", "lang": "spa"}, {"id": "2", "url": "https://subs5.example/en/2.srt", "lang": "eng"},
                                   {"id": "3", "url": "http://192.168.1.5/x.srt", "lang": "fre"}]}
         return {}
@@ -493,3 +493,35 @@ def test_extra_details_from_addons_are_text_and_https_links_only(tmp_path, monke
     got = c.get("/api/screen/addon-meta/series/tt0903747").json()
     assert [(i["addon"], i["text"], [l["name"] for l in i["links"]]) for i in got["items"]] == [("Deep Dive", "Production notes.", ["Reviews"])]    # a movie-only add-on is not asked about a show; no javascript: link
     assert c.get("/api/screen/addon-meta/series/nope").status_code == 400
+
+
+def test_addon_catalogs_that_can_be_searched_are_asked_too_and_subtitles_get_the_file_name(tmp_path, monkeypatch):
+    from telegram_archive.metadata import addon_client as ac
+    manifests = {"https://cat.example": {"name": "Cat", "resources": ["catalog"], "types": ["movie"], "behaviorHints": {"configurable": True},
+                                         "catalogs": [{"type": "movie", "id": "find", "name": "Find", "extra": [{"name": "search", "isRequired": True}]}]},
+                 "https://os.example": {"name": "OS", "resources": ["subtitles"], "types": ["movie"], "idPrefixes": ["tt"], "catalogs": []}}
+    asked: list[str] = []
+
+    def get_json(url):
+        asked.append(url)
+        if url.endswith("/manifest.json"):
+            return manifests[url.split("/manifest.json")[0]]
+        if "/catalog/movie/find/search=dune.json" in url:
+            return {"metas": [{"id": "tt1160419", "type": "movie", "name": "Dune"}, {"id": "tt0133093", "type": "movie", "name": "The Matrix"}]}
+        if "/subtitles/movie/tt0133093/filename=The.Matrix.1999.mkv" in url:
+            return {"subtitles": [{"id": "1", "url": "https://subs5.example/1.srt", "lang": "eng"}]}
+        return {}
+    monkeypatch.setattr(ac, "get_json", get_json)
+    monkeypatch.setattr(ac, "_resolve", lambda host: PUBLIC)
+    monkeypatch.setattr(sid, "http_fetch", fake)
+    db = Database(tmp_path / "s2.db")
+    _library(db)
+    c = _client(db)
+    db.set_setting("catalog_addons", [{"id": "0123456789", "url": "https://cat.example", "name": "Cat"}, {"id": "abcdef0123", "url": "https://os.example", "name": "OS"}])
+    view = c.get("/api/screen/addons").json()["items"]
+    cat = next(i for i in view if i["name"] == "Cat")
+    assert cat["configurable"] is True and cat["searches"] == [{"type": "movie", "id": "find"}] and cat["lists"] == [] and "also searched" in cat["note"]
+    titles = [i["title"] for i in c.get("/api/screen/discover?type=movie&search=dune").json()["items"]]
+    assert titles[0] == "Dune" and titles.count("Dune") == 1 and "The Matrix" in titles       # the add-on's finds follow Cinemeta's, without repeats
+    assert c.get("/api/screen/subtitles/-9000000000001/1").json()["items"] != []
+    assert any("filename=The.Matrix.1999.mkv" in u for u in asked)

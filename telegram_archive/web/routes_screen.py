@@ -509,7 +509,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
 
         def work():
             with db.reading() as c:
-                row = c.execute("SELECT t.imdb_id, t.kind, s.season, s.episode FROM media m JOIN media_screen s ON s.media_id=m.id AND s.state='MATCHED' JOIN screen_titles t ON t.id=s.title_id "
+                row = c.execute("SELECT t.imdb_id, t.kind, s.season, s.episode, m.filename, m.size FROM media m JOIN media_screen s ON s.media_id=m.id AND s.state='MATCHED' JOIN screen_titles t ON t.id=s.title_id "
                                 "WHERE m.source_channel=? AND m.source_message_id=?", (cid, mid)).fetchone()
             if not row or not re.fullmatch(r"tt\d{5,10}", str(row["imdb_id"] or "")):
                 return {"ok": True, "items": []}
@@ -529,7 +529,8 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                     if not isinstance(manifest, dict) or not _asks_for(manifest, "subtitles", kind, ident):
                         continue
                     name = str(manifest.get("name") or a["name"] or "Add-on")[:40]
-                    got = _addon_json(f"{a['url']}/subtitles/{kind}/{si.quote(sid_, safe='')}.json")
+                    extra = "&".join(p for p in (f"filename={si.quote(str(row['filename']), safe='')}" if row["filename"] else "", f"videoSize={int(row['size'])}" if row["size"] else "") if p)   # what the add-on matches the file by
+                    got = _addon_json(f"{a['url']}/subtitles/{kind}/{si.quote(sid_, safe='')}" + (f"/{extra}" if extra else "") + ".json")
                 except Exception:
                     continue
                 for sub in ((got or {}).get("subtitles") or [])[:120] if isinstance(got, dict) else []:
@@ -601,6 +602,33 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         await asyncio.to_thread(db.set_setting, "catalog_addons", [a for a in saved if a["id"] != addon_id])
         return await asyncio.to_thread(_addons_view)
 
+    def _addon_search(kind: str, text: str, have: set[str]) -> list[dict]:
+        """Titles that the person's add-ons find for what was typed (their catalogs that can be searched), after the Cinemeta results and without repeating them."""
+        _sync_local()
+        found: list[dict] = []
+        asked = 0
+        for a in _saved_addons():
+            try:
+                manifest = ac.parse_manifest(_addon_json(a["url"] + "/manifest.json"))
+            except Exception:
+                continue
+            for cat in manifest.get("searches") or []:
+                if cat["type"] != kind or asked >= 4:
+                    continue
+                asked += 1
+                try:
+                    got = _addon_json(f"{a['url']}/catalog/{cat['type']}/{si.quote(cat['id'], safe='')}/search={si.quote(text, safe='')}.json")
+                except Exception:
+                    continue
+                metas = [m for m in ((got or {}).get("metas") or [])[:40] if isinstance(m, dict) and m.get("id") and m.get("name")] if isinstance(got, dict) else []
+                mine = _in_library([str(m.get("imdb_id") or m.get("id")) for m in metas])
+                for m in metas:
+                    card = _card(m, mine)
+                    if card["imdb"] and card["imdb"] not in have:
+                        have.add(card["imdb"])
+                        found.append(card)
+        return found[:40]
+
     @router.get("/api/screen/discover")
     async def discover(request: Request, kind: str = Query("movie", alias="type"), genre: str = "", skip: int = 0, search: str = "", catalog: str = "popular"):
         """Several genres (comma-separated) mean titles that have all of them: the first is asked of the source, the rest are checked on the titles."""
@@ -608,6 +636,9 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         if any(g not in GENRES for g in wanted):
             raise HTTPException(400, "Unknown genre")
         out = await _discover_one(request, kind, wanted[0] if wanted else "", skip, search, catalog, wanted)
+        text_q = re.sub(r"\s+", " ", str(search or "")).strip()[:80]
+        if text_q and not int(skip or 0) and isinstance(out, dict) and isinstance(out.get("items"), list) and not out.get("disabled"):
+            out["items"] = out["items"] + await asyncio.to_thread(_addon_search, kind, text_q, {str(i.get("imdb")) for i in out["items"]})
         if len(wanted) > 1 and isinstance(out, dict) and isinstance(out.get("items"), list):
             rest = wanted[1:]
             out["items"] = [it for it in out["items"] if not it.get("genres") or all(g in it["genres"] for g in rest)]   # a title whose list gave no genres is kept (TMDB lists are filtered at the source)

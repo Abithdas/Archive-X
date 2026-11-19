@@ -8,7 +8,7 @@ import { Switch } from '@/design/Switch'
 import { errorText } from '@/features/content/useContentMode'
 
 export interface AddonList { type: 'movie' | 'series' | 'anime'; id: string; name: string }
-export interface Addon { id: string; url: string; name: string; description: string; version: string; lists: AddonList[]; provides?: string[]; note?: string; error?: string }
+export interface Addon { id: string; url: string; name: string; description: string; version: string; lists: AddonList[]; provides?: string[]; note?: string; configurable?: boolean; error?: string }
 export interface AddonsView { builtin: Array<{ name: string; what: string }>; items: Addon[]; allow_local?: boolean }
 
 const BOX = 'rounded-[18px] border border-line bg-surface p-5'
@@ -65,6 +65,7 @@ export function AddonsPanel() {
                     {a.provides?.length ? <p className="text-xs text-muted">Provides: {a.provides.join(', ')}</p> : null}
                     {a.lists.length ? <ul aria-label={`Lists of ${a.name}`} className="m-0 flex list-none flex-wrap gap-1.5 p-0">{a.lists.map((l) => <li key={`${l.type}:${l.id}`} className="rounded-full bg-fg/10 px-2.5 py-1 text-xs font-medium">{l.name} <span className="text-faint">· {l.type}</span></li>)}</ul> : null}
                     {a.note ? <p role="status" className="text-xs text-faint">{a.note}</p> : null}
+                    {a.configurable ? <a href={`${a.url}/configure`} target="_blank" rel="noreferrer" className="w-fit text-xs font-semibold text-accent underline">Configure this add-on ↗</a> : null}
                   </>)}
                 <p className="truncate text-[11px] text-faint" title={a.url}>{a.url}</p>
               </li>

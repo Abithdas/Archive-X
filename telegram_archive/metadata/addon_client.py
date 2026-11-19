@@ -222,10 +222,13 @@ def parse_manifest(manifest) -> dict:
         raise ValueError("That address did not answer with a Stremio add-on.")
     resources = [r if isinstance(r, str) else (r or {}).get("name") for r in (manifest.get("resources") or [])]
     lists = []
+    searches = []
     for c in manifest.get("catalogs") or []:
         if not isinstance(c, dict) or c.get("type") not in USABLE_TYPES or not c.get("id"):
             continue
         extra = [e for e in (c.get("extra") or []) if isinstance(e, dict)]
+        if any(e.get("name") == "search" for e in extra) and not any(e.get("isRequired") and e.get("name") != "search" for e in extra):
+            searches.append({"type": c["type"], "id": str(c["id"])})     # a list that can be searched: the Discover search box asks it too
         if any(e.get("isRequired") for e in extra):          # search-only lists and the like: they need something typed
             continue
         names = {e.get("name") for e in extra}
@@ -236,9 +239,12 @@ def parse_manifest(manifest) -> dict:
     notes = []
     if not lists:
         notes.append("It has no lists to browse, so nothing from it shows in Discover.")
+    if searches:
+        notes.append("What you type in Discover's search box is also searched in " + ("its lists." if len(searches) > 1 else "its list."))
     if "stream" in resources:
         notes.append("Title pages ask for streams. Only direct streams from your own sources or public HTTPS hosts are played here.")
     if "subtitles" in resources:
         notes.append("Its subtitles are offered in the video player's subtitle menu for titles that have an IMDb number.")
     return {"name": str(manifest.get("name") or "Add-on")[:60], "description": str(manifest.get("description") or "")[:240], "version": str(manifest.get("version") or "")[:20],
-            "lists": lists[:40], "provides": provides, "note": " ".join(notes)}
+            "lists": lists[:40], "searches": searches[:6], "provides": provides, "note": " ".join(notes),
+            "configurable": bool((manifest.get("behaviorHints") or {}).get("configurable")) if isinstance(manifest.get("behaviorHints"), dict) else False}
