@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased
+## 30.9.0 (2026-11-19)
 
 - Settings, Integrations: download the coming episodes of the shows in your library as a calendar file (next 30 days, 3 months or a year) and import it into any calendar app.
 
