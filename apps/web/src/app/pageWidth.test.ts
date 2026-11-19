@@ -13,6 +13,6 @@ describe('page width at every zoom', () => {
   })
   it('the pages that cap their width use the zoom-aware form', () => {
     const using = files(join(__dirname, '..')).filter((f) => readFileSync(f, 'utf8').includes('max-w-[calc(1800px/var(--ax-ui-zoom,1))]'))
-    expect(using.length).toBeGreaterThanOrEqual(10)
+    expect(using.length).toBeGreaterThanOrEqual(8)   // the lists of videos, performers and studios have no cap at all: they fill the window
   })
 })

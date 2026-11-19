@@ -113,6 +113,7 @@ def test_routes_keys_run_and_review(tmp_path, monkeypatch):
         (root / n).write_bytes(b"not really a video")
     db = Database(tmp_path / "r.db")
     c, H = _client(db)
+    c.post("/api/screen/settings", json={"cinemeta_enabled": False}, headers=H)             # Cinemeta is on by itself; with it off and no key there is nothing to ask
     assert c.post("/api/screen/identify", json={}, headers=H).status_code == 400            # no key yet
     assert c.post("/api/screen/settings", json={"tmdb_api_key": "abcd1234efgh5678"}, headers=H).json()["saved"] == ["tmdb_api_key"]
     s = c.get("/api/screen/settings").json()

@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { usePerformerGallery } from '@/api/hooks'
 import { Button } from '@/design/Button'
+import { Dialog } from '@/design/Dialog'
 import { Empty } from '@/design/Empty'
 import { PhotoViewer } from '@/features/photos/PhotoViewer'
 import { cn } from '@/design/cn'
@@ -44,6 +45,23 @@ export function PerformerGallery({ id, name }: { id: number; name: string }) {
   const photos = usePerformerPhotos(id, name)
   const entries = useMemo(() => orderGallery(photos.items, q.data?.items ?? [], name), [photos.items, q.data, name])
   const [open, setOpen] = useState<number | null>(null)
+  // Select several pictures that are not this person and remove them together.
+  const [selecting, setSelecting] = useState(false)
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
+  const [confirm, setConfirm] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const toggle = (key: string) => setPicked((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n })
+  const stopSelecting = () => { setSelecting(false); setPicked(new Set()); setConfirm(false) }
+  const removePicked = async () => {
+    const chosen = entries.filter((e) => picked.has(e.key))
+    setRemoving(true)
+    const results = await Promise.allSettled(chosen.map((e) => remove.mutateAsync(e)))
+    const failed = results.filter((r) => r.status === 'rejected').length
+    setRemoving(false); setConfirm(false)
+    if (failed) toast.error(`${failed} of ${chosen.length} could not be removed.`)
+    else toast(`Removed ${chosen.length} picture${chosen.length === 1 ? '' : 's'} that ${chosen.length === 1 ? 'is' : 'are'} not ${name}`)
+    stopSelecting()
+  }
   const thumbs = useRef(new Map<number, HTMLElement>())
   const originOf = useCallback((i: number) => thumbs.current.get(i)?.getBoundingClientRect() ?? null, [])
 
@@ -58,6 +76,9 @@ export function PerformerGallery({ id, name }: { id: number; name: string }) {
           <p className="text-sm font-semibold">{galleryStatus(g)}</p>
           <p className="text-[13px] text-muted" role="status">{busy ? 'Downloading from the providers…' : lastSyncText(g.last_synced_at, g.last_result)}</p>
         </div>
+        {entries.length ? (selecting
+          ? <><Button onClick={() => setPicked(new Set(entries.map((e) => e.key)))}>Select all</Button><Button variant="primary" disabled={!picked.size} onClick={() => setConfirm(true)}>{picked.size ? `Remove ${picked.size}` : 'Remove'}</Button><Button onClick={stopSelecting}>Cancel</Button></>
+          : <Button onClick={() => setSelecting(true)}>Select pictures</Button>) : null}
         <Button disabled={fromVideos.isPending} onClick={() => fromVideos.mutate()}>{fromVideos.isPending ? 'Looking through videos…' : 'Find pictures in videos'}</Button>
         <Button variant="primary" disabled={busy} onClick={() => refresh.mutate()}>
           {busy ? 'Downloading…' : g.items.length ? 'Get new pictures' : 'Get pictures from the providers'}
@@ -71,10 +92,12 @@ export function PerformerGallery({ id, name }: { id: number; name: string }) {
         <>
           <ul aria-label={`Pictures of ${name}`} className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8">
             {entries.map((e, i) => (
-              <li key={e.key} className="relative overflow-hidden rounded-xl border border-line bg-surface">
-                <button type="button" ref={(el) => { if (el) thumbs.current.set(i, el); else thumbs.current.delete(i) }} onClick={() => setOpen(i)} aria-label={`Open picture: ${e.label}`} title={e.galleryId ? referenceNote({ faces: e.faces ?? 1, reference: Boolean(e.reference) }) : undefined} className="block aspect-[3/4] w-full">
+              <li key={e.key} className={cn('group relative overflow-hidden rounded-xl border bg-surface', picked.has(e.key) ? 'border-accent ring-2 ring-accent' : 'border-line')}>
+                <button type="button" ref={(el) => { if (el) thumbs.current.set(i, el); else thumbs.current.delete(i) }} onClick={() => (selecting ? toggle(e.key) : setOpen(i))} aria-label={selecting ? `${picked.has(e.key) ? 'Unselect' : 'Select'} picture: ${e.label}` : `Open picture: ${e.label}`} aria-pressed={selecting ? picked.has(e.key) : undefined} title={e.galleryId ? referenceNote({ faces: e.faces ?? 1, reference: Boolean(e.reference) }) : undefined} className="block aspect-[3/4] w-full">
                   <img src={e.photo.thumbnail_url} alt="" loading="lazy" draggable={false} className="size-full object-cover transition-transform duration-200 hover:scale-[1.03]" />
                 </button>
+                {selecting ? <span aria-hidden="true" className={cn('pointer-events-none absolute left-1.5 top-1.5 grid size-6 place-items-center rounded-full border text-xs font-bold', picked.has(e.key) ? 'border-accent bg-accent text-accent-fg' : 'border-white/70 bg-black/40 text-transparent')}>✓</span>
+                  : <button type="button" disabled={useAsProfile.isPending} onClick={() => useAsProfile.mutate(e)} aria-label={`Use as profile picture: ${e.label}`} title="Use as the profile picture" className="absolute right-1.5 top-1.5 grid h-7 place-items-center rounded-full bg-black/60 px-2 text-[11px] font-semibold text-white backdrop-blur-sm hover:bg-black/80 focus-visible:opacity-100 disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100">Profile picture</button>}
                 <span className="pointer-events-none absolute bottom-1 left-1 right-1 flex items-center gap-1 truncate rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] font-semibold text-white backdrop-blur">
                   <span aria-hidden="true" className={cn('size-1.5 shrink-0 rounded-full', e.reference ? 'bg-accent' : 'bg-white/50')} /><span className="truncate">{e.source === 'photo' ? 'Your photos' : e.label}</span>
                 </span>
@@ -84,6 +107,12 @@ export function PerformerGallery({ id, name }: { id: number; name: string }) {
           {photos.q.hasNextPage ? <div className="flex justify-center"><Button disabled={photos.q.isFetchingNextPage} onClick={photos.more}>{photos.q.isFetchingNextPage ? 'Loading…' : 'Show more photos'}</Button></div> : null}
         </>
       ) : photos.q.isPending ? <p role="status" className="py-3 text-sm text-muted">Looking for {name} in your photos…</p> : <Empty icon="user">{GALLERY_EMPTY}</Empty>}
+      {confirm ? (
+        <Dialog open onClose={() => setConfirm(false)} title={`Remove ${picked.size} picture${picked.size === 1 ? '' : 's'}?`}>
+          <p className="text-sm text-muted">These are not {name}. They stop being shown here and are no longer used to recognise {name}. Nothing is deleted from your photos.</p>
+          <div className="mt-4 flex justify-end gap-2"><Button onClick={() => setConfirm(false)}>Keep them</Button><Button variant="primary" disabled={removing} onClick={() => void removePicked()}>{removing ? 'Removing…' : 'Remove'}</Button></div>
+        </Dialog>
+      ) : null}
       {open !== null && entries[open] ? (
         <PhotoViewer
           items={entries.map((e) => e.photo)} index={open} total={photos.total + g.items.length} onIndex={setOpen} onClose={() => setOpen(null)} onNeedMore={photos.more} origin={originOf}

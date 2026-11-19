@@ -223,6 +223,8 @@ function Header({ live, items, activity, top, custom, maximized }: { live: strin
           void navigate(s.kind === 'performers' ? { to: '/performers/$id', params: { id: String(s.entityId) } } : { to: '/studios/$id', params: { id: String(s.entityId) } })
         }}
         inputRef={input}
+        focusTick={focusTick}
+        collapsible
       />
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
         <TelegramPill from={top ? 'lg:inline-flex' : 'sm:inline-flex'} />
@@ -230,7 +232,7 @@ function Header({ live, items, activity, top, custom, maximized }: { live: strin
         <button type="button" onClick={() => useUi.getState().setNotifications(true)} aria-label={notices ? `Notifications, ${notices} new` : 'Notifications'} title="Notifications" className={cn(ICON_BTN, 'relative')}>
           <Bell count={notices} />
         </button>
-        <AccountMenu live={live} />
+        <AccountMenu live={live} pillFrom={top ? 'lg' : 'sm'} />
       </div>
       {custom ? <WindowButtons maximized={maximized} /> : null}
     </header>

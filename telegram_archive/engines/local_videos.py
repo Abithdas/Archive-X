@@ -50,19 +50,35 @@ def index_videos(db, channel: str, paths: list[str]) -> dict:
         known = {r["path"]: (int(r["message_id"]), int(r["size"] or 0), r["mtime"]) for r in conn.execute("SELECT path,message_id,size,mtime FROM local_video_files WHERE channel_id=?", (channel,))}
         next_id = int(conn.execute("SELECT COALESCE(MAX(message_id),0) FROM local_video_files WHERE channel_id=?", (channel,)).fetchone()[0]) + 1
     rows: list[tuple] = []
+    moved_ids: set[int] = set()
     seen: set[str] = set()
+    stats: list[tuple[str, os.stat_result]] = []
     for full in paths:
         try:
-            st = os.stat(full)
+            stats.append((full, os.stat(full)))
         except OSError:
             continue
         seen.add(full)
+    # A file that moved or was renamed is the same video: it is not at its old path any more, but one new file has the same size and modified
+    # time. It keeps its row (so its name from the movie database, favourite, resume point and snapshots stay) and only the path changes.
+    vanished: dict[tuple[int, str], list[int]] = {}
+    for p, (mid_, size_, mtime_) in known.items():
+        if p not in seen:
+            vanished.setdefault((size_, mtime_), []).append(mid_)
+    for full, st in stats:
         mtime = _iso(st.st_mtime)
         prior = known.get(full)
         if prior and prior[1] == st.st_size and prior[2] == mtime:
             continue
-        mid = prior[0] if prior else next_id
-        if not prior:
+        mid = prior[0] if prior else None
+        if mid is None:
+            same = vanished.get((int(st.st_size), mtime))
+            if same and len(same) == 1:   # exactly one missing file looks like it; with several equal copies nothing can be told apart, so none is guessed
+                mid = same.pop()
+                vanished.pop((int(st.st_size), mtime), None)
+                moved_ids.add(mid)
+        if mid is None:
+            mid = next_id
             next_id += 1
             added += 1
         rows.append((mid, full, int(st.st_size), mtime))
@@ -80,14 +96,14 @@ def index_videos(db, channel: str, paths: list[str]) -> dict:
                 "probed=CASE WHEN local_video_files.size=excluded.size AND local_video_files.mtime=excluded.mtime THEN local_video_files.probed ELSE 0 END,"
                 "snapshots=CASE WHEN local_video_files.size=excluded.size AND local_video_files.mtime=excluded.mtime THEN local_video_files.snapshots ELSE 0 END",
                 (channel, mid, full, size, mtime))
-        gone = [(v[0], p) for p, v in known.items() if p not in seen]
+        gone = [(v[0], p) for p, v in known.items() if p not in seen and v[0] not in moved_ids]
         for mid, _ in gone:
             db.conn.execute("DELETE FROM media WHERE source_channel=? AND source_message_id=?", (channel, mid))
             db.conn.execute("DELETE FROM local_video_files WHERE channel_id=? AND message_id=?", (channel, mid))
         db.conn.commit()
     for mid, _ in gone:
         drop_snapshots(db, channel, mid)
-    return {"videos": len(seen), "added": added, "removed": len(gone)}
+    return {"videos": len(seen), "added": added, "removed": len(gone), "moved": len(moved_ids)}
 
 
 def drop_snapshots(db, channel: str, message_id: int) -> None:

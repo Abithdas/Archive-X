@@ -33,6 +33,13 @@ describe('EntityDirectory', () => {
     expect(screen.queryByRole('article', { name: 'Ava Stone' })).not.toBeInTheDocument()
     expect(screen.getByRole('article', { name: 'Adam Reed' })).toBeInTheDocument()
   })
+  it('in SFW opens on everyone: an actor with no gender on record is not hidden by "Female"', async () => {
+    const cast = [e(1, 'Aaron Paul', 4), e(2, 'Bryan Cranston', 4)]
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/api/content-mode' ? new Response(JSON.stringify({ ok: true, mode: 'sfw', pin_set: true, locked_for: 0 }), { status: 200 }) : new Response(JSON.stringify(cast), { status: 200 }))))
+    mount('performers')
+    expect(await screen.findByRole('article', { name: 'Aaron Paul' })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Bryan Cranston' })).toBeInTheDocument()
+  })
   it('links performer cards to their profile', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(data), { status: 200 })))
     mount('performers')

@@ -182,13 +182,15 @@ def test_cinemeta_names_a_series_and_a_movie_with_no_key_and_gives_every_episode
     assert si.imdb_of_cinemeta(603) == "" and not si.is_cinemeta(-42) and not si.is_cinemeta(603)   # TMDB and TVmaze ids are never mistaken for it
 
 
-def test_cinemeta_is_a_switch_the_person_turns_on(tmp_path, monkeypatch):
+def test_cinemeta_is_on_until_the_person_turns_it_off(tmp_path, monkeypatch):
     monkeypatch.setattr(sid, "http_fetch", tmdb)
     db = _db(tmp_path)
     c, H = _client()(db)
+    assert c.get("/api/screen/settings").json()["cinemeta_enabled"] is True and sid.cinemeta_on(db) is True and sid.configured(db)   # nothing to set up: movies are named at once
+    assert c.post("/api/screen/settings", json={"cinemeta_enabled": False}, headers=H).json()["saved"] == ["cinemeta_enabled"]
     assert c.get("/api/screen/settings").json()["cinemeta_enabled"] is False and sid.cinemeta_on(db) is False
     assert c.post("/api/screen/settings", json={"cinemeta_enabled": True}, headers=H).json()["saved"] == ["cinemeta_enabled"]
-    assert c.get("/api/screen/settings").json()["cinemeta_enabled"] is True and sid.cinemeta_on(db) is True and sid.configured(db)
+    assert sid.cinemeta_on(db) is True
 
 
 def test_a_show_from_tvmaze_does_not_become_a_second_row_when_tmdb_has_it(tmp_path):

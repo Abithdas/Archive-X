@@ -15,8 +15,8 @@ import { toggleTheme, useTheme } from './theme'
 
 const ROW = 'flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium hover:bg-fg/5 focus-visible:bg-fg/5 focus-visible:outline-none'
 
-/** Avatar button and its menu: content mode, profile, theme, sign out, exit. (Telegram, storage and settings are in Settings; the command palette is Ctrl K.) */
-export function AccountMenu({ live }: { live: string }) {
+/** The green dot on the avatar stands in for the Telegram pill while the bar is too narrow to show the pill (`pillFrom` is where the pill appears). Avatar button and its menu: content mode, profile, theme, sign out, exit. (Telegram, storage and settings are in Settings; the command palette is Ctrl K.) */
+export function AccountMenu({ live, pillFrom = 'sm' }: { live: string; pillFrom?: 'sm' | 'lg' }) {
   const id = useId()
   const pop = useRef<HTMLDivElement>(null)
   const [exit, setExit] = useState<'ask' | 'stopping' | 'failed' | null>(null)
@@ -58,7 +58,7 @@ export function AccountMenu({ live }: { live: string }) {
     <>
       <button type="button" popoverTarget={id} aria-label="Account menu" aria-haspopup="menu" className="relative grid size-10 place-items-center rounded-full bg-surface-3 text-[15px] font-bold" title={`${tg ? 'Telegram connected' : 'Telegram not connected'} · live updates: ${live}`}>
         <AccountAvatar className="size-10 text-[15px]" />
-        {tg ? <i data-live="true" aria-hidden="true" className="ax-live-dot absolute -right-0.5 -top-0.5 size-3 bg-good ring-2 ring-bg" /> : null}
+        {tg ? <i data-live="true" aria-hidden="true" className={cn('ax-live-dot absolute -right-0.5 -top-0.5 size-3 bg-good ring-2 ring-bg', pillFrom === 'lg' ? 'lg:hidden' : 'sm:hidden')} /> : null}
       </button>
       <div ref={pop} id={id} popover="auto" role="menu" aria-label="Account menu" className="mo-menu fixed right-4 top-[60px] left-auto bottom-auto m-0 w-[280px] rounded-[18px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
         <div className="mo-fold-inner p-2">

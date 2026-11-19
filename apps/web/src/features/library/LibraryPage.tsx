@@ -74,14 +74,17 @@ export function LibraryPage() {
   const query: LibraryQuery = useMemo(() => ({ channels: selected, page, per, sort, favorites, q: search, ...filters }), [selected, page, per, sort, favorites, filters, search])
   const library = useLibrary(query)
   const pages = library.data ? Math.max(1, Math.ceil(library.data.total / per)) : 1
-  useEffect(() => { if (page > pages - 1) setPage(pages - 1) }, [page, pages, setPage])   // a wider window means fewer pages
+  // A wider window means fewer pages. Only once the list has arrived: while it loads there is no page count yet, and treating that as one page sent a returning visitor from page 10 back to page 1.
+  useEffect(() => { if (library.data && page > pages - 1) setPage(pages - 1) }, [library.data, page, pages, setPage])
 
   return (
-    <section className="mx-auto flex w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] flex-1 flex-col pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="flex w-full flex-1 flex-col px-4 pb-10 pt-6 sm:px-10">
       <PageHead title={labels.videos} blurb={labels.videosBlurb} />
       {withScreen ? <ScreenTabs /> : null}
       {view === 'movies' ? <MoviesList /> : view === 'series' ? <SeriesList /> : null}
-      {view !== 'all' ? null : <>
+      {/* SFW, All: one card for each show and each movie, never one for each episode or copy (a file that could not be named is under Settings, Metadata, Review). */}
+      {view === 'all' && withScreen ? <div className="grid gap-8"><section aria-label="Shows"><h2 className="mb-3 text-xl font-extrabold tracking-tight">Series</h2><SeriesList /></section><section aria-label="Movies"><h2 className="mb-3 text-xl font-extrabold tracking-tight">Movies</h2><MoviesList /></section></div> : null}
+      {view !== 'all' || withScreen ? null : <>
       <Toolbar lead={<ChannelMenu channels={channels.data ?? []} selected={picked} onToggle={toggle} onAll={clear} onEdit={setEditChannel} />} onRefresh={() => void refresh()} refreshing={refreshing} onShuffle={(pl) => void shuffleAll(pl)} shuffling={shuffle.busy} />
 
       {editChannel ? <ChannelEditor id={editChannel} onClose={() => setEditChannel(null)} /> : null}

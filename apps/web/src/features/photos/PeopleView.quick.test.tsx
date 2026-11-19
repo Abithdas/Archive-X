@@ -67,3 +67,21 @@ describe('new matches to check', () => {
     expect(screen.queryByLabelText(/new matches? to check/)).toBeNull()
   })
 })
+
+describe('opening People', () => {
+  it('shows the people at once, without waiting for the slow work of guessing who the unnamed faces are', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/source-channels') return json([{ telegram_id: '-1001', title: 'Main' }])
+      if (url === '/api/photos/channels') return json([{ telegram_id: '-1001', photo_count: 9, photo_scan_status: 'COMPLETE' }])
+      if (url.startsWith('/api/photos/faces/groups') && !init?.method) {
+        if (!url.includes('suggestions=0')) return new Promise<Response>(() => undefined)   // the guesses never arrive
+        return json({ ok: true, groups: [ava], photo_scopes: {}, analysis: { total_photos: 9, analyzed: 9 } })
+      }
+      if (url.startsWith('/api/photos?')) return json({ ok: true, items: [], total: 0, page: 0, per: 60 })
+      return new Response('{}', { status: 404 })
+    }))
+    withRouter(<PhotosPage />)
+    expect(await screen.findByRole('region', { name: 'Named people' })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'Loading people' })).toBeNull()
+  })
+})

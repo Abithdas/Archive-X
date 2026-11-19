@@ -30,8 +30,10 @@ def tvmaze_on(db) -> bool:
 
 
 def cinemeta_on(db) -> bool:
-    """Cinemeta (the Stremio project's open catalog) needs no key either, and is asked only when switched on."""
-    return str(db.setting("cinemeta_enabled") or "").lower() in ("1", "true", "yes")
+    """Cinemeta (the Stremio project's open catalog) needs no key. It is on until someone switches it off: without it (and without a TMDB key) nothing
+    in a movie folder is ever identified, and Movies & Shows stays empty."""
+    value = str(db.setting("cinemeta_enabled") or "").strip().lower()
+    return value in ("", "1", "true", "yes")
 
 
 def configured(db) -> bool:

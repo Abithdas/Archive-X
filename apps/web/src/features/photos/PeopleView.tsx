@@ -81,7 +81,10 @@ function FindProgress({ stage, progress, text }: { stage: number; progress: numb
 /** People inside Photos: faces found in your photos, in plain groups; click a person to see their photos. */
 export function PeopleView() {
   const qc = useQueryClient()
-  const q = useFaceGroups([])
+  // The people come first (a plain list, quick even for a big library); who each unnamed face might be (seconds of work) follows and replaces it when ready.
+  const fast = useFaceGroups([], true, false)
+  const full = useFaceGroups([], fast.isSuccess, true)
+  const q = full.isSuccess ? full : fast
   const { setFace, setSelected, setTab } = usePhotoStore()
   const channels = usePhotoChannels()
   const groups = q.data?.groups ?? []

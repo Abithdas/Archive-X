@@ -58,7 +58,7 @@ def test_a_scan_indexes_the_photos_and_follows_the_disk(tmp_path, folder):
     db = Database(tmp_path / "a.db")
     sid = make_source(db, folder)
     first = ls.scan_source(db, sid)
-    assert first == {"photos": 3, "videos": 1, "added": 3, "removed": 0}
+    assert first == {"photos": 3, "videos": 1, "added": 3, "removed": 0, "moved": 0}
     with db.reading() as c:
         rows = {r["filename"]: r for r in c.execute("SELECT * FROM photo_library_items WHERE channel_id=?", (ls.channel_id(sid),))}
         state = c.execute("SELECT status,photos_found FROM photo_library_scan_state WHERE channel_id=?", (ls.channel_id(sid),)).fetchone()
@@ -69,6 +69,7 @@ def test_a_scan_indexes_the_photos_and_follows_the_disk(tmp_path, folder):
     assert again["added"] == 0 and again["photos"] == 3
     (folder / "a.png").unlink()
     png(folder / "new.png")
+    os.utime(folder / "new.png", (time.time() + 3600, time.time() + 3600))     # made later: a new photo, not the old one moved
     third = ls.scan_source(db, sid)
     assert third["added"] == 1 and third["removed"] == 1
     with db.reading() as c:
@@ -516,3 +517,52 @@ def test_a_folder_being_prepared_in_one_library_does_not_block_the_same_folder_n
     finally:
         release.set()
         t.join(30)
+
+
+def test_a_moved_or_renamed_video_keeps_its_row_and_a_deleted_one_goes(tmp_path):
+    """Moving a file inside its folder (or renaming it) is the same video: its id, so its name from the movie database, favourite and snapshots, stays.
+    A file that is gone from the disk is removed on the next scan."""
+    root = tmp_path / "Movies"
+    root.mkdir()
+    (root / "a.mp4").write_bytes(b"a" * 300)
+    (root / "b.mp4").write_bytes(b"b" * 500)            # different sizes, so each file is told apart
+    db = Database(tmp_path / "m.db")
+    sid = make_source(db, root)
+    ch = ls.channel_id(sid)
+
+    def rows():
+        with db.reading() as c:
+            return {os.path.basename(r["path"]): int(r["message_id"]) for r in c.execute("SELECT path,message_id FROM local_video_files WHERE channel_id=?", (ch,))}
+    ls.scan_source(db, sid)
+    first = rows()
+    assert set(first) == {"a.mp4", "b.mp4"}
+    (root / "sub").mkdir()
+    os.replace(root / "a.mp4", root / "sub" / "a renamed.mp4")   # moved and renamed in one go
+    (root / "b.mp4").unlink()                                    # deleted
+    result = ls.scan_source(db, sid)
+    after = rows()
+    assert after == {"a renamed.mp4": first["a.mp4"]}            # the same id, at its new place; the deleted one is gone
+    with db.reading() as c:
+        assert c.execute("SELECT COUNT(*) FROM media WHERE source_channel=?", (ch,)).fetchone()[0] == 1
+    assert result["videos"] == 1
+
+
+def test_a_moved_photo_keeps_its_row_so_the_people_it_was_named_after_stay(tmp_path):
+    root = tmp_path / "Pics"
+    png(root / "one.png", (40, 30))
+    png(root / "two.png", (90, 70), (10, 200, 10))
+    db = Database(tmp_path / "p.db")
+    sid = make_source(db, root)
+    ch = ls.channel_id(sid)
+    ls.scan_source(db, sid)
+
+    def ids():
+        with db.reading() as c:
+            return {os.path.basename(r["local_path"]): int(r["message_id"]) for r in c.execute("SELECT local_path,message_id FROM photo_library_items WHERE channel_id=?", (ch,))}
+    first = ids()
+    (root / "album").mkdir()
+    os.replace(root / "one.png", root / "album" / "holiday.png")
+    (root / "two.png").unlink()
+    result = ls.scan_source(db, sid)
+    assert ids() == {"holiday.png": first["one.png"]}      # same row, new place; the deleted photo is gone
+    assert result["added"] == 0 and result["removed"] == 1 and result["moved"] == 1

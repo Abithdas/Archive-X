@@ -1083,6 +1083,23 @@ def register_library_routes(
                event="photo_library.faces_not_this_person", details={"performer_id": performer_id, **result})
         return {"ok": True, **result}
 
+    @router.get("/api/photos/faces/of-photo")
+    async def photo_faces_of_photo(request: Request, channel_id: str = "", message_id: int = 0):
+        """The faces found in one photo, each with its face picture and the person (if any) it is named after: the choices for "Add to a person"."""
+        require_auth(request)
+        if not channel_id or message_id <= 0:
+            raise HTTPException(400, "A photo (channel_id and message_id) is required")
+
+        def read():
+            with db.reading() as rdb:
+                return rdb.execute(
+                    "SELECT d.id AS detection_id, g.performer_id, COALESCE(pr.name,'') AS performer_name FROM photo_face_detections d "
+                    "JOIN photo_library_items p ON p.id=d.photo_id LEFT JOIN photo_face_groups g ON g.id=d.group_id LEFT JOIN performers pr ON pr.id=g.performer_id "
+                    "WHERE p.channel_id=? AND p.message_id=? ORDER BY d.id", (channel_id, int(message_id))).fetchall()
+        rows = await asyncio.to_thread(read)
+        return {"ok": True, "faces": [{"detection_id": int(r["detection_id"]), "crop_url": f"/api/photos/faces/crops/{int(r['detection_id'])}",
+                                       "performer_id": r["performer_id"], "performer_name": r["performer_name"]} for r in rows]}
+
     @router.post("/api/photos/faces/different-person")
     async def photo_face_different_person(request: Request):
         """Remove a photo's detections from the active group(s), keeping photo bytes and Telegram untouched."""

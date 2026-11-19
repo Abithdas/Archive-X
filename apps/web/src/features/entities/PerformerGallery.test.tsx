@@ -52,6 +52,24 @@ describe('PerformerGallery', () => {
     expect(screen.getByText('Downloading from the providers…')).toBeInTheDocument()
   })
 
+  it('selects several pictures that are not this person and removes them together', async () => {
+    const calls = mockApi(state({ items: [pic(1), pic(2, 'theporndb', false), pic(3, 'stashdb', false)] }))
+    withRouter(<PerformerGallery id={7} name="Mia Rivera" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Select pictures' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Select picture: ThePornDB' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Select picture: StashDB' })[1]!)
+    fireEvent.click(screen.getByRole('button', { name: 'Remove 2' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+    await waitFor(() => expect(calls.filter((c) => c.method === 'DELETE').map((c) => c.url).sort()).toEqual(['/api/performers/7/gallery/2', '/api/performers/7/gallery/3']))
+  })
+
+  it('has a button on each picture to make it the profile picture', async () => {
+    const calls = mockApi(state())
+    withRouter(<PerformerGallery id={7} name="Mia Rivera" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Use as profile picture: ThePornDB' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url === '/api/performers/7/gallery/2/use-as-profile')).toBe(true))
+  })
+
   it('removes a picture for good when it is not this performer', async () => {
     const calls = mockApi(state())
     withRouter(<PerformerGallery id={7} name="Mia Rivera" />)

@@ -14,6 +14,7 @@ import { cn } from '@/design/cn'
 import { Popover, PILL } from './Popover'
 import { useDebounced } from '@/features/library/useDebounced'
 import { useFaceGroups } from './useFaceGroups'
+import { AddToPerson } from './AddToPerson'
 import { PeopleRow } from './PeopleRow'
 import { ContentTags, useContentSummary } from './ContentTags'
 import { newMatchesText, useReviewCounts } from './useFaceReview'
@@ -60,6 +61,7 @@ export function PhotosPage() {
   const channelButton = !selected.length ? 'All channels' : selected.length === 1 ? channelTitle(list.find((c) => String(c.telegram_id) === selected[0]) ?? { telegram_id: selected[0]! }) : `${selected.length} channels`
   const faces = useFaceGroups(selected, true, false, 24)   // the busiest 24 people for the row, not everyone and not who they might be
   const [different, setDifferent] = useState<Photo | null>(null)
+  const [adding, setAdding] = useState<Photo | null>(null)
 
   // A channel that is no longer scanned cannot stay selected.
   useEffect(() => { if (channels.data) { const keep = pruneSelection(selected, list); if (keep.length !== selected.length) setSelected(keep) } }, [channels.data]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -175,6 +177,7 @@ export function PhotosPage() {
           <button type="button" onClick={() => setFace(null)} className="ml-auto text-xs font-semibold text-accent hover:underline">Show all photos</button>
         </div>
       ) : null}
+      {adding ? <AddToPerson photo={adding} onClose={() => setAdding(null)} /> : null}
       {checking && face && !face.scope ? <FaceReview performerId={face.performerId} groupIds={face.groupIds.length ? face.groupIds : face.groupId && face.groupId > 0 ? [face.groupId] : []} label={face.label} onClose={() => setChecking(false)} /> : null}
       {tab === 'faces' ? <PeopleView /> : null}
       <div hidden={tab === 'faces'}>
@@ -195,7 +198,7 @@ export function PhotosPage() {
         <div className="flex gap-2 sm:gap-3" aria-label="Photos in selected channels">
           {columns.map((col, c) => (
             <div key={c} className="flex min-w-0 flex-1 flex-col">
-              {col.map((i) => { const p = items[i]!; return <PhotoCard key={`${p.channel_id}:${p.message_id}`} photo={p} favorite={favorites.has(String(p.id))} onOpen={() => setViewer(i)} onRemove={(remote) => setAsk({ photo: p, remote })} onDifferent={face ? () => setDifferent(p) : undefined} /> })}
+              {col.map((i) => { const p = items[i]!; return <PhotoCard key={`${p.channel_id}:${p.message_id}`} photo={p} favorite={favorites.has(String(p.id))} onOpen={() => setViewer(i)} onRemove={(remote) => setAsk({ photo: p, remote })} onDifferent={face ? () => setDifferent(p) : undefined} onAddToPerson={() => setAdding(p)} /> })}
             </div>
           ))}
         </div>

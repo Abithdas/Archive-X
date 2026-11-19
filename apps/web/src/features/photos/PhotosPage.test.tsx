@@ -205,6 +205,13 @@ describe('PhotoViewer', () => {
     expect(within(dlg).getByAltText('IMG_1.jpg').getAttribute('style')).toContain('rotate(90deg)')
     fireEvent.keyDown(document, { key: 'R', shiftKey: true }); expect(within(dlg).getByAltText('IMG_1.jpg').getAttribute('style')).toContain('rotate(0deg)')
   })
+  it('closes when the black space around the photo is clicked', async () => {
+    const dlg = await open(1)
+    const stage = within(dlg).getByRole('img', { name: /Scroll to zoom/ })
+    fireEvent.pointerDown(stage, { pointerId: 1, clientX: 5, clientY: 5, button: 0 })
+    fireEvent.pointerUp(stage, { pointerId: 1, clientX: 5, clientY: 5, button: 0 })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Photo viewer' })).not.toBeInTheDocument())
+  })
   it('plays a slideshow that wraps around, and closes with its button', async () => {
     vi.useFakeTimers()
     try {

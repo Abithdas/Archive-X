@@ -10,6 +10,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import { ClearField, type ClearHandle } from '@/design/ClearField'
 import { cn } from '@/design/cn'
+import { Icon } from '@/design/Icon'
 import { spring } from '@/design/motion'
 import { highlightParts, type Suggestion } from './searchSuggest'
 
@@ -32,9 +33,13 @@ export interface SearchFieldProps {
   /** The first time the box is used: the page loads the lists the suggestions come from. */
   onFirstUse?: () => void
   inputRef: RefObject<HTMLInputElement | null>
+  /** Changes when the page asks for the box (Ctrl K): it opens and takes the focus. */
+  focusTick?: number
+  /** Show only a search button until it is pressed (the top bar); otherwise the box is always open. */
+  collapsible?: boolean
 }
 
-export function SearchField({ value, onChange, placeholder, suggestions, onPick, onFirstUse, inputRef }: SearchFieldProps) {
+export function SearchField({ value, onChange, placeholder, suggestions, onPick, onFirstUse, inputRef, focusTick, collapsible = false }: SearchFieldProps) {
   const reduce = Boolean(useReducedMotion())
   const uid = useId()
   const box = useRef<HTMLDivElement>(null)
@@ -42,6 +47,11 @@ export function SearchField({ value, onChange, placeholder, suggestions, onPick,
   const used = useRef(false)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
+  // Only a search button in the bar; it opens into the box when pressed (or on Ctrl K) and folds back when it is left empty.
+  const [expanded, setExpanded] = useState(false)
+  const wide = !collapsible || expanded || value !== ''
+  useEffect(() => { if (focusTick) setExpanded(true) }, [focusTick])
+  useEffect(() => { if (expanded) requestAnimationFrame(() => inputRef.current?.focus()) }, [expanded, inputRef])
 
   const shown = open && suggestions.length > 0
   const listId = `${uid}-list`
@@ -73,8 +83,11 @@ export function SearchField({ value, onChange, placeholder, suggestions, onPick,
   }
   const pick = (s: Suggestion) => { setOpen(false); setActive(-1); onPick(s) }
 
+  if (!wide) {
+    return <button type="button" aria-label="Search" title="Search (Ctrl K)" onClick={() => setExpanded(true)} className="grid size-10 shrink-0 place-items-center rounded-xl text-muted transition-colors hover:bg-fg/5 hover:text-fg"><Icon name="search" /></button>
+  }
   return (
-    <div ref={box} className="relative min-w-[140px] max-w-[407px] flex-1">
+    <div ref={box} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null) && value === '') { setExpanded(false); setOpen(false) } }} className="relative min-w-[140px] max-w-[407px] flex-1">
       <ClearField
         value={value}
         onChange={(v) => { onChange(v); setOpen(true) }}

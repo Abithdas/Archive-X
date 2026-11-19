@@ -216,6 +216,11 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
     if (pinch.current) { if (pointers.current.size < 2) pinch.current = null; drag.current = null; return }
     const d = drag.current
     drag.current = null
+    if (d && !d.moved) {   // a plain click on the black space around the photo closes the viewer (a click on the photo itself does not)
+      const box = flip.current?.querySelector('img')?.getBoundingClientRect()
+      const onPhoto = box && e.clientX >= box.left && e.clientX <= box.right && e.clientY >= box.top && e.clientY <= box.bottom
+      if (!onPhoto) { close(); return }
+    }
     if (d && atFit) { const dx = e.clientX - d.x; if (Math.abs(dx) >= SWIPE_PX) go(dx < 0 ? 1 : -1) }
   }
   // Wheel over the photo zooms toward the pointer; over the toolbar or the filmstrip it turns the pages. Native listeners, because a wheel handler must be able to stop the page scrolling.

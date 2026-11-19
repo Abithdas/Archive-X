@@ -212,6 +212,7 @@ def scan_source(db, source_id: int) -> dict:
             next_id = int(conn.execute("SELECT COALESCE(MAX(message_id),0) FROM photo_library_items WHERE channel_id=?", (ch,)).fetchone()[0]) + 1
         seen: set[str] = set()
         batch: list[tuple] = []
+        fresh: list[tuple] = []   # photos with no row yet: (path, message id, size, modified)
         for path, kind in walk_files(root, recursive=bool(row["recursive"]), excluded=excluded):
             if kind == "video":
                 videos += 1
@@ -240,6 +241,7 @@ def scan_source(db, source_id: int) -> dict:
             if not prior:
                 next_id += 1
                 added += 1
+                fresh.append((full, mid, int(st.st_size), _iso(st.st_mtime)))
             batch.append((ch, mid, os.path.basename(full), mime, st.st_size, w, h, _iso(st.st_mtime), SOURCE_KIND, full, now, now, now))
             with _progress_lock:
                 _progress[sid].update(seen=photos, added=added, videos=videos)
@@ -248,6 +250,23 @@ def scan_source(db, source_id: int) -> dict:
                 batch = []
         if batch:
             _write_batch(db, batch)
+        # A photo that moved or was renamed is the same photo: one missing file has the size and modified time of one new file. It keeps its row, so
+        # the people it was named after, its favourite and its tags stay; only the path changes.
+        lost: dict[tuple, list[str]] = {}
+        for p, (_m, size_, mtime_) in known.items():
+            if p not in seen:
+                lost.setdefault((size_, mtime_), []).append(p)
+        sigs = [(size_, mtime_) for _f, _m, size_, mtime_ in fresh]
+        moved = 0
+        for full, mid, size_, mtime_ in fresh:
+            old = lost.get((size_, mtime_))
+            if old and len(old) == 1 and sigs.count((size_, mtime_)) == 1:
+                with db.lock:
+                    db.conn.execute("DELETE FROM photo_library_items WHERE channel_id=? AND message_id=?", (ch, mid))
+                    db.conn.execute("UPDATE photo_library_items SET local_path=?,filename=?,updated_at=? WHERE channel_id=? AND message_id=?", (full, os.path.basename(full), now, ch, known[old[0]][0]))
+                    db.conn.commit()
+                added -= 1
+                moved += 1
         from . import local_videos
         local_videos.index_videos(db, ch, video_paths)
         gone = [p for p in known if p not in seen]
@@ -258,7 +277,7 @@ def scan_source(db, source_id: int) -> dict:
             db.conn.execute("UPDATE local_sources SET last_status='COMPLETE',last_scan_at=?,photos=?,videos=? WHERE id=?", (now, photos, videos, sid))
             db.conn.execute("UPDATE photo_library_scan_state SET status='COMPLETE',last_scan_at=?,photos_found=?,messages_scanned=?,last_error='',updated_at=? WHERE channel_id=?", (now, photos, photos, now, ch))
             db.conn.commit()
-        return {"photos": photos, "videos": videos, "added": added, "removed": len(gone)}
+        return {"photos": photos, "videos": videos, "added": added, "removed": len(gone) - moved, "moved": moved}
     except Exception as exc:
         with db.lock:
             db.conn.execute("UPDATE local_sources SET last_status='FAILED',last_error=? WHERE id=?", (f"{type(exc).__name__}: {exc}"[:300], sid))

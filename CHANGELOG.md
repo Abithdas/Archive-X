@@ -3,6 +3,12 @@
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
 ## Unreleased
+- **Movies and shows are named by themselves.** Cinemeta (no key) is on until you switch it off, so a scanned movie folder is identified without any setup, and Movies & Shows, Cast and Studios fill in. In SFW, All lists one card for each series and each movie (never one for each episode), and Cast opens on everyone (it opened on "Female", which hid actors with no gender on record).
+- **People:** the page shows the people at once and adds the guesses of who an unnamed face might be when they are ready (it waited for them, which on a big library looked like loading for ever). In a person's gallery, a "Select pictures" mode removes several wrong pictures together, and each picture has a "Profile picture" button. In Photos, the ⋯ menu of a photo has "Add to a person…".
+- **Photo viewer:** a click on the black space around the photo closes it.
+- **Videos:** coming back from a video opens the page you were on (page 10 stayed page 1). Videos, Performers and Studios use the whole width, with equal margins, and page numbers at the bottom.
+- **Top bar:** the search is a button that opens into the box (and folds back when empty); the green dot on your picture stands in for the Telegram pill when the bar is too narrow to show it; the decoder name is gone from the native player's bar.
+- **Local folders:** a video or photo you move or rename inside its folder is recognised on the next scan as the same file, so its name from the movie database, favourite, resume point, snapshots and the people it was named after stay; a file you delete is removed on the next scan.
 - **One player, two engines.** The browser player and the native player now share one control bar, one set of menus and one set of keys (Space/K, J and L ±30 s, arrows ±5 s, M, F, N, Shift+P, on the whole window). The native player gained what it lacked: Auto-repeat, the caption style menu (size and box), speed hints, the same buffer-status menu, and a real full screen (the picture fills the screen with the bar under it). Only the source of the picture differs.
 - **Changing engine in the middle of a video carries on from the same second** (the browser player cannot play it, or you choose the other player).
 

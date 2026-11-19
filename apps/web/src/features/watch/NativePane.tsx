@@ -276,7 +276,6 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
             <MenuHead>Player</MenuHead>
             {onBrowser ? <MenuItem onClick={(close) => { close(); onBrowser() }} label="Play this video with the browser's player instead">Use the browser player</MenuItem> : null}
           </>}
-          trailing={<span className="hidden text-[11px] text-muted @lg:inline" title="Native player (LAV decoders)">{opened?.decoder ? `Native · ${opened.decoder}` : 'Native player'}</span>}
         />
       </div>
     </div>

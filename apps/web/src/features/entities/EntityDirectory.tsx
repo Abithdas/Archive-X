@@ -37,6 +37,9 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
   const { page, gender, per: nominalPer, sort } = useDirectoryView((s) => s.views[kind])
   const patch = useDirectoryView((s) => s.patch)
   const setGender = (g: GenderFilter) => patch(kind, { gender: g, page: 1 })
+  // Movies and shows: the cast is not split by gender (the open catalogues give none), so the list opens on everyone instead of on "Female", which showed nobody.
+  const sfw = Boolean(labels.movies)
+  useEffect(() => { if (kind === 'performers' && sfw && gender === 'female') patch(kind, { gender: 'all' }) }, [sfw]) // eslint-disable-line react-hooks/exhaustive-deps -- once when the mode is SFW; choosing Female afterwards stays
   const setPage = (n: number) => patch(kind, { page: n })
   const setPer = (n: number) => patch(kind, { per: n })
   const setSort = (v: SortKey) => patch(kind, { sort: v })
@@ -76,7 +79,7 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
   }
 
   return (
-    <section className="mx-auto flex w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] flex-1 flex-col pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="flex w-full flex-1 flex-col px-4 pb-10 pt-6 sm:px-10">
       <PageHead title={copy.title} blurb={copy.blurb} />
       <div className="mb-5 flex flex-wrap items-center gap-2.5">
         {kind === 'performers' ? (
