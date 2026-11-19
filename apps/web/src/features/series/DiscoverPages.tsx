@@ -6,6 +6,7 @@ import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { PLACEHOLDER } from './PosterCard'
 import { Chips, TitleStage } from './TitleStage'
+import { AddonStreams } from './AddonStreams'
 import { WhereToWatch } from './WhereToWatch'
 import { useHomeTab } from './view'
 import { countText } from './series'
@@ -75,6 +76,7 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
   const panel = !d ? null : (
     <div className="grid gap-5">
       {!lib && ID.test(id) ? <WhereToWatch kind={d.kind} ident={id} title={d.title} /> : lib ? <p className="px-1 text-sm text-muted">You have this in your library, so there is nothing to look for elsewhere.</p> : null}
+      {d.kind === 'movie' ? <AddonStreams kind="movie" ident={id} /> : null}
       {seasons.length ? (
         <section aria-label="Seasons and episodes" className="grid gap-2">
           <h2 className="px-1 text-lg font-bold">Episodes</h2>
@@ -130,6 +132,7 @@ export function DiscoverEpisodePage({ id, season, episode }: { id: string; seaso
   const panel = !d || !ep ? null : (
     <div className="grid gap-3">
       {d.library ? <p className="px-1 text-sm text-muted">You have this show in your library.</p> : <WhereToWatch kind="tv" ident={id} title={d.title} />}
+      <AddonStreams kind="series" ident={id} season={season} episode={episode} />
       {!d.library ? <p className="px-1 text-xs text-faint">Streaming services list the whole show, so this is where {label(ep)} can be watched too.</p> : null}
     </div>
   )

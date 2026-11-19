@@ -368,3 +368,72 @@ def test_a_title_page_has_the_episodes_and_where_to_watch_opens_each_service(tmp
     flat = {p["name"]: p["open"] for g in where["groups"] for p in g["providers"]}
     assert flat["Netflix"] == "https://www.netflix.com/search?q=The%20Matrix%3A%20Reloaded" and flat["Apple TV"] == "https://tv.apple.com/search?term=The%20Matrix%3A%20Reloaded"
     assert [p["open"] for g in c.get("/api/screen/where/movie/tt0133093?region=US").json()["groups"] for p in g["providers"]] == ["", ""]   # no title, no service links
+
+
+def test_streams_from_addons_open_elsewhere_or_play_only_from_own_or_public_sources(tmp_path, monkeypatch):
+    import io
+    from telegram_archive.metadata import addon_client as ac
+    manifests = {"https://s.example": {"name": "Streams", "resources": [{"name": "stream", "types": ["movie", "series"], "idPrefixes": ["tt"]}], "types": ["movie"], "catalogs": []},
+                 "https://subs.example": {"name": "Subs", "resources": ["subtitles"], "types": ["movie"]}}
+    asked: list[str] = []
+
+    def get_json(url):
+        asked.append(url)
+        base = url.split("/manifest.json")[0] if url.endswith("/manifest.json") else url.split("/stream/")[0]
+        if url.endswith("/manifest.json"):
+            return manifests[base]
+        if "/stream/movie/tt0133093.json" in url or "/stream/series/tt0903747%3A1%3A2.json" in url:
+            return {"streams": [{"name": "Trailer", "ytId": "abcdefghijk"}, {"name": "Netflix", "externalUrl": "https://www.netflix.com/title/20557937"}, {"name": "Torrent", "infoHash": "abc"},
+                                {"name": "Home server", "url": "http://192.168.1.5:8096/Videos/1/stream.mkv"}, {"name": "Archive", "url": "https://archive.org/download/film/film.mp4"},
+                                {"name": "Debrid", "url": "https://download.real-debrid.example/d/AB/film.mkv"}]}
+        return {}
+    monkeypatch.setattr(ac, "get_json", get_json)
+    monkeypatch.setattr(ac, "_resolve", lambda host: PUBLIC)
+    db = Database(tmp_path / "st.db")
+    c = _client(db)
+    db.set_setting("catalog_addons", [{"id": "0123456789", "url": "https://s.example", "name": "Streams"}, {"id": "abcdef0123", "url": "https://subs.example", "name": "Subs"}])
+    got = c.get("/api/screen/streams/movie/tt0133093").json()
+    kinds = {i["name"]: i["kind"] for i in got["items"]}
+    assert got["addons"] == ["Streams"] and got["skipped"] == 1                                              # only the add-on that answers for streams is asked; the torrent is left out
+    assert kinds == {"Trailer": "link", "Netflix": "link", "Home server": "blocked", "Archive": "play", "Debrid": "blocked"}   # the home server needs the switch; the debrid host is never played
+    assert not any("subs.example/stream" in u for u in asked) and all("url" not in i for i in got["items"])
+    c.post("/api/screen/addons/settings", json={"allow_local": True}, headers=H)
+    on = {i["name"]: i for i in c.get("/api/screen/streams/movie/tt0133093").json()["items"]}
+    assert on["Home server"]["kind"] == "play" and on["Archive"]["kind"] == "play" and on["Debrid"]["kind"] == "blocked" and on["Debrid"]["host"] == "download.real-debrid.example"
+    assert c.get("/api/screen/streams/series/tt0903747?season=1&episode=2").json()["addons"] == ["Streams"]
+    assert c.get("/api/screen/streams/series/tt0903747").json()["items"] == []                                 # a show's stream needs its season and episode
+    assert c.get("/api/screen/streams/movie/nope").status_code == 400
+
+    # playing: only a listed address, with the range passed on and the answer streamed back
+    seen: dict = {}
+
+    class Resp(io.BytesIO):
+        status = 206
+        headers = {"Content-Type": "video/mp4", "Content-Range": "bytes 0-4/10", "Content-Length": "5", "Accept-Ranges": "bytes"}
+
+    def open_stream(url, byte_range=""):
+        seen.update(url=url, range=byte_range)
+        return Resp(b"hello")
+    monkeypatch.setattr(ac, "open_stream", open_stream)
+    r = c.get(on["Archive"]["play"], headers={"Range": "bytes=0-4"})
+    assert r.status_code == 206 and r.content == b"hello" and r.headers["content-range"] == "bytes 0-4/10"
+    assert seen == {"url": "https://archive.org/download/film/film.mp4", "range": "bytes=0-4"}
+    assert c.get("/api/screen/stream/nottoken").status_code == 404
+    ac.set_allow_local(False)
+
+
+def test_a_stream_is_played_only_from_an_own_source_or_a_public_domain_host(monkeypatch):
+    from telegram_archive.metadata import addon_client as ac
+    import pytest
+    monkeypatch.setattr(ac, "_resolve", lambda host: [(0, 0, 0, "", ("93.184.216.34", 443))])
+    ac.set_allow_local(False)
+    assert ac.stream_origin("https://archive.org/download/a/b.mp4") == "public" and ac.stream_origin("https://ia800.us.archive.org/x.mp4") == "public"
+    assert ac.stream_origin("http://archive.org/x.mp4") == "" and ac.stream_origin("https://evilarchive.org/x.mp4") == "" and ac.stream_origin("http://192.168.1.5/x.mkv") == ""
+    ac.set_allow_local(True)
+    try:
+        assert ac.stream_origin("http://192.168.1.5:8096/x.mkv") == "own" and ac.stream_origin("http://localhost:11470/x") == "own" and ac.stream_origin("http://nas/x.mkv") == "own"
+        assert ac.stream_origin("https://download.real-debrid.example/x.mkv") == "" and ac.stream_origin("http://u:p@192.168.1.5/x") == "" and ac.stream_origin("file:///etc/passwd") == ""
+        with pytest.raises(ValueError):
+            ac.open_stream("https://download.real-debrid.example/x.mkv")
+    finally:
+        ac.set_allow_local(False)

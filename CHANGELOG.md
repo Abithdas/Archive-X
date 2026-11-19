@@ -2,6 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+
+- **Streams from your add-ons, on a title's page.** A movie's page and an episode's page now list what your stream add-ons offer, in a **From your add-ons** section: links that open elsewhere (a YouTube id, a service's own page) open in your browser; a direct stream from **your own sources** (a media server or NAS, with *Allow add-ons on this PC or network* switched on in Settings, Addons) or from a **public-domain host** (the Internet Archive) plays in a window in the app; any other direct stream is listed as *not played here* with its host. Torrents are never used. Only add-ons that answer for streams are asked, and only the addresses the app listed can be played.
+
 ## 30.11.0 (2026-11-19)
 
 - **Smoother scrolling on the SFW Home page.** Poster hover effects no longer repaint a large shadow on every frame (the shadow now only fades in) and pause while the page is moving, the Home / Discover / Library tabs no longer blur the moving picture behind them, the featured picture keeps only the images it needs and stops its slideshow and slow push-in once scrolled out of sight,.

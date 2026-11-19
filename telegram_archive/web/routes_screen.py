@@ -7,6 +7,7 @@ import re
 import threading
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi.responses import StreamingResponse
 
 from ..engines import screen_identify as sid
 from ..metadata import screen_ids as si
@@ -367,6 +368,97 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def addons_list(request: Request):
         require_auth(request)
         return await asyncio.to_thread(_addons_view)
+
+    # ------------------------------------------------------------------
+    # Streams from the person's add-ons (a title's page): links that open elsewhere, and direct streams from their own sources or public-domain hosts.
+    # ------------------------------------------------------------------
+    import secrets as _secrets
+    stream_tokens: dict[str, tuple[float, str]] = {}
+
+    def _asks_for(manifest: dict, resource: str, kind: str, ident: str) -> bool:
+        for r in manifest.get("resources") or []:
+            name = r if isinstance(r, str) else (r or {}).get("name")
+            if name != resource:
+                continue
+            types = (manifest.get("types") or []) if isinstance(r, str) else ((r or {}).get("types") or manifest.get("types") or [])
+            prefixes = (manifest.get("idPrefixes") or []) if isinstance(r, str) else ((r or {}).get("idPrefixes") or manifest.get("idPrefixes") or [])
+            if types and kind not in types:
+                return False
+            return not prefixes or any(ident.startswith(str(x)) for x in prefixes)
+        return False
+
+    def _stream_token(url: str) -> str:
+        now = _time.monotonic()
+        for k in [k for k, (at, _u) in stream_tokens.items() if now - at > 7200]:
+            stream_tokens.pop(k, None)
+        if len(stream_tokens) > 400:
+            stream_tokens.clear()
+        token = _secrets.token_urlsafe(18)
+        stream_tokens[token] = (now, url)
+        return token
+
+    @router.get("/api/screen/streams/{kind}/{ident}")
+    async def title_streams(kind: str, ident: str, request: Request, season: int | None = None, episode: int | None = None):
+        """What the person's add-ons offer for a title: links that open elsewhere (a YouTube id, an external page), and direct streams. A direct stream plays here only from their own
+        sources or a public-domain host; any other is listed as not played. Torrents are never handled. Only add-ons that answer for streams are asked."""
+        require_auth(request)
+        if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident):
+            raise HTTPException(400, "Unknown title")
+        sid_ = ident if kind == "movie" else (f"{ident}:{int(season)}:{int(episode)}" if season is not None and episode is not None else "")
+
+        def work():
+            _sync_local()
+            items: list[dict] = []
+            skipped = 0
+            asked: list[str] = []
+            for a in _saved_addons():
+                try:
+                    manifest = _addon_json(a["url"] + "/manifest.json")
+                    if not isinstance(manifest, dict) or not _asks_for(manifest, "stream", kind, ident) or not sid_:
+                        continue
+                    name = str(manifest.get("name") or a["name"] or "Add-on")[:40]
+                    got = _addon_json(f"{a['url']}/stream/{kind}/{si.quote(sid_, safe='')}.json")
+                    found, skip = ac.classify_streams((got or {}).get("streams") if isinstance(got, dict) else [], name)
+                except Exception:
+                    continue
+                asked.append(name)
+                skipped += skip
+                items.extend(found)
+            for it in items:
+                url = it.pop("url", "")
+                if it["kind"] == "play" and url:
+                    it["play"] = f"/api/screen/stream/{_stream_token(url)}"
+            return {"ok": True, "items": items[:80], "skipped": skipped, "addons": asked}
+        return await asyncio.to_thread(work)
+
+    @router.get("/api/screen/stream/{token}")
+    async def play_stream(token: str, request: Request):
+        """Plays a direct stream that was listed as playable, passing its bytes on (and the range the player asks for). Only the addresses this app listed can be played."""
+        require_auth(request)
+        hit = stream_tokens.get(token)
+        if not hit:
+            raise HTTPException(404, "That stream is no longer available. Open the title's page again.")
+        url = hit[1]
+
+        def opened():
+            _sync_local()
+            return ac.open_stream(url, request.headers.get("range", ""))
+        try:
+            resp = await asyncio.to_thread(opened)
+        except Exception as exc:
+            raise HTTPException(502, "The stream could not be reached.") from exc
+        headers = {k: v for k, v in ((h, resp.headers.get(h)) for h in ("Content-Type", "Content-Length", "Content-Range", "Accept-Ranges")) if v}
+
+        async def body():
+            try:
+                while True:
+                    chunk = await asyncio.to_thread(resp.read, 65536)
+                    if not chunk:
+                        break
+                    yield chunk
+            finally:
+                resp.close()
+        return StreamingResponse(body(), status_code=getattr(resp, "status", 200) or 200, headers=headers)
 
     @router.post("/api/screen/addons/settings")
     async def addons_settings(request: Request):

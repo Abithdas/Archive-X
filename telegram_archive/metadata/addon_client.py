@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import re
 import socket
 import urllib.error
 import urllib.parse
@@ -97,6 +98,87 @@ def get_json(url: str):
     if len(raw) > MAX_BYTES:
         raise ValueError("The answer was too large.")
     return json.loads(raw.decode("utf-8")) if raw else {}
+
+
+# ---- streams: what an add-on's stream answer may do here -------------------------------------------------------------------------------------------
+# A stream is a link opened elsewhere (a YouTube id, an external page: the browser goes there, nothing is played here), or a direct video link. A direct
+# link is played inside the app only from the person's own sources (this PC or network, with the switch in Settings, Addons) and from public-domain
+# hosts; a direct link anywhere else is listed and not played. Torrents and the like (`infoHash`) are never handled.
+PUBLIC_HOSTS = ("archive.org",)
+
+
+def is_local_host(host: str) -> bool:
+    """A name or number that is inside this PC or its network (a media server at home)."""
+    host = (host or "").strip().lower().strip("[]")
+    if not host:
+        return False
+    try:
+        return not ipaddress.ip_address(host).is_global
+    except ValueError:
+        pass
+    if host == "localhost" or host.endswith((".localhost", ".local", ".internal", ".lan", ".home.arpa")) or "." not in host:
+        return True
+    try:
+        found = {ipaddress.ip_address(info[4][0]) for info in _resolve(host)}
+    except (OSError, ValueError):
+        return False
+    return bool(found) and not any(ip.is_global for ip in found)
+
+
+def stream_origin(url: str) -> str:
+    """Where a direct stream may be played from: "own" (this PC or network, only while that is allowed), "public" (a public-domain host), or "" (not played)."""
+    parts = urllib.parse.urlsplit(str(url or ""))
+    host = (parts.hostname or "").lower()
+    if parts.scheme not in ("http", "https") or not host or parts.username or parts.password:
+        return ""
+    if parts.scheme == "https" and any(host == h or host.endswith("." + h) for h in PUBLIC_HOSTS):
+        return "public"
+    if LOCAL and is_local_host(host):
+        return "own"
+    return ""
+
+
+class _StreamGuard(urllib.request.HTTPRedirectHandler):
+    max_redirections = 4
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        target = urllib.parse.urljoin(req.full_url, newurl)
+        if not stream_origin(target):
+            raise urllib.error.URLError("the stream was sent somewhere it may not be played from")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def open_stream(url: str, byte_range: str = ""):
+    """The open answer for a stream the app may play (`stream_origin`), asked for the bytes the player wants; redirects are held to the same rule."""
+    if not stream_origin(url):
+        raise ValueError("That stream may not be played here.")
+    headers = {"User-Agent": "ArchiveX"}
+    if byte_range and byte_range.startswith("bytes=") and len(byte_range) < 64:
+        headers["Range"] = byte_range
+    return urllib.request.build_opener(_StreamGuard).open(urllib.request.Request(url, headers=headers), timeout=TIMEOUT)
+
+
+def classify_streams(streams, addon: str) -> tuple[list[dict], int]:
+    """An add-on's streams as the title page shows them: links that open elsewhere, direct streams that play here, direct streams that do not. Anything else is counted and left out."""
+    out: list[dict] = []
+    skipped = 0
+    for st in streams if isinstance(streams, list) else []:
+        if not isinstance(st, dict):
+            continue
+        name = " · ".join(x for x in (str(st.get("name") or "").strip(), str(st.get("title") or st.get("description") or "").strip()) if x).replace("\n", " ")[:220] or addon
+        yt = str(st.get("ytId") or "")
+        ext = str(st.get("externalUrl") or "")
+        url = str(st.get("url") or "")
+        if re.fullmatch(r"[\w-]{6,16}", yt):
+            out.append({"addon": addon, "name": name, "kind": "link", "href": f"https://www.youtube.com/watch?v={yt}"})
+        elif ext.startswith("https://") and not urllib.parse.urlsplit(ext).username:
+            out.append({"addon": addon, "name": name, "kind": "link", "href": ext})
+        elif url.startswith(("http://", "https://")):
+            origin = stream_origin(url)
+            out.append({"addon": addon, "name": name, "kind": "play" if origin else "blocked", "url": url if origin else "", "host": (urllib.parse.urlsplit(url).hostname or "")[:80]})
+        else:
+            skipped += 1
+    return out[:60], skipped
 
 
 PROVIDES = {"catalog": "Lists", "meta": "Details", "stream": "Streams", "subtitles": "Subtitles", "addon_catalog": "Add-on lists"}
