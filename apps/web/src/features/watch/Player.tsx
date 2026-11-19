@@ -110,7 +110,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
     clearTimeout(hintTimer.current)
     hintTimer.current = setTimeout(() => setHint(''), 700)
   }
-  useEffect(() => () => clearTimeout(hintTimer.current), [])   // a hint still waiting to fade must not fire after the player is gone
+  useEffect(() => () => { clearTimeout(hintTimer.current); clearTimeout(tapTimer.current) }, [])   // a hint or a tap still waiting must not fire after the player is gone
   /** One tap toggles play. Double-tap the left or right third to skip 10 s; keep tapping to add 10 s more each time (like YouTube). */
   const onTap = (e: React.MouseEvent<HTMLVideoElement>) => {
     resumeAudio()
