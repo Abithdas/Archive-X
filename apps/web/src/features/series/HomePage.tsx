@@ -27,7 +27,7 @@ interface Airing { id: number; title: string; poster: string; season: number; ep
 interface Recent { id: number; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string }
 interface HomeData { continue: Resume[]; airing: Airing[]; recent: Recent[]; billboard: Billboard[] }
 interface Found { imdb: string; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string; background: string; rating: string; overview: string; genres: string[]; library: { kind: 'tv' | 'movie'; id: number } | null }
-interface FoundPage { items: Found[]; more?: boolean; disabled?: boolean }
+interface FoundPage { items: Found[]; more?: boolean; next?: number; disabled?: boolean; needs_key?: boolean }
 interface FoundOne extends Found { runtime: string; cast: string[]; director: string[]; trailer: string; seasons: number }
 
 const openIn = (kind: 'tv' | 'movie') => (kind === 'tv' ? '/series/$id' : '/movies/$id')
@@ -168,11 +168,14 @@ function DetailPanel({ item }: { item: Found }) {
 }
 
 type Kind = 'movie' | 'series'
+type Catalog = 'popular' | 'new' | 'featured' | 'netflix' | 'hbomax' | 'disney' | 'prime' | 'apple'
+/** The lists Discover can show: three from Cinemeta, and what is on each streaming service (from TMDB, so those need its key). */
+const CATALOGS: ReadonlyArray<readonly [Catalog, string]> = [['popular', 'Popular'], ['new', 'New'], ['featured', 'Featured'], ['netflix', 'Netflix'], ['hbomax', 'HBO Max'], ['disney', 'Disney+'], ['prime', 'Prime Video'], ['apple', 'Apple TV+']]
 const OPTION = 'h-9 rounded-full border px-3.5 text-[13px] font-semibold transition-colors'
 
 /** One filter for Discover, like the one on the Photos page: a pill with a count of what is chosen, opening a panel with the kind and the genre. */
-function DiscoverFilters({ kind, setKind, genre, setGenre, off }: { kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void; off: boolean }) {
-  const count = (kind === 'series' ? 1 : 0) + (genre ? 1 : 0)
+function DiscoverFilters({ kind, setKind, genre, setGenre, catalog, setCatalog, off }: { kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void; catalog: Catalog; setCatalog: (c: Catalog) => void; off: boolean }) {
+  const count = (kind === 'series' ? 1 : 0) + (genre ? 1 : 0) + (catalog !== 'popular' ? 1 : 0)
   const pick = (on: boolean) => cn(OPTION, on ? 'border-accent/60 bg-accent/15 text-fg' : 'border-line text-muted hover:bg-fg/5 hover:text-fg')
   return (
     <div className={cn(off && 'pointer-events-none opacity-50')} aria-disabled={off || undefined}>
@@ -185,12 +188,18 @@ function DiscoverFilters({ kind, setKind, genre, setGenre, off }: { kind: Kind; 
             </div>
           </div>
           <div className="grid gap-2">
+            <h3 className="text-sm font-bold">List</h3>
+            <div role="group" aria-label="List" className="flex flex-wrap gap-1.5">
+              {CATALOGS.map(([v, label]) => <button key={v} type="button" aria-pressed={catalog === v} onClick={() => setCatalog(v)} className={pick(catalog === v)}>{label}</button>)}
+            </div>
+          </div>
+          <div className="grid gap-2">
             <h3 className="text-sm font-bold">Genre</h3>
             <div role="group" aria-label="Genre" className="flex flex-wrap gap-1.5">
               {['', ...GENRES].map((g) => <button key={g || 'all'} type="button" aria-pressed={genre === g} onClick={() => setGenre(g)} className={pick(genre === g)}>{g || 'All genres'}</button>)}
             </div>
           </div>
-          {count ? <button type="button" onClick={() => { setKind('movie'); setGenre('') }} className="justify-self-start text-[13px] font-semibold text-muted hover:text-fg">Clear filters</button> : null}
+          {count ? <button type="button" onClick={() => { setKind('movie'); setGenre(''); setCatalog('popular') }} className="justify-self-start text-[13px] font-semibold text-muted hover:text-fg">Clear filters</button> : null}
         </div>
       </Popover>
     </div>
@@ -201,7 +210,7 @@ function DiscoverFilters({ kind, setKind, genre, setGenre, off }: { kind: Kind; 
  * Discover: what is popular in Cinemeta's open catalogues, by kind and genre, with a search; the titles you already have are marked.
  * On a wide window the pointer resting on a poster shows that title's details in a panel beside the grid; on a narrow one a click opens them.
  */
-function Discover({ text, kind, setKind, genre, setGenre }: { text: string; kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void }) {
+function Discover({ text, kind, setKind, genre, setGenre, catalog, setCatalog }: { text: string; kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void; catalog: Catalog; setCatalog: (c: Catalog) => void }) {
   const [open, setOpen] = useState<Found | null>(null)
   const [focus, setFocus] = useState<Found | null>(null)
   const wide = useWide()
@@ -209,24 +218,26 @@ function Discover({ text, kind, setKind, genre, setGenre }: { text: string; kind
   useEffect(() => () => clearTimeout(timer.current), [])
   const search = text.trim().length >= 2 ? text.trim() : ''
   const q = useInfiniteQuery({
-    queryKey: ['discover', kind, genre, search] as const,
+    queryKey: ['discover', kind, genre, catalog, search] as const,
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api<FoundPage>(`/api/screen/discover?type=${kind}&skip=${pageParam}${genre && !search ? `&genre=${encodeURIComponent(genre)}` : ''}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-    getNextPageParam: (last, all) => (last.more ? all.length * 50 : undefined),
+    queryFn: ({ pageParam }) => api<FoundPage>(`/api/screen/discover?type=${kind}&skip=${pageParam}${genre && !search ? `&genre=${encodeURIComponent(genre)}` : ''}${catalog !== 'popular' && !search ? `&catalog=${catalog}` : ''}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+    getNextPageParam: (last, all) => (last.more ? (last.next ?? all.length * 50) : undefined),
     staleTime: 5 * 60_000,
     retry: false,
   })
   const items = q.data?.pages.flatMap((p) => p.items) ?? []
   const off = q.data?.pages[0]?.disabled
+  const needKey = q.data?.pages[0]?.needs_key
   const shown = wide ? (items.find((x) => x.imdb === focus?.imdb && x.kind === focus.kind) ?? items[0] ?? null) : null
   const rest = (it: Found) => { clearTimeout(timer.current); timer.current = setTimeout(() => setFocus(it), 120) }
   return (
     <section aria-label="Discover" className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-extrabold tracking-tight">{search ? `Results for “${search}”` : genre ? `${genre} ${kind === 'movie' ? 'movies' : 'series'}` : `Popular ${kind === 'movie' ? 'movies' : 'series'}`}</h2>
-        <DiscoverFilters kind={kind} setKind={(k) => { setKind(k); setFocus(null) }} genre={genre} setGenre={(g) => { setGenre(g); setFocus(null) }} off={Boolean(search)} />
+        <h2 className="text-xl font-extrabold tracking-tight">{search ? `Results for “${search}”` : [catalog !== 'popular' ? CATALOGS.find(([v]) => v === catalog)?.[1] : '', genre || (catalog === 'popular' ? 'Popular' : ''), kind === 'movie' ? 'movies' : 'series'].filter(Boolean).join(' ')}</h2>
+        <DiscoverFilters kind={kind} setKind={(k) => { setKind(k); setFocus(null) }} genre={genre} setGenre={(g) => { setGenre(g); setFocus(null) }} catalog={catalog} setCatalog={(c) => { setCatalog(c); setFocus(null) }} off={Boolean(search)} />
       </div>
       {off ? <p role="status" className="rounded-2xl border border-dashed border-line p-6 text-sm text-muted">Discover uses Cinemeta, the Stremio project's open catalogue, and it is switched off. Turn it on in Settings, Metadata.</p>
+        : needKey ? <p role="status" className="rounded-2xl border border-dashed border-line p-6 text-sm text-muted">What is on {CATALOGS.find(([v]) => v === catalog)?.[1]} comes from TMDB. Add a free TMDB key in Settings, Metadata to see it.</p>
         : q.isError ? <p role="alert" className="rounded-2xl border border-dashed border-line p-6 text-sm text-warn">The catalogue could not be reached. Check the internet connection and try again.</p>
         : q.isPending ? <p role="status" className="py-6 text-sm text-muted">Loading the catalogue…</p>
         : !items.length ? <p role="status" className="py-6 text-sm text-muted">Nothing found.</p>
@@ -284,11 +295,12 @@ export function SfwHome() {
   const setText = useSearch((x) => x.set)
   const [kind, setKind] = useState<Kind>('movie')
   const [genre, setGenre] = useState('')
+  const [catalog, setCatalog] = useState<Catalog>('popular')
   const [lib, setLib] = useState<'series' | 'movies'>(view === 'series' ? 'series' : 'movies')
   const searching = text.trim().length >= 2
   const tab: HomeTab = searching ? 'discover' : view !== 'all' && stored === 'home' ? 'library' : stored
   const go = (t: HomeTab) => { setStored(t); if (t !== 'library') useScreenView.getState().setView('all') }
-  const seeAll = (k: Kind) => { setKind(k); setGenre(''); go('discover') }
+  const seeAll = (k: Kind) => { setKind(k); setGenre(''); setCatalog('popular'); go('discover') }
   const d = home.data
   const setImmersive = useUi((x) => x.setImmersive)
   const bleed = tab === 'home' && !searching && Boolean(d?.billboard.length)
@@ -347,7 +359,7 @@ export function SfwHome() {
             <PopularRow kind="series" onSeeAll={() => seeAll('series')} />
             </div>
           </>
-        ) : tab === 'discover' ? <Discover text={text} kind={kind} setKind={setKind} genre={genre} setGenre={setGenre} />
+        ) : tab === 'discover' ? <Discover text={text} kind={kind} setKind={setKind} genre={genre} setGenre={setGenre} catalog={catalog} setCatalog={setCatalog} />
         : (
           <section aria-label="Your library" className="grid gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">

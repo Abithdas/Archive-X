@@ -117,4 +117,20 @@ describe('SFW Home', () => {
     await toDiscover()
     await vi.waitFor(() => expect(useUi.getState().immersive).toBe(false))
   })
+
+  it('Filters also picks the list (Popular, New, Featured and the streaming services), says when a service list needs the TMDB key, and pages by what the server says is next', async () => {
+    const urls = mount((u) => (u.includes('catalog=hbomax') ? json({ ok: true, needs_key: true, items: [] }) : u.includes('catalog=netflix&') || u.endsWith('catalog=netflix') ? json({ ok: true, items: [found(1, 'The Matrix')], more: true, next: 1 }) : undefined))
+    await toDiscover()
+    fireEvent.click(await screen.findByRole('button', { name: /Filters/ }))
+    const lists = screen.getByRole('group', { name: 'List' })
+    for (const l of ['Popular', 'New', 'Featured', 'Netflix', 'HBO Max', 'Disney+', 'Prime Video', 'Apple TV+']) expect(within(lists).getByRole('button', { name: l })).toBeInTheDocument()
+    fireEvent.click(within(lists).getByRole('button', { name: 'Netflix' }))
+    expect(await screen.findByRole('heading', { name: 'Netflix movies' })).toBeInTheDocument()
+    await vi.waitFor(() => expect(urls.some((u) => u.includes('catalog=netflix'))).toBe(true))
+    fireEvent.click(await screen.findByRole('button', { name: 'Show more' }))
+    await vi.waitFor(() => expect(urls.some((u) => u.includes('catalog=netflix') && u.includes('skip=1'))).toBe(true))          // TMDB pages by number, not by fifty
+    fireEvent.click(within(lists).getByRole('button', { name: 'HBO Max' }))
+    expect(await screen.findByText(/comes from TMDB/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Filters/ })).toHaveTextContent('1')
+  })
 })
