@@ -2,7 +2,7 @@
 
 An add-on is plain HTTPS and JSON (`/manifest.json`, `/catalog/{type}/{id}.json`). Because the address is typed by a person and then fetched by this PC, it is
 checked before every use: HTTPS only, the default port, a name that resolves only to public addresses (never this PC, a router or a LAN device), at most
-a few redirects and each one checked the same way, a size cap and a time limit. Only catalogues are read; an add-on's streams are never asked for. On this PC or network (a switch in Settings, Addons) http, any port and private addresses are allowed.
+a few redirects and each one checked the same way, a size cap and a time limit. Catalogues support Discover; title pages may request streams, whose direct URLs are checked before playback. On this PC or network (a switch in Settings, Addons) http, any port and private addresses are allowed.
 """
 from __future__ import annotations
 
