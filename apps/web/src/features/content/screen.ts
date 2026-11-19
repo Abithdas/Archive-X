@@ -3,7 +3,7 @@ export type Provider = 'tmdb' | 'omdb' | 'opensubtitles'
 
 export interface ScreenSettings {
   tmdb_api_key: string; omdb_api_key: string; opensubtitles_api_key: string
-  tmdb_configured: boolean; omdb_configured: boolean; opensubtitles_configured: boolean; tvmaze_enabled?: boolean
+  tmdb_configured: boolean; omdb_configured: boolean; opensubtitles_configured: boolean; tvmaze_enabled?: boolean; cinemeta_enabled?: boolean
 }
 export interface ScreenStatus {
   progress: { running?: boolean; total?: number; done?: number; matched?: number; review?: number; unmatched?: number; failed?: number }

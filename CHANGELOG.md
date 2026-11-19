@@ -3,6 +3,7 @@
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
 ## Unreleased
+- **Cinemeta as a keyless source for movies and TV shows (off by default).** Settings, Metadata has a switch, "Use Cinemeta for movies and TV shows". When on, and TMDB has no answer or no key, titles from file names are looked up at cinemeta.strem.io (the Stremio project's open catalog): poster, background, cast, genres, IMDb rating, runtime, status and every episode with its air date, so the Series page can list missing episodes without any key.
 - **About note.** Settings, Overview ends with an About card (and the README a note) saying Archive X is a personal fan project built with Claude Code and not affiliated with Telegram, Anthropic or the metadata providers.
 
 ## 30.5.1 (2026-11-19)

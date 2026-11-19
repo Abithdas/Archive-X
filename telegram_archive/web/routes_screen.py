@@ -67,6 +67,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             out[key] = _mask(v)
             out[key.replace("_api_key", "") + "_configured"] = bool(v)
         out["tvmaze_enabled"] = sid.tvmaze_on(db)
+        out["cinemeta_enabled"] = sid.cinemeta_on(db)
         return out
 
     @router.post("/api/screen/settings")
@@ -90,6 +91,9 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         if "tvmaze_enabled" in body:
             db.set_setting("tvmaze_enabled", "1" if body["tvmaze_enabled"] else "0")
             saved.append("tvmaze_enabled")
+        if "cinemeta_enabled" in body:
+            db.set_setting("cinemeta_enabled", "1" if body["cinemeta_enabled"] else "0")
+            saved.append("cinemeta_enabled")
         for key in body.get("clear") or []:
             if key in KEYS:
                 db.set_setting(key, "")

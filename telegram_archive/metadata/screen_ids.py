@@ -12,12 +12,14 @@ import re
 import struct
 import time
 from typing import Callable
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 PARSER_VERSION = 2   # raised when the name reading improves: unmatched videos are looked at again once, nothing else is redone
 
 TMDB = "https://api.themoviedb.org/3"
 TVMAZE = "https://api.tvmaze.com"
+CINEMETA = "https://v3-cinemeta.strem.io"   # the Stremio project's open movie and series catalog: no key, ids are IMDb ids
+CINEMETA_BASE = 10_000_000_000              # a Cinemeta title is stored as -(BASE + its IMDb number): clear of TMDB ids (positive) and TVmaze ids (small negatives)
 OMDB = "https://www.omdbapi.com/"
 OPENSUBTITLES = "https://api.opensubtitles.com/api/v1/subtitles"
 IMAGE = "https://image.tmdb.org/t/p"
@@ -186,6 +188,20 @@ def _year_of(date: str) -> int | None:
     return int(date[:4]) if date and str(date)[:4].isdigit() else None
 
 
+def cinemeta_id(imdb: str) -> int:
+    """The id a Cinemeta title is kept under (negative, above every TVmaze id)."""
+    m = re.fullmatch(r"tt(\d{1,9})", str(imdb or ""))
+    return -(CINEMETA_BASE + int(m.group(1))) if m else 0
+
+
+def imdb_of_cinemeta(stored: int) -> str:
+    return f"tt{-int(stored) - CINEMETA_BASE:07d}" if int(stored) <= -CINEMETA_BASE else ""
+
+
+def is_cinemeta(stored: int) -> bool:
+    return int(stored) <= -CINEMETA_BASE
+
+
 class Screen:
     """One set of keys and one way of fetching; every lookup returns plain dicts.
 
@@ -193,9 +209,10 @@ class Screen:
     ``put(provider, key, value)``. Within one Screen the same question is never asked twice.
     """
 
-    def __init__(self, fetch: Fetch, *, tmdb: str = "", omdb: str = "", opensubtitles: str = "", tvmaze: bool = False, language: str = "en-US", cache=None):
+    def __init__(self, fetch: Fetch, *, tmdb: str = "", omdb: str = "", opensubtitles: str = "", tvmaze: bool = False, cinemeta: bool = False, language: str = "en-US", cache=None):
         self.fetch, self.tmdb, self.omdb, self.os_key, self.language = fetch, tmdb.strip(), omdb.strip(), opensubtitles.strip(), language
         self.tvmaze = bool(tvmaze)
+        self.cinemeta = bool(cinemeta)
         self.cache = cache
         self._memo: dict = {}
         self.calls = 0   # requests really sent to a provider (cache and memo answers are not counted)
@@ -258,6 +275,22 @@ class Screen:
                         "poster": (show.get("image") or {}).get("medium") or "", "overview": _plain(show.get("summary")), "score": self._score(want, show.get("name") or "", "", y, 0, query)})
         return out
 
+    def _cinemeta_meta(self, kind: str, imdb: str) -> dict:
+        got = self._ask("cinemeta", f"{CINEMETA}/meta/{'series' if kind == 'tv' else 'movie'}/{imdb}.json", {}, {})
+        return (got or {}).get("meta") or {}
+
+    def _cinemeta_candidates(self, want: dict, query: str, kind: str) -> list[dict]:
+        got = self._ask("cinemeta", f"{CINEMETA}/catalog/{'series' if kind == 'tv' else 'movie'}/top/search={quote(query, safe='')}.json", {}, {})
+        out = []
+        for row in ((got or {}).get("metas") or [])[:10]:
+            sid = cinemeta_id(row.get("imdb_id") or row.get("id") or "")
+            if not sid:
+                continue
+            y = _year_of(str(row.get("releaseInfo") or row.get("year") or ""))
+            out.append({"kind": kind, "tmdb_id": sid, "imdb_id": row.get("imdb_id") or row.get("id"), "title": row.get("name") or "", "year": y, "source": "cinemeta",
+                        "poster": row.get("poster") or "", "overview": row.get("description") or "", "score": self._score(want, row.get("name") or "", "", y, 0, query)})
+        return out
+
     def _tvmaze_search(self, query: str) -> list:
         got = self._ask("tvmaze", f"{TVMAZE}/search/shows", {"q": query}, {})
         return got if isinstance(got, list) else []
@@ -318,6 +351,11 @@ class Screen:
                 add(self._tvmaze_candidates(parsed, q))
                 if best() >= REVIEW:
                     break
+        if self.cinemeta and best() < ACCEPT:
+            for q in queries:
+                add(self._cinemeta_candidates(parsed, q, want_kind))
+                if best() >= REVIEW:
+                    break
         if not found and self.omdb:                                  # nothing from TMDB: OMDb by title
             data = self._ask("omdb", OMDB, {"t": title, "type": "series" if want_kind == "tv" else "movie", **({"y": parsed["year"]} if parsed.get("year") and want_kind == "movie" else {}), "apikey": self.omdb}, {}) or {}
             if data.get("Response") == "True" and data.get("imdbID"):
@@ -345,6 +383,8 @@ class Screen:
     # --- details ----------------------------------------------------------------------------------------------------------------
     def details(self, kind: str, tmdb_id: int) -> dict:
         """Everything kept about a title: text, artwork, genres, studios or networks, cast. A negative id is a TVmaze show."""
+        if is_cinemeta(tmdb_id):
+            return self._cinemeta_details(kind, int(tmdb_id))
         if int(tmdb_id) < 0:
             return self._tvmaze_details(-int(tmdb_id))
         d = self._t(f"/{kind}/{int(tmdb_id)}", append_to_response="credits,external_ids")
@@ -361,6 +401,28 @@ class Screen:
                 "poster": d.get("poster_path") or "", "backdrop": d.get("backdrop_path") or "", "genres": genres, "companies": companies, "cast": cast,
                 "rating": d.get("vote_average") or 0, "runtime": (d.get("runtime") or (d.get("episode_run_time") or [0])[0] or 0),
                 "seasons": [{"season": s.get("season_number"), "episodes": s.get("episode_count"), "name": s.get("name") or ""} for s in d.get("seasons") or [] if s.get("season_number") is not None],
+                "status": d.get("status") or ""}
+
+    def _cinemeta_details(self, kind: str, stored: int) -> dict:
+        imdb = imdb_of_cinemeta(stored)
+        d = self._cinemeta_meta(kind, imdb)
+        if not d:
+            return {}
+        counts: dict[int, int] = {}
+        for v in d.get("videos") or []:
+            n = int(v.get("season") or 0)
+            counts[n] = counts.get(n, 0) + 1
+        runtime = re.search(r"\d+", str(d.get("runtime") or ""))
+        try:
+            rating = float(d.get("imdbRating") or 0)
+        except (TypeError, ValueError):
+            rating = 0.0
+        date = str(d.get("released") or "")[:10]
+        return {"kind": kind, "tmdb_id": stored, "imdb_id": imdb, "title": d.get("name") or "", "original_title": "", "year": _year_of(str(d.get("releaseInfo") or d.get("year") or date)),
+                "release_date": date, "overview": d.get("description") or "", "tagline": "", "poster": d.get("poster") or "", "backdrop": d.get("background") or "",
+                "genres": list(d.get("genres") or d.get("genre") or []), "companies": [], "cast": [{"name": n, "tmdb_id": None, "character": "", "profile": ""} for n in (d.get("cast") or [])[:20] if n],
+                "rating": rating, "runtime": int(runtime.group(0)) if runtime else 0,
+                "seasons": [{"season": k, "episodes": v, "name": f"Season {k}" if k else "Specials"} for k, v in sorted(counts.items())] if kind == "tv" else [],
                 "status": d.get("status") or ""}
 
     def _tvmaze_show(self, show_id: int) -> dict:
@@ -387,6 +449,13 @@ class Screen:
     def season(self, tmdb_id: int, season: int) -> dict[int, dict]:
         """Every episode of one season, by number, in one request (not one request per episode)."""
         out: dict[int, dict] = {}
+        if is_cinemeta(tmdb_id):
+            for v in self._cinemeta_meta("tv", imdb_of_cinemeta(tmdb_id)).get("videos") or []:
+                n = v.get("episode") if v.get("episode") is not None else v.get("number")
+                if int(v.get("season") or 0) == int(season) and n is not None:
+                    out[int(n)] = {"season": int(season), "episode": int(n), "name": v.get("name") or v.get("title") or "", "overview": v.get("overview") or v.get("description") or "",
+                                   "air_date": str(v.get("released") or v.get("firstAired") or "")[:10], "still": v.get("thumbnail") or "", "runtime": 0}
+            return out
         if int(tmdb_id) < 0:
             for e in ((self._tvmaze_show(-int(tmdb_id)).get("_embedded") or {}).get("episodes")) or []:
                 if int(e.get("season") or 0) == int(season) and e.get("number") is not None:

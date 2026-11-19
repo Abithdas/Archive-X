@@ -150,6 +150,47 @@ def test_tvmaze_names_a_show_when_there_is_no_tmdb_key_and_the_person_allowed_it
     assert len([u for u in fetch.seen if u.endswith("/shows/42")]) == 1   # cast and episodes came in one request
 
 
+def test_cinemeta_names_a_series_and_a_movie_with_no_key_and_gives_every_episode_date():
+    """Shapes taken from live answers of v3-cinemeta.strem.io on 19 November 2026."""
+    def cinemeta(url, params, headers):
+        if "/catalog/series/top/search=" in url:
+            return {"metas": [{"id": "tt0903747", "imdb_id": "tt0903747", "name": "Breaking Bad", "releaseInfo": "2008", "poster": "https://img/bb.jpg", "type": "series"}]} if "breaking%20bad" in url.lower() else {"metas": []}
+        if "/catalog/movie/top/search=" in url:
+            return {"metas": [{"id": "tt0133093", "imdb_id": "tt0133093", "name": "The Matrix", "releaseInfo": "1999", "poster": "https://img/m.jpg", "type": "movie"}]} if "the%20matrix" in url.lower() else {"metas": []}
+        if url.endswith("/meta/series/tt0903747.json"):
+            return {"meta": {"id": "tt0903747", "imdb_id": "tt0903747", "name": "Breaking Bad", "releaseInfo": "2008", "status": "Ended", "runtime": "49 min", "imdbRating": "9.5", "poster": "https://img/bb.jpg",
+                             "background": "https://img/bg.jpg", "description": "A chemistry teacher.", "genres": ["Crime", "Drama"], "cast": ["Bryan Cranston", "Aaron Paul"],
+                             "videos": [{"season": 1, "episode": 1, "number": 1, "name": "Pilot", "released": "2008-01-21T05:00:00.000Z", "thumbnail": "https://img/e1.jpg", "overview": "Walt."},
+                                        {"season": 1, "episode": 2, "number": 2, "name": "Cat's in the Bag...", "released": "2008-01-28T05:00:00.000Z"},
+                                        {"season": 2, "episode": 1, "number": 1, "name": "Seven Thirty-Seven", "released": "2009-03-08T05:00:00.000Z"}]}}
+        return {}
+    fetch = counting(cinemeta)
+    assert si.Screen(fetch).search(si.parse_name("Breaking.Bad.S01E01.mkv")) == [] and fetch.seen == []   # off by default: no request at all
+    screen = si.Screen(fetch, cinemeta=True)
+    r = si.identify(screen, "Breaking.Bad.S01E01.mkv")
+    best = r["best"]
+    assert r["state"] == "MATCHED" and best["source"] == "cinemeta" and best["imdb_id"] == "tt0903747" and si.is_cinemeta(best["tmdb_id"]) and best["tmdb_id"] == si.cinemeta_id("tt0903747")
+    d = screen.details("tv", best["tmdb_id"])
+    assert (d["title"], d["year"], d["rating"], d["runtime"], d["status"]) == ("Breaking Bad", 2008, 9.5, 49, "Ended")
+    assert d["genres"] == ["Crime", "Drama"] and d["cast"][0]["name"] == "Bryan Cranston" and d["backdrop"] == "https://img/bg.jpg" and d["poster"] == "https://img/bb.jpg"
+    assert d["seasons"] == [{"season": 1, "episodes": 2, "name": "Season 1"}, {"season": 2, "episodes": 1, "name": "Season 2"}]
+    ep = screen.episode(best["tmdb_id"], 1, 2)
+    assert ep["name"] == "Cat's in the Bag..." and ep["air_date"] == "2008-01-28" and screen.season(best["tmdb_id"], 2)[1]["air_date"] == "2009-03-08"
+    assert len([u for u in fetch.seen if u.endswith("/meta/series/tt0903747.json")]) == 1      # details and seasons share one request
+    m = si.identify(screen, "The.Matrix.1999.1080p.mkv")["best"]
+    assert m["kind"] == "movie" and m["imdb_id"] == "tt0133093" and si.imdb_of_cinemeta(m["tmdb_id"]) == "tt0133093"
+    assert si.imdb_of_cinemeta(603) == "" and not si.is_cinemeta(-42) and not si.is_cinemeta(603)   # TMDB and TVmaze ids are never mistaken for it
+
+
+def test_cinemeta_is_a_switch_the_person_turns_on(tmp_path, monkeypatch):
+    monkeypatch.setattr(sid, "http_fetch", tmdb)
+    db = _db(tmp_path)
+    c, H = _client()(db)
+    assert c.get("/api/screen/settings").json()["cinemeta_enabled"] is False and sid.cinemeta_on(db) is False
+    assert c.post("/api/screen/settings", json={"cinemeta_enabled": True}, headers=H).json()["saved"] == ["cinemeta_enabled"]
+    assert c.get("/api/screen/settings").json()["cinemeta_enabled"] is True and sid.cinemeta_on(db) is True and sid.configured(db)
+
+
 def test_a_show_from_tvmaze_does_not_become_a_second_row_when_tmdb_has_it(tmp_path):
     db = _db(tmp_path)
     tmdb_row = sid.store_title(db, {"kind": "tv", "tmdb_id": 70523, "imdb_id": "tt5753856", "title": "Dark"})

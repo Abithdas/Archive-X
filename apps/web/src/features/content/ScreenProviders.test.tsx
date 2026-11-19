@@ -154,6 +154,14 @@ describe('TVmaze switch', () => {
   })
 })
 
+describe('Cinemeta switch', () => {
+  it('is saved when switched', async () => {
+    const calls = mount('sfw')
+    fireEvent.click(await screen.findByRole('switch', { name: 'Use Cinemeta for movies and TV shows' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/screen/settings' && c.method === 'POST')?.body).toEqual({ cinemeta_enabled: true }))
+  })
+})
+
 describe('words', () => {
   it('describes progress and candidates', () => {
     expect(statusText({ progress: { running: true, total: 9, done: 3 }, counts: {}, pending: 0, configured: true })).toBe('Identifying: 3 of 9')

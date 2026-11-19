@@ -29,9 +29,14 @@ def tvmaze_on(db) -> bool:
     return str(db.setting("tvmaze_enabled") or "").lower() in ("1", "true", "yes")
 
 
+def cinemeta_on(db) -> bool:
+    """Cinemeta (the Stremio project's open catalog) needs no key either, and is asked only when switched on."""
+    return str(db.setting("cinemeta_enabled") or "").lower() in ("1", "true", "yes")
+
+
 def configured(db) -> bool:
     k = keys(db)
-    return bool(k["tmdb"] or k["omdb"] or tvmaze_on(db))
+    return bool(k["tmdb"] or k["omdb"] or tvmaze_on(db) or cinemeta_on(db))
 
 
 class ProviderError(RuntimeError):
@@ -135,7 +140,7 @@ class DbCache:
 
 def make_screen(db, fetch=None) -> si.Screen:
     k = keys(db)
-    return si.Screen(fetch or http_fetch, tmdb=k["tmdb"], omdb=k["omdb"], opensubtitles=k["opensubtitles"], tvmaze=tvmaze_on(db), cache=DbCache(db))
+    return si.Screen(fetch or http_fetch, tmdb=k["tmdb"], omdb=k["omdb"], opensubtitles=k["opensubtitles"], tvmaze=tvmaze_on(db), cinemeta=cinemeta_on(db), cache=DbCache(db))
 
 
 def _entity(db, table: str, name: str, tmdb_id=None, image: str = "") -> int | None:

@@ -96,6 +96,10 @@ export function ScreenProviders() {
         <Switch checked={Boolean(settings.data?.tvmaze_enabled)} onChange={(v) => void api('/api/screen/settings', { method: 'POST', json: { tvmaze_enabled: v } }).then(refresh).catch((e) => toast.error(errorText(e, 'Could not save.')))} label="Use TVmaze for TV shows" />
         <div className="min-w-0 flex-1"><p className="text-sm font-semibold">Use TVmaze for TV shows</p><p className="text-xs text-muted">No key needed. Show names from your files are sent to tvmaze.com, as TMDB would get them. Used when TMDB has no answer or has no key.</p></div>
       </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-line p-3">
+        <Switch checked={Boolean(settings.data?.cinemeta_enabled)} onChange={(v) => void api('/api/screen/settings', { method: 'POST', json: { cinemeta_enabled: v } }).then(refresh).catch((e) => toast.error(errorText(e, 'Could not save.')))} label="Use Cinemeta for movies and TV shows" />
+        <div className="min-w-0 flex-1"><p className="text-sm font-semibold">Use Cinemeta for movies and TV shows</p><p className="text-xs text-muted">No key needed. Titles from your files are sent to cinemeta.strem.io, the Stremio project's open catalog, as TMDB would get them. It gives posters, cast, ratings and every episode's air date. Used when TMDB has no answer or has no key.</p></div>
+      </div>
       <p role="status" aria-live="polite" className="mt-4 text-sm text-muted">{statusText(status.data)}</p>
       <p className="mt-1 text-xs text-faint">To name the videos that are waiting, run the Metadata box on the Transfers page.</p>
       <p className="mt-4 text-xs text-faint">This product uses the TMDB API but is not endorsed or certified by TMDB. TV data from TVmaze (CC BY-SA 4.0).</p>
