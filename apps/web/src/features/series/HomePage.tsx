@@ -12,6 +12,7 @@ import { useLabels } from '@/features/content/labels'
 import { useSearch } from '@/app/search'
 import { useUi } from '@/app/ui'
 import { Popover } from '@/features/photos/Popover'
+import { useAddons, type Addon } from '@/features/settings/AddonsPanel'
 import { Chips } from './TitleStage'
 import { MoviesList } from './MoviesPage'
 import { PLACEHOLDER, PosterCard } from './PosterCard'
@@ -99,7 +100,7 @@ function whenLabel(date: string): string {
 
 /** One title from the catalogue: its story and cast, whether you have it, and a way to open it or watch its trailer. */
 function Details({ item, onClose }: { item: Found; onClose: () => void }) {
-  const q = useQuery({ queryKey: ['discover-one', item.kind, item.imdb] as const, queryFn: () => api<FoundOne>(`/api/screen/discover/${item.kind === 'tv' ? 'series' : 'movie'}/${item.imdb}`), retry: false, enabled: !item.imdb.startsWith('kitsu:') })
+  const q = useQuery({ queryKey: ['discover-one', item.kind, item.imdb] as const, queryFn: () => api<FoundOne>(`/api/screen/discover/${item.kind === 'tv' ? 'series' : 'movie'}/${item.imdb}`), retry: false, enabled: /^(tt\d+|tmdb-\d+)$/.test(item.imdb) })
   const d = q.data ?? { ...item, runtime: '', cast: [], director: [], trailer: '', seasons: 0 }
   const lib = d.library ?? item.library
   return (
@@ -140,7 +141,7 @@ function useWide(): boolean {
 
 /** The details of the title the pointer rests on, kept beside the posters: its picture fades in behind its story, its genres, cast and directors. */
 function DetailPanel({ item }: { item: Found }) {
-  const q = useQuery({ queryKey: ['discover-one', item.kind, item.imdb] as const, queryFn: () => api<FoundOne>(`/api/screen/discover/${item.kind === 'tv' ? 'series' : 'movie'}/${item.imdb}`), retry: false, staleTime: 10 * 60_000, enabled: !item.imdb.startsWith('kitsu:') })   // anime has no IMDb number: its card already holds what the list knows
+  const q = useQuery({ queryKey: ['discover-one', item.kind, item.imdb] as const, queryFn: () => api<FoundOne>(`/api/screen/discover/${item.kind === 'tv' ? 'series' : 'movie'}/${item.imdb}`), retry: false, staleTime: 10 * 60_000, enabled: /^(tt\d+|tmdb-\d+)$/.test(item.imdb) })   // a title with no IMDb number (anime, some add-ons): its card already holds what the list knows
   const d = q.data ?? { ...item, runtime: '', cast: [], director: [], trailer: '', seasons: 0 }
   const lib = d.library ?? item.library
   return (
@@ -168,14 +169,18 @@ function DetailPanel({ item }: { item: Found }) {
 }
 
 type Kind = 'movie' | 'series'
-type Catalog = 'popular' | 'new' | 'featured' | 'netflix' | 'hbomax' | 'disney' | 'prime' | 'apple' | 'anime-airing' | 'anime-series' | 'anime-movies'
+type Catalog = 'popular' | 'new' | 'featured' | 'netflix' | 'hbomax' | 'disney' | 'prime' | 'apple' | 'anime-airing' | 'anime-series' | 'anime-movies' | `addon:${string}`
 /** The lists Discover can show: three from Cinemeta, what is on each streaming service, and MyAnimeList's top anime (those three are anime of both kinds, so Kind does not apply). */
 const CATALOGS: ReadonlyArray<readonly [Catalog, string]> = [['popular', 'Popular'], ['new', 'New'], ['featured', 'Featured'], ['netflix', 'Netflix'], ['hbomax', 'HBO Max'], ['disney', 'Disney+'], ['prime', 'Prime Video'], ['apple', 'Apple TV+'], ['anime-airing', 'Anime airing now'], ['anime-series', 'Top anime series'], ['anime-movies', 'Top anime movies']]
-const isAnime = (c: Catalog) => c.startsWith('anime-')
+/** Anime lists and lists of an added add-on have titles of their own kind, so Kind does not apply to them. */
+const isAnime = (c: Catalog) => c.startsWith('anime-') || c.startsWith('addon:')
+const addonKey = (a: Addon, l: Addon['lists'][number]): Catalog => `addon:${a.id}:${l.type}:${encodeURIComponent(l.id)}`
+const addonLabel = (a: Addon, l: Addon['lists'][number]) => `${a.name}: ${l.name} (${l.type === 'movie' ? 'movies' : l.type === 'series' ? 'series' : 'anime'})`
+const labelOf = (c: Catalog, addons: readonly Addon[]) => CATALOGS.find(([v]) => v === c)?.[1] ?? addons.flatMap((a) => a.lists.map((l) => [addonKey(a, l), addonLabel(a, l)] as const)).find(([v]) => v === c)?.[1] ?? c
 const OPTION = 'h-9 rounded-full border px-3.5 text-[13px] font-semibold transition-colors'
 
 /** One filter for Discover, like the one on the Photos page: a pill with a count of what is chosen, opening a panel with the kind and the genre. */
-function DiscoverFilters({ kind, setKind, genre, setGenre, catalog, setCatalog, off }: { kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void; catalog: Catalog; setCatalog: (c: Catalog) => void; off: boolean }) {
+function DiscoverFilters({ kind, setKind, genre, setGenre, catalog, setCatalog, addons, off }: { kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void; catalog: Catalog; setCatalog: (c: Catalog) => void; addons: readonly Addon[]; off: boolean }) {
   const count = (kind === 'series' && !isAnime(catalog) ? 1 : 0) + (genre ? 1 : 0) + (catalog !== 'popular' ? 1 : 0)
   const pick = (on: boolean) => cn(OPTION, on ? 'border-accent/60 bg-accent/15 text-fg' : 'border-line text-muted hover:bg-fg/5 hover:text-fg')
   return (
@@ -187,7 +192,7 @@ function DiscoverFilters({ kind, setKind, genre, setGenre, catalog, setCatalog, 
             <div role="group" aria-label="Kind" className="flex gap-1.5">
               {([['movie', 'Movies'], ['series', 'Series']] as const).map(([v, label]) => <button key={v} type="button" disabled={isAnime(catalog)} aria-pressed={kind === v && !isAnime(catalog)} onClick={() => setKind(v)} className={cn(pick(kind === v && !isAnime(catalog)), 'disabled:opacity-40')}>{label}</button>)}
             </div>
-            {isAnime(catalog) ? <p className="text-xs text-muted">Anime lists have their own series and movies.</p> : null}
+            {isAnime(catalog) ? <p className="text-xs text-muted">This list has its own kind of titles.</p> : null}
           </div>
           <div className="grid gap-2">
             <h3 className="text-sm font-bold">List</h3>
@@ -195,6 +200,14 @@ function DiscoverFilters({ kind, setKind, genre, setGenre, catalog, setCatalog, 
               {CATALOGS.map(([v, label]) => <button key={v} type="button" aria-pressed={catalog === v} onClick={() => setCatalog(v)} className={pick(catalog === v)}>{label}</button>)}
             </div>
           </div>
+          {addons.some((a) => a.lists.length) ? (
+            <div className="grid gap-2">
+              <h3 className="text-sm font-bold">Your add-ons</h3>
+              <div role="group" aria-label="Your add-ons" className="flex flex-wrap gap-1.5">
+                {addons.flatMap((a) => a.lists.map((l) => <button key={addonKey(a, l)} type="button" aria-pressed={catalog === addonKey(a, l)} onClick={() => setCatalog(addonKey(a, l))} className={pick(catalog === addonKey(a, l))}>{addonLabel(a, l)}</button>))}
+              </div>
+            </div>
+          ) : null}
           <div className="grid gap-2">
             <h3 className="text-sm font-bold">Genre</h3>
             <div role="group" aria-label="Genre" className="flex flex-wrap gap-1.5">
@@ -215,6 +228,7 @@ function DiscoverFilters({ kind, setKind, genre, setGenre, catalog, setCatalog, 
 function Discover({ text, kind, setKind, genre, setGenre, catalog, setCatalog }: { text: string; kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void; catalog: Catalog; setCatalog: (c: Catalog) => void }) {
   const [open, setOpen] = useState<Found | null>(null)
   const [focus, setFocus] = useState<Found | null>(null)
+  const addons = useAddons().data?.items ?? []
   const wide = useWide()
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
@@ -222,7 +236,7 @@ function Discover({ text, kind, setKind, genre, setGenre, catalog, setCatalog }:
   const q = useInfiniteQuery({
     queryKey: ['discover', kind, genre, catalog, search] as const,
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api<FoundPage>(`/api/screen/discover?type=${kind}&skip=${pageParam}${genre && !search ? `&genre=${encodeURIComponent(genre)}` : ''}${catalog !== 'popular' && !search ? `&catalog=${catalog}` : ''}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+    queryFn: ({ pageParam }) => api<FoundPage>(`/api/screen/discover?type=${kind}&skip=${pageParam}${genre && !search ? `&genre=${encodeURIComponent(genre)}` : ''}${catalog !== 'popular' && !search ? `&catalog=${encodeURIComponent(catalog)}` : ''}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
     getNextPageParam: (last, all) => (last.more ? (last.next ?? all.length * 50) : undefined),
     staleTime: 5 * 60_000,
     retry: false,
@@ -235,11 +249,11 @@ function Discover({ text, kind, setKind, genre, setGenre, catalog, setCatalog }:
   return (
     <section aria-label="Discover" className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-extrabold tracking-tight">{search ? `Results for “${search}”` : (isAnime(catalog) ? [CATALOGS.find(([v]) => v === catalog)?.[1], genre] : [catalog !== 'popular' ? CATALOGS.find(([v]) => v === catalog)?.[1] : '', genre || (catalog === 'popular' ? 'Popular' : ''), kind === 'movie' ? 'movies' : 'series']).filter(Boolean).join(' ')}</h2>
-        <DiscoverFilters kind={kind} setKind={(k) => { setKind(k); setFocus(null) }} genre={genre} setGenre={(g) => { setGenre(g); setFocus(null) }} catalog={catalog} setCatalog={(c) => { setCatalog(c); setFocus(null) }} off={Boolean(search)} />
+        <h2 className="text-xl font-extrabold tracking-tight">{search ? `Results for “${search}”` : (isAnime(catalog) ? [labelOf(catalog, addons), genre] : [catalog !== 'popular' ? labelOf(catalog, addons) : '', genre || (catalog === 'popular' ? 'Popular' : ''), kind === 'movie' ? 'movies' : 'series']).filter(Boolean).join(' ')}</h2>
+        <DiscoverFilters kind={kind} setKind={(k) => { setKind(k); setFocus(null) }} genre={genre} setGenre={(g) => { setGenre(g); setFocus(null) }} catalog={catalog} setCatalog={(c) => { setCatalog(c); setFocus(null) }} addons={addons} off={Boolean(search)} />
       </div>
       {off ? <p role="status" className="rounded-2xl border border-dashed border-line p-6 text-sm text-muted">Discover uses Cinemeta, the Stremio project's open catalogue, and it is switched off. Turn it on in Settings, Metadata.</p>
-        : needKey ? <p role="status" className="rounded-2xl border border-dashed border-line p-6 text-sm text-muted">What is on {CATALOGS.find(([v]) => v === catalog)?.[1]} comes from TMDB. Add a free TMDB key in Settings, Metadata to see it.</p>
+        : needKey ? <p role="status" className="rounded-2xl border border-dashed border-line p-6 text-sm text-muted">What is on {labelOf(catalog, addons)} comes from TMDB. Add a free TMDB key in Settings, Metadata to see it.</p>
         : q.isError ? <p role="alert" className="rounded-2xl border border-dashed border-line p-6 text-sm text-warn">The catalogue could not be reached. Check the internet connection and try again.</p>
         : q.isPending ? <p role="status" className="py-6 text-sm text-muted">Loading the catalogue…</p>
         : !items.length ? <p role="status" className="py-6 text-sm text-muted">Nothing found.</p>

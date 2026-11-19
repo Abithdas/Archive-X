@@ -285,6 +285,81 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 "poster": m.get("poster") or "", "background": m.get("background") or "", "rating": str(m.get("imdbRating") or ""),
                 "overview": m.get("description") or "", "genres": [g for g in (m.get("genres") or []) if isinstance(g, str)][:4], "library": mine.get(imdb)}
 
+    # ------------------------------------------------------------------
+    # Add-ons the person adds (Settings, Addons): extra Stremio catalogue add-ons whose lists show in Discover.
+    # ------------------------------------------------------------------
+    import hashlib as _hashlib
+    from ..metadata import addon_client as ac
+    BUILTIN_ADDONS = [
+        {"name": "Cinemeta", "what": "Popular, New and Featured movies and series, and the details of every title"},
+        {"name": "Streaming Catalogs", "what": "What is on Netflix, HBO Max, Disney+, Prime Video and Apple TV+"},
+        {"name": "Anime Catalogs", "what": "MyAnimeList's top airing, top series and top movies"},
+    ]
+    MAX_ADDONS = 12
+
+    def _saved_addons() -> list[dict]:
+        raw = db.setting("catalog_addons")
+        out = []
+        for a in raw if isinstance(raw, list) else []:
+            if isinstance(a, dict) and isinstance(a.get("url"), str) and re.fullmatch(r"[0-9a-f]{10}", str(a.get("id") or "")):
+                out.append({"id": a["id"], "url": a["url"], "name": str(a.get("name") or "")[:60]})
+        return out
+
+    def _addon_json(url: str):
+        """An add-on's answer, kept ten minutes like the other catalogues."""
+        hit = discover_cache.get(url)
+        if hit and _time.monotonic() - hit[0] < 600:
+            return hit[1]
+        got = ac.get_json(url)
+        if len(discover_cache) > 200:
+            discover_cache.clear()
+        discover_cache[url] = (_time.monotonic(), got)
+        return got
+
+    def _addons_view() -> dict:
+        items = []
+        for a in _saved_addons():
+            try:
+                items.append({"id": a["id"], "url": a["url"], **ac.parse_manifest(_addon_json(a["url"] + "/manifest.json"))})
+            except Exception as exc:
+                items.append({"id": a["id"], "url": a["url"], "name": a["name"] or a["url"].split("/")[2], "description": "", "version": "", "lists": [], "error": str(exc)[:160] or "It could not be reached."})
+        return {"builtin": BUILTIN_ADDONS, "items": items}
+
+    @router.get("/api/screen/addons")
+    async def addons_list(request: Request):
+        require_auth(request)
+        return await asyncio.to_thread(_addons_view)
+
+    @router.post("/api/screen/addons")
+    async def addons_add(request: Request):
+        """Add a catalogue add-on by its address (a manifest link, or a stremio:// link): it must answer as an add-on with lists to browse."""
+        require_auth(request)
+        body = await request.json()
+        saved = _saved_addons()
+        if len(saved) >= MAX_ADDONS:
+            raise HTTPException(400, f"At most {MAX_ADDONS} add-ons.")
+
+        def work():
+            base = ac.base_of(str((body or {}).get("url") or ""))
+            manifest = ac.parse_manifest(ac.get_json(base + "/manifest.json"))
+            return base, manifest
+        try:
+            base, manifest = await asyncio.to_thread(work)
+        except (ValueError, OSError, json.JSONDecodeError) as exc:
+            raise HTTPException(400, str(exc) if isinstance(exc, ValueError) else "That address did not answer as an add-on.") from exc
+        aid = _hashlib.sha1(base.encode()).hexdigest()[:10]
+        if any(a["id"] == aid for a in saved):
+            raise HTTPException(400, "That add-on is already added.")
+        await asyncio.to_thread(db.set_setting, "catalog_addons", [*saved, {"id": aid, "url": base, "name": manifest["name"]}])
+        return await asyncio.to_thread(_addons_view)
+
+    @router.delete("/api/screen/addons/{addon_id}")
+    async def addons_remove(addon_id: str, request: Request):
+        require_auth(request)
+        saved = _saved_addons()
+        await asyncio.to_thread(db.set_setting, "catalog_addons", [a for a in saved if a["id"] != addon_id])
+        return await asyncio.to_thread(_addons_view)
+
     @router.get("/api/screen/discover")
     async def discover(request: Request, kind: str = Query("movie", alias="type"), genre: str = "", skip: int = 0, search: str = "", catalog: str = "popular"):
         """A list of movies or series to find (Popular, New, Featured from Cinemeta; Netflix, HBO Max, Disney+, Prime Video, Apple TV+ from TMDB), by genre, or a search: what you could add, with the ones you already have marked."""
@@ -293,10 +368,42 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             raise HTTPException(400, "type must be movie or series")
         if genre and genre not in GENRES:
             raise HTTPException(400, "Unknown genre")
-        if catalog not in CATALOGS and catalog not in SERVICES and catalog not in ANIME_LISTS:
+        if catalog not in CATALOGS and catalog not in SERVICES and catalog not in ANIME_LISTS and not re.fullmatch(r"addon:[0-9a-f]{10}:(movie|series|anime):[\w.\-%]{1,80}", catalog):
             raise HTTPException(400, "Unknown list")
         text = re.sub(r"\s+", " ", str(search or "")).strip()[:80]
         skip_n = max(0, int(skip or 0))
+        if catalog.startswith("addon:") and not text:
+            if not await asyncio.to_thread(sid.cinemeta_on, db):
+                return {"ok": True, "disabled": True, "items": []}
+            _, aid, atype, cid = catalog.split(":", 3)
+            addon = next((a for a in _saved_addons() if a["id"] == aid), None)
+            if addon is None:
+                raise HTTPException(404, "That add-on is not added")
+
+            def addon_work():
+                try:
+                    listed = next((l for l in ac.parse_manifest(_addon_json(addon["url"] + "/manifest.json"))["lists"] if l["type"] == atype and l["id"] == cid), None)
+                    if listed is None:
+                        return None
+                    extras = ([f"genre={si.quote(genre, safe='')}"] if genre and listed["genre"] else []) + ([f"skip={min(skip_n, 2000)}"] if skip_n and listed["skip"] else [])
+                    got = _addon_json(addon["url"] + f"/catalog/{atype}/{si.quote(cid, safe='')}" + (("/" + "&".join(extras)) if extras else "") + ".json")
+                except Exception as exc:
+                    db.log(f"Discover could not reach the add-on {addon['name']}: {type(exc).__name__}: {exc}"[:300], "WARN")
+                    return None
+                metas = [m for m in ((got or {}).get("metas") or []) if isinstance(m, dict) and m.get("id")] if isinstance(got, dict) else []
+                if genre and not listed["genre"]:
+                    metas = [m for m in metas if genre in (m.get("genres") or [])]
+                if listed["skip"]:
+                    page, more, nxt = metas, len(metas) >= 40, min(skip_n, 2000) + len(metas)
+                else:
+                    start = skip_n // PAGE * PAGE
+                    page, more, nxt = metas[start:start + PAGE], len(metas) > start + PAGE, start + PAGE
+                mine = _in_library([str(m.get("imdb_id") or m.get("id")) for m in page])
+                return [{**_card(m, mine), "kind": "movie" if atype == "movie" else "tv"} for m in page], more, nxt
+            made_addon = await asyncio.to_thread(addon_work)
+            if made_addon is None:
+                raise HTTPException(502, "The list could not be reached")
+            return {"ok": True, "disabled": False, "items": made_addon[0], "more": made_addon[1], "next": made_addon[2]}
         if catalog in ANIME_LISTS and not text:
             if not await asyncio.to_thread(sid.cinemeta_on, db):
                 return {"ok": True, "disabled": True, "items": []}

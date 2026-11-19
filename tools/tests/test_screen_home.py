@@ -155,3 +155,81 @@ def test_discover_has_new_and_featured_from_cinemeta_streaming_lists_from_an_add
     assert c.get("/api/screen/discover?catalog=anime-series&genre=Action").json()["items"][0]["overview"] == "Two brothers."
     c.post("/api/screen/settings", json={"cinemeta_enabled": False}, headers=H)
     assert c.get("/api/screen/discover?catalog=anime-airing").json()["disabled"] is True and c.get("/api/screen/discover?type=movie&catalog=netflix").json()["disabled"] is True
+
+
+PUBLIC = [(0, 0, 0, "", ("93.184.216.34", 443))]
+MANIFEST = {"id": "x.catalogs", "name": "My Catalogs", "version": "1.2.0", "description": "Test lists.", "resources": ["catalog"], "types": ["movie", "series"],
+            "catalogs": [{"type": "movie", "id": "top", "name": "Top films", "extra": [{"name": "genre"}, {"name": "skip"}]},
+                         {"type": "series", "id": "all", "name": "All shows", "extra": []},
+                         {"type": "movie", "id": "search", "name": "Search", "extra": [{"name": "search", "isRequired": True}]}]}
+
+
+def test_the_person_can_add_a_catalogue_addon_by_its_address_and_its_lists_show_in_discover(tmp_path, monkeypatch):
+    from telegram_archive.metadata import addon_client as ac
+    seen: list[str] = []
+
+    def get_json(url):
+        seen.append(url)
+        if url.endswith("/manifest.json"):
+            return MANIFEST if "good.example" in url else {"name": "Streams only", "resources": ["stream"], "catalogs": []}
+        if "/catalog/movie/top/genre=Drama" in url:
+            return {"metas": [{"id": "tt0133093", "type": "movie", "name": "The Matrix", "year": "1999", "genres": ["Drama"]}]}
+        if url.endswith("/catalog/series/all.json"):
+            return {"metas": [{"id": "tt0903747", "type": "series", "name": "Breaking Bad", "genres": ["Drama"]}, {"id": "tt0000002", "type": "series", "name": "Other", "genres": ["Comedy"]}]}
+        return {"metas": []}
+    monkeypatch.setattr(ac, "get_json", get_json)
+    monkeypatch.setattr(ac, "_resolve", lambda host: PUBLIC)
+    db = Database(tmp_path / "a.db")
+    _library(db)
+    c = _client(db)
+    assert c.get("/api/screen/addons").json()["items"] == [] and len(c.get("/api/screen/addons").json()["builtin"]) == 3
+    for bad, why in (("http://good.example/manifest.json", "https://"), ("https://127.0.0.1/manifest.json", "inside"), ("https://user:pw@good.example/manifest.json", "not an add-on address"),
+                     ("https://good.example:8080/manifest.json", "ports"), ("nonsense", "https://"), ("https://streams.example/manifest.json", "no lists")):
+        if "127.0.0.1" in bad:
+            monkeypatch.setattr(ac, "_resolve", lambda host: [(0, 0, 0, "", ("127.0.0.1", 443))])
+        r = c.post("/api/screen/addons", json={"url": bad}, headers=H)
+        assert r.status_code == 400 and why in r.json()["detail"], (bad, r.text)
+        monkeypatch.setattr(ac, "_resolve", lambda host: PUBLIC)
+    got = c.post("/api/screen/addons", json={"url": "stremio://good.example/cfg%7B%7D/manifest.json"}, headers=H).json()      # a stremio:// link is the same address over HTTPS
+    add = got["items"][0]
+    assert add["name"] == "My Catalogs" and add["url"] == "https://good.example/cfg%7B%7D" and [l["name"] for l in add["lists"]] == ["Top films", "All shows"]   # the search-only list is left out
+    assert c.post("/api/screen/addons", json={"url": "https://good.example/cfg%7B%7D/manifest.json"}, headers=H).status_code == 400   # the same add-on twice
+    aid = add["id"]
+    # its lists in Discover: the add-on's own genre and paging when it has them, ours when it has not; titles with IMDb numbers are marked
+    top = c.get(f"/api/screen/discover?catalog=addon:{aid}:movie:top&genre=Drama").json()
+    assert [i["title"] for i in top["items"]] == ["The Matrix"] and top["items"][0]["library"] == {"kind": "movie", "id": 1} and top["items"][0]["kind"] == "movie"
+    assert any("/catalog/movie/top/genre=Drama.json" in u for u in seen)
+    shows = c.get(f"/api/screen/discover?catalog=addon:{aid}:series:all&genre=Drama").json()
+    assert [i["title"] for i in shows["items"]] == ["Breaking Bad"] and shows["items"][0]["kind"] == "tv"
+    assert c.get(f"/api/screen/discover?catalog=addon:{aid}:series:nope").status_code == 502 and c.get("/api/screen/discover?catalog=addon:0123456789:movie:top").status_code == 404
+    assert c.get("/api/screen/discover?catalog=addon:../x").status_code == 400
+    # a saved add-on that stops answering is still listed, with what is wrong
+    monkeypatch.setattr(ac, "get_json", lambda url: (_ for _ in ()).throw(OSError("down")))
+    discover_cache_clear = c.get("/api/screen/addons")                                                         # (answers are kept ten minutes, so this one still has the lists)
+    assert discover_cache_clear.json()["items"][0]["name"] == "My Catalogs"
+    after = c.delete(f"/api/screen/addons/{aid}", headers=H).json()
+    assert after["items"] == [] and c.get(f"/api/screen/discover?catalog=addon:{aid}:movie:top").status_code == 404
+
+
+def test_the_addon_address_check_refuses_inside_addresses_and_trusts_the_proxy_only_for_names(monkeypatch):
+    import urllib.request
+    from telegram_archive.metadata import addon_client as ac
+
+    def down(host):
+        raise OSError("no direct lookup")
+    monkeypatch.setattr(ac, "_resolve", down)
+    monkeypatch.setattr(urllib.request, "getproxies", lambda: {})
+    try:
+        ac.check_public("https://good.example/manifest.json")
+        raise AssertionError("an unresolvable name must be refused without a proxy")
+    except ValueError as exc:
+        assert "could not be found" in str(exc)
+    monkeypatch.setattr(urllib.request, "getproxies", lambda: {"https": "http://proxy:3128"})
+    assert ac.check_public("https://good.example/manifest.json") == "https://good.example/manifest.json"             # behind a proxy the proxy looks the name up
+    for bad in ("https://127.0.0.1/x", "https://10.0.0.5/x", "https://192.168.0.1/x", "https://169.254.169.254/x", "https://[::1]/x", "https://localhost/x", "https://nas.local/x", "https://intranet/x", "https://printer.lan/x"):
+        try:
+            ac.check_public(bad)
+            raise AssertionError(bad)
+        except ValueError as exc:
+            assert "inside" in str(exc), bad                                                                          # an inside address is refused even with a proxy
+    assert ac.base_of("stremio://good.example/cfg/manifest.json") == "https://good.example/cfg"

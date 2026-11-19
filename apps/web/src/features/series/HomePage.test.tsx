@@ -146,4 +146,15 @@ describe('SFW Home', () => {
     expect(await screen.findByText('Pirates.')).toBeInTheDocument()
     expect(urls.some((u) => u.includes('/discover/series/kitsu'))).toBe(false)
   })
+
+  it('puts the lists of the add-ons you added in Filters, and asks the server for the one you pick', async () => {
+    const addon = { id: 'abcdef0123', url: 'https://good.example', name: 'My Catalogs', description: '', version: '', lists: [{ type: 'movie', id: 'top', name: 'Top films' }] }
+    const urls = mount((u) => (u === '/api/screen/addons' ? json({ builtin: [], items: [addon] }) : u.includes('catalog=addon') ? json({ ok: true, items: [found(5, 'From the add-on')], more: false }) : undefined))
+    await toDiscover()
+    fireEvent.click(await screen.findByRole('button', { name: /Filters/ }))
+    fireEvent.click(await within(await screen.findByRole('group', { name: 'Your add-ons' })).findByRole('button', { name: 'My Catalogs: Top films (movies)' }))
+    expect(await screen.findByRole('heading', { name: 'My Catalogs: Top films (movies)' })).toBeInTheDocument()
+    await vi.waitFor(() => expect(urls.some((u) => u.includes('catalog=addon%3Aabcdef0123%3Amovie%3Atop'))).toBe(true))
+    expect(within(screen.getByRole('group', { name: 'Kind' })).getByRole('button', { name: 'Series' })).toBeDisabled()    // the add-on's list has its own kind
+  })
 })
