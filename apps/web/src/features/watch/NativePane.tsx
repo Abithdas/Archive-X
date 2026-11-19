@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import { api } from '@/api/client'
 import { cn } from '@/design/cn'
 import { CcMenu } from './CcMenu'
-import { native, pixelRect, type NativeCommand, type NativeTrack, type Opened, type Snapshot } from './nativeBridge'
+import { deviceScale, native, pixelRect, type NativeCommand, type NativeTrack, type Opened, type Snapshot } from './nativeBridge'
 import { afterJump, aspectOf, quiet, stallStep, videoVisible, type StallState } from './nativeLogic'
 import { releasePlayback } from './release'
 import { PlayIcon } from './PlayerIcons'
@@ -90,7 +90,7 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
     }
     if (stage.current && document.fullscreenElement === box.current) {
       // Full screen: the stage is the whole screen above the bar; the picture keeps its own shape inside it, centred.
-      const r = stage.current.getBoundingClientRect(); const ratio = window.devicePixelRatio || 1
+      const r = stage.current.getBoundingClientRect(); const ratio = deviceScale(stage.current)
       const w = Math.min(r.width, r.height * shapeRef.current); const h = w / shapeRef.current
       return { x: Math.round((r.left + (r.width - w) / 2) * ratio), y: Math.round((r.top + (r.height - h) / 2) * ratio), w: Math.round(w * ratio), h: Math.round(h * ratio) }
     }
@@ -158,9 +158,10 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
       soon()
     }
     window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('wheel', onScroll, { capture: true, passive: true })   // the first tick of a wheel hides the picture at once: the scroll event itself can arrive after the window has already been left behind
     document.addEventListener('toggle', soon, true)
     soon()
-    return () => { ro.disconnect(); mo.disconnect(); window.removeEventListener('resize', soon); window.removeEventListener('scroll', onScroll, true); if (settle) clearTimeout(settle); document.removeEventListener('toggle', soon, true); if (raf) cancelAnimationFrame(raf) }
+    return () => { ro.disconnect(); mo.disconnect(); window.removeEventListener('resize', soon); window.removeEventListener('scroll', onScroll, true); window.removeEventListener('wheel', onScroll, true); if (settle) clearTimeout(settle); document.removeEventListener('toggle', soon, true); if (raf) cancelAnimationFrame(raf) }
   }, [phase, sync])
 
   // ---- what the engine is doing, four times a second; also the slow-motion watch and the callbacks the page listens to

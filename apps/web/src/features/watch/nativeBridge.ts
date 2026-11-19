@@ -1,6 +1,8 @@
 /** The desktop app's native video player (native/axplayer), reached through the Tauri commands in apps/desktop/src-tauri/src/native.rs.
  *  Only the installed app has them; in a browser `hasNativeBridge()` is false and nothing here is used. */
 
+import { pageZoom } from '@/features/library/screenGrid'
+
 type Invoke = (command: string, args?: Record<string, unknown>) => Promise<unknown>
 
 const invoke = (): Invoke | undefined => (window as unknown as { __TAURI_INTERNALS__?: { invoke?: Invoke } }).__TAURI_INTERNALS__?.invoke
@@ -44,11 +46,24 @@ export const native = {
   diagnostics: () => call<string>('native_diagnostics'),
 }
 
-/** An element's place in device pixels. getBoundingClientRect is in the page's own pixels, zoom included (the app zooms wide windows), so only
- *  the screen's pixel ratio is left to apply. */
-export function pixelRect(el: Element, ratio: number = window.devicePixelRatio || 1): PixelRect {
+/**
+ * How many device pixels one pixel of `el.getBoundingClientRect()` is. The app zooms the page (wide windows, and the Settings display size), and which
+ * pixels a browser reports then depends on its version: newer ones report the zoomed ones (the rect is as big on screen as it says), older ones the
+ * unzoomed ones. The element's own width settles it: if its rect is about `zoom` times its layout width the rect is already zoomed, if it is about the
+ * same the rect is not and the zoom is applied here. With no zoom there is nothing to tell apart.
+ */
+export function deviceScale(el: Element, ratio: number = window.devicePixelRatio || 1, zoom: number = pageZoom()): number {
+  const layout = (el as HTMLElement).offsetWidth
+  if (!(Math.abs(zoom - 1) > 0.01) || !(layout > 0)) return ratio
+  const seen = el.getBoundingClientRect().width / layout
+  return Math.abs(seen - zoom) <= Math.abs(seen - 1) ? ratio : ratio * zoom
+}
+
+/** An element's place in device pixels. */
+export function pixelRect(el: Element, ratio: number = window.devicePixelRatio || 1, zoom: number = pageZoom()): PixelRect {
   const r = el.getBoundingClientRect()
-  return { x: Math.round(r.left * ratio), y: Math.round(r.top * ratio), w: Math.round(r.width * ratio), h: Math.round(r.height * ratio) }
+  const k = deviceScale(el, ratio, zoom)
+  return { x: Math.round(r.left * k), y: Math.round(r.top * k), w: Math.round(r.width * k), h: Math.round(r.height * k) }
 }
 
 /** The app's own update, kept by the desktop shell (apps/desktop/src-tauri/src/updates.rs). */
