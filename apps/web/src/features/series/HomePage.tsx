@@ -31,6 +31,7 @@ interface HomeData { continue: Resume[]; airing: Airing[]; recent: Recent[]; bil
 interface Found { imdb: string; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string; background: string; rating: string; overview: string; genres: string[]; library: { kind: 'tv' | 'movie'; id: number } | null }
 interface FoundPage { items: Found[]; more?: boolean; next?: number; disabled?: boolean; needs_key?: boolean }
 interface FoundOne extends Found { runtime: string; cast: string[]; director: string[]; trailer: string; seasons: number }
+const pageParams = (item: Found) => ({ kind: item.kind === 'tv' ? 'series' : 'movie', id: item.imdb })
 
 const openIn = (kind: 'tv' | 'movie') => (kind === 'tv' ? '/series/$id' : '/movies/$id')
 
@@ -124,10 +125,11 @@ function Details({ item, onClose }: { item: Found; onClose: () => void }) {
           <p className="text-[15px] leading-relaxed">{d.overview || (q.isLoading ? 'Loading…' : 'No description.')}</p>
           {d.director.length ? <p className="text-sm"><span className="text-muted">Directed by </span>{d.director.join(', ')}</p> : null}
           {d.cast.length ? <p className="text-sm"><span className="text-muted">With </span>{d.cast.join(', ')}</p> : null}
-          {!lib && /^(tt\d+|tmdb-\d+)$/.test(item.imdb) ? <WhereToWatch kind={item.kind} ident={item.imdb} /> : null}
+          {!lib && /^(tt\d+|tmdb-\d+)$/.test(item.imdb) ? <WhereToWatch kind={item.kind} ident={item.imdb} title={item.title} /> : null}
           <div className="mt-1 flex flex-wrap items-center gap-2">
             {lib ? <Link to={openIn(lib.kind)} params={{ id: String(lib.id) }} onClick={onClose} className="inline-flex h-10 items-center rounded-xl bg-accent px-5 text-sm font-bold text-accent-fg">Open in your library</Link>
               : <span className="inline-flex h-10 items-center rounded-xl border border-line-2 px-4 text-sm text-muted">Not in your library</span>}
+            {/^(tt\d+|tmdb-\d+)$/.test(item.imdb) ? <Link to="/discover/$kind/$id" params={pageParams(item)} onClick={onClose} className="inline-flex h-10 items-center rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5">Open the page</Link> : null}
             {d.trailer ? <a href={`https://www.youtube.com/watch?v=${d.trailer}`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5">Watch the trailer</a> : null}
           </div>
         </div>
@@ -170,10 +172,11 @@ function DetailPanel({ item }: { item: Found }) {
         <Chips label="Genres" items={d.genres} />
         <Chips label="Cast" items={d.cast.slice(0, 4)} />
         <Chips label="Directors" items={d.director.slice(0, 2)} />
-        {!lib && /^(tt\d+|tmdb-\d+)$/.test(item.imdb) ? <WhereToWatch kind={item.kind} ident={item.imdb} /> : null}
+        {!lib && /^(tt\d+|tmdb-\d+)$/.test(item.imdb) ? <WhereToWatch kind={item.kind} ident={item.imdb} title={item.title} /> : null}
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {lib ? <Link to={openIn(lib.kind)} params={{ id: String(lib.id) }} className="inline-flex h-11 items-center gap-2 rounded-full bg-fg px-6 text-sm font-bold text-bg transition-transform active:scale-[0.97]"><Icon name="play" className="size-4" />Open in your library</Link>
             : <span className="inline-flex h-11 items-center rounded-full border border-line-2 px-5 text-sm text-muted">Not in your library</span>}
+          {/^(tt\d+|tmdb-\d+)$/.test(item.imdb) ? <Link to="/discover/$kind/$id" params={pageParams(item)} className="inline-flex h-11 items-center rounded-full border border-line-2 px-5 text-sm font-semibold transition-colors hover:bg-fg/10">Open the page</Link> : null}
           {d.trailer ? <a href={`https://www.youtube.com/watch?v=${d.trailer}`} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center rounded-full border border-line-2 px-5 text-sm font-semibold transition-colors hover:bg-fg/10">Watch the trailer</a> : null}
         </div>
       </div>

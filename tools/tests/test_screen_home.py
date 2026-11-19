@@ -60,6 +60,10 @@ def fake(url, params, headers):
     if url.endswith("/meta/movie/tt0133093.json"):
         return {"meta": {"imdb_id": "tt0133093", "type": "movie", "name": "The Matrix", "year": "1999", "runtime": "136 min", "cast": ["Keanu Reeves"], "director": ["Lana Wachowski"],
                          "trailers": [{"source": "m8e-FF8MsqU", "type": "Trailer"}], "background": "http://b/1"}}
+    if url.endswith("/meta/series/tt0903747.json"):
+        return {"meta": {"id": "tt0903747", "type": "series", "name": "Breaking Bad", "year": "2008", "background": "https://b/bb.jpg", "logo": "https://l/bb.png",
+                         "videos": [{"season": 1, "episode": 2, "title": "Cat's in the Bag...", "released": "2008-01-27T00:00:00.000Z", "overview": "Walt.", "thumbnail": "https://t/2.jpg"},
+                                    {"season": 1, "episode": 1, "title": "Pilot", "released": "2008-01-20T00:00:00.000Z", "thumbnail": "javascript:x"}, {"season": 0, "episode": 1, "title": "Special"}, {"nonsense": True}]}}
     return {}
 
 
@@ -347,3 +351,20 @@ def test_movies_and_series_carry_what_their_copies_have_for_the_filters(tmp_path
     assert (movie["res"], movie["sources"], movie["hdr"]) == ([2160], ["BluRay"], ["HDR"])
     show = c.get("/api/screen/series").json()["items"][0]
     assert (show["res"], show["sources"], show["langs"]) == ([720], ["WEB-DL"], ["French"])
+
+
+def test_a_title_page_has_the_episodes_and_where_to_watch_opens_each_service(tmp_path, monkeypatch):
+    monkeypatch.setattr(sid, "http_fetch", fake)
+    db = Database(tmp_path / "p.db")
+    _library(db)
+    c = _client(db)
+    db.set_setting("tmdb_api_key", "k" * 32)
+    one = c.get("/api/screen/discover/series/tt0903747").json()
+    assert [(x["season"], [e["episode"] for e in x["episodes"]]) for x in one["episodes"]] == [(0, [1]), (1, [1, 2])]          # in order, specials first
+    ep = one["episodes"][1]["episodes"]
+    assert ep[1]["name"] == "Cat's in the Bag..." and ep[1]["released"] == "2008-01-27" and ep[1]["thumb"] == "https://t/2.jpg" and ep[0]["thumb"] == ""    # a picture address that is not https is dropped
+    assert one["logo"] == "https://l/bb.png" and one["background"] == "https://b/bb.jpg"
+    where = c.get("/api/screen/where/movie/tt0133093?region=US&title=The%20Matrix%3A%20Reloaded").json()
+    flat = {p["name"]: p["open"] for g in where["groups"] for p in g["providers"]}
+    assert flat["Netflix"] == "https://www.netflix.com/search?q=The%20Matrix%3A%20Reloaded" and flat["Apple TV"] == "https://tv.apple.com/search?term=The%20Matrix%3A%20Reloaded"
+    assert [p["open"] for g in c.get("/api/screen/where/movie/tt0133093?region=US").json()["groups"] for p in g["providers"]] == ["", ""]   # no title, no service links

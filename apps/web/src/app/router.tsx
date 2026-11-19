@@ -2,6 +2,8 @@ import { noteLeft } from '@/features/entities/origin'
 import { Link, createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
 import { lazy } from 'react'
 const MovieDetailPage = lazy(() => import('@/features/series/MoviesPage').then((m) => ({ default: m.MovieDetailPage })))
+const DiscoverTitlePage = lazy(() => import('@/features/series/DiscoverPages').then((m) => ({ default: m.DiscoverTitlePage })))
+const DiscoverEpisodePage = lazy(() => import('@/features/series/DiscoverPages').then((m) => ({ default: m.DiscoverEpisodePage })))
 const SeriesDetailPage = lazy(() => import('@/features/series/SeriesPage').then((m) => ({ default: m.SeriesDetailPage })))
 const LibraryPage = lazy(() => import('@/features/library/LibraryPage').then((m) => ({ default: m.LibraryPage })))
 const EntityDirectory = lazy(() => import('@/features/entities/EntityDirectory').then((m) => ({ default: m.EntityDirectory })))
@@ -40,6 +42,24 @@ const seriesDetail = createRoute({
   component: function SeriesRoute() {
     const { id } = seriesDetail.useParams()
     return <SeriesDetailPage id={Number(id)} />
+  },
+})
+
+const kindOf = (v: string): 'movie' | 'series' => (v === 'series' ? 'series' : 'movie')
+const discoverTitle = createRoute({
+  getParentRoute: () => root,
+  path: '/discover/$kind/$id',
+  component: function DiscoverTitleRoute() {
+    const { kind, id } = discoverTitle.useParams()
+    return <DiscoverTitlePage key={`${kind}:${id}`} kind={kindOf(kind)} id={id} />
+  },
+})
+const discoverEpisode = createRoute({
+  getParentRoute: () => root,
+  path: '/discover/$kind/$id/$season/$episode',
+  component: function DiscoverEpisodeRoute() {
+    const { id, season, episode } = discoverEpisode.useParams()
+    return <DiscoverEpisodePage key={`${id}:${season}:${episode}`} id={id} season={Number(season)} episode={Number(episode)} />
   },
 })
 
@@ -87,6 +107,8 @@ const routeTree = root.addChildren([
   // Movies and Series are parts of Movies & Shows; an old /movies or /series link opens that part.
   createRoute({ getParentRoute: () => root, path: '/movies', beforeLoad: () => { useScreenView.getState().setView('movies'); throw redirect({ to: '/videos', replace: true }) } }),
   seriesDetail,
+  discoverTitle,
+  discoverEpisode,
   createRoute({ getParentRoute: () => root, path: '/series', beforeLoad: () => { useScreenView.getState().setView('series'); throw redirect({ to: '/videos', replace: true }) } }),
   studio,
   watch,

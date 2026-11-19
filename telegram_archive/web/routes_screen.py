@@ -544,10 +544,29 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             raise HTTPException(502, "The catalogue could not be reached")
         return {"ok": True, "disabled": False, "items": items, "more": len(items) >= 50, "next": skip + 50}
 
+    # Where each service's own search page is: "Open on Netflix" lands on Netflix's search for the title. Fixed addresses; only the title is added, encoded.
+    PROVIDER_SEARCH = (
+        ("netflix", "https://www.netflix.com/search?q={q}"), ("disney", "https://www.disneyplus.com/search/{q}"), ("hotstar", "https://www.hotstar.com/in/search?q={q}"),
+        ("prime video", "https://www.primevideo.com/search/ref=atv_nb_sr?phrase={q}"), ("amazon", "https://www.primevideo.com/search/ref=atv_nb_sr?phrase={q}"),
+        ("apple tv", "https://tv.apple.com/search?term={q}"), ("hbo max", "https://www.max.com/search?q={q}"), ("max", "https://www.max.com/search?q={q}"),
+        ("hulu", "https://www.hulu.com/search?q={q}"), ("paramount", "https://www.paramountplus.com/search/?q={q}"), ("peacock", "https://www.peacocktv.com/search?q={q}"),
+        ("youtube", "https://www.youtube.com/results?search_query={q}"), ("google play", "https://play.google.com/store/search?q={q}&c=movies"),
+        ("crunchyroll", "https://www.crunchyroll.com/search?q={q}"), ("tubi", "https://tubitv.com/search/{q}"), ("pluto", "https://pluto.tv/search/details?q={q}"),
+        ("fandango", "https://www.vudu.com/content/movies/search?searchString={q}"), ("vudu", "https://www.vudu.com/content/movies/search?searchString={q}"),
+        ("zee5", "https://www.zee5.com/search?q={q}"), ("sonyliv", "https://www.sonyliv.com/search?q={q}"), ("mubi", "https://mubi.com/en/search?query={q}"),
+    )
+
+    def _provider_open(name: str, title: str) -> str:
+        low = name.lower()
+        for key, url in PROVIDER_SEARCH:
+            if key in low:
+                return url.replace("{q}", si.quote(title, safe=""))
+        return ""
+
     WATCH_GROUPS = (("flatrate", "Stream"), ("free", "Free"), ("ads", "Free with ads"), ("rent", "Rent"), ("buy", "Buy"))
 
     @router.get("/api/screen/where/{kind}/{ident}")
-    async def where_to_watch(kind: str, ident: str, request: Request, region: str = "US"):
+    async def where_to_watch(kind: str, ident: str, request: Request, region: str = "US", title: str = ""):
         """Where a title can be watched legitimately: the services that offer it in a country (TMDB's "where to watch" data, which comes from JustWatch), and the address of TMDB's page about it.
         Nothing is played from here: the person opens the service. A title the library already has is not special: this is for the ones it has not."""
         require_auth(request)
@@ -555,6 +574,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             raise HTTPException(400, "Unknown title")
         region = region.upper()
         media = "tv" if kind == "series" else "movie"
+        title = re.sub(r"\s+", " ", str(title or "")).strip()[:120]
 
         def work():
             scr = sid.make_screen(db, fetch)
@@ -572,12 +592,23 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             for key, label in WATCH_GROUPS:
                 rows = [p for p in (row.get(key) or []) if isinstance(p, dict) and p.get("provider_name")]
                 if rows:
-                    groups.append({"key": key, "label": label, "providers": [{"name": str(p["provider_name"])[:40], "logo": si.image_url(p.get("logo_path") or "", "w92")} for p in rows[:12]]})
+                    groups.append({"key": key, "label": label, "providers": [{"name": str(p["provider_name"])[:40], "logo": si.image_url(p.get("logo_path") or "", "w92"), "open": _provider_open(str(p["provider_name"]), title) if title else ""} for p in rows[:12]]})
             link = str(row.get("link") or "")
             if not link.startswith("https://www.themoviedb.org/"):
                 link = f"https://www.themoviedb.org/{media}/{tid}/watch?locale={region}"
             return {"ok": True, "region": region, "groups": groups, "link": link}
         return await asyncio.to_thread(work)
+
+    def _episodes(meta: dict) -> list[dict]:
+        """The seasons of a show as its catalogue lists them: each with its episodes (number, name, story, date, picture). Specials are season 0."""
+        seasons: dict[int, list] = {}
+        for v in (meta.get("videos") or [])[:3000]:
+            if not isinstance(v, dict) or not isinstance(v.get("season"), int) or not isinstance(v.get("episode") or v.get("number"), int):
+                continue
+            thumb = str(v.get("thumbnail") or "")
+            seasons.setdefault(v["season"], []).append({"episode": int(v.get("episode") or v.get("number")), "name": str(v.get("title") or v.get("name") or "")[:160], "overview": str(v.get("overview") or v.get("description") or "")[:1200],
+                                                          "released": str(v.get("released") or "")[:10], "thumb": thumb if thumb.startswith("https://") else ""})
+        return [{"season": k, "episodes": sorted(rows, key=lambda e: e["episode"])} for k, rows in sorted(seasons.items())]
 
     @router.get("/api/screen/discover/{kind}/{imdb}")
     async def discover_one(kind: str, imdb: str, request: Request):
@@ -618,7 +649,8 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             trailers = [t.get("source") for t in (meta.get("trailers") or []) if isinstance(t, dict) and re.fullmatch(r"[\w-]{6,16}", str(t.get("source") or ""))]
             card.update({"runtime": str(meta.get("runtime") or ""), "cast": [c for c in (meta.get("cast") or []) if isinstance(c, str)][:12],
                          "director": [c for c in (meta.get("director") or []) if isinstance(c, str)][:3], "trailer": trailers[0] if trailers else "",
-                         "seasons": len({v.get("season") for v in (meta.get("videos") or []) if isinstance(v, dict) and (v.get("season") or 0) > 0}) if kind == "series" else 0})
+                         "seasons": len({v.get("season") for v in (meta.get("videos") or []) if isinstance(v, dict) and (v.get("season") or 0) > 0}) if kind == "series" else 0,
+                         "episodes": _episodes(meta) if kind == "series" else [], "logo": meta.get("logo") if isinstance(meta.get("logo"), str) and str(meta.get("logo")).startswith("https://") else ""})
             return card
         card = await asyncio.to_thread(work)
         if card is None:
