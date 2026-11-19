@@ -6,9 +6,9 @@ describe('stream stats', () => {
   it('shows loaded and the way it plays before any sample', () => {
     expect(statRows(40, null).map((r) => r.k)).toEqual(['Buffered', 'Ahead', 'Playback'])
   })
-  it('adds picture size, dropped frames and speed once the video reports them', () => {
+  it('adds dropped frames and speed once the video reports them (no Picture row: it was removed on purpose)', () => {
     const rows = statRows(100, { width: 1920, height: 1080, ahead: 12.34, dropped: 0, total: 900, rate: 1.5 })
-    expect(rows.find((r) => r.k === 'Picture')?.v).toBe('1920×1080')
+    expect(rows.some((r) => r.k === 'Picture')).toBe(false)
     expect(rows.find((r) => r.k === 'Ahead')?.v).toBe('12.3 s')
     expect(rows.find((r) => r.k === 'Dropped frames')).toMatchObject({ v: '0 of 900', good: true })
     expect(rows.find((r) => r.k === 'Speed')?.v).toBe('1.5x')

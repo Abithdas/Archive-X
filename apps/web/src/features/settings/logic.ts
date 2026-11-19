@@ -12,6 +12,7 @@ export const PANELS = [
   { id: 'local', title: 'Local files', blurb: 'Folders on this PC, SFW or NSFW', icon: 'folders' },
   { id: 'metadata', title: 'Metadata', blurb: 'ThePornDB, StashDB, scan window', icon: 'database' },
   { id: 'addons', title: 'Addons', blurb: 'Catalogue add-ons for Discover', icon: 'grid' },
+  { id: 'integrations', title: 'Integrations', blurb: 'Calendar of coming episodes', icon: 'clock' },
   { id: 'experience', title: 'Experience', blurb: 'Autoplay, resume, seek preview', icon: 'play' },
   { id: 'appearance', title: 'Appearance', blurb: 'Zoom, themes, custom themes', icon: 'sparkle' },
   { id: 'storage', title: 'Storage & Backup', blurb: 'Cache usage, data folder, backups', icon: 'folders' },

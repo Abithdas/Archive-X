@@ -6,7 +6,7 @@ import json
 import re
 import threading
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from ..engines import screen_identify as sid
 from ..metadata import screen_ids as si
@@ -39,6 +39,37 @@ def clean_key(field: str, raw) -> str:
 
 def _mask(k: str) -> str:
     return (k[:4] + "…" + k[-4:]) if len(k) > 8 else ("set" if k else "")
+
+
+def _ics_text(v: str) -> str:
+    return str(v).replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\r", "").replace("\n", "\\n")
+
+
+def _ics_fold(line: str) -> str:
+    out, data = [], line.encode("utf-8")
+    while len(data) > 75:
+        cut = 75
+        while cut > 0 and (data[cut] & 0xC0) == 0x80:      # never split a multi-byte character
+            cut -= 1
+        out.append(data[:cut].decode("utf-8"))
+        data = b" " + data[cut:]
+    out.append(data.decode("utf-8"))
+    return "\r\n".join(out)
+
+
+def ics_calendar(events: list[dict]) -> str:
+    """An iCalendar file of all-day events: `uid`, `date` (YYYY-MM-DD), `title`, `note`."""
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Archive X//Airing//EN", "CALSCALE:GREGORIAN", "X-WR-CALNAME:Archive X: airing"]
+    for e in events:
+        day = str(e["date"]).replace("-", "")[:8]
+        if len(day) != 8 or not day.isdigit():
+            continue
+        lines += ["BEGIN:VEVENT", f"UID:{e['uid']}", f"DTSTAMP:{day}T000000Z", f"DTSTART;VALUE=DATE:{day}", f"SUMMARY:{_ics_text(e['title'])}"]
+        if e.get("note"):
+            lines.append(f"DESCRIPTION:{_ics_text(e['note'])}")
+        lines.append("END:VEVENT")
+    lines.append("END:VCALENDAR")
+    return "\r\n".join(_ics_fold(x) for x in lines) + "\r\n"
 
 
 def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
@@ -608,6 +639,22 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                                  "poster": si.image_url(r["poster"], "w500"), "genres": json.loads(r["genres"] or "[]")[:3], "rating": r["rating"]} for r in rows if r["backdrop"]][:5]
             return out
         return await asyncio.to_thread(read)
+
+    @router.get("/api/screen/calendar.ics")
+    async def screen_calendar(request: Request, days: int = 90):
+        """Episodes of the shows in your library that air in the next `days` days, as an iCalendar file (all-day events) that any calendar app can import."""
+        require_auth(request)
+        days = max(1, min(int(days), 365))
+
+        def read():
+            with db.reading() as c:
+                return c.execute(
+                    "SELECT t.id,t.title,e.season,e.episode,e.name,e.air_date FROM screen_episodes e JOIN screen_titles t ON t.id=e.title_id AND t.kind='tv' "
+                    "WHERE e.air_date>=date('now') AND e.air_date<=date('now',?) AND e.title_id IN (SELECT s.title_id FROM media_screen s JOIN media m ON m.id=s.media_id WHERE s.state='MATCHED') "
+                    "ORDER BY e.air_date,t.title LIMIT 2000", (f"+{days} day",)).fetchall()
+        rows = await asyncio.to_thread(read)
+        body = ics_calendar([{"uid": f"ep-{r['id']}-{r['season']}-{r['episode']}@archive-x", "date": r["air_date"], "title": f"{r['title']} S{r['season']}E{r['episode']}", "note": r["name"] or ""} for r in rows])
+        return Response(body, media_type="text/calendar; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="archive-x-airing.ics"'})
 
     @router.get("/api/screen/of-media")
     async def titles_of_media(request: Request, ids: str = ""):
