@@ -205,7 +205,7 @@ PROVIDES = {"catalog": "Lists", "meta": "Details", "stream": "Streams", "subtitl
 
 def parse_manifest(manifest) -> dict:
     """What an add-on offers. Any Stremio add-on is accepted; Discover uses its lists of movies, series or anime that need nothing but their own address.
-    `provides` names every kind of thing it serves, and `note` says what Archive X does not use (it never asks an add-on for streams)."""
+    `provides` names every kind of thing it serves, and `note` explains stream and subtitle handling."""
     if not isinstance(manifest, dict) or not (manifest.get("resources") or manifest.get("catalogs")):
         raise ValueError("That address did not answer with a Stremio add-on.")
     resources = [r if isinstance(r, str) else (r or {}).get("name") for r in (manifest.get("resources") or [])]
@@ -225,7 +225,7 @@ def parse_manifest(manifest) -> dict:
     if not lists:
         notes.append("It has no lists to browse, so nothing from it shows in Discover.")
     if "stream" in resources:
-        notes.append("Archive X never asks an add-on for streams.")
+        notes.append("Title pages ask for streams. Only direct streams from your own sources or public HTTPS hosts are played here.")
     if "subtitles" in resources:
         notes.append("Subtitles from add-ons are not used yet.")
     return {"name": str(manifest.get("name") or "Add-on")[:60], "description": str(manifest.get("description") or "")[:240], "version": str(manifest.get("version") or "")[:20],
