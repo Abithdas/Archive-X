@@ -6,6 +6,21 @@ import json
 import re
 
 
+def title_counts(rdb, pairs_sql: str) -> dict[int, dict[str, int]]:
+    """How many movies and how many series each person or studio is in: `pairs_sql` yields (eid, video_id) pairs; videos of one title count once (an episode is not a series)."""
+    try:
+        rows = rdb.execute(
+            f"SELECT x.eid AS eid, t.kind AS kind, COUNT(DISTINCT t.id) AS n FROM ({pairs_sql}) x "
+            "JOIN media_screen s ON s.media_id=x.video_id AND s.state='MATCHED' JOIN screen_titles t ON t.id=s.title_id "
+            "WHERE x.video_id IN (SELECT id FROM archive_x_library_media) GROUP BY x.eid, t.kind").fetchall()
+    except Exception:
+        return {}
+    out: dict[int, dict[str, int]] = {}
+    for r in rows:
+        out.setdefault(int(r["eid"]), {"movies": 0, "series": 0})["series" if r["kind"] == "tv" else "movies"] = int(r["n"])
+    return out
+
+
 def list_performers_sync(db, query_params):
     """Return the performer catalogue, optionally filtered by the supplied query."""
     q = str(query_params.get("q") or "").strip()
@@ -128,9 +143,12 @@ def list_performers_sync(db, query_params):
                     (limit,),
                 ).fetchall()
 
+    with db.reading() as read_db:
+        counts = title_counts(read_db, "SELECT performer_id AS eid, video_id FROM video_performers UNION SELECT performer_id, video_id FROM local_video_performers")
     output = []
     for row in rows:
         performer = dict(row)
+        performer.update(counts.get(int(performer["id"]), {"movies": 0, "series": 0}))
         gender = str(performer.get("gender") or "").strip().lower()
         # "transgender_female", "Trans woman" and so on all count as trans; anything else unknown stays blank
         performer["gender"] = "trans" if "trans" in gender else gender if gender in {"male", "female"} else ""
@@ -141,6 +159,8 @@ def list_performers_sync(db, query_params):
                     "id",
                     "name",
                     "video_count",
+                    "movies",
+                    "series",
                     "image",
                     "gender",
                     "favorite",

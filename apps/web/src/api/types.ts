@@ -83,6 +83,9 @@ export interface Entity {
   id: number
   name: string
   video_count: number
+  /** In SFW the titles, not the videos: how many movies and how many series (an episode is not a series). */
+  movies?: number
+  series?: number
   image?: string | null
   gender?: string | null
 }

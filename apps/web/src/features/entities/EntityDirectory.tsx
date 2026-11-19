@@ -13,7 +13,7 @@ import { SkeletonGroup } from '@/design/Skeleton'
 import { Reveal } from '@/design/Reveal'
 import { EntityCard, EntityCardSkeleton } from './EntityCard'
 import { useAutoRepair } from './autoRepair'
-import { useFitGrid } from '@/features/library/fitGrid'
+import { PERFORMER_CARD, STUDIO_CARD, useScreenGrid } from '@/features/library/screenGrid'
 import { Pagination } from '@/features/library/Pagination'
 import { filterEntities, pageCount, type GenderFilter } from './filter'
 import { FAILED, IDLE, NEED_SELECTION, SORTS, canCommit, commitLabel, confirmation, duplicatesOf, hint, mergeBody, modeLabel, pick, sortBy, successMessage, toggleMode, type MergeState, type SortKey } from './merge'
@@ -43,8 +43,8 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
   const setPage = (n: number) => patch(kind, { page: n })
   const setPer = (n: number) => patch(kind, { per: n })
   const setSort = (v: SortKey) => patch(kind, { sort: v })
-  const grid = useFitGrid(typeof window !== 'undefined' && window.innerWidth < 640 ? 150 : 190, 18)
-  const per = grid.fit(nominalPer)   // whole rows of whatever the window shows, so the last row is full
+  const grid = useScreenGrid(nominalPer, 18, kind === 'performers' ? PERFORMER_CARD : STUDIO_CARD)   // the chosen number of cards, sized to fit the screen (two rows at least)
+  const per = nominalPer
   const [merge, setMerge] = useState<MergeState>(IDLE)
   const [asking, setAsking] = useState(false)
   const qc = useQueryClient()

@@ -24,7 +24,7 @@ import { useSelection } from './selection'
 import { Reveal } from '@/design/Reveal'
 import { VideoCard, VideoCardSkeleton } from './VideoCard'
 import { useDebounced } from './useDebounced'
-import { useFitGrid } from './fitGrid'
+import { VIDEO_CARD, useScreenGrid } from './screenGrid'
 import { useLibraryStore } from './store'
 import { SpinCounter } from '@/design/SpinCounter'
 import { SfwHome } from '@/features/series/HomePage'
@@ -41,8 +41,8 @@ export function LibraryPage() {
 function VideoLibrary() {
   const labels = useLabels()
   const { channels: picked, page, sort, favorites, filters, per: nominalPer, toggle, clear, setPage, setPer, resetFilters } = useLibraryStore()
-  const grid = useFitGrid(270, 16)
-  const per = grid.fit(nominalPer)   // whole rows of whatever the window shows, so the last row is full
+  const grid = useScreenGrid(nominalPer, 16, VIDEO_CARD)   // the chosen number of cards, sized to fit the screen (two rows at least)
+  const per = nominalPer
   const selecting = useSelection((st) => st.active)
   useEffect(() => () => useSelection.getState().exit(), [])   // leaving the page ends select mode
   const search = useDebounced(useSearch((s) => s.q).trim(), 300)

@@ -268,3 +268,24 @@ def test_the_calendar_file_lists_the_coming_episodes_of_your_shows(tmp_path):
     from telegram_archive.web.routes_screen import ics_calendar
     long = ics_calendar([{"uid": "u", "date": "2026-01-02", "title": "A, B; C\nD " + "é" * 60, "note": ""}])
     assert "A\\, B\; C\\nD" in long.replace("\r\n ", "") and all(len(x.encode()) <= 75 for x in long.split("\r\n"))
+
+
+def test_cast_and_studios_count_movies_and_series_not_videos(tmp_path):
+    db = Database(tmp_path / "k.db")
+    _library(db)
+    with db.lock:
+        db.conn.execute("DROP VIEW IF EXISTS archive_x_library_media")                       # the real view waits for snapshots; here every video is published
+        db.conn.execute("CREATE VIEW archive_x_library_media AS SELECT * FROM media")
+        db.conn.execute("INSERT INTO performers(id,name) VALUES(1,'Keanu Reeves')")
+        db.conn.execute("INSERT INTO studios(id,name) VALUES(1,'HBO')")
+        db.conn.execute("INSERT INTO media(id,source_channel,source_message_id,filename,title,status,duration) VALUES(3,'-9000000000001',3,'Breaking.Bad.S01E03.mkv','x','SCANNED',3600)")
+        db.conn.execute("INSERT INTO media_screen(media_id,title_id,season,episode,state,confidence,updated_at) VALUES(3,(SELECT title_id FROM media_screen WHERE media_id=2),1,3,'MATCHED',1,'2026-01-01')")
+        for mid in (1, 2, 3):
+            db.conn.execute("INSERT INTO video_performers(video_id,performer_id) VALUES(?,1)", (mid,))
+            db.conn.execute("INSERT INTO video_studios(video_id,studio_id) VALUES(?,1)", (mid,))
+        db.conn.commit()
+    from telegram_archive.web.performer_catalogue import list_performers_sync, title_counts
+    p = [x for x in list_performers_sync(db, {"brief": "1"}) if x["name"] == "Keanu Reeves"][0]
+    assert (p["video_count"], p["movies"], p["series"]) == (3, 1, 1)                       # three videos: one movie, and two episodes of one series
+    with db.reading() as r:
+        assert title_counts(r, "SELECT studio_id AS eid, video_id FROM video_studios") == {1: {"movies": 1, "series": 1}}

@@ -40,7 +40,7 @@ export function AccountMenu({ live, pillFrom = 'sm' }: { live: string; pillFrom?
     <>
       <button type="button" popoverTarget={id} aria-label="Account menu" aria-haspopup="menu" className="relative grid size-10 place-items-center rounded-full bg-surface-3 text-[15px] font-bold" title={`${tg ? 'Telegram connected' : 'Telegram not connected'} · live updates: ${live}`}>
         <AccountAvatar className="size-10 text-[15px]" />
-        {tg ? <i data-live="true" aria-hidden="true" className={cn('ax-live-dot absolute -right-0.5 -top-0.5 size-3 bg-good ring-2 ring-bg', pillFrom === 'lg' ? 'lg:hidden' : 'sm:hidden')} /> : null}
+        {tg ? <i data-live="true" aria-hidden="true" className={cn('ax-live-dot absolute -right-px -top-px size-2 bg-good ring-[1.5px] ring-bg', pillFrom === 'lg' ? 'lg:hidden' : 'sm:hidden')} /> : null}
       </button>
       <div ref={pop} id={id} popover="auto" role="menu" aria-label="Account menu" className="mo-menu fixed right-4 top-[60px] left-auto bottom-auto m-0 w-[280px] rounded-[18px] border border-line-2 bg-surface text-fg shadow-[0_18px_50px_rgb(0_0_0/0.5)]">
         <div className="mo-fold-inner p-2">

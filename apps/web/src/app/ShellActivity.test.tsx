@@ -56,8 +56,9 @@ describe('the top bar', () => {
     expect(dot).not.toBeNull()
     expect(dot).toHaveAttribute('data-live', 'true')
     expect(dot!.className).toMatch(/bg-good/)
-    expect(dot!.className).toMatch(/-right-0\.5/)
-    expect(dot!.className).toMatch(/-top-0\.5/)
+    expect(dot!.className).toMatch(/-right-px/)
+    expect(dot!.className).toMatch(/-top-px/)
+    expect(dot!.className).toMatch(/size-2\b/)   // small: it only marks the connection
   })
   it('shows no dot on the profile picture while Telegram is not connected', async () => {
     mountShell(false)

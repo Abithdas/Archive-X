@@ -168,8 +168,8 @@ export function PeopleView() {
       {q.isPending ? <div role="status" aria-label="Loading people" className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">{[0, 1, 2, 3].map((i) => <div key={i} className="grid h-[236px] content-start justify-items-center gap-3 rounded-2xl border border-line bg-surface p-3"><Skeleton className="size-24 rounded-full" /><Skeleton className="h-4 w-28" /><Skeleton className="h-3 w-16" /><Skeleton className="h-8 w-32 rounded-lg" /></div>)}</div>
         : q.isError ? <button type="button" onClick={() => void q.refetch()} className={cn(PRIMARY, 'w-fit')}>Could not load people. Retry</button>
         : (<>
-          {sec.guesses.length ? <motion.section {...SECTION} aria-label="Is this the right person?" className="grid gap-2"><h2 className="text-lg font-bold">Is this the right person?</h2>{grid(sec.guesses)}</motion.section> : null}
           {sec.named.length ? <motion.section {...SECTION} aria-label="Named people" className="grid gap-2"><h2 className="text-lg font-bold">People</h2>{grid(sec.named)}</motion.section> : null}
+          {sec.guesses.length ? <motion.section {...SECTION} aria-label="Is this the right person?" className="grid gap-2"><h2 className="text-lg font-bold">Is this the right person?</h2>{grid(sec.guesses)}</motion.section> : null}
           {sec.toName.length ? <motion.section {...SECTION} aria-label="Faces to name" className="grid gap-2"><h2 className="text-lg font-bold">Who are these?</h2>{grid(sec.toName)}</motion.section> : null}
           {sec.rare.length ? (
             <section aria-label="Other faces" className="grid gap-2">

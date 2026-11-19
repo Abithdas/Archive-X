@@ -11,6 +11,7 @@ from __future__ import annotations
 from ..core.swallowed import note as _swallowed_note
 import asyncio
 from .video_lists import name_lists_sql
+from .performer_catalogue import title_counts
 import json
 import time
 
@@ -748,8 +749,12 @@ def register_entity_page_routes(
                         "LEFT JOIN video_studios vs ON vs.studio_id=s.id "
                         "GROUP BY s.id HAVING video_count > 0 OR s.name='Unknown Studio' ORDER BY (s.name='Unknown Studio') DESC, video_count DESC, s.name LIMIT ?", (limit,)).fetchall()
             result = [dict(r) for r in rows]
+            with db.reading() as rdb:
+                counts = title_counts(rdb, "SELECT studio_id AS eid, video_id FROM video_studios")
+            for d in result:
+                d.update(counts.get(int(d["id"]), {"movies": 0, "series": 0}))
             if brief:
-                result = [{k: d.get(k) for k in ("id", "name", "video_count", "image", "image_cache_updated_at", "has_cached_image")} for d in result]
+                result = [{k: d.get(k) for k in ("id", "name", "video_count", "movies", "series", "image", "image_cache_updated_at", "has_cached_image")} for d in result]
             return result
         return await asyncio.to_thread(_read_studios)
 

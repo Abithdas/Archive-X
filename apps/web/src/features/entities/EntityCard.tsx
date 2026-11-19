@@ -5,6 +5,8 @@ import { Icon } from '@/design/Icon'
 import { Skeleton } from '@/design/Skeleton'
 import { EntityEditor } from './EntityEditor'
 import { responsive } from '@/design/responsive'
+import { useLabels } from '@/features/content/labels'
+import { countLabel } from './countLabel'
 
 const imageUrl = (kind: EntityKind, e: Entity) => `/api/${kind}/${e.id}/image?v=${encodeURIComponent(e.image ?? '')}`
 const PLACEHOLDER = '/static/icons/ax-placeholder.png'
@@ -20,7 +22,8 @@ export function EntityCard({ kind, entity, merge, index = 0 }: { kind: EntityKin
   const [broken, setBroken] = useState(false)
   const [editing, setEditing] = useState(false)
   const studio = kind === 'studios'
-  const label = entity.video_count === 1 ? '1 video' : `${entity.video_count} videos`
+  const labels = useLabels()
+  const label = countLabel(entity, labels.movies !== null)   // SFW counts movies and series; otherwise videos
   const img = broken ? { src: PLACEHOLDER } : responsive(imageUrl(kind, entity), '(max-width: 639px) 46vw, 260px')
   const ring = merge?.keeper ? 'border-good ring-2 ring-good/60' : merge?.selected ? 'border-warn ring-2 ring-warn/60' : ''
   return (
