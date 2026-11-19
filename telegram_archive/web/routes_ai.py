@@ -610,7 +610,8 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
                 for event in ai.chat_events(message, context, operator.get("username") or "operator", int(active["id"])):
                     yield json.dumps(event, ensure_ascii=False) + "\n"
             except Exception as exc:   # never leave the page waiting on a stream that just stops
-                yield json.dumps({"t": "error", "detail": f"{type(exc).__name__}: {exc}"[:300]}, ensure_ascii=False) + "\n"
+                db.log(f"AI chat stopped: {type(exc).__name__}: {exc}"[:300], "WARN")   # the reason goes to the log, not to the page
+                yield json.dumps({"t": "error", "detail": "The assistant stopped because of an error. The reason is in the activity log."}, ensure_ascii=False) + "\n"
 
         return StreamingResponse(lines(), media_type="application/x-ndjson", headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
