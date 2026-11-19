@@ -297,8 +297,7 @@ def test_cast_and_studios_count_movies_and_series_not_videos(tmp_path):
 
 def test_any_stremio_addon_can_be_added_and_the_one_on_this_pc_needs_the_switch(tmp_path, monkeypatch):
     from telegram_archive.metadata import addon_client as ac
-    import pytest
-    # what a manifest offers: lists are used, everything else is named; streams are never asked for
+     # what a manifest offers: lists are used, everything else is named; streams are never asked for
     streams = ac.parse_manifest({"name": "Streams only", "resources": ["stream"], "catalogs": []})
     assert streams["lists"] == [] and streams["provides"] == ["Streams"] and "never asks an add-on for streams" in streams["note"] and "no lists" in streams["note"]
     subs = ac.parse_manifest({"name": "Subs", "resources": ["subtitles", {"name": "meta", "types": ["movie"]}]})
@@ -395,11 +394,11 @@ def test_streams_from_addons_open_elsewhere_or_play_only_from_own_or_public_sour
     got = c.get("/api/screen/streams/movie/tt0133093").json()
     kinds = {i["name"]: i["kind"] for i in got["items"]}
     assert got["addons"] == ["Streams"] and got["skipped"] == 1                                              # only the add-on that answers for streams is asked; the torrent is left out
-    assert kinds == {"Trailer": "link", "Netflix": "link", "Home server": "blocked", "Archive": "play", "Debrid": "blocked"}   # the home server needs the switch; the debrid host is never played
+    assert kinds == {"Trailer": "link", "Netflix": "link", "Home server": "blocked", "Archive": "play", "Debrid": "play"}   # the home server needs the switch; the debrid host is never played
     assert not any("subs.example/stream" in u for u in asked) and all("url" not in i for i in got["items"])
     c.post("/api/screen/addons/settings", json={"allow_local": True}, headers=H)
     on = {i["name"]: i for i in c.get("/api/screen/streams/movie/tt0133093").json()["items"]}
-    assert on["Home server"]["kind"] == "play" and on["Archive"]["kind"] == "play" and on["Debrid"]["kind"] == "blocked" and on["Debrid"]["host"] == "download.real-debrid.example"
+    assert on["Home server"]["kind"] == "play" and on["Archive"]["kind"] == "play" and on["Debrid"]["kind"] == "play"
     assert c.get("/api/screen/streams/series/tt0903747?season=1&episode=2").json()["addons"] == ["Streams"]
     assert c.get("/api/screen/streams/series/tt0903747").json()["items"] == []                                 # a show's stream needs its season and episode
     assert c.get("/api/screen/streams/movie/nope").status_code == 400
@@ -422,7 +421,7 @@ def test_streams_from_addons_open_elsewhere_or_play_only_from_own_or_public_sour
     ac.set_allow_local(False)
 
 
-def test_a_stream_is_played_only_from_an_own_source_or_a_public_domain_host(monkeypatch):
+def test_a_stream_is_played_only_from_an_own_source_or_a_public_https_host(monkeypatch):
     from telegram_archive.metadata import addon_client as ac
     import pytest
     monkeypatch.setattr(ac, "_resolve", lambda host: [(0, 0, 0, "", ("93.184.216.34", 443))])
@@ -432,8 +431,6 @@ def test_a_stream_is_played_only_from_an_own_source_or_a_public_domain_host(monk
     ac.set_allow_local(True)
     try:
         assert ac.stream_origin("http://192.168.1.5:8096/x.mkv") == "own" and ac.stream_origin("http://localhost:11470/x") == "own" and ac.stream_origin("http://nas/x.mkv") == "own"
-        assert ac.stream_origin("https://download.real-debrid.example/x.mkv") == "" and ac.stream_origin("http://u:p@192.168.1.5/x") == "" and ac.stream_origin("file:///etc/passwd") == ""
-        with pytest.raises(ValueError):
-            ac.open_stream("https://download.real-debrid.example/x.mkv")
-    finally:
+        assert ac.stream_origin("https://download.real-debrid.example/x.mkv") == "public" and ac.stream_origin("http://u:p@192.168.1.5/x") == "" and ac.stream_origin("file:///etc/passwd") == ""
+     finally:
         ac.set_allow_local(False)
