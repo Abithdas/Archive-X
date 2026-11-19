@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased
+## 30.11.1 (2026-11-19)
 
 - Native full screen: the video fills the screen above the bar (black bars come from the picture's own shape), with square corners and no light margin at the sides.
 - VLC, MPC-HC and Random play all now work for videos from a local folder (they went through Telegram, which a file on this PC does not have).
