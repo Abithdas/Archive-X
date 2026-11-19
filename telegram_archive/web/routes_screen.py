@@ -400,7 +400,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     @router.get("/api/screen/streams/{kind}/{ident}")
     async def title_streams(kind: str, ident: str, request: Request, season: int | None = None, episode: int | None = None):
         """What the person's add-ons offer for a title: links that open elsewhere (a YouTube id, an external page), and direct streams. A direct stream plays here only from their own
-        sources or a public-domain host; any other is listed as not played. Torrents are never handled. Only add-ons that answer for streams are asked."""
+        sources or a public HTTPS host; any other is listed as not played. Torrents are never handled. Only add-ons that answer for streams are asked."""
         require_auth(request)
         if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident):
             raise HTTPException(400, "Unknown title")
