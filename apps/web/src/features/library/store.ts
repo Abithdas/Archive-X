@@ -22,7 +22,8 @@ export interface Filters {
   resolution: string
 }
 export const NO_FILTERS: Filters = { studio: '', performer: '', tag: '', dateFrom: '', dateTo: '', resolution: '' }
-export const PER_CHOICES = [12, 24, 36, 48] as const
+/** Items per page: 0 is "Auto" (as many as the screen holds). */
+export const PER_CHOICES = [0, 24, 36, 48] as const
 
 interface LibraryState {
   channels: string[]
@@ -57,7 +58,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   sort: 'date_desc',
   favorites: false,
   filters: NO_FILTERS,
-  per: 24,
+  per: 0,
   setSort: (sort) => set({ sort, page: 0 }),
   setFavorites: (favorites) => set({ favorites, page: 0 }),
   setFilters: (filters) => set({ filters, page: 0 }),

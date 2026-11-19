@@ -5,7 +5,7 @@ import type { SortKey } from './merge'
 
 /** What the Performers and Studios lists were showing, kept while you open a card and come back (the page used to start over). */
 export interface DirectoryView { page: number; gender: GenderFilter; per: number; sort: SortKey }
-export const DEFAULT_VIEW: DirectoryView = { page: 1, gender: 'female', per: 12, sort: 'default' }
+export const DEFAULT_VIEW: DirectoryView = { page: 1, gender: 'female', per: 0, sort: 'default' }
 
 interface State {
   views: Record<EntityKind, DirectoryView>

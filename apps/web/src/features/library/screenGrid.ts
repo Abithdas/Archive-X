@@ -5,6 +5,10 @@ export interface CardShape { aspect: number; extra: number }
 export const VIDEO_CARD: CardShape = { aspect: 9 / 16, extra: 96 }
 export const PERFORMER_CARD: CardShape = { aspect: 3 / 2, extra: 0 }
 export const STUDIO_CARD: CardShape = { aspect: 1, extra: 0 }
+/** The card width (CSS px at 100%) "Auto" aims for; the columns are the most that keep cards at least this wide. */
+export const VIDEO_TARGET = 236
+export const PERFORMER_TARGET = 180
+export const STUDIO_TARGET = 280
 export const MIN_ROWS = 2
 const SMALLEST = 96   // px: below this a card cannot be read
 
@@ -32,6 +36,24 @@ export function columnsForScreen(n: number, width: number, height: number, gap: 
   return (near.find((o) => count % o.c === 0) ?? near.reduce((a, b) => (b.w > a.w ? b : a))).c
 }
 
+/**
+ * "Auto": as many cards as the screen holds. The columns are what fit at the target width; if two rows would then be taller than the room, cards
+ * get narrower until two rows fit. Returns the columns and the rows, so a page holds cols × rows cards.
+ */
+export function autoLayout(width: number, height: number, gap: number, shape: CardShape, target: number): { cols: number; rows: number } {
+  if (!(width > 0)) return { cols: 1, rows: MIN_ROWS }
+  const start = Math.max(1, Math.floor((width + gap) / (target + gap)))
+  let c = start
+  for (;; c++) {
+    const w = (width - gap * (c - 1)) / c
+    const h = w * shape.aspect + shape.extra
+    const rows = Math.floor((height + gap) / (h + gap))
+    if (rows >= MIN_ROWS) return { cols: c, rows }
+    if (w < SMALLEST) break
+  }
+  return { cols: start, rows: MIN_ROWS }
+}
+
 /** The page's zoom: the window zoom on big screens times the Settings display size, as the CSS variables hold them. */
 export function pageZoom(): number {
   if (typeof document === 'undefined') return 1
@@ -45,14 +67,20 @@ const scroller = (el: HTMLElement | null): HTMLElement | null => {
   return null
 }
 
-export interface ScreenGrid { ref: (el: HTMLElement | null) => void; cols: number; style: CSSProperties; fit: (n: number) => number }
+export interface ScreenGrid { ref: (el: HTMLElement | null) => void; cols: number; rows: number; per: number; style: CSSProperties }
 
 /**
- * A card grid that shows exactly the chosen number of cards: the columns (so the card size) follow the number, the window and the zoom.
- * More cards per page means smaller cards; at least two rows; the page numbers stay under the cards.
+ * A card grid sized to the screen and the zoom. `nominal` 0 is "Auto": the page holds as many cards as fit (at least two rows) and `per` says how many.
+ * A number: that many cards per page, the columns (so the card size) following it; more cards per page means smaller cards.
  */
-export function useScreenGrid(nominal: number, gap: number, shape: CardShape, reserve = 110): ScreenGrid {
-  const [cols, setCols] = useState(() => (typeof window === 'undefined' ? 1 : columnsForScreen(nominal, Math.min(window.innerWidth, 1800) - 98, window.innerHeight / pageZoom() - 180, gap, shape)))
+export function useScreenGrid(nominal: number, gap: number, shape: CardShape, target: number, reserve = 170): ScreenGrid {
+  const auto = nominal <= 0
+  const compute = useCallback((width: number, room: number): { cols: number; rows: number } => {
+    if (auto) return autoLayout(width, room, gap, shape, target)
+    const cols = columnsForScreen(nominal, width, room, gap, shape)
+    return { cols, rows: Math.ceil(nominal / cols) }
+  }, [auto, nominal, gap, shape, target])
+  const [layout, setLayout] = useState(() => (typeof window === 'undefined' ? { cols: 1, rows: 2 } : compute(Math.min(window.innerWidth, 1800) - 98, window.innerHeight / pageZoom() - 180 - 40)))
   const node = useRef<HTMLElement | null>(null)
   const observer = useRef<ResizeObserver | null>(null)
   const measure = useCallback(() => {
@@ -64,8 +92,9 @@ export function useScreenGrid(nominal: number, gap: number, shape: CardShape, re
     const room = box
       ? box.clientHeight - ((el.getBoundingClientRect().top - box.getBoundingClientRect().top) / z + box.scrollTop) - reserve
       : window.innerHeight / z - el.getBoundingClientRect().top / z - reserve
-    setCols(columnsForScreen(nominal, width, Math.max(room, 0), gap, shape))
-  }, [nominal, gap, shape, reserve])
+    const next = compute(width, Math.max(room, 0))
+    setLayout((l) => (l.cols === next.cols && l.rows === next.rows ? l : next))
+  }, [compute, reserve])
   const ref = useCallback((el: HTMLElement | null) => {
     observer.current?.disconnect()
     node.current = el
@@ -78,6 +107,6 @@ export function useScreenGrid(nominal: number, gap: number, shape: CardShape, re
   }, [measure])
   useLayoutEffect(measure)
   useEffect(() => () => observer.current?.disconnect(), [])
-  const fit = useCallback((n: number) => n, [])
-  return { ref, cols, style: { gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }, fit }
+  const per = auto ? layout.cols * layout.rows : nominal
+  return { ref, cols: layout.cols, rows: layout.rows, per, style: { gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))` } }
 }

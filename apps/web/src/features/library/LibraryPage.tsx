@@ -24,7 +24,7 @@ import { useSelection } from './selection'
 import { Reveal } from '@/design/Reveal'
 import { VideoCard, VideoCardSkeleton } from './VideoCard'
 import { useDebounced } from './useDebounced'
-import { VIDEO_CARD, useScreenGrid } from './screenGrid'
+import { VIDEO_CARD, VIDEO_TARGET, useScreenGrid } from './screenGrid'
 import { useLibraryStore } from './store'
 import { SpinCounter } from '@/design/SpinCounter'
 import { SfwHome } from '@/features/series/HomePage'
@@ -41,8 +41,8 @@ export function LibraryPage() {
 function VideoLibrary() {
   const labels = useLabels()
   const { channels: picked, page, sort, favorites, filters, per: nominalPer, toggle, clear, setPage, setPer, resetFilters } = useLibraryStore()
-  const grid = useScreenGrid(nominalPer, 16, VIDEO_CARD)   // the chosen number of cards, sized to fit the screen (two rows at least)
-  const per = nominalPer
+  const grid = useScreenGrid(nominalPer <= 12 ? 0 : nominalPer, 16, VIDEO_CARD, VIDEO_TARGET)   // Auto: as many cards as the screen holds (two rows at least)
+  const per = grid.per
   const selecting = useSelection((st) => st.active)
   useEffect(() => () => useSelection.getState().exit(), [])   // leaving the page ends select mode
   const search = useDebounced(useSearch((s) => s.q).trim(), 300)
@@ -101,13 +101,13 @@ function VideoLibrary() {
       ) : (
         <Reveal ready={!library.isPending} skeleton={(
           <SkeletonGroup label="Loading videos" className={GRID} ref={grid.ref} style={grid.style}>
-            {Array.from({ length: grid.cols * 2 }, (_, i) => (
+            {Array.from({ length: grid.cols * grid.rows }, (_, i) => (
               <VideoCardSkeleton key={i} index={i} />
             ))}
           </SkeletonGroup>
         )}>
         {library.data ? (<>
-          <h2 className="mb-4 flex items-baseline gap-2.5 text-xl font-extrabold tracking-tight">
+          <h2 className="mb-4 flex items-baseline justify-between gap-2.5 text-xl font-extrabold tracking-tight">
             Library
             <span className="text-[13px] font-normal tracking-normal text-muted">
               <SpinCounter value={library.data.total} /> videos · {selected.length} channel{selected.length === 1 ? '' : 's'}
@@ -131,7 +131,7 @@ function VideoLibrary() {
             </div>
           ) : null}
           {selecting ? <SelectionBar visible={library.data.items} /> : null}
-          {library.data.total > 0 ? <Pagination page={page} pages={pages} per={nominalPer} onPage={setPage} onPer={setPer} fit={grid.fit} /> : null}
+          {library.data.total > 0 ? <Pagination page={page} pages={pages} per={nominalPer} onPage={setPage} onPer={setPer} auto={grid.per} /> : null}
         </>) : null}
         </Reveal>
       )}

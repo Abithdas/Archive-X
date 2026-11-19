@@ -13,7 +13,7 @@ import { SkeletonGroup } from '@/design/Skeleton'
 import { Reveal } from '@/design/Reveal'
 import { EntityCard, EntityCardSkeleton } from './EntityCard'
 import { useAutoRepair } from './autoRepair'
-import { PERFORMER_CARD, STUDIO_CARD, useScreenGrid } from '@/features/library/screenGrid'
+import { PERFORMER_CARD, PERFORMER_TARGET, STUDIO_CARD, STUDIO_TARGET, useScreenGrid } from '@/features/library/screenGrid'
 import { Pagination } from '@/features/library/Pagination'
 import { filterEntities, pageCount, type GenderFilter } from './filter'
 import { FAILED, IDLE, NEED_SELECTION, SORTS, canCommit, commitLabel, confirmation, duplicatesOf, hint, mergeBody, modeLabel, pick, sortBy, successMessage, toggleMode, type MergeState, type SortKey } from './merge'
@@ -43,8 +43,8 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
   const setPage = (n: number) => patch(kind, { page: n })
   const setPer = (n: number) => patch(kind, { per: n })
   const setSort = (v: SortKey) => patch(kind, { sort: v })
-  const grid = useScreenGrid(nominalPer, 18, kind === 'performers' ? PERFORMER_CARD : STUDIO_CARD)   // the chosen number of cards, sized to fit the screen (two rows at least)
-  const per = nominalPer
+  const grid = useScreenGrid(nominalPer <= 12 ? 0 : nominalPer, 18, kind === 'performers' ? PERFORMER_CARD : STUDIO_CARD, kind === 'performers' ? PERFORMER_TARGET : STUDIO_TARGET)   // Auto: as many cards as the screen holds (two rows at least)
+  const per = grid.per
   const [merge, setMerge] = useState<MergeState>(IDLE)
   const [asking, setAsking] = useState(false)
   const qc = useQueryClient()
@@ -81,7 +81,7 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
   return (
     <section className="flex w-full flex-1 flex-col px-4 pb-10 pt-6 sm:px-10">
       <PageHead title={copy.title} blurb={copy.blurb} />
-      <div className="mb-5 flex flex-wrap items-center gap-2.5">
+      <div className="mb-5 flex min-h-11 flex-wrap items-center gap-2.5">
         {kind === 'performers' ? (
           <Segmented
             label="Gender"
@@ -102,7 +102,7 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
             {merge.active ? <span role="status" aria-live="polite" className="max-w-[480px] text-xs text-muted">{hint(merge, all)}</span> : null}
           </>
         ) : null}
-        {entities.data ? <span className="ml-auto text-sm text-muted"><SpinCounter value={rows.length} /> {copy.title.toLowerCase()}</span> : null}
+        {entities.data ? <span className="ml-auto text-[13px] text-muted"><SpinCounter value={rows.length} /> {copy.title.toLowerCase()}</span> : null}
       </div>
 
       {entities.isError ? (
@@ -118,12 +118,12 @@ export function EntityDirectory({ kind }: { kind: EntityKind }) {
       ) : (
         <Reveal ready={!entities.isPending} skeleton={(
           <SkeletonGroup label={`Loading ${copy.title.toLowerCase()}`} className={GRID} ref={grid.ref} style={grid.style}>
-            {Array.from({ length: grid.cols * 2 }, (_, i) => <EntityCardSkeleton key={i} kind={kind} />)}
+            {Array.from({ length: grid.cols * grid.rows }, (_, i) => <EntityCardSkeleton key={i} kind={kind} />)}
           </SkeletonGroup>
         )}>
         {entities.data ? (<>
           <div className={GRID} ref={grid.ref} style={grid.style}>{visible.map((e, i) => <EntityCard key={e.id} index={i} kind={kind} entity={e} merge={merging ? { keeper: merge.keepId === e.id, selected: merge.mergeIds.includes(e.id), onPick: () => pickCard(e.id) } : undefined} />)}</div>
-          <Pagination page={current - 1} pages={pages} per={nominalPer} fit={grid.fit} onPage={(n) => setPage(n + 1)} onPer={(n) => { setPer(n); setPage(1) }} />
+          <Pagination page={current - 1} pages={pages} per={nominalPer} auto={grid.per} onPage={(n) => setPage(n + 1)} onPer={(n) => { setPer(n); setPage(1) }} />
         </>) : null}
         </Reveal>
       )}

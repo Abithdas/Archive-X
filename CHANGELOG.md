@@ -4,6 +4,9 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Videos, Performers and Studios: Items per page now starts on Auto: as many cards as the screen holds (at least two rows, no page scrollbar), following the window size and the display size. Choosing 24, 36 or 48 still sets the number.
+- The counts above the lists line up: on Videos the count is at the right like Performers and Studios, and the Studios row has the same height as Performers.
+- The green dot on the profile picture is hidden whenever the Connected pill is shown (it stayed visible on wide windows).
 - Native player: the video window no longer stays behind on the page after you scroll (the player's own timer brought it back after the page had hidden it).
 - A local video whose file is gone now says so instead of "opening the address failed".
 - Top bar on the SFW Home page: the colour change is a smooth fade, and the page no longer jumps when the bar changes (it used to leave and re-enter the layout).
