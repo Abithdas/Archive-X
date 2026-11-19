@@ -382,6 +382,11 @@ def register_playback_compat_routes(
     async def play_device_link(channel_id: int, message_id: int, request: Request):
         """Return a VLC/iOS/Android-safe signed LAN playback URL."""
         require_auth(request)
+        # A video in a folder on this PC: say so plainly when the file is gone, instead of the player's bare "opening the address failed".
+        if int(channel_id) < -9_000_000_000_000:
+            from ..engines import local_videos
+            if not await asyncio.to_thread(local_videos.file_of, db, channel_id, message_id):
+                raise HTTPException(404, "That file is not in its folder any more (moved, renamed or the drive is not connected)")
         remote = (request.client.host if request.client else "") not in ("127.0.0.1", "::1", "localhost")
         # Use the dedicated signed HTTP player feed for LAN devices. It is bound
         # on the LAN address by the application, avoiding browser-session cookies
