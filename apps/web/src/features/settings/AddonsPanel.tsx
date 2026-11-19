@@ -4,11 +4,12 @@ import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { Confirm } from '@/design/Confirm'
 import { Icon } from '@/design/Icon'
+import { Switch } from '@/design/Switch'
 import { errorText } from '@/features/content/useContentMode'
 
 export interface AddonList { type: 'movie' | 'series' | 'anime'; id: string; name: string }
-export interface Addon { id: string; url: string; name: string; description: string; version: string; lists: AddonList[]; error?: string }
-export interface AddonsView { builtin: Array<{ name: string; what: string }>; items: Addon[] }
+export interface Addon { id: string; url: string; name: string; description: string; version: string; lists: AddonList[]; provides?: string[]; note?: string; error?: string }
+export interface AddonsView { builtin: Array<{ name: string; what: string }>; items: Addon[]; allow_local?: boolean }
 
 const BOX = 'rounded-[18px] border border-line bg-surface p-5'
 export const addonsKey = ['screen-addons'] as const
@@ -31,6 +32,10 @@ export function AddonsPanel() {
     mutationFn: (id: string) => api<AddonsView>(`/api/screen/addons/${id}`, { method: 'DELETE' }),
     onSuccess: (v) => { qc.setQueryData(addonsKey, v); setAsking(null); toast('Add-on removed') },
   })
+  const local = useMutation({
+    mutationFn: (on: boolean) => api<AddonsView>('/api/screen/addons/settings', { method: 'POST', json: { allow_local: on } }),
+    onSuccess: (v) => qc.setQueryData(addonsKey, v),
+  })
   const submit = (e: FormEvent) => { e.preventDefault(); if (url.trim()) add.mutate(url.trim()) }
   const items = view.data?.items ?? []
   return (
@@ -44,7 +49,7 @@ export function AddonsPanel() {
       </section>
       <section aria-label="Your add-ons" className={BOX}>
         <h2 className="text-lg font-bold">Your add-ons</h2>
-        <p className="mb-3 text-sm text-muted">Add a catalogue add-on to get its lists in Discover (under Filters, List). Only its lists of movies and series are read; its streams are never asked for. What an add-on lists is its own choice: Archive X cannot check it.</p>
+        <p className="mb-3 text-sm text-muted">Add any Stremio add-on by its address. Its lists of movies and series show in Discover (under Filters, List); what else it provides is named below. Streams are never asked for. What an add-on lists is its own choice: Archive X cannot check it.</p>
         {view.isError ? <p role="alert" className="mb-3 text-sm text-warn">Could not read the add-ons.</p> : null}
         {items.length ? (
           <ul className="m-0 mb-4 grid list-none gap-2 p-0">
@@ -56,12 +61,20 @@ export function AddonsPanel() {
                   <button type="button" onClick={() => setAsking(a)} aria-label={`Remove ${a.name}`} className="h-9 shrink-0 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5">Remove</button>
                 </div>
                 {a.error ? <p role="status" className="text-xs text-warn">{a.error}</p>
-                  : <ul aria-label={`Lists of ${a.name}`} className="m-0 flex list-none flex-wrap gap-1.5 p-0">{a.lists.map((l) => <li key={`${l.type}:${l.id}`} className="rounded-full bg-fg/10 px-2.5 py-1 text-xs font-medium">{l.name} <span className="text-faint">· {l.type}</span></li>)}</ul>}
+                  : (<>
+                    {a.provides?.length ? <p className="text-xs text-muted">Provides: {a.provides.join(', ')}</p> : null}
+                    {a.lists.length ? <ul aria-label={`Lists of ${a.name}`} className="m-0 flex list-none flex-wrap gap-1.5 p-0">{a.lists.map((l) => <li key={`${l.type}:${l.id}`} className="rounded-full bg-fg/10 px-2.5 py-1 text-xs font-medium">{l.name} <span className="text-faint">· {l.type}</span></li>)}</ul> : null}
+                    {a.note ? <p role="status" className="text-xs text-faint">{a.note}</p> : null}
+                  </>)}
                 <p className="truncate text-[11px] text-faint" title={a.url}>{a.url}</p>
               </li>
             ))}
           </ul>
         ) : <p className="mb-4 text-sm text-muted">None added yet.</p>}
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-line px-3.5 py-3">
+          <Switch label="Allow add-ons on this PC or network" checked={Boolean(view.data?.allow_local)} onChange={(v) => local.mutate(v)} />
+          <div className="min-w-0 flex-1"><p className="text-sm font-semibold">Allow add-ons on this PC or network</p><p className="text-xs text-muted">Lets you add an add-on you run yourself, such as http://127.0.0.1:7000, a NAS or a media server. Off, only https:// add-ons on the internet are accepted.</p></div>
+        </div>
         <form onSubmit={submit} className="grid gap-2" aria-label="Add an add-on">
           <label className="text-sm font-semibold" htmlFor="addon-url">Add-on address</label>
           <div className="flex flex-wrap gap-2">

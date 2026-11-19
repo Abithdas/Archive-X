@@ -53,4 +53,23 @@ describe('Settings, Addons', () => {
     expect(await screen.findByText('It could not be reached.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Remove My Catalogs' })).toBeInTheDocument()
   })
+
+  it('shows what an add-on provides and the switch for add-ons on this PC, which is saved when turned on', async () => {
+    const streams: AddonsView['items'][number] = { id: '0123456789', url: 'http://127.0.0.1:7000', name: 'Local files', description: '', version: '', lists: [], provides: ['Streams', 'Details'], note: 'It has no lists to browse, so nothing from it shows in Discover. Archive X never asks an add-on for streams.' }
+    let view: AddonsView = { builtin: BUILTIN, items: [streams], allow_local: false }
+    const bodies: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/screen/addons/settings') { bodies.push(String(init?.body)); view = { ...view, allow_local: JSON.parse(String(init?.body)).allow_local }; return json(view) }
+      if (url === '/api/screen/addons') return json(view)
+      return json({})
+    }))
+    withRouter(<AddonsPanel />)
+    expect(await screen.findByText('Provides: Streams, Details')).toBeInTheDocument()
+    expect(screen.getByText(/never asks an add-on for streams/)).toBeInTheDocument()
+    const sw = screen.getByRole('switch', { name: 'Allow add-ons on this PC or network' })
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(sw)
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'Allow add-ons on this PC or network' })).toHaveAttribute('aria-checked', 'true'))
+    expect(bodies).toEqual(['{"allow_local":true}'])
+  })
 })

@@ -189,7 +189,7 @@ def test_the_person_can_add_a_catalogue_addon_by_its_address_and_its_lists_show_
     c = _client(db)
     assert c.get("/api/screen/addons").json()["items"] == [] and len(c.get("/api/screen/addons").json()["builtin"]) == 3
     for bad, why in (("http://good.example/manifest.json", "https://"), ("https://127.0.0.1/manifest.json", "inside"), ("https://user:pw@good.example/manifest.json", "not an add-on address"),
-                     ("https://good.example:8080/manifest.json", "ports"), ("nonsense", "https://"), ("https://streams.example/manifest.json", "provides streams")):
+                     ("https://good.example:8080/manifest.json", "ports"), ("nonsense", "https://")):
         if "127.0.0.1" in bad:
             monkeypatch.setattr(ac, "_resolve", lambda host: [(0, 0, 0, "", ("127.0.0.1", 443))])
         r = c.post("/api/screen/addons", json={"url": bad}, headers=H)
@@ -291,10 +291,40 @@ def test_cast_and_studios_count_movies_and_series_not_videos(tmp_path):
         assert title_counts(r, "SELECT studio_id AS eid, video_id FROM video_studios") == {1: {"movies": 1, "series": 1}}
 
 
-def test_the_addon_error_says_why_an_addon_cannot_be_added():
-    from telegram_archive.metadata.addon_client import parse_manifest
+def test_any_stremio_addon_can_be_added_and_the_one_on_this_pc_needs_the_switch(tmp_path, monkeypatch):
+    from telegram_archive.metadata import addon_client as ac
     import pytest
-    for manifest, word in (({"resources": ["stream"], "catalogs": []}, "streams"), ({"resources": ["subtitles"]}, "subtitles"),
-                           ({"resources": ["catalog"], "catalogs": [{"type": "movie", "id": "s", "extra": [{"name": "search", "isRequired": True}]}]}, "typed")):
-        with pytest.raises(ValueError, match=word):
-            parse_manifest(manifest)
+    # what a manifest offers: lists are used, everything else is named; streams are never asked for
+    streams = ac.parse_manifest({"name": "Streams only", "resources": ["stream"], "catalogs": []})
+    assert streams["lists"] == [] and streams["provides"] == ["Streams"] and "never asks an add-on for streams" in streams["note"] and "no lists" in streams["note"]
+    subs = ac.parse_manifest({"name": "Subs", "resources": ["subtitles", {"name": "meta", "types": ["movie"]}]})
+    assert subs["provides"] == ["Subtitles", "Details"] and "not used yet" in subs["note"]
+    typed = ac.parse_manifest({"name": "Typed", "resources": ["catalog"], "catalogs": [{"type": "movie", "id": "s", "extra": [{"name": "search", "isRequired": True}]}]})
+    assert typed["lists"] == [] and typed["provides"] == ["Lists"]
+    with pytest.raises(ValueError, match="Stremio add-on"):
+        ac.parse_manifest({"hello": "world"})
+    # this PC or network: http, any port and private addresses, only while the person has allowed it
+    ac.set_allow_local(False)
+    for url in ("http://127.0.0.1:7000/manifest.json", "http://localhost:11470/manifest.json", "https://192.168.0.5:8443/manifest.json"):
+        with pytest.raises(ValueError):
+            ac.check_public(url)
+    ac.set_allow_local(True)
+    try:
+        assert ac.check_public("http://127.0.0.1:7000/manifest.json") == "http://127.0.0.1:7000/manifest.json"
+        assert ac.base_of("http://localhost:11470/manifest.json") == "http://localhost:11470"
+        assert ac.check_public("https://192.168.0.5:8443/x") == "https://192.168.0.5:8443/x"
+        with pytest.raises(ValueError, match="not an add-on address"):
+            ac.check_public("http://user:pw@127.0.0.1/x")
+    finally:
+        ac.set_allow_local(False)
+    # the switch is saved through the route and shows in the list
+    monkeypatch.setattr(ac, "get_json", lambda url: {"name": "Local", "resources": ["catalog"], "catalogs": [{"type": "movie", "id": "all"}]})
+    db = Database(tmp_path / "l.db")
+    c = _client(db)
+    assert c.get("/api/screen/addons").json()["allow_local"] is False
+    assert c.post("/api/screen/addons", json={"url": "http://127.0.0.1:7000/manifest.json"}, headers=H).status_code == 400
+    assert c.post("/api/screen/addons/settings", json={"allow_local": True}, headers=H).json()["allow_local"] is True
+    added = c.post("/api/screen/addons", json={"url": "http://127.0.0.1:7000/manifest.json"}, headers=H)
+    assert added.status_code == 200 and added.json()["items"][0]["url"] == "http://127.0.0.1:7000"
+    c.post("/api/screen/addons/settings", json={"allow_local": False}, headers=H)
+    ac.set_allow_local(False)

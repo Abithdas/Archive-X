@@ -336,8 +336,14 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 out.append({"id": a["id"], "url": a["url"], "name": str(a.get("name") or "")[:60]})
         return out
 
+    def _sync_local() -> bool:
+        on = str(db.setting("addons_allow_local") or "") in {"1", "true", "True"}
+        ac.set_allow_local(on)
+        return on
+
     def _addon_json(url: str):
         """An add-on's answer, kept ten minutes like the other catalogues."""
+        _sync_local()
         hit = discover_cache.get(url)
         if hit and _time.monotonic() - hit[0] < 600:
             return hit[1]
@@ -349,16 +355,25 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
 
     def _addons_view() -> dict:
         items = []
+        _sync_local()
         for a in _saved_addons():
             try:
                 items.append({"id": a["id"], "url": a["url"], **ac.parse_manifest(_addon_json(a["url"] + "/manifest.json"))})
             except Exception as exc:
                 items.append({"id": a["id"], "url": a["url"], "name": a["name"] or a["url"].split("/")[2], "description": "", "version": "", "lists": [], "error": str(exc)[:160] or "It could not be reached."})
-        return {"builtin": BUILTIN_ADDONS, "items": items}
+        return {"builtin": BUILTIN_ADDONS, "items": items, "allow_local": _sync_local()}
 
     @router.get("/api/screen/addons")
     async def addons_list(request: Request):
         require_auth(request)
+        return await asyncio.to_thread(_addons_view)
+
+    @router.post("/api/screen/addons/settings")
+    async def addons_settings(request: Request):
+        """The switch for add-ons on this PC or network."""
+        require_auth(request)
+        body = await request.json()
+        await asyncio.to_thread(db.set_setting, "addons_allow_local", "1" if (body or {}).get("allow_local") else "0")
         return await asyncio.to_thread(_addons_view)
 
     @router.post("/api/screen/addons")
@@ -371,6 +386,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             raise HTTPException(400, f"At most {MAX_ADDONS} add-ons.")
 
         def work():
+            _sync_local()
             base = ac.base_of(str((body or {}).get("url") or ""))
             manifest = ac.parse_manifest(ac.get_json(base + "/manifest.json"))
             return base, manifest

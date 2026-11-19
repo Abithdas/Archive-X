@@ -5,7 +5,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 ## Unreleased
 
 - **Smoother scrolling on the SFW Home page.** Poster hover effects no longer repaint a large shadow on every frame (the shadow now only fades in) and pause while the page is moving, the Home / Discover / Library tabs no longer blur the moving picture behind them, the featured picture keeps only the images it needs and stops its slideshow and slow push-in once scrolled out of sight, and rows off screen are not painted.
-- **Settings, Addons: a clear reason when an add-on cannot be added.** An add-on that gives streams or subtitles (not lists) now says so, instead of "no lists of movies or series".
+- **Settings, Addons accepts any Stremio add-on.** Streams-only, subtitle and detail add-ons can be added too: each shows what it provides, and says what Archive X does not use (it never asks an add-on for streams; subtitles from add-ons are not used yet). A new switch, **Allow add-ons on this PC or network**, lets you add one you run yourself (http://127.0.0.1:7000, a NAS, a media server); off, only https:// add-ons on the internet are accepted.
 
 ## 30.10.0 (2026-11-19)
 

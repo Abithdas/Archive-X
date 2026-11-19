@@ -2,7 +2,7 @@
 
 An add-on is plain HTTPS and JSON (`/manifest.json`, `/catalog/{type}/{id}.json`). Because the address is typed by a person and then fetched by this PC, it is
 checked before every use: HTTPS only, the default port, a name that resolves only to public addresses (never this PC, a router or a LAN device), at most
-a few redirects and each one checked the same way, a size cap and a time limit. Only catalogues are read; an add-on's streams are never asked for.
+a few redirects and each one checked the same way, a size cap and a time limit. Only catalogues are read; an add-on's streams are never asked for. On this PC or network (a switch in Settings, Addons) http, any port and private addresses are allowed.
 """
 from __future__ import annotations
 
@@ -18,6 +18,14 @@ TIMEOUT = 15
 USABLE_TYPES = ("movie", "series", "anime")
 
 
+LOCAL = False   # the person allowed add-ons on this PC or its network (Settings, Addons): then http, any port and private addresses are fine
+
+
+def set_allow_local(on: bool) -> None:
+    global LOCAL
+    LOCAL = bool(on)
+
+
 def _resolve(host: str):
     return socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
 
@@ -28,14 +36,16 @@ def check_public(url: str) -> str:
     if text.lower().startswith("stremio://"):
         text = "https://" + text[len("stremio://"):]
     parts = urllib.parse.urlsplit(text)
-    if parts.scheme != "https":
-        raise ValueError("The address must start with https:// (or stremio://).")
+    if parts.scheme not in ("https", "http") or (parts.scheme == "http" and not LOCAL):
+        raise ValueError("The address must start with https:// (or stremio://)." + ("" if LOCAL else " To use an add-on on this PC or network, switch that on in Settings, Addons."))
     host = (parts.hostname or "").strip().lower()
     if not host or parts.username or parts.password:
         raise ValueError("That is not an add-on address.")
+    clean = urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path, parts.query, ""))
+    if LOCAL:                                                     # the owner's own choice: this PC, a media server or an add-on on the network
+        return clean
     if parts.port not in (None, 443):
         raise ValueError("Add-ons on other ports are not supported.")
-    clean = urllib.parse.urlunsplit(("https", parts.netloc, parts.path, parts.query, ""))
     try:                                                         # a number given as the address is judged as it is, with no name lookup
         literal = ipaddress.ip_address(host.strip("[]"))
     except ValueError:
@@ -62,7 +72,7 @@ def base_of(url: str) -> str:
     clean = check_public(url)
     parts = urllib.parse.urlsplit(clean)
     path = parts.path[: -len("/manifest.json")] if parts.path.endswith("/manifest.json") else parts.path
-    return urllib.parse.urlunsplit(("https", parts.netloc, path.rstrip("/"), "", ""))
+    return urllib.parse.urlunsplit((parts.scheme, parts.netloc, path.rstrip("/"), "", ""))
 
 
 class _Guard(urllib.request.HTTPRedirectHandler):
@@ -89,10 +99,14 @@ def get_json(url: str):
     return json.loads(raw.decode("utf-8")) if raw else {}
 
 
+PROVIDES = {"catalog": "Lists", "meta": "Details", "stream": "Streams", "subtitles": "Subtitles", "addon_catalog": "Add-on lists"}
+
+
 def parse_manifest(manifest) -> dict:
-    """What a manifest offers that Discover can use: its name and the lists of movies, series or anime that need nothing but their own address."""
-    if not isinstance(manifest, dict):
-        raise ValueError("That address did not answer with an add-on.")
+    """What an add-on offers. Any Stremio add-on is accepted; Discover uses its lists of movies, series or anime that need nothing but their own address.
+    `provides` names every kind of thing it serves, and `note` says what Archive X does not use (it never asks an add-on for streams)."""
+    if not isinstance(manifest, dict) or not (manifest.get("resources") or manifest.get("catalogs")):
+        raise ValueError("That address did not answer with a Stremio add-on.")
     resources = [r if isinstance(r, str) else (r or {}).get("name") for r in (manifest.get("resources") or [])]
     lists = []
     for c in manifest.get("catalogs") or []:
@@ -103,12 +117,15 @@ def parse_manifest(manifest) -> dict:
             continue
         names = {e.get("name") for e in extra}
         lists.append({"type": c["type"], "id": str(c["id"]), "name": str(c.get("name") or c["id"])[:60], "genre": "genre" in names, "skip": "skip" in names})
-    if "catalog" not in resources or not lists:
-        if "catalog" not in resources and "stream" in resources:
-            raise ValueError("That add-on provides streams (links to play titles), not lists to browse. Archive X only reads catalogue add-ons, so it cannot use it.")
-        if "catalog" not in resources and "subtitles" in resources:
-            raise ValueError("That add-on provides subtitles, not lists to browse. Archive X only uses catalogue add-ons here (subtitle add-ons are not supported yet).")
-        if "catalog" in resources:
-            raise ValueError("That add-on's lists all need something typed (a search or a code), so there is nothing to browse. Only lists that open on their own can be added.")
-        raise ValueError("That add-on has no lists of movies or series to browse.")
-    return {"name": str(manifest.get("name") or "Add-on")[:60], "description": str(manifest.get("description") or "")[:240], "version": str(manifest.get("version") or "")[:20], "lists": lists[:40]}
+    if "catalog" not in resources and lists:
+        resources.append("catalog")
+    provides = [PROVIDES[r] for r in dict.fromkeys(resources) if r in PROVIDES]
+    notes = []
+    if not lists:
+        notes.append("It has no lists to browse, so nothing from it shows in Discover.")
+    if "stream" in resources:
+        notes.append("Archive X never asks an add-on for streams.")
+    if "subtitles" in resources:
+        notes.append("Subtitles from add-ons are not used yet.")
+    return {"name": str(manifest.get("name") or "Add-on")[:60], "description": str(manifest.get("description") or "")[:240], "version": str(manifest.get("version") or "")[:20],
+            "lists": lists[:40], "provides": provides, "note": " ".join(notes)}
