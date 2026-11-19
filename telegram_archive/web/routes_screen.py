@@ -504,6 +504,17 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
 
     @router.get("/api/screen/discover")
     async def discover(request: Request, kind: str = Query("movie", alias="type"), genre: str = "", skip: int = 0, search: str = "", catalog: str = "popular"):
+        """Several genres (comma-separated) mean titles that have all of them: the first is asked of the source, the rest are checked on the titles."""
+        wanted = [g for g in dict.fromkeys(x.strip() for x in str(genre or "").split(",")) if g][:4]
+        if any(g not in GENRES for g in wanted):
+            raise HTTPException(400, "Unknown genre")
+        out = await _discover_one(request, kind, wanted[0] if wanted else "", skip, search, catalog, wanted)
+        if len(wanted) > 1 and isinstance(out, dict) and isinstance(out.get("items"), list):
+            rest = wanted[1:]
+            out["items"] = [it for it in out["items"] if not it.get("genres") or all(g in it["genres"] for g in rest)]   # a title whose list gave no genres is kept (TMDB lists are filtered at the source)
+        return out
+
+    async def _discover_one(request: Request, kind: str, genre: str, skip: int, search: str, catalog: str, wanted: list):
         """A list of movies or series to find (Popular, New, Featured from Cinemeta; Netflix, HBO Max, Disney+, Prime Video, Apple TV+ from TMDB), by genre, or a search: what you could add, with the ones you already have marked."""
         require_auth(request)
         if kind not in ("movie", "series"):
@@ -590,8 +601,10 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 if made is None:
                     raise HTTPException(502, "The list could not be reached")
                 return {"ok": True, "disabled": False, "needs_key": True, "items": [], "more": False}
-            ids = TMDB_GENRES[media].get(genre) if genre else None
-            if genre and not ids:
+            found_ids = [TMDB_GENRES[media].get(g) for g in (wanted or ([genre] if genre else []))]
+            uniq = list(dict.fromkeys(i for i in found_ids if i))
+            ids = (uniq[0] if len(uniq) == 1 else ",".join(str(i) for i in uniq)) or None   # a comma means all of them
+            if genre and (not ids or None in found_ids):
                 return {"ok": True, "disabled": False, "items": [], "more": False}   # TMDB has no such genre for this kind
             page = max(0, min(int(skip or 0), 40)) + 1
             region = str(db.setting("watch_region") or "US").upper()[:2]

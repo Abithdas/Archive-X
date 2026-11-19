@@ -31,6 +31,9 @@ interface HomeData { continue: Resume[]; airing: Airing[]; recent: Recent[]; bil
 interface Found { imdb: string; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string; background: string; rating: string; overview: string; genres: string[]; library: { kind: 'tv' | 'movie'; id: number } | null }
 interface FoundPage { items: Found[]; more?: boolean; next?: number; disabled?: boolean; needs_key?: boolean }
 interface FoundOne extends Found { runtime: string; cast: string[]; director: string[]; trailer: string; seasons: number }
+const hasPage = (item: Found) => /^(tt\d+|tmdb-\d+)$/.test(item.imdb)
+/** A poster opens the title's own page; a title with no page of its own (some anime and add-on titles) falls back to its details. */
+const cardGo = (item: Found) => (hasPage(item) ? { to: '/discover/$kind/$id', params: pageParams(item) } : {})
 const pageParams = (item: Found) => ({ kind: item.kind === 'tv' ? 'series' : 'movie', id: item.imdb })
 
 const openIn = (kind: 'tv' | 'movie') => (kind === 'tv' ? '/series/$id' : '/movies/$id')
@@ -159,7 +162,7 @@ function DetailPanel({ item }: { item: Found }) {
   const d = q.data ?? { ...item, runtime: '', cast: [], director: [], trailer: '', seasons: 0 }
   const lib = d.library ?? item.library
   return (
-    <aside aria-label="Details" className="relative isolate self-start overflow-hidden rounded-[26px] border border-line bg-surface lg:sticky lg:top-20">
+    <aside aria-label="Details" className="relative isolate min-w-0 self-start overflow-y-auto overflow-x-hidden rounded-[26px] border border-line bg-surface lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]">
       <img key={item.imdb} src={d.background || d.poster || PLACEHOLDER} alt="" aria-hidden="true" className="mo-fade-in absolute inset-0 -z-20 size-full object-cover opacity-40" />
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(0deg,var(--color-surface)_18%,color-mix(in_srgb,var(--color-surface)_55%,transparent)_100%)]" />
       <div key={item.imdb} className="mo-panel-in grid gap-4 p-6">
@@ -197,7 +200,8 @@ const OPTION = 'h-9 rounded-full border px-3.5 text-[13px] font-semibold transit
 
 /** One filter for Discover, like the one on the Photos page: a pill with a count of what is chosen, opening a panel with the kind and the genre. */
 function DiscoverFilters({ kind, setKind, genre, setGenre, catalog, setCatalog, addons, off }: { kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void; catalog: Catalog; setCatalog: (c: Catalog) => void; addons: readonly Addon[]; off: boolean }) {
-  const count = (kind === 'series' && !isAnime(catalog) ? 1 : 0) + (genre ? 1 : 0) + (catalog !== 'popular' ? 1 : 0)
+  const chosen = genre ? genre.split(',') : []
+  const count = (kind === 'series' && !isAnime(catalog) ? 1 : 0) + chosen.length + (catalog !== 'popular' ? 1 : 0)
   const pick = (on: boolean) => cn(OPTION, on ? 'border-accent/60 bg-accent/15 text-fg' : 'border-line text-muted hover:bg-fg/5 hover:text-fg')
   return (
     <div className={cn(off && 'pointer-events-none opacity-50')} aria-disabled={off || undefined}>
@@ -225,9 +229,9 @@ function DiscoverFilters({ kind, setKind, genre, setGenre, catalog, setCatalog, 
             </div>
           ) : null}
           <div className="grid gap-2">
-            <h3 className="text-sm font-bold">Genre</h3>
+            <h3 className="text-sm font-bold">Genre <span className="font-normal text-muted">(choose one or more)</span></h3>
             <div role="group" aria-label="Genre" className="flex flex-wrap gap-1.5">
-              {['', ...GENRES].map((g) => <button key={g || 'all'} type="button" aria-pressed={genre === g} onClick={() => setGenre(g)} className={pick(genre === g)}>{g || 'All genres'}</button>)}
+              {['', ...GENRES].map((g) => { const on = g ? chosen.includes(g) : chosen.length === 0; return <button key={g || 'all'} type="button" aria-pressed={on} onClick={() => setGenre(g ? (chosen.includes(g) ? chosen.filter((x) => x !== g) : [...chosen, g].slice(0, 4)).join(',') : '')} className={pick(on)}>{g || 'All genres'}</button> })}
             </div>
           </div>
           {count ? <button type="button" onClick={() => { setKind('movie'); setGenre(''); setCatalog('popular') }} className="justify-self-start text-[13px] font-semibold text-muted hover:text-fg">Clear filters</button> : null}
@@ -265,7 +269,7 @@ function Discover({ text, kind, setKind, genre, setGenre, catalog, setCatalog }:
   return (
     <section aria-label="Discover" className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-extrabold tracking-tight">{search ? `Results for “${search}”` : (isAnime(catalog) ? [labelOf(catalog, addons), genre] : [catalog !== 'popular' ? labelOf(catalog, addons) : '', genre || (catalog === 'popular' ? 'Popular' : ''), kind === 'movie' ? 'movies' : 'series']).filter(Boolean).join(' ')}</h2>
+        <h2 className="text-xl font-extrabold tracking-tight">{search ? `Results for “${search}”` : (isAnime(catalog) ? [labelOf(catalog, addons), genre.split(',').join(' · ')] : [catalog !== 'popular' ? labelOf(catalog, addons) : '', genre.split(',').join(' · ') || (catalog === 'popular' ? 'Popular' : ''), kind === 'movie' ? 'movies' : 'series']).filter(Boolean).join(' ')}</h2>
         <DiscoverFilters kind={kind} setKind={(k) => { setKind(k); setFocus(null) }} genre={genre} setGenre={(g) => { setGenre(g); setFocus(null) }} catalog={catalog} setCatalog={(c) => { setCatalog(c); setFocus(null) }} addons={addons} off={Boolean(search)} />
       </div>
       {off ? <p role="status" className="rounded-2xl border border-dashed border-line p-6 text-sm text-muted">Discover uses Cinemeta, the Stremio project's open catalogue, and it is switched off. Turn it on in Settings, Metadata.</p>
@@ -274,14 +278,14 @@ function Discover({ text, kind, setKind, genre, setGenre, catalog, setCatalog }:
         : q.isPending ? <p role="status" className="py-6 text-sm text-muted">Loading the catalogue…</p>
         : !items.length ? <p role="status" className="py-6 text-sm text-muted">Nothing found.</p>
         : (
-          <div className={cn('grid gap-6', wide && 'grid-cols-[minmax(0,1fr)_380px]')}>
+          <div className={cn('grid gap-6', wide && 'grid-cols-[minmax(0,1fr)_minmax(300px,360px)]')}>
             <div className="grid content-start gap-5">
               <ul aria-label="Catalogue" className={cn('m-0 grid list-none gap-x-4 gap-y-5 p-0', wide ? 'grid-cols-[repeat(auto-fill,minmax(150px,1fr))]' : 'grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(168px,1fr))]')}>
                 {items.map((it, k) => (
                   <li key={`${it.kind}:${it.imdb}`} className="mo-enter m-0" style={{ animationDelay: `${Math.min(k % 50, 14) * 25}ms` }}>
                     <PosterCard image={it.poster} title={it.title} sub={it.year ? String(it.year) : ''} rating={it.rating} active={shown?.imdb === it.imdb && shown.kind === it.kind}
                       corner={it.library ? <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-accent-fg">In your library</span> : null}
-                      onHover={wide ? () => rest(it) : undefined} onClick={() => { if (wide) { clearTimeout(timer.current); setFocus(it) } else setOpen(it) }} />
+                      {...cardGo(it)} onHover={wide ? () => rest(it) : undefined} onClick={() => setOpen(it)} />
                   </li>
                 ))}
               </ul>
@@ -303,7 +307,7 @@ function PopularRow({ kind, onSeeAll }: { kind: Kind; onSeeAll: () => void }) {
   return (
     <>
       <Row title={kind === 'movie' ? 'Popular movies' : 'Popular series'} onSeeAll={onSeeAll}>
-        {q.data.items.map((it) => <PosterCard key={`${it.kind}:${it.imdb}`} image={it.poster} title={it.title} sub={it.year ? String(it.year) : ''} rating={it.rating} className="w-[168px] shrink-0 snap-start" corner={it.library ? <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-accent-fg">In your library</span> : null} onClick={() => setOpen(it)} />)}
+        {q.data.items.map((it) => <PosterCard key={`${it.kind}:${it.imdb}`} image={it.poster} title={it.title} sub={it.year ? String(it.year) : ''} rating={it.rating} className="w-[168px] shrink-0 snap-start" corner={it.library ? <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-accent-fg">In your library</span> : null} {...cardGo(it)} onClick={() => setOpen(it)} />)}
       </Row>
       {open ? <Details item={open} onClose={() => setOpen(null)} /> : null}
     </>

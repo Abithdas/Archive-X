@@ -9,6 +9,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Discover: a poster opens the title's own page (no pop-up; titles without a page of their own still show their details); the side preview stays inside the window and scrolls when it is taller than the screen; Genre in Filters takes several genres at once
 - Native player: hide and close no longer wait behind a slow seek (the player is taken out from under the shared lock before the engine is called)
 - Native player: an engine error after the video opened now shows the error panel instead of an empty picture
 - SFW: the log list and the log zip are closed in SFW like the other log downloads

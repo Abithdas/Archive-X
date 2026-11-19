@@ -49,11 +49,8 @@ describe('SFW Home', () => {
     await toDiscover()
     const list = await screen.findByRole('list', { name: 'Catalogue' })
     expect(within(list).getByText('In your library')).toBeInTheDocument()
-    fireEvent.click(within(list).getByRole('button', { name: 'Details of Dune' }))
-    expect(await screen.findByText('Not in your library')).toBeInTheDocument()
-    expect(await screen.findByText(/Keanu Reeves/)).toBeInTheDocument()                                  // the details came from the catalogue
-    expect(screen.getByRole('link', { name: 'Watch the trailer' })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=m8e-FF8MsqU')
-    fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]!)
+    expect(within(list).getByRole('link', { name: 'Open Dune' })).toHaveAttribute('href', '/discover/movie/tt0000002')   // a poster opens the title's page, no pop-up
+    expect(document.querySelector('dialog[open]')).toBeNull()
     expect(screen.getByRole('heading', { name: 'Popular movies' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Filters/ }))                                     // one Filters button, like the Photos page
     const genres = screen.getByRole('group', { name: 'Genre' })
@@ -61,8 +58,11 @@ describe('SFW Home', () => {
     fireEvent.click(within(genres).getByRole('button', { name: 'Drama' }))
     expect(await screen.findByRole('heading', { name: 'Drama movies' })).toBeInTheDocument()            // the page says which genre is on
     await vi.waitFor(() => expect(urls.some((u) => u.includes('genre=Drama'))).toBe(true))
+    fireEvent.click(within(genres).getByRole('button', { name: 'Comedy' }))                              // genres add up: both are asked for
+    expect(await screen.findByRole('heading', { name: 'Drama · Comedy movies' })).toBeInTheDocument()
+    await vi.waitFor(() => expect(urls.some((u) => u.includes('genre=Drama%2CComedy'))).toBe(true))
     fireEvent.click(within(screen.getByRole('group', { name: 'Kind' })).getByRole('button', { name: 'Series' }))
-    expect(screen.getByRole('button', { name: /Filters/ })).toHaveTextContent('2')                           // the count of what is chosen: series and Drama
+    expect(screen.getByRole('button', { name: /Filters/ })).toHaveTextContent('3')                           // the count of what is chosen: series, Drama and Comedy
     await vi.waitFor(() => expect(urls.some((u) => u.includes('type=series'))).toBe(true))
     act(() => useSearch.getState().set('dune'))                                                            // typed in the one search box, in the top bar
     await vi.waitFor(() => expect(urls.some((u) => u.includes('search=dune'))).toBe(true))
@@ -82,7 +82,7 @@ describe('SFW Home', () => {
     const list = await screen.findByRole('list', { name: 'Catalogue' })
     const panel = await screen.findByRole('complementary', { name: 'Details' })
     expect(within(panel).getByText('The Matrix')).toBeInTheDocument()                                  // the first title is shown at once
-    fireEvent.click(within(list).getByRole('button', { name: 'Details of Dune' }))
+    fireEvent.focus(within(list).getByRole('link', { name: 'Open Dune' }))
     expect(await within(await screen.findByRole('complementary', { name: 'Details' })).findByText('Dune')).toBeInTheDocument()
     expect(document.querySelector('dialog[open]')).toBeNull()
   })
@@ -159,10 +159,11 @@ describe('SFW Home', () => {
   })
 
   it('says where a title you do not have can be watched, with the credit and a link to TMDB; a title you own does not need it', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('min-width'), addEventListener: () => undefined, removeEventListener: () => undefined }))
     const urls = mount((u) => (u.startsWith('/api/screen/discover/series') || u.includes('/discover/movie/tt0000002') ? json({ ...found(2, 'Dune'), runtime: '155 min', cast: [], director: [], trailer: '', seasons: 0 }) : u.startsWith('/api/screen/where/') ? json({ ok: true, region: 'US', link: 'https://www.themoviedb.org/movie/1/watch?locale=US', groups: [{ key: 'flatrate', label: 'Stream', providers: [{ name: 'Netflix', logo: '' }] }, { key: 'rent', label: 'Rent', providers: [{ name: 'Apple TV', logo: '' }] }] }) : undefined))
     await toDiscover()
     const list = await screen.findByRole('list', { name: 'Catalogue' })
-    fireEvent.click(within(list).getByRole('button', { name: 'Details of Dune' }))                       // not in the library
+    fireEvent.focus(within(list).getByRole('link', { name: 'Open Dune' }))   // not in the library
     await vi.waitFor(() => {
       expect(screen.getByText('Netflix')).toBeInTheDocument()
       expect(screen.getByText('Apple TV')).toBeInTheDocument()
@@ -170,8 +171,7 @@ describe('SFW Home', () => {
       expect(screen.getByRole('link', { name: 'JustWatch' })).toHaveAttribute('href', 'https://www.justwatch.com')
     })
     expect(urls.filter((u) => u.startsWith('/api/screen/where/')).every((u) => u.includes('tt0000002'))).toBe(true)      // asked for Dune only, never for the one that is already owned
-    fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]!)
-    fireEvent.click(within(list).getByRole('button', { name: 'Details of The Matrix' }))                  // in the library
+    fireEvent.focus(within(list).getByRole('link', { name: 'Open The Matrix' }))   // in the library
     expect(await screen.findByRole('link', { name: 'Open in your library' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Where to watch' })).toBeNull()
   })

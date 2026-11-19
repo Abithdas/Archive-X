@@ -105,6 +105,8 @@ def test_discover_lists_catalogues_marks_what_the_library_has_and_validates(tmp_
     assert c.get("/api/screen/discover?type=movie&search=dune").json()["items"][0]["title"] == "Dune"
     assert c.get("/api/screen/discover?type=music").status_code == 400
     assert c.get("/api/screen/discover?type=movie&genre=../etc").status_code == 400
+    assert c.get("/api/screen/discover?type=movie&genre=Drama,../etc").status_code == 400
+    assert [i["title"] for i in c.get("/api/screen/discover?type=series&genre=Drama,Comedy&catalog=featured").json()["items"]] == ["Breaking Bad"]   # several genres: the first goes to the source, a title without genres is kept
     before = len(SEEN)
     c.get("/api/screen/discover?type=movie")
     assert len(SEEN) == before                                                                                  # the same catalogue is not fetched again within minutes
