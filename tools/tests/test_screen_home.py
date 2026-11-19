@@ -189,7 +189,7 @@ def test_the_person_can_add_a_catalogue_addon_by_its_address_and_its_lists_show_
     c = _client(db)
     assert c.get("/api/screen/addons").json()["items"] == [] and len(c.get("/api/screen/addons").json()["builtin"]) == 3
     for bad, why in (("http://good.example/manifest.json", "https://"), ("https://127.0.0.1/manifest.json", "inside"), ("https://user:pw@good.example/manifest.json", "not an add-on address"),
-                     ("https://good.example:8080/manifest.json", "ports"), ("nonsense", "https://"), ("https://streams.example/manifest.json", "no lists")):
+                     ("https://good.example:8080/manifest.json", "ports"), ("nonsense", "https://"), ("https://streams.example/manifest.json", "provides streams")):
         if "127.0.0.1" in bad:
             monkeypatch.setattr(ac, "_resolve", lambda host: [(0, 0, 0, "", ("127.0.0.1", 443))])
         r = c.post("/api/screen/addons", json={"url": bad}, headers=H)
@@ -289,3 +289,12 @@ def test_cast_and_studios_count_movies_and_series_not_videos(tmp_path):
     assert (p["video_count"], p["movies"], p["series"]) == (3, 1, 1)                       # three videos: one movie, and two episodes of one series
     with db.reading() as r:
         assert title_counts(r, "SELECT studio_id AS eid, video_id FROM video_studios") == {1: {"movies": 1, "series": 1}}
+
+
+def test_the_addon_error_says_why_an_addon_cannot_be_added():
+    from telegram_archive.metadata.addon_client import parse_manifest
+    import pytest
+    for manifest, word in (({"resources": ["stream"], "catalogs": []}, "streams"), ({"resources": ["subtitles"]}, "subtitles"),
+                           ({"resources": ["catalog"], "catalogs": [{"type": "movie", "id": "s", "extra": [{"name": "search", "isRequired": True}]}]}, "typed")):
+        with pytest.raises(ValueError, match=word):
+            parse_manifest(manifest)

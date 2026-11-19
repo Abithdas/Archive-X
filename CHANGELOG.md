@@ -5,6 +5,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 ## Unreleased
 
 - **Smoother scrolling on the SFW Home page.** Poster hover effects no longer repaint a large shadow on every frame (the shadow now only fades in) and pause while the page is moving, the Home / Discover / Library tabs no longer blur the moving picture behind them, the featured picture keeps only the images it needs and stops its slideshow and slow push-in once scrolled out of sight, and rows off screen are not painted.
+- **Settings, Addons: a clear reason when an add-on cannot be added.** An add-on that gives streams or subtitles (not lists) now says so, instead of "no lists of movies or series".
 
 ## 30.10.0 (2026-11-19)
 

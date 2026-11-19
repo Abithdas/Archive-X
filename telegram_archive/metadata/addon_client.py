@@ -104,5 +104,11 @@ def parse_manifest(manifest) -> dict:
         names = {e.get("name") for e in extra}
         lists.append({"type": c["type"], "id": str(c["id"]), "name": str(c.get("name") or c["id"])[:60], "genre": "genre" in names, "skip": "skip" in names})
     if "catalog" not in resources or not lists:
+        if "catalog" not in resources and "stream" in resources:
+            raise ValueError("That add-on provides streams (links to play titles), not lists to browse. Archive X only reads catalogue add-ons, so it cannot use it.")
+        if "catalog" not in resources and "subtitles" in resources:
+            raise ValueError("That add-on provides subtitles, not lists to browse. Archive X only uses catalogue add-ons here (subtitle add-ons are not supported yet).")
+        if "catalog" in resources:
+            raise ValueError("That add-on's lists all need something typed (a search or a code), so there is nothing to browse. Only lists that open on their own can be added.")
         raise ValueError("That add-on has no lists of movies or series to browse.")
     return {"name": str(manifest.get("name") or "Add-on")[:60], "description": str(manifest.get("description") or "")[:240], "version": str(manifest.get("version") or "")[:20], "lists": lists[:40]}
