@@ -2,14 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Icon } from '@/design/Icon'
 import { PlayIcon } from './PlayerIcons'
 import { MenuItem } from './PlayerParts'
-import { CaptionStyleItems, PlaybackItems, PlayerControls, RATES, playerKey } from './PlayerControls'
+import { CaptionStyleItems, PictureSoundItems, PlaybackItems, PlayerControls, RATES, playerKey } from './PlayerControls'
 import { cn } from '@/design/cn'
 import { SnapshotGrid, type SnapshotData } from './SnapshotGrid'
 import type { PreviewInfo } from './Timeline'
 import type { Segment } from './timelineLogic'
 import { DOUBLE_TAP_MS, KEEP_SKIPPING_MS, registerTap, type TapState } from './tapseek'
 import { CcMenu } from './CcMenu'
-import { blockingEnabled, resumeAudio, routeThroughApp, setBlocking } from './audioGraph'
+import { blockingEnabled, resumeAudio, routeThroughApp, setBlocking, setBoost } from './audioGraph'
+import { loadPS, normalizePS, pictureFilter, savePS, type PictureSound } from './pictureSound'
+import { sampleOf, statRows, type StreamSample } from './streamStats'
 import { CaptionOverlay } from './CaptionOverlay'
 import { releasePlayback } from './release'
 import { loadStyle, saveStyle } from './captionStyle'
@@ -72,6 +74,11 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   const capRef = useRef(capStyle)
   capRef.current = capStyle
   const changeCap = (patch: Partial<typeof capStyle>) => setCapStyle((c) => { const n = { ...c, ...patch }; saveStyle(n); return n })
+  const [ps, setPs] = useState<PictureSound>(loadPS)
+  const [boostFailed, setBoostFailed] = useState(false)
+  const changePs = (patch: Partial<PictureSound>) => setPs((c) => { const n = normalizePS({ ...c, ...patch }); savePS(n); return n })
+  useEffect(() => { setBoostFailed(!setBoost(video.current, ps.boost / 100)) }, [ps.boost])
+  const [sample, setSample] = useState<StreamSample | null>(null)
   const tracks = useTracks(media, video, time, playing)
   useAltAudio(video, altAudio, tracks.altUrl, muted, volume, rate)
   const tap = useRef<TapState | null>(null)
@@ -197,9 +204,11 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
             onTime?.(e.currentTarget.currentTime, e.currentTarget.duration || durationHint || 0)
             const b = e.currentTarget.buffered
             setBuffered(b.length ? b.end(b.length - 1) : 0)
+            setSample(sampleOf(e.currentTarget))
           }}
           onEnded={() => { onEnd?.(); if (autoNext) onNext?.() }}
           onError={() => { setFailed(true); setLoading(false) }}
+          style={{ filter: pictureFilter(ps) }}
           className="absolute inset-0 h-full w-full cursor-pointer object-contain"
         />
         {skip ? (
@@ -240,13 +249,14 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
           playing={playing} onToggle={toggle} onPrev={onPrev} onNext={onNext}
           rate={rate} onRate={(r) => { setRate(r); flash(`Speed: ${r}x`) }}
           muted={muted} volume={volume} onMute={() => setMuted(!muted)} onVolume={(v) => { setVolume(v); setMuted(false) }}
-          status={{ chip: buffer >= 99 ? 'Cached' : `${buffer}%`, good: buffer >= 99, rows: [{ k: 'Buffered', v: `${buffer}%`, good: buffer >= 99 }, { k: 'Playback', v: 'Direct' }] }}
+          status={{ chip: buffer >= 99 ? 'Cached' : `${buffer}%`, good: buffer >= 99, rows: statRows(buffer, sample) }}
           pip={{ onClick: pip, label: 'Picture in picture', title: 'Picture in picture' }}
           tracksMenu={tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
           onFullscreen={full}
           settings={<>
             <MenuItem pressed={block} onClick={() => { const on = !block; setBlock(on); setBlocking(on); flash(on ? 'Chrome Live Caption blocked after reload' : 'Chrome Live Caption allowed after reload') }} label="Keep Chrome's Live Caption off this player">Keep Chrome's Live Caption off <span className={block ? 'text-emerald-400' : 'text-muted'}>{block ? 'ON' : 'OFF'}</span></MenuItem>
             <p className="max-w-[15rem] px-2.5 pb-1 text-[11px] leading-snug text-muted">Plays the sound through the app so Chrome's own black "Live Caption" box has nothing to caption. Applies after a page reload.</p>
+            <PictureSoundItems value={ps} onChange={changePs} boostFailed={boostFailed} />
             <CaptionStyleItems style={capStyle} onChange={changeCap} />
             <PlaybackItems tracks={tracks} loop={loop} onLoop={() => { setLoop(!loop); flash(`Auto-repeat: ${loop ? 'OFF' : 'ON'}`) }} />
           </>}

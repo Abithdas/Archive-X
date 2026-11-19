@@ -8,6 +8,7 @@ import { Timeline, type PreviewInfo } from './Timeline'
 import type { Segment } from './timelineLogic'
 import { DEFAULT_STYLE, SIZE_STEP, clampSize, sizeLabel, type CaptionBg, type CaptionStyle } from './captionStyle'
 import type { TrackState } from './useTracks'
+import { DEFAULT_PS, PS_RANGE, isDefaultPS, type PictureSound } from './pictureSound'
 
 /** The two engines (the browser's <video> and the native player) share this bar, these menus and the shortcuts: only the picture's source differs. */
 export const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const
@@ -92,6 +93,22 @@ export function CaptionStyleItems({ style, onChange }: { style: CaptionStyle; on
         </span></div>
       {(['none', 'soft', 'solid'] as CaptionBg[]).map((b) => <MenuItem key={b} active={style.bg === b} onClick={() => onChange({ bg: b })}>{b === 'none' ? 'No box (outlined text)' : b === 'soft' ? 'Soft box' : 'Solid box'}</MenuItem>)}
       <MenuItem onClick={() => onChange({ x: DEFAULT_STYLE.x, y: DEFAULT_STYLE.y, size: DEFAULT_STYLE.size })} label="Reset caption position and size">Reset position and size</MenuItem>
+    </>
+  )
+}
+
+const PS_ROWS: Array<[keyof PictureSound, string]> = [['brightness', 'Brightness'], ['contrast', 'Contrast'], ['saturation', 'Colour'], ['boost', 'Volume boost']]
+/** Picture and sound: brightness, contrast, colour and a volume boost above 100%. */
+export function PictureSoundItems({ value, onChange, boostFailed }: { value: PictureSound; onChange: (patch: Partial<PictureSound>) => void; boostFailed?: boolean }) {
+  return (
+    <>
+      <MenuHead>Picture and sound</MenuHead>
+      {PS_ROWS.map(([k, label]) => (
+        <label key={k} className="flex items-center justify-between gap-3 px-2.5 py-1 text-xs"><span className="text-muted">{label}</span>
+          <span className="flex items-center gap-2"><input type="range" aria-label={label} min={PS_RANGE[k][0]} max={PS_RANGE[k][1]} step={5} value={value[k]} onChange={(e) => onChange({ [k]: Number(e.target.value) })} className="w-24 accent-[var(--color-accent)]" /><output className="w-9 text-right font-semibold tabular-nums">{value[k]}%</output></span></label>
+      ))}
+      {boostFailed ? <span className="max-w-[15rem] px-2.5 py-1 text-[11px] leading-snug text-warn">The volume boost is not available in this window.</span> : null}
+      <MenuItem onClick={() => onChange({ ...DEFAULT_PS })} label="Reset picture and sound">Reset {isDefaultPS(value) ? <span className="text-muted">(already standard)</span> : null}</MenuItem>
     </>
   )
 }
