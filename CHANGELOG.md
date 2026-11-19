@@ -4,9 +4,10 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
-- **Smoother scrolling on the SFW Home page.** Poster hover effects no longer repaint a large shadow on every frame (the shadow now only fades in) and pause while the page is moving, the Home / Discover / Library tabs no longer blur the moving picture behind them, the featured picture keeps only the images it needs and stops its slideshow and slow push-in once scrolled out of sight, and rows off screen are not painted.
+- **Smoother scrolling on the SFW Home page.** Poster hover effects no longer repaint a large shadow on every frame (the shadow now only fades in) and pause while the page is moving, the Home / Discover / Library tabs no longer blur the moving picture behind them, the featured picture keeps only the images it needs and stops its slideshow and slow push-in once scrolled out of sight,.
 - **Settings, Addons accepts any Stremio add-on.** Streams-only, subtitle and detail add-ons can be added too: each shows what it provides, and says what Archive X does not use (it never asks an add-on for streams; subtitles from add-ons are not used yet). A new switch, **Allow add-ons on this PC or network**, lets you add one you run yourself (http://127.0.0.1:7000, a NAS, a media server); off, only https:// add-ons on the internet are accepted.
 - **Player menus no longer run off the screen.** The audio and subtitles menu and the settings menu scroll when they are long, long track names are cut with the full name on hover, and in Settings Picture and sound and Caption style fold open and closed (Picture and sound starts closed).
+- **Home: the shadows under the posters and Continue watching are whole again.** The rows now leave room under the cards for the shadow instead of cutting it off, and the hover shadow is drawn on the card itself.
 
 ## 30.10.0 (2026-11-19)
 

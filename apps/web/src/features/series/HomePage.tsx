@@ -37,9 +37,9 @@ const openIn = (kind: 'tv' | 'movie') => (kind === 'tv' ? '/series/$id' : '/movi
 /** A row of things to scroll sideways, under a heading; arrows appear on the sides when something is out of view. */
 function Row({ title, hint, children, arrowTop = 132, onSeeAll }: { title: string; hint?: string; children: ReactNode; arrowTop?: number; onSeeAll?: () => void }) {
   return (
-    <section aria-label={title} className="grid gap-3 [contain-intrinsic-size:auto_300px] [content-visibility:auto]">
+    <section aria-label={title} className="grid gap-3">
       <div className="flex items-baseline justify-between gap-3"><h2 className="text-xl font-extrabold tracking-tight">{title}</h2>{onSeeAll ? <button type="button" onClick={onSeeAll} className="text-[13px] font-semibold text-muted transition-colors hover:text-fg">See all →</button> : hint ? <span className="text-[13px] text-muted">{hint}</span> : null}</div>
-      <HScroll label={`${title}, scroll sideways`} arrowTop={arrowTop} className="-mx-2 flex snap-x gap-4 px-2 pb-3 pt-1">{children}</HScroll>
+      <HScroll label={`${title}, scroll sideways`} arrowTop={arrowTop} className="-mx-4 -mb-7 -mt-2 flex snap-x gap-4 px-4 pb-10 pt-3">{children}</HScroll>
     </section>
   )
 }
