@@ -169,6 +169,7 @@ Read from their READMEs on 19 November; nothing was copied, and licences are as 
 - **E15 What cannot be removed.** FFmpeg (GPL-3.0) and the LAV filters (GPL-2.0-or-later) are bundled and need the source offer already in `THIRD-PARTY-NOTICES.md` (we are GPL ourselves, so they fit). A few MPL-2.0 crates (cssparser, selectors, dtoa-short, option-ext) come in through Tauri; unchanged, they only need their source to stay available. The OpenCV and PyAV wheels carry LGPL FFmpeg parts.
 
 - **E16 More sizes where they are safe.** Faces and content tags have one size. Faces: any other recogniser makes fingerprints that do not match the stored people, so a swap needs a "read all faces again" step first. Content tags: the 640-pixel NudeNet model is on GitHub only, which the build host cannot reach to pin a checksum; pin it from a PC that can. Captions could gain a whisper.cpp engine (B7) with the same sizes.
+- **E17 Security alerts left open on purpose (19 November).** Dependabot #7 (`glib`, Linux-only, not in the Windows build) and 13 CodeQL alerts (5 high, 8 medium: the local folder picker, error text on status routes, the hand-start launch address). The reasons are in `docs/security/SCA-REPORT.md`. To make the CodeQL check pass: dismiss them on GitHub with those reasons, or change the code (generic error text, no secret in the printed address). Your choice, not made yet.
 
 ## 8. Decisions that are yours
 
