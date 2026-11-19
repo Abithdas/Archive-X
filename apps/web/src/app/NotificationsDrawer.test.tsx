@@ -1,10 +1,11 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
-import { NotificationsPage } from './NotificationsPage'
+import { NotificationsDrawer } from './NotificationsDrawer'
 import { useCleared } from './NotificationsPanel'
+import { useUi } from './ui'
 
-afterEach(() => { vi.unstubAllGlobals(); useCleared.setState({ gone: [] }); try { localStorage.clear() } catch { /* none */ } })
+afterEach(() => { vi.unstubAllGlobals(); useCleared.setState({ gone: [] }); useUi.setState({ notifications: false }); try { localStorage.clear() } catch { /* none */ } })
 const now = () => Math.floor(Date.now() / 1000)
 const status = {
   events: [
@@ -15,10 +16,26 @@ const status = {
 }
 const mount = () => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes('/api/status') ? status : {}), { status: 200 })))
-  return withRouter(<NotificationsPage />)
+  useUi.setState({ notifications: true })
+  return withRouter(<NotificationsDrawer />)
 }
 
-describe('NotificationsPage', () => {
+describe('NotificationsDrawer', () => {
+  it('slides in from the right, and closes with Escape, its button, or a press outside it', async () => {
+    mount()
+    const panel = await screen.findByRole('complementary', { name: 'Notifications' })
+    expect(panel).toHaveAttribute('aria-hidden', 'false')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(useUi.getState().notifications).toBe(false))
+    expect(panel).toHaveAttribute('aria-hidden', 'true')
+    act(() => useUi.setState({ notifications: true }))
+    fireEvent.pointerDown(document.body)
+    await waitFor(() => expect(useUi.getState().notifications).toBe(false))
+    act(() => useUi.setState({ notifications: true }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Close notifications' }))
+    expect(useUi.getState().notifications).toBe(false)
+  })
+
   it('lists the notices by day, with a count on each kind, and filters by kind', async () => {
     mount()
     expect(await screen.findByText('Telegram send failed for video 1')).toBeInTheDocument()

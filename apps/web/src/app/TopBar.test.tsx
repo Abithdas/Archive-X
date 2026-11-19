@@ -64,7 +64,12 @@ describe('the top bar', () => {
     expect(invoke).toHaveBeenCalledWith('window_minimize', undefined)
     fireEvent.click(screen.getByRole('button', { name: 'Maximize window' }))
     expect(invoke).toHaveBeenCalledWith('window_toggle_maximize', undefined)
+    fireEvent.click(screen.getByRole('button', { name: 'Close window' }))     // Close is Exit: it asks first
+    expect(invoke).not.toHaveBeenCalledWith('window_close', undefined)
+    fireEvent.click(screen.getByRole('button', { name: 'Keep Archive X open' }))
+    expect(invoke).not.toHaveBeenCalledWith('window_close', undefined)
     fireEvent.click(screen.getByRole('button', { name: 'Close window' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Exit' }))
     expect(invoke).toHaveBeenCalledWith('window_close', undefined)
   })
 
@@ -78,7 +83,7 @@ describe('the top bar', () => {
     fireEvent.mouseDown(bar, { button: 0, detail: 2 })
     expect(invoke).toHaveBeenCalledWith('window_toggle_maximize', undefined)
     invoke.mockClear()
-    fireEvent.mouseDown(screen.getByRole('link', { name: /^Notifications/ }), { button: 0, detail: 1 })
+    fireEvent.mouseDown(screen.getByRole('button', { name: /^Notifications/ }), { button: 0, detail: 1 })
     fireEvent.mouseDown(within(screen.getByRole('navigation', { name: 'Pages' })).getByRole('link', { name: /Photos/ }), { button: 0, detail: 1 })
     expect(invoke).not.toHaveBeenCalledWith('window_drag', undefined)
   })

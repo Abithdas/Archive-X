@@ -34,12 +34,9 @@ def register_content_routes(router: APIRouter, *, db, require_auth):
             if cm.pin_is_set(db):
                 if not await asyncio.to_thread(cm.verify_pin, db, str(body.get("pin") or "")):
                     raise HTTPException(403, "Wrong PIN")
-            else:
-                new_pin = str(body.get("new_pin") or "")
-                if not new_pin:
-                    raise HTTPException(409, "Choose a PIN first: it will be asked for each time NSFW is switched on")
+            elif body.get("new_pin"):   # the PIN is optional: one can be chosen now, but none is needed
                 try:
-                    await asyncio.to_thread(cm.set_pin, db, new_pin)
+                    await asyncio.to_thread(cm.set_pin, db, str(body.get("new_pin")))
                 except ValueError as exc:
                     raise HTTPException(400, str(exc)) from exc
         cm.set_mode(db, mode)
@@ -57,6 +54,10 @@ def register_content_routes(router: APIRouter, *, db, require_auth):
             raise HTTPException(429, f"Too many wrong PINs. Try again in {int(wait) + 1} seconds.")
         if cm.pin_is_set(db) and not await asyncio.to_thread(cm.verify_pin, db, str(body.get("current") or "")):
             raise HTTPException(403, "Wrong PIN")
+        if body.get("remove") is True:   # back to no PIN at all
+            await asyncio.to_thread(cm.clear_pin, db)
+            db.log("NSFW PIN removed")
+            return {"ok": True, "pin_set": False}
         try:
             await asyncio.to_thread(cm.set_pin, db, str(body.get("new") or ""))
         except ValueError as exc:

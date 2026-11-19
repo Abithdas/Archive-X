@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api } from '@/api/client'
 import { queryKeys, useStatus } from '@/api/hooks'
@@ -25,6 +25,13 @@ export function LoginGate({ children }: { children: ReactNode }) {
 function LoginForm() {
   const client = useQueryClient()
   const hint = useQuery({ queryKey: ['login-hint'] as const, queryFn: () => api<LoginHint>('/api/login-hint'), retry: false, staleTime: 0 })
+  // The login is switched off (Settings, Security, App login): this PC opens a session by itself, nothing is typed.
+  const opened = useRef(false)
+  useEffect(() => {
+    if (hint.data?.login_required !== false || hint.data.setup_required || opened.current) return
+    opened.current = true
+    void api('/api/auth/open', { method: 'POST', json: {} }).then(() => client.invalidateQueries({ queryKey: queryKeys.status })).catch(() => { opened.current = false })
+  }, [hint.data, client])
   const [setupDone, setSetupDone] = useState(false)
   const [forced, setForced] = useState(false)   // a sign-in answered "setup required" before the hint said so
   const setup = !setupDone && (Boolean(hint.data?.setup_required) || forced)

@@ -158,6 +158,10 @@ def test_a_show_lists_its_episodes_in_order_and_follows_the_mode(tmp_path, monke
     assert [(se["season"], [e["episode"] for e in se["episodes"]]) for se in detail["seasons"]] == [(1, [1]), (2, [3])]
     assert detail["seasons"][1]["episodes"][0]["name"] == "Dark Matter" and detail["genres"] == ["Drama"] and detail["companies"] == ["Netflix"]
     assert detail["cast"][0]["name"] == "Louis Hofmann"
+    # a cast member's or a studio's page: the show once, not one entry for each of its episodes; a video with no title stays loose
+    of = c.get("/api/screen/of-media?ids=1,2,99").json()
+    assert [(t["title"], t["kind"], t["videos"]) for t in of["titles"]] == [("Dark", "tv", 2)] and of["loose"] == [99]
+    assert c.get("/api/screen/of-media").json() == {"titles": [], "loose": []}
     assert c.get("/api/screen/series/999").status_code == 404
     assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
     assert c.get("/api/screen/series").json()["items"] == []            # not shown in the other mode

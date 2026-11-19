@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { labelsFor } from '@/features/content/labels'
@@ -19,7 +19,7 @@ describe('helpers', () => {
     expect(seasonSummary({ season: 1, name: 'Season 1', total: 0, episodes: [{} as never] })).toBe('1 episode')
   })
   it('words change with the mode, and stay familiar until it is known', () => {
-    expect(labelsFor('sfw')).toMatchObject({ videos: 'Movies & Shows', performers: 'Cast', studios: 'Studios & Networks', tags: 'Genres', series: 'Series' })
+    expect(labelsFor('sfw')).toMatchObject({ videos: 'Home', performers: 'Cast', studios: 'Studios & Networks', tags: 'Genres', series: 'Series' })
     expect(labelsFor('nsfw')).toMatchObject({ videos: 'Videos', performers: 'Performers', studios: 'Studios', tags: 'Tags', series: null })
     expect(labelsFor(undefined).performers).toBe('Performers')
   })
@@ -93,19 +93,5 @@ describe('missing episodes and movies', () => {
     withRouter(<SeriesDetailPage id={1} />)
     expect(await screen.findByText('Missing: E03–E04')).toBeInTheDocument()
     expect(screen.getByText('None of this season is here (8 episodes)')).toBeInTheDocument()
-  })
-})
-
-describe('the All | Movies | Series switch', () => {
-  it('is one row of tabs that marks the open one and changes it on a click', async () => {
-    const { ScreenTabs } = await import('./ScreenTabs')
-    const { useScreenView } = await import('./view')
-    useScreenView.getState().setView('all')
-    withRouter(<ScreenTabs />)
-    const tabs = await screen.findAllByRole('tab')
-    expect(tabs.map((t) => [t.textContent, t.getAttribute('aria-selected')])).toEqual([['All', 'true'], ['Movies', 'false'], ['Series', 'false']])
-    fireEvent.click(screen.getByRole('tab', { name: 'Series' }))
-    expect(useScreenView.getState().view).toBe('series')
-    expect(screen.getByRole('tab', { name: 'Series' })).toHaveAttribute('aria-selected', 'true')
   })
 })

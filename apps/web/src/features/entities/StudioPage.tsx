@@ -20,6 +20,7 @@ import { NOT_FOUND, TABS, bioText, imagePath, initial, linkedPerformers, metadat
 import { responsive } from '@/design/responsive'
 import { Empty } from '@/design/Empty'
 import { useLabels } from '@/features/content/labels'
+import { TitleCards } from '@/features/series/TitleCards'
 
 const GRID = 'grid gap-4'   // the library's own card size: the columns are measured (useFitGrid), not fixed
 const WRAP = 'mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10'
@@ -99,7 +100,8 @@ export function StudioPage({ id }: { id: number }) {
         tabs={TABS.map((t) => ({ value: t.value, label: t.label, count: t.value === 'videos' ? videos.length : t.value === 'performers' ? linked.length : t.value === 'suggestions' ? (suggested.data?.length ?? 0) : 0 }))} />
 
       {tab === 'similar' ? <SimilarPanel items={similarStudios(videos, site.name, studios.data ?? [])} /> : tab === 'suggestions' ? <SuggestionsPanel kind="studio" entityId={site.id} name={site.name} /> : tab === 'videos' ? (
-        videos.length ? <><VideosHead kind="studio" videos={videos} /><div className={GRID} ref={grid.ref} style={grid.style} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div><EditingBar videos={videos} /></> : <Empty role="tabpanel" aria-label="Videos" icon="library">No videos are linked to this studio yet.</Empty>
+        videos.length ? <><VideosHead kind="studio" videos={videos} />{labels.movies ? <div role="tabpanel" aria-label="Videos"><TitleCards videos={videos} loose={(items) => <div className={GRID}>{items.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div>} /></div>   /* movies and shows: one poster for each, not one card for each episode */
+          : <div className={GRID} ref={grid.ref} style={grid.style} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div>}<EditingBar videos={videos} /></> : <Empty role="tabpanel" aria-label="Videos" icon="library">No videos are linked to this studio yet.</Empty>
       ) : linked.length ? (
         <PosterGrid label="Performers">{linked.map((p) => { const pid = idOf(p.name); return pid ? <PerformerPoster key={p.name} id={pid} name={p.name} count={p.count} /> : <NamedPoster key={p.name} name={p.name} count={p.count} /> })}</PosterGrid>
       ) : <Empty role="tabpanel" aria-label="Performers" icon="user">No performers are linked to this studio&apos;s videos yet.</Empty>}

@@ -1,7 +1,7 @@
 /** Sign-in and first-run setup rules (same wording and limits as the classic login page). */
 export const MIN_PASSWORD = 12
 export const DEFAULT_ADMIN = 'admin'
-export interface LoginHint { setup_required?: boolean; default_login?: boolean }
+export interface LoginHint { setup_required?: boolean; default_login?: boolean; login_required?: boolean }
 
 export const SIGN_IN_SUBTITLE = 'Sign in to continue'
 export const SETUP_SUBTITLE = 'Create your administrator account'

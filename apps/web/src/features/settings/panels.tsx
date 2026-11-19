@@ -9,11 +9,11 @@ import { CaptionModel } from './CaptionModel'
 import { hasNativeBridge } from '@/features/watch/nativeBridge'
 import { Icon } from '@/design/Icon'
 import { ThemePreview } from './ThemePreview'
-import { Segmented } from '@/design/Segmented'
+import { ThemeToggle } from '@/design/ThemeToggle'
 import { Switch } from '@/design/Switch'
 import { cn } from '@/design/cn'
 import { formatBytes } from '@/design/format'
-import { THEMES, SCALE_MAX, SCALE_MIN, SCALE_PRESETS, type Mode } from '@/theme/themes'
+import { THEMES, SCALE_MAX, SCALE_MIN, SCALE_PRESETS } from '@/theme/themes'
 import { AUTONEXT_MODES, NATIVE_MODES, experienceFrom, pills, statusRows, type Experience, type NativeMode, type PanelId } from './logic'
 import { useAuthStatus, useExperienceSettings, useIconsStatus, useMetadataSettings, usePreflight, useWebLogin } from './queries'
 import { CustomThemes } from './CustomThemes'
@@ -192,10 +192,10 @@ export function AppearancePanel() {
       <section aria-label="Themes" className={BOX}>
         <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
           <h3 className="flex items-center gap-3 text-xl font-extrabold"><span className="text-accent"><Icon name="sparkle" className="size-5" /></span>Themes</h3>
-          <Segmented<Mode> label="Theme mode" value={mode} onChange={(m) => void save(() => setTheme(preset, m), `Theme: ${m === 'dark' ? 'Dark' : 'Light'}. Saved.`)} options={[{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }]} />
+          <span className="inline-flex items-center gap-3 text-sm font-semibold"><span className="text-muted">{mode === 'dark' ? 'Dark' : 'Light'}</span><ThemeToggle theme={mode} variant="switch" onToggle={() => void save(() => setTheme(preset, mode === 'dark' ? 'light' : 'dark'), `Theme: ${mode === 'dark' ? 'Light' : 'Dark'}. Saved.`)} className="inline-grid" /></span>
         </div>
         <p className="mb-4 text-sm text-muted">Pick a look for the whole app. Every theme comes in a dark and a light version; the switch above changes between them.</p>
-        <ul className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-4" aria-label="Theme presets">
+        <ul className="grid grid-cols-4 gap-3 md:grid-cols-6 xl:grid-cols-8" aria-label="Theme presets">
           {THEMES.map((t) => {
             const p = t[mode]
             const on = preset === t.id

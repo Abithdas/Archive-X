@@ -38,10 +38,10 @@ export function SettingsPage() {
   }
   const index = PANELS.findIndex((p) => p.id === panel)
   return (
-    <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="w-full px-4 pb-10 pt-6 sm:px-10">
       <PageHead eyebrow="Configuration" title="Settings" blurb="Settings are validated before they are applied" />
       <div className="grid items-start gap-5 lg:grid-cols-[256px_minmax(0,1fr)]">
-        <nav aria-label="Settings sections" className="grid gap-1">
+        <nav aria-label="Settings sections" className="grid gap-1 lg:sticky lg:top-20 lg:self-start">
           <ul ref={row} className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] lg:grid lg:overflow-visible lg:pb-0">
             {PANELS.map((p) => (
               <li key={p.id} className="shrink-0 lg:shrink">

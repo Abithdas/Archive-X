@@ -424,13 +424,27 @@ def register_settings_routes(
         """GET /api/settings/weblogin: Get weblogin."""
         require_auth(request)
         from ..core.auth import is_default_login
-        return {"username": db.setting("web_username", "admin"), "default_login": is_default_login(db)}
+        return {"username": db.setting("web_username", "admin"), "default_login": is_default_login(db), "login_required": _login_required()}
+
+    def _login_required() -> bool:
+        """The app asks for the login unless the person switched that off (Settings, Security, App login)."""
+        return str(db.setting("app_login_required", "1") or "1") != "0"
 
     @router.get("/api/login-hint")
     async def login_hint():
         """GET /api/login-hint: Login hint."""
-        # Public: only says whether the default login is still active.
-        return {"setup_required": bool(is_setup_required(db)), "default_login": False}
+        # Public: whether setup is still to do, and whether the sign-in screen is wanted at all.
+        return {"setup_required": bool(is_setup_required(db)), "default_login": False, "login_required": _login_required()}
+
+    @router.post("/api/auth/open")
+    async def open_without_login(request: Request):
+        """With the login switched off, a request from this PC gets a normal session without typing anything. Any other caller still needs the login."""
+        host = request.client.host if request.client else ""
+        if _login_required() or is_setup_required(db) or host not in ("127.0.0.1", "::1"):
+            raise HTTPException(403, "Sign in with your username and password")
+        resp = JSONResponse({"ok": True})
+        set_session_cookie(resp, request, sessions.create(db.setting("web_username", "admin")))
+        return resp
 
     @router.post("/api/settings/weblogin")
     async def save_weblogin(request: Request):
@@ -442,7 +456,8 @@ def register_settings_routes(
         pw = str(data.get("password") or "")
         if pw and len(pw) < 12:
             raise HTTPException(400, "Password must be at least 12 characters")
-        if not u and not pw:
+        required = data.get("required") if isinstance(data.get("required"), bool) else None
+        if not u and not pw and required is None:
             raise HTTPException(400, "Nothing to change")
         # Re-authenticate: a stolen/left-open session must not be able to take
         # over the account by silently replacing the credential.
@@ -453,7 +468,11 @@ def register_settings_routes(
             login_limiter.check(key)
             login_limiter.record(key)
             raise HTTPException(403, "Current password is incorrect")
-        set_web_login(db, u, pw or None)
+        if required is not None:
+            db.set_setting("app_login_required", "1" if required else "0")
+            db.log("App login switched " + ("on" if required else "off"))
+        if u or pw:
+            set_web_login(db, u or str(db.setting("web_username", "admin")), pw or None)
         if pw:
             db.set_setting(SETUP_COMPLETE_FLAG, config.now_iso())
             db.set_setting(SETUP_REQUIRED_FLAG, "")

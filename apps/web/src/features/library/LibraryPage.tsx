@@ -27,18 +27,19 @@ import { useDebounced } from './useDebounced'
 import { useFitGrid } from './fitGrid'
 import { useLibraryStore } from './store'
 import { SpinCounter } from '@/design/SpinCounter'
+import { SfwHome } from '@/features/series/HomePage'
 import { useLabels } from '@/features/content/labels'
-import { MoviesList } from '@/features/series/MoviesPage'
-import { SeriesList } from '@/features/series/SeriesPage'
-import { ScreenTabs } from '@/features/series/ScreenTabs'
-import { useScreenView } from '@/features/series/view'
 
 const GRID = 'grid gap-4'
 
+/** Videos. In SFW this is the Home page for movies and shows (Home and Discover in one: features/series/HomePage.tsx); otherwise the library of videos. */
 export function LibraryPage() {
   const labels = useLabels()
-  const withScreen = Boolean(labels.movies)   // SFW: Movies and Series are parts of this page
-  const view = useScreenView((st) => (withScreen ? st.view : 'all'))
+  return labels.movies ? <SfwHome /> : <VideoLibrary />
+}
+
+function VideoLibrary() {
+  const labels = useLabels()
   const { channels: picked, page, sort, favorites, filters, per: nominalPer, toggle, clear, setPage, setPer, resetFilters } = useLibraryStore()
   const grid = useFitGrid(270, 16)
   const per = grid.fit(nominalPer)   // whole rows of whatever the window shows, so the last row is full
@@ -80,11 +81,7 @@ export function LibraryPage() {
   return (
     <section className="flex w-full flex-1 flex-col px-4 pb-10 pt-6 sm:px-10">
       <PageHead title={labels.videos} blurb={labels.videosBlurb} />
-      {withScreen ? <ScreenTabs /> : null}
-      {view === 'movies' ? <MoviesList /> : view === 'series' ? <SeriesList /> : null}
-      {/* SFW, All: one card for each show and each movie, never one for each episode or copy (a file that could not be named is under Settings, Metadata, Review). */}
-      {view === 'all' && withScreen ? <div className="grid gap-8"><section aria-label="Shows"><h2 className="mb-3 text-xl font-extrabold tracking-tight">Series</h2><SeriesList /></section><section aria-label="Movies"><h2 className="mb-3 text-xl font-extrabold tracking-tight">Movies</h2><MoviesList /></section></div> : null}
-      {view !== 'all' || withScreen ? null : <>
+      <>
       <Toolbar lead={<ChannelMenu channels={channels.data ?? []} selected={picked} onToggle={toggle} onAll={clear} onEdit={setEditChannel} />} onRefresh={() => void refresh()} refreshing={refreshing} onShuffle={(pl) => void shuffleAll(pl)} shuffling={shuffle.busy} />
 
       {editChannel ? <ChannelEditor id={editChannel} onClose={() => setEditChannel(null)} /> : null}
@@ -138,7 +135,7 @@ export function LibraryPage() {
         </>) : null}
         </Reveal>
       )}
-      </>}
+      </>
     </section>
   )
 }

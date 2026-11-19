@@ -19,7 +19,7 @@ const writeRecent = (id: string) => { try { localStorage.setItem(RECENT_KEY, JSO
 /** Ctrl K palette: pages, actions and, once you type, matching performers and studios; recent choices first; arrows + Enter, Esc closes. */
 export function CommandPalette() {
   const open = useUi((s) => s.palette)
-  const { setPalette, requestSearchFocus } = useUi.getState()
+  const { setPalette, setNotifications, requestSearchFocus } = useUi.getState()
   const navigate = useNavigate()
   const qc = useQueryClient()
   const ref = useRef<HTMLDialogElement>(null)
@@ -41,10 +41,10 @@ export function CommandPalette() {
     { id: 'transfers', group: 'Go to', label: 'Open Transfers', hint: 'Telegram transfers and metadata', run: () => void navigate({ to: '/transfers' }) },
     { id: 'settings', group: 'Go to', label: 'Open Settings', hint: 'Application configuration', run: () => void navigate({ to: '/settings' }) },
     { id: 'search', group: 'Actions', label: 'Search library', hint: 'Focus the global search field', key: '/', run: () => requestSearchFocus() },
-    { id: 'notifications', group: 'Actions', label: 'Open Notifications', hint: 'Important updates from your library', run: () => void navigate({ to: '/notifications' }) },
+    { id: 'notifications', group: 'Actions', label: 'Open Notifications', hint: 'Important updates from your library', run: () => setNotifications(true) },
     { id: 'clear', group: 'Actions', label: 'Clear library filters', hint: 'Reset search and filters', run: () => { useLibraryStore.getState().resetFilters(); useSearch.getState().set('') } },
     { id: 'refresh', group: 'Actions', label: 'Refresh library', hint: 'Reload the selected channels', run: () => void qc.invalidateQueries({ queryKey: ['library'] }) },
-  ], [navigate, qc, requestSearchFocus])
+  ], [navigate, qc, requestSearchFocus, setNotifications])
 
   const entityCmd = (kind: 'performers' | 'studios', e: Entity): Cmd => ({ id: `${kind}:${e.id}:${e.name}`, group: kind === 'performers' ? 'Performers' : 'Studios', label: e.name, hint: `${e.video_count} video${e.video_count === 1 ? '' : 's'}`, run: () => void navigate({ to: kind === 'performers' ? '/performers/$id' : '/studios/$id', params: { id: String(e.id) } }) })
   const shown: Cmd[] = useMemo(() => {

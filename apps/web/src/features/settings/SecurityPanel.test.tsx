@@ -23,11 +23,21 @@ const posts = (c: ReturnType<typeof mount>) => c.filter((x) => x.method === 'POS
 const ready = () => waitFor(() => expect(screen.getByLabelText('Username')).toHaveValue('admin'))
 afterEach(() => vi.unstubAllGlobals())
 
-describe('Dashboard authentication', () => {
+describe('App login', () => {
   it('loads the username and warns while the default login is in use', async () => {
     mount({ username: 'admin', default_login: true })
     await ready()
     expect(await screen.findByRole('alert')).toHaveTextContent('default login')
+  })
+  it('can be switched off with the current password, and not without it', async () => {
+    const calls = mount({ username: 'admin', default_login: false, login_required: true })
+    await ready()
+    fireEvent.click(screen.getByRole('switch', { name: 'Ask for the login when the app opens' }))
+    expect(await screen.findByText(/Type your current password first/)).toBeInTheDocument()
+    expect(posts(calls)).toHaveLength(0)
+    fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'my-current-password' } })
+    fireEvent.click(screen.getByRole('switch', { name: 'Ask for the login when the app opens' }))
+    await waitFor(() => expect(posts(calls).at(-1)?.body).toEqual({ required: false, current_password: 'my-current-password' }))
   })
   it('sends nothing without the current password', async () => {
     const calls = mount()

@@ -12,12 +12,14 @@ import { suggest } from './searchSuggest'
 import { ThemeToggle } from '@/design/ThemeToggle'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
+import { Dialog } from '@/design/Dialog'
 import { formatBytes } from '@/design/format'
 import { runningLabel, useActivity } from './activity'
 import { AccountMenu } from './AccountMenu'
 import { CommandPalette } from './CommandPalette'
 import { MoreSheet } from './MoreSheet'
-import { useMarkSeenOnPage, useUnseenCount } from './NotificationsPanel'
+import { NotificationsDrawer } from './NotificationsDrawer'
+import { useUnseenCount } from './NotificationsPanel'
 import { useSearch } from './search'
 import { toggleTheme, useTheme } from './theme'
 import { useUi } from './ui'
@@ -158,6 +160,7 @@ function TopLink({ n, count, custom }: { n: NavDef; count: number; custom: boole
 
 /** The window's own minimise, maximise and close, on the right of the top bar (desktop app only; the native title bar is hidden then). */
 function WindowButtons({ maximized }: { maximized: boolean }) {
+  const [asking, setAsking] = useState(false)   // Close is Exit: the app and its helpers stop, so it asks first
   const base = 'grid h-16 w-12 place-items-center text-muted transition-colors hover:bg-fg/10 hover:text-fg'
   return (
     <div data-nodrag className="ml-1 flex shrink-0 self-stretch">
@@ -169,9 +172,20 @@ function WindowButtons({ maximized }: { maximized: boolean }) {
           ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true"><rect x="1" y="3.2" width="7.6" height="7.6" rx="1" /><path d="M3.4 3.2V2.2a1 1 0 0 1 1-1h6.4a1 1 0 0 1 1 1v6.4a1 1 0 0 1-1 1h-1" /></svg>
           : <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true"><rect x="1.2" y="1.2" width="9.6" height="9.6" rx="1.2" /></svg>}
       </button>
-      <button type="button" onClick={() => void windowActions.close()} aria-label="Close window" title="Close" className={cn(base, 'hover:!bg-[#e81123] hover:!text-white')}>
+      <button type="button" onClick={() => setAsking(true)} aria-label="Close window" title="Close" className={cn(base, 'hover:!bg-[#e81123] hover:!text-white')}>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" /></svg>
       </button>
+      {asking ? (
+        <Dialog open onClose={() => setAsking(false)} title="Exit Archive X?">
+          <div className="grid gap-4">
+            <p className="text-sm text-muted">Closing the window exits Archive X completely: the local server and the background workers stop. Running jobs are saved for recovery where supported and may need to be resumed the next time you open Archive X.</p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" onClick={() => setAsking(false)} className="h-11 rounded-xl border border-line-2 px-4 text-sm font-semibold">Keep Archive X open</button>
+              <button type="button" autoFocus onClick={() => void windowActions.close()} className="h-11 rounded-xl bg-bad px-4 text-sm font-bold text-white">Exit</button>
+            </div>
+          </div>
+        </Dialog>
+      ) : null}
     </div>
   )
 }
@@ -184,7 +198,6 @@ function Header({ live, items, activity, top, custom, maximized }: { live: strin
   const path = useRouterState({ select: (s) => s.location.pathname })
   const input = useRef<HTMLInputElement>(null)
   const notices = useUnseenCount()
-  useMarkSeenOnPage(path === '/notifications')
   const theme = useTheme()
   const navigate = useNavigate()
   const [loadLists, setLoadLists] = useState(false)   // the lists the suggestions come from are fetched the first time the box is used
@@ -230,9 +243,9 @@ function Header({ live, items, activity, top, custom, maximized }: { live: strin
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
         <TelegramPill from={top ? 'lg:inline-flex' : 'sm:inline-flex'} />
         <ThemeToggle theme={theme} onToggle={toggleTheme} className={cn(ICON_BTN, 'hidden', top ? 'lg:grid' : 'sm:grid')} />
-        <Link to="/notifications" aria-label={notices ? `Notifications, ${notices} new` : 'Notifications'} title="Notifications" className={cn(ICON_BTN, 'relative')}>
+        <button type="button" data-notifications-toggle onClick={() => { const ui = useUi.getState(); ui.setNotifications(!ui.notifications) }} aria-label={notices ? `Notifications, ${notices} new` : 'Notifications'} title="Notifications" className={cn(ICON_BTN, 'relative')}>
           <Bell count={notices} />
-        </Link>
+        </button>
         <AccountMenu live={live} pillFrom={top ? 'lg' : 'sm'} />
       </div>
       {custom ? <WindowButtons maximized={maximized} /> : null}
@@ -346,6 +359,7 @@ export function Shell(): ReactNode {
       </nav>
       <CommandPalette />
       <MoreSheet />
+      <NotificationsDrawer />
     </div>
   )
 }

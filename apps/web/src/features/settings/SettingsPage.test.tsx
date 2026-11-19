@@ -96,7 +96,7 @@ describe('Appearance', () => {
   it('switches between dark and light variants of the same theme', async () => {
     mount()
     fireEvent.click(await screen.findByRole('button', { name: 'Appearance' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Light' }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Dark theme\. Activate to switch to light/ }))   // the sun and moon switch, as it was in the profile menu
     expect(document.documentElement.dataset.theme).toBe('light')
     expect(document.documentElement.style.getPropertyValue('--color-bg')).toBe('#eceff4')
   })

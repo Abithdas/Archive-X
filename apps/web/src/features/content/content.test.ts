@@ -5,7 +5,7 @@ describe('content mode logic', () => {
   it('asks nothing towards SFW, the PIN into NSFW, and a new PIN when none exists', () => {
     expect(askFor('sfw', { pin_set: true })).toBe('none')
     expect(askFor('nsfw', { pin_set: true })).toBe('pin')
-    expect(askFor('nsfw', { pin_set: false })).toBe('create')
+    expect(askFor('nsfw', { pin_set: false })).toBe('none')   // the PIN is optional: with none chosen, nothing is asked
   })
   it('sends the PIN the way the server wants it', () => {
     expect(switchBody('nsfw', 'pin', '2468')).toEqual({ mode: 'nsfw', pin: '2468' })

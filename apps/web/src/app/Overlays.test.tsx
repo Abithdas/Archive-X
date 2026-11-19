@@ -58,41 +58,30 @@ describe('CommandPalette', () => {
     expect(await screen.findByText('Recent')).toBeInTheDocument()
     expect(screen.getAllByRole('option')[0]).toHaveTextContent('Ava Stone')
   })
-  it('"Open Notifications" goes to the Notifications page', async () => {
+  it('"Open Notifications" slides the notifications panel in', async () => {
     const box = await open()
     fireEvent.change(box, { target: { value: 'notifications' } })
     fireEvent.keyDown(box, { key: 'Enter' })
-    await waitFor(() => expect(window.location.pathname === '/notifications' || useUi.getState().palette === false).toBe(true))
+    await waitFor(() => expect(useUi.getState().notifications).toBe(true))
+    act(() => useUi.setState({ notifications: false }))
   })
 })
 
 describe('AccountMenu', () => {
-  it('shows the initial and offers Sign out and Exit app in a browser', async () => {
+  it('shows the initial and offers Sign out, and no longer Exit app or the theme switch (Close exits; the theme is in Settings)', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/desktop/info' ? json({ detail: 'x' }, 404) : url === '/api/account/profile' ? json({ name: 'Sam' }) : json({}))))
     withRouter(<AccountMenu live="live" />)
     const btn = await screen.findByRole('button', { name: 'Account menu' })
     await waitFor(() => expect(btn).toHaveTextContent('S'))
     expect(await screen.findByRole('menuitem', { name: 'Sign out', hidden: true })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: /Exit app/, hidden: true })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /Exit app/, hidden: true })).toBeNull()
+    expect(screen.queryByText('Dark theme')).toBeNull()
   })
   it('hides Sign out inside the desktop app', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => (url === '/desktop/info' ? json({ desktop: true }) : url === '/api/account/profile' ? json({ name: 'Sam' }) : json({}))))
     withRouter(<AccountMenu live="live" />)
     await screen.findByRole('button', { name: 'Account menu' })
     await waitFor(() => expect(screen.queryByRole('menuitem', { name: 'Sign out', hidden: true })).not.toBeInTheDocument())
-  })
-  it('asks before exiting, and only then calls the backend', async () => {
-    const f = vi.fn(async (url: string) => (url === '/api/app/exit' ? json({ ok: true }) : url === '/desktop/info' ? json({ desktop: true }) : json({})))
-    vi.stubGlobal('fetch', f)
-    withRouter(<AccountMenu live="live" />)
-    fireEvent.click(await screen.findByRole('menuitem', { name: /Exit app/, hidden: true }))
-    expect(f.mock.calls.some((c) => c[0] === '/api/app/exit')).toBe(false)
-    fireEvent.click(screen.getByRole('button', { name: 'Keep Archive X open' }))
-    expect(f.mock.calls.some((c) => c[0] === '/api/app/exit')).toBe(false)
-    fireEvent.click(screen.getByRole('menuitem', { name: /Exit app/, hidden: true }))
-    fireEvent.click(screen.getByRole('button', { name: 'Exit app' }))
-    await waitFor(() => expect(f.mock.calls.some((c) => c[0] === '/api/app/exit')).toBe(true))
-    expect(await screen.findByText(/Waiting for the server/)).toBeInTheDocument()
   })
 })
 

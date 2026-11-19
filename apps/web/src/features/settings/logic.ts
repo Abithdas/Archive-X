@@ -14,7 +14,7 @@ export const PANELS = [
   { id: 'experience', title: 'Experience', blurb: 'Autoplay, resume, seek preview', icon: 'play' },
   { id: 'appearance', title: 'Appearance', blurb: 'Zoom, themes, custom themes', icon: 'sparkle' },
   { id: 'storage', title: 'Storage & Backup', blurb: 'Cache usage, data folder, backups', icon: 'folders' },
-  { id: 'security', title: 'Security', blurb: 'Dashboard login and the NSFW PIN', icon: 'lock' },
+  { id: 'security', title: 'Security', blurb: 'App login and the NSFW PIN (both optional)', icon: 'lock' },
   { id: 'system', title: 'System & network', blurb: 'Hardware, browser, speed test', icon: 'gauge' },
 ] as const
 export type PanelId = (typeof PANELS)[number]['id']

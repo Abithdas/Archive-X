@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { create } from 'zustand'
 import { useStatus } from '@/api/hooks'
 import { buildNotifications, type Notice } from './notifications'
@@ -35,11 +35,4 @@ export function useUnseenCount(): number {
   const rows = useNotices()
   const seen = useSeen((s) => s.seen)
   return useMemo(() => unseen(rows, seen).length, [rows, seen])
-}
-
-/** Being on the Notifications page is what makes its notices seen: the bell's count drops to nothing there (called by the shell, which knows the page). */
-export function useMarkSeenOnPage(onPage: boolean): void {
-  const rows = useNotices()
-  const mark = useSeen((s) => s.mark)
-  useEffect(() => { if (onPage) mark(rows) }, [onPage, rows, mark])
 }

@@ -6,7 +6,7 @@ import json
 import re
 import threading
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from ..engines import screen_identify as sid
 from ..metadata import screen_ids as si
@@ -215,6 +215,159 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             db.log(f"Choosing a title failed: {type(exc).__name__}: {exc}"[:300], "WARN")
             raise HTTPException(502, "The provider could not be reached")
 
+
+    # ------------------------------------------------------------------
+    # Home and Discover (SFW): what to continue, what airs this week, what was added, and what to find in Cinemeta's open catalogues.
+    # ------------------------------------------------------------------
+    import time as _time
+    discover_cache: dict[str, tuple[float, object]] = {}
+    GENRES = {"Action", "Adventure", "Animation", "Biography", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western"}
+
+    def _catalog_get(path: str):
+        """One Cinemeta answer, kept ten minutes (the catalogues change slowly; the page asks for the same few again and again)."""
+        hit = discover_cache.get(path)
+        if hit and _time.monotonic() - hit[0] < 600:
+            return hit[1]
+        got = (fetch or sid.http_fetch)(si.CINEMETA + path, {}, {})
+        if len(discover_cache) > 200:
+            discover_cache.clear()
+        discover_cache[path] = (_time.monotonic(), got)
+        return got
+
+    def _in_library(imdb_ids: list[str]) -> dict[str, dict]:
+        """Which of these IMDb ids are already in the library (visible in the current mode): imdb -> {kind, id}."""
+        ids = [i for i in dict.fromkeys(imdb_ids) if re.fullmatch(r"tt\d{5,10}", i or "")]
+        if not ids:
+            return {}
+        with db.reading() as c:
+            rows = c.execute(
+                f"SELECT DISTINCT t.id,t.kind,t.imdb_id FROM screen_titles t JOIN media_screen s ON s.title_id=t.id AND s.state='MATCHED' JOIN media m ON m.id=s.media_id "
+                f"WHERE t.imdb_id IN ({','.join('?' for _ in ids)})", ids).fetchall()
+        return {r["imdb_id"]: {"kind": r["kind"], "id": r["id"]} for r in rows}
+
+    def _card(m: dict, mine: dict[str, dict]) -> dict:
+        imdb = str(m.get("imdb_id") or m.get("id") or "")
+        year = str(m.get("year") or m.get("releaseInfo") or "")[:4]
+        return {"imdb": imdb, "kind": "tv" if m.get("type") == "series" else "movie", "title": m.get("name") or "", "year": int(year) if year.isdigit() else None,
+                "poster": m.get("poster") or "", "background": m.get("background") or "", "rating": str(m.get("imdbRating") or ""),
+                "overview": m.get("description") or "", "genres": [g for g in (m.get("genres") or []) if isinstance(g, str)][:4], "library": mine.get(imdb)}
+
+    @router.get("/api/screen/discover")
+    async def discover(request: Request, kind: str = Query("movie", alias="type"), genre: str = "", skip: int = 0, search: str = ""):
+        """Cinemeta's popular movies or series (a genre, a page of 50, or a search): what you could add, with the ones you already have marked."""
+        require_auth(request)
+        if kind not in ("movie", "series"):
+            raise HTTPException(400, "type must be movie or series")
+        if genre and genre not in GENRES:
+            raise HTTPException(400, "Unknown genre")
+        if not await asyncio.to_thread(sid.cinemeta_on, db):
+            return {"ok": True, "disabled": True, "items": []}
+        parts = []
+        if genre:
+            parts.append(f"genre={genre}")
+        text = re.sub(r"\s+", " ", str(search or "")).strip()[:80]
+        if text:
+            parts.append("search=" + si.quote(text, safe=""))
+        skip = max(0, min(int(skip or 0), 950)) // 50 * 50
+        if skip:
+            parts.append(f"skip={skip}")
+        path = f"/catalog/{kind}/top" + (("/" + "&".join(parts)) if parts else "") + ".json"
+
+        def work():
+            try:
+                got = _catalog_get(path)
+            except Exception as exc:
+                db.log(f"Discover could not reach the catalogue: {type(exc).__name__}: {exc}"[:300], "WARN")
+                return None
+            metas = [m for m in ((got or {}).get("metas") or []) if isinstance(m, dict)] if isinstance(got, dict) else []
+            mine = _in_library([str(m.get("imdb_id") or m.get("id") or "") for m in metas])
+            return [_card(m, mine) for m in metas]
+        items = await asyncio.to_thread(work)
+        if items is None:
+            raise HTTPException(502, "The catalogue could not be reached")
+        return {"ok": True, "disabled": False, "items": items, "more": len(items) >= 50}
+
+    @router.get("/api/screen/discover/{kind}/{imdb}")
+    async def discover_one(kind: str, imdb: str, request: Request):
+        """One title from Cinemeta in full (story, cast, genres, rating, trailer), and whether the library has it."""
+        require_auth(request)
+        if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", imdb):
+            raise HTTPException(400, "Unknown title")
+        if not await asyncio.to_thread(sid.cinemeta_on, db):
+            raise HTTPException(409, "Cinemeta is switched off in Settings, Metadata")
+
+        def work():
+            got = _catalog_get(f"/meta/{kind}/{imdb}.json")
+            meta = (got or {}).get("meta") if isinstance(got, dict) else None
+            if not isinstance(meta, dict):
+                return None
+            card = _card(meta, _in_library([imdb]))
+            trailers = [t.get("source") for t in (meta.get("trailers") or []) if isinstance(t, dict) and re.fullmatch(r"[\w-]{6,16}", str(t.get("source") or ""))]
+            card.update({"runtime": str(meta.get("runtime") or ""), "cast": [c for c in (meta.get("cast") or []) if isinstance(c, str)][:12],
+                         "director": [c for c in (meta.get("director") or []) if isinstance(c, str)][:3], "trailer": trailers[0] if trailers else "",
+                         "seasons": len({v.get("season") for v in (meta.get("videos") or []) if isinstance(v, dict) and (v.get("season") or 0) > 0}) if kind == "series" else 0})
+            return card
+        card = await asyncio.to_thread(work)
+        if card is None:
+            raise HTTPException(404, "That title is not in the catalogue")
+        return card
+
+    @router.get("/api/screen/home")
+    async def screen_home(request: Request):
+        """What the Home page shows from your own library: videos to carry on with, episodes airing this week, what was added last, and a few titles for the billboard."""
+        require_auth(request)
+
+        def read():
+            out: dict = {}
+            with db.reading() as c:
+                rows = c.execute(
+                    "SELECT wh.position,wh.duration,m.source_channel AS cid,m.source_message_id AS mid,m.title AS media_title,s.season,s.episode,t.kind,t.title AS ttitle,t.poster,t.year,e.name AS ename,e.still "
+                    "FROM watch_history wh JOIN media m ON m.id=wh.media_id LEFT JOIN media_screen s ON s.media_id=m.id AND s.state='MATCHED' LEFT JOIN screen_titles t ON t.id=s.title_id "
+                    "LEFT JOIN screen_episodes e ON e.title_id=s.title_id AND e.season=s.season AND e.episode=s.episode "
+                    "WHERE wh.completed=0 AND wh.position>=20 AND wh.duration>0 AND wh.position<wh.duration*0.95 ORDER BY wh.last_played_at DESC LIMIT 12").fetchall()
+                out["continue"] = [{
+                    "cid": r["cid"], "mid": r["mid"], "title": r["ttitle"] or r["media_title"] or "Video",
+                    "sub": (f"S{r['season']} · E{r['episode']}" + (f" · {r['ename']}" if r["ename"] else "")) if r["kind"] == "tv" and r["season"] is not None and r["episode"] is not None else (str(r["year"]) if r["year"] else ""),
+                    "image": si.image_url(r["still"] or r["poster"] or "", "w500"), "pct": round(100 * r["position"] / r["duration"]), "left": max(1, round((r["duration"] - r["position"]) / 60))} for r in rows]
+                rows = c.execute(
+                    "SELECT t.id,t.title,t.poster,e.season,e.episode,e.name,e.air_date FROM screen_episodes e JOIN screen_titles t ON t.id=e.title_id AND t.kind='tv' "
+                    "WHERE e.air_date>=date('now') AND e.air_date<=date('now','+7 day') AND e.title_id IN (SELECT s.title_id FROM media_screen s JOIN media m ON m.id=s.media_id WHERE s.state='MATCHED') "
+                    "ORDER BY e.air_date,t.title LIMIT 24").fetchall()
+                out["airing"] = [{"id": r["id"], "title": r["title"], "poster": si.image_url(r["poster"], "w342"), "season": r["season"], "episode": r["episode"], "name": r["name"], "date": r["air_date"]} for r in rows]
+                rows = c.execute(
+                    "SELECT t.id,t.kind,t.title,t.year,t.poster,t.backdrop,t.overview,t.genres,t.rating,MAX(m.created_at) AS added FROM media_screen s JOIN media m ON m.id=s.media_id "
+                    "JOIN screen_titles t ON t.id=s.title_id WHERE s.state='MATCHED' GROUP BY t.id ORDER BY added DESC LIMIT 18").fetchall()
+            out["recent"] = [{"id": r["id"], "kind": r["kind"], "title": r["title"], "year": r["year"], "poster": si.image_url(r["poster"], "w342")} for r in rows]
+            out["billboard"] = [{"id": r["id"], "kind": r["kind"], "title": r["title"], "year": r["year"], "overview": (r["overview"] or "")[:320], "backdrop": si.image_url(r["backdrop"], "w1280"),
+                                 "poster": si.image_url(r["poster"], "w500"), "genres": json.loads(r["genres"] or "[]")[:3], "rating": r["rating"]} for r in rows if r["backdrop"]][:5]
+            return out
+        return await asyncio.to_thread(read)
+
+    @router.get("/api/screen/of-media")
+    async def titles_of_media(request: Request, ids: str = ""):
+        """The movies and shows that a set of videos belong to (for a cast member's or a studio's page): one entry for each title, never one for each
+        episode or copy, and the videos that have no title yet (`loose`)."""
+        require_auth(request)
+        media_ids = list(dict.fromkeys(int(x) for x in ids.split(",") if x.strip().isdigit()))[:5000]
+        if not media_ids:
+            return {"titles": [], "loose": []}
+
+        def read():
+            out: dict[int, dict] = {}
+            matched: set[int] = set()
+            with db.reading() as c:
+                for i in range(0, len(media_ids), 400):
+                    part = media_ids[i:i + 400]
+                    rows = c.execute(
+                        f"SELECT s.media_id,t.id,t.kind,t.title,t.year,t.poster FROM media_screen s JOIN screen_titles t ON t.id=s.title_id "
+                        f"WHERE s.state='MATCHED' AND s.media_id IN ({','.join('?' for _ in part)})", part).fetchall()
+                    for r in rows:
+                        matched.add(int(r["media_id"]))
+                        e = out.setdefault(int(r["id"]), {"id": int(r["id"]), "kind": r["kind"], "title": r["title"], "year": r["year"], "poster": si.image_url(r["poster"], "w342"), "videos": 0})
+                        e["videos"] += 1
+            titles = sorted(out.values(), key=lambda e: str(e["title"]).lower())
+            return {"titles": titles, "loose": [m for m in media_ids if m not in matched]}
+        return await asyncio.to_thread(read)
 
     @router.get("/api/screen/series")
     async def series_list(request: Request):

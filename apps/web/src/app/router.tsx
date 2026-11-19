@@ -7,7 +7,6 @@ const LibraryPage = lazy(() => import('@/features/library/LibraryPage').then((m)
 const EntityDirectory = lazy(() => import('@/features/entities/EntityDirectory').then((m) => ({ default: m.EntityDirectory })))
 const StudioPage = lazy(() => import('@/features/entities/StudioPage').then((m) => ({ default: m.StudioPage })))
 const PerformerPage = lazy(() => import('@/features/entities/PerformerPage').then((m) => ({ default: m.PerformerPage })))
-import { NotificationsPage } from './NotificationsPage'
 const WatchPage = lazy(() => import('@/features/watch/WatchPage').then((m) => ({ default: m.WatchPage })))
 const OperationsPage = lazy(() => import('@/features/operations/OperationsPage').then((m) => ({ default: m.OperationsPage })))
 const TransfersPage = lazy(() => import('@/features/transfers/TransfersPage').then((m) => ({ default: m.TransfersPage })))
@@ -100,7 +99,6 @@ const routeTree = root.addChildren([
   createRoute({ getParentRoute: () => root, path: '/operations', component: OperationsPage }),
   createRoute({ getParentRoute: () => root, path: '/transfers', component: TransfersPage }),
   createRoute({ getParentRoute: () => root, path: '/settings', component: SettingsPage }),
-  createRoute({ getParentRoute: () => root, path: '/notifications', component: NotificationsPage }),
 ])
 
 // The backend serves the app at the site root.

@@ -93,15 +93,15 @@ export function AiPage({ initialTab = 'issues' }: { initialTab?: AiTab } = {}) {
   const finishedSetup = () => { refreshed(); void history.refetch() }
 
   return (
-    <section className="mx-auto w-full max-w-[calc(1800px/var(--ax-ui-zoom,1))] pb-10 pl-4 pr-4 pt-6 sm:pl-[58px] sm:pr-10">
+    <section className="w-full px-4 pb-10 pt-6 sm:px-10">
       <PageHead eyebrow="Local intelligence" title="AI Assistance" blurb="Find what is going wrong, and ask a private local model about it. It diagnoses; it never changes anything.">
         <div className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-2" role="status" aria-live="polite">
           {starting ? <ChatDot label="Starting" className="text-sm" /> : <span aria-hidden="true" className={cn('size-2.5 rounded-full', hdr.ready ? 'bg-good' : 'bg-warn')} />}
           <div className="text-left"><strong className="block text-sm">{starting ? <Shimmer text={hdr.state} /> : hdr.state}</strong><small className="text-xs text-muted">{hdr.model}</small></div>
         </div>
       </PageHead>
-      <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
-        <nav aria-label="AI Assistance sections" className="flex gap-1.5 overflow-x-auto md:grid md:content-start">
+      <div className="grid items-start gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
+        <nav aria-label="AI Assistance sections" className="flex gap-1.5 overflow-x-auto md:sticky md:top-20 md:grid md:content-start md:self-start">
           {TABS.map((t) => (
             <button key={t.value} type="button" aria-current={tab === t.value ? 'page' : undefined} onClick={() => open(t.value)} className={cn('shrink-0 rounded-xl border px-3 py-2 text-left', tab === t.value ? 'border-accent bg-accent/10' : 'border-line hover:bg-fg/5')}>
               <b className="block text-sm">{t.label}</b><small className="text-[11px] text-muted">{t.blurb}</small>

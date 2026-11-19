@@ -279,6 +279,7 @@ class LocalAIRuntime:
         if not model.is_file():
             raise LocalAIError("The assistant model is not set up yet")
         config.AI_DIR.mkdir(parents=True, exist_ok=True)
+        self._use_a_free_port()
         args = [
             str(runtime), "-m", str(model), "--host", DEFAULT_HOST,
             "--port", str(self._port()), "--alias", self.model_id,
@@ -333,6 +334,23 @@ class LocalAIRuntime:
 
         self._watch = threading.Thread(target=loop, name="ai-idle-stop", daemon=True)
         self._watch.start()
+
+    def _use_a_free_port(self) -> None:
+        """Something else may already own the port (8080 is qBittorrent's usual one, and then the engine cannot start). Another free port is
+        chosen and kept as the endpoint, so the next start uses it too. This runs only when nothing of ours answers there."""
+        port = self._port()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0)
+            try:
+                probe.bind((DEFAULT_HOST, port))
+                return
+            except OSError:
+                pass
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as pick:
+            pick.bind((DEFAULT_HOST, 0))
+            free = int(pick.getsockname()[1])
+        self.db.set_setting("ai_local_endpoint", f"http://{DEFAULT_HOST}:{free}/v1")
+        self._reach_cache = None
 
     def _port(self) -> int:
         try:

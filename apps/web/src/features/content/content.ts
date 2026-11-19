@@ -16,9 +16,9 @@ export const otherMode = (m: Mode): Mode => (m === 'nsfw' ? 'sfw' : 'nsfw')
 /** Why a PIN cannot be used, or null: four to twelve digits. */
 export const pinProblem = (pin: string): string | null => (/^\d{4,12}$/.test(pin) ? null : 'Use 4 to 12 digits.')
 
-/** What the dialog must ask before the mode can change: nothing (towards SFW), the PIN, or a new PIN when none exists yet. */
+/** What the dialog must ask before the mode can change: nothing (towards SFW, or when no PIN has been chosen: the PIN is optional) or the PIN. */
 export type Ask = 'none' | 'pin' | 'create'
-export const askFor = (target: Mode, state: Pick<ContentState, 'pin_set'>): Ask => (target === 'sfw' ? 'none' : state.pin_set ? 'pin' : 'create')
+export const askFor = (target: Mode, state: Pick<ContentState, 'pin_set'>): Ask => (target === 'nsfw' && state.pin_set ? 'pin' : 'none')
 
 export function switchBody(target: Mode, ask: Ask, pin: string) {
   return ask === 'pin' ? { mode: target, pin } : ask === 'create' ? { mode: target, new_pin: pin } : { mode: target }

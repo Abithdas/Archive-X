@@ -22,7 +22,7 @@ export function useSwitchMode() {
 export function useChangePin() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { current?: string; new: string }) => api<{ pin_set: boolean }>('/api/content-mode/pin', { method: 'POST', json: body }),
+    mutationFn: (body: { current?: string; new?: string; remove?: boolean }) => api<{ pin_set: boolean }>('/api/content-mode/pin', { method: 'POST', json: body }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: CONTENT_KEY }),
   })
 }

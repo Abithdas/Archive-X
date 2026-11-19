@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { useLibraryStore } from './store'
 import { LibraryPage } from './LibraryPage'
-import { useScreenView } from '@/features/series/view'
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn(), loading: vi.fn(), dismiss: vi.fn() }), Toaster: () => null }))
 afterEach(() => vi.unstubAllGlobals())
@@ -54,24 +53,21 @@ describe('LibraryPage', () => {
       if (url.startsWith('/api/library?')) return json({ total: 1, page: 0, per: 24, items: [item] })
       if (url.startsWith('/api/screen/movies')) return json({ items: [{ id: 1, title: 'The Matrix', year: 1999, poster: '', cam_only: false, copies: 1, best: '1080p' }] })
       if (url.startsWith('/api/screen/series')) return json({ items: [{ id: 2, title: 'Dark', year: 2017, poster: '', overview: '', genres: [], episodes: 2, seasons: 1 }] })
+      if (url.startsWith('/api/screen/home')) return json({ continue: [], airing: [], recent: [], billboard: [] })
+      if (url.startsWith('/api/screen/discover')) return json({ ok: true, items: [], more: false })
       return json({})
     }))
   }
-  it('in SFW has Movies and Series inside the page, as a switch, not as pages of their own', async () => {
-    useScreenView.getState().setView('all')
+  it('in SFW the videos page is Home: movies and shows as cards, and Discover, never one card for each episode', async () => {
     stack('sfw')
     withRouter(<LibraryPage />)
-    expect((await screen.findAllByRole('tab')).map((t) => t.textContent)).toEqual(['All', 'Movies', 'Series'])
-    // All: one card for each show and each movie, never one for each episode or file
-    expect(await screen.findByRole('link', { name: 'Open The Matrix' })).toBeInTheDocument()
-    expect(await screen.findByRole('link', { name: 'Open Dark' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Discover' })).toBeInTheDocument()
     expect(screen.queryByRole('article', { name: 'First scene' })).toBeNull()
-    fireEvent.click(screen.getByRole('tab', { name: 'Movies' }))
-    expect(await screen.findByRole('link', { name: 'Open The Matrix' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Open Dark' })).toBeNull()
-    fireEvent.click(screen.getByRole('tab', { name: 'Series' }))
+    expect(screen.queryByRole('tab', { name: 'All' })).toBeNull()                      // the old All | Movies | Series switch is gone
+    fireEvent.click(screen.getByRole('button', { name: 'All series' }))
     expect(await screen.findByRole('link', { name: 'Open Dark' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Open The Matrix' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'All movies' }))
+    expect(await screen.findByRole('link', { name: 'Open The Matrix' })).toBeInTheDocument()
   })
   it('in NSFW has no such switch', async () => {
     stack('nsfw')

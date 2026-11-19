@@ -16,7 +16,7 @@ const NSFW: Labels = {
   tags: 'Tags', series: null, movies: null,
 }
 const SFW: Labels = {
-  videos: 'Movies & Shows', videosBlurb: 'Browse and manage your movies and shows',
+  videos: 'Home', videosBlurb: 'Your movies and shows, where to carry on, and what to discover',
   performers: 'Cast', performersBlurb: 'Actors in your movies and shows', performersEmpty: 'No cast yet. Identify your movies and shows in Settings → Metadata.', performer: 'Actor',
   studios: 'Studios & Networks', studiosBlurb: 'Studios and networks behind your movies and shows', studiosEmpty: 'No studios or networks yet.',
   tags: 'Genres', series: 'Series', movies: 'Movies',

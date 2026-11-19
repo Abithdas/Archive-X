@@ -91,21 +91,26 @@ def _client(db):
     return c, H
 
 
-def test_switching_into_nsfw_needs_a_pin_and_channels_follow_the_mode(db):
+def test_the_pin_is_optional_and_when_there_is_one_it_is_asked_for(db):
     cm._failures.clear()
     c, H = _client(db)
     assert c.get("/api/content-mode").json() == {"ok": True, "mode": "sfw", "pin_set": False, "locked_for": 0}
     def people():   # which of the two performers (1 adult, 2 movie cast) a page can still open
         return [pid for pid in (1, 2) if c.get(f"/api/performers/{pid}/edit").status_code == 200]
     assert people() == [2]
-    r = c.post("/api/content-mode", json={"mode": "nsfw"}, headers=H)
-    assert r.status_code == 409                                           # no PIN yet: one has to be chosen
-    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "12"}, headers=H).status_code == 400
-    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).json()["mode"] == "nsfw"
+    assert c.post("/api/content-mode", json={"mode": "nsfw"}, headers=H).json()["mode"] == "nsfw"      # no PIN chosen: none is needed
     assert people() == [1]
+    assert c.post("/api/content-mode", json={"mode": "sfw"}, headers=H).json()["mode"] == "sfw"
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "12"}, headers=H).status_code == 400      # a PIN that is chosen must be 4 to 12 digits
+    assert c.post("/api/content-mode/pin", json={"new": "2468"}, headers=H).json()["pin_set"] is True
     assert c.post("/api/content-mode", json={"mode": "sfw"}, headers=H).json()["mode"] == "sfw"   # towards SFW: no PIN
+    assert c.post("/api/content-mode", json={"mode": "nsfw"}, headers=H).status_code == 403          # with a PIN set it is asked for
     assert c.post("/api/content-mode", json={"mode": "nsfw", "pin": "0000"}, headers=H).status_code == 403
     assert c.post("/api/content-mode", json={"mode": "nsfw", "pin": "2468"}, headers=H).status_code == 200
+    assert c.post("/api/content-mode", json={"mode": "sfw"}, headers=H).status_code == 200
+    assert c.post("/api/content-mode/pin", json={"remove": True, "current": "0000"}, headers=H).status_code == 403   # removing it needs it
+    assert c.post("/api/content-mode/pin", json={"remove": True, "current": "2468"}, headers=H).json()["pin_set"] is False
+    assert c.post("/api/content-mode", json={"mode": "nsfw"}, headers=H).status_code == 200            # and it is optional again
 
 
 def test_channel_marks_are_listed_unfiltered_and_can_be_changed(db):

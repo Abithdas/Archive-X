@@ -23,6 +23,17 @@ const mount = (hint: unknown, over: (u: string, i?: RequestInit) => Response | u
 const fill = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
 
 describe('LoginGate', () => {
+  it('with the login switched off, this PC opens a session by itself and the form never shows', async () => {
+    let opened = false
+    const calls = mount({ setup_required: false, login_required: false }, (u) => {
+      if (u === '/api/auth/open') { opened = true; return json({ ok: true }) }
+      if (u === '/api/status') return opened ? json({ connected: false }) : json({ detail: 'Not signed in' }, 401)
+      return undefined
+    })
+    expect(await screen.findByText('The app')).toBeInTheDocument()
+    expect(calls.some((c) => c.url === '/api/auth/open' && c.method === 'POST')).toBe(true)
+    expect(screen.queryByText('Sign in to continue')).toBeNull()
+  })
   it('signs in and shows the app', async () => {
     const calls = mount({ setup_required: false })
     expect(await screen.findByText('Sign in to continue')).toBeInTheDocument()
