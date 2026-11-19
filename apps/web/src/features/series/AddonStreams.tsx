@@ -18,7 +18,7 @@ interface StreamItem {
   languages?: string[]
 }
 interface Streams { ok: boolean; items: StreamItem[]; skipped: number; addons: string[] }
-type StreamSort = 'addon' | 'quality'
+type StreamSort = 'addon' | 'quality' | 'seeds' | 'largest' | 'smallest'
 type HdrFilter = 'all' | 'hdr' | 'dv' | 'none'
 
 function qualityLabel(height: number): string {
@@ -26,6 +26,25 @@ function qualityLabel(height: number): string {
   if (height >= 1000) return '1080p'
   if (height >= 700) return '720p'
   return height ? height + 'p' : ''
+}
+
+function seedsOf(text: string): number {
+  const match = text.match(/\\b(\\d[\\d,]*)\\s*(?:seeds?|seeders?)\\b/i) ?? text.match(/\\b(?:seeds?|seeders?)\\s*[:=]\\s*(\\d[\\d,]*)\\b/i)
+  return match ? Number(match[1].replace(/,/g, '')) : -1
+}
+
+function sizeOf(text: string): number {
+  const match = text.match(/\\b(\\d+(?:[.,]\\d+)?)\\s*(TiB|GiB|MiB|KiB|TB|GB|MB|KB)\\b/i)
+  if (!match) return -1
+  const value = Number(match[1].replace(',', '.'))
+  const unit = match[2].toLowerCase()
+  const power = unit.startsWith('t') ? 4 : unit.startsWith('g') ? 3 : unit.startsWith('m') ? 2 : 1
+  return value * (unit.endsWith('ib') ? 1024 : 1000) ** power
+}
+
+function compareKnown(a: number, b: number, descending: boolean): number {
+  if (a < 0 || b < 0) return a < 0 ? (b < 0 ? 0 : 1) : -1
+  return descending ? b - a : a - b
 }
 
 /**
@@ -60,16 +79,21 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
   const languageOptions = [...new Set(d.items.flatMap((item) => item.languages ?? []))].sort((a, b) => a.localeCompare(b))
   const sourceOptions = [...new Set(d.items.map((item) => item.source ?? '').filter(Boolean))].sort((a, b) => a.localeCompare(b))
   const hdrOptions = [...new Set(d.items.flatMap((item) => item.hdr ?? []))]
-  const filtered = d.items.map((item, index) => ({ item, index })).filter(({ item }) =>
+  const filtered = d.items.map((item, index) => ({ item, index, seeds: seedsOf(item.name), size: sizeOf(item.name) })).filter(({ item }) =>
     (!selectedAddon || item.addon === selectedAddon)
     && (!quality || (item.height ?? 0) === Number(quality))
     && (!language || (item.languages ?? []).includes(language))
     && (!source || item.source === source)
     && (hdr === 'all' || (hdr === 'hdr' && (item.hdr ?? []).includes('HDR')) || (hdr === 'dv' && (item.hdr ?? []).includes('DV')) || (hdr === 'none' && !(item.hdr ?? []).length)),
   )
-  const rows = sort === 'quality'
-    ? filtered.sort((a, b) => (b.item.height ?? 0) - (a.item.height ?? 0) || a.index - b.index)
-    : filtered.sort((a, b) => a.index - b.index)
+  const rows = filtered.sort((a, b) => {
+    const order = sort === 'quality' ? compareKnown(a.item.height ?? 0, b.item.height ?? 0, true)
+      : sort === 'seeds' ? compareKnown(a.seeds, b.seeds, true)
+        : sort === 'largest' ? compareKnown(a.size, b.size, true)
+          : sort === 'smallest' ? compareKnown(a.size, b.size, false)
+            : 0
+    return order || a.index - b.index
+  })
   const visibleAddons = addonNames.filter((name) => rows.some(({ item }) => item.addon === name))
   const selectClass = 'h-8 max-w-full appearance-none rounded-full border border-line bg-surface-2 px-3 pr-7 text-[11px] font-semibold text-fg outline-none transition-colors hover:bg-fg/10 focus-visible:ring-2 focus-visible:ring-accent'
   const countLabel = rows.length + ' stream' + (rows.length === 1 ? '' : 's')
@@ -90,7 +114,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
             })}
           </div>
           <div aria-label="Stream filters" className="flex flex-wrap items-center gap-1.5">
-            <label><span className="sr-only">Addon order</span><select aria-label="Addon order" className={selectClass} value={sort} onChange={(e) => setSort(e.target.value as StreamSort)}><option value="addon">↕ Addon order</option><option value="quality">Best quality</option></select></label>
+            <label><span className="sr-only">Addon order</span><select aria-label="Addon order" className={selectClass} value={sort} onChange={(e) => setSort(e.target.value as StreamSort)}><option value="addon">↕ Addon order</option><option value="quality">Best quality</option><option value="seeds">Most seeds</option><option value="largest">Largest first</option><option value="smallest">Smallest first</option></select></label>
             {qualityOptions.length > 1 ? <label><span className="sr-only">Quality</span><select aria-label="Quality" className={selectClass} value={quality} onChange={(e) => setQuality(e.target.value)}><option value="">Quality</option>{qualityOptions.map((height) => <option key={height} value={String(height)}>{qualityLabel(height)}</option>)}</select></label> : null}
             {languageOptions.length > 1 ? <label><span className="sr-only">Language</span><select aria-label="Language" className={selectClass} value={language} onChange={(e) => setLanguage(e.target.value)}><option value="">Language</option>{languageOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label> : null}
             {sourceOptions.length > 1 ? <label><span className="sr-only">Source</span><select aria-label="Source" className={selectClass} value={source} onChange={(e) => setSource(e.target.value)}><option value="">Source</option>{sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label> : null}
