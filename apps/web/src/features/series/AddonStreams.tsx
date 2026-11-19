@@ -29,12 +29,12 @@ function qualityLabel(height: number): string {
 }
 
 function seedsOf(text: string): number {
-  const match = text.match(/\\b(\\d[\\d,]*)\\s*(?:seeds?|seeders?)\\b/i) ?? text.match(/\\b(?:seeds?|seeders?)\\s*[:=]\\s*(\\d[\\d,]*)\\b/i)
+  const match = text.match(/\b(\d[\d,]*)\s*(?:seeds?|seeders?)\b/i) ?? text.match(/\b(?:seeds?|seeders?)\s*[:=]\s*(\d[\d,]*)\b/i)
   return match ? Number(match[1].replace(/,/g, '')) : -1
 }
 
 function sizeOf(text: string): number {
-  const match = text.match(/\\b(\\d+(?:[.,]\\d+)?)\\s*(TiB|GiB|MiB|KiB|TB|GB|MB|KB)\\b/i)
+  const match = text.match(/\b(\d+(?:[.,]\d+)?)\s*(TiB|GiB|MiB|KiB|TB|GB|MB|KB)\b/i)
   if (!match) return -1
   const value = Number(match[1].replace(',', '.'))
   const unit = match[2].toLowerCase()
