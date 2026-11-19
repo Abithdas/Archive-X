@@ -5,7 +5,7 @@ import type { AudioTrack, SubChoice, SubtitleTrack, TrackInfo } from './tracks'
 import type { LiveState } from './useTracks'
 
 const Col = ({ title, children }: { title: string; children: ReactNode }) => (
-  <div role="group" aria-label={title} className="flex min-w-[10rem] flex-col gap-0.5">
+  <div role="group" aria-label={title} className="flex min-w-[10rem] max-w-[15rem] flex-col gap-0.5">
     <div className="px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-muted">{title}</div>{children}
   </div>
 )
@@ -20,13 +20,13 @@ export function CcMenu({ info, audio, sub, live, altBusy, onAudio, onSub, drop }
       <div className="flex max-w-[calc(100vw-2rem)] flex-col gap-1 sm:flex-row sm:gap-3">
         <Col title="Audio">
           {info.audio.length ? info.audio.map((t: AudioTrack) => (
-            <MenuItem key={t.index} active={t.index === current} onClick={() => onAudio(t)}>{t.label}{altBusy && t.index === audio ? <span className="text-muted"> loading…</span> : null}</MenuItem>
+            <MenuItem key={t.index} active={t.index === current} onClick={() => onAudio(t)}><span className="min-w-0 truncate" title={t.label}>{t.label}</span>{altBusy && t.index === audio ? <span className="text-muted"> loading…</span> : null}</MenuItem>
           )) : <span className="px-2.5 py-1 text-xs text-muted">One audio track</span>}
         </Col>
         <Col title="Subtitles">
           <MenuItem active={sub.kind === 'off'} onClick={() => onSub({ kind: 'off' })}>Off</MenuItem>
           {info.subtitles.filter((s: SubtitleTrack) => s.text).map((s: SubtitleTrack) => (
-            <MenuItem key={s.index} active={sub.kind === 'track' && sub.index === s.index} onClick={() => onSub({ kind: 'track', index: s.index }, s.language)}>{s.label}</MenuItem>
+            <MenuItem key={s.index} active={sub.kind === 'track' && sub.index === s.index} onClick={() => onSub({ kind: 'track', index: s.index }, s.language)}><span className="min-w-0 truncate" title={s.label}>{s.label}</span></MenuItem>
           ))}
           {info.captions.available ? (<>
             <MenuItem active={sub.kind === 'live' && !sub.original} onClick={() => onSub({ kind: 'live' })}>Live captions → English{sub.kind === 'live' && !sub.original ? state : null}</MenuItem>

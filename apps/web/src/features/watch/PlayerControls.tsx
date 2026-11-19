@@ -82,10 +82,10 @@ export function PlayerControls(p: ControlsProps) {
 }
 
 /** Caption look (size, box, reset): the same menu items in both players. */
-export function CaptionStyleItems({ style, onChange }: { style: CaptionStyle; onChange: (patch: Partial<CaptionStyle>) => void }) {
+export function CaptionStyleItems({ style, onChange, head = true }: { style: CaptionStyle; onChange: (patch: Partial<CaptionStyle>) => void; head?: boolean }) {
   return (
     <>
-      <MenuHead>Caption style</MenuHead>
+      {head ? <MenuHead>Caption style</MenuHead> : null}
       <div className="flex items-center justify-between gap-3 px-2.5 py-1 text-xs"><span className="text-muted">Size</span>
         <span className="flex items-center gap-1">
           <button type="button" aria-label="Smaller captions" onClick={() => onChange({ size: clampSize(style.size - SIZE_STEP) })} className="grid size-7 place-items-center rounded-md border border-line-2 font-bold hover:bg-fg/10">A−</button>

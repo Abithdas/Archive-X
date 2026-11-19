@@ -9,6 +9,19 @@ export const MenuRow = ({ k, v, good }: { k: string; v: string; good?: boolean }
   <div className="flex justify-between gap-6 px-2.5 py-1 text-xs"><span className="text-muted">{k}</span><span className={cn('font-semibold', good && 'text-emerald-400')}>{v}</span></div>
 )
 
+/** A part of a long menu that folds away: the heading opens and closes it. */
+export function MenuSection({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div role="group" aria-label={title} className="flex flex-col gap-0.5">
+      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-muted hover:bg-fg/10 hover:text-fg">
+        {title}<span aria-hidden="true" className={cn('text-xs transition-transform', open && 'rotate-90')}>›</span>
+      </button>
+      {open ? children : null}
+    </div>
+  )
+}
+
 export function MenuItem({ children, onClick, active, pressed, label }: { children: ReactNode; onClick: (close: () => void) => void; active?: boolean; pressed?: boolean; label?: string }) {
   const close = useContext(MenuCtx)
   return (
@@ -37,7 +50,7 @@ export function PopMenu({ label, button, children, align = 'left', iconOnly = fa
         className={cn('inline-flex items-center gap-1.5 rounded-md text-xs font-medium text-fg/85 transition-colors hover:bg-fg/10 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent', iconOnly ? 'size-8 justify-center' : 'px-1.5 py-1 @lg:px-2', open && 'bg-fg/10 text-fg')}>{button}</button>
       {open ? (
         <MenuCtx.Provider value={() => setOpen(false)}>
-          <div role="menu" aria-label={label} className={cn(drop === 'down' ? 'mo-drop-down top-10' : 'mo-drop-up bottom-10', '[[data-ov]_&]:[--color-fg:#eceff4] [[data-ov]_&]:[--color-muted:#9aa4b6] [[data-ov]_&]:[--color-surface:#2b313d] [[data-ov]_&]:[--color-line-2:#434c5e] absolute z-50 flex min-w-[9.5rem] flex-col gap-0.5 rounded-xl border border-line-2 bg-surface/95 p-1.5 text-fg shadow-2xl backdrop-blur-xl', align === 'right' ? 'right-0' : 'left-0')}>{children}</div>
+          <div role="menu" aria-label={label} className={cn(drop === 'down' ? 'mo-drop-down top-10' : 'mo-drop-up bottom-10', '[[data-ov]_&]:[--color-fg:#eceff4] [[data-ov]_&]:[--color-muted:#9aa4b6] [[data-ov]_&]:[--color-surface:#2b313d] [[data-ov]_&]:[--color-line-2:#434c5e] absolute z-50 flex max-h-[min(60dvh,26rem)] min-w-[9.5rem] max-w-[min(22rem,calc(100vw-1.5rem))] flex-col gap-0.5 overflow-y-auto overscroll-contain rounded-xl border border-line-2 bg-surface/95 p-1.5 text-fg shadow-2xl backdrop-blur-xl', align === 'right' ? 'right-0' : 'left-0')}>{children}</div>
         </MenuCtx.Provider>
       ) : null}
     </div>

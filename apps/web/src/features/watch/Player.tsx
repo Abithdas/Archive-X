@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Icon } from '@/design/Icon'
 import { PlayIcon } from './PlayerIcons'
-import { MenuItem } from './PlayerParts'
+import { MenuItem, MenuSection } from './PlayerParts'
 import { CaptionStyleItems, PictureSoundItems, PlaybackItems, PlayerControls, RATES, playerKey } from './PlayerControls'
 import { cn } from '@/design/cn'
 import { SnapshotGrid, type SnapshotData } from './SnapshotGrid'
@@ -258,8 +258,8 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
           settings={<>
             <MenuItem pressed={block} onClick={() => { const on = !block; setBlock(on); setBlocking(on); flash(on ? 'Chrome Live Caption blocked after reload' : 'Chrome Live Caption allowed after reload') }} label="Keep Chrome's Live Caption off this player">Keep Chrome's Live Caption off <span className={block ? 'text-emerald-400' : 'text-muted'}>{block ? 'ON' : 'OFF'}</span></MenuItem>
             <p className="max-w-[15rem] px-2.5 pb-1 text-[11px] leading-snug text-muted">Plays the sound through the app so Chrome's own black "Live Caption" box has nothing to caption. Applies after a page reload.</p>
-            <PictureSoundItems value={ps} onChange={changePs} boostFailed={boostFailed} sync={{ seconds: shift, on: tracks.sub.kind === 'track', onChange: setShift }} />
-            <CaptionStyleItems style={capStyle} onChange={changeCap} />
+            <MenuSection title="Picture and sound"><PictureSoundItems value={ps} onChange={changePs} boostFailed={boostFailed} sync={{ seconds: shift, on: tracks.sub.kind === 'track', onChange: setShift }} /></MenuSection>
+            <MenuSection title="Caption style" defaultOpen><CaptionStyleItems head={false} style={capStyle} onChange={changeCap} /></MenuSection>
             <PlaybackItems tracks={tracks} loop={loop} onLoop={() => { setLoop(!loop); flash(`Auto-repeat: ${loop ? 'OFF' : 'ON'}`) }} />
           </>}
         />
