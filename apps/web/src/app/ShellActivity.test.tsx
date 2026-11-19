@@ -48,11 +48,22 @@ describe('the top bar', () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes('/api/status') ? { jobs: [], telegram_connected: telegram } : String(url).includes('storage') ? { bytes: 1, files: 1, disk: { total: 10, used: 1, free: 9 } } : {}), { status: 200 })))
     withRouter(<Shell />)
   }
-  it('has no status dot on the profile picture', async () => {
+  it('shows a breathing green dot at the top right of the profile picture while Telegram is connected', async () => {
     mountShell(true)
     const account = await screen.findByRole('button', { name: 'Account menu' })
     await waitFor(() => expect(screen.getByText('Connected')).toBeInTheDocument())
-    expect(account.querySelector('i, .ax-live-dot')).toBeNull()
+    const dot = account.querySelector('.ax-live-dot')
+    expect(dot).not.toBeNull()
+    expect(dot).toHaveAttribute('data-live', 'true')
+    expect(dot!.className).toMatch(/bg-good/)
+    expect(dot!.className).toMatch(/-right-0\.5/)
+    expect(dot!.className).toMatch(/-top-0\.5/)
+  })
+  it('shows no dot on the profile picture while Telegram is not connected', async () => {
+    mountShell(false)
+    const account = await screen.findByRole('button', { name: 'Account menu' })
+    await waitFor(() => expect(screen.getByText('Setup needed')).toBeInTheDocument())
+    expect(account.querySelector('.ax-live-dot')).toBeNull()
   })
   it('flies the Telegram plane while Telegram is live, and keeps it still when it is not', async () => {
     mountShell(true)
