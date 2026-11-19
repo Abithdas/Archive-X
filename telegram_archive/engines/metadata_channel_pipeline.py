@@ -34,6 +34,7 @@ operator workflow.
 from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
+from ..core import content_mode
 import asyncio
 import json
 import hashlib
@@ -48,6 +49,7 @@ from ..jobs.context import JobCancelled
 from ..core.resource_registry import mark_media_entity_complete
 
 PHASES = ("inventory", "metadata", "performers", "channel_data", "snapshots")
+ADULT_PHASES = ("metadata", "performers", "channel_data")   # these ask StashDB / ThePornDB
 PHASE_LABELS = {
     "inventory": "Collect filenames",
     "metadata": "Match metadata · PornDB / StashDB",
@@ -1438,6 +1440,9 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
     entry.setdefault("phases", {})
     selected = _selected_stages(payload)
     pending_only = bool(payload.get("pending_only"))
+    if channel_id in content_mode.sfw_channels(ctx.db):
+        # SFW content is named by the movie and show identification (TMDB), never by PornDB / StashDB: leave those phases out.
+        selected = [phase for phase in selected if phase not in ADULT_PHASES]
     if pending_only:
         # This workflow is explicitly local-only: a pending item pass never scans Telegram history.
         selected = [phase for phase in selected if phase != "inventory"]

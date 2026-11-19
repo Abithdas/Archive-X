@@ -109,6 +109,17 @@ def hidden_channels(db) -> set[str]:
         return {str(r[0]) for r in conn.execute("SELECT telegram_id FROM channels WHERE COALESCE(in_library,1)=1 AND COALESCE(content_rating,'nsfw')='nsfw'")}
 
 
+# The adult providers (StashDB, ThePornDB) are never asked about content marked SFW, whatever the app is showing at that moment: every scan that
+# sends hashes or names to them leaves out the channels and folders marked SFW. A source with no mark counts as adult (the default of a channel).
+NOT_SFW_SOURCE = "NOT IN (SELECT telegram_id FROM channels WHERE content_rating='sfw')"
+
+
+def sfw_channels(db) -> set[str]:
+    """The channels and folders marked SFW (by the mark itself, not by the current mode)."""
+    with db.reading() as conn:
+        return {str(r[0]) for r in conn.execute("SELECT telegram_id FROM channels WHERE content_rating='sfw'")}
+
+
 def set_mode(db, mode: str) -> str:
     mode = normalise_mode(mode)
     db.set_setting(SETTING_MODE, mode)

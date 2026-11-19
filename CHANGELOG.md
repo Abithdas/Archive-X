@@ -3,6 +3,8 @@
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
 ## Unreleased
+- **The series page is laid out like a streaming app.** The artwork fills the page; the title, facts, story, genres, cast and a Play button are on the left; a panel on the right has the season tabs, a search, and the episodes with their pictures. Only the chosen season is listed.
+- **SFW never asks StashDB or ThePornDB.** The Metadata & Assets job skips the PornDB / StashDB phases (match metadata, performers, channel and studio data) for channels and folders marked SFW, and the metadata match, the suggestion scan and the page enricher leave SFW sources out. It goes by the mark on the channel or folder, so a scan that is already running does not start asking about SFW content when you switch modes. Local SFW folders were already named through TMDB only.
 - **About note:** it says "personal project" instead of "personal fan project" (Settings, Overview and the README).
 - **Project page:** a new README with a Home screenshot and a link to a **UI reference** (`docs/ui-reference/index.html`): every main screen of the current app (Home, Discover, Movies, Series, show and movie pages, Player, Notifications, Operations, Appearance, light theme, phone width), captured from the real interface with made-up titles. The theme names in Appearance wrap onto two lines instead of being cut off.
 

@@ -15,6 +15,7 @@ Each video is attempted once per app run, so nothing is repeated endlessly.
 from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
+from ..core import content_mode
 import asyncio
 import time
 from collections import deque
@@ -96,7 +97,7 @@ class PageEnricher:
         with self.db.lock:
             return {int(r["source_message_id"]): r for r in self.db.conn.execute(
                 f"SELECT id,source_message_id,filename,metadata_source,metadata_synced_at FROM media "
-                f"WHERE source_channel=? AND source_message_id IN ({ph})", [str(channel_id), *ids]).fetchall()}
+                f"WHERE source_channel=? AND source_channel {content_mode.NOT_SFW_SOURCE} AND source_message_id IN ({ph})", [str(channel_id), *ids]).fetchall()}
 
     async def _run(self):
         """Drain the catalogue and metadata queues while Telegram is connected."""

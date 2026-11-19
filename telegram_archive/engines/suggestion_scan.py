@@ -12,6 +12,7 @@ when the same video is selected by more than one scope.
 """
 from __future__ import annotations
 from ..core.swallowed import note as _swallowed_note
+from ..core import content_mode
 from .. import config
 
 import asyncio
@@ -167,7 +168,7 @@ def _target_map(ctx, payload: dict, scopes: list[str], limit: int):
     if not clauses:
         return {}
 
-    filters = ["(" + " OR ".join(f"({c})" for c in clauses) + ")"]
+    filters = ["(" + " OR ".join(f"({c})" for c in clauses) + ")", f"m.source_channel {content_mode.NOT_SFW_SOURCE}"]   # never asks the adult providers about SFW content
     if media_ids:
         marks = ",".join("?" for _ in media_ids)
         filters.append(f"m.id IN ({marks})")

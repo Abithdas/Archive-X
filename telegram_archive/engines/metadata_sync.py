@@ -10,6 +10,7 @@ and provider matching uses OSHASH before filename clues, with local references a
 from __future__ import annotations
 from ..core.swallowed import note as _swallowed_note
 from .. import config
+from ..core import content_mode
 import asyncio
 import json
 from ..metadata.fingerprint import oshash_from_source
@@ -178,6 +179,7 @@ async def run(ctx):
     for source_id in (sources or [""]):
         w, p = list(where), list(params)
         w.append("COALESCE(status,'')<>'SOURCE_DELETED'")  # V29.4.128
+        w.append(f"source_channel {content_mode.NOT_SFW_SOURCE}")  # StashDB and ThePornDB are never asked about SFW channels or folders
         if source_id:
             w.append("source_channel=?")
             p.append(source_id)

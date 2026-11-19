@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { labelsFor } from '@/features/content/labels'
@@ -42,8 +42,8 @@ describe('Series pages', () => {
       seasons: [{ season: 2, name: 'Season 2', total: 8, episodes: [{ episode: 3, name: 'Dark Matter', overview: 'Ep.', air_date: '2019-06-21', still: '', runtime: 55, duration: 3300, cid: '-9000000000001', mid: 1 }] }] }
     vi.stubGlobal('fetch', vi.fn(async () => json(d)))
     withRouter(<SeriesDetailPage id={1} />)
-    expect(await screen.findByText('Dark Matter')).toBeInTheDocument()
-    expect(screen.getByText('S02E03')).toBeInTheDocument()
+    expect(await screen.findByText(/Dark Matter/)).toBeInTheDocument()
+    expect(screen.getAllByText(/S02E03/).length).toBeGreaterThan(0)
     expect(screen.getByText('1 of 8 episodes here')).toBeInTheDocument()
     expect(screen.getByText(/Louis Hofmann/)).toBeInTheDocument()
   })
@@ -92,6 +92,7 @@ describe('missing episodes and movies', () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(d)))
     withRouter(<SeriesDetailPage id={1} />)
     expect(await screen.findByText('Missing: E03–E04')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Season 2' }))
     expect(screen.getByText('None of this season is here (8 episodes)')).toBeInTheDocument()
   })
 })
