@@ -159,3 +159,24 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
     </section>
   )
 }
+
+interface ExtraItem { addon: string; text: string; rating: string; links: { name: string; category: string; url: string }[] }
+
+/** What the person's add-ons that answer for details say about a title (ratings, production notes, post-credit scenes): text and links, nothing run. */
+export function AddonExtras({ kind, ident }: { kind: 'movie' | 'series'; ident: string }) {
+  const q = useQuery({ queryKey: ['addon-meta', kind, ident] as const, queryFn: () => api<{ items: ExtraItem[] }>(`/api/screen/addon-meta/${kind}/${ident}`), staleTime: 10 * 60_000, retry: false })
+  const items = q.data?.items ?? []
+  if (!items.length) return null
+  return (
+    <section aria-label="More from your add-ons" className="grid gap-3">
+      <h3 className="px-1 text-sm font-bold">More from your add-ons</h3>
+      {items.map((it) => (
+        <article key={it.addon} className="grid gap-2 rounded-2xl border border-line p-3">
+          <h4 className="m-0 flex items-baseline justify-between gap-2 text-[13px] font-bold"><span>{it.addon}</span>{it.rating ? <span className="text-xs font-semibold text-muted">{it.rating} on IMDb</span> : null}</h4>
+          {it.text ? <p className="m-0 line-clamp-[12] whitespace-pre-line text-[13px] leading-relaxed text-fg/85">{it.text}</p> : null}
+          {it.links.length ? <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">{it.links.map((l) => <li key={l.url} className="m-0"><a href={l.url} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center rounded-full border border-line px-3 text-xs font-semibold hover:bg-fg/5">{l.name} ↗</a></li>)}</ul> : null}
+        </article>
+      ))}
+    </section>
+  )
+}

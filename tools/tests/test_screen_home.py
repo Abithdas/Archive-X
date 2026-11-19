@@ -473,3 +473,23 @@ def test_subtitles_from_an_addon_are_listed_for_a_library_video_and_fetched_on_c
     body = c.get("/api/screen/subtitle/" + got["items"][0]["token"])
     assert body.status_code == 200 and "Hello" in body.text and body.headers["content-type"].startswith("text/vtt")
     assert c.get("/api/screen/subtitle/nope").status_code == 404
+
+
+def test_extra_details_from_addons_are_text_and_https_links_only(tmp_path, monkeypatch):
+    from telegram_archive.metadata import addon_client as ac
+    manifests = {"https://dd.example": {"name": "Deep Dive", "resources": ["meta"], "types": ["movie", "series"], "idPrefixes": ["tt"], "catalogs": []},
+                 "https://st.example": {"name": "Stinger", "resources": ["meta"], "types": ["movie"], "idPrefixes": ["tt"], "catalogs": []}}
+
+    def get_json(url):
+        if url.endswith("/manifest.json"):
+            return manifests[url.split("/manifest.json")[0]]
+        if url == "https://dd.example/meta/series/tt0903747.json":
+            return {"meta": {"id": "tt0903747", "description": "Production notes.", "links": [{"name": "Reviews", "category": "x", "url": "https://r.example/1"}, {"name": "Bad", "url": "javascript:alert(1)"}]}}
+        return {}
+    monkeypatch.setattr(ac, "get_json", get_json)
+    db = Database(tmp_path / "m.db")
+    c = _client(db)
+    db.set_setting("catalog_addons", [{"id": "0123456789", "url": "https://dd.example", "name": "Deep Dive"}, {"id": "abcdef0123", "url": "https://st.example", "name": "Stinger"}])
+    got = c.get("/api/screen/addon-meta/series/tt0903747").json()
+    assert [(i["addon"], i["text"], [l["name"] for l in i["links"]]) for i in got["items"]] == [("Deep Dive", "Production notes.", ["Reviews"])]    # a movie-only add-on is not asked about a show; no javascript: link
+    assert c.get("/api/screen/addon-meta/series/nope").status_code == 400

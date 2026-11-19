@@ -1,7 +1,7 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
-import { AddonStreams } from './AddonStreams'
+import { AddonExtras, AddonStreams } from './AddonStreams'
 
 beforeAll(() => { HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }; HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') } })
 afterEach(() => vi.unstubAllGlobals())
@@ -35,5 +35,20 @@ describe('streams from the add-ons on a title page', () => {
     const { container } = withRouter(<AddonStreams kind="series" ident="tt0903747" season={1} episode={2} />)
     await vi.waitFor(() => expect(urls).toEqual(['/api/screen/streams/series/tt0903747?season=1&episode=2']))
     expect(container.querySelector('[aria-label="From your add-ons"]')).toBeNull()
+  })
+})
+
+describe('extra details from the add-ons', () => {
+  it('shows the add-on notes and its links, and nothing when no add-on has any', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json({ ok: true, items: [{ addon: 'Deep Dive', text: 'Production notes.', rating: '8.4', links: [{ name: 'Reviews', category: 'x', url: 'https://r.example/1' }] }] })))
+    const { unmount } = withRouter(<AddonExtras kind="series" ident="tt0903747" />)
+    expect(await screen.findByText('Production notes.')).toBeInTheDocument()
+    expect(screen.getByText('8.4 on IMDb')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Reviews/ })).toHaveAttribute('href', 'https://r.example/1')
+    unmount()
+    vi.stubGlobal('fetch', vi.fn(async () => json({ ok: true, items: [] })))
+    withRouter(<AddonExtras kind="series" ident="tt0903747" />)
+    await Promise.resolve()
+    expect(screen.queryByRole('region', { name: 'More from your add-ons' })).toBeNull()
   })
 })

@@ -6,7 +6,7 @@ import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { PLACEHOLDER } from './PosterCard'
 import { Chips, TitleStage } from './TitleStage'
-import { AddonStreams } from './AddonStreams'
+import { AddonExtras, AddonStreams } from './AddonStreams'
 import { WhereToWatch } from './WhereToWatch'
 import { useHomeTab } from './view'
 import { countText } from './series'
@@ -78,6 +78,7 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
     <div className="grid gap-5">
       {!lib && WATCH_ID.test(id) ? <WhereToWatch kind={d.kind} ident={id} title={d.title} /> : lib ? <p className="px-1 text-sm text-muted">You have this in your library, so there is nothing to look for elsewhere.</p> : null}
       {d.kind === 'movie' && WATCH_ID.test(id) ? <AddonStreams kind="movie" ident={id} /> : null}
+      {WATCH_ID.test(id) && id.startsWith('tt') ? <AddonExtras kind={d.kind === 'tv' ? 'series' : 'movie'} ident={id} /> : null}
       {seasons.length ? (
         <section aria-label="Seasons and episodes" className="grid gap-2">
           <h2 className="px-1 text-lg font-bold">Episodes</h2>

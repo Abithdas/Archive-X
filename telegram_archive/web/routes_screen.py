@@ -463,6 +463,37 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 resp.close()
         return StreamingResponse(body(), status_code=getattr(resp, "status", 200) or 200, headers=headers)
 
+    @router.get("/api/screen/addon-meta/{kind}/{ident}")
+    async def addon_meta(kind: str, ident: str, request: Request):
+        """Extra details about a title from the person's add-ons that answer for details (ratings, cast and production notes, post-credit scenes and the like): plain text and https links."""
+        require_auth(request)
+        if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident):
+            raise HTTPException(400, "Unknown title")
+
+        def work():
+            _sync_local()
+            out: list[dict] = []
+            for a in _saved_addons():
+                try:
+                    manifest = _addon_json(a["url"] + "/manifest.json")
+                    if not isinstance(manifest, dict) or not _asks_for(manifest, "meta", kind, ident):
+                        continue
+                    name = str(manifest.get("name") or a["name"] or "Add-on")[:40]
+                    got = _addon_json(f"{a['url']}/meta/{kind}/{ident}.json")
+                except Exception:
+                    continue
+                meta = (got or {}).get("meta") if isinstance(got, dict) else None
+                if not isinstance(meta, dict):
+                    continue
+                text = str(meta.get("description") or "").strip()[:2500]
+                rating = str(meta.get("imdbRating") or "")[:8]
+                links = [{"name": str(x.get("name") or "")[:60], "category": str(x.get("category") or "")[:30], "url": x["url"]} for x in (meta.get("links") or [])[:40]
+                         if isinstance(x, dict) and isinstance(x.get("url"), str) and x["url"].startswith("https://") and len(x["url"]) < 400 and x.get("name")][:12]
+                if text or links:
+                    out.append({"addon": name, "text": text, "rating": rating, "links": links})
+            return {"ok": True, "items": out[:8]}
+        return await asyncio.to_thread(work)
+
     # ------------------------------------------------------------------
     # Subtitles from the person's add-ons (the official OpenSubtitles add-on and others) for a video of the library whose title has an IMDb number.
     # ------------------------------------------------------------------

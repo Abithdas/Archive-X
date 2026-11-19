@@ -9,6 +9,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Title pages of Discover show "More from your add-ons": the notes and links that add-ons answering for details (for example Content Deep Dive Companion, IMDb Ratings, Stremio Stinger Pro) have for the title; text and https links only
 - Subtitles from your add-ons (the official OpenSubtitles add-on and any other Stremio subtitle add-on) are listed in the player's Audio and subtitles menu for library videos that have an IMDb number (matched movies, and episodes with their season and episode), by language with English first. The file is fetched when you choose it; only files from public HTTPS hosts (or your own sources, with the switch on) are fetched
 - Discover: an anime from the anime lists (Top anime series, Anime airing now, Top anime movies) opens its own page with its story, genres and every season and episode, like other titles, instead of a pop-up without episodes
 - Add-on streams that the app plays now open in the page with the app's own player (same controls as the video page), not in a pop-up
