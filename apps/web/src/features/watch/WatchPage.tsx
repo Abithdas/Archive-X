@@ -1,6 +1,6 @@
 import { startsNative } from './nativeLogic'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, thumbUrl } from '@/api/client'
 import { useEntityLookup, useFavorite, useLibrary, useMarkers, usePlayInfo, usePreviewManifest, useVideo } from '@/api/hooks'
@@ -137,7 +137,13 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
     const canPlayType = (t: string) => (typeof document === 'undefined' ? '' : document.createElement('video').canPlayType(t))
     if (startsNative({ nativeOk, chosenWeb, mode: nativeMode, asked: askedNative, info: playFacts, canPlayType })) setEngine('native')
   }, [nativeOk, nativeMode, chosenWeb, askedNative, cid, mid, playFacts])
-  const toBrowser = () => { setChosenWeb(true); setEngine('web') }
+  // Changing engine in the middle of a video carries on from where it was (the two players are one: only the source of the picture differs).
+  const here = useRef(0)
+  const [carry, setCarry] = useState<number | null>(null)
+  useEffect(() => { here.current = 0; setCarry(null) }, [cid, mid])
+  const switchTo = (to: 'web' | 'native') => { if (here.current > 2) setCarry(here.current); setEngine(to) }
+  const track = (t: number, d: number) => { here.current = t; resume.onTime(t, d) }
+  const toBrowser = () => { setChosenWeb(true); switchTo('web') }
   if (video.isPending) return <Skel />
   if (video.isError || !item) {
     const missing = video.error instanceof ApiError && video.error.status === 404
@@ -167,9 +173,9 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
 
         {resume.ready ? (
           engine === 'native' ? (
-            <NativePane key={`${item._cid}:${item.id}`} media={{ cid: String(item._cid), mid: item.id }} durationHint={item.duration} size={{ width: item.width, height: item.height }} segments={segments} preview={preview} snapshots={snapshots} startAt={resume.startAt} autoPlay={resume.autoPlay} seekRequest={seekRequest} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onBrowser={toBrowser} />
+            <NativePane key={`${item._cid}:${item.id}`} media={{ cid: String(item._cid), mid: item.id }} durationHint={item.duration} size={{ width: item.width, height: item.height }} segments={segments} preview={preview} snapshots={snapshots} startAt={carry ?? resume.startAt} autoPlay={carry !== null ? true : resume.autoPlay} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onBrowser={toBrowser} />
           ) : (
-          <Player media={{ cid: String(item._cid), mid: item.id }} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay} startAt={resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={resume.onTime} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} onOpenNative={nativeOk ? () => setEngine('native') : undefined} onUnplayable={nativeOk && nativeMode === 'fallback' && !chosenWeb ? () => setEngine('native') : undefined} />
+          <Player media={{ cid: String(item._cid), mid: item.id }} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={carry !== null ? true : resume.autoPlay} startAt={carry ?? resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} onOpenNative={nativeOk ? () => switchTo('native') : undefined} onUnplayable={nativeOk && nativeMode === 'fallback' && !chosenWeb ? () => switchTo('native') : undefined} />
           )
         ) : (
           <div className="aspect-video w-full rounded-[18px] border border-line bg-black" aria-hidden="true" />

@@ -157,6 +157,7 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
   const liveStatus = sub.kind !== 'live' ? '' : model === 'error' || live === 'error' ? `Live captions failed${liveError ? `: ${liveError}` : ''}` : model !== 'ready' ? 'Live captions: getting the speech model ready…' : live === 'working' && !cues.length ? 'Live captions: listening…' : ''
   return { info, audio, sub, text, live, liveStatus, altUrl, altBusy, pickAudio, pickSub }
 }
+export type TrackState = ReturnType<typeof useTracks>
 
 /** Keep a hidden <audio> in step with the video (play, pause, seek, speed, volume) while it carries the chosen audio track. */
 export function useAltAudio(video: RefObject<HTMLVideoElement | null>, audio: RefObject<HTMLAudioElement | null>, url: string | null, muted: boolean, volume: number, rate: number) {

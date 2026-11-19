@@ -77,8 +77,10 @@ describe('NativePane', () => {
     await waitFor(() => expect(onTime).toHaveBeenCalledWith(12, 120))
     rerender(<NativePane media={{ cid: '-1001', mid: 5 }} durationHint={120} onTime={onTime} seekRequest={{ t: 80, n: 1 }} />)
     await waitFor(() => expect(cmds('seek').some((c) => c.args?.value === 80)).toBe(true))
-    fireEvent.keyDown(screen.getByTestId('native-pane'), { key: 'ArrowRight' })
-    await waitFor(() => expect(cmds('seek').some((c) => c.args?.value === 22)).toBe(true))      // 12 + 10
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    await waitFor(() => expect(cmds('seek').some((c) => c.args?.value === 17)).toBe(true))      // 12 + 5, the browser player's step
+    fireEvent.keyDown(window, { key: 'l' })
+    await waitFor(() => expect(cmds('seek').some((c) => c.args?.value === 42)).toBe(true))      // 12 + 30
   })
 
   it('shows the captions of a subtitle track in a strip under the picture, at the engine clock', async () => {

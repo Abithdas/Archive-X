@@ -1,27 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Icon } from '@/design/Icon'
-import { BufferIcon, ChevronIcon, FullscreenIcon, GearIcon, NextIcon, PauseIcon, PipIcon, PlayIcon, PrevIcon, VolumeIcon } from './PlayerIcons'
-import { Divider, MenuHead, MenuItem, MenuRow, PopMenu, VolumeBar } from './PlayerParts'
+import { PlayIcon } from './PlayerIcons'
+import { MenuItem } from './PlayerParts'
+import { CaptionStyleItems, PlaybackItems, PlayerControls, RATES, playerKey } from './PlayerControls'
 import { cn } from '@/design/cn'
-import { formatDuration } from '@/features/library/format'
 import { SnapshotGrid, type SnapshotData } from './SnapshotGrid'
-import { Timeline, type PreviewInfo } from './Timeline'
+import type { PreviewInfo } from './Timeline'
 import type { Segment } from './timelineLogic'
 import { DOUBLE_TAP_MS, KEEP_SKIPPING_MS, registerTap, type TapState } from './tapseek'
 import { CcMenu } from './CcMenu'
 import { blockingEnabled, resumeAudio, routeThroughApp, setBlocking } from './audioGraph'
 import { CaptionOverlay } from './CaptionOverlay'
 import { releasePlayback } from './release'
-import { DEFAULT_STYLE, SIZE_STEP, clampSize, loadStyle, saveStyle, sizeLabel, type CaptionBg } from './captionStyle'
+import { loadStyle, saveStyle } from './captionStyle'
 import { useAltAudio, useTracks, type MediaRef } from './useTracks'
-import { IconSwap } from '@/design/IconSwap'
 
-const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const
 export const nextRate = (r: number) => RATES[(RATES.findIndex((x) => x === r) + 1) % RATES.length] ?? 1
 const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) && dur > 0 ? Math.min(dur, t) : t)
-const clock = (s: number) => formatDuration(s) || '0:00'
-
-const BTN = 'grid size-8 shrink-0 place-items-center rounded-md text-fg/85 transition-[background-color,color,transform] hover:bg-fg/10 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent active:scale-95 disabled:opacity-35 disabled:hover:bg-transparent'
 
 /**
  * Native <video> with the classic player's control bar: seek, play, previous/next, ±30 s, speed, mute and volume,
@@ -155,21 +150,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   }, [src, attempt])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null
-      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) && (el as HTMLInputElement).type !== 'range') return
-      if (e.ctrlKey || e.metaKey || e.altKey) return
-      const k = e.key.toLowerCase()
-      if (k === ' ' || k === 'k') { e.preventDefault(); toggle() }
-      else if (k === 'j') seek((video.current?.currentTime ?? 0) - 30)
-      else if (k === 'l') seek((video.current?.currentTime ?? 0) + 30)
-      else if (k === 'arrowleft') seek((video.current?.currentTime ?? 0) - 5)
-      else if (k === 'arrowright') seek((video.current?.currentTime ?? 0) + 5)
-      else if (k === 'm') setMuted((m) => !m)
-      else if (k === 'f') full()
-      else if (k === 'n') onNext?.()
-      else if (e.key === 'P') onPrev?.()
-    }
+    const onKey = (e: KeyboardEvent) => playerKey(e, { toggle, seekBy: (d) => seek((video.current?.currentTime ?? 0) + d), mute: () => setMuted((m) => !m), full, next: onNext, prev: onPrev })
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [toggle, seek, onNext, onPrev])
@@ -255,64 +236,22 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
       </div>
       <div data-ov={overlay ? '' : undefined} onPointerEnter={() => { overBar.current = true; setIdle(false) }} onPointerLeave={() => { overBar.current = false }}
         className={cn('@container grid gap-1.5', overlay && 'absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-3 pb-2 pt-12 text-white [--color-fg:#fff] [--color-muted:#c9d1e0] transition-opacity duration-300 sm:px-4', isFs && 'px-4 pb-3 sm:px-8', !overlay && 'gap-3', overlay && !isFs && 'rounded-b-[18px] sm:rounded-b-[22px]', hideBar && 'pointer-events-none opacity-0')}>
-        <div>
-          <div className="mb-1 flex items-center justify-between px-0.5 text-[13px] font-semibold tracking-tight tabular-nums" aria-hidden="true"><span>{clock(time)}</span><span className="font-medium text-muted">{dur ? clock(dur) : '–:––'}</span></div>
-          <Timeline time={time} duration={dur} buffered={buffered} segments={segments} preview={preview} onSeek={seek} />
-        </div>
-        <div className="flex items-center justify-between py-1 text-xs font-medium text-fg/80 sm:text-[13px]">
-          <div className="flex min-w-0 items-center gap-1 @lg:gap-2.5">
-            <button type="button" className={BTN} onClick={onPrev} disabled={!onPrev} aria-label="Previous video" title="Previous (Shift+P)"><PrevIcon /></button>
-            <button type="button" className={BTN} onClick={toggle} aria-label={playing ? 'Pause' : 'Play'} title="Play / pause (Space)"><IconSwap on={playing} offIcon={<PlayIcon />} onIcon={<PauseIcon />} /></button>
-            <button type="button" className={BTN} onClick={onNext} disabled={!onNext} aria-label="Next video" title="Next (N)"><NextIcon /></button>
-            <Divider />
-            <div className="hidden @lg:block">
-            <PopMenu label="Buffer status" align="left" button={<><BufferIcon /><span className={cn('size-1.5 rounded-full', buffer >= 99 ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-amber-400')} /><span className="hidden @lg:inline">{buffer >= 99 ? 'Cached' : `${buffer}%`}</span><ChevronIcon /></>}>
-              <MenuHead>Buffer status</MenuHead>
-              <MenuRow k="Buffered" v={`${buffer}%`} good={buffer >= 99} />
-              <MenuRow k="Playback" v="Direct" />
-              {res ? <MenuRow k="Picture" v={res} /> : null}
-            </PopMenu>
-            </div>
-            <Divider />
-            <PopMenu label={`Speed ${rate}x`} align="left" button={<><span>{rate}x</span><ChevronIcon /></>}>
-              {RATES.map((r) => (
-                <MenuItem key={r} active={r === rate} onClick={(close) => { setRate(r); flash(`Speed: ${r}x`); close() }}>{r}x</MenuItem>
-              ))}
-            </PopMenu>
-            <Divider />
-            <div className="flex items-center gap-1.5">
-              <button type="button" className={BTN} onClick={() => setMuted(!muted)} aria-label={muted ? 'Unmute' : 'Mute'} aria-pressed={muted} title="Mute (M)"><IconSwap on={muted || volume === 0} offIcon={<VolumeIcon muted={false} />} onIcon={<VolumeIcon muted />} /></button>
-              <VolumeBar value={muted ? 0 : volume} onChange={(v) => { setVolume(v); setMuted(false) }} />
-            </div>
-          </div>
-          <div className="flex items-center gap-1 @lg:gap-2.5">
-            <button type="button" className={cn(BTN, 'hidden @lg:grid')} onClick={pip} aria-label="Picture in picture" title="Picture in picture"><PipIcon /></button>
-            {tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
-            <PopMenu label="Settings" align="right" iconOnly button={<GearIcon />}>
-              <MenuItem pressed={block} onClick={() => { const on = !block; setBlock(on); setBlocking(on); flash(on ? 'Chrome Live Caption blocked after reload' : 'Chrome Live Caption allowed after reload') }} label="Keep Chrome's Live Caption off this player">Keep Chrome's Live Caption off <span className={block ? 'text-emerald-400' : 'text-muted'}>{block ? 'ON' : 'OFF'}</span></MenuItem>
-              <p className="max-w-[15rem] px-2.5 pb-1 text-[11px] leading-snug text-muted">Plays the sound through the app so Chrome's own black "Live Caption" box has nothing to caption. Applies after a page reload.</p>
-              <MenuHead>Caption style</MenuHead>
-              <div className="flex items-center justify-between gap-3 px-2.5 py-1 text-xs"><span className="text-muted">Size</span>
-                <span className="flex items-center gap-1">
-                  <button type="button" aria-label="Smaller captions" onClick={() => changeCap({ size: clampSize(capStyle.size - SIZE_STEP) })} className="grid size-7 place-items-center rounded-md border border-line-2 font-bold hover:bg-fg/10">A−</button>
-                  <output aria-label="Caption size" className="w-10 text-center font-semibold tabular-nums">{sizeLabel(capStyle.size)}</output>
-                  <button type="button" aria-label="Larger captions" onClick={() => changeCap({ size: clampSize(capStyle.size + SIZE_STEP) })} className="grid size-7 place-items-center rounded-md border border-line-2 font-bold hover:bg-fg/10">A+</button>
-                </span></div>
-              {(['none', 'soft', 'solid'] as CaptionBg[]).map((b) => <MenuItem key={b} active={capStyle.bg === b} onClick={() => changeCap({ bg: b })}>{b === 'none' ? 'No box (outlined text)' : b === 'soft' ? 'Soft box' : 'Solid box'}</MenuItem>)}
-              <MenuItem onClick={() => changeCap({ x: DEFAULT_STYLE.x, y: DEFAULT_STYLE.y, size: DEFAULT_STYLE.size })} label="Reset caption position and size">Reset position and size</MenuItem>
-              <MenuHead>Playback</MenuHead>
-              <MenuHead>Live captions</MenuHead>
-              {tracks.info?.captions.available ? (<>
-                <MenuItem active={tracks.sub.kind !== 'live'} onClick={(close) => { if (tracks.sub.kind === 'live') tracks.pickSub({ kind: 'off' }); close() }}>Off</MenuItem>
-                <MenuItem active={tracks.sub.kind === 'live' && !tracks.sub.original} onClick={(close) => { tracks.pickSub({ kind: 'live' }); close() }}>English (translated)</MenuItem>
-                <MenuItem active={tracks.sub.kind === 'live' && !!tracks.sub.original} onClick={(close) => { tracks.pickSub({ kind: 'live', original: true }); close() }}>Original language</MenuItem>
-              </>) : <span className="max-w-[13rem] px-2.5 py-1 text-[11px] leading-snug text-muted">{tracks.info ? <>Needs <code>pip install faster-whisper</code></> : 'Loading…'}</span>}
-              <MenuHead>Playback</MenuHead>
-              <MenuItem onClick={() => { setLoop(!loop); flash(`Auto-repeat: ${loop ? 'OFF' : 'ON'}`) }} label="Loop" pressed={loop}>Auto-repeat <span className={loop ? 'text-emerald-400' : 'text-muted'}>{loop ? 'ON' : 'OFF'}</span></MenuItem>
-            </PopMenu>
-            <button type="button" className={BTN} onClick={full} aria-label="Full screen" title="Full screen (F)"><FullscreenIcon /></button>
-          </div>
-        </div>
+        <PlayerControls
+          time={time} duration={dur} buffered={buffered} segments={segments} preview={preview} onSeek={seek}
+          playing={playing} onToggle={toggle} onPrev={onPrev} onNext={onNext}
+          rate={rate} onRate={(r) => { setRate(r); flash(`Speed: ${r}x`) }}
+          muted={muted} volume={volume} onMute={() => setMuted(!muted)} onVolume={(v) => { setVolume(v); setMuted(false) }}
+          status={{ chip: buffer >= 99 ? 'Cached' : `${buffer}%`, good: buffer >= 99, rows: [{ k: 'Buffered', v: `${buffer}%`, good: buffer >= 99 }, { k: 'Playback', v: 'Direct' }, ...(res ? [{ k: 'Picture', v: res }] : [])] }}
+          pip={{ onClick: pip, label: 'Picture in picture', title: 'Picture in picture' }}
+          tracksMenu={tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
+          onFullscreen={full}
+          settings={<>
+            <MenuItem pressed={block} onClick={() => { const on = !block; setBlock(on); setBlocking(on); flash(on ? 'Chrome Live Caption blocked after reload' : 'Chrome Live Caption allowed after reload') }} label="Keep Chrome's Live Caption off this player">Keep Chrome's Live Caption off <span className={block ? 'text-emerald-400' : 'text-muted'}>{block ? 'ON' : 'OFF'}</span></MenuItem>
+            <p className="max-w-[15rem] px-2.5 pb-1 text-[11px] leading-snug text-muted">Plays the sound through the app so Chrome's own black "Live Caption" box has nothing to caption. Applies after a page reload.</p>
+            <CaptionStyleItems style={capStyle} onChange={changeCap} />
+            <PlaybackItems tracks={tracks} loop={loop} onLoop={() => { setLoop(!loop); flash(`Auto-repeat: ${loop ? 'OFF' : 'ON'}`) }} />
+          </>}
+        />
       </div>
     </div>
   )

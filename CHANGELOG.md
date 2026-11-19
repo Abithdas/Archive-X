@@ -2,6 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+- **One player, two engines.** The browser player and the native player now share one control bar, one set of menus and one set of keys (Space/K, J and L ±30 s, arrows ±5 s, M, F, N, Shift+P, on the whole window). The native player gained what it lacked: Auto-repeat, the caption style menu (size and box), speed hints, the same buffer-status menu, and a real full screen (the picture fills the screen with the bar under it). Only the source of the picture differs.
+- **Changing engine in the middle of a video carries on from the same second** (the browser player cannot play it, or you choose the other player).
+
 ## 30.7.1 (2026-11-19)
 - **The app no longer freezes after switching to NSFW.** The studio page's suggested videos, the performer gallery and confirming or rejecting a suggestion waited for the database on the part of the app that serves every page, so while the background matching held the database the whole window stopped answering (the logs show freezes of up to two minutes). They now wait on their own thread.
 - **The hover picture on the video timeline works for videos from a local folder.** It asked for Telegram and failed ("Telegram is not connected") for files on your disk; it now takes the frame straight from the file. The stored snapshots and the snapshot grid were already fine.

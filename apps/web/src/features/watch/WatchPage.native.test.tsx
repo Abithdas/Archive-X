@@ -27,6 +27,7 @@ beforeEach(() => {
   ;(window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {
     invoke: vi.fn(async (command: string, args?: Record<string, unknown>) => {
       nativeCalls.push(command === 'native_command' ? `cmd:${String(args?.command)}` : command)
+      if (command === 'native_command' && args?.command === 'seek') nativeCalls.push(`seek=${String(args?.value)}`)
       if (command === 'native_available') return { available: true, reason: '' }
       if (command === 'native_open') return { duration: 120, width: 1920, height: 1080, decoder: 'avcodec', layer: 'popup' }
       if (command === 'native_state') return { position: 1, duration: 120, playing: true, ended: false, buffering: false, width: 1920, height: 1080, error: 0, opened: true, message: '', windowVisible: true, windowWidth: 1, windowHeight: 1, layer: 'popup', framesDrawn: 1, framesDropped: 0, screenDistinct: 5, screenLumaRange: 9 }
@@ -60,6 +61,21 @@ describe('which engine plays the video', () => {
     fireEvent.error(video()!)                                                                   // the browser cannot decode it
     expect(await screen.findByTestId('native-pane')).toBeInTheDocument()
     expect(video()).toBeNull()
+  })
+
+  it('switching engine in the middle of a video carries on from the same second', async () => {
+    mode = 'fallback'
+    mount()
+    await waitFor(() => expect(video()).not.toBeNull())
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    const v = video()!
+    Object.defineProperty(v, 'currentTime', { value: 47, writable: true, configurable: true })
+    Object.defineProperty(v, 'duration', { value: 120, configurable: true })
+    fireEvent.timeUpdate(v)                                                                      // the browser player got to 0:47
+    fireEvent.error(v)                                                                           // then it cannot go on: the native player takes over
+    expect(await screen.findByTestId('native-pane')).toBeInTheDocument()
+    await waitFor(() => expect(nativeCalls).toContain('seek=47'))                                // from 0:47, not from the start
+    await waitFor(() => expect(nativeCalls).toContain('cmd:play'))
   })
 
   it('"fallback" with facts that say the browser cannot play it: the native player starts at once, with no browser attempt or conversion first', async () => {
