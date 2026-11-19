@@ -12,7 +12,9 @@ Browse, search and play movies, series, videos and photos from one Windows deskt
 <a href="CHANGELOG.md"><img alt="Changelog" src="https://img.shields.io/badge/changelog-read-3b4252"></a>
 </p>
 
-<p align="center"><img src="docs/screenshots/player.jpg" alt="The player page: the picture, a timeline, controls and the up-next list" width="860"></p>
+<p align="center"><img src="docs/ui-reference/img/home.webp" alt="Archive X Home: a billboard, Continue watching, Airing this week and Discover" width="860"></p>
+
+<p align="center"><a href="https://htmlpreview.github.io/?https://github.com/Abithdas/Archive-X/blob/main/docs/ui-reference/index.html"><b>See every screen: the UI reference</b></a> (placeholder titles; open it in a browser, click a picture to enlarge)</p>
 
 > **Note**
 > Archive X is a personal fan project I made for my own use and decided to share. It was built with the help of [Claude Code](https://www.anthropic.com/claude-code), Anthropic's AI coding assistant. It isn't affiliated with Telegram, Anthropic or any of the metadata providers it can look names up in.
@@ -51,7 +53,16 @@ The app updates itself: **Settings → Overview** checks for new versions and in
 
 **Moves and automates.** Send videos between channels, or upload a folder to a channel, keeping what was already identified. An **Operations** page shows running work and logs; RSS and qBittorrent automation and an optional local AI assistant are built in.
 
-<p align="center"><img src="docs/screenshots/themes.jpg" alt="Settings, Appearance: ten themes, each in dark and light" width="860"></p>
+<table>
+<tr>
+<td width="50%"><img src="docs/ui-reference/img/player.webp" alt="The player page"><br><sub><b>Player</b>: preview frames, buffer status, captions, up next</sub></td>
+<td width="50%"><img src="docs/ui-reference/img/discover.webp" alt="Discover"><br><sub><b>Discover</b>: popular titles by genre; yours are marked</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/ui-reference/img/operations.webp" alt="Operations"><br><sub><b>Operations</b>: running work, health and logs</sub></td>
+<td width="50%"><img src="docs/ui-reference/img/settings.webp" alt="Settings, Appearance"><br><sub><b>Themes</b>: ten looks, each in dark and light</sub></td>
+</tr>
+</table>
 
 ## Build from source
 
