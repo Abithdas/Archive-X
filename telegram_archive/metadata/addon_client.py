@@ -2,7 +2,7 @@
 
 An add-on is plain HTTPS and JSON (`/manifest.json`, `/catalog/{type}/{id}.json`). Because the address is typed by a person and then fetched by this PC, it is
 checked before every use: HTTPS only, the default port, a name that resolves only to public addresses (never this PC, a router or a LAN device), at most
-a few redirects and each one checked the same way, a size cap and a time limit. Only catalogues are read; an add-on's streams are never asked for. On this PC or network (a switch in Settings, Addons) http, any port and private addresses are allowed.
+a few redirects and each one checked the same way, a size cap and a time limit. Catalogues support Discover; title pages may request streams, whose direct URLs are checked before playback. On this PC or network (a switch in Settings, Addons) http, any port and private addresses are allowed.
 """
 from __future__ import annotations
 
@@ -102,9 +102,24 @@ def get_json(url: str):
 
 # ---- streams: what an add-on's stream answer may do here -------------------------------------------------------------------------------------------
 # A stream is a link opened elsewhere (a YouTube id, an external page: the browser goes there, nothing is played here), or a direct video link. A direct
-# link is played inside the app only from the person's own sources (this PC or network, with the switch in Settings, Addons) and from public-domain
-# hosts; a direct link anywhere else is listed and not played. Torrents and the like (`infoHash`) are never handled.
-PUBLIC_HOSTS = ("archive.org",)
+# link is played inside the app only from the person's own sources (this PC or network, with the switch in Settings, Addons) or from a public HTTPS
+# host whose DNS answers contain only public IP addresses; other direct links are listed and not played. Torrents and the like (`infoHash`) are never handled.
+def _is_public_host(host: str) -> bool:
+    """A host reachable only at public IP addresses, as required for an external direct stream."""
+    host = (host or "").strip().lower().strip("[]").rstrip(".")
+    if not host:
+        return False
+    try:
+        return ipaddress.ip_address(host).is_global
+    except ValueError:
+        pass
+    if host == "localhost" or host.endswith((".localhost", ".local", ".internal", ".lan", ".home.arpa")) or "." not in host:
+        return False
+    try:
+        found = {ipaddress.ip_address(info[4][0]) for info in _resolve(host)}
+    except (OSError, ValueError):
+        return False
+    return bool(found) and all(ip.is_global for ip in found)
 
 
 def is_local_host(host: str) -> bool:
@@ -126,15 +141,19 @@ def is_local_host(host: str) -> bool:
 
 
 def stream_origin(url: str) -> str:
-    """Where a direct stream may be played from: "own" (this PC or network, only while that is allowed), "public" (a public-domain host), or "" (not played)."""
+    """Where a direct stream may be played: "own" (this PC or network, only while allowed), "public" (a public HTTPS host), or "" (blocked)."""
     parts = urllib.parse.urlsplit(str(url or ""))
     host = (parts.hostname or "").lower()
     if parts.scheme not in ("http", "https") or not host or parts.username or parts.password:
         return ""
-    if parts.scheme == "https" and any(host == h or host.endswith("." + h) for h in PUBLIC_HOSTS):
-        return "public"
+    try:
+        port = parts.port
+    except ValueError:
+        return ""
     if LOCAL and is_local_host(host):
         return "own"
+    if parts.scheme == "https" and port in (None, 443) and _is_public_host(host):
+        return "public"
     return ""
 
 
@@ -186,7 +205,7 @@ PROVIDES = {"catalog": "Lists", "meta": "Details", "stream": "Streams", "subtitl
 
 def parse_manifest(manifest) -> dict:
     """What an add-on offers. Any Stremio add-on is accepted; Discover uses its lists of movies, series or anime that need nothing but their own address.
-    `provides` names every kind of thing it serves, and `note` says what Archive X does not use (it never asks an add-on for streams)."""
+    `provides` names every kind of thing it serves, and `note` explains stream and subtitle handling."""
     if not isinstance(manifest, dict) or not (manifest.get("resources") or manifest.get("catalogs")):
         raise ValueError("That address did not answer with a Stremio add-on.")
     resources = [r if isinstance(r, str) else (r or {}).get("name") for r in (manifest.get("resources") or [])]
@@ -206,7 +225,7 @@ def parse_manifest(manifest) -> dict:
     if not lists:
         notes.append("It has no lists to browse, so nothing from it shows in Discover.")
     if "stream" in resources:
-        notes.append("Archive X never asks an add-on for streams.")
+        notes.append("Title pages ask for streams. Only direct streams from your own sources or public HTTPS hosts are played here.")
     if "subtitles" in resources:
         notes.append("Subtitles from add-ons are not used yet.")
     return {"name": str(manifest.get("name") or "Add-on")[:60], "description": str(manifest.get("description") or "")[:240], "version": str(manifest.get("version") or "")[:20],
