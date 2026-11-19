@@ -4,6 +4,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 - **The app no longer freezes after switching to NSFW.** The studio page's suggested videos, the performer gallery and confirming or rejecting a suggestion waited for the database on the part of the app that serves every page, so while the background matching held the database the whole window stopped answering (the logs show freezes of up to two minutes). They now wait on their own thread.
+- **The hover picture on the video timeline works for videos from a local folder.** It asked for Telegram and failed ("Telegram is not connected") for files on your disk; it now takes the frame straight from the file. The stored snapshots and the snapshot grid were already fine.
 - **The account menu and dialogs are no longer part of the window's drag area** (pressing their text could start moving the window).
 
 ## 30.7.0 (2026-11-19)

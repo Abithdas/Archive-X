@@ -195,6 +195,8 @@ def test_a_local_video_is_listed_probed_streamed_and_gets_its_snapshots(tmp_path
     assert full.status_code == 200 and part.status_code == 206 and len(part.content) == 100 and full.content[:100] == part.content
     assert c.get(f"/api/play/preview-manifest/{ch}/{mid}").json()["ready"] is True
     assert c.get(f"/api/play/preview-grid/{ch}/{mid}").status_code == 200
+    live = c.get(f"/api/play/preview/{ch}/{mid}?t=1.5&w=320&pv=15&lw=1")   # the hover frame on the timeline: straight from the file, no Telegram
+    assert live.status_code == 200 and live.headers["content-type"] == "image/jpeg"
     assert c.get(f"/api/thumb/{ch}/{mid}").headers.get("X-Thumbnail-Status") != "pending"
     listed = c.get("/api/library").json()
     rows = next((v for v in listed.values() if isinstance(v, list)), [])

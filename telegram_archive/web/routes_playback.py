@@ -1820,6 +1820,22 @@ def register_playback_routes(
         # timestamp. If an exact frame is already cached, return it immediately.
         if not media_tools.find_ffmpeg():
             raise HTTPException(404, "ffmpeg is not installed")
+        from ..engines import local_scanner as _ls
+        if _ls.is_local_channel(channel_id):
+            # A file on this disk: the frame comes straight from it, with no Telegram and no playback engine.
+            from ..engines import local_videos
+            file = await asyncio.to_thread(local_videos.file_of, db, channel_id, message_id)
+            if not file:
+                raise HTTPException(404, "That file is not in its folder any more")
+            try:
+                jpg = await media_tools.preview_frame(file, float(preview_t), width=width, timeout=12.0, hardware_profile=None)
+            except Exception as e:
+                preview_stats["failures"] += 1
+                preview_stats["last_error"] = f"{type(e).__name__}: {e}"[:500]
+                raise HTTPException(502, f"preview failed: {e}")
+            await asyncio.to_thread(lambda: (path.parent.mkdir(parents=True, exist_ok=True), path.write_bytes(jpg)))
+            preview_stats["last_ms"] = round((time.monotonic() - started_at) * 1000.0, 1)
+            return Response(jpg, media_type="image/jpeg", headers=headers)
         engine, _message = await _engine_message(channel_id, message_id)
         # V29.4.120: live scrub previews no longer start the 24-frame
         # timeline pre-render; it competed with the live frame the user is
