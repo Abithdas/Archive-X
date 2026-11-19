@@ -9,6 +9,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 - **Player menus no longer run off the screen.** The audio and subtitles menu and the settings menu scroll when they are long, long track names are cut with the full name on hover, and in Settings Picture and sound and Caption style fold open and closed (Picture and sound starts closed).
 - **Home: the shadows under the posters and Continue watching are whole again.** The rows now leave room under the cards for the shadow instead of cutting it off, and the hover shadow is drawn on the card itself.
 - **Player: remembers the volume, mute and speed** between videos and restarts (web and native player). The brightness, contrast and colour sliders are gone, replaced by **Picture enhancement**: Sharpen, Richer colour, or both.
+- **Player: the volume slider slides out when you hover the speaker button** and folds away when you leave (it stays out while you drag it, and opens with the keyboard focus). Same in the native player.
 
 ## 30.10.0 (2026-11-19)
 

@@ -57,20 +57,22 @@ export function PopMenu({ label, button, children, align = 'left', iconOnly = fa
   )
 }
 
-/** Thin volume slider with a round knob (shown from tablet width up). */
+/** Thin volume slider with a round knob (shown from tablet width up). It folds away to nothing and slides out when the speaker button next to it is hovered or focused, and stays out while it is being dragged. */
 export function VolumeBar({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const bar = useRef<HTMLDivElement>(null)
-  const drag = useRef(false)
-  const at = (e: PointerEvent) => { const r = bar.current!.getBoundingClientRect(); onChange(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))) }
+  const track = useRef<HTMLDivElement>(null)
+  const [drag, setDrag] = useState(false)
+  const dragging = useRef(false)
+  const at = (e: PointerEvent) => { const r = track.current!.getBoundingClientRect(); onChange(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))) }
   const key = (e: KeyboardEvent) => {
     const step = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 0.05 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -0.05 : 0
     if (step) { e.preventDefault(); e.stopPropagation(); onChange(Math.max(0, Math.min(1, value + step))) }
   }
+  const stop = () => { dragging.current = false; setDrag(false) }
   return (
-    <div ref={bar} role="slider" tabIndex={0} aria-label="Volume" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)} onKeyDown={key}
-      onPointerDown={(e) => { drag.current = true; e.currentTarget.setPointerCapture(e.pointerId); at(e) }} onPointerMove={(e) => drag.current && at(e)} onPointerUp={() => { drag.current = false }} onPointerCancel={() => { drag.current = false }}
-      className="relative hidden h-4 w-12 cursor-pointer touch-none items-center outline-none focus-visible:ring-2 focus-visible:ring-accent/60 @lg:flex @lg:w-16">
-      <div className="relative h-[3px] w-full rounded-full bg-fg/20">
+    <div role="slider" tabIndex={0} aria-label="Volume" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)} data-open={drag || undefined} onKeyDown={key}
+      onPointerDown={(e) => { dragging.current = true; setDrag(true); e.currentTarget.setPointerCapture(e.pointerId); at(e) }} onPointerMove={(e) => dragging.current && at(e)} onPointerUp={stop} onPointerCancel={stop}
+      className="relative hidden h-6 w-0 cursor-pointer touch-none items-center overflow-hidden opacity-0 outline-none transition-[width,opacity] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-accent/60 data-[open]:w-[4.75rem] data-[open]:opacity-100 group-focus-within/vol:w-[4.75rem] group-focus-within/vol:opacity-100 group-hover/vol:w-[4.75rem] group-hover/vol:opacity-100 @lg:flex motion-reduce:transition-none">
+      <div ref={track} className="relative mx-[7px] h-[3px] w-[3.8125rem] shrink-0 rounded-full bg-fg/20">
         <div className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-fg" style={{ width: `${value * 100}%` }} />
         <div className="pointer-events-none absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg shadow" style={{ left: `${value * 100}%` }} />
       </div>

@@ -64,7 +64,7 @@ export function PlayerControls(p: ControlsProps) {
             {RATES.map((r) => <MenuItem key={r} active={r === p.rate} onClick={(close) => { p.onRate(r); close() }}>{r}x</MenuItem>)}
           </PopMenu>
           <Divider />
-          <div className="flex items-center gap-1.5">
+          <div className="group/vol flex items-center">
             <button type="button" className={BTN} onClick={p.onMute} disabled={p.disabled} aria-label={p.muted ? 'Unmute' : 'Mute'} aria-pressed={p.muted} title="Mute (M)"><IconSwap on={p.muted || p.volume === 0} offIcon={<VolumeIcon muted={false} />} onIcon={<VolumeIcon muted />} /></button>
             <VolumeBar value={p.muted ? 0 : p.volume} onChange={p.onVolume} />
           </div>
