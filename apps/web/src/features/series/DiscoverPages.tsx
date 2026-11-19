@@ -74,13 +74,13 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
         </div>
         <div className="mt-2 grid max-w-2xl gap-5 rounded-[22px] border border-line bg-surface/70 p-4 backdrop-blur-xl empty:hidden">
       {!lib && WATCH_ID.test(id) ? <WhereToWatch kind={d.kind} ident={id} title={d.title} /> : lib ? <p className="px-1 text-sm text-muted">You have this in your library, so there is nothing to look for elsewhere.</p> : null}
-      {d.kind === 'movie' && WATCH_ID.test(id) ? <AddonStreams kind="movie" ident={id} /> : null}
-      {WATCH_ID.test(id) && id.startsWith('tt') ? <AddonExtras kind={d.kind === 'tv' ? 'series' : 'movie'} ident={id} /> : null}
         </div>
       </div>
     )
-  const panel = !d || !seasons.length ? null : (
+  const panel = !d || (!seasons.length && !WATCH_ID.test(id)) ? null : (
     <div className="grid gap-5">
+      {d.kind === 'movie' && WATCH_ID.test(id) ? <AddonStreams kind="movie" ident={id} /> : null}
+      {WATCH_ID.test(id) && id.startsWith('tt') ? <AddonExtras kind={d.kind === 'tv' ? 'series' : 'movie'} ident={id} /> : null}
       {seasons.length ? (
         <section aria-label="Seasons and episodes" className="grid gap-2">
           <h2 className="px-1 text-lg font-bold">Episodes</h2>
@@ -102,7 +102,7 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
       ) : null}
     </div>
   )
-  return <TitleStage backdrop={d ? d.background || d.poster || PLACEHOLDER : undefined} back="/videos" onBack={backToDiscover} backLabel="Back to Discover" left={left} panel={panel} panelLabel="Where to watch" />
+  return <TitleStage backdrop={d ? d.background || d.poster || PLACEHOLDER : undefined} back="/videos" onBack={backToDiscover} backLabel="Back to Discover" left={left} panel={panel} panelLabel="Episodes and add-ons" />
 }
 
 /** One episode of a show: its own story and date, the episodes before and after it, and where the show can be watched. */
@@ -133,10 +133,14 @@ export function DiscoverEpisodePage({ id, season, episode }: { id: string; seaso
         </div>
         <div className="mt-2 grid max-w-2xl gap-3 rounded-[22px] border border-line bg-surface/70 p-4 backdrop-blur-xl">
       {d.library ? <p className="px-1 text-sm text-muted">You have this show in your library.</p> : WATCH_ID.test(id) ? <WhereToWatch kind="tv" ident={id} title={d.title} /> : null}
-      {WATCH_ID.test(id) ? <AddonStreams kind="series" ident={id} season={season} episode={episode} /> : null}
       {!d.library ? <p className="px-1 text-xs text-faint">Streaming services list the whole show, so this is where {label(ep)} can be watched too.</p> : null}
         </div>
       </div>
     )
-  return <TitleStage backdrop={ep?.thumb || d?.background || d?.poster || undefined} back={`/discover/series/${id}`} backLabel="Back to the show" left={left} panelLabel="Where to watch" />
+  const panel = !d || !ep || !WATCH_ID.test(id) ? null : (
+    <div className="grid gap-3">
+      <AddonStreams kind="series" ident={id} season={season} episode={episode} />
+    </div>
+  )
+  return <TitleStage backdrop={ep?.thumb || d?.background || d?.poster || undefined} back={`/discover/series/${id}`} backLabel="Back to the show" left={left} panel={panel} panelLabel="From your add-ons" />
 }
