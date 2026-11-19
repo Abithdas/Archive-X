@@ -132,7 +132,7 @@ function TelegramPill({ from }: { from: string }) {
   const { data } = useStatus()
   const ok = Boolean(data?.telegram_connected ?? data?.telegram?.connected)
   return (
-    <Link to="/settings" data-live={ok ? 'true' : 'false'} className={cn('ax-live-pill hidden h-9 items-center gap-2 rounded-full px-3 text-[13px] font-semibold', from, ok ? 'bg-good/15 text-good' : 'bg-bad/15 text-bad')} title={data?.telegram_status ?? 'Telegram status'}>
+    <Link to="/settings" data-live={ok ? 'true' : 'false'} className={cn('ax-live-pill hidden h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3 text-[13px] font-semibold', from, ok ? 'bg-good/15 text-good' : 'bg-bad/15 text-bad')} title={data?.telegram_status ?? 'Telegram status'}>
       <span className="ax-plane" data-live={ok ? 'true' : 'false'} aria-hidden="true"><Icon name="send" className="size-4" /></span>
       <span data-live={ok ? 'true' : 'false'} className={cn('ax-live-dot size-2', ok ? 'bg-good' : 'bg-bad')} aria-hidden="true" />
       {ok ? 'Connected' : 'Setup needed'}
@@ -141,14 +141,14 @@ function TelegramPill({ from }: { from: string }) {
 }
 
 /** One page in the top bar: its icon, the jobs running on it, and its name: always for the page you are on, for every page only when the window is very wide. */
-function TopLink({ n, count }: { n: NavDef; count: number }) {
+function TopLink({ n, count, custom }: { n: NavDef; count: number; custom: boolean }) {
   return (
     <Link to={n.to} activeOptions={{ exact: n.to === '/' }} title={count ? `${n.label} · ${runningLabel(count)}` : n.label} className="relative flex h-10 shrink-0 items-center gap-2 rounded-xl px-2.5 text-[14px] font-medium text-muted transition-colors hover:bg-fg/5 hover:text-fg lg:px-3" activeProps={{ className: '!text-fg [&_svg]:text-accent' }}>
       {({ isActive }) => (
         <>
           {isActive ? <motion.span layoutId="top-pill" transition={spring} aria-hidden="true" className="absolute inset-x-2.5 -bottom-[13px] h-[3px] rounded-t-full bg-accent" /> : null}
           <Icon name={n.icon} className="relative size-[18px]" />
-          <span className={cn('relative', isActive ? 'sr-only lg:not-sr-only' : 'sr-only 2xl:not-sr-only')}>{n.label}</span>
+          <span className={cn('relative', isActive ? 'sr-only lg:not-sr-only' : custom ? 'sr-only min-[2100px]:not-sr-only' : 'sr-only min-[1800px]:not-sr-only')}>{n.label}</span>
           <ActivityBadge count={count} className="relative" />
         </>
       )}
@@ -205,11 +205,11 @@ function Header({ live, items, activity, top, custom, maximized }: { live: strin
     <header onMouseDown={custom ? onBarDown : undefined} className={cn('sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-bg/85 px-4 backdrop-blur-md sm:px-10', custom && 'select-none pr-0 sm:pr-0')}>
       <Link to="/videos" aria-label="Archive X" className={cn('flex shrink-0 items-center gap-2.5 text-lg font-extrabold', top ? '' : 'md:hidden')}>
         <img src="/static/icons/archive-x.png" alt="" className="size-8 object-contain" />
-        {top ? <span className="hidden 2xl:inline">Archive X</span> : null}
+        {top ? <span className={cn('hidden', custom ? 'min-[2100px]:inline' : 'min-[1800px]:inline')}>Archive X</span> : null}
       </Link>
       {top ? (
         <nav aria-label="Pages" className="hidden shrink-0 items-center gap-0.5 md:flex">
-          {items.map((n) => <TopLink key={n.to} n={n} count={activity[n.to] ?? 0} />)}
+          {items.map((n) => <TopLink key={n.to} n={n} count={activity[n.to] ?? 0} custom={custom} />)}
         </nav>
       ) : null}
       <SearchField

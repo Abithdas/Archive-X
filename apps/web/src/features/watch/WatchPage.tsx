@@ -235,11 +235,11 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
           </section>
         ) : null}
 
-        <MarkersSection mediaId={item.media_id} onSeek={(t) => setSeekRequest((r) => ({ t, n: (r?.n ?? 0) + 1 }))} />
+        {labels.series === null ? <MarkersSection mediaId={item.media_id} onSeek={(t) => setSeekRequest((r) => ({ t, n: (r?.n ?? 0) + 1 }))} /> : null}
 
         <section className={CARD} aria-label="Source">
           <h2 className="mb-1 text-base font-bold">Source</h2>
-          <p className="text-sm text-muted">{item.channel_title ?? 'Channel'} · Telegram message {item.id}</p>
+          <p className="text-sm text-muted">{local ? `A file in the folder “${item.channel_title ?? 'Local folder'}” on this PC` : `${item.channel_title ?? 'Channel'} · Telegram message ${item.id}`}</p>
         </section>
 
         <section className={CARD} aria-label="Actions">

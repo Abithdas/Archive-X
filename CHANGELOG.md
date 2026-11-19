@@ -5,6 +5,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 ## Unreleased
 - **The app no longer freezes after switching to NSFW.** The studio page's suggested videos, the performer gallery and confirming or rejecting a suggestion waited for the database on the part of the app that serves every page, so while the background matching held the database the whole window stopped answering (the logs show freezes of up to two minutes). They now wait on their own thread.
 - **The hover picture on the video timeline works for videos from a local folder.** It asked for Telegram and failed ("Telegram is not connected") for files on your disk; it now takes the frame straight from the file. The stored snapshots and the snapshot grid were already fine.
+- **The top bar fits the desktop window on wide screens.** With the window buttons in it, a 1920-pixel-wide window made the bar wider than the window (the page got a sideways scroll, search shrank to "Sear", "Setup needed" wrapped onto two lines, and the video window position was off). Page names now appear for every link only above 1800 pixels (2100 in the desktop app), and the Telegram pill never wraps.
+- **Video page:** the Source card says which folder a local file is in instead of "Telegram message"; scene markers (a ThePornDB feature) are not shown for movies and shows.
 - **The account menu and dialogs are no longer part of the window's drag area** (pressing their text could start moving the window).
 
 ## 30.7.0 (2026-11-19)
