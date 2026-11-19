@@ -1,0 +1,20 @@
+# Gitleaks configuration (MIT-licensed scanner, run by .github/workflows/security.yml; nothing of it ships).
+# It keeps the built-in rules and only names what is known not to be a secret.
+title = "Archive X"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures, file checksums and third-party bundles"
+paths = [
+  '''(^|/)tools/tests/''',          # fake keys and tokens that the tests feed to the redaction code
+  '''(^|/)tests/front_door\.rs$''',
+  '''(^|/)frontend/dist/''',         # an old built bundle that is no longer tracked (only in history)
+  '''(^|/)apps/web/dist/''',
+  '''(^|/)Cargo\.lock$''',
+  '''package-lock\.json$''',
+]
+regexes = [
+  '''[0-9a-f]{64}''',               # SHA-256 pins for model files and installers
+]
