@@ -7,6 +7,7 @@ provider filename lookup. Manual/local artwork is not synthesized here.
 from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
+import asyncio
 import json
 from typing import Any
 
@@ -175,7 +176,12 @@ async def refresh_performer_image(db, performer_id: int, *, force_api: bool = Tr
                 ranked.append((_provider_rank(provider), candidate, str(provider), pid))
         if ranked:
             _rank, image, source, provider_id = max(ranked, key=lambda x: x[0])
-    if not image:
+    if not image and str(row["content_rating"] or "") == "sfw":
+        # An actor: the picture comes from TMDB by name. The adult providers are never asked about an SFW name.
+        from . import screen_identify as _screen
+        image = await asyncio.to_thread(lambda: _screen.make_screen(db).person_photo(name))
+        source, provider_id = ("tmdb", "") if image else ("", "")
+    elif not image:
         # Query both configured providers only when the caller did not already
         # supply their freshly fetched entity records.
         image, source, provider_id = await performer_image_from_providers(db, name, provider_ids)

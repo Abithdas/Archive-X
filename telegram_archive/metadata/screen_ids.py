@@ -241,6 +241,23 @@ class Screen:
         base, headers = tmdb_headers(self.tmdb)
         return self._ask("tmdb", f"{TMDB}{path}", {**base, "language": self.language, **params}, headers) or {}
 
+    def company_logo(self, name: str) -> str:
+        """A studio's logo from TMDB by its name (SFW studios have no adult-provider record to take one from). Empty when there is no key or no exact match."""
+        if not self.tmdb or not name.strip():
+            return ""
+        for r in (self._t("/search/company", query=name.strip()).get("results") or [])[:10]:
+            if r.get("logo_path") and _norm_title(r.get("name", "")) == _norm_title(name):
+                return image_url(r["logo_path"], "w185")
+        return ""
+
+    def person_photo(self, name: str) -> str:
+        """A person's picture from TMDB by name: the best-known person with exactly that name, or empty."""
+        if not self.tmdb or not name.strip():
+            return ""
+        results = [r for r in (self._t("/search/person", query=name.strip()).get("results") or []) if r.get("profile_path") and _norm_title(r.get("name", "")) == _norm_title(name)]
+        results.sort(key=lambda r: -float(r.get("popularity") or 0))
+        return image_url(results[0]["profile_path"], "w185") if results else ""
+
     # --- candidates -------------------------------------------------------------------------------------------------------------
     @staticmethod
     def _score(want: dict, title: str, original: str, year: int | None, popularity: float, query: str | None = None) -> float:
@@ -391,14 +408,16 @@ class Screen:
         if not d:
             return {}
         genres = [g["name"] for g in d.get("genres") or [] if g.get("name")]
-        companies = [c["name"] for c in (d.get("networks") if kind == "tv" and d.get("networks") else d.get("production_companies")) or [] if c.get("name")]
+        made_by = [c for c in (d.get("networks") if kind == "tv" and d.get("networks") else d.get("production_companies")) or [] if c.get("name")]
+        companies = [c["name"] for c in made_by]
+        company_info = [{"name": c["name"], "id": c.get("id"), "logo": c.get("logo_path") or ""} for c in made_by]   # the logos come with the answer: studios get a picture
         cast = [{"name": p["name"], "tmdb_id": p.get("id"), "character": p.get("character") or "", "profile": p.get("profile_path") or ""}
                 for p in ((d.get("credits") or {}).get("cast") or [])[:20] if p.get("name")]
         date = d.get("first_air_date") if kind == "tv" else d.get("release_date")
         return {"kind": kind, "tmdb_id": int(d["id"]), "imdb_id": (d.get("external_ids") or {}).get("imdb_id") or d.get("imdb_id") or "",
                 "title": (d.get("name") if kind == "tv" else d.get("title")) or "", "original_title": (d.get("original_name") if kind == "tv" else d.get("original_title")) or "",
                 "year": _year_of(date), "release_date": date or "", "overview": d.get("overview") or "", "tagline": d.get("tagline") or "",
-                "poster": d.get("poster_path") or "", "backdrop": d.get("backdrop_path") or "", "genres": genres, "companies": companies, "cast": cast,
+                "poster": d.get("poster_path") or "", "backdrop": d.get("backdrop_path") or "", "genres": genres, "companies": companies, "company_info": company_info, "cast": cast,
                 "rating": d.get("vote_average") or 0, "runtime": (d.get("runtime") or (d.get("episode_run_time") or [0])[0] or 0),
                 "seasons": [{"season": s.get("season_number"), "episodes": s.get("episode_count"), "name": s.get("name") or ""} for s in d.get("seasons") or [] if s.get("season_number") is not None],
                 "status": d.get("status") or ""}

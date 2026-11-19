@@ -209,7 +209,8 @@ def _title_entities(db, d: dict, ctx: dict | None) -> tuple[list, list, list]:
     if ctx is not None and key in ctx.setdefault("entities", {}):
         return ctx["entities"][key]
     cast = [_entity(db, "performers", p["name"], p.get("tmdb_id"), si.image_url(p.get("profile", ""), "w185")) for p in d.get("cast", [])]
-    studios = [_entity(db, "studios", n) for n in d.get("companies", [])[:6]]
+    made_by = d.get("company_info") or [{"name": n, "id": None, "logo": ""} for n in d.get("companies", [])]
+    studios = [_entity(db, "studios", c["name"], c.get("id"), si.image_url(c.get("logo", ""), "w185")) for c in made_by[:6]]
     genres = [_entity(db, "tags", g) for g in d.get("genres", [])]
     if ctx is not None:
         ctx["entities"][key] = (cast, studios, genres)

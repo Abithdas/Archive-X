@@ -8,6 +8,7 @@ studio has no usable API image URL.
 from __future__ import annotations
 
 from ..core.swallowed import note as _swallowed_note
+import asyncio
 import json
 from typing import Any
 
@@ -136,7 +137,12 @@ async def refresh_studio_image(db, studio_id: int, *, force_api: bool = False, p
                     ranked.append((_provider_rank(provider), candidate, str(provider), pid))
             if ranked:
                 _rank, image, source, provider_id = max(ranked, key=lambda x: x[0])
-        if not image:
+        if not image and str(row["content_rating"] or "") == "sfw":
+            # A movie or TV studio: its logo comes from TMDB. The adult providers are never asked about it.
+            from . import screen_identify as _screen
+            image = await asyncio.to_thread(lambda: _screen.make_screen(db).company_logo(name))
+            source, provider_id = ("tmdb", "") if image else ("", "")
+        elif not image:
             image, source, provider_id = await studio_image_from_providers(db, name, provider_ids)
 
     cache_errors: list[str] = []
