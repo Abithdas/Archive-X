@@ -295,10 +295,16 @@ export function Shell(): ReactNode {
   useEffect(() => {
     const el = mainRef.current
     if (!el) return
-    const f = () => setScrolled(el.scrollTop > 48)
-    f()
+    let idle: ReturnType<typeof setTimeout> | undefined
+    const f = () => {
+      setScrolled(el.scrollTop > 48)
+      el.dataset.scrolling = 'true'   // hover effects pause while the page moves (see motion.css)
+      clearTimeout(idle)
+      idle = setTimeout(() => { el.dataset.scrolling = 'false' }, 140)
+    }
+    setScrolled(el.scrollTop > 48)
     el.addEventListener('scroll', f, { passive: true })
-    return () => el.removeEventListener('scroll', f)
+    return () => { el.removeEventListener('scroll', f); clearTimeout(idle) }
   }, [fullPath])
   const live = useLiveStatus(true)
   useAppearanceSync()

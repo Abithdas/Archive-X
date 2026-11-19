@@ -37,7 +37,7 @@ const openIn = (kind: 'tv' | 'movie') => (kind === 'tv' ? '/series/$id' : '/movi
 /** A row of things to scroll sideways, under a heading; arrows appear on the sides when something is out of view. */
 function Row({ title, hint, children, arrowTop = 132, onSeeAll }: { title: string; hint?: string; children: ReactNode; arrowTop?: number; onSeeAll?: () => void }) {
   return (
-    <section aria-label={title} className="grid gap-3">
+    <section aria-label={title} className="grid gap-3 [contain-intrinsic-size:auto_300px] [content-visibility:auto]">
       <div className="flex items-baseline justify-between gap-3"><h2 className="text-xl font-extrabold tracking-tight">{title}</h2>{onSeeAll ? <button type="button" onClick={onSeeAll} className="text-[13px] font-semibold text-muted transition-colors hover:text-fg">See all →</button> : hint ? <span className="text-[13px] text-muted">{hint}</span> : null}</div>
       <HScroll label={`${title}, scroll sideways`} arrowTop={arrowTop} className="-mx-2 flex snap-x gap-4 px-2 pb-3 pt-1">{children}</HScroll>
     </section>
@@ -59,18 +59,28 @@ const reducedMotion = () => typeof window !== 'undefined' && Boolean(window.matc
 function Hero({ items }: { items: Billboard[] }) {
   const [i, setI] = useState(0)
   const [still] = useState(reducedMotion)
+  const [seen, setSeen] = useState(true)   // scrolled out of sight: stop the slideshow and the push-in
+  const box = useRef<HTMLElement>(null)
+  const last = useRef(0)   // the picture that is fading out; the next one is kept ready (hidden) so the fade has something to fade to
   const n = items.length
   useEffect(() => {
-    if (n < 2 || still) return
-    const t = setTimeout(() => setI((x) => (x + 1) % n), HERO_MS)
+    const el = box.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    const o = new IntersectionObserver(([e]) => setSeen(Boolean(e?.isIntersecting)), { threshold: 0.05 })
+    o.observe(el)
+    return () => o.disconnect()
+  }, [])
+  useEffect(() => {
+    if (n < 2 || still || !seen) return
+    const t = setTimeout(() => setI((x) => { last.current = x; return (x + 1) % n }), HERO_MS)
     return () => clearTimeout(t)
-  }, [n, i, still])
+  }, [n, i, still, seen])
   const at = i % Math.max(1, n)
   const b = items[at]
   if (!b) return null
   return (
-    <section aria-label="Featured" className="relative isolate -mb-28 min-h-[min(84vh,780px)] overflow-hidden bg-surface-2">
-      {items.map((x, k) => <img key={x.id} src={x.backdrop || x.poster || PLACEHOLDER} alt="" aria-hidden="true" style={{ animationPlayState: k === at ? 'running' : 'paused' }} className={cn('mo-hero-img absolute inset-0 -z-10 size-full object-cover object-[70%_25%]', k === at ? 'opacity-100' : 'opacity-0')} />)}
+    <section ref={box} aria-label="Featured" className="relative isolate -mb-28 min-h-[min(84vh,780px)] overflow-hidden bg-surface-2">
+      {items.map((x, k) => (k === at || k === last.current % Math.max(1, n) || k === (at + 1) % Math.max(1, n)) ? <img key={x.id} src={x.backdrop || x.poster || PLACEHOLDER} alt="" aria-hidden="true" style={{ animationPlayState: k === at && seen ? 'running' : 'paused' }} className={cn('mo-hero-img absolute inset-0 -z-10 size-full object-cover object-[70%_25%]', k === at ? 'opacity-100' : 'opacity-0')} /> : null)}
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(0deg,var(--color-bg)_2%,color-mix(in_srgb,var(--color-bg)_65%,transparent)_20%,transparent_50%),linear-gradient(90deg,rgb(0_0_0/0.82)_0%,rgb(0_0_0/0.45)_38%,transparent_70%)]" />
       <div key={b.id} className="mo-enter relative flex min-h-[inherit] max-w-3xl flex-col justify-end gap-4 px-4 pb-40 pt-44 text-white sm:px-10">
         <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/80">From your library</span>
@@ -325,7 +335,7 @@ export function SfwHome() {
   const bleed = tab === 'home' && !searching && Boolean(d?.billboard.length)
   useEffect(() => { setImmersive(bleed); return () => setImmersive(false) }, [bleed, setImmersive])
   const tabs = (glass: boolean) => (
-    <div role="tablist" aria-label="Home" className={cn('flex w-fit gap-1 rounded-full p-1', glass ? 'bg-black/35 text-white backdrop-blur' : 'mb-6 bg-fg/10')}>
+    <div role="tablist" aria-label="Home" className={cn('flex w-fit gap-1 rounded-full p-1', glass ? 'bg-black/50 text-white' : 'mb-6 bg-fg/10')}>
       {TABS.map(([id, label]) => (
         <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => { setText(''); go(id) }}
           className={cn('rounded-full px-5 py-2 text-sm font-semibold transition-[background-color,color] duration-300', tab === id ? (glass ? 'bg-white text-black' : 'bg-fg text-bg') : glass ? 'text-white/85 hover:text-white' : 'text-fg/80 hover:text-fg')}>{label}</button>
