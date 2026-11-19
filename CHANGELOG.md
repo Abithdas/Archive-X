@@ -5,6 +5,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 ## 30.11.2 (2026-11-19)
 
 - Direct streams from configured Stremio add-ons can now play from public HTTPS hosts that resolve only to public IP addresses. Local or private sources still require the existing setting; redirects follow the same checks.
+- Add-on stream lists include All and per-add-on tabs, sorting by add-on order, quality, seeds or size, plus quality, language, source and HDR/Dolby Vision filters.
 
 ## Unreleased
 
