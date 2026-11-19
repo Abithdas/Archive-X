@@ -171,7 +171,7 @@ impl StaticFiles {
 
 /// The same headers the Python backend adds to every response (core/http_middleware.SecurityHeadersMiddleware).
 pub fn with_security_headers(mut resp: Response<Body>, tls: bool) -> Response<Body> {
-    const CSP: &str = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss: https:";
+    const CSP: &str = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; frame-src https://www.youtube-nocookie.com; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss: https:";
     let h = resp.headers_mut();
     let mut set = |k: &'static str, v: &'static str| {
         if !h.contains_key(k) {

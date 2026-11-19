@@ -9,6 +9,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Trailers play in the app, in a window on the page with YouTube's own embedded player (privacy-enhanced address), instead of opening the browser; a link under the player opens the trailer on YouTube when the owner does not allow embedding. The page security policy now allows that one address for frames
 - Desktop app: links to other websites (Open on Netflix, See every option, Trailer, the add-on links and the credit links) now open in your own browser; before, clicking them did nothing inside the app window
 - Where to watch on movie and series pages reads like the Genres and Cast rows above it (no separate box)
 - Discover: the side preview and the details pop-up no longer show Where to watch; it is on the movie or series page only

@@ -1,8 +1,9 @@
 import { fireEvent, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { DiscoverEpisodePage, DiscoverTitlePage, type Title } from './DiscoverPages'
 
+beforeAll(() => { HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }; HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') } })
 afterEach(() => vi.unstubAllGlobals())
 const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { 'content-type': 'application/json' } })
 const SHOW: Title = {
@@ -20,7 +21,9 @@ describe('the page of a title that is not in the library', () => {
     expect(await screen.findByRole('heading', { name: 'Breaking Bad' })).toBeInTheDocument()
     expect(screen.getByText('A teacher turns to crime.')).toBeInTheDocument()
     expect(screen.getByText('Not in your library')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Trailer ↗' })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=abcDEF12345')
+    fireEvent.click(screen.getByRole('button', { name: /Trailer/ }))      // the trailer plays in the page with YouTube's own player
+    expect(document.querySelector('iframe')).toHaveAttribute('src', expect.stringContaining('https://www.youtube-nocookie.com/embed/abcDEF12345'))
+    expect(screen.getByRole('link', { name: /watch it on YouTube/ })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=abcDEF12345')
     const netflix = await screen.findByRole('link', { name: 'Open on Netflix' })
     expect(netflix).toHaveAttribute('href', 'https://www.netflix.com/search?q=Breaking%20Bad'); expect(netflix).toHaveAttribute('target', '_blank')
     expect(screen.getByText('Some Service')).toBeInTheDocument()                                  // a service with no address is named, not linked

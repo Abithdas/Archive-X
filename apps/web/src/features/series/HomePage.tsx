@@ -16,6 +16,7 @@ import { useAddons, type Addon } from '@/features/settings/AddonsPanel'
 import { Chips } from './TitleStage'
 import { MoviesList } from './MoviesPage'
 import { PLACEHOLDER, PosterCard } from './PosterCard'
+import { TrailerButton } from './TrailerButton'
 import { SeriesList } from './SeriesPage'
 import { countText } from './series'
 import { useHomeTab, useScreenView, type HomeTab } from './view'
@@ -131,7 +132,7 @@ function Details({ item, onClose }: { item: Found; onClose: () => void }) {
             {lib ? <Link to={openIn(lib.kind)} params={{ id: String(lib.id) }} onClick={onClose} className="inline-flex h-10 items-center rounded-xl bg-accent px-5 text-sm font-bold text-accent-fg">Open in your library</Link>
               : <span className="inline-flex h-10 items-center rounded-xl border border-line-2 px-4 text-sm text-muted">Not in your library</span>}
             {hasPage(item) ? <Link to="/discover/$kind/$id" params={pageParams(item)} onClick={onClose} className="inline-flex h-10 items-center rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5">Open the page</Link> : null}
-            {d.trailer ? <a href={`https://www.youtube.com/watch?v=${d.trailer}`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5">Watch the trailer</a> : null}
+            <TrailerButton id={d.trailer} title={item.title} label="Watch the trailer" className="inline-flex h-10 items-center rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5" />
           </div>
         </div>
       </div>
@@ -177,7 +178,7 @@ function DetailPanel({ item }: { item: Found }) {
           {lib ? <Link to={openIn(lib.kind)} params={{ id: String(lib.id) }} className="inline-flex h-11 items-center gap-2 rounded-full bg-fg px-6 text-sm font-bold text-bg transition-transform active:scale-[0.97]"><Icon name="play" className="size-4" />Open in your library</Link>
             : <span className="inline-flex h-11 items-center rounded-full border border-line-2 px-5 text-sm text-muted">Not in your library</span>}
           {hasPage(item) ? <Link to="/discover/$kind/$id" params={pageParams(item)} className="inline-flex h-11 items-center rounded-full border border-line-2 px-5 text-sm font-semibold transition-colors hover:bg-fg/10">Open the page</Link> : null}
-          {d.trailer ? <a href={`https://www.youtube.com/watch?v=${d.trailer}`} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center rounded-full border border-line-2 px-5 text-sm font-semibold transition-colors hover:bg-fg/10">Watch the trailer</a> : null}
+          <TrailerButton id={d.trailer} title={item.title} label="Watch the trailer" className="inline-flex h-11 items-center rounded-full border border-line-2 px-5 text-sm font-semibold transition-colors hover:bg-fg/10" />
         </div>
       </div>
     </aside>

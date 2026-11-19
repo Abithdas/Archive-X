@@ -7,6 +7,7 @@ import { cn } from '@/design/cn'
 import { PLACEHOLDER } from './PosterCard'
 import { Chips, TitleStage } from './TitleStage'
 import { AddonExtras, AddonStreams } from './AddonStreams'
+import { TrailerButton } from './TrailerButton'
 import { WhereToWatch } from './WhereToWatch'
 import { useHomeTab } from './view'
 import { countText } from './series'
@@ -70,7 +71,7 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {lib ? <Link to={openIn(lib.kind)} params={{ id: String(lib.id) }} className={cn(BTN, 'bg-accent text-accent-fg hover:brightness-110')}><Icon name="play" className="size-4" />Open in your library</Link>
             : <span className={cn(BTN, 'border border-line-2 font-semibold text-muted')}>Not in your library</span>}
-          {d.trailer ? <a href={`https://www.youtube.com/watch?v=${d.trailer}`} target="_blank" rel="noreferrer" className={cn(BTN, 'border border-line-2 font-semibold hover:bg-fg/10')}>Trailer ↗</a> : null}
+          <TrailerButton id={d.trailer} title={d.title} className={cn(BTN, 'border border-line-2 font-semibold hover:bg-fg/10')} />
         </div>
         <div className="grid gap-4 empty:hidden">
       {!lib && WATCH_ID.test(id) ? <WhereToWatch kind={d.kind} ident={id} title={d.title} flat /> : lib ? <p className="px-1 text-sm text-muted">You have this in your library, so there is nothing to look for elsewhere.</p> : null}

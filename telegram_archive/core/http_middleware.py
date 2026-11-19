@@ -44,7 +44,7 @@ class SecurityHeadersMiddleware:
                     (b"cross-origin-resource-policy", b"same-origin"),
                     (b"content-security-policy", (
                         "default-src 'self'; base-uri 'self'; object-src 'none'; "
-                        "frame-ancestors 'self'; img-src 'self' data: blob: https:; "
+                        "frame-ancestors 'self'; frame-src https://www.youtube-nocookie.com; img-src 'self' data: blob: https:; "
                         "media-src 'self' blob:; font-src 'self' data:; "
                         "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
                         "connect-src 'self' ws: wss: https:"
