@@ -9,6 +9,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Desktop app: links to other websites (Open on Netflix, See every option, Trailer, the add-on links and the credit links) now open in your own browser; before, clicking them did nothing inside the app window
+- Where to watch on movie and series pages reads like the Genres and Cast rows above it (no separate box)
 - Discover: the side preview and the details pop-up no longer show Where to watch; it is on the movie or series page only
 - Add-on stream list: the add-on tabs wrap instead of scrolling sideways, an add-on with nothing for the title has no tab, and long stream names use two lines instead of being cut off
 - Discover title and episode pages: Where to watch sits under the buttons on the left, below the story; the add-on streams, the add-on notes and a show's episodes stay in the side panel
