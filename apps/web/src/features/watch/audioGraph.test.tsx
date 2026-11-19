@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Player } from './Player'
-import { BLOCK_KEY, _resetAudioGraph, blockingEnabled, resumeAudio, routeThroughApp, setBlocking, setBoost } from './audioGraph'
+import { BLOCK_KEY, _resetAudioGraph, blockingEnabled, resumeAudio, routeThroughApp, setBlocking, setBoost, setSoundMode } from './audioGraph'
 
 class FakeCtx {
   static made = 0
@@ -10,8 +10,12 @@ class FakeCtx {
   destination = { dest: true }
   resumed = 0
   constructor() { FakeCtx.made++ }
-  createGain() { return { gain: { value: 1 } } }
-  createMediaElementSource(el: unknown) { return { connect: () => ({ connect: (d: unknown) => { FakeCtx.connected.push([el, d]) } }) } }
+  last: unknown = null
+  node = (): { connect: (d: unknown) => void; [k: string]: unknown } => ({ connect: () => undefined, gain: { value: 1 }, frequency: { value: 0 }, Q: { value: 0 }, threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 }, attack: { value: 0 }, release: { value: 0 }, type: '' })
+  createGain() { const g = this.node(); g.connect = (d: unknown) => { FakeCtx.connected.push([this.last, d]) }; return g }
+  createBiquadFilter() { return this.node() }
+  createDynamicsCompressor() { return this.node() }
+  createMediaElementSource(el: unknown) { this.last = el; return { connect: () => undefined } }
   resume() { this.resumed++; this.state = 'running'; return Promise.resolve() }
 }
 beforeEach(() => { localStorage.clear(); FakeCtx.made = 0; FakeCtx.connected = []; _resetAudioGraph(); vi.stubGlobal('AudioContext', FakeCtx) })
@@ -58,5 +62,13 @@ describe('keeping Chrome Live Caption away', () => {
     expect(setBoost(a, 2)).toBe(true)
     expect(FakeCtx.connected).toHaveLength(1)
     expect(setBoost(a, 9)).toBe(true)
+  })
+
+  it('night mode and dialogue boost route the element and set the filters', () => {
+    setBlocking(false)
+    const a = document.createElement('video')
+    expect(setSoundMode(a, 'night')).toBe(true)
+    expect(FakeCtx.connected).toHaveLength(1)
+    expect(setSoundMode(a, 'normal')).toBe(true)
   })
 })

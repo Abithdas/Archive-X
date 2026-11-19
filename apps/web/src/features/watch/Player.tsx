@@ -9,9 +9,9 @@ import type { PreviewInfo } from './Timeline'
 import type { Segment } from './timelineLogic'
 import { DOUBLE_TAP_MS, KEEP_SKIPPING_MS, registerTap, type TapState } from './tapseek'
 import { CcMenu } from './CcMenu'
-import { blockingEnabled, resumeAudio, routeThroughApp, setBlocking, setBoost } from './audioGraph'
-import { loadPS, normalizePS, pictureFilter, savePS, type PictureSound } from './pictureSound'
-import { sampleOf, statRows, type StreamSample } from './streamStats'
+import { blockingEnabled, resumeAudio, routeThroughApp, setBlocking, setBoost, setSoundMode } from './audioGraph'
+import { loadPS, normalizePS, pictureFilter, savePS, zoomScale, type PictureSound } from './pictureSound'
+import { sampleOf, statRows, type StreamFacts, type StreamSample } from './streamStats'
 import { CaptionOverlay } from './CaptionOverlay'
 import { releasePlayback } from './release'
 import { loadStyle, saveStyle } from './captionStyle'
@@ -25,7 +25,7 @@ const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) &
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
 
-export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable }: { onUnplayable?: () => void; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void; onOpenNative?: () => void }) {
+export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable, facts }: { facts?: StreamFacts; onUnplayable?: () => void; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc: () => void; onOpenNative?: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
   const pendingStart = useRef<number | null>(null)
@@ -77,9 +77,11 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   const [ps, setPs] = useState<PictureSound>(loadPS)
   const [boostFailed, setBoostFailed] = useState(false)
   const changePs = (patch: Partial<PictureSound>) => setPs((c) => { const n = normalizePS({ ...c, ...patch }); savePS(n); return n })
-  useEffect(() => { setBoostFailed(!setBoost(video.current, ps.boost / 100)) }, [ps.boost])
+  const [shift, setShift] = useState(0)   // subtitle sync, in seconds; starts at 0 for every video
+  useEffect(() => setShift(0), [src])
+  useEffect(() => { setBoostFailed(!(setBoost(video.current, ps.boost / 100) && setSoundMode(video.current, ps.sound))) }, [ps.boost, ps.sound])
   const [sample, setSample] = useState<StreamSample | null>(null)
-  const tracks = useTracks(media, video, time, playing)
+  const tracks = useTracks(media, video, time, playing, shift)
   useAltAudio(video, altAudio, tracks.altUrl, muted, volume, rate)
   const tap = useRef<TapState | null>(null)
   const [skip, setSkip] = useState<{ side: 'left' | 'right'; total: number } | null>(null)
@@ -208,7 +210,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
           }}
           onEnded={() => { onEnd?.(); if (autoNext) onNext?.() }}
           onError={() => { setFailed(true); setLoading(false) }}
-          style={{ filter: pictureFilter(ps) }}
+          style={{ filter: pictureFilter(ps), transform: ps.zoom === 'off' ? undefined : `scale(${zoomScale(ps.zoom, ratio, isFs ? window.innerWidth / Math.max(1, window.innerHeight) : ratio)})` }}
           className="absolute inset-0 h-full w-full cursor-pointer object-contain"
         />
         {skip ? (
@@ -249,14 +251,14 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
           playing={playing} onToggle={toggle} onPrev={onPrev} onNext={onNext}
           rate={rate} onRate={(r) => { setRate(r); flash(`Speed: ${r}x`) }}
           muted={muted} volume={volume} onMute={() => setMuted(!muted)} onVolume={(v) => { setVolume(v); setMuted(false) }}
-          status={{ chip: buffer >= 99 ? 'Cached' : `${buffer}%`, good: buffer >= 99, rows: statRows(buffer, sample) }}
+          status={{ chip: buffer >= 99 ? 'Cached' : `${buffer}%`, good: buffer >= 99, rows: statRows(buffer, sample, { ...facts, audio: tracks.info?.audio.find((a) => tracks.audio === null ? a.default || a.ordinal === 0 : a.index === tracks.audio)?.label }) }}
           pip={{ onClick: pip, label: 'Picture in picture', title: 'Picture in picture' }}
           tracksMenu={tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
           onFullscreen={full}
           settings={<>
             <MenuItem pressed={block} onClick={() => { const on = !block; setBlock(on); setBlocking(on); flash(on ? 'Chrome Live Caption blocked after reload' : 'Chrome Live Caption allowed after reload') }} label="Keep Chrome's Live Caption off this player">Keep Chrome's Live Caption off <span className={block ? 'text-emerald-400' : 'text-muted'}>{block ? 'ON' : 'OFF'}</span></MenuItem>
             <p className="max-w-[15rem] px-2.5 pb-1 text-[11px] leading-snug text-muted">Plays the sound through the app so Chrome's own black "Live Caption" box has nothing to caption. Applies after a page reload.</p>
-            <PictureSoundItems value={ps} onChange={changePs} boostFailed={boostFailed} />
+            <PictureSoundItems value={ps} onChange={changePs} boostFailed={boostFailed} sync={{ seconds: shift, on: tracks.sub.kind === 'track', onChange: setShift }} />
             <CaptionStyleItems style={capStyle} onChange={changeCap} />
             <PlaybackItems tracks={tracks} loop={loop} onLoop={() => { setLoop(!loop); flash(`Auto-repeat: ${loop ? 'OFF' : 'ON'}`) }} />
           </>}

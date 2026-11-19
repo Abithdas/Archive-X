@@ -8,14 +8,15 @@ import { Timeline, type PreviewInfo } from './Timeline'
 import type { Segment } from './timelineLogic'
 import { DEFAULT_STYLE, SIZE_STEP, clampSize, sizeLabel, type CaptionBg, type CaptionStyle } from './captionStyle'
 import type { TrackState } from './useTracks'
-import { DEFAULT_PS, PS_RANGE, isDefaultPS, type PictureSound } from './pictureSound'
+import { DEFAULT_PS, PS_RANGE, SOUNDS, ZOOMS, isDefaultPS, type PictureSound } from './pictureSound'
 
 /** The two engines (the browser's <video> and the native player) share this bar, these menus and the shortcuts: only the picture's source differs. */
 export const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const
 export const clock = (s: number) => formatDuration(s) || '0:00'
 export const BTN = 'grid size-8 shrink-0 place-items-center rounded-md text-fg/85 transition-[background-color,color,transform] hover:bg-fg/10 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent active:scale-95 disabled:opacity-35 disabled:hover:bg-transparent'
 
-export interface BufferStatus { chip: string; good: boolean; rows: Array<{ k: string; v: string; good?: boolean }> }
+/** A row is a heading (`head`) or a label and value. */
+export interface BufferStatus { chip: string; good: boolean; rows: Array<{ k: string; v: string; good?: boolean; head?: string }> }
 
 export interface ControlsProps {
   time: number; duration: number; buffered: number
@@ -55,7 +56,7 @@ export function PlayerControls(p: ControlsProps) {
           <div className="hidden @lg:block">
             <PopMenu label="Buffer status" align="left" drop={drop} button={<><BufferIcon /><span className={cn('size-1.5 rounded-full', p.status.good ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-amber-400')} /><span className="hidden @lg:inline">{p.status.chip}</span><ChevronIcon /></>}>
               <MenuHead>Buffer status</MenuHead>
-              {p.status.rows.map((r) => <MenuRow key={r.k} k={r.k} v={r.v} good={r.good} />)}
+              {p.status.rows.map((r) => r.head ? <MenuHead key={`h-${r.head}`}>{r.head}</MenuHead> : <MenuRow key={r.k} k={r.k} v={r.v} good={r.good} />)}
             </PopMenu>
           </div>
           <Divider />
@@ -97,19 +98,47 @@ export function CaptionStyleItems({ style, onChange }: { style: CaptionStyle; on
   )
 }
 
-const PS_ROWS: Array<[keyof PictureSound, string]> = [['brightness', 'Brightness'], ['contrast', 'Contrast'], ['saturation', 'Colour'], ['boost', 'Volume boost']]
-/** Picture and sound: brightness, contrast, colour and a volume boost above 100%. */
-export function PictureSoundItems({ value, onChange, boostFailed }: { value: PictureSound; onChange: (patch: Partial<PictureSound>) => void; boostFailed?: boolean }) {
+const SLIDERS: Array<['brightness' | 'contrast' | 'saturation' | 'boost', string]> = [['brightness', 'Brightness'], ['contrast', 'Contrast'], ['saturation', 'Colour'], ['boost', 'Volume boost']]
+const PILL = 'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors'
+const Pills = <T extends string>({ label, items, value, onPick }: { label: string; items: Array<[T, string]>; value: T; onPick: (v: T) => void }) => (
+  <div role="radiogroup" aria-label={label} className="flex max-w-[16rem] flex-wrap gap-1.5 px-2.5 py-1">
+    {items.map(([k, text]) => <button key={k} type="button" role="radio" aria-checked={value === k} onClick={() => onPick(k)} className={cn(PILL, value === k ? 'border-transparent bg-fg text-bg' : 'border-line-2 text-fg/85 hover:bg-fg/10')}>{text}</button>)}
+  </div>
+)
+const Note = ({ children }: { children: ReactNode }) => <p className="max-w-[16rem] px-2.5 pb-1 text-[11px] leading-snug text-muted">{children}</p>
+
+/** Picture (zoom, brightness, contrast, colour), Sound (normal, dialogue boost, night mode, volume boost) and Subtitle sync. */
+export function PictureSoundItems({ value, onChange, boostFailed, sync }: { value: PictureSound; onChange: (patch: Partial<PictureSound>) => void; boostFailed?: boolean; sync?: { seconds: number; on: boolean; onChange: (s: number) => void } }) {
   return (
     <>
-      <MenuHead>Picture and sound</MenuHead>
-      {PS_ROWS.map(([k, label]) => (
-        <label key={k} className="flex items-center justify-between gap-3 px-2.5 py-1 text-xs"><span className="text-muted">{label}</span>
-          <span className="flex items-center gap-2"><input type="range" aria-label={label} min={PS_RANGE[k][0]} max={PS_RANGE[k][1]} step={5} value={value[k]} onChange={(e) => onChange({ [k]: Number(e.target.value) })} className="w-24 accent-[var(--color-accent)]" /><output className="w-9 text-right font-semibold tabular-nums">{value[k]}%</output></span></label>
-      ))}
-      {boostFailed ? <span className="max-w-[15rem] px-2.5 py-1 text-[11px] leading-snug text-warn">The volume boost is not available in this window.</span> : null}
-      <MenuItem onClick={() => onChange({ ...DEFAULT_PS })} label="Reset picture and sound">Reset {isDefaultPS(value) ? <span className="text-muted">(already standard)</span> : null}</MenuItem>
+      <MenuHead>Picture</MenuHead>
+      <Pills label="Picture zoom" items={ZOOMS} value={value.zoom} onPick={(zoom) => onChange({ zoom })} />
+      <Note>Zoom crops the edges. Remove black bars fills the window when the video does not match it.</Note>
+      {SLIDERS.slice(0, 3).map(([k, label]) => <PsSlider key={k} k={k} label={label} value={value[k]} onChange={onChange} />)}
+      <MenuHead>Sound</MenuHead>
+      <Pills label="Sound mode" items={SOUNDS} value={value.sound} onPick={(sound) => onChange({ sound })} />
+      <Note>{value.sound === 'night' ? 'Evens out loud and quiet scenes so you can keep the volume down.' : value.sound === 'dialogue' ? 'Lifts the range where speech sits.' : 'The sound as it is in the file.'}</Note>
+      <PsSlider k="boost" label="Volume boost" value={value.boost} onChange={onChange} />
+      {boostFailed ? <span className="max-w-[16rem] px-2.5 py-1 text-[11px] leading-snug text-warn">The sound changes are not available in this window.</span> : null}
+      {sync ? (<>
+        <MenuHead>Subtitle sync</MenuHead>
+        {sync.on ? (
+          <div className="flex items-center justify-between gap-3 px-2.5 py-1 text-xs"><span className="text-muted">Subtitles are</span>
+            <span className="flex items-center gap-1">
+              <button type="button" aria-label="Subtitles earlier" onClick={() => sync.onChange(Math.round((sync.seconds - 0.1) * 10) / 10)} className="grid size-7 place-items-center rounded-md border border-line-2 font-bold hover:bg-fg/10">−</button>
+              <output aria-label="Subtitle shift" className="w-14 text-center font-semibold tabular-nums">{sync.seconds > 0 ? '+' : ''}{sync.seconds.toFixed(1)} s</output>
+              <button type="button" aria-label="Subtitles later" onClick={() => sync.onChange(Math.round((sync.seconds + 0.1) * 10) / 10)} className="grid size-7 place-items-center rounded-md border border-line-2 font-bold hover:bg-fg/10">+</button>
+            </span></div>
+        ) : <Note>Turn subtitles on from the subtitles menu first.</Note>}
+      </>) : null}
+      <MenuItem onClick={() => onChange({ ...DEFAULT_PS })} label="Reset picture and sound">Reset picture and sound {isDefaultPS(value) ? <span className="text-muted">(standard)</span> : null}</MenuItem>
     </>
+  )
+}
+function PsSlider({ k, label, value, onChange }: { k: 'brightness' | 'contrast' | 'saturation' | 'boost'; label: string; value: number; onChange: (patch: Partial<PictureSound>) => void }) {
+  return (
+    <label className="flex items-center justify-between gap-3 px-2.5 py-1 text-xs"><span className="text-muted">{label}</span>
+      <span className="flex items-center gap-2"><input type="range" aria-label={label} min={PS_RANGE[k][0]} max={PS_RANGE[k][1]} step={5} value={value} onChange={(e) => onChange({ [k]: Number(e.target.value) })} className="w-24 accent-[var(--color-accent)]" /><output className="w-9 text-right font-semibold tabular-nums">{value}%</output></span></label>
   )
 }
 

@@ -16,7 +16,7 @@ const getJson = async <T,>(url: string, signal?: AbortSignal): Promise<T> => {
 }
 
 /** Audio tracks, subtitle tracks and live English captions of one video; the caller shows `text` and plays `altAudioUrl`. */
-export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVideoElement | null>, time: number, playing: boolean) {
+export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVideoElement | null>, time: number, playing: boolean, shift = 0) {
   const [info, setInfo] = useState<TrackInfo | null>(null)
   const [audio, setAudioState] = useState<number | null>(null)     // null: the video's own audio
   const [sub, setSubState] = useState<SubChoice>({ kind: 'off' })
@@ -151,7 +151,7 @@ export function useTracks(media: MediaRef | undefined, video: RefObject<HTMLVide
     savePrefs({ ...loadPrefs(), liveOriginal: c.kind === 'live' ? !!c.original : loadPrefs().liveOriginal, sub: c.kind === 'off' ? 'off' : c.kind, subLanguage: c.kind === 'track' ? language || undefined : loadPrefs().subLanguage })
   }, [])
 
-  const text = sub.kind === 'off' ? '' : activeText(cues, time)
+  const text = sub.kind === 'off' ? '' : activeText(cues, sub.kind === 'track' ? time - shift : time)   // a shift of +1 s shows each line one second later
   void video
   /** One plain line about live captions while they are not showing text yet ('' when nothing needs saying). */
   const liveStatus = sub.kind !== 'live' ? '' : model === 'error' || live === 'error' ? `Live captions failed${liveError ? `: ${liveError}` : ''}` : model !== 'ready' ? 'Live captions: getting the speech model ready…' : live === 'working' && !cues.length ? 'Live captions: listening…' : ''
