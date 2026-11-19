@@ -118,3 +118,15 @@ def test_an_empty_sfw_performer_list_does_not_fall_back_to_the_adult_ones(tmp_pa
     assert c.get("/api/studios").json() == [] and c.get("/api/tags").status_code == 200
     _nsfw(c, H)
     assert [r["name"] for r in c.get("/api/performers").json()] == [M + " Performer"]       # and NSFW still lists them
+
+
+def test_job_text_and_transfer_console_are_blank_in_sfw(tmp_path):
+    db = _db(tmp_path)
+    jid = db.create_job("TELEGRAM_TRANSFER", "-1001", "-1002", False)
+    db.update_job(jid, status="RUNNING", current_item=M + " file.mp4", current_operation="moving " + M)
+    c, H = _client(db)
+    body = str(c.get("/api/status").json())
+    assert M not in body, body
+    assert M not in str(c.get("/api/telegram-transfer").json())
+    _nsfw(c, H)
+    assert M in str(c.get("/api/status").json())

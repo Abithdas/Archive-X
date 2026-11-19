@@ -1184,6 +1184,7 @@ def _transfer_saved_destination_index(db, channel_id):
                 index.setdefault(key, []).append(message_id)
         return index, len(rows)
     except Exception as exc:
+        _swallowed_note("media_manager.destination_index", exc)
         try:
             db.log(f"Transfer destination registry index failed for channel {channel_id}: {type(exc).__name__}: {exc}", "WARN")
         except Exception:
@@ -2238,7 +2239,7 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
         print(f"Skipped/resumed     : {total_skipped:,}")
         # One line in Recent activity with the outcome of the run, so "nothing moved" can be read from the logs instead of guessed.
         try:
-            globals().get("MEDIA_MANAGER_DB").log(
+            getattr(globals().get("MEDIA_MANAGER_DB"), "log", lambda *_a, **_k: None)(
                 f"Telegram Transfer Manager finished: {total_complete:,} moved and verified, {total_skipped:,} skipped"
                 + (f" ({total_needs_snapshots:,} of them have no saved snapshots)" if total_needs_snapshots else "")
                 + f", {total_duplicates:,} duplicates, {total_failed:,} failed.",
@@ -2251,7 +2252,7 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
             print(f"  of which need snapshots: {total_needs_snapshots:,} (left in the source; scan the channel, then run the transfer again)")
             # The console above is easy to miss: say it where the activity list shows it, in plain words, with what to do about it.
             try:
-                globals().get("MEDIA_MANAGER_DB").log(
+                getattr(globals().get("MEDIA_MANAGER_DB"), "log", lambda *_a, **_k: None)(
                     f"Telegram Transfer Manager: {total_needs_snapshots:,} video(s) were not moved and stay in the source channel, because they have no saved "
                     "snapshots and this transfer uses \"existing snapshots only\". Build their snapshots (Metadata & Assets, Snapshots, on that channel) "
                     "or start the transfer again with snapshots set to Automatic.",

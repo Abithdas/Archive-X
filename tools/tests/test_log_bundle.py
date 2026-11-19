@@ -154,7 +154,7 @@ def app(tmp_path, monkeypatch):
             return Rows()
         def __exit__(self, *a):
             return False
-    db = SimpleNamespace(reading=lambda: Reading())
+    db = SimpleNamespace(reading=lambda: Reading(), setting=lambda key, default=None: "nsfw")
     monkeypatch.setattr(ai_evidence, "collect_diagnostics", lambda **kw: {"text": "REPORT api_hash=abc123"})
     home = tmp_path / "home"
     (home / "Downloads").mkdir(parents=True)

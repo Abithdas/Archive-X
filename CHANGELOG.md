@@ -11,6 +11,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 - Native player: hide and close no longer wait behind a slow seek (the player is taken out from under the shared lock before the engine is called)
 - Native player: an engine error after the video opened now shows the error panel instead of an empty picture
 - SFW: the log list and the log zip are closed in SFW like the other log downloads
+- SFW: the status response (job items, errors, recent events, scan names) and the transfer console no longer carry file and channel names; the status cache is kept per mode
+- Media manager: a missing helper name is now caught by a test; the run summary no longer vanishes when the manager runs on its own
 
 ## 30.11.1 (2026-11-19)
 

@@ -543,6 +543,11 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
             wd = {str(x.get("name")): x for x in watchdogs.get("jobs", [])}
         except Exception:
             wd = {}
+        try:
+            from ..core import content_mode as _cm_sfw
+            sfw = _cm_sfw.get_mode(db) == "sfw"   # job text carries file and channel names, adult ones included
+        except Exception:
+            sfw = True
         for j in (active_jobs if active_jobs is not None else db.active_jobs()):
             total = j.get("total")
             done = j.get("completed")
@@ -555,9 +560,9 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                 "status": j["status"], "progress": j.get("progress") or 0,
                 "completed": done, "total": total,
                 "pending": (total - (done or 0)) if total else None,
-                "operation": j.get("current_operation") or "",
-                "item": j.get("current_item") or "",
-                "error": j.get("error") or "",
+                "operation": "" if sfw else (j.get("current_operation") or ""),
+                "item": "" if sfw else (j.get("current_item") or ""),
+                "error": "" if sfw else (j.get("error") or ""),
                 "rate_limit_message": (_download_wait_message if str(j.get("status") or "").upper() == "RUNNING" and _download_wait_remaining > 0 else ""),
                 "parent_job_id": str(detail.get("parent_job_id") or ""),
                 "parent_automation_item": str(detail.get("parent_automation_item") or detail.get("automation_item") or ""),
@@ -641,6 +646,29 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
         return change_tracking.versions(db)
 
     def status_payload() -> dict:
+        """The status response; in SFW the free text that can carry file and channel names (job items, errors, events, scan names) is blanked."""
+        out = _status_payload_raw()
+        try:
+            from ..core import content_mode as _cm_sfw
+            sfw = _cm_sfw.get_mode(db) == "sfw"
+        except Exception:
+            sfw = True
+        if not sfw:
+            return out
+        text = ("current_item", "current_operation", "error", "detail", "source_channel", "destination_channel")
+        for key in ("current_job",):
+            if isinstance(out.get(key), dict):
+                out[key] = {k: ("" if k in text else v) for k, v in out[key].items()}
+        if isinstance(out.get("last_jobs"), dict):
+            out["last_jobs"] = {k: ({f: ("" if f in text else x) for f, x in v.items()} if isinstance(v, dict) else v) for k, v in out["last_jobs"].items()}
+        out["events"] = []
+        out["channel_scans"] = []
+        ca = out.get("content_automation")
+        if isinstance(ca, dict):
+            ca["items"] = []
+        return out
+
+    def _status_payload_raw() -> dict:
         """Assemble the full status response."""
         from ..core.diagnostics import recent_structured_events
         active_jobs, last_jobs = db.job_dashboard_snapshot()
@@ -696,7 +724,7 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
             },
         }
 
-    _status_cache = {"at": 0.0, "data": None, "json": ""}
+    _status_cache = {"at": 0.0, "data": None, "json": "", "mode": ""}
     _status_lock = asyncio.Lock()
     # Status aggregation is database-heavy. Keep it off the shared asyncio
     # worker pool so Telegram/metadata/native-media work cannot inflate
@@ -705,15 +733,17 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
     _status_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="archive-x-status")
 
     async def status_snapshot(max_age: float = 1.0):
+        from ..core import content_mode as _cm_mode
+        mode = _cm_mode.get_mode(db)   # the cache is per mode: an NSFW snapshot must never be served to SFW
         now = time.monotonic()
-        if _status_cache["data"] is not None and now - _status_cache["at"] < max_age:
+        if _status_cache["data"] is not None and _status_cache["mode"] == mode and now - _status_cache["at"] < max_age:
             return _status_cache["data"], _status_cache["json"]
         async with _status_lock:
             now = time.monotonic()
-            if _status_cache["data"] is None or now - _status_cache["at"] >= max_age:
+            if _status_cache["data"] is None or _status_cache["mode"] != mode or now - _status_cache["at"] >= max_age:
                 data = await asyncio.get_running_loop().run_in_executor(_status_executor, status_payload)
                 payload = json.dumps(data, sort_keys=True, default=str, separators=(",", ":"))
-                _status_cache.update(at=time.monotonic(), data=data, json=payload)
+                _status_cache.update(at=time.monotonic(), data=data, json=payload, mode=mode)
             return _status_cache["data"], _status_cache["json"]
 
     ps = player_state if player_state is not None else {}

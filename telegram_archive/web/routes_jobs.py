@@ -707,6 +707,9 @@ def register_job_routes(
         except ValueError:
             since = 0
         snap = media_manager.snapshot(since)
+        from ..core import content_mode as _cm_sfw
+        if _cm_sfw.get_mode(db) == "sfw":
+            snap["lines"] = []   # the console prints file and channel names, adult ones included
         snap["transfer_job_active"] = jobs.transfer_active()
         snap["modes"] = [{"id": k, "name": v[0], "description": v[1]} for k, v in MM_MODES.items()]
         return snap
