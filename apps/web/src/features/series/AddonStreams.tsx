@@ -114,12 +114,12 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
       </div>
       {d.items.length ? (
         <>
-          <div role="tablist" aria-label="Stream add-ons" className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-line bg-fg/5 p-1">
+          <div role="tablist" aria-label="Stream add-ons" className="flex w-fit max-w-full flex-wrap gap-1 rounded-[20px] border border-line bg-fg/5 p-1">
             <button type="button" role="tab" aria-selected={!selectedAddon} onClick={() => setSelectedAddon('')} className={'shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ' + (!selectedAddon ? 'bg-fg text-bg' : 'text-muted hover:text-fg')}>All <span className="ml-1 opacity-70">{d.items.length}</span></button>
-            {addonNames.map((name) => {
+            {addonNames.filter((name) => d.items.some((item) => item.addon === name)).map((name) => {   // an add-on with nothing for this title has no tab
               const active = selectedAddon === name
               const count = d.items.filter((item) => item.addon === name).length
-              return <button key={name} type="button" role="tab" aria-selected={active} onClick={() => setSelectedAddon(name)} className={'shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ' + (active ? 'bg-fg text-bg' : 'text-muted hover:text-fg')}>{name} <span className="ml-1 opacity-70">{count}</span></button>
+              return <button key={name} type="button" role="tab" aria-selected={active} onClick={() => setSelectedAddon(name)} className={'max-w-full truncate rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ' + (active ? 'bg-fg text-bg' : 'text-muted hover:text-fg')}>{name} <span className="ml-1 opacity-70">{count}</span></button>
             })}
           </div>
           <div aria-label="Stream filters" className="flex flex-wrap items-center gap-1.5">
@@ -139,10 +139,10 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
                       {(item.hdr ?? []).length ? <span className="text-[9px] font-bold uppercase text-muted">{(item.hdr ?? []).includes('DV') ? 'Dolby Vision' : 'HDR'}</span> : null}
                     </div>
                     <div className="min-w-0">
-                      {item.kind === 'link' ? <a href={item.href} target="_blank" rel="noreferrer" className="block truncate text-[13px] font-semibold hover:underline" title={item.name}>{item.name}<span aria-hidden="true" className="ml-1 opacity-60">↗</span></a>
-                        : item.kind === 'play' ? <button type="button" onClick={() => { setPlaying(item); if (kind === 'series' && item.bingeGroup) { rememberBinge(ident, item.bingeGroup); setGroup(item.bingeGroup) } }} className="block w-full truncate text-left text-[13px] font-semibold hover:underline" title={item.name}>{item.name}</button>
-                        : <p className="m-0 truncate text-[13px] font-semibold text-muted" title={item.name}>{item.name}</p>}
-                      <p className="m-0 mt-0.5 truncate text-[10px] text-muted">
+                      {item.kind === 'link' ? <a href={item.href} target="_blank" rel="noreferrer" className="line-clamp-2 block break-words text-[13px] font-semibold hover:underline" title={item.name}>{item.name}<span aria-hidden="true" className="ml-1 opacity-60">↗</span></a>
+                        : item.kind === 'play' ? <button type="button" onClick={() => { setPlaying(item); if (kind === 'series' && item.bingeGroup) { rememberBinge(ident, item.bingeGroup); setGroup(item.bingeGroup) } }} className="line-clamp-2 block w-full break-words text-left text-[13px] font-semibold hover:underline" title={item.name}>{item.name}</button>
+                        : <p className="m-0 line-clamp-2 break-words text-[13px] font-semibold text-muted" title={item.name}>{item.name}</p>}
+                      <p className="m-0 mt-0.5 flex flex-wrap items-center gap-x-1 text-[10px] text-muted">
                         {[item.addon, item.source, (item.languages ?? []).join(', ')].filter(Boolean).join(' · ')}
                         {group && item.bingeGroup === group ? <span className="ml-2 rounded-full bg-accent/15 px-1.5 py-px text-[10px] font-bold text-accent">Same as last episode</span> : null}
                         {item.kind === 'play' ? <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-accent"><Icon name="play" className="size-3" />Play</span> : item.kind === 'blocked' && item.host ? <span className="ml-2">Not played here ({item.host})</span> : null}

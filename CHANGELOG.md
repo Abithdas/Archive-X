@@ -9,6 +9,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Add-on stream list: the add-on tabs wrap instead of scrolling sideways, an add-on with nothing for the title has no tab, and long stream names use two lines instead of being cut off
 - Discover title and episode pages: Where to watch, the add-on streams and the add-on notes now sit under the buttons on the left, below the story, instead of in the side panel (the side panel stays for a show's seasons and episodes)
 - Episodes: the stream you played last (the add-on's own "bingeGroup" label, as in Stremio) is remembered for the show; the next episode lists the same kind of stream first, marked "Same as last episode"
 - Add-ons, from the Stremio add-on protocol: an add-on's lists that can be searched are also searched by Discover's search box (its finds follow Cinemeta's results); subtitle requests send the file name and size, which the OpenSubtitles add-on matches by; an add-on that has settings shows a "Configure this add-on" link in Settings
