@@ -127,3 +127,39 @@ describe('Filters on the Movies and Series lists', () => {
     expect(await screen.findByText('No show matches')).toBeInTheDocument()
   })
 })
+
+describe('The copies of one movie', () => {
+  const base = { cid: '-1', media_id: 1, cam: false, codec: 'hevc', duration: 6000 }
+  const detail = { id: 1, title: 'Dune', year: 2021, overview: '', tagline: '', poster: '', backdrop: '', genres: [], companies: [], rating: 8, runtime: 155, cast: [], versions: [
+    { ...base, mid: 1, filename: 'Dune.2160p.BluRay.HDR.DV.German.mkv', resolution: '2160p', height: 2160, source: 'BluRay', size: 30e9, hdr: ['HDR', 'DV'], languages: ['German'] },
+    { ...base, mid: 2, filename: 'Dune.1080p.WEB-DL.mkv', resolution: '1080p', height: 1080, source: 'WEB-DL', size: 8e9, hdr: [], languages: [] },
+    { ...base, mid: 3, filename: 'Dune.720p.WEB-DL.mkv', resolution: '720p', height: 720, source: 'WEB-DL', size: 3e9, hdr: [], languages: [] },
+  ] }
+  it('show a 4K / Dolby Vision badge and can be filtered and sorted like a stream list', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(detail)))
+    const { MovieDetailPage } = await import('./MoviesPage')
+    withRouter(<MovieDetailPage id={1} />)
+    expect(await screen.findByText('Choose a copy (3)')).toBeInTheDocument()
+    expect(screen.getByText('Dolby Vision')).toBeInTheDocument(); expect(screen.getByText('4K')).toBeInTheDocument()
+    expect(screen.getByText('3 copies')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'WEB-DL' }))
+    expect(screen.getByText('2 of 3 copies')).toBeInTheDocument()
+    expect(screen.queryByText('Dune.2160p.BluRay.HDR.DV.German.mkv')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Smallest file' }))
+    const names = screen.getAllByText(/^Dune\.\d+p\.WEB-DL\.mkv$/).map((e) => e.textContent)
+    expect(names).toEqual(['Dune.720p.WEB-DL.mkv', 'Dune.1080p.WEB-DL.mkv'])
+  })
+  it('say so when no copy matches, with a way back', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(detail)))
+    const { MovieDetailPage } = await import('./MoviesPage')
+    withRouter(<MovieDetailPage id={1} />)
+    await screen.findByText('Choose a copy (3)')
+    fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Dolby Vision' }))
+    fireEvent.click(screen.getByRole('button', { name: 'WEB-DL' }))
+    expect(await screen.findByText(/No copy matches these filters/)).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Clear filters' })[0]!)
+    expect(await screen.findAllByText(/^Dune\./)).toHaveLength(3)
+  })
+})

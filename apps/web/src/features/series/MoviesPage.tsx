@@ -10,7 +10,7 @@ import { PLACEHOLDER, PosterCard } from './PosterCard'
 import { PosterSkeleton } from './PosterSkeleton'
 import { Chips, TitleStage } from './TitleStage'
 import { useScreenView } from './view'
-import { MOVIE_SORTS, movieBadge, sortMovies, versionText, type MovieCard, type MovieDetail, type MovieSort } from './series'
+import { COPY_SORTS, MOVIE_SORTS, copyBadge, movieBadge, sortCopies, sortMovies, versionText, type CopySort, type MovieCard, type MovieDetail, type MovieSort } from './series'
 import { lengthText } from './series'
 import { ListFilters } from './ListFilters'
 import { NO_FILTER, filterCount, matchesFilter, type ListFilter } from './listFilters'
@@ -57,6 +57,10 @@ export function MovieDetailPage({ id }: { id: number }) {
   const q = useQuery({ queryKey: ['movies', id, cam], queryFn: () => api<MovieDetail>(`/api/screen/movies/${id}${cam ? '?cam=1' : ''}`) })
   const d = q.data
   const best = d?.versions[0]
+  const [copySort, setCopySort] = useState<CopySort>('best')
+  const [copyFilter, setCopyFilter] = useState<ListFilter>(NO_FILTER)
+  const shownCopies = d ? sortCopies(d.versions.filter((v) => matchesFilter(copyFilter, { res: v.height ? [v.height] : [], sources: v.source ? [v.source] : [], hdr: v.hdr ?? [], langs: v.languages ?? [] })), copySort) : []
+  const copyFacets = (d?.versions ?? []).map((v) => ({ res: v.height ? [v.height] : [], sources: v.source ? [v.source] : [], hdr: v.hdr ?? [], langs: v.languages ?? [] }))
   const left = q.isPending ? <p role="status" className="py-8 text-sm text-muted">Loading…</p>
     : q.isError || !d ? <p role="alert" className="py-8 text-sm text-warn">This movie is not in the library.</p>
     : (
@@ -78,18 +82,30 @@ export function MovieDetailPage({ id }: { id: number }) {
   const panel = !d ? null : (
     <section aria-label="Copies" className="grid gap-2">
       <h2 className="flex items-center justify-between px-1 text-lg font-bold">{d.versions.length === 1 ? 'Watch' : `Choose a copy (${d.versions.length})`}</h2>
+      {d.versions.length > 1 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <ListFilters items={copyFacets} value={copyFilter} onChange={setCopyFilter} sort={{ value: copySort, options: COPY_SORTS, onChange: (v) => setCopySort(v as CopySort) }} />
+          <span className="text-xs font-medium text-muted">{filterCount(copyFilter) ? `${shownCopies.length} of ${d.versions.length}` : d.versions.length} copies</span>
+        </div>
+      ) : null}
       <label className="inline-flex items-center gap-2 px-1 text-xs font-medium text-muted"><input type="checkbox" checked={cam} onChange={(e) => setCam(e.target.checked)} />Show cinema recordings</label>
+      {!shownCopies.length ? <p role="status" className="px-1 py-4 text-sm text-muted">No copy matches these filters. <button type="button" onClick={() => setCopyFilter(NO_FILTER)} className="font-semibold text-accent underline">Clear filters</button></p> : null}
       <ul className="m-0 grid list-none gap-1 p-0">
-        {d.versions.map((v, i) => (
-          <li key={`${v.cid}:${v.mid}`} className="mo-enter m-0" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
-            <Link to="/watch/$cid/$mid" params={{ cid: v.cid, mid: String(v.mid) }} className="group flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-fg/10 focus-visible:bg-fg/10">
-              <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full border border-line-2 transition-colors group-hover:bg-fg group-hover:text-bg"><Icon name="play" className="size-4" /></span>
-              <span className="min-w-0 flex-1"><span className="block font-semibold">{versionText(v) || v.filename}{i === 0 && d.versions.length > 1 ? <span className="ml-2 rounded-full bg-good/15 px-2 py-0.5 text-[11px] font-bold text-good">Best</span> : null}</span>
-                <span className="block truncate text-xs text-muted" title={v.filename}>{v.filename}</span></span>
-              <span className="shrink-0 text-xs text-muted">{lengthText({ duration: v.duration, runtime: d.runtime })}</span>
-            </Link>
-          </li>
-        ))}
+        {shownCopies.map((v, i) => {
+          const badge = copyBadge(v)
+          const langs = (v.languages ?? []).join(', ')
+          return (
+            <li key={`${v.cid}:${v.mid}`} className="mo-enter m-0" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
+              <Link to="/watch/$cid/$mid" params={{ cid: v.cid, mid: String(v.mid) }} className="group flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-fg/10 focus-visible:bg-fg/10">
+                <span aria-hidden="true" className="grid h-12 w-[4.5rem] shrink-0 place-content-center rounded-lg bg-fg/10 text-center transition-colors group-hover:bg-fg group-hover:text-bg"><b className="text-[17px] font-extrabold leading-none">{badge.top}</b>{badge.bottom ? <small className="mt-0.5 text-[10px] font-semibold leading-none opacity-80">{badge.bottom}</small> : null}</span>
+                <span className="min-w-0 flex-1"><span className="block font-semibold">{versionText(v) || v.filename}{i === 0 && d.versions.length > 1 && copySort === 'best' && !filterCount(copyFilter) ? <span className="ml-2 rounded-full bg-good/15 px-2 py-0.5 text-[11px] font-bold text-good">Best</span> : null}</span>
+                  {langs ? <span className="block truncate text-xs text-muted">{langs}</span> : null}
+                  <span className="block truncate text-xs text-faint" title={v.filename}>{v.filename}</span></span>
+                <span className="shrink-0 text-xs text-muted">{lengthText({ duration: v.duration, runtime: d.runtime })}</span>
+              </Link>
+            </li>
+          )
+        })}
       </ul>
     </section>
   )

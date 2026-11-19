@@ -11,6 +11,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 - **Player: remembers the volume, mute and speed** between videos and restarts (web and native player). The brightness, contrast and colour sliders are gone, replaced by **Picture enhancement**: Sharpen, Richer colour, or both.
 - **Player: the volume slider slides out when you hover the speaker button** and folds away when you leave (it stays out while you drag it, and opens with the keyboard focus). Same in the native player.
 - **Movies and Series lists have one Filters button** (like the Photos page): sort order, **Quality** (4K, 1080p, 720p, SD), **Source** (BluRay, WEB-DL, HDTV, DVD), **HDR / DV** and **Language**, with a count of what is chosen, and the list says how many of your movies or shows are shown. Only choices your library has are offered; a title matches when any of its copies does. Series also get a search box and a sort. Quality, source and HDR/DV come from the file names and the real picture height; language comes from tags in the names (German, French, Multi, …).
+- **A movie's page filters its copies like a stream list.** When a movie has more than one copy, its panel has a Filters button (Quality, Source, HDR / DV, Language, and a sort: best first, largest or smallest file), a count ("2 of 3 copies"), and each copy shows a big badge such as **4K** over **Dolby Vision** or **HDR**, with its languages under it.
 
 ## 30.10.0 (2026-11-19)
 

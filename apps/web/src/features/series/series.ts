@@ -39,7 +39,7 @@ export function missingText(missing: readonly number[]): string {
 }
 
 export interface MovieCard extends Partial<Facets> { id: number; title: string; year: number | null; poster: string; overview: string; genres: string[]; rating: number; release_date: string; added: number; versions: number; best: string; cam_only: boolean }
-export interface MovieVersion { cid: string; mid: number; media_id: number; filename: string; resolution: string; height: number; source: string; cam: boolean; codec: string; size: number; duration: number }
+export interface MovieVersion { cid: string; mid: number; media_id: number; filename: string; resolution: string; height: number; source: string; cam: boolean; codec: string; size: number; duration: number; hdr?: string[]; languages?: string[] }
 export interface MovieDetail {
   id: number; title: string; year: number | null; overview: string; tagline: string; poster: string; backdrop: string; genres: string[]; companies: string[]; rating: number; runtime: number
   cast: { name: string; character: string; profile: string }[]; versions: MovieVersion[]
@@ -72,5 +72,19 @@ export function sizeText(bytes: number): string {
   return gb >= 1 ? `${gb.toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`
 }
 
+export const COPY_SORTS = [{ value: 'best', label: 'Best first' }, { value: 'big', label: 'Largest file' }, { value: 'small', label: 'Smallest file' }] as const
+export type CopySort = (typeof COPY_SORTS)[number]['value']
+export function sortCopies<T extends Pick<MovieVersion, 'size'>>(copies: readonly T[], sort: CopySort): T[] {
+  const out = [...copies]
+  if (sort === 'big') out.sort((a, b) => b.size - a.size)
+  else if (sort === 'small') out.sort((a, b) => a.size - b.size)
+  return out   // 'best' keeps the server's order: best picture first, a cinema recording last
+}
+/** The big badge of a copy: "4K" over "HDR" or "Dolby Vision" (or its picture size and source when it has no HDR). */
+export function copyBadge(v: Pick<MovieVersion, 'resolution' | 'height' | 'hdr' | 'source' | 'cam'>): { top: string; bottom: string } {
+  const top = v.cam ? 'CAM' : v.height >= 2000 ? '4K' : v.resolution || '?'
+  const hdr = v.hdr ?? []
+  return { top, bottom: hdr.includes('DV') ? 'Dolby Vision' : hdr.includes('HDR') ? 'HDR' : v.source }
+}
 export const versionText = (v: Pick<MovieVersion, 'resolution' | 'source' | 'codec' | 'size' | 'cam'>) =>
   [v.cam ? 'Cinema recording' : '', v.resolution, v.source, v.codec.toUpperCase(), sizeText(v.size)].filter(Boolean).join(' · ')
