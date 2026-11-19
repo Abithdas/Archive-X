@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased
+## 30.10.0 (2026-11-19)
 
 - **Videos, Performers/Cast and Studios: the cards fit the screen.** Pick how many cards a page shows and the card size follows: more cards per page means smaller cards, always at least two rows, with the page numbers under them. It follows the window size and the zoom (Settings, Appearance, and the automatic zoom on big screens).
 - **Cast and studios in SFW count movies and series**, not videos: "2 movies · 3 series" (an episode is not a series).
