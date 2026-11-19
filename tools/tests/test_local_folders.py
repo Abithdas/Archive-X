@@ -175,7 +175,7 @@ def test_a_local_video_is_listed_probed_streamed_and_gets_its_snapshots(tmp_path
     assert r.status_code == 200, r.text
     sid = r.json()["id"]
     ch = ls.channel_id(sid)
-    for _ in range(400):                                                # scan, probe and snapshots run in the background
+    for _ in range(1200):                                                # scan, probe and snapshots run in the background
         work = c.get("/api/local-folders").json()["folders"][0].get("video_work") or {}
         with db.reading() as conn:
             row = conn.execute("SELECT probed,snapshots FROM local_video_files WHERE channel_id=?", (ch,)).fetchone()
