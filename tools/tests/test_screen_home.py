@@ -46,6 +46,11 @@ def fake(url, params, headers):
         else:
             rows = [{"id": 603, "title": "The Matrix", "release_date": "1999-03-30", "poster_path": "/p.jpg", "vote_average": 8.7, "overview": "x"}, {"id": 42, "title": "Other", "release_date": "2020-01-01"}]
         return {"results": rows, "total_pages": 3}
+    if url.endswith("/3/find/tt0133093"):
+        return {"movie_results": [{"id": 603, "title": "The Matrix", "release_date": "1999-03-30"}], "tv_results": []}
+    if url.endswith("/3/movie/603/watch/providers"):
+        return {"results": {"US": {"link": "https://www.themoviedb.org/movie/603-the-matrix/watch?locale=US", "flatrate": [{"provider_name": "Netflix", "logo_path": "/n.jpg"}], "rent": [{"provider_name": "Apple TV", "logo_path": "/a.jpg"}]},
+                            "DE": {"link": "https://evil.example/x", "buy": [{"provider_name": "Amazon", "logo_path": "/z.jpg"}]}}}
     if url.endswith("/3/movie/603/external_ids"):
         return {"imdb_id": "tt0133093"}
     if url.endswith("/3/movie/42/external_ids"):
@@ -233,3 +238,18 @@ def test_the_addon_address_check_refuses_inside_addresses_and_trusts_the_proxy_o
         except ValueError as exc:
             assert "inside" in str(exc), bad                                                                          # an inside address is refused even with a proxy
     assert ac.base_of("stremio://good.example/cfg/manifest.json") == "https://good.example/cfg"
+
+
+def test_where_to_watch_names_the_services_and_links_only_to_tmdb(tmp_path, monkeypatch):
+    monkeypatch.setattr(sid, "http_fetch", fake)
+    db = Database(tmp_path / "w.db")
+    c = _client(db)
+    assert c.get("/api/screen/where/movie/tt0133093").json() == {"ok": True, "needs_key": True}                  # TMDB's data needs its key
+    db.set_setting("tmdb_api_key", "k" * 32)
+    got = c.get("/api/screen/where/movie/tt0133093?region=us").json()
+    assert got["region"] == "US" and [g["label"] for g in got["groups"]] == ["Stream", "Rent"] and got["groups"][0]["providers"][0]["name"] == "Netflix"
+    assert got["link"] == "https://www.themoviedb.org/movie/603-the-matrix/watch?locale=US"
+    assert c.get("/api/screen/where/movie/tmdb-603?region=DE").json()["link"] == "https://www.themoviedb.org/movie/603/watch?locale=DE"   # a link that is not TMDB's own is never passed on
+    assert c.get("/api/screen/where/movie/tt0133093?region=FR").json()["groups"] == []                         # nothing in that country
+    assert c.get("/api/screen/where/series/tt0133093").json()["groups"] == []                                  # the number names a movie, not a series
+    assert c.get("/api/screen/where/movie/nope").status_code == 400 and c.get("/api/screen/where/movie/tt0133093?region=../").status_code == 400

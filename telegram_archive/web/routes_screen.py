@@ -497,6 +497,41 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             raise HTTPException(502, "The catalogue could not be reached")
         return {"ok": True, "disabled": False, "items": items, "more": len(items) >= 50, "next": skip + 50}
 
+    WATCH_GROUPS = (("flatrate", "Stream"), ("free", "Free"), ("ads", "Free with ads"), ("rent", "Rent"), ("buy", "Buy"))
+
+    @router.get("/api/screen/where/{kind}/{ident}")
+    async def where_to_watch(kind: str, ident: str, request: Request, region: str = "US"):
+        """Where a title can be watched legitimately: the services that offer it in a country (TMDB's "where to watch" data, which comes from JustWatch), and the address of TMDB's page about it.
+        Nothing is played from here: the person opens the service. A title the library already has is not special: this is for the ones it has not."""
+        require_auth(request)
+        if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}|tmdb-\d{1,9}", ident) or not re.fullmatch(r"[A-Za-z]{2}", region):
+            raise HTTPException(400, "Unknown title")
+        region = region.upper()
+        media = "tv" if kind == "series" else "movie"
+
+        def work():
+            scr = sid.make_screen(db, fetch)
+            if not scr.tmdb:
+                return {"ok": True, "needs_key": True}
+            if ident.startswith("tmdb-"):
+                tid = int(ident[5:])
+            else:
+                found = [r for r in scr.find_imdb(ident) if r["kind"] == media]
+                if not found:
+                    return {"ok": True, "region": region, "groups": [], "link": ""}
+                tid = int(found[0]["tmdb_id"])
+            row = ((scr._t(f"/{media}/{tid}/watch/providers") or {}).get("results") or {}).get(region) or {}
+            groups = []
+            for key, label in WATCH_GROUPS:
+                rows = [p for p in (row.get(key) or []) if isinstance(p, dict) and p.get("provider_name")]
+                if rows:
+                    groups.append({"key": key, "label": label, "providers": [{"name": str(p["provider_name"])[:40], "logo": si.image_url(p.get("logo_path") or "", "w92")} for p in rows[:12]]})
+            link = str(row.get("link") or "")
+            if not link.startswith("https://www.themoviedb.org/"):
+                link = f"https://www.themoviedb.org/{media}/{tid}/watch?locale={region}"
+            return {"ok": True, "region": region, "groups": groups, "link": link}
+        return await asyncio.to_thread(work)
+
     @router.get("/api/screen/discover/{kind}/{imdb}")
     async def discover_one(kind: str, imdb: str, request: Request):
         """One title from Cinemeta in full (story, cast, genres, rating, trailer), and whether the library has it."""

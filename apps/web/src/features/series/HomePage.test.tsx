@@ -157,4 +157,22 @@ describe('SFW Home', () => {
     await vi.waitFor(() => expect(urls.some((u) => u.includes('catalog=addon%3Aabcdef0123%3Amovie%3Atop'))).toBe(true))
     expect(within(screen.getByRole('group', { name: 'Kind' })).getByRole('button', { name: 'Series' })).toBeDisabled()    // the add-on's list has its own kind
   })
+
+  it('says where a title you do not have can be watched, with the credit and a link to TMDB; a title you own does not need it', async () => {
+    const urls = mount((u) => (u.startsWith('/api/screen/discover/series') || u.includes('/discover/movie/tt0000002') ? json({ ...found(2, 'Dune'), runtime: '155 min', cast: [], director: [], trailer: '', seasons: 0 }) : u.startsWith('/api/screen/where/') ? json({ ok: true, region: 'US', link: 'https://www.themoviedb.org/movie/1/watch?locale=US', groups: [{ key: 'flatrate', label: 'Stream', providers: [{ name: 'Netflix', logo: '' }] }, { key: 'rent', label: 'Rent', providers: [{ name: 'Apple TV', logo: '' }] }] }) : undefined))
+    await toDiscover()
+    const list = await screen.findByRole('list', { name: 'Catalogue' })
+    fireEvent.click(within(list).getByRole('button', { name: 'Details of Dune' }))                       // not in the library
+    await vi.waitFor(() => {
+      expect(screen.getByText('Netflix')).toBeInTheDocument()
+      expect(screen.getByText('Apple TV')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /See every option for US/ })).toHaveAttribute('href', 'https://www.themoviedb.org/movie/1/watch?locale=US')
+      expect(screen.getByRole('link', { name: 'JustWatch' })).toHaveAttribute('href', 'https://www.justwatch.com')
+    })
+    expect(urls.filter((u) => u.startsWith('/api/screen/where/')).every((u) => u.includes('tt0000002'))).toBe(true)      // asked for Dune only, never for the one that is already owned
+    fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]!)
+    fireEvent.click(within(list).getByRole('button', { name: 'Details of The Matrix' }))                  // in the library
+    expect(await screen.findByRole('link', { name: 'Open in your library' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Where to watch' })).toBeNull()
+  })
 })
