@@ -53,9 +53,13 @@ describe('Content tags on Photos', () => {
     fireEvent.click(within(dlg).getByRole('button', { name: 'Tag photos' }))
     await waitFor(() => expect(calls.some((c) => c.url === '/api/photos/content-tags/analyze')).toBe(true))
   })
-  it('says how to install the detector when it is missing', async () => {
-    mount({ ...SUMMARY, available: false })
-    expect(await screen.findByText(/pip install nudenet/)).toBeInTheDocument()
+  it('says where to get the detector when its model is not downloaded, and what is missing when the packages are', async () => {
+    mount({ ...SUMMARY, available: false, model_ready: false, packages: true })
+    expect(await screen.findByText(/Download the content model first: AI, Models/)).toBeInTheDocument()
+  })
+  it('says the packages are missing when they are', async () => {
+    mount({ ...SUMMARY, available: false, model_ready: false, packages: false })
+    expect(await screen.findByText(/Needs onnxruntime and OpenCV/)).toBeInTheDocument()
   })
   it('shows nothing when there are no photos', async () => {
     const { container } = (mount({ ...SUMMARY, total_photos: 0, analysed_photos: 0, tags: [] }), { container: document.body })

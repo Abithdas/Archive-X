@@ -76,8 +76,11 @@ def _sha(path: Path) -> str:
 
 
 def ensure_models(root: Path | None = None) -> Path:
-    """Download the three model files once; each is verified before it is kept."""
-    root = Path(root or _root())
+    """Download the three model files once; each is verified before it is kept. Without `root` this is the size chosen under AI, Models."""
+    if root is None:
+        from ..core import model_hub as hub
+        return hub.fetch("looks", hub.selected("looks"))
+    root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     for name, (remote, digest) in FILES.items():
         dest = root / name
@@ -244,7 +247,7 @@ async def run(ctx) -> dict[str, Any]:
     client = getattr(ctx.telegram, "client", None)
     if (client is None or not getattr(ctx.telegram, "connected", False)) and not any(_stored_photo_path(r).is_file() for r in rows):
         raise RuntimeError("Connect Telegram or open these photos once so Archive X has local image copies first")
-    ctx.report(completed=0, total=len(rows), current_item="", operation="Getting the look model ready (first time downloads about 155 MB)", force=True)
+    ctx.report(completed=0, total=len(rows), current_item="", operation="Getting the look model ready (it downloads the first time)", force=True)
     root = await ctx.blocking(ensure_models)
     model = await ctx.blocking(LookModel, root)
     detector = None

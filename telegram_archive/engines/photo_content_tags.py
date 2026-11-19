@@ -1,8 +1,9 @@
-"""Content tags for photos from a small local detector (NudeNet, ONNX, about 12 MB, MIT).
+"""Content tags for photos from a small local detector (YOLOv8 nano in ONNX, about 12 MB, an optional download).
 
 For every photo it records which kinds of region are visible (for example breasts, buttocks, belly, feet) as plain tags that the
-Photos page can filter on. It says what is visible, not size or shape, and never identifies anyone. Optional: without the
-`nudenet` package the app runs as before and the feature reports how to install it.
+Photos page can filter on. It says what is visible, not size or shape, and never identifies anyone. Optional: the weights are
+not part of the app (their licence is AGPL-3.0); they are downloaded when the person asks, under AI, Models, and run by
+`content_detector` with onnxruntime. Without them the app runs as before and the feature says how to get them.
 """
 from __future__ import annotations
 
@@ -32,11 +33,22 @@ TAG_LABELS = {
 
 
 def available() -> bool:
+    """The packages that run the detector are installed (the weights are a separate download: see model_ready)."""
     try:
         import importlib.util
-        return importlib.util.find_spec("nudenet") is not None
+        return all(importlib.util.find_spec(m) is not None for m in ("onnxruntime", "cv2", "numpy", "PIL"))
     except Exception:
         return False
+
+
+def model_path():
+    from ..core import model_hub as hub
+    return hub.active_dir("content") / "320n.onnx"
+
+
+def model_ready() -> bool:
+    from ..core import model_hub as hub
+    return hub.installed("content", hub.selected("content"))
 
 
 def tags_from_detections(detections: list[dict[str, Any]], min_score: float = MIN_SCORE) -> dict[str, dict[str, float]]:
@@ -89,7 +101,7 @@ def summary(db, facets: dict[str, int] | None = None) -> dict[str, Any]:
         rows = rdb.execute("SELECT tag, COUNT(*) n FROM photo_content_tags GROUP BY tag").fetchall()
     counts = {r["tag"]: int(r["n"]) for r in rows}
     shown = counts if facets is None else facets
-    return {"available": available(), "total_photos": total, "analysed_photos": done,
+    return {"available": available() and model_ready(), "model_ready": model_ready(), "packages": available(), "total_photos": total, "analysed_photos": done,
             "tags": [{"tag": t, "label": TAG_LABELS[t], "count": shown.get(t, 0)} for t in TAG_LABELS if counts.get(t, 0)]}
 
 
@@ -101,7 +113,9 @@ async def run(ctx) -> dict[str, Any]:
     except Exception:
         detail = {}
     if not available():
-        raise RuntimeError("Content tags need the optional package: pip install nudenet")
+        raise RuntimeError("Content tags need onnxruntime and OpenCV, which this install does not have")
+    if not model_ready():
+        raise RuntimeError("Download the content model first: AI, Models, Content tags")
     redo = bool(detail.get("redo")) if isinstance(detail, dict) else False
     with ctx.db.reading() as rdb:
         rows = rdb.execute(
@@ -115,8 +129,8 @@ async def run(ctx) -> dict[str, Any]:
     if (client is None or not getattr(ctx.telegram, "connected", False)) and not any(_stored_photo_path(r).is_file() for r in rows):
         raise RuntimeError("Connect Telegram or open these photos once so Archive X has local image copies before tagging")
     ctx.report(completed=0, total=len(rows), current_item="", operation="Preparing the content detector", force=True)
-    from nudenet import NudeDetector
-    detector = await ctx.blocking(NudeDetector)
+    from .content_detector import ContentDetector
+    detector = await ctx.blocking(ContentDetector, model_path())
     tagged = failed = 0
     for i, row in enumerate(rows, start=1):
         await ctx.checkpoint()

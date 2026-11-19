@@ -24,6 +24,7 @@ CACHE_TAG = "t2"   # cached windows made before words were timed (cues that star
 # The speech models offered in Settings. A bigger model is more accurate, not faster: on a processor "large-v3-turbo" runs at about half the speed of "small"
 # (3.7 against 7.6 times real time on a 4-core PC); on an NVIDIA card it is fast. Windows are cached per model, so changing the model never shows the old model's words.
 MODELS: dict[str, dict] = {
+    "base": {"label": "Lighter", "size": "140 MB", "note": "For a slow PC. Fine for clear English speech; it often fails on other languages."},
     "small": {"label": "Fast", "size": "460 MB", "note": "Runs well on any PC. Good for English; fair for other languages."},
     "medium": {"label": "Balanced", "size": "1.5 GB", "note": "Better with accents and other languages, about half as fast as Fast on a processor."},
     "large-v3-turbo": {"label": "Accurate", "size": "1.6 GB", "note": "The best words. Quick with an NVIDIA card; on a processor it is about half as fast as Fast, so it may fall behind on a slow PC."},

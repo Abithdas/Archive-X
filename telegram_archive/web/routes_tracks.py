@@ -119,6 +119,15 @@ def register_tracks_routes(router: APIRouter, *, config, require_auth, _local_ur
             svc.ensure_ready()
         return svc.status()
 
+    def _hub_set(name: str) -> None:
+        svc.set_model(name)
+        if db is not None:
+            db.set_setting("captions_model", name)
+
+    from ..core import local_models as _lm
+    _lm.CONTROL["get"] = lambda: svc.model
+    _lm.CONTROL["set"] = _hub_set
+
     @router.get("/api/captions/model")
     async def captions_model(request: Request):
         """The speech model in use, the ones to choose from, and how fast the last windows were made (1.0 is real time)."""

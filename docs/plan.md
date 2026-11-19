@@ -130,11 +130,13 @@ Two tracks run alongside: the **native player** (done: picture in its own window
 | C6 Telegram | grammers (now on Codeberg) | MIT OR Apache-2.0 | The trial already planned |
 | Issues list | Drain3 (Python), logdrain (Rust) | MIT, Apache-2.0 OR MIT | Idea: learn log templates; write our own small version |
 | B5 skip intro | intro-skipper (Jellyfin plugin) | GPL-3.0 | Idea only: compare audio fingerprints of the start of each episode in a season |
-- **E11 NudeNet (photo content tags) carries AGPL.** The package ships an AGPL-3.0 licence file (its metadata says MIT) and its model is made from Ultralytics YOLOv8 (AGPL). It is in `requirements.txt`, so the installer carries it. AGPL can be combined with our GPL, but it is the kind of term rule 9 says to avoid. Replace it (a model with a permissive licence) or drop the feature; decide in D8.
+- **E11 (done, unreleased) NudeNet (photo content tags) carried AGPL.** Now an optional download (the weights) run by our own code; the package is out of `requirements.txt`. Original finding: The package ships an AGPL-3.0 licence file (its metadata says MIT) and its model is made from Ultralytics YOLOv8 (AGPL). It is in `requirements.txt`, so the installer carries it. AGPL can be combined with our GPL, but it is the kind of term rule 9 says to avoid. Replace it (a model with a permissive licence) or drop the feature; decide in D8.
 - **E12 Fonts: done.** Inter and the two unnamed fonts (`archive-x-display`, `archive-x-mono`, made with AI, origin unknown) were removed; only Outfit, with its licence text, is bundled.
 - **E13 TMDB logo.** The credit sentence is in Settings, Metadata. TMDB's logo rules (themoviedb.org/about/logos-attribution) could not be opened from the build machine (the host is not allowed); save the logo file and the rules text, or allow the host, and the logo is added next to the sentence.
 - **E14 Transitions.dev: done.** The motion code adapted from its snippets was rewritten from scratch (`design/motion.css`, `clearDissolve.ts`, `spinReel.ts`, `Reveal.tsx`): our own class names (`mo-`), numbers and techniques, and the library is no longer listed in the notices.
 - **E15 What cannot be removed.** FFmpeg (GPL-3.0) and the LAV filters (GPL-2.0-or-later) are bundled and need the source offer already in `THIRD-PARTY-NOTICES.md` (we are GPL ourselves, so they fit). A few MPL-2.0 crates (cssparser, selectors, dtoa-short, option-ext) come in through Tauri; unchanged, they only need their source to stay available. The OpenCV and PyAV wheels carry LGPL FFmpeg parts.
+
+- **E16 More sizes where they are safe.** Faces and content tags have one size. Faces: any other recogniser makes fingerprints that do not match the stored people, so a swap needs a "read all faces again" step first. Content tags: the 640-pixel NudeNet model is on GitHub only, which the build host cannot reach to pin a checksum; pin it from a PC that can. Captions could gain a whisper.cpp engine (B7) with the same sizes.
 
 ## 8. Decisions that are yours
 
@@ -145,7 +147,7 @@ Two tracks run alongside: the **native player** (done: picture in its own window
 - **D5** Set the GitHub description and topics? (E7)
 - **D6** Should downloading from sites (a yt-dlp-style source) ever be a feature? It fits technically and is a terms-of-service and legal choice.
 - **D7** A phone as a remote control? The app listens only on this PC by design; a pairing code would need a security design first.
-- **D8** Replace or drop NudeNet (photo content tags)? (E11)
+- **D8 (decided: on-demand download, done)** NudeNet: the weights are an optional download and every other model is a download in sizes too. Left over: a better or larger content detector with a permissive licence, if one turns up (E16).
 - Answered: desktop app only (ADR 0005); licence GPL-3.0-or-later (ADR 0008); web player first, native player for what it cannot play.
 
 ## 9. Measured facts kept from the earlier migration rounds

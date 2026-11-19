@@ -143,16 +143,23 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
 
     def _model_list() -> list[dict[str, Any]]:
         from ..core import local_models
-        out = local_models.catalog(ai.masked_status())
+        out = local_models.catalog(ai.masked_status(), llm_file=local_models.llm_file_of(ai))
         for item in out:
             job = model_jobs.get(item["id"]) or {}
             item["busy"] = job.get("state") == "downloading"
             item["error"] = job.get("error", "") if job.get("state") == "error" else ""
+            progress = {job.get("variant"): int(100 * job.get("done", 0) / job["total"]) if job.get("total") else 0} if item["busy"] else {}
+            busy_variant = job.get("variant") if item["busy"] else ""
             if item["id"] == "llm":
                 from ..core import local_ai_setup
                 run = local_ai_setup.SETUP.snapshot()
                 item["busy"] = run["state"] == "running"
                 item["error"] = run["error"] if run["state"] == "error" and item["state"] == "not_set_up" else item["error"]
+                busy_variant = run["model"] if item["busy"] else ""
+                progress = {busy_variant: int(100 * run["bytes_done"] / run["bytes_total"]) if run["bytes_total"] else 0} if item["busy"] else {}
+            for v in item["variants"]:
+                v["busy"] = bool(item["busy"]) and v["id"] == busy_variant
+                v["progress"] = progress.get(v["id"], 0) if v["busy"] else 0
             if item["busy"]:
                 item["state"] = "downloading"
         return out
@@ -182,35 +189,98 @@ def register_ai_routes(router: APIRouter, env: dict, bridge) -> ArchiveXAI:
         except Exception as exc:
             return {"ok": False, "detail": f"{type(exc).__name__}: {exc}"[:300]}
 
-    @router.post("/api/ai/models/{model_id}/install")
-    async def ai_model_install(model_id: str, request: Request):
-        require_auth(request)
+    FAMILIES = {"llm", "faces", "captions", "content", "looks"}
+
+    async def _start_install(model_id: str, variant_id: str | None) -> dict[str, Any]:
         from ..core import local_models
         if model_id == "llm":
             from ..core import local_ai_setup as setup
             engines = setup.supported_engines()
             if not engines:
                 raise HTTPException(400, "This computer needs the assistant set up by hand (Models tab, advanced).")
-            started = setup.SETUP.start(db, ai, setup.recommend(await asyncio.to_thread(setup.memory_gb)), engines[0].key)
+            ram = await asyncio.to_thread(setup.memory_gb)
+            key = variant_id or setup.recommend(ram)
+            if key not in setup.MODELS:
+                raise HTTPException(404, "Unknown size")
+            started = setup.SETUP.start(db, ai, key, engines[0].key)
             return {"ok": True, "started": started, "already_running": not started}
-        if model_id not in {"faces", "captions", "looks"}:
-            raise HTTPException(400, "This model is not downloaded from here; see its hint.")
+        if model_id not in {"faces", "captions", "content", "looks"}:
+            raise HTTPException(404, "Unknown model")
+        known = {v["id"] for v in local_models.variants_of(model_id)}
+        if variant_id is not None and variant_id not in known:
+            raise HTTPException(404, "Unknown size")
         if (model_jobs.get(model_id) or {}).get("state") == "downloading":
             return {"ok": True, "already_running": True}
-        model_jobs[model_id] = {"state": "downloading"}
+        vid = variant_id or next(v["id"] for v in local_models.variants_of(model_id) if v["selected"])
+        job: dict[str, Any] = {"state": "downloading", "variant": vid, "done": 0, "total": 0}
+        model_jobs[model_id] = job
+
+        def progress(done: int, total: int) -> None:
+            job["done"], job["total"] = done, total
 
         async def work():
             try:
-                await asyncio.to_thread(local_models.download, model_id)
+                await asyncio.to_thread(local_models.download, model_id, vid, progress)
                 model_jobs.pop(model_id, None)
-                db.log(f"Local AI model {model_id} downloaded", "SUCCESS", event="ai.model.downloaded")
+                db.log(f"Local AI model {model_id} ({vid}) downloaded", "SUCCESS", event="ai.model.downloaded")
             except Exception as exc:
-                model_jobs[model_id] = {"state": "error", "error": f"{type(exc).__name__}: {exc}"[:300]}
-                db.log(f"Local AI model {model_id} download failed: {type(exc).__name__}: {exc}", "WARN", event="ai.model.download_failed")
+                model_jobs[model_id] = {"state": "error", "variant": vid, "error": f"{type(exc).__name__}: {exc}"[:300]}
+                db.log(f"Local AI model {model_id} ({vid}) download failed: {type(exc).__name__}: {exc}", "WARN", event="ai.model.download_failed")
         task = asyncio.get_running_loop().create_task(work())
         model_tasks.add(task)
         task.add_done_callback(model_tasks.discard)
         return {"ok": True, "started": True}
+
+    @router.post("/api/ai/models/{model_id}/install")
+    async def ai_model_install(model_id: str, request: Request):
+        require_auth(request)
+        if model_id not in FAMILIES:
+            raise HTTPException(404, "Unknown model")
+        return await _start_install(model_id, None)
+
+    @router.post("/api/ai/models/{model_id}/variants/{variant_id}/install")
+    async def ai_variant_install(model_id: str, variant_id: str, request: Request):
+        """Download one size. For the assistant this also sets it up and switches to it (that is how the one-step setup works)."""
+        require_auth(request)
+        if model_id not in FAMILIES:
+            raise HTTPException(404, "Unknown model")
+        return await _start_install(model_id, variant_id)
+
+    @router.post("/api/ai/models/{model_id}/variants/{variant_id}/select")
+    async def ai_variant_select(model_id: str, variant_id: str, request: Request):
+        """Use a size that is already downloaded."""
+        require_auth(request)
+        from ..core import local_models
+        if model_id not in FAMILIES:
+            raise HTTPException(404, "Unknown model")
+        try:
+            return {"ok": True, **await asyncio.to_thread(local_models.select_variant, model_id, variant_id, ai=ai)}
+        except KeyError:
+            raise HTTPException(404, "Unknown size")
+        except ValueError as exc:
+            raise HTTPException(409, str(exc))
+
+    @router.delete("/api/ai/models/{model_id}/variants/{variant_id}")
+    async def ai_variant_delete(model_id: str, variant_id: str, request: Request):
+        """Delete a downloaded size and give its disk space back. The size in use stays until another is chosen (unless it is the only size)."""
+        require_auth(request)
+        from ..core import local_models
+        if model_id not in FAMILIES:
+            raise HTTPException(404, "Unknown model")
+        if (model_jobs.get(model_id) or {}).get("state") == "downloading":
+            raise HTTPException(409, "A download is running for this model. Wait for it to finish.")
+        if model_id == "llm":
+            from ..core import local_ai_setup
+            if local_ai_setup.SETUP.snapshot()["state"] == "running":
+                raise HTTPException(409, "The assistant is being set up. Wait for it to finish.")
+        try:
+            freed = await asyncio.to_thread(local_models.delete_variant, model_id, variant_id, ai=ai)
+        except KeyError:
+            raise HTTPException(404, "Unknown size")
+        except ValueError as exc:
+            raise HTTPException(409, str(exc))
+        db.log(f"Local AI model {model_id} ({variant_id}) deleted, {freed} MB freed", "INFO", event="ai.model.deleted")
+        return {"ok": True, "freed_mb": freed}
 
     @router.post("/api/ai/config")
     async def ai_config(request: Request):

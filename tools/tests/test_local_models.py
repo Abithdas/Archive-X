@@ -53,7 +53,14 @@ def test_look_model_is_reported_ready_and_runs(monkeypatch, tmp_path):
     assert lm.self_test("looks")["ok"]
 
 
-def test_content_detector_self_test():
-    pytest.importorskip("nudenet")
-    r = lm.self_test("content")
-    assert r["ok"], r
+def test_content_self_test_says_to_download_first_and_runs_once_it_is_there(monkeypatch, tmp_path):
+    import os
+    from telegram_archive import config
+    monkeypatch.setattr(config, "CACHE_DIR", tmp_path)
+    assert lm.self_test("content")["ok"] is False
+    real = os.environ.get("AX_TEST_CONTENT_MODEL")
+    if real:
+        d = tmp_path / "models" / "content" / "fast"; d.mkdir(parents=True)
+        shutil.copy(real, d / "320n.onnx")
+        r = lm.self_test("content")
+        assert r["ok"], r

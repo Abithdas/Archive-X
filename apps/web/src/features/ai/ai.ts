@@ -67,7 +67,12 @@ export const messageTime = (m: Message) => `${m.role === 'user' ? 'You' : 'Archi
 export const replyMeta = (model: string | undefined) => `Archive X Local AI · ${model || ''}`
 
 export type ModelState = 'ready' | 'stopped' | 'not_set_up' | 'not_downloaded' | 'needs_package' | 'downloading'
-export interface LocalModel { id: string; name: string; detail: string; size_mb: number; licence: string; state: ModelState; installable: boolean; powers: string[]; hint: string; busy?: boolean; error?: string }
+export interface ModelVariant { id: string; label: string; name?: string; size_mb: number; note: string; recommended: boolean; installed: boolean; selected: boolean; fits?: boolean; busy?: boolean; progress?: number }
+export interface LocalModel { id: string; name: string; detail: string; size_mb: number; licence: string; state: ModelState; installable: boolean; powers: string[]; hint: string; busy?: boolean; error?: string; variants?: ModelVariant[]; selected?: string; freeable_mb?: number }
+/** What a size row says it is: the badge words, in order of importance. */
+export const variantBadges = (v: ModelVariant): string[] => [v.selected && v.installed ? 'In use' : '', v.recommended ? 'Recommended' : '', v.installed && !v.selected ? 'Downloaded' : ''].filter(Boolean)
+/** Can this size be deleted from the page? The size in use stays while another downloaded size could take over. */
+export const canDelete = (v: ModelVariant, all: ModelVariant[]) => v.installed && !(v.selected && all.some((o) => o.installed && o.id !== v.id))
 export interface ModelsReply { ok?: boolean; ready: number; total: number; models: LocalModel[] }
 export const STATE_LABEL: Record<ModelState, string> = { ready: 'Ready', stopped: 'Stopped', not_set_up: 'Not set up', not_downloaded: 'Not downloaded', needs_package: 'Needs install', downloading: 'Downloading…' }
 export const stateTone = (s: ModelState): 'good' | 'warn' | 'busy' => (s === 'ready' ? 'good' : s === 'downloading' ? 'busy' : 'warn')

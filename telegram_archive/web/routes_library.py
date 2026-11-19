@@ -967,7 +967,9 @@ def register_library_routes(
         if looks and not photo_look_tags.available():
             raise HTTPException(501, "Look suggestions need the optional packages onnxruntime and tokenizers (pip install onnxruntime tokenizers)")
         if not looks and not photo_content_tags.available():
-            raise HTTPException(501, "Content tags need the optional package nudenet (pip install nudenet)")
+            raise HTTPException(501, "Content tags need onnxruntime and OpenCV, which this install does not have")
+        if not looks and not photo_content_tags.model_ready():
+            raise HTTPException(409, "Download the content model first: AI, Models, Content tags")
         with db.reading() as rdb:
             indexed = int(rdb.execute("SELECT COUNT(*) n FROM photo_library_items").fetchone()["n"] or 0)
         if not indexed:

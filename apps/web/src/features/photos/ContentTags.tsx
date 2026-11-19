@@ -9,7 +9,7 @@ import { scopeParams, type PhotoScope } from './photos'
 import { usePhotoStore } from './store'
 
 export interface LookSummary { available: boolean; total_photos: number; analysed_photos: number; tags: Array<{ tag: string; label: string; group: string; count: number }> }
-export interface ContentSummary { available: boolean; total_photos: number; analysed_photos: number; tags: Array<{ tag: string; label: string; count: number }>; looks?: LookSummary }
+export interface ContentSummary { available: boolean; model_ready?: boolean; packages?: boolean; total_photos: number; analysed_photos: number; tags: Array<{ tag: string; label: string; count: number }>; looks?: LookSummary }
 export const toggleTag = (picked: readonly string[], tag: string) => (picked.includes(tag) ? picked.filter((t) => t !== tag) : [...picked, tag])
 export const tagLine = (s: ContentSummary) => !s.total_photos ? '' : s.analysed_photos >= s.total_photos ? `All ${s.total_photos.toLocaleString()} photos are tagged.` : `${s.analysed_photos.toLocaleString()} of ${s.total_photos.toLocaleString()} photos are tagged.`
 const LOOK_CONFIRM = 'A small picture model (CLIP, about 155 MB, downloaded once and checked) runs on this PC. For each photo with a person it looks at the head and suggests hair colour and hair length. These are guesses: hair length is fairly reliable, hair colour is the weakest and is only suggested when the model is clearly sure. It does not identify anyone.'
@@ -62,7 +62,7 @@ export function ContentTags({ bare = false, scope }: { bare?: boolean; scope?: P
     <section aria-label="Content tags" className={bare ? 'grid gap-2' : 'mb-4 grid gap-2'}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h2 className={bare ? 'text-sm font-bold' : 'text-lg font-bold'}>Content</h2>
         <span role="status" aria-live="polite" className="text-xs text-muted">{busy || tagLine(s)}</span>
-        {s.available ? <button type="button" disabled={!!busy} onClick={() => setAsk(true)} className="ml-auto rounded-lg border border-line-2 px-3 py-1 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50">{s.analysed_photos >= s.total_photos ? 'Tag again' : 'Tag photos by content'}</button> : <span className="ml-auto text-xs text-muted">Needs <code>pip install nudenet</code></span>}
+        {s.available ? <button type="button" disabled={!!busy} onClick={() => setAsk(true)} className="ml-auto rounded-lg border border-line-2 px-3 py-1 text-xs font-semibold hover:bg-fg/5 disabled:opacity-50">{s.analysed_photos >= s.total_photos ? 'Tag again' : 'Tag photos by content'}</button> : <span className="ml-auto text-xs text-muted">{s.model_ready === false && s.packages !== false ? 'Download the content model first: AI, Models' : 'Needs onnxruntime and OpenCV'}</span>}
       </div>
       {s.tags.length ? (
         <div role="group" aria-label="Filter by content" className="flex flex-wrap gap-2">

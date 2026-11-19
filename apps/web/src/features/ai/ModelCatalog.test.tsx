@@ -2,7 +2,8 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { ModelCatalog } from './ModelCatalog'
-import { anyBusy, modelsSummary, sizeText, stateTone, testLine } from './ai'
+import type { ModelVariant } from './ai'
+import { anyBusy, canDelete, modelsSummary, sizeText, stateTone, testLine, variantBadges } from './ai'
 
 afterEach(() => vi.unstubAllGlobals())
 const json = (b: unknown, code = 200) => new Response(JSON.stringify(b), { status: code })
@@ -55,5 +56,61 @@ describe('Local AI models', () => {
   it('offers Retry when the list cannot be loaded', async () => {
     mount((u) => (u === '/api/ai/models' ? json({ detail: 'x' }, 500) : undefined))
     expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument()
+  })
+})
+
+const V = (id: string, o = {}) => ({ id, label: id.toUpperCase(), size_mb: 100, note: `note ${id}`, recommended: false, installed: false, selected: false, ...o })
+const SIZE_ROWS = [V('b32', { recommended: true, installed: true, selected: true }), V('b16', { size_mb: 154 }), V('b8', { installed: true })]
+const SIZES = { ok: true, ready: 1, total: 1, models: [M('looks', { name: 'Look suggestions', variants: SIZE_ROWS })] }
+
+describe('model sizes', () => {
+  it('words the badges and says which sizes may be deleted', () => {
+    const [a, b, c] = SIZE_ROWS as [ModelVariant, ModelVariant, ModelVariant]
+    expect(variantBadges(a)).toEqual(['In use', 'Recommended']); expect(variantBadges(b)).toEqual([]); expect(variantBadges(c)).toEqual(['Downloaded'])
+    expect(canDelete(a, [a, b, c])).toBe(false)                       // in use, and another size is downloaded to switch to
+    expect(canDelete(c, [a, b, c])).toBe(true); expect(canDelete(b, [a, b, c])).toBe(false)   // not downloaded: nothing to delete
+    expect(canDelete(a, [a, b])).toBe(true)                           // the only one downloaded
+  })
+  const mountSizes = () => mount((u) => (u === '/api/ai/models' ? json(SIZES) : u.includes('/variants/') ? json({ ok: true, freed_mb: 154 }) : undefined))
+  it('lists every size with its note, badges and the right buttons', async () => {
+    mountSizes()
+    const list = within(await screen.findByRole('list', { name: 'Look suggestions sizes' }))
+    expect(list.getAllByRole('listitem')).toHaveLength(3)
+    expect(list.getByText('Recommended')).toBeInTheDocument(); expect(list.getByText('In use')).toBeInTheDocument(); expect(list.getByText('note b16')).toBeInTheDocument()
+    expect(list.getAllByRole('button', { name: 'Download' })).toHaveLength(1)                 // only the size that is not here
+    expect(list.getAllByRole('button', { name: 'Use this' })).toHaveLength(1)                 // only the downloaded size that is not in use
+    expect(screen.queryByRole('button', { name: /Delete the b32 size/ })).toBeNull()          // the one in use stays
+  })
+  it('Download starts that size, Use this switches, and both call the size routes', async () => {
+    const calls = mountSizes()
+    const list = within(await screen.findByRole('list', { name: 'Look suggestions sizes' }))
+    fireEvent.click(list.getByRole('button', { name: 'Download' }))
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/ai/models/looks/variants/b16/install' && c.method === 'POST')).toBe(true))
+    fireEvent.click(list.getByRole('button', { name: 'Use this' }))
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/ai/models/looks/variants/b8/select' && c.method === 'POST')).toBe(true))
+    expect(await screen.findByText('Now using the b8 size.')).toBeInTheDocument()
+  })
+  it('Delete asks once more before anything is removed, and says how much space came back', async () => {
+    const calls = mountSizes()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete the b8 size of Look suggestions' }))
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Keep' }))
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete the b8 size of Look suggestions' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete for good' }))
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/ai/models/looks/variants/b8' && c.method === 'DELETE')).toBe(true))
+    expect(await screen.findByText('Deleted. 154 MB freed.')).toBeInTheDocument()
+  })
+  it('a size that is downloading shows its percentage and progress bar and nothing else to press', async () => {
+    const busy = { ...SIZES, models: [{ ...SIZES.models[0], state: 'downloading', busy: true, variants: [V('b32', { recommended: true, installed: true, selected: true }), V('b16', { busy: true, progress: 42 })] }] }
+    mount((u) => (u === '/api/ai/models' ? json(busy) : undefined))
+    expect(await screen.findByText('Downloading 42%')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42')
+    expect(screen.queryByRole('button', { name: 'Download' })).toBeNull()
+  })
+  it('shows why a switch or delete was refused', async () => {
+    mount((u) => (u === '/api/ai/models' ? json(SIZES) : u.includes('/select') ? json({ detail: 'Download it first.' }, 409) : undefined))
+    fireEvent.click(await screen.findByRole('button', { name: 'Use this' }))
+    expect(await screen.findByText('Download it first.')).toBeInTheDocument()
   })
 })

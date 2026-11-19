@@ -1,3 +1,4 @@
+import os
 import sys, tempfile
 from pathlib import Path
 import pytest
@@ -31,14 +32,14 @@ def test_tags_are_stored_replaced_and_counted(tmp_path):
     assert {t["tag"]: t["label"] for t in s["tags"]}["feet"] == "Feet"
 
 
-@pytest.mark.skipif(not ct.available(), reason="nudenet not installed")
+@pytest.mark.skipif(not os.environ.get("AX_TEST_CONTENT_MODEL"), reason="set AX_TEST_CONTENT_MODEL to the downloaded 320n.onnx")
 def test_real_detector_runs_and_finds_no_exposed_regions_in_an_ordinary_portrait():
-    from nudenet import NudeDetector
     from PIL import Image
+    from telegram_archive.engines.content_detector import ContentDetector
     pytest.importorskip("skimage")   # a test-only package; the check is skipped where it is not installed
     from skimage import data
     p = Path(tempfile.mkdtemp()) / "a.jpg"
     Image.fromarray(data.astronaut()).save(p)
-    dets = NudeDetector().detect(str(p))
+    dets = ContentDetector(os.environ["AX_TEST_CONTENT_MODEL"]).detect(str(p))
     assert any(d["class"] == "FACE_FEMALE" for d in dets)        # the detector really ran
     assert ct.tags_from_detections(dets) == {}                    # a clothed portrait gets no content tags
