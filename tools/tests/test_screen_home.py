@@ -1,6 +1,7 @@
 """SFW Home and Discover: what to continue, what airs this week, what was added, and Cinemeta's catalogues with the library marked."""
 import sys
 from datetime import date, timedelta
+import pytest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -301,7 +302,7 @@ def test_any_stremio_addon_can_be_added_and_the_one_on_this_pc_needs_the_switch(
     from telegram_archive.metadata import addon_client as ac
      # what a manifest offers: lists are used, everything else is named; streams are never asked for
     streams = ac.parse_manifest({"name": "Streams only", "resources": ["stream"], "catalogs": []})
-    assert streams["lists"] == [] and streams["provides"] == ["Streams"] and "never asks an add-on for streams" in streams["note"] and "no lists" in streams["note"]
+    assert streams["lists"] == [] and streams["provides"] == ["Streams"] and "Title pages ask for streams" in streams["note"] and "no lists" in streams["note"]
     subs = ac.parse_manifest({"name": "Subs", "resources": ["subtitles", {"name": "meta", "types": ["movie"]}]})
     assert subs["provides"] == ["Subtitles", "Details"] and "not used yet" in subs["note"]
     typed = ac.parse_manifest({"name": "Typed", "resources": ["catalog"], "catalogs": [{"type": "movie", "id": "s", "extra": [{"name": "search", "isRequired": True}]}]})
