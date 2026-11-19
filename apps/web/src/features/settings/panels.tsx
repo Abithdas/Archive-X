@@ -130,6 +130,14 @@ export function OverviewPanel({ go }: { go: (p: PanelId) => void }) {
         <Disclosure className="mt-2 border-t border-line pt-3" summaryClassName="text-sm font-bold" summary="Details · raw runtime report">
           <pre className="mt-2 max-h-64 overflow-auto rounded-xl bg-bg p-3 text-xs text-muted">{JSON.stringify({ telegram: auth.data, dependencies: pre.data, icons: icons.data }, null, 2)}</pre></Disclosure>
       </section>
+      <section aria-label="About" className={BOX}>
+        <h3 className="mb-2 text-xl font-extrabold">About</h3>
+        <p className="text-sm text-muted">
+          Archive X is a personal fan project I made for my own use and decided to share. It was built with the help of{' '}
+          <a href="https://www.anthropic.com/claude-code" target="_blank" rel="noreferrer" className="font-semibold text-accent underline">Claude Code</a>, Anthropic's AI coding assistant.
+          It isn't affiliated with Telegram, Anthropic or any of the metadata providers it can look names up in.
+        </p>
+      </section>
     </div>
   )
 }

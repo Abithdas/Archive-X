@@ -39,6 +39,13 @@ describe('Settings', () => {
     expect(within(status).getByText('1 KB · 5 files')).toBeInTheDocument()
     expect(screen.getByText('Telegram · Not connected')).toBeInTheDocument()
   })
+  it('Overview ends with an About note that says it is a fan project built with Claude Code', async () => {
+    mount()
+    const about = await screen.findByRole('region', { name: 'About' })
+    expect(within(about).getByText(/personal fan project/)).toBeInTheDocument()
+    expect(within(about).getByRole('link', { name: 'Claude Code' })).toHaveAttribute('href', 'https://www.anthropic.com/claude-code')
+    expect(within(about).getByText(/isn't affiliated with Telegram, Anthropic/)).toBeInTheDocument()
+  })
   it('remembers the selected section', async () => {
     mount()
     fireEvent.click(await screen.findByRole('button', { name: 'Experience' }))

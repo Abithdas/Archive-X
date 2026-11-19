@@ -2,6 +2,9 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+- **About note.** Settings, Overview ends with an About card (and the README a note) saying Archive X is a personal fan project built with Claude Code and not affiliated with Telegram, Anthropic or the metadata providers.
+
 ## 30.5.1 (2026-11-19)
 - **Fixes from the 2026-11-19 log bundle.**
   - **Progress no longer says 100% before anything is moved.** A Telegram transfer took the "116/116" of its metadata pass (under a second) as its progress and kept it for the whole run. It now follows the files: "ITEM 17/116" is 16 done, "MOVE COMPLETE" counts one more, and the metadata pass resets to 0 when it ends. Replayed against the real console lines of the log.
