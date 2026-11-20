@@ -174,25 +174,26 @@ async fn the_catalogue_is_ordered_counted_and_tidied_like_python() {
     assert_eq!(genders, ["", "female", "male", "", "trans"], "'MALE ' becomes male, 'Trans woman' trans, 'nonbinary' blank");
     let cached: Vec<i64> = rows.iter().map(|p| p["has_cached_image"].as_i64().unwrap()).collect();
     assert_eq!(cached, [0, 1, 0, 0, 0], "only a non-empty cached picture counts");
-    // every performers column comes first, in table order, then the two computed ones
+    // every performers column comes first, in table order, then the two computed ones, then the title counts Python adds
     let keys: Vec<&str> = rows[1].as_object().unwrap().keys().map(|k| k.as_str()).collect();
     assert_eq!(&keys[..4], ["id", "name", "image", "profile"]);
-    assert_eq!(&keys[keys.len() - 2..], ["video_count", "has_cached_image"]);
+    assert_eq!(&keys[keys.len() - 4..], ["video_count", "has_cached_image", "movies", "series"]);
+    assert!(rows.iter().all(|p| p["movies"] == 0 && p["series"] == 0), "no matched titles in this fixture");
     assert_eq!(rows[1]["image"], "https://img/a.jpg");
     assert!(rows[2]["image"].is_null());
 }
 
 #[tokio::test]
-async fn brief_gives_the_seven_fields_in_order_with_null_for_the_missing_favourite() {
+async fn brief_gives_the_nine_fields_in_order_with_null_for_the_missing_favourite() {
     let d = door(|_| {}).await;
     let r = get(d.addr, "/api/performers?brief=1&limit=2", "").await;
     assert_eq!(
         String::from_utf8(r.body).unwrap(),
-        r#"[{"id":4,"name":"Unknown Performer","video_count":0,"image":null,"gender":"","favorite":null,"has_cached_image":0},{"id":1,"name":"Ava Stone","video_count":3,"image":"https://img/a.jpg","gender":"female","favorite":null,"has_cached_image":1}]"#
+        r#"[{"id":4,"name":"Unknown Performer","video_count":0,"movies":0,"series":0,"image":null,"gender":"","favorite":null,"has_cached_image":0},{"id":1,"name":"Ava Stone","video_count":3,"movies":0,"series":0,"image":"https://img/a.jpg","gender":"female","favorite":null,"has_cached_image":1}]"#
     );
     // only the exact value 1 turns brief on
     let r = get(d.addr, "/api/performers?brief=yes&limit=1", "").await;
-    assert!(json(&r)[0].as_object().unwrap().len() > 7);
+    assert!(json(&r)[0].as_object().unwrap().len() > 9);
 }
 
 #[tokio::test]

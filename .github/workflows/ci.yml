@@ -70,8 +70,8 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       # The desktop shell (archive-x-desktop) needs the Linux web-view libraries, so it is built and tested on Windows in desktop.yml.
       - run: cargo fmt --all --check
-      - run: cargo test -p ax-server -p ax-db -p ax-names -p ax-faces
-      - run: cargo clippy -p ax-server -p ax-db -p ax-names -p ax-faces -p archive-x-launcher-core -p archive-x-native-player --all-targets -- -D warnings
+      - run: cargo test -p ax-server -p ax-db -p ax-names -p ax-faces -p ax-core
+      - run: cargo clippy -p ax-server -p ax-db -p ax-names -p ax-faces -p ax-core -p archive-x-launcher-core -p archive-x-native-player --all-targets -- -D warnings
 
   front-door-windows:
     # The front door ships in the Windows installer: make sure it builds there.
@@ -82,7 +82,7 @@ jobs:
         with: { toolchain: stable }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - run: cargo build --release -p ax-server
-      - run: cargo test -p ax-server -p ax-db -p ax-names -p ax-faces
+      - run: cargo test -p ax-server -p ax-db -p ax-names -p ax-faces -p ax-core
 
   python-lint:
     runs-on: ubuntu-latest

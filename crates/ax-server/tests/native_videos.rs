@@ -293,10 +293,12 @@ async fn odd_ids_and_the_studio_performer_filter_are_left_to_python() {
         "/api/tags/1/videos/extra",
         "/api/studios/1/videos?performer_id=2",
         "/api/channels/9999999999999999999/videos",
+        // the content guard looks a channel up by the address's own text, so this is not channel -1001 there
+        "/api/channels/-001001/videos",
     ] {
         assert_eq!(get(d.addr, p, "").await.headers["x-served-by"], "python", "{p}");
     }
-    for p in ["/api/studios/1/videos?other=1", "/api/tags/1/videos?x=1", "/api/channels/-001001/videos"] {
+    for p in ["/api/studios/1/videos?other=1", "/api/tags/1/videos?x=1", "/api/channels/-1001/videos"] {
         assert_eq!(get(d.addr, p, "").await.headers["x-served-by"], "rust", "{p}");
     }
 }
