@@ -141,3 +141,6 @@ Update this table as units move. A unit is "done" when its Rust tests pass and i
 | 2026-11-20 | 1 | `core/sql_batches.py` | `ax-core::sql_batches` | done | |
 | 2026-11-20 | 1 | `core/duration_filter.py` | `ax-core::duration_filter` | done | `message_duration_seconds` stays with the Telegram client port. Compared against Python on 17 inputs. |
 | 2026-11-20 | 1 | `core/resolution_filter.py` | `ax-core::resolution_filter` | done | Compared against Python on 8 selections and 7 sizes. |
+| 2026-11-20 | 1 | `core/net_errors.py` | `ax-core::net_errors` | done | The caller names the error family (`Kind`) instead of passing an exception object; the same text patterns apply. |
+| 2026-11-20 | 1 | `core/size_optimizer.py` (pure parts) | `ax-core::size_optimizer` | partial | Bitrate maths, next-pass bitrate, duration fallback and the FFmpeg command line are ported and compared with Python. The async encode loop waits for the media worker port. |
+| | 1 | `core/session_cookie.py` | - | deferred | It is a thin wrapper over FastAPI's response object, so it is rewritten with the axum auth layer in Phase 2. |
