@@ -37,7 +37,7 @@ impl std::fmt::Display for ConfigError {
 }
 
 /// Python's `int(value)` for a JSON value: numbers truncate toward zero, strings must be an integer literal.
-fn py_int(v: &Value) -> Result<i64, ConfigError> {
+pub fn py_int(v: &Value) -> Result<i64, ConfigError> {
     match v {
         Value::Bool(b) => Ok(i64::from(*b)),
         Value::Number(n) => n.as_i64().or_else(|| n.as_f64().filter(|f| f.is_finite()).map(|f| f.trunc() as i64)).ok_or(ConfigError::NotAnInteger),
