@@ -63,7 +63,7 @@ def main():
         names.append("".join(rng.choice(PIECES) for _ in range(rng.randint(1, 9))))
     out = {"names": [], "generic": [], "fused": [], "oshash": []}
     for n in names:
-        out["names"].append({"name": n, "clean": parser.clean_text(n), "key": parser.canonical_key(n), "parsed": parser.parse_scene_name(n)})
+        out["names"].append({"name": n, "clean": parser.clean_text(n), "canonical": parser.canonical_key(n), "parsed": parser.parse_scene_name(n)})
     for g in GENERIC:
         out["generic"].append({"value": g, "result": parser.is_generic_scene_code(g)})
     for n in names[:120]:

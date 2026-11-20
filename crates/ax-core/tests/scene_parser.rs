@@ -19,8 +19,8 @@ fn every_recorded_name_gives_the_recorded_text_key_and_hints() {
         if clean_text(name) != case["clean"].as_str().unwrap() {
             failures.push(format!("clean {name:?}: {:?} vs {}", clean_text(name), case["clean"]));
         }
-        if canonical_key(name) != case["key"].as_str().unwrap() {
-            failures.push(format!("key {name:?}: {:?} vs {}", canonical_key(name), case["key"]));
+        if canonical_key(name) != case["canonical"].as_str().unwrap() {
+            failures.push(format!("key {name:?}: {:?} vs {}", canonical_key(name), case["canonical"]));
         }
         let got = parse_scene_name(name).to_json();
         if got != case["parsed"] {
