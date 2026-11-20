@@ -9,7 +9,10 @@ What it does (the "recording harness" of docs/rust-migration-plan.md, Phase 0):
 3. Starts `ax-server` in front of a second copy of that backend, with the native routes switched on.
 4. Runs `compare.py` for server A (Python straight) against server B (the front door): every GET route of the OpenAPI file, the
    discovered routes with ids, and the list query variants. Status codes and JSON bodies must match.
-5. Runs it twice, once in SFW and once in NSFW mode (the fixture's rows are NSFW). Then `compare_writes.py` for the routes that change data, when `--writes` is given.
+5. Runs it twice, once in SFW and once in NSFW mode (the fixture's rows are NSFW).
+
+Not covered yet: the routes that change data (`compare_writes.py` needs a signed-in user and both data folders; wiring it in is the next
+step of the harness).
 
 With `--self-check` the same two Python copies are compared with each other instead (no Rust needed): this proves the recording itself
 is repeatable, which has to be true before a difference means anything.
@@ -34,7 +37,7 @@ READY = "ARCHIVE_X_READY "
 SKIP = ("/api/exit,/openapi.json,/api/diagnostics/metrics,/api/diagnostics/metrics/export,/api/diagnostics/report,/api/diagnostics/summary,"
         "/api/log/download,/api/diagnostics/logs,/api/diagnostics/report/html")
 # Values that differ between two healthy copies of the same fixture: memory and disk figures, per-launch ids, change counters, byte totals.
-VOLATILE = "available_bytes,available_gb,free_bytes,launch_id,data_versions,bytes,first,last,recent_degraded,playback_log_tail,recent_playback_events,free_gb,events"
+VOLATILE = "available_bytes,available_gb,free_bytes,launch_id,data_versions,bytes,first,last,recent_degraded,playback_log_tail,recent_playback_events,free_gb,events,free,used"
 
 
 def start_python_backend(data_dir: Path, log_path: Path) -> tuple[subprocess.Popen, int]:
@@ -89,7 +92,6 @@ def main() -> None:
     ap.add_argument("--native-routes", default="all")
     ap.add_argument("--dist", default=str(ROOT / "apps" / "web" / "dist"))
     ap.add_argument("--self-check", action="store_true", help="compare two Python copies with each other (no Rust)")
-    ap.add_argument("--writes", action="store_true", help="also run compare_writes.py")
     ap.add_argument("--keep", action="store_true", help="keep the scratch data folders")
     args = ap.parse_args()
 
@@ -128,8 +130,6 @@ def main() -> None:
         for mode in ("sfw", "nsfw"):
             code |= run([sys.executable, str(HERE / "compare.py"), "--a", a, "--b", b, "--set-mode", mode, "--discover", "--queries", "--ignore", VOLATILE, "--skip", SKIP,
                          "--path-a", str(scratch / "a"), "--path-b", str(scratch / "b")], env)
-        if args.writes and not code:
-            code = run([sys.executable, str(HERE / "compare_writes.py"), "--a", a, "--b", b], env)
         sys.exit(code)
     finally:
         for p in procs:

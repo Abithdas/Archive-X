@@ -230,7 +230,12 @@ impl Native {
                 if digits.is_empty() || digits.len() > 18 || !digits.bytes().all(|b| b.is_ascii_digit()) {
                     return None;
                 }
-                (name, Some(id.parse::<i64>().ok()?))
+                let number = id.parse::<i64>().ok()?;
+                // content_guard looks a channel up by the address's own text, so `-001001` is not channel -1001 there: leave odd spellings to Python.
+                if name == "channel_videos" && number.to_string() != id {
+                    return None;
+                }
+                (name, Some(number))
             }
         };
         self.enabled.get(name).map(|n| Match { name: n, id, pair: None, kind: None, needs_body: false, mutating: false })
@@ -404,6 +409,28 @@ fn rows_as_maps(conn: &Connection, sql: &str) -> ax_db::rusqlite::Result<Vec<Map
     rows.collect()
 }
 
+/// How many movies and how many series each person is in (`performer_catalogue.title_counts`): `pairs_sql` yields (eid, video_id) pairs and
+/// videos of one title count once. An unreadable table gives no counts, as in Python.
+fn title_counts(conn: &Connection, pairs_sql: &str) -> std::collections::HashMap<i64, (i64, i64)> {
+    let sql = format!(
+        "SELECT x.eid AS eid, t.kind AS kind, COUNT(DISTINCT t.id) AS n FROM ({pairs_sql}) x \
+         JOIN media_screen s ON s.media_id=x.video_id AND s.state='MATCHED' JOIN screen_titles t ON t.id=s.title_id \
+         WHERE x.video_id IN (SELECT id FROM archive_x_library_media) GROUP BY x.eid, t.kind"
+    );
+    let mut out = std::collections::HashMap::new();
+    let Ok(rows) = rows_as_maps(conn, &sql) else { return out };
+    for r in rows {
+        let (Some(eid), Some(n)) = (r.get("eid").and_then(Value::as_i64), r.get("n").and_then(Value::as_i64)) else { continue };
+        let entry: &mut (i64, i64) = out.entry(eid).or_insert((0, 0));
+        if r.get("kind").and_then(Value::as_str) == Some("tv") {
+            entry.1 = n;
+        } else {
+            entry.0 = n;
+        }
+    }
+    out
+}
+
 /// The same two queries as the Python route, and the same rule for photos whose channel is not saved.
 fn photos_channels_rows(conn: &Connection) -> ax_db::rusqlite::Result<Vec<Map<String, Value>>> {
     let mut out = rows_as_maps(
@@ -495,11 +522,12 @@ impl Native {
                 }
                 let sql = format!("{PERFORMER_COLUMNS}GROUP BY p.id HAVING video_count > 0 OR p.name='Unknown Performer' ORDER BY (p.name='Unknown Performer') DESC, video_count DESC,p.name LIMIT {limit}");
                 let rows = rows_as_maps(c, &sql)?;
-                Ok(if rows.is_empty() { None } else { Some(rows) })
+                let counts = title_counts(c, "SELECT performer_id AS eid, video_id FROM video_performers UNION SELECT performer_id, video_id FROM local_video_performers");
+                Ok(if rows.is_empty() { None } else { Some((rows, counts)) })
             })
             .await;
-        let rows = match rows {
-            Ok(Some(rows)) => rows,
+        let (rows, counts) = match rows {
+            Ok(Some(found)) => found,
             Ok(None) => return None,
             Err(e) => {
                 tracing::error!("performers: {e}");
@@ -509,6 +537,9 @@ impl Native {
         let out: Vec<Map<String, Value>> = rows
             .into_iter()
             .map(|mut p| {
+                let (movies, series) = p.get("id").and_then(Value::as_i64).and_then(|id| counts.get(&id).copied()).unwrap_or((0, 0));
+                p.insert("movies".to_string(), Value::from(movies));
+                p.insert("series".to_string(), Value::from(series));
                 let gender = p.get("gender").and_then(Value::as_str).unwrap_or("").trim().to_lowercase();
                 let normal = if gender.contains("trans") {
                     "trans".to_string()
@@ -520,7 +551,7 @@ impl Native {
                 p.insert("gender".to_string(), Value::String(normal));
                 if brief {
                     let mut b = Map::new();
-                    for key in ["id", "name", "video_count", "image", "gender", "favorite", "has_cached_image"] {
+                    for key in ["id", "name", "video_count", "movies", "series", "image", "gender", "favorite", "has_cached_image"] {
                         b.insert(key.to_string(), p.get(key).cloned().unwrap_or(Value::Null));
                     }
                     b
@@ -751,8 +782,22 @@ impl Native {
         if route == "studio_videos" && params.contains_key("performer_id") {
             return None;
         }
-        let read = self.db.read(move |c| video_list_rows(c, route, id)).await;
-        let found = match read {
+        let read = self
+            .db
+            .read(move |c| {
+                let found = video_list_rows(c, route, id)?;
+                // core/content_guard.py: an item that exists but belongs to the other mode is answered "Not found" by the guard, before the
+                // route can say which kind of thing it was. `main.` reaches the table under the mode's TEMP view. Tags are not guarded.
+                let hidden = found.is_none()
+                    && match route {
+                        "channel_videos" => c.query_row("SELECT 1 FROM main.channels WHERE telegram_id=? LIMIT 1", ax_db::rusqlite::params![id.to_string()], |_| Ok(())).is_ok(),
+                        "studio_videos" => c.query_row("SELECT 1 FROM main.studios WHERE id=? LIMIT 1", ax_db::rusqlite::params![id], |_| Ok(())).is_ok(),
+                        _ => false,
+                    };
+                Ok((found, hidden))
+            })
+            .await;
+        let (found, hidden) = match read {
             Ok(found) => found,
             Err(e) => {
                 tracing::error!("{route}: {e}");
@@ -761,6 +806,7 @@ impl Native {
         };
         match found {
             Some(payload) => Some(json_response(request, serde_json::to_vec(&payload).unwrap_or_default())),
+            None if hidden => Some(json_error(StatusCode::NOT_FOUND, "Not found")),
             None => Some(json_error(
                 StatusCode::NOT_FOUND,
                 match route {
