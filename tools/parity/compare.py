@@ -11,6 +11,7 @@ import argparse
 import http.client
 import json
 import os
+import re
 import ssl
 import sys
 import urllib.parse
@@ -60,6 +61,9 @@ def scrub(v, ignore):
         return {k: scrub(x, ignore) for k, x in v.items() if k not in ignore and not k.endswith(('_age', '_age_seconds', '_ms', '_at'))}
     if isinstance(v, list):
         return [scrub(x, ignore) for x in v]
+    if isinstance(v, str):
+        # cache-busting stamps (?v=<update time to the second>): two servers touch a row a second apart
+        return re.sub(r"\?v=\d{4}-\d{2}-\d{2}T\d{6}\+0000", "?v=<T>", v)
     return v
 
 
@@ -186,6 +190,9 @@ def main():
                 sys.exit(f"could not switch {c.base} to {args.set_mode}: {status} {data[:200]!r}")
         print(f"both servers are in {args.set_mode.upper()} mode")
     if args.discover:
+        # Some GET routes repair data on first use (the studio list links videos to their studios). Both servers get the same first
+        # requests, so neither is ahead of the other when the comparison starts.
+        discover(b)
         seeds = discover(a)
         print("discovered:", {k: (len(v) if k != "channels" else v) for k, v in seeds.items()})
         for tpl in routes_with_params():

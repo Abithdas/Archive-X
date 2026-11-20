@@ -26,6 +26,7 @@ pub const ROUTES: &[&str] = &[
     "performers_list",
     "studios_list",
     "tag_taxonomy",
+    "performer_videos",
     "face_groups_fast",
     "channel_videos",
     "studio_videos",
@@ -224,6 +225,7 @@ impl Native {
                 let (id, tail) = tail.split_once('/')?;
                 let name = match (kind, tail) {
                     ("channels", "videos") => "channel_videos",
+                    ("performers", "videos") => "performer_videos",
                     ("studios", "videos") => "studio_videos",
                     ("tags", "videos") => "tag_videos",
                     ("studios", "metadata") => "studio_metadata",
@@ -351,6 +353,11 @@ impl Native {
                 let kind = if route == "local_stream" { crate::native_stream::FileKind::Local } else { crate::native_stream::FileKind::Cached };
                 let method = if m.kind == Some("head") { Method::HEAD } else { Method::GET };
                 let resp = self.stream_file(kind, channel, message, &method, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "performer_videos" => {
+                let resp = self.performer_videos(m.id?, query, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }
@@ -704,6 +711,150 @@ impl Native {
     }
 }
 
+/// Would `resource_registry.ensure_unknown_performer_local_profile` change anything? It runs before every performer video list and rewrites
+/// the "Unknown Performer" row to a local-only profile (no provider ids, no provider text, no provider picture). When that row is already in
+/// that state it writes the same values again, so the list can be answered here; when it is not, the request goes to Python, which tidies
+/// the row first. `main.` reads the real tables, not the mode's views.
+fn unknown_performer_is_tidy(c: &Connection) -> ax_db::rusqlite::Result<bool> {
+    use ax_db::rusqlite::params;
+    let Some(row) = one_row(c, "SELECT * FROM main.performers WHERE lower(trim(name))='unknown performer' LIMIT 1", [])? else { return Ok(true) };
+    let text = |k: &str| row.get(k).and_then(Value::as_str).unwrap_or("").trim().to_string();
+    let flag = |k: &str| row.get(k).and_then(Value::as_i64).unwrap_or(0) != 0;
+    let image_locked = flag("image_locked");
+    let image_source = text("image_source").to_lowercase();
+    let current_image = text("image");
+    let provider_ids_raw = text("provider_ids");
+    let has_provider_ids = !matches!(provider_ids_raw.as_str(), "" | "{}" | "null" | "[]");
+    let profile_locked = flag("profile_locked");
+    let local_image_source = image_source == "manual" || image_source.starts_with("provider-selected:");
+    let provider_image_source = matches!(image_source.as_str(), "provider" | "stashdb" | "stash_db" | "theporndb" | "tpdb") || image_source.starts_with("provider:");
+    let remove_provider_image = !image_locked && !current_image.is_empty() && (provider_image_source || has_provider_ids);
+    let preserve_image = image_locked || local_image_source || !remove_provider_image;
+    // the values the UPDATE would write
+    if row.get("provider_ids").and_then(Value::as_str) != Some("{}") {
+        return Ok(false);
+    }
+    if row.contains_key("name_locked") && row.get("name_locked").and_then(Value::as_i64) != Some(1) {
+        return Ok(false);
+    }
+    if row.contains_key("gender") && !row["gender"].is_null() {
+        return Ok(false);
+    }
+    if !profile_locked && ["profile", "bio"].iter().any(|k| row.contains_key(*k) && !row[*k].is_null()) {
+        return Ok(false);
+    }
+    if !preserve_image {
+        return Ok(false);
+    }
+    let id = row.get("id").and_then(Value::as_i64).unwrap_or(0);
+    for table in ["entity_metadata", "entity_refresh_state"] {
+        let exists: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM main.sqlite_master WHERE type='table' AND name=?)", params![table], |r| r.get(0))?;
+        if exists {
+            let has_row: bool = c.query_row(&format!("SELECT EXISTS(SELECT 1 FROM main.{table} WHERE entity_type='performer' AND entity_id=?)"), params![id], |r| r.get(0))?;
+            if has_row {
+                return Ok(false);
+            }
+        }
+    }
+    Ok(true)
+}
+
+/// `routes_metadata_assets._provider_page_url`: the provider's page for a video, from its `provider_payload`.
+fn provider_page_url(row: &Map<String, Value>) -> String {
+    let raw = row.get("provider_url");
+    if truthy(raw) {
+        return py_str(raw).trim().to_string();
+    }
+    let Some(Value::String(payload)) = row.get("provider_payload").filter(|v| truthy(Some(v))) else { return String::new() };
+    let Ok(Value::Object(data)) = serde_json::from_str::<Value>(payload) else { return String::new() };
+    for key in ["url", "profile", "scene_url", "sceneUrl"] {
+        if let Some(Value::String(v)) = data.get(key) {
+            let v = v.trim();
+            if v.starts_with("https://") || v.starts_with("http://") {
+                return v.to_string();
+            }
+        }
+    }
+    String::new()
+}
+
+impl Native {
+    /// GET /api/performers/{id}/videos (routes_entity_pages.performer_videos): the performer's page. Left to Python: a `studio_id` that is not a
+    /// plain number, and the moments when the Unknown Performer row still has to be tidied.
+    async fn performer_videos(&self, id: i64, query: Option<&str>, request: &HeaderMap) -> Option<Response<Body>> {
+        let params = query_params(query)?;
+        let studio_id = match params.get("studio_id") {
+            None => 0,
+            Some(v) if !v.is_empty() && v.len() <= 18 && v.bytes().all(|b| b.is_ascii_digit()) => v.parse::<i64>().ok()?,
+            Some(_) => return None,
+        };
+        let read = self
+            .db
+            .read(move |c| {
+                use ax_db::rusqlite::params;
+                if !unknown_performer_is_tidy(c)? {
+                    return Ok(None);
+                }
+                let Some(mut performer) = one_row(c, "SELECT * FROM performers WHERE id=?", params![id])? else { return Ok(Some(Err(()))) };
+                let favorite: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM entity_favorites WHERE entity_type='performer' AND entity_id=?)", params![id], |r| r.get(0))?;
+                performer.insert("favorite".into(), Value::Bool(favorite));
+                let sql = format!(
+                    "WITH me AS (SELECT lower(trim(name)) n, COALESCE(normalized_name,'') nn FROM performers WHERE id=?), \
+                     same AS (SELECT id FROM performers WHERE id=? OR lower(trim(name))=(SELECT n FROM me) \
+                     OR (COALESCE(normalized_name,'')<>'' AND normalized_name=(SELECT nn FROM me))) \
+                     SELECT m.*, c.title channel_title, {} FROM archive_x_library_media m \
+                     LEFT JOIN channels c ON c.telegram_id=m.source_channel \
+                     WHERE (EXISTS (SELECT 1 FROM video_performers vp WHERE vp.video_id=m.id AND vp.performer_id IN (SELECT id FROM same)) \
+                        OR EXISTS (SELECT 1 FROM local_video_performers lvp WHERE lvp.video_id=m.id AND lvp.performer_id IN (SELECT id FROM same))) \
+                     {}{ENTITY_GLOB}GROUP BY m.id ORDER BY m.upload_date DESC",
+                    name_lists("performers", "studios", "tags"),
+                    if studio_id != 0 { "AND EXISTS (SELECT 1 FROM video_studios rvs WHERE rvs.video_id=m.id AND rvs.studio_id=?) " } else { "" },
+                );
+                let rows = if studio_id != 0 { rows_with(c, &sql, params![id, id, studio_id])? } else { rows_with(c, &sql, params![id, id])? };
+                let videos: Vec<Value> = rows
+                    .into_iter()
+                    .map(|mut d| {
+                        if !truthy(d.get("provider_url")) {
+                            let url = provider_page_url(&d);
+                            d.insert("provider_url".into(), Value::String(url));
+                        }
+                        let performers = merged_performers(&d);
+                        d.insert("performers".into(), strings(performers));
+                        let local = csv_list(d.get("local_performers"));
+                        d.insert("local_performers".into(), strings(local));
+                        let studios = csv_list(d.get("studios"));
+                        d.insert("studios".into(), strings(studios.clone()));
+                        d.insert("studio".into(), Value::String(studios.first().cloned().unwrap_or_default()));
+                        let tags = csv_list(d.get("tags"));
+                        d.insert("tags".into(), strings(tags));
+                        let row_id = d.get("id").cloned().unwrap_or(Value::Null);
+                        d.insert("media_id".into(), row_id);
+                        let sc = d.get("source_channel").cloned().unwrap_or(Value::Null);
+                        d.insert("_cid".into(), sc);
+                        let sm = d.get("source_message_id").cloned().unwrap_or(Value::Null);
+                        d.insert("id".into(), sm);
+                        display_name_and_thumbnail_by(&mut d, false);
+                        Value::Object(d)
+                    })
+                    .collect();
+                let mut out = Map::new();
+                out.insert("performer".into(), Value::Object(performer));
+                out.insert("videos".into(), Value::Array(videos));
+                Ok(Some(Ok(Value::Object(out))))
+            })
+            .await;
+        match read {
+            Ok(None) => None, // the Unknown Performer row needs tidying: Python does that, then answers
+            Ok(Some(Err(()))) => Some(json_error(StatusCode::NOT_FOUND, "Not found")),
+            Ok(Some(Ok(payload))) => Some(json_response(request, serde_json::to_vec(&payload).unwrap_or_default())),
+            Err(e) => {
+                tracing::error!("performer videos: {e}");
+                Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The video list could not be read"))
+            }
+        }
+    }
+}
+
 const FACE_SCOPES: &[(&str, &str)] = &[
     ("named", "EXISTS (SELECT 1 FROM photo_face_detections fd JOIN photo_face_groups fg ON fg.id=fd.group_id WHERE fd.photo_id=p.id AND fg.performer_id IS NOT NULL)"),
     ("unnamed", "(EXISTS (SELECT 1 FROM photo_face_detections fd WHERE fd.photo_id=p.id) AND NOT EXISTS (SELECT 1 FROM photo_face_detections fd JOIN photo_face_groups fg ON fg.id=fd.group_id WHERE fd.photo_id=p.id AND fg.performer_id IS NOT NULL))"),
@@ -899,13 +1050,19 @@ pub(crate) fn merged_performers(d: &Map<String, Value>) -> Vec<String> {
     out
 }
 
-/// `d.get(a) or d.get(b) or f"video {id}"` (or with the first two swapped) and `thumbnail_message_id or source_message_id`.
+/// `d.get(a) or d.get(b) or f"video {id}"` (title first, then the file name) and `thumbnail_message_id or source_message_id`.
 fn display_name_and_thumbnail(d: &mut Map<String, Value>) {
+    display_name_and_thumbnail_by(d, true);
+}
+
+/// The same with the order of the two names chosen: the performer page puts the file name first.
+fn display_name_and_thumbnail_by(d: &mut Map<String, Value>, title_first: bool) {
     let id = d.get("id").cloned();
-    let name = if truthy(d.get("title")) {
-        d["title"].clone()
-    } else if truthy(d.get("filename")) {
-        d["filename"].clone()
+    let (first, second) = if title_first { ("title", "filename") } else { ("filename", "title") };
+    let name = if truthy(d.get(first)) {
+        d[first].clone()
+    } else if truthy(d.get(second)) {
+        d[second].clone()
     } else {
         Value::String(format!("video {}", py_str(id.as_ref())))
     };
