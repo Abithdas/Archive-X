@@ -10,6 +10,7 @@ members = [
     "crates/ax-db",
     "crates/ax-core",
     "crates/ax-jobs",
+    "crates/ax-backup",
     "crates/ax-names",
     "crates/ax-faces",
     "crates/launcher-core",

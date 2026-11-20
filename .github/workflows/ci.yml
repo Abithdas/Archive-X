@@ -81,8 +81,8 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       # The desktop shell (archive-x-desktop) needs the Linux web-view libraries, so it is built and tested on Windows in desktop.yml.
       - run: cargo fmt --all --check
-      - run: cargo test -p ax-server -p ax-db -p ax-names -p ax-faces -p ax-core -p ax-jobs
-      - run: cargo clippy -p ax-server -p ax-db -p ax-names -p ax-faces -p ax-core -p ax-jobs -p archive-x-launcher-core -p archive-x-native-player --all-targets -- -D warnings
+      - run: cargo test -p ax-server -p ax-db -p ax-names -p ax-faces -p ax-core -p ax-jobs -p ax-backup
+      - run: cargo clippy -p ax-server -p ax-db -p ax-names -p ax-faces -p ax-core -p ax-jobs -p ax-backup -p archive-x-launcher-core -p archive-x-native-player --all-targets -- -D warnings
 
   parity:
     # The Rust front door must answer like the Python backend: the same seeded library behind both, SFW and NSFW, reads and writes.
@@ -98,6 +98,11 @@ jobs:
       - run: cargo build --release -p ax-server
       - run: python tools/parity/run_parity.py --self-check --writes
       - run: python tools/parity/run_parity.py --writes
+      # Backups made by the Rust crate must open in Python's inspect_backup and stage_restore
+      - run: cargo test -p ax-backup --test interop backups_made
+        env:
+          AX_BACKUP_INTEROP_OUT: ${{ runner.temp }}/axbk
+      - run: python tools/parity/check_rust_backup.py "$RUNNER_TEMP/axbk"
 
   front-door-windows:
     # The front door ships in the Windows installer: make sure it builds there.

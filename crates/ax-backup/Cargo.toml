@@ -1,0 +1,19 @@
+[package]
+name = "ax-backup"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Backup and restore staging, ported from core/backup/manager.py; reads and writes the same .axbackup files as the Python original"
+
+[dependencies]
+ax-core = { path = "../ax-core" }
+ax-db = { path = "../ax-db" }
+aes-gcm = "0.10"
+argon2 = "0.5"
+getrandom = "0.2"
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+sha2 = "0.10"
+tempfile = "3"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
