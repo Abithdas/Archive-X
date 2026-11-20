@@ -266,7 +266,7 @@ pub fn inspect_backup(path: &Path, password: Option<&str>, env: &Env) -> R<Value
     if manifest.get("format_version").and_then(Value::as_i64).unwrap_or(0) != BACKUP_FORMAT_VERSION {
         return err("Unsupported backup format version");
     }
-    let names: BTreeSet<String> = zf.file_names().map(String::from).collect();
+    let names: BTreeSet<String> = zf.file_names().filter_map(|n| n.ok()).map(|n| n.into_owned()).collect();
     for name in &names {
         if let Some(purpose) = protected_purpose(name) {
             let mut payload = Vec::new();
