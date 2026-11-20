@@ -1,5 +1,4 @@
 //! GET /api/search answered by the front door: words are prefixes in the full-text index when there is one, plain LIKE text otherwise.
-//! still has to be tidied go to Python.
 
 use std::collections::HashMap;
 use std::convert::Infallible;
