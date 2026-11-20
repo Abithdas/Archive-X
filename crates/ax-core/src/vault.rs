@@ -18,7 +18,7 @@ use std::sync::Mutex;
 
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
-use hkdf::Hkdf;
+use hmac::{Hmac, Mac};
 use serde_json::{Map, Value};
 use sha2::Sha256;
 
@@ -62,11 +62,19 @@ pub fn secret_from_env() -> Option<String> {
     ["ARCHIVE_X_ENCRYPTION_KEY", "SESSION_SECRET"].iter().filter_map(|k| std::env::var(k).ok()).find(|v| !v.is_empty())
 }
 
-/// `HKDF-SHA256(secret)` to the 32-byte file key.
+/// `HKDF-SHA256(secret)` to the 32-byte file key (RFC 5869).
+///
+/// 32 bytes is exactly one SHA-256 block, so expand is a single step: `T(1) = HMAC(PRK, info ‖ 0x01)` with
+/// `PRK = HMAC(salt, secret)`. Written out here, rather than through an output buffer, so the key is the MAC result itself.
 pub fn derive_key(secret: &[u8]) -> [u8; 32] {
-    let mut out = [0u8; 32];
-    Hkdf::<Sha256>::new(Some(HKDF_SALT), secret).expand(HKDF_INFO, &mut out).expect("32 bytes is a valid HKDF output length");
-    out
+    type HmacSha256 = Hmac<Sha256>;
+    let mut extract = <HmacSha256 as Mac>::new_from_slice(HKDF_SALT).expect("HMAC accepts any key length");
+    extract.update(secret);
+    let prk = extract.finalize().into_bytes();
+    let mut expand = <HmacSha256 as Mac>::new_from_slice(&prk).expect("HMAC accepts any key length");
+    expand.update(HKDF_INFO);
+    expand.update(&[1u8]);
+    expand.finalize().into_bytes().into()
 }
 
 fn cipher(key: &[u8; 32]) -> Aes256Gcm {

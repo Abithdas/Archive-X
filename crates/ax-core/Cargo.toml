@@ -8,7 +8,7 @@ description = "Small, pure pieces of the backend ported from Python (retry polic
 [dependencies]
 regex = "1"
 aes-gcm = "0.10"
-hkdf = "0.12"
+hmac = "0.12"
 sha2 = "0.10"
 getrandom = "0.2"
 serde_json = { version = "1", features = ["preserve_order"] }
