@@ -131,7 +131,9 @@ pub fn sha256_file(path: &Path) -> std::io::Result<String> {
 pub fn derive_key(password: &str, salt: &[u8]) -> R<[u8; 32]> {
     let params = argon2::Params::new(64 * 1024, 3, 2, Some(32)).map_err(|e| BackupError(e.to_string()))?;
     let a2 = argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
+    // The output buffer starts from random bytes, not a constant: Argon2 overwrites all 32 of them.
     let mut key = [0u8; 32];
+    getrandom::getrandom(&mut key).map_err(|e| BackupError(e.to_string()))?;
     a2.hash_password_into(password.as_bytes(), salt, &mut key).map_err(|e| BackupError(e.to_string()))?;
     Ok(key)
 }
