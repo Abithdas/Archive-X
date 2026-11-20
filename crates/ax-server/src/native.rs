@@ -24,6 +24,7 @@ use crate::proxy::{Body, Proxy};
 pub const ROUTES: &[&str] = &[
     "photos_channels",
     "performers_list",
+    "studios_list",
     "face_groups_fast",
     "channel_videos",
     "studio_videos",
@@ -210,6 +211,7 @@ impl Native {
         let (name, id) = match path {
             "/api/photos/channels" => ("photos_channels", None),
             "/api/performers" => ("performers_list", None),
+            "/api/studios" => ("studios_list", None),
             "/api/photos/faces/groups" => ("face_groups_fast", None),
             "/api/library" => ("library_list", None),
             "/api/tags" => ("tags_list", None),
@@ -256,6 +258,11 @@ impl Native {
             "photos_channels" => {
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(self.photos_channels(headers).await)
+            }
+            "studios_list" => {
+                let resp = self.studios_list(query, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
             }
             "performers_list" => {
                 let resp = self.performers_list(query, headers).await?;
@@ -557,6 +564,74 @@ impl Native {
                     b
                 } else {
                     p
+                }
+            })
+            .collect();
+        Some(json_response(request, serde_json::to_vec(&out).unwrap_or_default()))
+    }
+}
+
+const STUDIO_COLUMNS: &str = "SELECT s.*, COUNT(DISTINCT CASE WHEN vs.video_id IN (SELECT id FROM archive_x_library_media) THEN vs.video_id END) video_count, \
+    (SELECT MAX(sic.updated_at) FROM studio_image_cache sic WHERE sic.studio_id=s.id) AS image_cache_updated_at, \
+    EXISTS(SELECT 1 FROM studio_image_cache sic WHERE sic.studio_id=s.id AND sic.data IS NOT NULL AND length(sic.data)>0 \
+    AND (COALESCE(s.image,'')='' OR COALESCE(sic.url,'')=COALESCE(s.image,''))) AS has_cached_image FROM studios s \
+    LEFT JOIN video_studios vs ON vs.studio_id=s.id ";
+
+/// `routes_entity_pages._backfill_studios_from_media` runs before every studio list and writes missing studio links. Its cheap probe is
+/// run here (on the real tables, `main.`, not the mode's views); when it finds work the request goes to Python, which does the repair.
+const STUDIO_LINKS_MISSING: &str = "SELECT 1 FROM main.media m WHERE ((m.site_name IS NOT NULL AND TRIM(m.site_name)<>'') \
+    OR (m.provider_payload IS NOT NULL AND TRIM(m.provider_payload)<>'')) \
+    AND NOT EXISTS (SELECT 1 FROM main.video_studios vs WHERE vs.video_id=m.id) LIMIT 1";
+
+impl Native {
+    /// GET /api/studios (routes_entity_pages.list_studios), the plain list: no search text, a plain limit, nothing for the backfill to
+    /// repair. Anything else, an empty list or an empty answer is left to Python.
+    async fn studios_list(&self, query: Option<&str>, request: &HeaderMap) -> Option<Response<Body>> {
+        let params = query_params(query)?;
+        if !params.get("q").map(|q| q.trim().is_empty()).unwrap_or(true) {
+            return None;
+        }
+        let limit = match params.get("limit") {
+            None => 5000,
+            Some(l) if !l.is_empty() && l.len() <= 6 && l.bytes().all(|b| b.is_ascii_digit()) => l.parse::<i64>().ok()?.clamp(1, 5000),
+            Some(l) if l.bytes().all(|b| b.is_ascii_alphabetic()) && !l.is_empty() => 5000,
+            Some(_) => return None,
+        };
+        let brief = params.get("brief").map(|b| b == "1").unwrap_or(false);
+        let read = self
+            .db
+            .read(move |c| {
+                if c.query_row(STUDIO_LINKS_MISSING, [], |_| Ok(())).is_ok() {
+                    return Ok(None);
+                }
+                let sql = format!("{STUDIO_COLUMNS}GROUP BY s.id HAVING video_count > 0 OR s.name='Unknown Studio' ORDER BY (s.name='Unknown Studio') DESC, video_count DESC, s.name LIMIT {limit}");
+                let rows = rows_as_maps(c, &sql)?;
+                let counts = title_counts(c, "SELECT studio_id AS eid, video_id FROM video_studios");
+                Ok(if rows.is_empty() { None } else { Some((rows, counts)) })
+            })
+            .await;
+        let (rows, counts) = match read {
+            Ok(Some(found)) => found,
+            Ok(None) => return None,
+            Err(e) => {
+                tracing::error!("studios: {e}");
+                return Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The studio catalogue could not be read"));
+            }
+        };
+        let out: Vec<Map<String, Value>> = rows
+            .into_iter()
+            .map(|mut s| {
+                let (movies, series) = s.get("id").and_then(Value::as_i64).and_then(|id| counts.get(&id).copied()).unwrap_or((0, 0));
+                s.insert("movies".to_string(), Value::from(movies));
+                s.insert("series".to_string(), Value::from(series));
+                if brief {
+                    let mut b = Map::new();
+                    for key in ["id", "name", "video_count", "movies", "series", "image", "image_cache_updated_at", "has_cached_image"] {
+                        b.insert(key.to_string(), s.get(key).cloned().unwrap_or(Value::Null));
+                    }
+                    b
+                } else {
+                    s
                 }
             })
             .collect();
