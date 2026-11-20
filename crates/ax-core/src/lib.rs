@@ -11,6 +11,7 @@ pub mod resolution_filter;
 pub mod resource_policy;
 pub mod retry_policy;
 pub mod safe_paths;
+pub mod scene_parser;
 pub mod size_optimizer;
 pub mod sql_batches;
 pub mod tag_taxonomy;

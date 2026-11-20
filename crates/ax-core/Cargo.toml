@@ -16,6 +16,7 @@ unicode-properties = "0.1"
 caseless = "0.2"
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 tempfile = "3"
+fancy-regex = "0.14"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security_Cryptography"] }

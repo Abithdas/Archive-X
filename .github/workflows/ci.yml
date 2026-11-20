@@ -50,6 +50,7 @@ jobs:
       - run: python tools/parity/gen_governor_vectors.py --check
       - run: python tools/parity/gen_orchestrator_vectors.py --check
       - run: python tools/parity/gen_manager_policy_vectors.py --check
+      - run: python tools/parity/gen_scene_parser_vectors.py --check
 
   backend-tests:
     runs-on: ubuntu-latest
