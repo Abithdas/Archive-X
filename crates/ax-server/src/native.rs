@@ -31,6 +31,7 @@ pub const ROUTES: &[&str] = &[
     "photo_preview",
     "photo_image",
     "source_channels",
+    "library_channels",
     "studio_family",
     "performer_edit",
     "studio_edit",
@@ -245,6 +246,7 @@ impl Native {
             "/api/studios" => ("studios_list", None),
             "/api/tag-taxonomy" => ("tag_taxonomy", None),
             "/api/source-channels" => ("source_channels", None),
+            "/api/channels" => ("library_channels", None),
             "/api/photos/faces/groups" => ("face_groups_fast", None),
             "/api/library" => ("library_list", None),
             "/api/tags" => ("tags_list", None),
@@ -394,6 +396,11 @@ impl Native {
                 let kind = crate::native_photos::PhotoFile::from_name(m.kind?)?;
                 let (channel, message) = m.pair?;
                 let resp = self.photo_file(kind, channel, message, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "library_channels" => {
+                let resp = self.library_channels(headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }
@@ -1190,6 +1197,158 @@ impl Native {
             .map(|(lid, relation, name, provider)| serde_json::json!({ "id": lid, "name": name, "relation": relation, "provider": provider }))
             .collect();
         Some(empty(related))
+    }
+}
+
+/// `os.path.basename(path.rstrip("/\\"))` as the platform's `os.path` does it.
+fn folder_name(path: &str) -> String {
+    let trimmed = path.trim_end_matches(['/', '\\']);
+    let name = if cfg!(windows) { trimmed.rsplit(['/', '\\']).next().unwrap_or("") } else { trimmed.rsplit('/').next().unwrap_or("") };
+    // ntpath keeps "D:" as a drive, not a name
+    let name = if cfg!(windows) && name.len() == 2 && name.ends_with(':') { "" } else { name };
+    if name.is_empty() {
+        "Local folder".to_string()
+    } else {
+        name.to_string()
+    }
+}
+
+impl Native {
+    /// GET /api/channels (routes_telegram.channels): the channels that have videos ready for Library cards, with the registry's counts. Anything
+    /// the database does not answer as expected (a missing table, a value that is not plain text or a number) is left to Python.
+    async fn library_channels(&self, request: &HeaderMap) -> Option<Response<Body>> {
+        const LOCAL_BASE: i64 = -9_000_000_000_000;
+        let read = self
+            .db
+            .read(|c| {
+                let raw: Option<String> = c.query_row("SELECT json_extract(value,'$') FROM main.settings WHERE key='content_mode'", [], |r| r.get(0)).ok().flatten();
+                let nsfw = raw.map(|v| v.trim().to_lowercase()).as_deref() == Some("nsfw");
+                let known: std::collections::HashSet<String> = rows_with(c, "SELECT telegram_id FROM main.channels", [])?.into_iter().map(|r| py_str_or_empty(r.get("telegram_id"))).collect();
+                let folders: std::collections::HashMap<i64, String> =
+                    rows_with(c, "SELECT id,path FROM main.local_sources", [])?.into_iter().filter_map(|r| Some((r.get("id")?.as_i64()?, py_str_or_empty(r.get("path"))))).collect();
+                let rows = rows_with(
+                    c,
+                    "SELECT c.*, COUNT(DISTINCT cm.id) video_count FROM channels c JOIN archive_x_library_media cm ON cm.source_channel=c.telegram_id GROUP BY c.id ORDER BY c.title",
+                    [],
+                )?;
+                let orphan = rows_with(
+                    c,
+                    "SELECT cm.source_channel telegram_id, COUNT(*) video_count FROM archive_x_library_media cm WHERE NOT EXISTS (SELECT 1 FROM channels c WHERE c.telegram_id=cm.source_channel) \
+                     AND cm.source_channel GLOB '-[0-9]*' GROUP BY cm.source_channel",
+                    [],
+                )?;
+                let registry = rows_with(
+                    c,
+                    "SELECT l.channel_id, SUM(CASE WHEN l.location_state='PRESENT' THEN 1 ELSE 0 END) known_count, \
+                     SUM(CASE WHEN l.location_state='PRESENT' AND r.prepared_state='PREPARED' THEN 1 ELSE 0 END) prepared_count, \
+                     SUM(CASE WHEN l.location_state='PRESENT' AND r.prepared_state<>'PREPARED' THEN 1 ELSE 0 END) pending_count, \
+                     SUM(CASE WHEN l.location_state<>'PRESENT' THEN 1 ELSE 0 END) removed_count, s.last_scan_at,s.last_scan_status,s.high_water_mark \
+                     FROM telegram_document_locations l JOIN telegram_document_registry r ON r.registry_key=l.registry_key \
+                     LEFT JOIN telegram_channel_registry_state s ON s.channel_id=l.channel_id GROUP BY l.channel_id",
+                    [],
+                )?;
+                Ok((nsfw, known, folders, rows, orphan, registry))
+            })
+            .await;
+        let (nsfw, known, folders, rows, orphan, registry) = match read {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::warn!("library channels: {e}"); // Python answers (and reports what is wrong)
+                return None;
+            }
+        };
+        // a channel with videos but no row of its own
+        let orphan_entry = |source: &str, count: i64| -> Option<Map<String, Value>> {
+            if known.contains(source) {
+                return None;
+            }
+            let mut m = Map::new();
+            m.insert("id".into(), Value::Null);
+            m.insert("telegram_id".into(), Value::String(source.to_string()));
+            if source.parse::<i64>().map(|n| n < LOCAL_BASE).unwrap_or(false) {
+                let path = folders.get(&(LOCAL_BASE - source.parse::<i64>().ok()?)).filter(|p| !p.is_empty())?;
+                m.insert("title".into(), Value::String(folder_name(path)));
+                m.insert("username".into(), Value::Null);
+                m.insert("video_count".into(), Value::from(count));
+                m.insert("source_only".into(), Value::Bool(true));
+                return Some(m);
+            }
+            if !nsfw {
+                return None;
+            }
+            m.insert("title".into(), Value::String("Unknown channel".into()));
+            m.insert("username".into(), Value::Null);
+            m.insert("video_count".into(), Value::from(count));
+            m.insert("source_only".into(), Value::Bool(true));
+            m.insert("unnamed".into(), Value::Bool(true));
+            Some(m)
+        };
+        let mut out: Vec<Map<String, Value>> = rows;
+        for r in &orphan {
+            if let Some(entry) = orphan_entry(&py_str_or_empty(r.get("telegram_id")), r.get("video_count").and_then(Value::as_i64).unwrap_or(0)) {
+                out.push(entry);
+            }
+        }
+        let mut by_id: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        for (i, ch) in out.iter().enumerate() {
+            by_id.insert(py_str_or_empty(ch.get("telegram_id")), i);
+        }
+        const STAT_KEYS: [&str; 7] = ["known_count", "prepared_count", "pending_count", "removed_count", "last_scan_at", "last_scan_status", "high_water_mark"];
+        for row in &registry {
+            let source = py_str_or_empty(row.get("channel_id"));
+            let digits = source.trim_start_matches('-');
+            if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+                continue; // local staging is not a channel
+            }
+            let known_count = row.get("known_count").and_then(Value::as_i64).unwrap_or(0);
+            let index = match by_id.get(&source) {
+                Some(i) => *i,
+                None => {
+                    if known_count <= 0 {
+                        continue; // history of a moved channel, not a selectable one
+                    }
+                    let Some(entry) = orphan_entry(&source, 0) else { continue };
+                    out.push(entry);
+                    by_id.insert(source.clone(), out.len() - 1);
+                    out.len() - 1
+                }
+            };
+            for key in STAT_KEYS {
+                out[index].insert(key.to_string(), row.get(key).cloned().unwrap_or(Value::Null));
+            }
+        }
+        for ch in out.iter_mut() {
+            let count = ch.get("video_count").filter(|v| truthy(Some(v))).and_then(Value::as_i64).unwrap_or(0);
+            for (key, value) in [
+                ("known_count", Value::from(count)),
+                ("prepared_count", Value::from(count)),
+                ("pending_count", Value::from(0)),
+                ("removed_count", Value::from(0)),
+                ("last_scan_at", Value::Null),
+            ] {
+                ch.entry(key.to_string()).or_insert(value);
+            }
+            ch.entry("last_scan_status".to_string()).or_insert(Value::String("NEVER".into()));
+        }
+        let mut keyed: Vec<(String, Map<String, Value>)> = Vec::with_capacity(out.len());
+        for ch in out {
+            let title = match ch.get("title") {
+                Some(v) if truthy(Some(v)) => py_scalar_str(v)?,
+                _ => String::new(),
+            };
+            keyed.push((ax_core::text::casefold(&title), ch));
+        }
+        keyed.sort_by(|a, b| a.0.cmp(&b.0));
+        let out: Vec<Map<String, Value>> = keyed.into_iter().map(|(_, ch)| ch).collect();
+        Some(json_response(request, serde_json::to_vec(&out).unwrap_or_default()))
+    }
+}
+
+/// `str(value or "")` for a database value.
+fn py_str_or_empty(v: Option<&Value>) -> String {
+    match v {
+        Some(v) if truthy(Some(v)) => py_scalar_str(v).unwrap_or_default(),
+        _ => String::new(),
     }
 }
 

@@ -1,4 +1,4 @@
-//! The channel list of the management screens and the studio family, answered by the front door.
+//! The channel lists (management screens and the Library) and the studio family, answered by the front door.
 //! still has to be tidied go to Python.
 
 use std::collections::HashMap;
@@ -54,6 +54,10 @@ fn database(extra: impl FnOnce(&Connection)) -> (tempfile::TempDir, std::path::P
         "entity_favorites",
         "entity_metadata",
         "entity_refresh_state",
+        "telegram_document_locations",
+        "telegram_document_registry",
+        "telegram_channel_registry_state",
+        "local_sources",
     ] {
         create_table(&c, &snapshot, t);
     }
@@ -131,7 +135,7 @@ async fn door(extra: impl FnOnce(&Connection)) -> Door {
         print_ready: false,
         limits: Limits::default(),
         db: Some(dbpath),
-        native_routes: vec!["source_channels".into(), "studio_family".into()],
+        native_routes: vec!["source_channels".into(), "studio_family".into(), "library_channels".into()],
         launch_secret: None,
         session_touch_interval: Duration::from_secs(300),
     });
@@ -207,6 +211,89 @@ async fn the_management_list_hides_only_the_nsfw_library_channels_and_only_in_sf
     let all = json(&get(d.addr, "/api/source-channels", "").await);
     assert_eq!(titles(&all), ["Alpha films", "Beta", "Main", "Zed hidden from library"], "NSFW lists every channel, by title");
     assert!(all[0].as_object().unwrap().contains_key("content_rating"), "every column of the row");
+}
+
+fn library_data(c: &Connection) {
+    // the fixture's channel "Main" (-1001) is NSFW and in the library
+    c.execute("DELETE FROM media", []).unwrap();
+    c.execute(
+        "INSERT INTO channels(id,telegram_id,title,in_library,content_rating,holds) VALUES (20,'-2002','beta (sfw)',1,'sfw','both'),(21,'-2003','Alpha (sfw)',1,'sfw','both')",
+        [],
+    )
+    .unwrap();
+    c.execute(
+        "INSERT INTO local_sources(id,path,recursive,excluded,created_at,last_status,last_error,photos,videos) VALUES (1,'/data/Films/My Folder/',1,'[]','x','OK','',0,1)",
+        [],
+    )
+    .unwrap();
+    for (id, channel) in [(1, "-1001"), (2, "-1001"), (3, "-2002"), (4, "-2003"), (5, "-2003"), (6, "-2003"), (7, "-1009"), (8, "-9000000000001"), (9, "-9000000000002")] {
+        c.execute("INSERT INTO media(id,source_channel,source_message_id,filename,title,status) VALUES (?1,?2,?1,'f.mp4','t','ACTIVE')", (id, channel))
+            .unwrap();
+    }
+    // the registry: -2003 has 3 present (2 prepared) and one moved away; -1009 (no channel row) 1 present; -1010 only history
+    for (n, channel, state, prepared) in [
+        (1, "-2003", "PRESENT", "PREPARED"),
+        (2, "-2003", "PRESENT", "PREPARED"),
+        (3, "-2003", "PRESENT", "PENDING"),
+        (4, "-2003", "MOVED_BY_ARCHIVE_X", "PREPARED"),
+        (5, "-1009", "PRESENT", "PREPARED"),
+        (6, "-1010", "MOVED_PENDING_DELETE", "PREPARED"),
+    ] {
+        c.execute("INSERT INTO telegram_document_registry(registry_key,identity_kind,size_bytes,duration,width,height,companion_message_ids_json,known_state,prepared_state,prepared_json,created_at,updated_at) VALUES (?1,'d',1,1,1,1,'[]','K',?2,'{}','x','x')", (format!("k{n}"), prepared)).unwrap();
+        c.execute(
+            "INSERT INTO telegram_document_locations(channel_id,message_id,registry_key,location_state,last_seen_at) VALUES (?1,?2,?3,?4,'x')",
+            (channel, 100 + n, format!("k{n}"), state),
+        )
+        .unwrap();
+    }
+    c.execute("INSERT INTO telegram_channel_registry_state(channel_id,high_water_mark,last_scan_at,last_scan_status,last_scan_detail,updated_at) VALUES ('-2003',77,'2025-01-01','OK','','x')", []).unwrap();
+}
+
+#[tokio::test]
+async fn in_nsfw_the_list_has_nsfw_channels_orphans_and_local_folders_but_no_sfw_channel() {
+    let d = door(library_data).await;
+    let r = get(d.addr, "/api/channels", "").await;
+    assert_eq!((r.status, r.headers["x-served-by"].as_str()), (200, "rust"));
+    let v = json(&r);
+    let rows: Vec<(&str, i64)> = v.as_array().unwrap().iter().map(|c| (c["title"].as_str().unwrap(), c["video_count"].as_i64().unwrap())).collect();
+    // sorted by folded title; the local folder takes its folder's name; the folder that is gone and the SFW channels are not listed
+    assert_eq!(rows, [("Main", 2), ("My Folder", 1), ("Unknown channel", 1)]);
+    let main = &v[0];
+    assert_eq!(
+        (main["known_count"].as_i64(), main["prepared_count"].as_i64(), main["last_scan_status"].as_str()),
+        (Some(2), Some(2), Some("NEVER")),
+        "no registry: the video count, never scanned"
+    );
+    let folder = &v[1];
+    assert_eq!((folder["source_only"].as_bool(), folder["id"].is_null(), folder["telegram_id"].as_str()), (Some(true), true, Some("-9000000000001")));
+    let unnamed = &v[2];
+    // -1009 has no channel row but one present, prepared registry entry
+    assert_eq!((unnamed["unnamed"].as_bool(), unnamed["known_count"].as_i64(), unnamed["prepared_count"].as_i64()), (Some(true), Some(1), Some(1)));
+    let all = v.as_array().unwrap();
+    assert!(
+        !all.iter().any(|c| c["telegram_id"] == "-1010" || c["telegram_id"] == "-2003"),
+        "history only, and a channel hidden by the mode, are not channels here"
+    );
+}
+
+#[tokio::test]
+async fn in_sfw_only_the_sfw_channels_are_listed_with_their_registry_counts() {
+    let d = door(|c| {
+        library_data(c);
+        c.execute("UPDATE settings SET value='\"sfw\"' WHERE key='content_mode'", []).unwrap();
+    })
+    .await;
+    let v = json(&get(d.addr, "/api/channels", "").await);
+    let titles: Vec<&str> = v.as_array().unwrap().iter().map(|c| c["title"].as_str().unwrap()).collect();
+    assert_eq!(titles, ["Alpha (sfw)", "beta (sfw)"], "no NSFW channel, no unnamed channel, and the folder has no channel row to be shown by");
+    let alpha = &v[0];
+    assert_eq!(
+        (alpha["known_count"].as_i64(), alpha["prepared_count"].as_i64(), alpha["pending_count"].as_i64(), alpha["removed_count"].as_i64()),
+        (Some(3), Some(2), Some(1), Some(1))
+    );
+    assert_eq!((alpha["last_scan_status"].as_str(), alpha["high_water_mark"].as_i64()), (Some("OK"), Some(77)));
+    let beta = &v[1];
+    assert_eq!((beta["known_count"].as_i64(), beta["last_scan_status"].as_str()), (Some(1), Some("NEVER")));
 }
 
 fn family_data(c: &Connection) {

@@ -88,6 +88,29 @@ def seed_videos(c):
         text = normalized if isinstance(normalized, str) else json.dumps(normalized)
         c.execute("INSERT INTO entity_metadata(entity_type,entity_id,provider,provider_id,payload,normalized,fetched_at,updated_at) VALUES('studio',?,?,?,?,?,?,?)",
                   (studio_id, provider, provider_id, "{}", text, 1.0, iso(0)))
+    # What the Library's channel list reads besides the channels themselves: the registry of what each channel holds (some present and
+    # prepared, some present and pending, one moved away), a Telegram channel with videos but no channel row, a local folder with videos, and
+    # a channel known only from history.
+    for table in ("telegram_document_locations", "telegram_document_registry", "telegram_channel_registry_state", "local_sources"):
+        c.execute(f"DELETE FROM {table}")
+    n = 0
+    for channel, present_prepared, present_pending, moved in [("-1001", 5, 2, 1), ("-1003", 3, 0, 0), ("-1007777", 2, 1, 0), ("-1008888", 0, 0, 2)]:
+        for kind, count in (("PREPARED", present_prepared), ("PENDING", present_pending), ("MOVED", moved)):
+            for _ in range(count):
+                n += 1
+                c.execute("INSERT INTO telegram_document_registry(registry_key,identity_kind,size_bytes,duration,width,height,companion_message_ids_json,known_state,prepared_state,prepared_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                          (f"k{n}", "document", 1000, 60.0, 1280, 720, "[]", "KNOWN", "PREPARED" if kind == "PREPARED" else "PENDING", "{}", iso(0), iso(0)))
+                c.execute("INSERT INTO telegram_document_locations(channel_id,message_id,registry_key,location_state,last_seen_at) VALUES(?,?,?,?,?)",
+                          (channel, 5000 + n, f"k{n}", "MOVED_BY_ARCHIVE_X" if kind == "MOVED" else "PRESENT", iso(0)))
+    for channel, status, mark in [("-1001", "OK", 9001), ("-1007777", "OK", 5)]:
+        c.execute("INSERT INTO telegram_channel_registry_state(channel_id,high_water_mark,last_scan_at,last_scan_status,last_scan_detail,updated_at) VALUES(?,?,?,?,?,?)", (channel, mark, iso(1), status, "", iso(1)))
+    c.execute("INSERT INTO local_sources(id,path,recursive,excluded,created_at,last_status,last_error,photos,videos) VALUES(1,'/data/Films/Local Folder/',1,'[]',?,'OK','',0,1)", (iso(0),))
+    for channel, base, how_many in [("-1007777", 8000, 2), ("-9000000000001", 8100, 2), ("-9000000000002", 8200, 1)]:
+        for i in range(how_many):
+            d = iso(100 + base % 50 + i)
+            c.execute("""INSERT OR REPLACE INTO media(id,source_channel,source_message_id,filename,title,size,duration,width,height,fps,codec,resolution_category,streamable,thumbnail_message_id,thumbnail_status,upload_date,favorite,status,created_at,updated_at,identification_state,orientation)
+                         VALUES(?,?,?,?,?,1000,60,1280,720,30,'h264','720p',1,?, 'READY',?,0,'ACTIVE',?,?, 'MATCHED','landscape')""",
+                      (base + i, channel, base + i, f"orphan_{base + i}.mp4", f"Orphan {base + i}", base + i, d, d, d))
     # Half of the library is SFW, so the SFW pass of the parity run lists real items and the rows of the other mode have to stay hidden.
     # Everything above is NSFW by default; these are the SFW ones (two channels with their videos and photos, two performers' worth of
     # names, two studios and two tags).

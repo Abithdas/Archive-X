@@ -129,3 +129,4 @@
 /api/studios/5/family
 /api/studios/6/family
 /api/studios/999/family
+/api/channels
