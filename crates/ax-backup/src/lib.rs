@@ -128,14 +128,16 @@ pub fn sha256_file(path: &Path) -> std::io::Result<String> {
 }
 
 /// `_derive_key`: Argon2id, 3 passes, 64 MiB, 2 lanes, 32 bytes.
+///
+/// The key is taken from the hash `hash_password` returns, not from a buffer made here for the library to fill.
 pub fn derive_key(password: &str, salt: &[u8]) -> R<[u8; 32]> {
+    use argon2::password_hash::{PasswordHasher, SaltString};
     let params = argon2::Params::new(64 * 1024, 3, 2, Some(32)).map_err(|e| BackupError(e.to_string()))?;
     let a2 = argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
-    // The output buffer starts from random bytes, not a constant: Argon2 overwrites all 32 of them.
-    let mut key = [0u8; 32];
-    getrandom::getrandom(&mut key).map_err(|e| BackupError(e.to_string()))?;
-    a2.hash_password_into(password.as_bytes(), salt, &mut key).map_err(|e| BackupError(e.to_string()))?;
-    Ok(key)
+    let salt = SaltString::encode_b64(salt).map_err(|e| BackupError(e.to_string()))?;
+    let hash = a2.hash_password(password.as_bytes(), &salt).map_err(|e| BackupError(e.to_string()))?;
+    let out = hash.hash.ok_or_else(|| BackupError("key derivation gave no output".into()))?;
+    out.as_bytes().try_into().map_err(|_| BackupError("key derivation gave the wrong length".into()))
 }
 
 /// `_encrypt_file`: header, ciphertext, tag. (The whole file is held in memory, where Python streams it in 1 MiB blocks.)
