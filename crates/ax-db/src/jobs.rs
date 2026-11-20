@@ -15,13 +15,15 @@ use serde_json::{Map, Value};
 pub enum JobError {
     /// What Python raises as `ValueError`.
     Invalid(String),
+    /// What Python raises as `RuntimeError` (a job that already has an execution).
+    Conflict(String),
     Sql(rusqlite::Error),
 }
 
 impl std::fmt::Display for JobError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            JobError::Invalid(m) => f.write_str(m),
+            JobError::Invalid(m) | JobError::Conflict(m) => f.write_str(m),
             JobError::Sql(e) => write!(f, "{e}"),
         }
     }
@@ -33,7 +35,7 @@ impl From<rusqlite::Error> for JobError {
     }
 }
 
-fn invalid<T>(msg: String) -> Result<T, JobError> {
+pub(crate) fn invalid<T>(msg: String) -> Result<T, JobError> {
     Err(JobError::Invalid(msg))
 }
 
@@ -76,20 +78,33 @@ pub fn iso_from_unix(secs: i64) -> String {
     format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}+00:00", rem / 3600, (rem % 3600) / 60, rem % 60)
 }
 
+thread_local! {
+    /// A fixed clock for the replay tests (seconds since the epoch); never set in the application.
+    static CLOCK: std::cell::Cell<Option<i64>> = const { std::cell::Cell::new(None) };
+}
+
+/// Make `now_iso()` on this thread return a fixed moment (tests only); `None` goes back to the real clock.
+pub fn set_clock_for_tests(secs: Option<i64>) {
+    CLOCK.with(|c| c.set(secs));
+}
+
 /// `config.now_iso()`.
 pub fn now_iso() -> String {
+    if let Some(secs) = CLOCK.with(|c| c.get()) {
+        return iso_from_unix(secs);
+    }
     let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
     iso_from_unix(secs)
 }
 
-fn random_hex(bytes: usize) -> String {
+pub(crate) fn random_hex(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
     getrandom::getrandom(&mut buf).expect("operating system random numbers");
     buf.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 /// `uuid.uuid4().hex`.
-fn uuid4_hex() -> String {
+pub(crate) fn uuid4_hex() -> String {
     let mut b = [0u8; 16];
     getrandom::getrandom(&mut b).expect("operating system random numbers");
     b[6] = (b[6] & 0x0f) | 0x40;
@@ -103,7 +118,7 @@ pub fn compact_json(value: &Value) -> String {
 }
 
 /// Python's truthiness of a JSON value.
-fn truthy(v: &Value) -> bool {
+pub(crate) fn truthy(v: &Value) -> bool {
     match v {
         Value::Null => false,
         Value::Bool(b) => *b,
@@ -128,7 +143,7 @@ fn py_type_name(v: &Value) -> &'static str {
 }
 
 /// A job column value as Python's `sqlite3` binds it.
-fn bind(v: &Value) -> Result<rusqlite::types::Value, JobError> {
+pub(crate) fn bind(v: &Value) -> Result<rusqlite::types::Value, JobError> {
     use rusqlite::types::Value as S;
     Ok(match v {
         Value::Null => S::Null,
@@ -143,7 +158,7 @@ fn bind(v: &Value) -> Result<rusqlite::types::Value, JobError> {
 }
 
 /// A column name that came from a caller: letters, digits and underscores only (Python formats the names into the SQL text).
-fn column(name: &str) -> Result<&str, JobError> {
+pub(crate) fn column(name: &str) -> Result<&str, JobError> {
     if !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         Ok(name)
     } else {

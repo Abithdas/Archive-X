@@ -4,6 +4,7 @@
 //! timeout, and runs every query on a blocking thread so the async server is never held up by the disk.
 
 pub mod jobs;
+pub mod leases;
 pub mod sessions;
 
 use std::path::{Path, PathBuf};

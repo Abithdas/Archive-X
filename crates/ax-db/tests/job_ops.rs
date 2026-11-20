@@ -1,62 +1,20 @@
 //! The job lifecycle writes of `ax_db::jobs` must do what Python's `Database` does. The cases are recorded from the Python original by
 //! `tools/parity/gen_job_op_vectors.py`; each step's error text and the rows of `jobs`, `job_journal` and `job_dependencies` must match.
 
+mod common;
+
 use std::collections::HashMap;
 
 use ax_db::jobs::{self, JournalEntry, NewJob};
-use ax_db::rusqlite::{types::ValueRef, Connection};
+use ax_db::rusqlite::Connection;
 use serde_json::{Map, Value};
 
-fn schema() -> Value {
-    serde_json::from_str(include_str!("../schema/schema.json")).unwrap()
-}
+use common::{create_table, is_iso, rows, schema};
 
-/// The table as the Python side creates it, from the committed snapshot, with the keys the snapshot lists.
-fn create_table(c: &Connection, snapshot: &Value, table: &str, extra: &str) {
-    let cols = snapshot[table].as_array().unwrap();
-    let pks: Vec<&str> = cols.iter().filter(|c| c["pk"] == true).map(|c| c["name"].as_str().unwrap()).collect();
-    let mut defs: Vec<String> = Vec::new();
-    for col in cols {
-        let name = col["name"].as_str().unwrap();
-        let ty = col["type"].as_str().unwrap();
-        let single_integer_key = pks.len() == 1 && pks[0] == name && ty == "INTEGER";
-        let mut def = format!("\"{name}\" {ty}");
-        if single_integer_key {
-            def.push_str(" PRIMARY KEY AUTOINCREMENT");
-        } else if col["notnull"] == true {
-            def.push_str(" NOT NULL");
-        }
-        defs.push(def);
-    }
-    if pks.len() > 1 || (pks.len() == 1 && !defs.iter().any(|d| d.contains("PRIMARY KEY"))) {
-        defs.push(format!("PRIMARY KEY({})", pks.iter().map(|p| format!("\"{p}\"")).collect::<Vec<_>>().join(", ")));
-    }
-    if !extra.is_empty() {
-        defs.push(extra.to_string());
-    }
-    c.execute_batch(&format!("CREATE TABLE \"{table}\" ({});", defs.join(", "))).unwrap();
-}
-
-fn is_iso(s: &str) -> bool {
-    let b = s.as_bytes();
-    b.len() == 25
-        && b[4] == b'-'
-        && b[7] == b'-'
-        && b[10] == b'T'
-        && b[13] == b':'
-        && b[16] == b':'
-        && s.ends_with("+00:00")
-        && b.iter().enumerate().all(|(i, c)| matches!(i, 4 | 7 | 10 | 13 | 16 | 19..=24) || c.is_ascii_digit())
-}
-
-/// A cell as Python hands it to `json.dumps`, with the recorded normalisation: job ids by name, times as `<T>` (except two columns).
-fn cell(v: ValueRef, key: &str, names: &HashMap<String, String>) -> Value {
+/// A cell with the recorded normalisation: job ids by name, times as `<T>` (except two columns).
+fn norm(v: Value, key: &str, names: &HashMap<String, String>) -> Value {
     match v {
-        ValueRef::Null => Value::Null,
-        ValueRef::Integer(i) => Value::from(i),
-        ValueRef::Real(f) => Value::from(f),
-        ValueRef::Text(t) => {
-            let s = String::from_utf8_lossy(t).to_string();
+        Value::String(s) => {
             if let Some(n) = names.get(&s) {
                 Value::String(format!("<job:{n}>"))
             } else if is_iso(&s) && !matches!(key, "deadline_at" | "next_run_at") {
@@ -65,23 +23,21 @@ fn cell(v: ValueRef, key: &str, names: &HashMap<String, String>) -> Value {
                 Value::String(s)
             }
         }
-        ValueRef::Blob(_) => Value::Null,
+        other => other,
     }
 }
 
 fn table_rows(c: &Connection, table: &str, names: &HashMap<String, String>) -> Vec<Value> {
-    let mut st = c.prepare(&format!("SELECT * FROM {table}")).unwrap();
-    let cols: Vec<String> = st.column_names().map(|s| s.to_string()).collect();
-    let mut rows: Vec<Map<String, Value>> = st
-        .query_map([], |r| {
-            let mut m = Map::new();
-            for (i, name) in cols.iter().enumerate() {
-                m.insert(name.clone(), cell(r.get_ref(i)?, name, names));
-            }
-            Ok(m)
+    let mut rows: Vec<Map<String, Value>> = rows(c, table)
+        .into_iter()
+        .map(|m| {
+            m.into_iter()
+                .map(|(k, v)| {
+                    let n = norm(v, &k, names);
+                    (k, n)
+                })
+                .collect()
         })
-        .unwrap()
-        .map(|r| r.unwrap())
         .collect();
     if table == "job_journal" {
         for r in rows.iter_mut() {
