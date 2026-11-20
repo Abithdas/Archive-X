@@ -1,0 +1,12 @@
+[package]
+name = "ax-core"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Small, pure pieces of the backend ported from Python (retry policy, safe paths, SQL batches, transfer filters)"
+
+[dependencies]
+regex = "1"
+
+[dev-dependencies]
+tempfile = "3"

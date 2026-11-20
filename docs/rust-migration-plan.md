@@ -128,3 +128,16 @@ Rough total: 18 to 28 weeks of focused work, dominated by Phases 3 and 4. Phases
 1. ~~Is a one-time Telegram re-login acceptable?~~ Yes (confirmed).
 2. ~~Intermediate release (Phases 0 to 2 plus playback)?~~ No. Decided: no intermediate release; the Python backend is removed in a single release after Phase 6. Route groups are still switched on one at a time behind `--native-routes` for testing, but are not shipped as a half-migrated product.
 3. ~~Restore `tools/`?~~ Done in this PR (the parity, SFW-leak and visibility tools CI depends on). The deleted `docs/plan.md`, `docs/adr/` and `docs/security/` are not restored; this plan replaces plan.md and the ADRs should be rewritten in Phase 0.
+
+## 9. Progress log
+
+Update this table as units move. A unit is "done" when its Rust tests pass and its Python original has been compared on the same inputs.
+
+| Date | Phase | Unit | Rust | Status | Notes |
+|---|---|---|---|---|---|
+| 2026-11-20 | 0 | `rust-anything analyze --whole-app` | `docs/rust-analysis.md` | done | The tool maps by package (22 units), so everything under `telegram_archive/` shows as wave 0 and the `fastapi` and dynamic-code "blocked" flags are expected: we replace FastAPI with axum, not wrap it. Use the file-level order in section 5 instead of its wave numbers. The tool's own `bridge` and `diff` loop is not used for ports of whole packages. |
+| 2026-11-20 | 1 | `core/retry_policy.py` | `ax-core::retry_policy` | done | The caller passes error type name, message and `seconds` instead of an exception object, plus an explicit `jitter`. Differs from Python only in the `reason` text when Telegram sends a flood wait too big for i64 (the value is capped). |
+| 2026-11-20 | 1 | `core/safe_paths.py` | `ax-core::safe_paths` | done | Own non-strict `realpath`. Also accepts a filesystem-root base, which Python rejects by accident. |
+| 2026-11-20 | 1 | `core/sql_batches.py` | `ax-core::sql_batches` | done | |
+| 2026-11-20 | 1 | `core/duration_filter.py` | `ax-core::duration_filter` | done | `message_duration_seconds` stays with the Telegram client port. Compared against Python on 17 inputs. |
+| 2026-11-20 | 1 | `core/resolution_filter.py` | `ax-core::resolution_filter` | done | Compared against Python on 8 selections and 7 sizes. |
