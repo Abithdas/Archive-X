@@ -64,8 +64,17 @@ pub fn quality_args(encoder: &str, bitrate: i64, fps: f64) -> Vec<String> {
     }
 }
 
+/// What the probe said about the source video (0 means unknown).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct VideoInfo {
+    pub width: i64,
+    pub height: i64,
+    pub fps: f64,
+}
+
 /// The FFmpeg command for one pass. Source resolution is kept; odd sizes are rounded down to even.
-pub fn encode_cmd(ffmpeg: &str, src: &Path, out: &Path, width: i64, height: i64, fps: f64, encoder: &str, bitrate: i64) -> Vec<String> {
+pub fn encode_cmd(ffmpeg: &str, src: &Path, out: &Path, video: VideoInfo, encoder: &str, bitrate: i64) -> Vec<String> {
+    let VideoInfo { width, height, fps } = video;
     let fps = if fps == 0.0 { 30.0 } else { fps };
     let mut cmd = args(&[ffmpeg, "-hide_banner", "-loglevel", "error", "-nostats", "-progress", "pipe:1", "-y", "-i"]);
     cmd.push(src.display().to_string());
@@ -142,12 +151,12 @@ mod tests {
 
     #[test]
     fn odd_sizes_are_scaled_down_to_even() {
-        let c = encode_cmd("ffmpeg", Path::new("in.mkv"), Path::new("out.mp4"), 1921, 1081, 24.0, "libx264", 4_000_000);
+        let c = encode_cmd("ffmpeg", Path::new("in.mkv"), Path::new("out.mp4"), VideoInfo { width: 1921, height: 1081, fps: 24.0 }, "libx264", 4_000_000);
         let line = c.join(" ");
         assert!(line.contains("-vf scale=1920:1080"), "{line}");
         assert!(line.starts_with("ffmpeg -hide_banner -loglevel error -nostats -progress pipe:1 -y -i in.mkv -map 0:v:0 -map 0:a:0? -sn -dn -map_metadata -1 -vf"));
         assert!(line.ends_with("-c:a aac -b:a 128k -ac 2 -ar 48000 -movflags +faststart out.mp4"));
-        let even = encode_cmd("ffmpeg", Path::new("in.mkv"), Path::new("out.mp4"), 1920, 1080, 24.0, "libx264", 4_000_000).join(" ");
+        let even = encode_cmd("ffmpeg", Path::new("in.mkv"), Path::new("out.mp4"), VideoInfo { width: 1920, height: 1080, fps: 24.0 }, "libx264", 4_000_000).join(" ");
         assert!(!even.contains("-vf"));
     }
 }
