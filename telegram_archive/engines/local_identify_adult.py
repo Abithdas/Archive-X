@@ -43,14 +43,23 @@ async def _lookup(db, file_hash: str) -> dict | None:
     return None
 
 
-def run(db, channel: str) -> dict:
-    """Look up every video of the folder that is not identified yet. One run at a time."""
+_tried: set[int] = set()   # videos the scene databases already had no answer for in this session: the 15-minute re-check does not ask again, a person's scan does
+
+
+def run(db, channel: str, retry: bool = True) -> dict:
+    """Look up every video of the folder that is not identified yet. One run at a time. `retry=False` (the automatic re-check) leaves out what was already asked and not found."""
     if not configured(db):
         return {"ok": False, "error": "Add a StashDB or ThePornDB key (Settings → Metadata) to identify these videos."}
     if not _lock.acquire(blocking=False):
         return dict(_state)
+    ran = False
     try:
         todo = pending(db, channel)
+        if not retry:
+            todo = [r for r in todo if int(r["id"]) not in _tried]
+            if not todo:
+                return {"ok": True, **_state}   # nothing new: no run to show on the lanes
+        ran = True
         _state.update(running=True, total=len(todo), done=0, matched=0, unmatched=0, failed=0, channel=str(channel), started=time.time(), finished=0.0, reason="")
         for row in todo:
             try:
@@ -58,6 +67,7 @@ def run(db, channel: str) -> dict:
                 file_hash = si.oshash(path) if path and os.path.isfile(path) else ""
                 if not file_hash:                    # smaller than 128 KiB: the hash needs more than the file has
                     _state["unmatched"] += 1
+                    _tried.add(int(row["id"]))
                 else:
                     with db.lock:
                         db.conn.execute("UPDATE media SET oshash=? WHERE id=?", (file_hash, int(row["id"])))
@@ -67,6 +77,7 @@ def run(db, channel: str) -> dict:
                         _state["matched"] += 1
                     else:
                         _state["unmatched"] += 1
+                        _tried.add(int(row["id"]))
             except Exception as exc:
                 _swallowed_note("local_identify_adult.run")
                 from ..core.net_errors import explain
@@ -77,7 +88,8 @@ def run(db, channel: str) -> dict:
             _state["done"] += 1
         return {"ok": True, **_state}
     finally:
-        _state.update(running=False, finished=time.time())
+        if ran:
+            _state.update(running=False, finished=time.time())
         _lock.release()
 
 

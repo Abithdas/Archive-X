@@ -45,14 +45,14 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config, jobs=N
         _WATCHER = True
         threading.Thread(target=keep_in_step, name="local-folders-rescan", daemon=True).start()
 
-    def identify(channel: str) -> dict:
+    def identify(channel: str, retry: bool = True) -> dict:
         """Name the folder's videos with the providers that fit its mark: movies and shows (TMDB) for SFW, scene databases (by file hash) for NSFW."""
         from ..engines import local_identify_adult, screen_identify
         with db.reading() as conn:
             row = conn.execute("SELECT COALESCE(content_rating,'nsfw') AS r FROM channels WHERE telegram_id=?", (channel,)).fetchone()
         if row and row["r"] == "sfw":
             return screen_identify.run(db, channel) if screen_identify.configured(db) else {"ok": False, "error": "Add a TMDB key (Settings → Metadata) to identify movies and shows."}
-        return local_identify_adult.run(db, channel) if local_identify_adult.configured(db) else {"ok": False, "error": "Add a StashDB or ThePornDB key (Settings → Metadata) to identify these videos."}
+        return local_identify_adult.run(db, channel, retry) if local_identify_adult.configured(db) else {"ok": False, "error": "Add a StashDB or ThePornDB key (Settings → Metadata) to identify these videos."}
 
     def start_scan(sid: int) -> bool:
         t = running.get(sid)
@@ -64,7 +64,7 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config, jobs=N
                 ls.scan_source(db, sid)
                 from ..engines import local_videos
                 local_videos.process(db, ls.channel_id(sid))   # probe the new videos and build their snapshots
-                identify(ls.channel_id(sid))
+                identify(ls.channel_id(sid), retry=False)   # the automatic re-check: only what is new
             except Exception as exc:   # the failure is stored on the source and shown in Settings
                 db.log(f"Local folder scan failed: {type(exc).__name__}: {exc}", "WARN")
         t = threading.Thread(target=work, name=f"local-scan-{sid}", daemon=True)

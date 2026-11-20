@@ -2,6 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+
+- A finished "Matching scenes by file hash" card no longer stays on Transfers: the 15-minute folder re-check asked the scene databases again about every video they did not know, and each run kept its card for ten more minutes; now it only asks about new videos (the folder's Scan button still asks about all)
+
 ## 30.11.5 (2026-11-20)
 
 - A stream from an add-on opens on a page of its own with the same player as your videos, instead of a small box in the side panel; the whole row is clickable, not only the title

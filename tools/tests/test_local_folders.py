@@ -489,6 +489,35 @@ def test_a_metadata_scan_is_a_lane_with_progress_and_says_why_it_failed(tmp_path
     assert not [x for x in ls.lane_rows(db) if x["id"] == "identify:nsfw"]
 
 
+def test_the_automatic_recheck_does_not_ask_again_for_videos_the_scene_databases_did_not_know(tmp_path, folder, monkeypatch):
+    """The card on Transfers that never went away: every 15 minutes all the unmatched videos were hashed and asked about again, and each run kept its card for ten more minutes."""
+    from telegram_archive.engines import local_identify_adult as lia
+    from telegram_archive.engines import local_videos
+    db = Database(tmp_path / "a.db")
+    ch = ls.channel_id(make_source(db, folder))
+    clips = []
+    for n in range(2):
+        f = folder / f"c{n}.mp4"
+        f.write_bytes(b"v" * 200_000)
+        clips.append(str(f))
+    local_videos.index_videos(db, ch, clips)
+    db.set_setting("stashdb_api_key", "k")
+    lia._tried.clear()
+    asked = []
+
+    async def nothing(_db, file_hash):
+        asked.append(file_hash)
+        return None
+    monkeypatch.setattr(lia, "_lookup", nothing)
+    lia.run(db, ch, retry=False)
+    assert len(asked) == 2
+    before = dict(lia.progress())
+    lia.run(db, ch, retry=False)                      # the next automatic check: nothing new, nothing asked, no new card
+    assert len(asked) == 2 and lia.progress() == before
+    lia.run(db, ch)                                   # a person's scan asks again
+    assert len(asked) == 4
+
+
 def test_a_folder_being_prepared_in_one_library_does_not_block_the_same_folder_number_in_another(tmp_path, monkeypatch):
     """The CI failure of 19 November: a run left over from an earlier test held folder number 1, so the next one returned at once and nothing was probed."""
     from telegram_archive.engines import local_videos as lv
