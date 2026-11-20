@@ -3,7 +3,8 @@
     python tools/parity/compare_writes.py \
         --a https://127.0.0.1:18443 --a-data /data/A --b https://127.0.0.1:8443 --b-data /data/B --user admin --password ...
 
-Each server needs its own copy of the same database (build both with tools/parity/seed_fixture.py) and the same login.
+Each server needs its own copy of the same database (build both with tools/parity/seed_fixture.py) and the same login (or, for the
+desktop backend, ARCHIVE_X_PARITY_SECRET instead of --user and --password). tools/parity/run_parity.py --writes does all of this.
 The requests are in tools/parity/writes.json and run in order against both. After each one the database of each server is
 compared: which rows were added and which were removed, per table. Columns that hold times are ignored, because the two
 servers write at slightly different moments. Exit code 0 only when every answer and every change is identical.
@@ -80,8 +81,8 @@ def main():
     ap.add_argument("--a-data", required=True)
     ap.add_argument("--b", required=True)
     ap.add_argument("--b-data", required=True)
-    ap.add_argument("--user", required=True)
-    ap.add_argument("--password", required=True)
+    ap.add_argument("--user", default="", help="sign in with this login; without it, ARCHIVE_X_PARITY_SECRET (the desktop launch secret) is used")
+    ap.add_argument("--password", default="")
     ap.add_argument("--only", help="run only scenarios whose name contains this text")
     args = ap.parse_args()
     a, b = Client(args.a, args.user, args.password), Client(args.b, args.user, args.password)

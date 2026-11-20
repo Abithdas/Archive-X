@@ -75,6 +75,21 @@ jobs:
       - run: cargo test -p ax-server -p ax-db -p ax-names -p ax-faces -p ax-core
       - run: cargo clippy -p ax-server -p ax-db -p ax-names -p ax-faces -p ax-core -p archive-x-launcher-core -p archive-x-native-player --all-targets -- -D warnings
 
+  parity:
+    # The Rust front door must answer like the Python backend: the same seeded library behind both, SFW and NSFW, reads and writes.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: { python-version: "3.12", cache: pip }
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with: { toolchain: stable }
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - run: pip install -r requirements.txt websockets
+      - run: cargo build --release -p ax-server
+      - run: python tools/parity/run_parity.py --self-check --writes
+      - run: python tools/parity/run_parity.py --writes
+
   front-door-windows:
     # The front door ships in the Windows installer: make sure it builds there.
     runs-on: windows-latest

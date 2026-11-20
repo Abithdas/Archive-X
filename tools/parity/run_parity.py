@@ -11,8 +11,8 @@ What it does (the "recording harness" of docs/rust-migration-plan.md, Phase 0):
    discovered routes with ids, and the list query variants. Status codes and JSON bodies must match.
 5. Runs it twice, once in SFW and once in NSFW mode (the fixture's rows are NSFW).
 
-Not covered yet: the routes that change data (`compare_writes.py` needs a signed-in user and both data folders; wiring it in is the next
-step of the harness).
+6. With `--writes`, runs `compare_writes.py`: the state-changing requests of `writes.json` go to both servers in NSFW mode (the fixture's
+   write targets are NSFW) and both the answers and the rows each one changed in its database must match.
 
 With `--self-check` the same two Python copies are compared with each other instead (no Rust needed): this proves the recording itself
 is repeatable, which has to be true before a difference means anything.
@@ -94,6 +94,7 @@ def main() -> None:
     ap.add_argument("--native-routes", default="all")
     ap.add_argument("--dist", default=str(ROOT / "apps" / "web" / "dist"))
     ap.add_argument("--self-check", action="store_true", help="compare two Python copies with each other (no Rust)")
+    ap.add_argument("--writes", action="store_true", help="also compare the state-changing requests of writes.json")
     ap.add_argument("--keep", action="store_true", help="keep the scratch data folders")
     args = ap.parse_args()
 
@@ -132,6 +133,9 @@ def main() -> None:
         for mode in ("sfw", "nsfw"):
             code |= run([sys.executable, str(HERE / "compare.py"), "--a", a, "--b", b, "--set-mode", mode, "--discover", "--queries", "--ignore", VOLATILE, "--skip", SKIP,
                          "--path-a", str(scratch / "a"), "--path-b", str(scratch / "b")], env)
+        if args.writes:
+            # compare.py left both servers in NSFW mode, where the fixture's write targets are visible
+            code |= run([sys.executable, str(HERE / "compare_writes.py"), "--a", a, "--a-data", str(scratch / "a"), "--b", b, "--b-data", str(scratch / "b")], env)
         sys.exit(code)
     finally:
         for p in procs:
