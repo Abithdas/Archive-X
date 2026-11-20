@@ -4,6 +4,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Under the hood, more of the library pages are answered by the Rust front door instead of the Python backend: the Library's channel list, search, the performer and studio pages (videos, edit forms, metadata, family), tags and their taxonomy, and the cached photo files of the Photos page. The answers are the same as before; a check that runs on every change now compares both servers' answers in SFW and NSFW mode. Two small differences it found are fixed: the performer list now carries its movie and series counts through the front door, and a studio hidden by the mode answers "Not found" as everywhere else
 - Links to other websites (Where to watch, trailers' fallback, add-on links) open in your browser from the desktop app: the app window was refusing the command that opens them, because it was not on the list of commands the page may call
 - A finished "Matching scenes by file hash" card no longer stays on Transfers: the 15-minute folder re-check asked the scene databases again about every video they did not know, and each run kept its card for ten more minutes; now it only asks about new videos (the folder's Scan button still asks about all)
 
