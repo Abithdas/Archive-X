@@ -44,6 +44,7 @@ jobs:
       # The Rust job lifecycle writes (crates/ax-db/src/jobs.rs) replay what this database layer did for the recorded operations
       - run: python tools/parity/gen_job_op_vectors.py --check
       - run: python tools/parity/gen_lease_op_vectors.py --check
+      - run: python tools/parity/gen_job_read_vectors.py --check
 
   backend-tests:
     runs-on: ubuntu-latest

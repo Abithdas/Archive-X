@@ -130,7 +130,7 @@ pub(crate) fn truthy(v: &Value) -> bool {
 }
 
 /// `type(value).__name__` of a decoded JSON value.
-fn py_type_name(v: &Value) -> &'static str {
+pub(crate) fn py_type_name(v: &Value) -> &'static str {
     match v {
         Value::Null => "NoneType",
         Value::Bool(_) => "bool",
