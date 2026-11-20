@@ -5,6 +5,11 @@ pub fn casefold(s: &str) -> String {
     caseless::default_case_fold_str(s)
 }
 
+/// `re.findall(r"[\w]+", text)[:max]` with Python's Unicode `\w` (see `tag_taxonomy::is_word_char`): the words of a search text.
+pub fn word_tokens(text: &str, max: usize) -> Vec<String> {
+    text.split(|c: char| !crate::tag_taxonomy::is_word_char(c)).filter(|w| !w.is_empty()).take(max).map(str::to_string).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

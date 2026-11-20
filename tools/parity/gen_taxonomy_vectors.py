@@ -8,6 +8,7 @@ Each case is a list of rows (name plus a video id or a count) and the total numb
 forms, superscripts, punctuation and the format tags the taxonomy treats as generic.
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -53,7 +54,9 @@ def cases():
 
 
 def build():
-    result = {"normalize": {n: normalize_tag_key(n) for n in NAMES}, "generic": {n: is_generic_tag(n) for n in NAMES},
+    texts = NAMES + ["one two three four five six seven eight nine ten", "a-b_c d.e", "Ünï cödé 日本語 한국어", "x² y³ ½ ⅷ", "e\u0301 a\u0300", "tab\tsep\nnl", "quote\"here", "100% pure_ok", "😀 emoji 😀"]
+    result = {"tokens": {t: re.findall(r"[\w]+", t, flags=re.UNICODE)[:8] for t in texts},
+              "normalize": {n: normalize_tag_key(n) for n in NAMES}, "generic": {n: is_generic_tag(n) for n in NAMES},
               "categories": {n: categories_for_tag(n) for n in NAMES}, "taxonomy": []}
     for c in cases():
         rows = [{"name": r["name"], "video_id": r["video_id"], "video_count": r["video_count"]} for r in c["rows"]]

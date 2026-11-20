@@ -85,7 +85,7 @@ pub struct TagRow {
 }
 
 /// Python's `str.isalnum()` plus underscore: the characters `\w` matches in a Unicode `str` pattern.
-fn is_word_char(c: char) -> bool {
+pub fn is_word_char(c: char) -> bool {
     use GeneralCategory::*;
     c == '_'
         || matches!(

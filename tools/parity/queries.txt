@@ -130,3 +130,26 @@
 /api/studios/6/family
 /api/studios/999/family
 /api/channels
+# search: prefix words in the full-text index, the plain fallback, empty and odd texts, limits
+/api/search?q=Ava
+/api/search?q=ava%20stone
+/api/search?q=a
+/api/search?q=North
+/api/search?q=Scene
+/api/search?q=%C3%89v%C3%A8nement
+/api/search?q=%E5%AE%8C%E6%95%B4%E7%89%88
+/api/search?q=zzzzzz
+/api/search?q=
+/api/search
+/api/search?q=hd&limit=10
+/api/search?q=hd&limit=100
+/api/search?q=hd&limit=5
+/api/search?q=hd&limit=abc
+/api/search?q=hd&limit=1000
+/api/search?q=a+b
+/api/search?q=%22quoted%22
+/api/search?q=50%25
+/api/search?q=pov%20outdoor
+/api/search?q=file_1
+/api/search?q=%20%20Mia%20%20
+/api/search?q=one%20two%20three%20four%20five%20six%20seven%20eight%20nine

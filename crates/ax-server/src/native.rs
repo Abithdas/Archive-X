@@ -32,6 +32,7 @@ pub const ROUTES: &[&str] = &[
     "photo_image",
     "source_channels",
     "library_channels",
+    "search",
     "studio_family",
     "performer_edit",
     "studio_edit",
@@ -247,6 +248,7 @@ impl Native {
             "/api/tag-taxonomy" => ("tag_taxonomy", None),
             "/api/source-channels" => ("source_channels", None),
             "/api/channels" => ("library_channels", None),
+            "/api/search" => ("search", None),
             "/api/photos/faces/groups" => ("face_groups_fast", None),
             "/api/library" => ("library_list", None),
             "/api/tags" => ("tags_list", None),
@@ -396,6 +398,11 @@ impl Native {
                 let kind = crate::native_photos::PhotoFile::from_name(m.kind?)?;
                 let (channel, message) = m.pair?;
                 let resp = self.photo_file(kind, channel, message, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "search" => {
+                let resp = self.global_search(query, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }
@@ -1349,6 +1356,143 @@ fn py_str_or_empty(v: Option<&Value>) -> String {
     match v {
         Some(v) if truthy(Some(v)) => py_scalar_str(v).unwrap_or_default(),
         _ => String::new(),
+    }
+}
+
+impl Native {
+    /// GET /api/search (routes_media.global_search): videos, performers, tags and studios matching a text. Words are matched as prefixes in the
+    /// full-text index when the database has one, and as plain `LIKE` text otherwise or when the index finds no video. A `limit` that Python's
+    /// `int()` would read differently, and any failure of the studio search, go to Python.
+    async fn global_search(&self, query: Option<&str>, request: &HeaderMap) -> Option<Response<Body>> {
+        let params = query_params(query)?;
+        let q = params.get("q").map(|q| q.trim().to_string()).unwrap_or_default();
+        let limit = match params.get("limit") {
+            None => 48,
+            Some(l) if !l.is_empty() && l.len() <= 6 && l.bytes().all(|b| b.is_ascii_digit()) => l.parse::<i64>().ok()?.clamp(10, 100),
+            Some(l) if !l.is_empty() && l.bytes().all(|b| b.is_ascii_alphabetic()) => 48, // int() fails: the default
+            Some(_) => return None,
+        };
+        if q.is_empty() {
+            let empty = serde_json::json!({ "videos": [], "performers": [], "tags": [], "studios": [] });
+            return Some(json_response(request, serde_json::to_vec(&empty).unwrap_or_default()));
+        }
+        let tokens = ax_core::text::word_tokens(&q, 8);
+        let matcher = tokens.iter().map(|t| format!("\"{t}\"*")).collect::<Vec<_>>().join(" ");
+        let like = format!("%{q}%");
+        let read = self
+            .db
+            .read(move |c| {
+                use ax_db::rusqlite::params;
+                let has_fts = !matcher.is_empty() && {
+                    let n: i64 = c.query_row(
+                        "SELECT COUNT(*) FROM main.sqlite_master WHERE name IN ('media_fts','performer_fts','tag_fts','studio_fts')",
+                        [],
+                        |r| r.get(0),
+                    )?;
+                    n == 4
+                };
+                let performers = rows_with(
+                    c,
+                    "SELECT p.*, COUNT(DISTINCT combined.video_id) video_count FROM performers p LEFT JOIN (SELECT performer_id, video_id FROM video_performers WHERE video_id IN (SELECT id FROM archive_x_library_media) UNION SELECT performer_id, video_id FROM local_video_performers WHERE video_id IN (SELECT id FROM archive_x_library_media)) combined \
+                     ON combined.performer_id=p.id WHERE p.name LIKE ? OR COALESCE(p.aliases,'') LIKE ? GROUP BY p.id HAVING video_count > 0 ORDER BY (lower(p.name)=lower(?)) DESC, video_count DESC, p.name LIMIT ?",
+                    params![like, like, q, limit],
+                )?;
+                let tags = rows_with(
+                    c,
+                    "SELECT t.*, COUNT(DISTINCT vt.video_id) video_count FROM tags t LEFT JOIN video_tags vt ON vt.tag_id=t.id AND vt.video_id IN (SELECT id FROM archive_x_library_media) WHERE t.name LIKE ? \
+                     GROUP BY t.id HAVING video_count > 0 ORDER BY (lower(t.name)=lower(?)) DESC, video_count DESC, t.name LIMIT ?",
+                    params![like, q, limit],
+                )?;
+                let studios = if has_fts {
+                    rows_with(
+                        c,
+                        "SELECT s.*, COUNT(DISTINCT CASE WHEN vs.video_id IN (SELECT id FROM archive_x_library_media) THEN vs.video_id END) video_count FROM studios s \
+                         LEFT JOIN video_studios vs ON vs.studio_id=s.id AND vs.video_id IN (SELECT id FROM archive_x_library_media) WHERE s.id IN (SELECT rowid FROM studio_fts WHERE studio_fts MATCH ?) \
+                         GROUP BY s.id HAVING video_count > 0 ORDER BY (lower(s.name)=lower(?)) DESC, video_count DESC, s.name LIMIT ?",
+                        params![matcher, q, limit],
+                    )?
+                } else {
+                    rows_with(
+                        c,
+                        "SELECT s.*, COUNT(DISTINCT CASE WHEN vs.video_id IN (SELECT id FROM archive_x_library_media) THEN vs.video_id END) video_count FROM studios s \
+                         LEFT JOIN video_studios vs ON vs.studio_id=s.id AND vs.video_id IN (SELECT id FROM archive_x_library_media) WHERE s.name LIKE ? \
+                         GROUP BY s.id HAVING video_count > 0 ORDER BY (lower(s.name)=lower(?)) DESC, video_count DESC, s.name LIMIT ?",
+                        params![like, q, limit],
+                    )?
+                };
+                let mut media_ids: Vec<i64> = Vec::new();
+                if has_fts {
+                    // a failing full-text query is not an error here: the plain search below answers (as in Python)
+                    let fts: ax_db::rusqlite::Result<Vec<i64>> = (|| {
+                        let mut st = c.prepare(
+                            "SELECT m.id FROM archive_x_library_media m WHERE m.id IN (SELECT rowid FROM media_fts WHERE media_fts MATCH ?1) \
+                             OR m.id IN (SELECT vp.video_id FROM video_performers vp WHERE vp.performer_id IN (SELECT rowid FROM performer_fts WHERE performer_fts MATCH ?1)) \
+                             OR m.id IN (SELECT lvp.video_id FROM local_video_performers lvp WHERE lvp.performer_id IN (SELECT rowid FROM performer_fts WHERE performer_fts MATCH ?1)) \
+                             OR m.id IN (SELECT vs.video_id FROM video_studios vs WHERE vs.studio_id IN (SELECT rowid FROM studio_fts WHERE studio_fts MATCH ?1)) \
+                             OR m.id IN (SELECT vt.video_id FROM video_tags vt WHERE vt.tag_id IN (SELECT rowid FROM tag_fts WHERE tag_fts MATCH ?1)) ORDER BY m.upload_date DESC LIMIT ?2",
+                        )?;
+                        let rows = st.query_map(params![matcher, limit], |r| r.get::<_, i64>(0))?;
+                        rows.collect()
+                    })();
+                    media_ids = fts.unwrap_or_default();
+                }
+                if media_ids.is_empty() {
+                    let mut st = c.prepare(
+                        "SELECT m.id FROM archive_x_library_media m WHERE m.title LIKE ?1 OR m.filename LIKE ?1 OR m.caption LIKE ?1 \
+                         OR EXISTS (SELECT 1 FROM video_performers vp JOIN performers p ON p.id=vp.performer_id WHERE vp.video_id=m.id AND p.name LIKE ?1) \
+                         OR EXISTS (SELECT 1 FROM local_video_performers lvp JOIN performers p ON p.id=lvp.performer_id WHERE lvp.video_id=m.id AND p.name LIKE ?1) \
+                         OR EXISTS (SELECT 1 FROM video_studios vs JOIN studios s ON s.id=vs.studio_id WHERE vs.video_id=m.id AND s.name LIKE ?1) \
+                         OR EXISTS (SELECT 1 FROM video_tags vt JOIN tags t ON t.id=vt.tag_id WHERE vt.video_id=m.id AND t.name LIKE ?1) ORDER BY m.upload_date DESC LIMIT ?2",
+                    )?;
+                    let rows = st.query_map(params![like, limit], |r| r.get::<_, i64>(0))?;
+                    media_ids = rows.collect::<ax_db::rusqlite::Result<Vec<i64>>>()?;
+                }
+                let mut videos: Vec<Map<String, Value>> = Vec::new();
+                if !media_ids.is_empty() {
+                    let sql = format!(
+                        "SELECT m.*, GROUP_CONCAT(DISTINCT p.name) performers, GROUP_CONCAT(DISTINCT lp.name) local_performers, GROUP_CONCAT(DISTINCT s.name) studios, GROUP_CONCAT(DISTINCT t.name) tags \
+                         FROM archive_x_library_media m LEFT JOIN video_performers vp ON vp.video_id=m.id LEFT JOIN performers p ON p.id=vp.performer_id LEFT JOIN local_video_performers lvp ON lvp.video_id=m.id \
+                         LEFT JOIN performers lp ON lp.id=lvp.performer_id LEFT JOIN video_studios vs ON vs.video_id=m.id LEFT JOIN studios s ON s.id=vs.studio_id LEFT JOIN video_tags vt ON vt.video_id=m.id \
+                         LEFT JOIN tags t ON t.id=vt.tag_id WHERE m.id IN ({}) GROUP BY m.id ORDER BY m.upload_date DESC",
+                        ax_core::sql_batches::marks(media_ids.len())
+                    );
+                    videos = rows_with(c, &sql, ax_db::rusqlite::params_from_iter(media_ids.iter()))?;
+                }
+                Ok((videos, performers, tags, studios))
+            })
+            .await;
+        let (videos, performers, tags, studios) = match read {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::warn!("search: {e}"); // Python answers (and reports what is wrong)
+                return None;
+            }
+        };
+        let videos: Vec<Value> = videos
+            .into_iter()
+            .map(|mut d| {
+                let performers = merged_performers(&d);
+                d.insert("performers".into(), strings(performers));
+                let local = csv_list(d.get("local_performers"));
+                d.insert("local_performers".into(), strings(local));
+                let studios = csv_list(d.get("studios"));
+                d.insert("studios".into(), strings(studios.clone()));
+                d.insert("studio".into(), Value::String(studios.first().cloned().unwrap_or_default()));
+                let tags = csv_list(d.get("tags"));
+                d.insert("tags".into(), strings(tags));
+                // the media row's own id is overwritten by the message id, as in Python
+                let sm = d.get("source_message_id").cloned().unwrap_or(Value::Null);
+                d.insert("id".into(), sm);
+                let sc = d.get("source_channel").cloned().unwrap_or(Value::Null);
+                d.insert("_cid".into(), sc);
+                display_name_and_thumbnail(&mut d);
+                let filename = if truthy(d.get("filename")) { d["filename"].clone() } else { Value::String(String::new()) };
+                d.insert("telegram_filename".into(), filename);
+                Value::Object(d)
+            })
+            .collect();
+        let out = serde_json::json!({ "videos": videos, "performers": performers, "tags": tags, "studios": studios });
+        Some(json_response(request, serde_json::to_vec(&out).unwrap_or_default()))
     }
 }
 

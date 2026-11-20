@@ -1,4 +1,398 @@
 {
+ "tokens": {
+  "Outdoor": [
+   "Outdoor"
+  ],
+  "outdoor": [
+   "outdoor"
+  ],
+  "OUTDOOR ": [
+   "OUTDOOR"
+  ],
+  "Out-door": [
+   "Out",
+   "door"
+  ],
+  "Out_door": [
+   "Out_door"
+  ],
+  "public": [
+   "public"
+  ],
+  "Public Place": [
+   "Public",
+   "Place"
+  ],
+  "pool": [
+   "pool"
+  ],
+  "Pool Party": [
+   "Pool",
+   "Party"
+  ],
+  "park": [
+   "park"
+  ],
+  "beach": [
+   "beach"
+  ],
+  "amateur": [
+   "amateur"
+  ],
+  "Amateur!": [
+   "Amateur"
+  ],
+  "POV": [
+   "POV"
+  ],
+  "p.o.v.": [
+   "p",
+   "o",
+   "v"
+  ],
+  "P O V": [
+   "P",
+   "O",
+   "V"
+  ],
+  "Point of View": [
+   "Point",
+   "of",
+   "View"
+  ],
+  "hd": [
+   "hd"
+  ],
+  "HD": [
+   "HD"
+  ],
+  "Full HD": [
+   "Full",
+   "HD"
+  ],
+  "4K": [
+   "4K"
+  ],
+  "4k": [
+   "4k"
+  ],
+  "8K": [
+   "8K"
+  ],
+  "1080p": [
+   "1080p"
+  ],
+  "1080 p": [
+   "1080",
+   "p"
+  ],
+  "720P": [
+   "720P"
+  ],
+  "2160p HD": [
+   "2160p",
+   "HD"
+  ],
+  "480p hevc": [
+   "480p",
+   "hevc"
+  ],
+  "H.264": [
+   "H",
+   "264"
+  ],
+  "h264": [
+   "h264"
+  ],
+  "H 264 encode": [
+   "H",
+   "264",
+   "encode"
+  ],
+  "x265": [
+   "x265"
+  ],
+  "X264 rip": [
+   "X264",
+   "rip"
+  ],
+  "mp4": [
+   "mp4"
+  ],
+  "MKV": [
+   "MKV"
+  ],
+  "webm": [
+   "webm"
+  ],
+  "WebDL": [
+   "WebDL"
+  ],
+  "Web-DL": [
+   "Web",
+   "DL"
+  ],
+  "web dl": [
+   "web",
+   "dl"
+  ],
+  "new": [
+   "new"
+  ],
+  "Free": [
+   "Free"
+  ],
+  "Interview": [
+   "Interview"
+  ],
+  "Café": [
+   "Café"
+  ],
+  "CAFÉ": [
+   "CAFÉ"
+  ],
+  "Café": [
+   "Cafe"
+  ],
+  "Straße": [
+   "Straße"
+  ],
+  "STRASSE": [
+   "STRASSE"
+  ],
+  "strasse": [
+   "strasse"
+  ],
+  "İstanbul": [
+   "İstanbul"
+  ],
+  "istanbul": [
+   "istanbul"
+  ],
+  "ΣΊΣΥΦΟΣ": [
+   "ΣΊΣΥΦΟΣ"
+  ],
+  "σίσυφος": [
+   "σίσυφος"
+  ],
+  "ﬁlm": [
+   "ﬁlm"
+  ],
+  "film": [
+   "film"
+  ],
+  "ＦＵＬＬ　ＨＤ": [
+   "ＦＵＬＬ",
+   "ＨＤ"
+  ],
+  "ｈｄ": [
+   "ｈｄ"
+  ],
+  "x²": [
+   "x²"
+  ],
+  "x2": [
+   "x2"
+  ],
+  "Ⅷ": [
+   "Ⅷ"
+  ],
+  "viii": [
+   "viii"
+  ],
+  "日本語": [
+   "日本語"
+  ],
+  "한국어": [
+   "한국어"
+  ],
+  "naïve": [
+   "naïve"
+  ],
+  "NAÏVE": [
+   "NAÏVE"
+  ],
+  "Tom & Jerry": [
+   "Tom",
+   "Jerry"
+  ],
+  "tom and jerry": [
+   "tom",
+   "and",
+   "jerry"
+  ],
+  "Tom_Jerry": [
+   "Tom_Jerry"
+  ],
+  "a&b": [
+   "a",
+   "b"
+  ],
+  "a_b": [
+   "a_b"
+  ],
+  "  padded  ": [
+   "padded"
+  ],
+  "": [],
+  "---": [],
+  "___": [
+   "___"
+  ],
+  "&": [],
+  "emoji 🎬 tag": [
+   "emoji",
+   "tag"
+  ],
+  "🎬": [],
+  "tab\tname": [
+   "tab",
+   "name"
+  ],
+  "new line": [
+   "new",
+   "line"
+  ],
+  "é": [
+   "e"
+  ],
+  "é": [
+   "é"
+  ],
+  "ß": [
+   "ß"
+  ],
+  "SS": [
+   "SS"
+  ],
+  "İ": [
+   "İ"
+  ],
+  "i̇": [
+   "i"
+  ],
+  "teacher": [
+   "teacher"
+  ],
+  "Teacher's Pet": [
+   "Teacher",
+   "s",
+   "Pet"
+  ],
+  "nurse": [
+   "nurse"
+  ],
+  "stockings": [
+   "stockings"
+  ],
+  "cosplay": [
+   "cosplay"
+  ],
+  "dp": [
+   "dp"
+  ],
+  " dp ": [
+   "dp"
+  ],
+  "69 position": [
+   "69",
+   "position"
+  ],
+  "doggy-style": [
+   "doggy",
+   "style"
+  ],
+  "Doggy Style": [
+   "Doggy",
+   "Style"
+  ],
+  "milf": [
+   "milf"
+  ],
+  "bbw": [
+   "bbw"
+  ],
+  "Big_Ass": [
+   "Big_Ass"
+  ],
+  "big ass": [
+   "big",
+   "ass"
+  ],
+  "BIG  ASS": [
+   "BIG",
+   "ASS"
+  ],
+  "feet": [
+   "feet"
+  ],
+  "toys": [
+   "toys"
+  ],
+  "sex toy": [
+   "sex",
+   "toy"
+  ],
+  "facial": [
+   "facial"
+  ],
+  "Solo Play": [
+   "Solo",
+   "Play"
+  ],
+  "solo-play": [
+   "solo",
+   "play"
+  ],
+  "one two three four five six seven eight nine ten": [
+   "one",
+   "two",
+   "three",
+   "four",
+   "five",
+   "six",
+   "seven",
+   "eight"
+  ],
+  "a-b_c d.e": [
+   "a",
+   "b_c",
+   "d",
+   "e"
+  ],
+  "Ünï cödé 日本語 한국어": [
+   "Ünï",
+   "cödé",
+   "日本語",
+   "한국어"
+  ],
+  "x² y³ ½ ⅷ": [
+   "x²",
+   "y³",
+   "½",
+   "ⅷ"
+  ],
+  "é à": [
+   "e",
+   "a"
+  ],
+  "tab\tsep\nnl": [
+   "tab",
+   "sep",
+   "nl"
+  ],
+  "quote\"here": [
+   "quote",
+   "here"
+  ],
+  "100% pure_ok": [
+   "100",
+   "pure_ok"
+  ],
+  "😀 emoji 😀": [
+   "emoji"
+  ]
+ },
  "normalize": {
   "Outdoor": "outdoor",
   "outdoor": "outdoor",

@@ -8,6 +8,17 @@ fn cases() -> Value {
 }
 
 #[test]
+fn search_words_are_split_like_python() {
+    let cases = cases();
+    let all = cases["tokens"].as_object().unwrap();
+    assert!(all.len() > 20);
+    for (text, expected) in all {
+        let want: Vec<&str> = expected.as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+        assert_eq!(ax_core::text::word_tokens(text, 8), want, "{text:?}");
+    }
+}
+
+#[test]
 fn keys_are_normalised_like_python() {
     let cases = cases();
     for (name, expected) in cases["normalize"].as_object().unwrap() {
