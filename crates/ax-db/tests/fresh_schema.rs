@@ -58,20 +58,8 @@ fn indexes_triggers_views_and_the_full_text_tables_are_there() {
     assert!(count("index") >= 190, "{} indexes", count("index"));
     for t in ["media_fts", "performer_fts", "tag_fts", "studio_fts"] {
         // the index tables work: an insert and a prefix search
-        c.execute(
-            &format!(
-                "INSERT INTO {t}(rowid, {}) VALUES (1, 'hello world')",
-                if t == "media_fts" {
-                    "title"
-                } else if t == "performer_fts" {
-                    "name"
-                } else {
-                    "name"
-                }
-            ),
-            [],
-        )
-        .unwrap();
+        let column = if t == "media_fts" { "title" } else { "name" };
+        c.execute(&format!("INSERT INTO {t}(rowid, {column}) VALUES (1, 'hello world')"), []).unwrap();
         let n: i64 = c.query_row(&format!("SELECT COUNT(*) FROM {t} WHERE {t} MATCH 'hel*'"), [], |r| r.get(0)).unwrap();
         assert_eq!(n, 1, "{t}");
     }
