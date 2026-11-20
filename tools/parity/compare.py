@@ -167,6 +167,9 @@ def main():
     ap.add_argument("--discover", action="store_true", help="also request routes with path parameters, filled with ids found on server A")
     ap.add_argument("--timing", action="store_true", help="print how long each server took per route (mean of 5 requests), slowest first")
     ap.add_argument("--queries", action="store_true", help="also request the list-route query variants in tools/parity/queries.txt")
+    ap.add_argument("--set-mode", choices=["sfw", "nsfw"], help="switch both servers to this content mode first (the fixture's rows are NSFW; a fresh app is SFW)")
+    ap.add_argument("--path-a", default="", help="server A's data folder; every occurrence in its answers is read as <DATA>")
+    ap.add_argument("--path-b", default="", help="server B's data folder; every occurrence in its answers is read as <DATA>")
     ap.add_argument("--ignore", default="", help="extra JSON keys to ignore, comma separated")
     ap.add_argument("--skip", default="/api/exit,/openapi.json,/api/diagnostics/metrics,/api/diagnostics/metrics/export,/api/diagnostics/report,/api/diagnostics/summary,/api/log/download", help="paths not to request")
     args = ap.parse_args()
@@ -176,6 +179,12 @@ def main():
     if args.routes:
         paths += [l.strip() for l in Path(args.routes).read_text().splitlines() if l.strip() and not l.startswith("#")]
     a, b = Client(args.a, args.user, args.password), Client(args.b, args.user, args.password)
+    if args.set_mode:
+        for c in (a, b):
+            status, _, data = c.request("POST", "/api/content-mode", json.dumps({"mode": args.set_mode}), {"Content-Type": "application/json", "Origin": c.base})
+            if status != 200:
+                sys.exit(f"could not switch {c.base} to {args.set_mode}: {status} {data[:200]!r}")
+        print(f"both servers are in {args.set_mode.upper()} mode")
     if args.discover:
         seeds = discover(a)
         print("discovered:", {k: (len(v) if k != "channels" else v) for k, v in seeds.items()})
@@ -196,6 +205,10 @@ def main():
         try:
             sa, ha, da = a.request("GET", p)
             sb, hb, db_ = b.request("GET", p)
+            if args.path_a:
+                da = da.replace(args.path_a.encode(), b"<DATA>")
+            if args.path_b:
+                db_ = db_.replace(args.path_b.encode(), b"<DATA>")
             statuses[sa] = statuses.get(sa, 0) + 1
             if args.timing and sa == 200:
                 import time as _t
