@@ -91,3 +91,4 @@
 /api/entity-lookup?kind=performers&names=
 /api/status
 /api/storage
+/api/tag-taxonomy?refresh=1

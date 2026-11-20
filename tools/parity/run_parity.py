@@ -35,7 +35,9 @@ SECRET = "parity-" + "0123456789abcdef" * 4
 READY = "ARCHIVE_X_READY "
 # Routes whose answer is the app's own activity log or a report built from it: two servers never have the same log.
 SKIP = ("/api/exit,/openapi.json,/api/diagnostics/metrics,/api/diagnostics/metrics/export,/api/diagnostics/report,/api/diagnostics/summary,"
-        "/api/log/download,/api/diagnostics/logs,/api/diagnostics/report/html")
+        "/api/log/download,/api/diagnostics/logs,/api/diagnostics/report/html,"
+        # Python keeps this answer for 30 s and shares it between SFW and NSFW, so only the ?refresh=1 form in queries.txt is compared
+        "/api/tag-taxonomy")
 # Values that differ between two healthy copies of the same fixture: memory and disk figures, per-launch ids, change counters, byte totals.
 VOLATILE = "available_bytes,available_gb,free_bytes,launch_id,data_versions,bytes,first,last,recent_degraded,playback_log_tail,recent_playback_events,free_gb,events,free,used"
 

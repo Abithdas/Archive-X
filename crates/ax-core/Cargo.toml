@@ -11,6 +11,9 @@ aes-gcm = "0.10"
 hmac = "0.12"
 sha2 = "0.10"
 getrandom = "0.2"
+unicode-normalization = "0.1"
+unicode-properties = "0.1"
+caseless = "0.2"
 serde_json = { version = "1", features = ["preserve_order"] }
 tempfile = "3"
 

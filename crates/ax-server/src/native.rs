@@ -25,6 +25,7 @@ pub const ROUTES: &[&str] = &[
     "photos_channels",
     "performers_list",
     "studios_list",
+    "tag_taxonomy",
     "face_groups_fast",
     "channel_videos",
     "studio_videos",
@@ -212,6 +213,7 @@ impl Native {
             "/api/photos/channels" => ("photos_channels", None),
             "/api/performers" => ("performers_list", None),
             "/api/studios" => ("studios_list", None),
+            "/api/tag-taxonomy" => ("tag_taxonomy", None),
             "/api/photos/faces/groups" => ("face_groups_fast", None),
             "/api/library" => ("library_list", None),
             "/api/tags" => ("tags_list", None),
@@ -258,6 +260,11 @@ impl Native {
             "photos_channels" => {
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(self.photos_channels(headers).await)
+            }
+            "tag_taxonomy" => {
+                let resp = self.tag_taxonomy(headers).await;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
             }
             "studios_list" => {
                 let resp = self.studios_list(query, headers).await?;
@@ -636,6 +643,64 @@ impl Native {
             })
             .collect();
         Some(json_response(request, serde_json::to_vec(&out).unwrap_or_default()))
+    }
+}
+
+/// `normalize_tag_key` of a tag's name, for finding names that differ only in case or punctuation.
+fn tag_key(name: &str) -> String {
+    ax_core::tag_taxonomy::normalize_tag_key(name)
+}
+
+impl Native {
+    /// GET /api/tag-taxonomy (routes_entity_pages.tag_taxonomy): smart tag visibility, ranking and derived categories. Python keeps the
+    /// answer for 30 seconds and shares it between SFW and NSFW; this answers from the current mode's data every time.
+    async fn tag_taxonomy(&self, request: &HeaderMap) -> Response<Body> {
+        use ax_core::sql_batches::{batches, marks};
+        use ax_core::tag_taxonomy::{build_tag_taxonomy, TagRow};
+        let read = self
+            .db
+            .read(|c| {
+                let total: i64 = c.query_row("SELECT COUNT(DISTINCT id) AS n FROM archive_x_library_media", [], |r| r.get(0))?;
+                let mut rows: Vec<(i64, TagRow)> = Vec::new(); // (tag id, row)
+                let mut st = c.prepare(
+                    "SELECT t.id AS tag_id, t.name AS name, COUNT(DISTINCT vt.video_id) AS video_count FROM tags t JOIN video_tags vt ON vt.tag_id=t.id \
+                     JOIN archive_x_library_media m ON m.id=vt.video_id GROUP BY t.id, t.name ORDER BY t.name",
+                )?;
+                let mut it = st.query([])?;
+                while let Some(r) = it.next()? {
+                    let name: Option<String> = r.get(1)?;
+                    rows.push((r.get(0)?, TagRow { name: name.unwrap_or_default(), video_id: None, video_count: r.get::<_, Option<i64>>(2)?.unwrap_or(0) }));
+                }
+                // names that share a key are counted by their videos, so a video with both spellings counts once
+                let mut by_key: std::collections::HashMap<String, Vec<i64>> = std::collections::HashMap::new();
+                for (id, row) in &rows {
+                    by_key.entry(tag_key(&row.name)).or_default().push(*id);
+                }
+                let collisions: Vec<i64> = by_key.values().filter(|ids| ids.len() > 1).flatten().copied().collect();
+                let mut all: Vec<TagRow> = rows.into_iter().map(|(_, r)| r).collect();
+                for batch in batches(&collisions, 500) {
+                    let sql = format!(
+                        "SELECT t.name AS name, vt.video_id AS video_id FROM tags t JOIN video_tags vt ON vt.tag_id=t.id JOIN archive_x_library_media m ON m.id=vt.video_id \
+                         WHERE t.id IN ({}) ORDER BY t.name, vt.video_id",
+                        marks(batch.len())
+                    );
+                    let mut st = c.prepare(&sql)?;
+                    let mut it = st.query(ax_db::rusqlite::params_from_iter(batch.iter()))?;
+                    while let Some(r) = it.next()? {
+                        let name: Option<String> = r.get(0)?;
+                        all.push(TagRow { name: name.unwrap_or_default(), video_id: r.get(1)?, video_count: 0 });
+                    }
+                }
+                Ok(build_tag_taxonomy(total, &all))
+            })
+            .await;
+        match read {
+            Ok(v) => json_response(request, serde_json::to_vec(&v).unwrap_or_default()),
+            Err(e) => {
+                tracing::error!("tag taxonomy: {e}");
+                json_error(StatusCode::SERVICE_UNAVAILABLE, "The tag taxonomy could not be read")
+            }
+        }
     }
 }
 
