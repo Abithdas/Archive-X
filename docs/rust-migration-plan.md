@@ -180,3 +180,17 @@ After the routes above, what is left of the read-only API falls into these group
 Everything in the tables of section 9 has Rust and Python agreeing on the parity harness in SFW and NSFW mode, with CI (`parity` job) enforcing it.
 
 What cannot be done from a development session without a real account: anything that talks to Telegram. The `grammers` client, the fake Telegram sink for recording, and the first real login need either credentials from the owner or a recorded transcript of a real session.
+
+## 11. The job system: what could be ported, and what it waits for
+
+Read of `telegram_archive/jobs/` (3,000 lines) on 2026-11-20, before starting Phase 3:
+
+- `manager.py` (1,732 lines) imports every engine (`uploader`, `metadata_assets`, `transfer_manager`, `preview_prefetch`, `content_automation`, the media manager, backup ...) and the Telegram service, and runs them in asyncio worker loops. A Rust job manager has nothing to run until at least some of those engines exist in Rust, and Python and Rust engines cannot share one in-memory queue.
+- `orchestrator.py` (admission, dependencies, leases, retry scheduling) is written against about thirty job methods of `core/database.py` (`set_job_admission`, `acquire_job_execution`, `heartbeat_job_execution`, `expired_job_executions`, `execution_lane_snapshot` ...), the resource manager and the governor. It cannot be ported faithfully before the database layer.
+- `priorities.py`, the failure classes and the retry delay are pure. Ported as `ax-core::job_policy`, compared with Python on 16 priority rows and 13 failures (0 differences). The retry jitter in Python comes from `hash(job_id)`, which Python randomises per process, so Rust takes the jitter as a parameter.
+
+So the order inside Phase 3 is: (1) `core/database.py` into a Rust crate with the job methods first, (2) the resource manager and the governor, (3) the orchestrator on top of them, (4) the manager's worker loops with a trait for engines, (5) engines one at a time. Until step 4 the Python manager keeps running every job; the front door only reads the jobs tables (`/api/jobs*` stays in Python for now).
+
+| Date | Phase | Unit | Rust | Status | Notes |
+|---|---|---|---|---|---|
+| 2026-11-20 | 3 | `jobs/priorities.py` and the pure parts of `jobs/orchestrator.py` | `ax-core::job_policy` | done | `job_priority`, `classify_failure`, `retry_delay`. 4 tests. |

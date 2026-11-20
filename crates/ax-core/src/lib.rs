@@ -4,6 +4,7 @@
 //! were written from the Python source. No module here touches the network or the database.
 
 pub mod duration_filter;
+pub mod job_policy;
 pub mod net_errors;
 pub mod resolution_filter;
 pub mod retry_policy;
