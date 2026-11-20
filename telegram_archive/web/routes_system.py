@@ -481,7 +481,8 @@ def register_system_routes(
             raise HTTPException(404, "Not Found")
         return JSONResponse({"stashdb": str(db.setting("stashdb_api_key") or ""), "tpdb": str(db.setting("tpdb_api_token") or ""),
                              "data_dir": str(config.DATABASE_DIR), "db_path": str(config.DB_PATH),
-                             "playback_asset_dir": str(config.PLAYBACK_ASSET_DIR)}, headers={"Cache-Control": "no-store"})
+                             "playback_asset_dir": str(config.PLAYBACK_ASSET_DIR),
+                             "user_data_dir": str(config.USER_DATA_DIR), "cache_dir": str(config.CACHE_DIR)}, headers={"Cache-Control": "no-store"})
 
     @router.get("/api/app/ping")
     async def app_ping(request: Request):

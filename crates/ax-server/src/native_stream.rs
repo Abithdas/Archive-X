@@ -266,10 +266,10 @@ impl Native {
 }
 
 /// A part of a file, read from disk a chunk at a time as the client takes it (nothing is held in memory beyond one chunk).
-struct FileBody {
-    file: tokio::fs::File,
-    remaining: u64,
-    buf: BytesMut,
+pub(crate) struct FileBody {
+    pub(crate) file: tokio::fs::File,
+    pub(crate) remaining: u64,
+    pub(crate) buf: BytesMut,
 }
 
 impl hyper::body::Body for FileBody {

@@ -32,6 +32,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 SECRET = "parity-" + "0123456789abcdef" * 4
+# The front door and the backend share this key, as the desktop shell arranges; the backend answers the front door's /internal/ questions with it.
+PROXY_KEY = "proxy-" + "fedcba9876543210" * 2
 READY = "ARCHIVE_X_READY "
 # Routes whose answer is the app's own activity log or a report built from it: two servers never have the same log.
 SKIP = ("/api/exit,/openapi.json,/api/diagnostics/metrics,/api/diagnostics/metrics/export,/api/diagnostics/report,/api/diagnostics/summary,"
@@ -44,7 +46,7 @@ VOLATILE = "available_bytes,available_gb,free_bytes,launch_id,data_versions,byte
 
 def start_python_backend(data_dir: Path, log_path: Path) -> tuple[subprocess.Popen, int]:
     env = dict(os.environ, ARCHIVE_X_DESKTOP="1", ARCHIVE_X_LAUNCH_SECRET=SECRET, ARCHIVE_X_DATA_DIR=str(data_dir),
-               ARCHIVE_X_DESKTOP_PORT="0", ARCHIVE_X_PARENT_PID=str(os.getpid()), PYTHONUNBUFFERED="1", ARCHIVE_X_AUTO_OPEN_BROWSER="0")
+               ARCHIVE_X_DESKTOP_PORT="0", ARCHIVE_X_PARENT_PID=str(os.getpid()), PYTHONUNBUFFERED="1", ARCHIVE_X_AUTO_OPEN_BROWSER="0", ARCHIVE_X_PROXY_KEY=PROXY_KEY)
     log = open(log_path, "w")
     proc = subprocess.Popen([sys.executable, "-m", "telegram_archive"], cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     deadline = time.time() + 90
@@ -67,7 +69,7 @@ def start_python_backend(data_dir: Path, log_path: Path) -> tuple[subprocess.Pop
 
 
 def start_front_door(exe: Path, backend_port: int, db_path: Path, native: str, dist: Path) -> tuple[subprocess.Popen, int]:
-    env = dict(os.environ, ARCHIVE_X_PROXY_KEY="proxy-" + "fedcba9876543210" * 2, ARCHIVE_X_LAUNCH_SECRET=SECRET)
+    env = dict(os.environ, ARCHIVE_X_PROXY_KEY=PROXY_KEY, ARCHIVE_X_LAUNCH_SECRET=SECRET)
     proc = subprocess.Popen([str(exe), "--listen", "127.0.0.1:0", "--upstream", f"127.0.0.1:{backend_port}", "--upstream-plain", "--print-ready",
                              "--db", str(db_path), "--native-routes", native, "--dist", str(dist)],
                             env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)

@@ -8,6 +8,7 @@ pub mod names;
 pub mod native;
 mod native_library;
 mod native_media;
+mod native_photos;
 mod native_play;
 mod native_stream;
 pub mod optimize;

@@ -27,6 +27,9 @@ pub const ROUTES: &[&str] = &[
     "studios_list",
     "tag_taxonomy",
     "performer_videos",
+    "photo_thumbnail",
+    "photo_preview",
+    "photo_image",
     "performer_edit",
     "studio_edit",
     "performer_metadata",
@@ -81,6 +84,8 @@ pub struct Native {
     touch_interval: Duration,
     /// Where Python keeps finished playback copies (native_stream.rs), asked once.
     pub(crate) asset_dir: Mutex<Option<std::path::PathBuf>>,
+    /// The user-data and cache folders (config.USER_DATA_DIR, config.CACHE_DIR), asked of the backend once.
+    pub(crate) photo_roots: Mutex<Option<(std::path::PathBuf, std::path::PathBuf)>>,
 }
 
 impl Native {
@@ -112,6 +117,7 @@ impl Native {
             touched: Mutex::new(HashMap::new()),
             touch_interval,
             asset_dir: Mutex::new(None),
+            photo_roots: Mutex::new(None),
         }))
     }
 
@@ -212,6 +218,24 @@ impl Native {
             };
             let pair = (int(c)?, int(m)?);
             return self.enabled.get("play_history").map(|n| Match { name: n, id: None, pair: Some(pair), kind: None, needs_body: false, mutating: false });
+        }
+        if let Some(rest) = path.strip_prefix("/api/photos/") {
+            let mut it = rest.split('/');
+            if let (Some(c), Some(m), Some(k), None) = (it.next(), it.next(), it.next(), it.next()) {
+                if let Some(file) = crate::native_photos::PhotoFile::from_name(k) {
+                    // plain integers spelled the one way Python's string compare would find them
+                    let (channel, message) = (c.parse::<i64>().ok().filter(|n| n.to_string() == c)?, m.parse::<i64>().ok().filter(|n| n.to_string() == m)?);
+                    let (name, kind) = match file {
+                        crate::native_photos::PhotoFile::Thumbnail => ("photo_thumbnail", "thumbnail"),
+                        crate::native_photos::PhotoFile::Preview => ("photo_preview", "preview"),
+                        crate::native_photos::PhotoFile::Image => ("photo_image", "image"),
+                    };
+                    return self
+                        .enabled
+                        .get(name)
+                        .map(|n| Match { name: n, id: None, pair: Some((channel, message)), kind: Some(kind), needs_body: false, mutating: false });
+                }
+            }
         }
         let (name, id) = match path {
             "/api/photos/channels" => ("photos_channels", None),
@@ -359,6 +383,13 @@ impl Native {
                 let kind = if route == "local_stream" { crate::native_stream::FileKind::Local } else { crate::native_stream::FileKind::Cached };
                 let method = if m.kind == Some("head") { Method::HEAD } else { Method::GET };
                 let resp = self.stream_file(kind, channel, message, &method, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "photo_thumbnail" | "photo_preview" | "photo_image" => {
+                let kind = crate::native_photos::PhotoFile::from_name(m.kind?)?;
+                let (channel, message) = m.pair?;
+                let resp = self.photo_file(kind, channel, message, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }

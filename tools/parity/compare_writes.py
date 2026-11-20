@@ -21,7 +21,9 @@ from compare import Client, DEFAULT_IGNORE, diff, scrub  # noqa: E402
 
 # Tables that change on their own (logs, caches, sessions, job bookkeeping) and say nothing about the request.
 SKIP_TABLES = {"web_sessions", "app_logs", "logs", "job_events", "jobs", "job_activity", "job_results", "job_transfer_telemetry", "observability_events",
-               "operation_log", "watchdog_events", "resource_events", "events"}
+               "operation_log", "watchdog_events", "resource_events", "events",
+               # background bookkeeping that lands at a random moment (the caption sync inserted one row into one server in one run in ten)
+               "telegram_caption_sync"}
 SKIP_SUFFIXES = ("_cache", "_log", "_logs", "_telemetry", "_events")
 
 

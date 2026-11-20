@@ -107,3 +107,17 @@
 /api/studios/999/edit
 /api/channels/-1001/videos
 /api/tags/1/videos
+# photo files, each twice: the first request lets Python render what is missing, the second is answered from the cache (by Rust, in B)
+/api/photos/-1001/1/thumbnail
+/api/photos/-1001/1/thumbnail
+/api/photos/-1001/1/preview
+/api/photos/-1001/1/preview
+/api/photos/-1001/1/image
+/api/photos/-1001/1/image
+/api/photos/-1003/1/thumbnail
+/api/photos/-1003/1/thumbnail
+/api/photos/-1003/1/preview
+/api/photos/-1003/1/preview
+/api/photos/-1003/1/image
+/api/photos/-1003/1/image
+/api/photos/-1001/999/image
