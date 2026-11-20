@@ -2,4 +2,5 @@
 //!
 //! Built on the database layer (`ax-db::{jobs, leases, job_reads}`), the resource policy and the governor policy of `ax-core`.
 
+pub mod manager_policy;
 pub mod orchestrator;
