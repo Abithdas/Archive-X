@@ -38,6 +38,7 @@ jobs:
       - run: python tools/tests/test_desktop_mode.py
       # The Rust side reads this database and copies this guard: they must not drift apart unnoticed.
       - run: python tools/parity/dump_schema.py --check
+      - run: python tools/parity/dump_schema_sql.py --check
       - run: python tools/parity/gen_origin_vectors.py --check
       # The Rust tag taxonomy is tested against what this Python module returns
       - run: python tools/parity/gen_taxonomy_vectors.py --check

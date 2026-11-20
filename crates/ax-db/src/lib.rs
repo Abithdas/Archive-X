@@ -6,6 +6,7 @@
 pub mod job_reads;
 pub mod jobs;
 pub mod leases;
+pub mod schema;
 pub mod sessions;
 
 use std::path::{Path, PathBuf};
