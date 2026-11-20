@@ -33,7 +33,7 @@ pub fn resolution_tier_for_dimensions(width: i64, height: i64) -> Option<&'stati
     if short_edge <= 0 {
         return None;
     }
-    BANDS.iter().find(|(_, lo, hi)| short_edge >= *lo && hi.map_or(true, |h| short_edge < h)).map(|(t, _, _)| *t)
+    BANDS.iter().find(|(_, lo, hi)| short_edge >= *lo && hi.is_none_or(|h| short_edge < h)).map(|(t, _, _)| *t)
 }
 
 /// `ANY` keeps everything, including unknown dimensions; a specific tier excludes unknown dimensions.
