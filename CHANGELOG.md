@@ -1,17 +1,12 @@
-## Unreleased
-
-- A stream from an add-on opens on a page of its own with the same player as your videos, instead of a small box in the side panel; the whole row is clickable, not only the title
-- The subtitle files your add-ons list (OpenSubtitles and others) are in the player's CC menu for add-on streams too; the side panel's scroll bar is hidden
-- Anime title pages now ask your add-ons for streams (and Where to watch, and the add-on extras), using the IMDb number and episode numbering the anime catalogue lists for the show
-
 # Changelog
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## 30.11.2 (2026-11-19)
+## 30.11.5 (2026-11-20)
 
-- Direct streams from configured Stremio add-ons can now play from public HTTPS hosts that resolve only to public IP addresses. Local or private sources still require the existing setting; redirects follow the same checks.
-- Add-on stream lists include All and per-add-on tabs, sorting by add-on order, quality, seeds or size, plus quality, language, source and HDR/Dolby Vision filters.
+- A stream from an add-on opens on a page of its own with the same player as your videos, instead of a small box in the side panel; the whole row is clickable, not only the title
+- The subtitle files your add-ons list (OpenSubtitles and others) are in the player's CC menu for add-on streams too; the side panel's scroll bar is hidden
+- Anime title pages now ask your add-ons for streams (and Where to watch, and the add-on extras), using the IMDb number and episode numbering the anime catalogue lists for the show
 
 ## 30.11.4 (2026-11-19)
 
@@ -36,6 +31,11 @@ One entry per release, newest first. Releases are published from the Desktop wor
 - SFW: the log list and the log zip are closed in SFW like the other log downloads
 - SFW: the status response (job items, errors, recent events, scan names) and the transfer console no longer carry file and channel names; the status cache is kept per mode
 - Media manager: a missing helper name is now caught by a test; the run summary no longer vanishes when the manager runs on its own
+
+## 30.11.2 (2026-11-19)
+
+- Direct streams from configured Stremio add-ons can now play from public HTTPS hosts that resolve only to public IP addresses. Local or private sources still require the existing setting; redirects follow the same checks.
+- Add-on stream lists include All and per-add-on tabs, sorting by add-on order, quality, seeds or size, plus quality, language, source and HDR/Dolby Vision filters.
 
 ## 30.11.1 (2026-11-19)
 
