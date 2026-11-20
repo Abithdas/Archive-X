@@ -3,7 +3,7 @@
     python tools/parity/gen_lease_op_vectors.py          # rewrite crates/ax-db/tests/lease_ops_cases.json
     python tools/parity/gen_lease_op_vectors.py --check  # fail if the file is out of date
 
-The clock is fake (it starts at 2031-03-04 05:06:07 and moves only when a scenario says `advance`), so every timestamp, lease expiry and
+The clock is fake (it starts at 2031-03-08 05:26:07 and moves only when a scenario says `advance`), so every timestamp, lease expiry and
 string comparison between the two time forms Python writes is reproducible and compared exactly. Random ids are replaced by the names a
 scenario gives them (`as`). After each operation the recorded state is the operation's result or error and the rows of six tables.
 """
@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 OUT = ROOT / "crates" / "ax-db" / "tests" / "lease_ops_cases.json"
 
-BASE = 1_930_713_967  # 2031-03-04T05:06:07Z
+BASE = 1_930_713_967  # 2031-03-08T05:26:07Z
 
 CAPS = {"cpu": 1, "net": 2, "disk": 3}
 

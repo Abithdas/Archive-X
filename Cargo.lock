@@ -318,6 +318,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ax-jobs"
+version = "0.1.0"
+dependencies = [
+ "ax-core",
+ "ax-db",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "ax-names"
 version = "0.1.0"
 dependencies = [

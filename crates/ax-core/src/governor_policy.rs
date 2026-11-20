@@ -173,6 +173,7 @@ pub struct Governor {
     flood_floor_half_life_seconds: f64,
     recent_floodwaits: Vec<Value>,
     playback_blocks_background: bool,
+    active_transfer_slots: i64,
 }
 
 const UPLOAD_LEVELS: [(i64, i64); 6] = [(4, 1), (6, 1), (6, 2), (8, 2), (8, 3), (8, 4)];
@@ -256,6 +257,7 @@ impl Governor {
             flood_floor_half_life_seconds: 600.0,
             recent_floodwaits: Vec::new(),
             playback_blocks_background: true,
+            active_transfer_slots: 0,
         }
     }
 
@@ -879,6 +881,11 @@ impl Governor {
         self.log(format!("Telegram upload FloodWait: {seconds:.0}s{tail}; upload lane paused; API and playback lanes unchanged"), "WARN");
     }
 
+    /// The number of Telegram transfer lanes in use (Python's `_active_transfer_slots`; the lanes themselves are the caller's).
+    pub fn set_transfer_active(&mut self, n: i64) {
+        self.active_transfer_slots = 0.max(n);
+    }
+
     // ---- status --------------------------------------------------------------------------------------------------------------------
 
     pub fn snapshot(&mut self) -> Value {
@@ -945,7 +952,7 @@ impl Governor {
         put("recent_floodwaits", Value::Array(self.recent_floodwaits[n.saturating_sub(10)..].to_vec()));
         put("rpc_active", json!(self.active_rpc_slots));
         put("playback_rpc_active", json!(self.active_playback_rpc_slots));
-        put("transfer_active", json!(0));
+        put("transfer_active", json!(self.active_transfer_slots));
         put("transfer_capacity", json!(3));
         put("playback_rpc_max", json!(self.playback_rpc_max));
         put("playback_range_limit", json!(self.playback_range_limit));
