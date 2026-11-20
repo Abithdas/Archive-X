@@ -11,4 +11,5 @@ pub mod safe_paths;
 pub mod size_optimizer;
 pub mod sql_batches;
 pub mod tag_taxonomy;
+pub mod text;
 pub mod vault;

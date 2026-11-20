@@ -72,6 +72,22 @@ def seed_videos(c):
             c.execute("INSERT OR IGNORE INTO video_studios(video_id,studio_id,confidence) VALUES(?,?,1)", (i, s))
         for t in random.sample(range(1, 9), random.randint(0, 4)):
             c.execute("INSERT OR IGNORE INTO video_tags(video_id,tag_id,confidence) VALUES(?,?,1)", (i, t))
+    # What providers told us about the studios, in the shapes /api/studios/{id}/family reads: a parent given as an object under details or at
+    # the top, as plain text, with a numeric id, in upper-case provider spelling, as text that is not JSON, and twice for one studio.
+    c.execute("DELETE FROM entity_metadata WHERE entity_type='studio'")
+    meta = [
+        (1, "tpdb", "t1", {"id": "t1", "details": {"parent": {"id": "p1", "name": "Parent Co"}}}),
+        (2, "tpdb", "t2", {"id": "t2", "parent": {"id": "p1"}}),
+        (3, "tpdb", "p1", {"id": "p1"}),
+        (4, "stashdb", "s4", {"details": {"parent": "Parent Co"}}),
+        (5, "stashdb", "s5", {"id": 5, "parent": {"name": "parent co"}}),
+        (5, "tpdb", "t1", {}),
+        (6, "TPDB", "T6", "not json"),
+    ]
+    for studio_id, provider, provider_id, normalized in meta:
+        text = normalized if isinstance(normalized, str) else json.dumps(normalized)
+        c.execute("INSERT INTO entity_metadata(entity_type,entity_id,provider,provider_id,payload,normalized,fetched_at,updated_at) VALUES('studio',?,?,?,?,?,?,?)",
+                  (studio_id, provider, provider_id, "{}", text, 1.0, iso(0)))
     # Half of the library is SFW, so the SFW pass of the parity run lists real items and the rows of the other mode have to stay hidden.
     # Everything above is NSFW by default; these are the SFW ones (two channels with their videos and photos, two performers' worth of
     # names, two studios and two tags).

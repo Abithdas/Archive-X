@@ -30,6 +30,8 @@ pub const ROUTES: &[&str] = &[
     "photo_thumbnail",
     "photo_preview",
     "photo_image",
+    "source_channels",
+    "studio_family",
     "performer_edit",
     "studio_edit",
     "performer_metadata",
@@ -242,6 +244,7 @@ impl Native {
             "/api/performers" => ("performers_list", None),
             "/api/studios" => ("studios_list", None),
             "/api/tag-taxonomy" => ("tag_taxonomy", None),
+            "/api/source-channels" => ("source_channels", None),
             "/api/photos/faces/groups" => ("face_groups_fast", None),
             "/api/library" => ("library_list", None),
             "/api/tags" => ("tags_list", None),
@@ -254,6 +257,7 @@ impl Native {
                     ("channels", "videos") => "channel_videos",
                     ("performers", "videos") => "performer_videos",
                     ("performers", "edit") => "performer_edit",
+                    ("studios", "family") => "studio_family",
                     ("studios", "edit") => "studio_edit",
                     ("performers", "metadata") => "performer_metadata",
                     ("studios", "videos") => "studio_videos",
@@ -390,6 +394,16 @@ impl Native {
                 let kind = crate::native_photos::PhotoFile::from_name(m.kind?)?;
                 let (channel, message) = m.pair?;
                 let resp = self.photo_file(kind, channel, message, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "source_channels" => {
+                let resp = self.source_channels(headers).await;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "studio_family" => {
+                let resp = self.studio_family(m.id?, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }
@@ -978,6 +992,204 @@ impl Native {
                 Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The performer could not be read"))
             }
         }
+    }
+}
+
+/// `str(value)` for a JSON scalar, as Python prints it. `None` for what is not worth reproducing here (lists, objects, fractions): the
+/// caller then leaves the request to Python.
+fn py_scalar_str(v: &Value) -> Option<String> {
+    match v {
+        Value::Null => Some("None".to_string()),
+        Value::String(s) => Some(s.clone()),
+        Value::Bool(b) => Some(if *b { "True" } else { "False" }.to_string()),
+        Value::Number(n) if n.is_i64() || n.is_u64() => Some(n.to_string()),
+        _ => None,
+    }
+}
+
+/// `str(a or b or "").strip()` over JSON values: the first truthy one, else the empty string. `None` when that value is not a scalar.
+fn first_text(values: &[Option<&Value>]) -> Option<String> {
+    for v in values {
+        if truthy(*v) {
+            return Some(py_scalar_str(v.expect("truthy implies present"))?.trim().to_string());
+        }
+    }
+    Some(String::new())
+}
+
+impl Native {
+    /// GET /api/source-channels (routes_telegram.source_channels): the saved Telegram channels for the management screens. These see every
+    /// channel (`main.`), except that in SFW the channels that are in the library as NSFW are left out, because a name says what a channel holds.
+    async fn source_channels(&self, request: &HeaderMap) -> Response<Body> {
+        let read = self
+            .db
+            .read(|c| {
+                let raw: Option<String> = c.query_row("SELECT json_extract(value,'$') FROM main.settings WHERE key='content_mode'", [], |r| r.get(0)).ok().flatten();
+                // content_mode.get_mode: trimmed, lower-cased, and anything but "nsfw" is SFW
+                let sfw = raw.map(|v| v.trim().to_lowercase()).as_deref() != Some("nsfw");
+                rows_with(
+                    c,
+                    "SELECT * FROM main.channels WHERE NOT (?1 AND COALESCE(in_library,1)=1 AND COALESCE(content_rating,'nsfw')='nsfw') ORDER BY title",
+                    ax_db::rusqlite::params![sfw],
+                )
+            })
+            .await;
+        match read {
+            Ok(rows) => json_response(request, serde_json::to_vec(&rows).unwrap_or_default()),
+            Err(e) => {
+                tracing::error!("source channels: {e}");
+                json_error(StatusCode::SERVICE_UNAVAILABLE, "The channels could not be read")
+            }
+        }
+    }
+
+    /// GET /api/studios/{id}/family (routes_entity_pages.studio_family): parent, child and sister labels from what the providers told us.
+    async fn studio_family(&self, id: i64, request: &HeaderMap) -> Option<Response<Body>> {
+        use ax_core::text::casefold;
+        struct Record {
+            local_id: i64,
+            name: String,
+            provider: String,
+            root_id: String,
+            parent_id: String,
+            parent_name: String,
+        }
+        let read = self
+            .db
+            .read(move |c| {
+                use ax_db::rusqlite::params;
+                if one_row(c, "SELECT id,name,aliases,provider_ids FROM studios WHERE id=?", params![id])?.is_none() {
+                    return Ok(Err(entity_hidden(c, "studios", id)));
+                }
+                let cached = rows_with(
+                    c,
+                    "SELECT s.id AS local_id,s.name AS local_name,em.provider,em.provider_id,em.normalized FROM entity_metadata em JOIN studios s ON s.id=em.entity_id \
+                     WHERE em.entity_type='studio' ORDER BY s.name,em.provider",
+                    [],
+                )?;
+                Ok(Ok(cached))
+            })
+            .await;
+        let cached = match read {
+            Ok(Ok(rows)) => rows,
+            Ok(Err(true)) => return Some(json_error(StatusCode::NOT_FOUND, "Not found")),
+            Ok(Err(false)) => return Some(json_error(StatusCode::NOT_FOUND, "Studio not found")),
+            Err(e) => {
+                tracing::error!("studio family: {e}");
+                return Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The studio could not be read"));
+            }
+        };
+        let mut records: Vec<Record> = Vec::new();
+        for item in &cached {
+            let normalized: Map<String, Value> = match item.get("normalized").filter(|v| truthy(Some(v))).and_then(Value::as_str).map(serde_json::from_str::<Value>) {
+                Some(Ok(Value::Object(m))) => m,
+                None => Map::new(),
+                _ => Map::new(), // not JSON, or not an object
+            };
+            let details = normalized.get("details").and_then(Value::as_object);
+            // details.get("parent", normalized.get("parent")): a "parent" key in details wins even when it is null
+            let parent_value = match details {
+                Some(d) if d.contains_key("parent") => d.get("parent"),
+                _ => normalized.get("parent"),
+            };
+            let parent: Map<String, Value> = match parent_value {
+                Some(Value::String(s)) => {
+                    let mut m = Map::new();
+                    m.insert("name".into(), Value::String(s.clone()));
+                    m
+                }
+                Some(Value::Object(m)) => m.clone(),
+                _ => Map::new(),
+            };
+            let provider = match item.get("provider") {
+                Some(v) if truthy(Some(v)) => py_scalar_str(v)?.trim().to_lowercase(),
+                _ => String::new(),
+            };
+            let root_id = first_text(&[normalized.get("id"), item.get("provider_id")])?;
+            let parent_id = first_text(&[parent.get("id"), parent.get("provider_id")])?;
+            let parent_name = first_text(&[parent.get("name")])?;
+            records.push(Record {
+                local_id: item.get("local_id").and_then(Value::as_i64)?,
+                name: match item.get("local_name") {
+                    Some(v) if truthy(Some(v)) => py_scalar_str(v)?,
+                    _ => String::new(),
+                },
+                provider,
+                root_id,
+                parent_id,
+                parent_name,
+            });
+        }
+        let empty = |related: Vec<Value>| {
+            let mut out = Map::new();
+            out.insert("studio_id".into(), Value::from(id));
+            out.insert("related".into(), Value::Array(related));
+            json_response(request, serde_json::to_vec(&Value::Object(out)).unwrap_or_default())
+        };
+        let current: Vec<&Record> = records.iter().filter(|r| r.local_id == id).collect();
+        if current.is_empty() {
+            return Some(empty(Vec::new()));
+        }
+        let mut current_ids: std::collections::HashMap<&str, std::collections::HashSet<&str>> = std::collections::HashMap::new();
+        let mut parent_refs: std::collections::HashMap<&str, (&str, String)> = std::collections::HashMap::new();
+        for r in &current {
+            if !r.root_id.is_empty() {
+                current_ids.entry(&r.provider).or_default().insert(&r.root_id);
+            }
+            if !r.parent_id.is_empty() || !r.parent_name.is_empty() {
+                parent_refs.insert(&r.provider, (&r.parent_id, casefold(&r.parent_name)));
+            }
+        }
+        let rank = |relation: &str| match relation {
+            "Parent company" => 0,
+            "Child label" => 1,
+            _ => 2,
+        };
+        // local id -> (relation, name, provider), in the order first matched (Python's dict order)
+        let mut matched: Vec<(i64, &'static str, &str, &str)> = Vec::new();
+        for cand in &records {
+            if cand.local_id == id {
+                continue;
+            }
+            let mut relation = "";
+            if !cand.root_id.is_empty() && current_ids.get(cand.provider.as_str()).is_some_and(|ids| ids.contains(cand.root_id.as_str())) {
+                relation = "Child label";
+            } else if let Some((parent_id, parent_name)) = parent_refs.get(cand.provider.as_str()) {
+                if !cand.parent_id.is_empty() && !parent_id.is_empty() {
+                    if cand.parent_id == *parent_id {
+                        relation = "Sister label";
+                    }
+                } else if !cand.parent_name.is_empty() && !parent_name.is_empty() && casefold(&cand.parent_name) == *parent_name {
+                    relation = "Sister label";
+                }
+            }
+            if relation.is_empty() && !cand.root_id.is_empty() && current.iter().any(|r| r.provider == cand.provider && !r.parent_id.is_empty() && r.parent_id == cand.root_id) {
+                relation = "Parent company";
+            }
+            if relation.is_empty() {
+                continue;
+            }
+            let relation: &'static str = match relation {
+                "Parent company" => "Parent company",
+                "Child label" => "Child label",
+                _ => "Sister label",
+            };
+            match matched.iter_mut().find(|m| m.0 == cand.local_id) {
+                Some(existing) => {
+                    if rank(relation) < rank(existing.1) {
+                        *existing = (cand.local_id, relation, &cand.name, &cand.provider);
+                    }
+                }
+                None => matched.push((cand.local_id, relation, &cand.name, &cand.provider)),
+            }
+        }
+        matched.sort_by(|a, b| rank(a.1).cmp(&rank(b.1)).then_with(|| casefold(a.2).cmp(&casefold(b.2))));
+        let related: Vec<Value> = matched
+            .into_iter()
+            .take(40)
+            .map(|(lid, relation, name, provider)| serde_json::json!({ "id": lid, "name": name, "relation": relation, "provider": provider }))
+            .collect();
+        Some(empty(related))
     }
 }
 
