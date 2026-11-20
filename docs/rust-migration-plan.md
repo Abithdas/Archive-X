@@ -35,7 +35,7 @@ rust-anything's whole-app flow starts by writing each decision as an ADR. Recomm
 | # | Decision | Recommendation |
 |---|---|---|
 | D1 | Crate layout | Keep the existing workspace. Add crates per domain (`ax-core`, `ax-telegram`, `ax-jobs`, `ax-metadata`, `ax-playback`, `ax-automation`, `ax-ai`) and make `ax-server` the single binary. Use rust-anything only for recording, replay and gating. |
-| D2 | Telegram client | `grammers` (pure Rust MTProto). Highest risk item: it must read the existing Telethon session or users re-login (see 4.1). |
+| D2 | Telegram client | `grammers` (pure Rust MTProto). **Decided: a one-time re-login is acceptable**, so the Telethon session does not have to be imported. Importing it stays a nice-to-have if the spike is cheap (see 4.1). |
 | D3 | Web framework | `axum` on `hyper` (already hyper-based in `ax-server`). |
 | D4 | SQLite | `rusqlite` (already used). Keep the schema and in-place migrations; port `database.py` migrations verbatim. |
 | D5 | Single process | Keep one process with explicit shared state (`Arc` services), not global singletons, so tests no longer depend on module state. |
@@ -47,7 +47,7 @@ rust-anything's whole-app flow starts by writing each decision as an ADR. Recomm
 ## 4. Risks that decide the schedule
 
 ### 4.1 Telegram
-- Telethon's `.session` file (SQLite, auth key + DC) must be importable by `grammers`, or a one-time re-login is required. Spike this in Phase 0.
+- Decided: a one-time re-login on first launch of the Rust build is acceptable, so session import is optional. Phase 0 spike: try importing Telethon's `.session` (SQLite, auth key + DC) into `grammers`; if it is not quick, skip it. Either way the upgrade must show a clear sign-in prompt, keep the library, favourites, resume points and settings, and delete the old Python session file only after the new login works.
 - `TransferGovernor` is the only FloodWait/concurrency gate; the Rust port must keep that invariant (one gate, no engine does its own).
 - Parity cannot be recorded against live Telegram. Build a **fake Telegram sink** (a trait `TelegramApi` with a recorded-fixture implementation) used by both the Python recording harness and the Rust tests.
 
@@ -73,7 +73,7 @@ Each phase ends with: replay at 100% for the routes moved, SFW leak test green, 
 2. Restore `tools/` (parity, visibility generator, SFW leak test) and the deleted docs/ADRs from git history.
 3. Build the **recording harness**: a script that starts the Python backend in desktop mode with a seeded SQLite fixture (SFW and NSFW rows, local folders, fake channels), the fake Telegram sink, and `ARCHIVE_X_LAUNCH_SECRET`, then runs `rust-anything app record . --http --db-reset ... --db-dump ...`. Inputs: the route list from `routes_*.py`, plus the existing parity corpus.
 4. `app replay` against Python itself must pass 100% twice in a row (proves the recording is deterministic; wildcards for ids/timestamps via `--normalize`).
-5. Spikes: Telethon session import into `grammers`; ffmpeg bundling; flatten `mm_*.py`.
+5. Spikes: optional Telethon session import into `grammers` (re-login is acceptable); ffmpeg bundling; flatten `mm_*.py`.
 6. Settle D1 to D9 and write them as ADRs.
 
 ### Phase 1: pure leaf logic (2 to 3 weeks)
@@ -105,7 +105,7 @@ Use `bridge` → `record` → port → `diff` → `gate` per unit (pyo3 shadow l
 ### Phase 6: cutover and removal (1 to 2 weeks)
 1. Run `app replay` against the pure-Rust server, fallback rate 0, no route still proxied to Python.
 2. Remove the Python proxy path and `--upstream`; remove Python from `packaging/backend`, `pyproject.toml`, `requirements.txt`, the PyInstaller-style frozen backend; update `launcher-core` to start only `ax-server`.
-3. Installer size, startup time, memory comparison; release as a major version with an upgrade test from the last Python release (same data folder).
+3. Installer size, startup time, memory comparison; release as a major version with an upgrade test from the last Python release (same data folder; the user signs in to Telegram once).
 
 Rough total: 18 to 28 weeks of focused work, dominated by Phases 3 and 4. Phases are sequential on the critical path (database before everything; Telegram before jobs and playback) but routes within a phase can be ported in parallel by separate sessions, claiming one unit each in `MAP.md`.
 
@@ -122,9 +122,9 @@ Rough total: 18 to 28 weeks of focused work, dominated by Phases 3 and 4. Phases
 - `app replay` 100% passed, fallback 0.
 - No Python in the installer; one `ax-server` binary plus the Tauri shell and player.
 - SFW leak test covers every GET route and passes.
-- An upgrade from the last Python release keeps the library, favourites, resume points, settings, Telegram login (or a documented one-time re-login).
+- An upgrade from the last Python release keeps the library, favourites, resume points, settings, settings. Telegram needs a single re-login.
 
 ## 8. Open questions for you
-1. Is a one-time Telegram re-login acceptable if the Telethon session cannot be imported?
+1. ~~Is a one-time Telegram re-login acceptable?~~ Yes (confirmed).
 2. Is a 4 to 6 month timeline realistic, or should we stop at "Python only for Telegram + AI" (Phases 0 to 2 plus playback) as an intermediate release?
 3. Should I restore `tools/` and the deleted ADRs/plan from history as the first commit?
