@@ -7,6 +7,7 @@ pub mod duration_filter;
 pub mod job_policy;
 pub mod net_errors;
 pub mod resolution_filter;
+pub mod resource_policy;
 pub mod retry_policy;
 pub mod safe_paths;
 pub mod size_optimizer;
