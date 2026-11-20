@@ -205,7 +205,7 @@ fn every_recorded_scenario_replays_to_the_same_rows_and_errors() {
             // a create whose dependencies were refused keeps the job (Python committed it first)
             let keep = result.is_ok() || step["op"]["op"] == "create";
             c.execute_batch(if keep { "COMMIT" } else { "ROLLBACK" }).unwrap();
-            let expected_error = step["error"].as_str().map(|e| regex_job_ids(e));
+            let expected_error = step["error"].as_str().map(regex_job_ids);
             let got_error = result.err().map(|e| regex_job_ids(&e));
             assert_eq!(got_error, expected_error, "{scenario}, step {i}: {}", step["op"]);
             let got = state(&c, &names);
