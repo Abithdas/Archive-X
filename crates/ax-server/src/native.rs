@@ -27,6 +27,9 @@ pub const ROUTES: &[&str] = &[
     "studios_list",
     "tag_taxonomy",
     "performer_videos",
+    "performer_edit",
+    "studio_edit",
+    "performer_metadata",
     "face_groups_fast",
     "channel_videos",
     "studio_videos",
@@ -226,6 +229,9 @@ impl Native {
                 let name = match (kind, tail) {
                     ("channels", "videos") => "channel_videos",
                     ("performers", "videos") => "performer_videos",
+                    ("performers", "edit") => "performer_edit",
+                    ("studios", "edit") => "studio_edit",
+                    ("performers", "metadata") => "performer_metadata",
                     ("studios", "videos") => "studio_videos",
                     ("tags", "videos") => "tag_videos",
                     ("studios", "metadata") => "studio_metadata",
@@ -353,6 +359,16 @@ impl Native {
                 let kind = if route == "local_stream" { crate::native_stream::FileKind::Local } else { crate::native_stream::FileKind::Cached };
                 let method = if m.kind == Some("head") { Method::HEAD } else { Method::GET };
                 let resp = self.stream_file(kind, channel, message, &method, headers).await?;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "performer_edit" | "studio_edit" => {
+                let resp = self.entity_edit(route == "performer_edit", m.id?, headers).await;
+                self.keep_session_alive(headers, peer, &session.username);
+                Some(resp)
+            }
+            "performer_metadata" => {
+                let resp = self.performer_metadata(m.id?, headers).await?;
                 self.keep_session_alive(headers, peer, &session.username);
                 Some(resp)
             }
@@ -850,6 +866,85 @@ impl Native {
             Err(e) => {
                 tracing::error!("performer videos: {e}");
                 Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The video list could not be read"))
+            }
+        }
+    }
+}
+
+/// `core/content_guard.hidden` for a performer or studio: the row exists in the real table but not in the current mode's view. The guard
+/// answers that with "Not found" before the route can say "Performer not found" or "Studio not found".
+pub(crate) fn entity_hidden(c: &Connection, table: &str, id: i64) -> bool {
+    let sql = match table {
+        "performers" => "SELECT 1 FROM main.performers WHERE id=? LIMIT 1",
+        _ => "SELECT 1 FROM main.studios WHERE id=? LIMIT 1",
+    };
+    c.query_row(sql, ax_db::rusqlite::params![id], |_| Ok(())).is_ok()
+}
+
+impl Native {
+    /// GET /api/performers/{id}/edit and /api/studios/{id}/edit (routes_entities): the fields of the edit form.
+    async fn entity_edit(&self, performer: bool, id: i64, request: &HeaderMap) -> Response<Body> {
+        let read = self
+            .db
+            .read(move |c| {
+                let (sql, table) = if performer {
+                    (
+                        "SELECT id,name,image,profile,bio,gender,provider_ids,image_source,image_locked,name_locked,profile_locked FROM performers WHERE id=?",
+                        "performers",
+                    )
+                } else {
+                    ("SELECT id,name,image,provider_ids,image_source,image_locked,name_locked FROM studios WHERE id=?", "studios")
+                };
+                let row = one_row(c, sql, ax_db::rusqlite::params![id])?;
+                let hidden = row.is_none() && entity_hidden(c, table, id);
+                Ok((row, hidden))
+            })
+            .await;
+        match read {
+            Ok((Some(row), _)) => json_response(request, serde_json::to_vec(&row).unwrap_or_default()),
+            Ok((None, true)) => json_error(StatusCode::NOT_FOUND, "Not found"),
+            Ok((None, false)) => json_error(StatusCode::NOT_FOUND, if performer { "Performer not found" } else { "Studio/site not found" }),
+            Err(e) => {
+                tracing::error!("entity edit: {e}");
+                json_error(StatusCode::SERVICE_UNAVAILABLE, "The profile could not be read")
+            }
+        }
+    }
+
+    /// GET /api/performers/{id}/metadata (routes_entity_pages.performer_metadata): the performer row and what each provider told us. Python
+    /// first tidies the Unknown Performer row; when that would change anything the request goes to Python.
+    async fn performer_metadata(&self, id: i64, request: &HeaderMap) -> Option<Response<Body>> {
+        let read = self
+            .db
+            .read(move |c| {
+                use ax_db::rusqlite::params;
+                if !unknown_performer_is_tidy(c)? {
+                    return Ok(None);
+                }
+                let Some(entity) = one_row(c, "SELECT * FROM performers WHERE id=?", params![id])? else {
+                    return Ok(Some(Err(entity_hidden(c, "performers", id))));
+                };
+                let is_unknown = entity.get("name").and_then(Value::as_str).unwrap_or("").trim().to_lowercase() == "unknown performer";
+                let providers = if is_unknown {
+                    Vec::new()
+                } else {
+                    rows_with(
+                        c,
+                        "SELECT provider,provider_id,normalized,fetched_at,updated_at FROM entity_metadata WHERE entity_type='performer' AND entity_id=? ORDER BY provider",
+                        params![id],
+                    )?
+                };
+                Ok(Some(Ok(serde_json::json!({ "entity": entity, "providers": providers }))))
+            })
+            .await;
+        match read {
+            Ok(None) => None,
+            Ok(Some(Ok(v))) => Some(json_response(request, serde_json::to_vec(&v).unwrap_or_default())),
+            Ok(Some(Err(true))) => Some(json_error(StatusCode::NOT_FOUND, "Not found")),
+            Ok(Some(Err(false))) => Some(json_error(StatusCode::NOT_FOUND, "Performer not found")),
+            Err(e) => {
+                tracing::error!("performer metadata: {e}");
+                Some(json_error(StatusCode::SERVICE_UNAVAILABLE, "The performer could not be read"))
             }
         }
     }

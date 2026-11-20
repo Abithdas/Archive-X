@@ -92,3 +92,18 @@
 /api/status
 /api/storage
 /api/tag-taxonomy?refresh=1
+# ids the fixture marks NSFW: visible in the NSFW pass, hidden (the content guard's "Not found") in the SFW pass
+/api/performers/1/videos
+/api/performers/1/edit
+/api/performers/1/metadata
+/api/performers/1/similar
+/api/performers/1/career-counts
+/api/performers/999/edit
+/api/performers/999/metadata
+/api/studios/1/videos
+/api/studios/1/metadata
+/api/studios/1/edit
+/api/studios/1/family
+/api/studios/999/edit
+/api/channels/-1001/videos
+/api/tags/1/videos
