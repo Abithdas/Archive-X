@@ -41,6 +41,8 @@ jobs:
       - run: python tools/parity/gen_origin_vectors.py --check
       # The Rust tag taxonomy is tested against what this Python module returns
       - run: python tools/parity/gen_taxonomy_vectors.py --check
+      # The Rust job lifecycle writes (crates/ax-db/src/jobs.rs) replay what this database layer did for the recorded operations
+      - run: python tools/parity/gen_job_op_vectors.py --check
 
   backend-tests:
     runs-on: ubuntu-latest
