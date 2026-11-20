@@ -1,0 +1,451 @@
+[
+ {
+  "name": "quick edit: set a title",
+  "method": "POST",
+  "path": "/api/media/quick-edit",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 1001,
+   "title": "Parity title"
+  }
+ },
+ {
+  "name": "quick edit: a video that does not exist",
+  "method": "POST",
+  "path": "/api/media/quick-edit",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 999999,
+   "title": "x"
+  }
+ },
+ {
+  "name": "quick edit: no channel",
+  "method": "POST",
+  "path": "/api/media/quick-edit",
+  "body": {
+   "title": "x"
+  }
+ },
+ {
+  "name": "mapping: lock the title of two videos",
+  "method": "POST",
+  "path": "/api/mapping/bulk",
+  "body": {
+   "media_ids": [
+    1,
+    2
+   ],
+   "field": "title",
+   "lock": true
+  }
+ },
+ {
+  "name": "mapping: unlock one",
+  "method": "POST",
+  "path": "/api/mapping/bulk",
+  "body": {
+   "media_ids": [
+    1
+   ],
+   "field": "title",
+   "lock": false
+  }
+ },
+ {
+  "name": "favourite a video",
+  "method": "POST",
+  "path": "/api/library/3/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite the same video again",
+  "method": "POST",
+  "path": "/api/library/3/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite a performer",
+  "method": "POST",
+  "path": "/api/entities/performer/2/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite a studio",
+  "method": "POST",
+  "path": "/api/entities/studio/1/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite a performer who does not exist",
+  "method": "POST",
+  "path": "/api/entities/performer/99999/favorite",
+  "body": {}
+ },
+ {
+  "name": "un-favourite the performer",
+  "method": "POST",
+  "path": "/api/entities/performer/2/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite an unknown kind",
+  "method": "POST",
+  "path": "/api/entities/nonsense/2/favorite",
+  "body": {}
+ },
+ {
+  "name": "add a marker",
+  "method": "POST",
+  "path": "/api/media/3/markers",
+  "body": {
+   "position": 12.5,
+   "title": "Parity marker",
+   "note": "a note",
+   "tag": "t"
+  }
+ },
+ {
+  "name": "settings: experience",
+  "method": "POST",
+  "path": "/api/settings/experience",
+  "body": {}
+ },
+ {
+  "name": "faces: merge two groups",
+  "method": "POST",
+  "path": "/api/photos/faces/groups/merge",
+  "body": {
+   "group_ids": [
+    1,
+    2
+   ]
+  }
+ },
+ {
+  "name": "faces: merge needs two",
+  "method": "POST",
+  "path": "/api/photos/faces/groups/merge",
+  "body": {
+   "group_ids": [
+    3
+   ]
+  }
+ },
+ {
+  "name": "faces: name a group",
+  "method": "POST",
+  "path": "/api/photos/faces/groups/3/assign",
+  "body": {
+   "performer_id": 2,
+   "group_ids": [
+    3
+   ]
+  }
+ },
+ {
+  "name": "faces: clear the name",
+  "method": "POST",
+  "path": "/api/photos/faces/groups/3/assign",
+  "body": {
+   "performer_id": null,
+   "group_ids": [
+    3
+   ]
+  }
+ },
+ {
+  "name": "delete without confirmation",
+  "method": "POST",
+  "path": "/api/library/delete",
+  "body": {
+   "channel_id": -1002,
+   "message_id": 1001
+  }
+ },
+ {
+  "name": "delete with Telegram not connected",
+  "method": "POST",
+  "path": "/api/library/delete",
+  "body": {
+   "channel_id": -1002,
+   "message_id": 1001,
+   "confirm_delete": true
+  }
+ },
+ {
+  "name": "a body that is not JSON",
+  "method": "POST",
+  "path": "/api/media/quick-edit",
+  "raw": "this is not json"
+ },
+ {
+  "name": "a cross-site POST is refused",
+  "method": "POST",
+  "path": "/api/library/3/favorite",
+  "body": {},
+  "origin": "https://evil.example"
+ },
+ {
+  "name": "progress: first save",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 1001,
+   "position": 30,
+   "duration": 100,
+   "watch_delta": 5
+  }
+ },
+ {
+  "name": "progress: more watch time",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 1001,
+   "position": 40,
+   "duration": 100,
+   "watch_delta": 5
+  }
+ },
+ {
+  "name": "progress: a seek is not watch time",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 1001,
+   "position": 80,
+   "duration": 100,
+   "watch_delta": 45
+  }
+ },
+ {
+  "name": "progress: near the end",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 1001,
+   "position": 95.5,
+   "duration": 100,
+   "watch_delta": 2
+  }
+ },
+ {
+  "name": "progress: play again from the top",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 1001,
+   "position": 1,
+   "duration": 100,
+   "watch_delta": 2
+  }
+ },
+ {
+  "name": "progress: unknown video",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": "-1002",
+   "message_id": 999999,
+   "position": 1,
+   "duration": 2
+  }
+ },
+ {
+  "name": "progress: integer channel id, nothing else",
+  "method": "POST",
+  "path": "/api/play/progress",
+  "body": {
+   "channel_id": -1002,
+   "message_id": 1001,
+   "position": 3
+  }
+ },
+ {
+  "name": "favourite: performer on",
+  "method": "POST",
+  "path": "/api/entities/performer/1/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite: performer off",
+  "method": "POST",
+  "path": "/api/entities/performer/1/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite: studio on",
+  "method": "POST",
+  "path": "/api/entities/studio/2/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite: studio that does not exist",
+  "method": "POST",
+  "path": "/api/entities/studio/999999/favorite",
+  "body": {}
+ },
+ {
+  "name": "favourite: a kind that is not one",
+  "method": "POST",
+  "path": "/api/entities/tag/1/favorite",
+  "body": {}
+ },
+ {
+  "name": "marker: create",
+  "method": "POST",
+  "path": "/api/media/1/markers",
+  "body": {
+   "position": 12.5,
+   "title": "  First  ",
+   "note": "n",
+   "tag": "t"
+  }
+ },
+ {
+  "name": "marker: create, position only",
+  "method": "POST",
+  "path": "/api/media/1/markers",
+  "body": {
+   "position": 3
+  }
+ },
+ {
+  "name": "marker: create, integer position and very long title",
+  "method": "POST",
+  "path": "/api/media/1/markers",
+  "body": {
+   "position": 7,
+   "title": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+  }
+ },
+ {
+  "name": "marker: create for a video that does not exist",
+  "method": "POST",
+  "path": "/api/media/999999/markers",
+  "body": {
+   "position": 1
+  }
+ },
+ {
+  "name": "marker: delete the first",
+  "method": "DELETE",
+  "path": "/api/media/1/markers/1"
+ },
+ {
+  "name": "marker: delete one that is not there",
+  "method": "DELETE",
+  "path": "/api/media/1/markers/777"
+ },
+ {
+  "name": "library favourite: turn on",
+  "method": "POST",
+  "path": "/api/library/2/favorite"
+ },
+ {
+  "name": "library favourite: turn off again",
+  "method": "POST",
+  "path": "/api/library/2/favorite"
+ },
+ {
+  "name": "library favourite: a video that does not exist",
+  "method": "POST",
+  "path": "/api/library/999999/favorite"
+ },
+ {
+  "name": "library favourite: id with a plus sign",
+  "method": "POST",
+  "path": "/api/library/+3/favorite"
+ },
+ {
+  "name": "bulk favourite: on, with duplicates, zero and a missing id",
+  "method": "POST",
+  "path": "/api/library/bulk-favorite",
+  "body": {
+   "media_ids": [
+    3,
+    1,
+    3,
+    0,
+    -5,
+    999999
+   ],
+   "favorite": true
+  }
+ },
+ {
+  "name": "bulk favourite: off",
+  "method": "POST",
+  "path": "/api/library/bulk-favorite",
+  "body": {
+   "media_ids": [
+    1,
+    3
+   ],
+   "favorite": false
+  }
+ },
+ {
+  "name": "bulk favourite: ids in descending order",
+  "method": "POST",
+  "path": "/api/library/bulk-favorite",
+  "body": {
+   "media_ids": [
+    5,
+    4,
+    2
+   ],
+   "favorite": true
+  }
+ },
+ {
+  "name": "bulk favourite: only ids Python drops",
+  "method": "POST",
+  "path": "/api/library/bulk-favorite",
+  "body": {
+   "media_ids": [
+    0,
+    -1
+   ],
+   "favorite": true
+  }
+ },
+ {
+  "name": "bulk favourite: favourite is not a boolean",
+  "method": "POST",
+  "path": "/api/library/bulk-favorite",
+  "body": {
+   "media_ids": [
+    1
+   ],
+   "favorite": 1
+  }
+ },
+ {
+  "name": "bulk favourite: ids written as text",
+  "method": "POST",
+  "path": "/api/library/bulk-favorite",
+  "body": {
+   "media_ids": [
+    "1",
+    "2"
+   ],
+   "favorite": true
+  }
+ },
+ {
+  "name": "bulk favourite: empty list",
+  "method": "POST",
+  "path": "/api/library/bulk-favorite",
+  "body": {
+   "media_ids": [],
+   "favorite": true
+  }
+ }
+]

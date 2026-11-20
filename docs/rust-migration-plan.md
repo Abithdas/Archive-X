@@ -25,7 +25,7 @@ Caveat: `app lift` assumes the end state is a single pure-Rust binary built from
 - Python still owns: all writes outside Rust's tables, Telegram (Telethon), jobs, every engine, metadata providers, playback segment cache, automation (RSS/qBittorrent), AI assistant, media manager, auth/sessions, backup, diagnostics.
 - Largest Python files (migration risk): `playback/stream_server.py` 5.5k, `operations/automation.py` 4.3k, `metadata/providers.py` 3.4k, `core/database.py` 3.3k, `media_manager/mm_vertical_mover.py` 2.7k, `web/routes_library.py` 2.6k, `engines/metadata_channel_pipeline.py` 2.5k, `operations/torrent_engine.py` 2.2k.
 - Gaps found while reading the repo:
-  - `tools/` was deleted in recent commits. `docs/architecture.md` still depends on `tools/gen_visibility_sql.py`, `tools/parity/compare.py` and `tools/tests/test_sfw_leaks.py`. These are the existing parity and SFW-leak safety nets. **Restore them from git history before any migration work** (`git log --diff-filter=D -- tools`).
+  - `tools/` was deleted in recent commits. `docs/architecture.md` still depends on `tools/gen_visibility_sql.py`, `tools/parity/compare.py` and `tools/tests/test_sfw_leaks.py`. These are the existing parity and SFW-leak safety nets. **Restored in this PR** from `2f1a06f^`.
   - `docs/plan.md` and `docs/adr/` (ADRs 0002 to 0010) are also deleted but still referenced. Restore or rewrite them; decisions below should be recorded as ADRs again.
 
 ## 3. Decisions to settle first (grilling round)
@@ -66,7 +66,7 @@ rust-anything's whole-app flow starts by writing each decision as an ADR. Recomm
 
 ## 5. Phases
 
-Each phase ends with: replay at 100% for the routes moved, SFW leak test green, `cargo test` green, then the route group switched on by default for one release before the Python code is deleted.
+Each phase ends with: replay at 100% for the routes moved, SFW leak test green, `cargo test` green, then the route group is switched on by default on the development branch (no intermediate public release; Python is deleted only in the final release).
 
 ### Phase 0: foundations (about 1 to 2 weeks)
 1. Install the tool (`cargo install rust-anything`) and run `rust-anything analyze . --whole-app` on this repo. Commit the output as the port map and port order; reconcile it with section 5.
@@ -116,7 +116,7 @@ Rough total: 18 to 28 weeks of focused work, dominated by Phases 3 and 4. Phases
 3. Write the Rust; for routes, add a named route in `ax-server/native.rs` or the new crate; run the routes with `--native-routes <name>` so each can be switched off.
 4. `app replay` (must be 100% for the unit) plus SFW leak test plus `cargo fmt`, `clippy -D warnings`, `cargo test`.
 5. Commit, update `MAP.md` and `HANDOFF.md`.
-6. Only when the whole group has been on by default for a release, delete the Python code.
+6. Delete the Python code for the group only in Phase 6, once everything passes together.
 
 ## 7. Done criteria
 - `app replay` 100% passed, fallback 0.
@@ -126,5 +126,5 @@ Rough total: 18 to 28 weeks of focused work, dominated by Phases 3 and 4. Phases
 
 ## 8. Open questions for you
 1. ~~Is a one-time Telegram re-login acceptable?~~ Yes (confirmed).
-2. Is a 4 to 6 month timeline realistic, or should we stop at "Python only for Telegram + AI" (Phases 0 to 2 plus playback) as an intermediate release?
-3. Should I restore `tools/` and the deleted ADRs/plan from history as the first commit?
+2. ~~Intermediate release (Phases 0 to 2 plus playback)?~~ No. Decided: no intermediate release; the Python backend is removed in a single release after Phase 6. Route groups are still switched on one at a time behind `--native-routes` for testing, but are not shipped as a half-migrated product.
+3. ~~Restore `tools/`?~~ Done in this PR (the parity, SFW-leak and visibility tools CI depends on). The deleted `docs/plan.md`, `docs/adr/` and `docs/security/` are not restored; this plan replaces plan.md and the ADRs should be rewritten in Phase 0.

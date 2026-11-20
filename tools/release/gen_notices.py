@@ -1,0 +1,106 @@
+"""Write THIRD-PARTY-NOTICES.md: what Archive X bundles or builds on, and under which licences.
+
+    python tools/release/gen_notices.py            # rewrites THIRD-PARTY-NOTICES.md at the repository root
+
+Rust crates come from `cargo metadata`, web packages from apps/web/node_modules (run `npm ci` first), Python packages from the
+environment that has requirements.txt installed. The bundled programs are listed by hand below: they are fetched by
+packaging/scripts and are not in any package manager's metadata.
+"""
+import importlib.metadata as md
+import json
+import re
+import subprocess
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+
+BUNDLED = [
+    ("LAV Filters (splitter, video and audio decoders)", "GPL-2.0-or-later (LGPL parts)", "https://github.com/Nevcairiel/LAVFilters", "packaging/scripts/fetch-lav.sh, pinned by tag and SHA-256; loaded by the native player"),
+    ("FFmpeg (static GPL build)", "GPL-3.0-or-later", "https://github.com/BtbN/FFmpeg-Builds", "packaging/scripts/fetch-ffmpeg.sh, pinned by SHA-256; run as a separate program"),
+    ("Python runtime", "PSF-2.0", "https://www.python.org/", "inside the packaged backend"),
+    ("llama.cpp engine (llama-server)", "MIT", "https://github.com/ggml-org/llama.cpp", "not in the installer: downloaded when the person presses Set up on AI Assistance (release b12400, pinned by SHA-256), run as a separate program on this PC"),
+    ("Qwen3 chat models (1.7B, 4B Instruct 2507, 8B), GGUF quantisations by bartowski", "Apache-2.0 (Qwen3 weights; quantisations as published)", "https://huggingface.co/bartowski", "not in the installer: one is downloaded when the person presses Set up (pinned by SHA-256) and used only on this PC"),
+    ("Phosphor Icons (the icon sprite)", "MIT, Copyright (c) Phosphor Icons", "https://github.com/phosphor-icons/core", "telegram_archive/web/static/icons/ax-icons.svg"),
+    ("Outfit font", "SIL Open Font License 1.1 (the licence text is in telegram_archive/web/static/fonts/OUTFIT-LICENSE-OFL.txt)", "https://fonts.google.com/specimen/Outfit", "telegram_archive/web/static/fonts"),
+    ("Content-tag detector weights (NudeNet 320n, a YOLOv8 nano model)", "AGPL-3.0 (Ultralytics YOLOv8; the model file says so). Not part of the app and not installed with it: downloaded by the person under AI, Models, and run by our own code", "https://github.com/notAI-tech/NudeNet", "AI, Models, Content tags (downloaded on request); see docs/plan.md, D8"),
+    ("TMDB and TVmaze data", "TMDB: this product uses the TMDB API but is not endorsed or certified by TMDB. TVmaze: data under CC BY-SA 4.0", "https://www.themoviedb.org/ , https://www.tvmaze.com/", "fetched at run time with the person's own key; shown with credit in Settings, Metadata"),
+    ("SmoothUI theme toggle and favicon search (adapted)", "MIT, Copyright (c) 2024 Eduardo Calvo", "https://github.com/educlopez/smoothui", "apps/web/src/design/ThemeToggle.tsx and apps/web/src/app/SearchField.tsx, adapted to the app"),
+]
+
+
+def rust():
+    out = subprocess.run(["cargo", "metadata", "--format-version", "1", "--locked"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+    members = set(json.loads(out)["workspace_members"])
+    rows = {}
+    for p in json.loads(out)["packages"]:
+        if p["id"] in members:
+            continue
+        rows[(p["name"], p["version"])] = p.get("license") or "see crate"
+    return sorted((n, v, l) for (n, v), l in rows.items())
+
+
+def web():
+    rows = []
+    for pj in sorted((ROOT / "apps/web/node_modules").glob("**/package.json")):
+        try:
+            d = json.loads(pj.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not d.get("name") or not d.get("version") or pj.parent.parent.name == ".bin":
+            continue
+        lic = d.get("license") or (d.get("licenses") or [{}])[0].get("type") if isinstance(d.get("licenses"), list) else d.get("license")
+        rows.append((d["name"], d["version"], lic if isinstance(lic, str) else json.dumps(lic) if lic else "see package"))
+    return sorted(set(rows))
+
+
+def python():
+    names = {re.split(r"[<>=!~\[; ]", line.strip(), maxsplit=1)[0].lower().replace("_", "-") for line in (ROOT / "requirements.txt").read_text().splitlines() if line.strip() and not line.startswith("#")}
+    rows = []
+    for dist in md.distributions():
+        n = dist.metadata["Name"] or ""
+        if n.lower().replace("_", "-") in names:
+            lic = dist.metadata.get("License-Expression") or dist.metadata.get("License") or ""
+            if not lic or len(lic) > 60:
+                lic = next((c.split("::")[-1].strip() for c in (dist.metadata.get_all("Classifier") or []) if c.startswith("License ::")), "see package")
+            rows.append((n, dist.version, lic))
+    return sorted(set(rows))
+
+
+def table(rows):
+    return "\n".join(["| Name | Version | Licence |", "| --- | --- | --- |", *(f"| {n} | {v} | {l} |" for n, v, l in rows)])
+
+
+def main():
+    parts = [
+        "# Third-party notices",
+        "",
+        "Archive X is licensed under the GNU General Public License, version 3 or later (see `LICENSE`). It bundles and builds on the software below, each under its own licence.",
+        "Generated by `tools/release/gen_notices.py`; do not edit by hand.",
+        "",
+        "## Programs bundled with the installer",
+        "",
+        "| Name | Licence | Source | How it gets in |",
+        "| --- | --- | --- | --- |",
+        *(f"| {n} | {l} | {u} | {h} |" for n, l, u, h in BUNDLED),
+        "",
+        "The source code of LAV Filters and FFmpeg is available from the links above, at the versions pinned in the scripts named.",
+        "",
+        "## Rust crates",
+        "",
+        table(rust()),
+        "",
+        "## Web app packages",
+        "",
+        table(web()),
+        "",
+        "## Python packages",
+        "",
+        table(python()),
+        "",
+    ]
+    (ROOT / "THIRD-PARTY-NOTICES.md").write_text("\n".join(parts), encoding="utf-8")
+    print("wrote THIRD-PARTY-NOTICES.md")
+
+
+if __name__ == "__main__":
+    main()

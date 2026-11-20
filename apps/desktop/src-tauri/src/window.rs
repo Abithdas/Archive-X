@@ -54,14 +54,21 @@ pub fn window_drag(window: WebviewWindow) -> Result<(), String> {
 #[tauri::command]
 pub fn open_external(url: String) -> Result<(), String> {
     let u = url.trim();
-    let plain = (u.starts_with("https://") || u.starts_with("http://")) && u.len() <= 2000 && !u.chars().any(|c| c.is_control() || c.is_whitespace() || matches!(c, '"' | '<' | '>' | '^' | '`' | '|' | '\\'));
+    let plain = (u.starts_with("https://") || u.starts_with("http://"))
+        && u.len() <= 2000
+        && !u.chars().any(|c| c.is_control() || c.is_whitespace() || matches!(c, '"' | '<' | '>' | '^' | '`' | '|' | '\\'));
     if !plain {
         return Err("That is not a web address that can be opened.".into());
     }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        std::process::Command::new("rundll32").args(["url.dll,FileProtocolHandler", u]).creation_flags(0x0800_0000).spawn().map(|_| ()).map_err(|e| e.to_string())
+        std::process::Command::new("rundll32")
+            .args(["url.dll,FileProtocolHandler", u])
+            .creation_flags(0x0800_0000)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
     }
     #[cfg(not(windows))]
     {
