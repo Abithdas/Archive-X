@@ -18,6 +18,7 @@ fn main() {
         "window_is_maximized",
         "window_close",
         "window_drag",
+        "open_external",
     ];
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(tauri_build::AppManifest::new().commands(COMMANDS))).expect("failed to run the Tauri build script");
 }

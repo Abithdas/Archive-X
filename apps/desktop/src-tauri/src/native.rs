@@ -332,6 +332,7 @@ const COMMANDS: &[&str] = &[
     "window_is_maximized",
     "window_close",
     "window_drag",
+    "open_external",
 ];
 
 #[cfg(test)]

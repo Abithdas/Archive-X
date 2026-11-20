@@ -20,6 +20,7 @@
     "allow-window-toggle-maximize",
     "allow-window-is-maximized",
     "allow-window-close",
-    "allow-window-drag"
+    "allow-window-drag",
+    "allow-open-external"
   ]
 }

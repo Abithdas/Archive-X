@@ -219,6 +219,12 @@
           "markdownDescription": "Enables the native_tracks command without any pre-configured scope."
         },
         {
+          "description": "Enables the open_external command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-open-external",
+          "markdownDescription": "Enables the open_external command without any pre-configured scope."
+        },
+        {
           "description": "Enables the update_check command without any pre-configured scope.",
           "type": "string",
           "const": "allow-update-check",
@@ -313,6 +319,12 @@
           "type": "string",
           "const": "deny-native-tracks",
           "markdownDescription": "Denies the native_tracks command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the open_external command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-open-external",
+          "markdownDescription": "Denies the open_external command without any pre-configured scope."
         },
         {
           "description": "Denies the update_check command without any pre-configured scope.",

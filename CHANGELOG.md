@@ -4,6 +4,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Links to other websites (Where to watch, trailers' fallback, add-on links) open in your browser from the desktop app: the app window was refusing the command that opens them, because it was not on the list of commands the page may call
 - A finished "Matching scenes by file hash" card no longer stays on Transfers: the 15-minute folder re-check asked the scene databases again about every video they did not know, and each run kept its card for ten more minutes; now it only asks about new videos (the folder's Scan button still asks about all)
 
 ## 30.11.5 (2026-11-20)
