@@ -23,18 +23,20 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SECRET = secrets.token_hex(32)
+LAUNCH_NONCE = secrets.token_hex(32)
 FAILS: list[str] = []
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
+    # detail often comes from a response to a request that carried the launch nonce; never let the nonce reach the log
+    detail = detail.replace(LAUNCH_NONCE, "<launch-nonce>")
     print(f"  [{'PASS' if ok else 'FAIL'}] {name}{(' — ' + detail) if detail and not ok else ''}")
     if not ok:
         FAILS.append(name)
 
 
 def start_backend(cmd: list[str], data_dir: str, parent_pid: int, port: int = 0, extra_env: dict | None = None) -> tuple[subprocess.Popen, int, list[str]]:
-    env = dict(os.environ, ARCHIVE_X_DESKTOP="1", ARCHIVE_X_LAUNCH_SECRET=SECRET, ARCHIVE_X_DATA_DIR=data_dir,
+    env = dict(os.environ, ARCHIVE_X_DESKTOP="1", ARCHIVE_X_LAUNCH_SECRET=LAUNCH_NONCE, ARCHIVE_X_DATA_DIR=data_dir,
                ARCHIVE_X_PARENT_PID=str(parent_pid), ARCHIVE_X_DESKTOP_PORT=str(port), PYTHONUNBUFFERED="1",
                ARCHIVE_X_AUTO_OPEN_BROWSER="0", **(extra_env or {}))
     proc = subprocess.Popen(cmd, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -78,13 +80,13 @@ def main() -> int:
             check(f"{path} without secret is refused", r.status == 403, str(r.status))
         r = request(port, "GET", "/api/status", {"X-Archive-X-Desktop": "wrong" * 8}); r.read()
         check("wrong secret header refused", r.status == 403, str(r.status))
-        r = request(port, "GET", "/api/status", {"X-Archive-X-Desktop": SECRET}); r.read()
+        r = request(port, "GET", "/api/status", {"X-Archive-X-Desktop": LAUNCH_NONCE}); r.read()
         check("secret header passes the guard (then needs a session)", r.status in (200, 401), str(r.status))
 
         print("session hand-off")
         r = request(port, "GET", "/desktop/session?token=nope"); r.read()
         check("bad token refused", r.status == 403, str(r.status))
-        r = request(port, "GET", f"/desktop/session?token={SECRET}"); page = r.read()
+        r = request(port, "GET", f"/desktop/session?token={LAUNCH_NONCE}"); page = r.read()
         check("hand-off page navigates to /", b'location.replace("/")' in page and b'http-equiv="refresh"' in page)
         cookies = r.getheader("set-cookie") or ""
         raw = [h[1] for h in r.getheaders() if h[0].lower() == "set-cookie"]
@@ -92,7 +94,7 @@ def main() -> int:
         names = {c.split("=")[0] for c in raw}
         check("session + guard cookies set", "ax_desktop" in names and len(names) >= 2, str(names))
         check("cookies are HttpOnly", all("httponly" in c.lower() for c in raw))
-        check("secret never appears in a cookie", all(SECRET not in c for c in raw))
+        check("secret never appears in a cookie", all(LAUNCH_NONCE not in c for c in raw))
         jar = "; ".join(c.split(";")[0] for c in raw)
         r = request(port, "GET", "/api/status", {"Cookie": jar}); body = r.read()
         check("cookie session reaches the API (no web login needed)", r.status == 200, f"{r.status} {body[:80]!r}")
@@ -137,7 +139,7 @@ def main() -> int:
         print("shutdown")
         r = request(port, "POST", "/desktop/shutdown"); r.read()
         check("shutdown without secret refused", r.status == 403, str(r.status))
-        r = request(port, "POST", "/desktop/shutdown", {"X-Archive-X-Desktop": SECRET}); r.read()
+        r = request(port, "POST", "/desktop/shutdown", {"X-Archive-X-Desktop": LAUNCH_NONCE}); r.read()
         check("shutdown with secret accepted (202)", r.status == 202, str(r.status))
         try:
             code = proc.wait(timeout=45)
@@ -153,9 +155,9 @@ def main() -> int:
     for value, expected in (("/ai", "/ai"), ("//evil.example/x", "/"), ("https://evil.example", "/"), ("/ok\\bad", "/")):
         p3, port3, _ = start_backend(cmd, tempfile.mkdtemp(prefix="axdesktop_"), holder.pid, extra_env={"ARCHIVE_X_DESKTOP_LANDING": value})
         try:
-            r = request(port3, "GET", f"/desktop/session?token={SECRET}"); page = r.read().decode()
+            r = request(port3, "GET", f"/desktop/session?token={LAUNCH_NONCE}"); page = r.read().decode()
             check(f"landing {value!r} -> {expected!r}", f'location.replace({json.dumps(expected)})' in page, page[-120:])
-            request(port3, "POST", "/desktop/shutdown", {"X-Archive-X-Desktop": SECRET}).read()
+            request(port3, "POST", "/desktop/shutdown", {"X-Archive-X-Desktop": LAUNCH_NONCE}).read()
             p3.wait(timeout=45)
         finally:
             if p3.poll() is None:
