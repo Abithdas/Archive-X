@@ -10,7 +10,16 @@ use std::path::Path;
 use std::time::{Duration, UNIX_EPOCH};
 
 fn set_time(path: &Path, ns: u64) {
-    let f = fs::File::open(path).unwrap();
+    let mut open = fs::OpenOptions::new();
+    open.read(true);
+    #[cfg(windows)]
+    {
+        // Windows only lets a time be set through a handle opened for it, and a folder is opened only with backup semantics
+        use std::os::windows::fs::OpenOptionsExt;
+        open.access_mode(0x0100 /* FILE_WRITE_ATTRIBUTES */ | 0x8000_0000 /* GENERIC_READ */)
+            .custom_flags(0x0200_0000 /* FILE_FLAG_BACKUP_SEMANTICS */);
+    }
+    let f = open.open(path).unwrap();
     f.set_modified(UNIX_EPOCH + Duration::from_nanos(ns)).unwrap();
 }
 
