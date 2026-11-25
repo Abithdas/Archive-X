@@ -206,7 +206,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
 
         <section className={CARD} aria-label="Performers and studio">
           <div className="mb-3 flex items-start justify-between gap-3">
-            <div><h2 className="text-base font-bold">{labels.performers} &amp; {labels.studios}</h2><p className="text-xs text-faint">People and studio linked to this video</p></div>
+            <div><h2 className="text-base font-bold">{labels.series !== null ? 'Cast' : `${labels.performers} & ${labels.studios}`}</h2><p className="text-xs text-faint">{labels.series !== null ? 'Who is in this title, and the studio or network behind it' : 'People and studio linked to this video'}</p></div>
             <button type="button" onClick={() => setEditing(true)} title="Edit video title, performers and studio" aria-label="Edit video title, performers and studio" className="grid size-9 shrink-0 place-items-center rounded-xl border border-line-2 text-muted hover:bg-fg/5 hover:text-fg"><Icon name="edit" className="size-4" /></button>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -229,7 +229,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
               </ul>
             </div>
             <div>
-              <p className="mb-2 text-xs font-semibold text-faint">Studio</p>
+              <p className="mb-2 text-xs font-semibold text-faint">{labels.series !== null ? 'Studio or network' : 'Studio'}</p>
               {studio ? (
                 <div className="flex items-center gap-3 rounded-xl border border-line bg-bg p-2">
                   <span className="size-9 shrink-0 overflow-hidden rounded-lg bg-surface-3">

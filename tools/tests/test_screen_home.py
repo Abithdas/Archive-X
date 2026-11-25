@@ -530,3 +530,45 @@ def test_addon_catalogs_that_can_be_searched_are_asked_too_and_subtitles_get_the
     assert titles[0] == "Dune" and titles.count("Dune") == 1 and "The Matrix" in titles       # the add-on's finds follow Cinemeta's, without repeats
     assert c.get("/api/screen/subtitles/-9000000000001/1").json()["items"] != []
     assert any("filename=The.Matrix.1999.mkv" in u for u in asked)
+
+
+def test_what_was_watched_through_an_addon_is_in_continue_watching_until_it_is_finished(tmp_path):
+    db = Database(tmp_path / "a.db")
+    _library(db)
+    c = _client(db)
+    body = {"kind": "movie", "ident": "tt0133093", "name": "The Matrix", "position": 600, "duration": 1000}
+    assert c.post("/api/screen/addon-progress", json=body, headers=H).json() == {"ok": True, "kept": True}
+    mine = [x for x in c.get("/api/screen/home").json()["continue"] if x.get("addon")]
+    assert [(x["title"], x["pct"], x["left"], x["addon"]["ident"]) for x in mine] == [("The Matrix", 60, 7, "tt0133093")]   # named after the library's title for that IMDb id
+    assert c.get("/api/screen/addon-progress?kind=movie&ident=tt0133093").json() == {"position": 600.0}
+    c.post("/api/screen/addon-progress", json={**body, "position": 700}, headers=H)                                          # the same title again: one entry, moved on
+    assert len([x for x in c.get("/api/screen/home").json()["continue"] if x.get("addon")]) == 1
+    ep = {"kind": "series", "ident": "tt0903747", "name": "Pilot", "season": 1, "episode": 1, "position": 100, "duration": 1000}
+    c.post("/api/screen/addon-progress", json=ep, headers=H)
+    assert c.get("/api/screen/addon-progress?kind=series&ident=tt0903747&season=1&episode=1").json() == {"position": 100.0}
+    assert c.get("/api/screen/addon-progress?kind=series&ident=tt0903747&season=1&episode=2").json() == {"position": 0.0}   # another episode has its own place
+    assert c.post("/api/screen/addon-progress", json={**body, "position": 990}, headers=H).json()["kept"] is False           # nearly done: no longer offered
+    assert c.get("/api/screen/addon-progress?kind=movie&ident=tt0133093").json() == {"position": 0.0}
+    assert c.post("/api/screen/addon-progress", json={**body, "ident": "not-an-id"}, headers=H).status_code == 400
+    assert c.post("/api/screen/addon-progress", json={**body, "duration": 0}, headers=H).status_code == 400
+
+
+def test_opening_the_pages_names_what_was_never_named_once_in_a_while(tmp_path, monkeypatch):
+    """Videos of SFW Telegram channels get no scan of their own that names them: opening Home, Movies or Series starts it, at most every ten minutes."""
+    from telegram_archive.engines import screen_identify as engine
+    calls = []
+    monkeypatch.setattr(engine, "configured", lambda db_: True)
+    monkeypatch.setattr(engine, "pending", lambda db_, channel=None: [{"id": 1}])
+    monkeypatch.setattr(engine, "run", lambda db_, channel=None, fetch=None: calls.append(channel) or {"ok": True})
+    db = Database(tmp_path / "w.db")
+    c = _client(db)
+    c.get("/api/screen/home")
+    import time
+    for _ in range(50):
+        if calls:
+            break
+        time.sleep(0.05)
+    assert calls == [None]
+    c.get("/api/screen/movies"); c.get("/api/screen/series"); c.get("/api/screen/home")
+    time.sleep(0.3)
+    assert calls == [None]                                                         # not again within ten minutes

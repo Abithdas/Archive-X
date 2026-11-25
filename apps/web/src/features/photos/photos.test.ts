@@ -77,9 +77,11 @@ describe('viewer', () => {
 
 describe('delete', () => {
   it('uses the classic wording and request', () => {
-    expect(deleteCopy(false, 'a.jpg', 'Main').text).toMatch(/Remove "a.jpg" from the Archive X Photos library/)
-    expect(deleteCopy(true, 'a.jpg', 'Main').text).toMatch(/its Telegram message in "Main"/)
-    expect(deleteBody(true)).toEqual({ scope: 'archive_and_telegram' }); expect(deleteBody(false)).toEqual({ scope: 'archive_only' })
+    expect(deleteCopy('archive', 'a.jpg', 'Main').text).toMatch(/Remove "a.jpg" from the Archive X Photos library/)
+    expect(deleteCopy('telegram', 'a.jpg', 'Main').text).toMatch(/its Telegram message in "Main"/)
+    expect(deleteBody('telegram')).toEqual({ scope: 'archive_and_telegram' }); expect(deleteBody('archive')).toEqual({ scope: 'archive_only' }); expect(deleteBody('file')).toEqual({ scope: 'archive_and_file' })
+    expect(deleteCopy('file', 'a.jpg', 'Main').text).toMatch(/Permanently delete the file "a.jpg" from this PC/)
+    expect(deleteCopy('archive', 'a.jpg', 'Main', true).text).toMatch(/file stays on this PC/)
     expect(deletePath({ channel_id: '-1001', message_id: 3 })).toBe('/api/photos/-1001/3/delete')
   })
 })

@@ -755,7 +755,7 @@ def register_library_routes(
             raise HTTPException(400, "No indexed photos found. Scan Telegram channels for images first.")
         detail = {"match_performers": match_performers, "source": "telegram", "workflow": "PHOTO_FACE_ANALYSIS", "channel_ids": channel_ids,
                   "source_count": indexed, "source_mode": "PHOTO_FACE_ANALYSIS", "read_only": True,
-                  "image_based": True, "auto_identity_assignment": match_performers}
+                  "image_based": True, "auto_identity_assignment": False}
         jid = db.create_job("TELEGRAM_TRANSFER", ",".join(channel_ids) or "all indexed photos", "", False,
                             detail=json.dumps(detail, ensure_ascii=False, separators=(",", ":")))
         jobs.submit(jid)
@@ -1496,8 +1496,8 @@ def register_library_routes(
         if not isinstance(body, dict):
             raise HTTPException(400, "Request body must be an object")
         scope = str(body.get("scope") or "").strip().lower()
-        if scope not in {"archive_only", "archive_and_telegram"}:
-            raise HTTPException(400, "scope must be archive_only or archive_and_telegram")
+        if scope not in {"archive_only", "archive_and_telegram", "archive_and_file"}:
+            raise HTTPException(400, "scope must be archive_only, archive_and_telegram or archive_and_file")
         channel_id = str(channel_id or "").strip()
         message_id = int(message_id)
         if not channel_id or message_id <= 0:
@@ -1518,6 +1518,36 @@ def register_library_routes(
             return photo, crop_rows
 
         photo, crop_rows = await asyncio.to_thread(_read_photo)   # database work off the event loop
+
+        is_local = str(photo["source_kind"] or "") == "local"
+        file_removed = None
+        if is_local and scope == "archive_and_telegram":
+            raise HTTPException(400, "This photo is a file on this PC, not a Telegram post. Use delete file instead.")
+        if scope == "archive_and_file":
+            if not is_local:
+                raise HTTPException(400, "Only photos from a folder on this PC have a file to delete")
+            from ..engines.local_scanner import file_in_source
+
+            def _delete_file():
+                saved = str(photo["local_path"] or "")
+                found = file_in_source(db, channel_id, saved)
+                if found is None:
+                    if saved and __import__("os").path.exists(saved):
+                        # a path the folder does not hold must never be removed because a row says so
+                        raise HTTPException(409, "The file is not inside its folder any more, so it was left alone. The photo was kept in Archive X.")
+                    return False   # nothing on disk any more: only the stale entry is left to clear
+                try:
+                    found.unlink()
+                except FileNotFoundError:
+                    return False
+                except OSError as exc:
+                    raise HTTPException(500, f"The file could not be deleted ({type(exc).__name__}); the photo was kept in Archive X.") from exc
+                return True
+            file_removed = await asyncio.to_thread(_delete_file)
+            try:
+                await asyncio.to_thread(db.log, f"Local photo file {'deleted' if file_removed else 'was already gone'}: {channel_id}/{message_id}", "INFO", event="photo_library.delete_local_file")
+            except Exception:
+                _swallowed_note("routes_library.register_library_routes.photo_library_delete")
 
         telegram_deleted = False
         telegram_was_already_missing = False
@@ -1656,12 +1686,14 @@ def register_library_routes(
             _swallowed_note("routes_library.register_library_routes.photo_library_delete")
             pass
 
-        message = "Removed from Archive X; the Telegram message was left unchanged."
+        message = "Removed from Archive X; the file on this PC was left where it is." if is_local else "Removed from Archive X; the Telegram message was left unchanged."
+        if scope == "archive_and_file":
+            message = "Removed from Archive X and the file was deleted from this PC." if file_removed else "Removed from Archive X; the file was already gone from this PC."
         if scope == "archive_and_telegram":
             message = "Removed from Archive X and deleted from Telegram."
             if telegram_was_already_missing:
                 message = "Removed from Archive X; the Telegram message was already missing."
-        return {"ok": True, "scope": scope, "telegram_deleted": telegram_deleted,
+        return {"ok": True, "scope": scope, "telegram_deleted": telegram_deleted, "file_deleted": bool(file_removed),
                 "telegram_was_already_missing": telegram_was_already_missing,
                 "cache_files_removed": cache_removed, "cache_cleanup_warning": bool(cache_cleanup_errors),
                 "message": message}

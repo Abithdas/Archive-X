@@ -127,3 +127,24 @@ describe('PerformerPage profile card', () => {
     expect(screen.queryByRole('toolbar', { name: 'Edit multiple videos' })).not.toBeInTheDocument()
   })
 })
+
+describe('PerformerPage in movies and shows', () => {
+  const stack = (mode: 'sfw' | 'nsfw') => vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url === '/api/content-mode') return new Response(JSON.stringify({ ok: true, mode, pin_set: false, locked_for: 0 }), { status: 200 })
+    return new Response(JSON.stringify(detail('bio')), { status: 200 })
+  }))
+  it('shows a filmography, without similar performers or suggestions', async () => {
+    stack('sfw')
+    withRouter(<PerformerPage id={2} />)
+    expect(await screen.findByRole('tab', { name: /Filmography/ })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Similar Performers/ })).toBeNull()
+    expect(screen.queryByRole('tab', { name: /Suggestions/ })).toBeNull()
+  })
+  it('keeps the adult library as it was', async () => {
+    stack('nsfw')
+    withRouter(<PerformerPage id={2} />)
+    expect(await screen.findByRole('tab', { name: /Similar Performers/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Suggestions/ })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Filmography/ })).toBeNull()
+  })
+})

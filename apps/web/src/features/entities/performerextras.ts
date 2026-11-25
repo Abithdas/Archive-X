@@ -47,4 +47,7 @@ export const studioCount = (videos: ReadonlyArray<{ studios?: unknown }>) => new
 export const STUDIOS_EMPTY = 'No linked studios were found for this performer.'
 export const similarEmpty = (reason?: string) => (reason === 'gender_required' ? 'Similar performers require a known gender on the current profile.' : 'No similar performers with matching personal and physical details were found.')
 export type PTab = 'videos' | 'studios' | 'gallery' | 'similar' | 'suggestions'
+/** For movies and shows an actor's page is a filmography: what they are in, the studios and networks behind it and their pictures. "Similar performers" and the review of suggested links belong to the adult library's catalogue work. */
+export const SFW_PTABS: ReadonlyArray<{ value: PTab; label: string }> = [{ value: 'videos', label: 'Filmography' }, { value: 'studios', label: 'Studios & Networks' }, { value: 'gallery', label: 'Gallery' }]
+export const tabsFor = (screen: boolean): ReadonlyArray<{ value: PTab; label: string }> => (screen ? SFW_PTABS : PTABS)
 export const PTABS: ReadonlyArray<{ value: PTab; label: string }> = [{ value: 'videos', label: 'Videos' }, { value: 'studios', label: 'Studios' }, { value: 'gallery', label: 'Gallery' }, { value: 'similar', label: 'Similar Performers' }, { value: 'suggestions', label: 'Suggestions' }]

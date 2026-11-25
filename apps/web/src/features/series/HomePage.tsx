@@ -24,7 +24,8 @@ import { useHomeTab, useScreenView, type HomeTab } from './view'
 const GENRES = ['Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Family', 'Fantasy', 'History', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Sport', 'Thriller', 'War', 'Western']
 
 interface Billboard { id: number; kind: 'tv' | 'movie'; title: string; year: number | null; overview: string; backdrop: string; poster: string; genres: string[]; rating: number | null }
-interface Resume { cid: string; mid: number; title: string; sub: string; image: string; pct: number; left: number }
+/** A title watched through an add-on has no library file: its card goes back to the title's own page, where the streams are listed and the last position is picked up. */
+interface Resume { cid: string; mid: number; title: string; sub: string; image: string; pct: number; left: number; addon?: { kind: 'movie' | 'series'; ident: string; season?: number | null; episode?: number | null } }
 interface Airing { id: number; title: string; poster: string; season: number; episode: number; name: string; date: string }
 interface Recent { id: number; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string }
 interface HomeData { continue: Resume[]; airing: Airing[]; recent: Recent[]; billboard: Billboard[] }
@@ -367,16 +368,25 @@ export function SfwHome() {
             <div className={cn('grid gap-8', bleed && 'relative z-10 px-4 pb-10 sm:px-10')}>
             {d?.continue.length ? (
               <Row title="Continue watching" hint="Where you stopped" arrowTop={80}>
-                {d.continue.map((r) => (
-                  <Link key={`${r.cid}:${r.mid}`} to="/watch/$cid/$mid" params={{ cid: r.cid, mid: String(r.mid) }} aria-label={`Continue ${r.title}`} className="mo-poster group relative block aspect-video w-[280px] shrink-0 snap-start overflow-hidden rounded-[18px] border border-white/10 bg-surface-2">
-                    <img src={r.image || PLACEHOLDER} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-                    <span className="absolute inset-x-0 bottom-0 grid gap-0.5 bg-[linear-gradient(transparent,rgb(13_15_17/0.92)_70%)] p-3 pt-8">
-                      <span className="truncate text-sm font-bold text-white">{r.title}</span>
-                      <span className="truncate text-xs text-white/80">{[r.sub, `${r.left} min left`].filter(Boolean).join(' · ')}</span>
-                    </span>
-                    <span className="absolute inset-x-0 bottom-0 h-1 bg-white/25"><span className="block h-full bg-accent" style={{ width: `${r.pct}%` }} /></span>
-                  </Link>
-                ))}
+                {d.continue.map((r) => {
+                  const cls = 'mo-poster group relative block aspect-video w-[280px] shrink-0 snap-start overflow-hidden rounded-[18px] border border-white/10 bg-surface-2'
+                  const inner = (
+                    <>
+                      <img src={r.image || PLACEHOLDER} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+                      <span className="absolute inset-x-0 bottom-0 grid gap-0.5 bg-[linear-gradient(transparent,rgb(13_15_17/0.92)_70%)] p-3 pt-8">
+                        <span className="truncate text-sm font-bold text-white">{r.title}</span>
+                        <span className="truncate text-xs text-white/80">{[r.sub, `${r.left} min left`].filter(Boolean).join(' · ')}</span>
+                      </span>
+                      <span className="absolute inset-x-0 bottom-0 h-1 bg-white/25"><span className="block h-full bg-accent" style={{ width: `${r.pct}%` }} /></span>
+                    </>
+                  )
+                  const a = r.addon
+                  if (!a) return <Link key={`${r.cid}:${r.mid}`} to="/watch/$cid/$mid" params={{ cid: r.cid, mid: String(r.mid) }} aria-label={`Continue ${r.title}`} className={cls}>{inner}</Link>
+                  const key = `addon:${a.kind}:${a.ident}:${a.season ?? ''}:${a.episode ?? ''}`
+                  return a.season != null && a.episode != null
+                    ? <Link key={key} to="/discover/$kind/$id/$season/$episode" params={{ kind: a.kind, id: a.ident, season: String(a.season), episode: String(a.episode) }} aria-label={`Continue ${r.title}`} className={cls}>{inner}</Link>
+                    : <Link key={key} to="/discover/$kind/$id" params={{ kind: a.kind, id: a.ident }} aria-label={`Continue ${r.title}`} className={cls}>{inner}</Link>
+                })}
               </Row>
             ) : null}
             {d?.airing.length ? (

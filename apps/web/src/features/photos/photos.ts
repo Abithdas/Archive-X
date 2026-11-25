@@ -10,7 +10,7 @@ export const SORTS: Array<{ value: PhotoSort; label: string }> = [
 export const sortLabel = (v: string) => SORTS.find((s) => s.value === v)?.label ?? SORTS[0]!.label
 
 export interface PhotoChannel { telegram_id: string | number; title?: string | null; image?: string | null; updated_at?: string | null; photo_count?: number; photo_scan_status?: string; photo_last_scan_at?: string | null }
-export interface Photo { id: number; channel_id: string; message_id: number; filename: string; caption?: string; mime_type?: string; size: number; width: number; height: number; message_date?: string | null; channel_title?: string; thumbnail_url: string; preview_url: string; image_url: string }
+export interface Photo { id: number; channel_id: string; message_id: number; filename: string; caption?: string; mime_type?: string; size: number; width: number; height: number; message_date?: string | null; channel_title?: string; thumbnail_url: string; preview_url: string; image_url: string; /** 'local' for a file on this PC, not a Telegram post. */ source_kind?: string }
 export interface PhotoPage { ok?: boolean; detail?: string; items: Photo[]; total: number; page: number; per: number }
 
 export const NO_CHANNELS_SAVED = 'No saved Telegram channels found. Open Videos and refresh the Telegram channel list first.'
@@ -147,13 +147,20 @@ export function stripRange(index: number, total: number, size = STRIP_WINDOW): [
 export const SLIDE_MS = 3000
 export const SWIPE_PX = 60
 
-export const deleteCopy = (remote: boolean, name: string, channel: string) => remote
+/** What a photo's menu can do: take it out of Archive X only, also delete its Telegram post, or (a file on this PC) also delete the file. */
+export type Removal = 'archive' | 'telegram' | 'file'
+export const isLocalPhoto = (p: Pick<Photo, 'source_kind'>) => p.source_kind === 'local'
+export const deleteCopy = (mode: Removal, name: string, channel: string, local = false) => mode === 'telegram'
   ? { title: 'Delete photo and Telegram message?', ok: 'Delete from both', text: `Permanently delete "${name}" from Archive X and its Telegram message in "${channel}"?\n\nThis cannot be undone. Archive X will keep the cached image if Telegram deletion fails.` }
-  : { title: 'Remove photo from Archive X?', ok: 'Remove', text: `Remove "${name}" from the Archive X Photos library and delete its local cached copies?\n\nThe Telegram message will remain and may be indexed again if its channel is scanned in the future.` }
-export const deleteBody = (remote: boolean) => ({ scope: remote ? 'archive_and_telegram' : 'archive_only' })
+  : mode === 'file'
+    ? { title: 'Delete this file from the PC?', ok: 'Delete file', text: `Permanently delete the file "${name}" from this PC and remove it from the Archive X Photos library?\n\nThis cannot be undone and does not use the Recycle Bin.` }
+    : local
+      ? { title: 'Remove photo from Archive X?', ok: 'Remove', text: `Remove "${name}" from the Archive X Photos library?\n\nThe file stays on this PC and is added again if its folder is scanned.` }
+      : { title: 'Remove photo from Archive X?', ok: 'Remove', text: `Remove "${name}" from the Archive X Photos library and delete its local cached copies?\n\nThe Telegram message will remain and may be indexed again if its channel is scanned in the future.` }
+export const deleteBody = (mode: Removal) => ({ scope: mode === 'telegram' ? 'archive_and_telegram' : mode === 'file' ? 'archive_and_file' : 'archive_only' })
 export const deletePath = (p: Pick<Photo, 'channel_id' | 'message_id'>) => `/api/photos/${encodeURIComponent(p.channel_id)}/${p.message_id}/delete`
-export const deleteStatus = (remote: boolean, name: string) => (remote ? `Deleting ${name} from Telegram and Archive X…` : `Removing ${name} from Archive X…`)
-export const deleteDone = (remote: boolean, r: { message?: string }) => r.message || (remote ? 'Photo deleted from Archive X and Telegram.' : 'Photo removed from Archive X.')
+export const deleteStatus = (mode: Removal, name: string) => (mode === 'telegram' ? `Deleting ${name} from Telegram and Archive X…` : mode === 'file' ? `Deleting the file ${name}…` : `Removing ${name} from Archive X…`)
+export const deleteDone = (mode: Removal, r: { message?: string }) => r.message || (mode === 'telegram' ? 'Photo deleted from Archive X and Telegram.' : mode === 'file' ? 'Photo and its file deleted.' : 'Photo removed from Archive X.')
 
 /** Pictures worth fetching ahead while one photo is open: the next two and the previous one, the full image first and the preview as a quick fallback. */
 export function neighborUrls(items: ReadonlyArray<{ preview_url?: string; image_url?: string }>, index: number): string[] {

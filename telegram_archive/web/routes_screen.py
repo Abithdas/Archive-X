@@ -90,6 +90,20 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         threading.Thread(target=work, name="screen-identify", daemon=True).start()
         return True
 
+    wake = {"at": None}
+
+    def wake_identify() -> bool:
+        """Videos of SFW channels that were never named (Telegram channels get no scan of their own that names them) are named in the background when the
+        Home, Movies or Series page is opened, at most every ten minutes. Nothing happens without a TMDB key or when nothing waits."""
+        import time as _wake_time
+        now = _wake_time.monotonic()
+        if wake["at"] is not None and now - wake["at"] < 600:
+            return False
+        wake["at"] = now
+        if not sid.configured(db) or not sid.pending(db):
+            return False
+        return start(None)
+
     @router.get("/api/screen/settings")
     async def screen_settings(request: Request):
         require_auth(request)
@@ -940,23 +954,84 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             raise HTTPException(404, "That title is not in the catalogue")
         return card
 
+    # What was watched through an add-on (no library file, so no watch_history row): kept as a short list in the settings, newest first.
+    ADDON_HISTORY_KEY, ADDON_HISTORY_MAX = "screen_addon_history", 24
+
+    def _addon_history() -> list[dict]:
+        raw = db.setting(ADDON_HISTORY_KEY)
+        out = []
+        for e in raw if isinstance(raw, list) else []:
+            if isinstance(e, dict) and e.get("kind") in ("movie", "series") and re.fullmatch(r"tt\d{5,10}", str(e.get("ident") or "")):
+                out.append(e)
+        return out
+
+    def _same_addon_title(e: dict, kind: str, ident: str, season, episode) -> bool:
+        return e.get("kind") == kind and e.get("ident") == ident and e.get("season") == season and e.get("episode") == episode
+
+    @router.post("/api/screen/addon-progress")
+    async def addon_progress(request: Request):
+        """Remember where a title played from an add-on stopped, so Home can offer to continue it. A finished title is dropped from the list."""
+        require_auth(request)
+        try:
+            body = await request.json()
+            kind, ident = str(body.get("kind")), str(body.get("ident"))
+            position, duration = max(0.0, float(body.get("position") or 0)), max(0.0, float(body.get("duration") or 0))
+            season = int(body["season"]) if body.get("season") not in (None, "") else None
+            episode = int(body["episode"]) if body.get("episode") not in (None, "") else None
+        except Exception:
+            raise HTTPException(400, "kind, ident, position and duration are required")
+        if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident) or not duration:
+            raise HTTPException(400, "kind must be movie or series, ident an IMDb id, and duration above zero")
+        name = str(body.get("name") or "")[:200]
+
+        def save():
+            from .. import config
+            with db.lock:
+                rest = [e for e in _addon_history() if not _same_addon_title(e, kind, ident, season, episode)]
+                finished = position >= duration * 0.95
+                if not finished and position >= 5:
+                    rest.insert(0, {"kind": kind, "ident": ident, "season": season, "episode": episode, "name": name, "position": round(position, 1),
+                                    "duration": round(duration, 1), "at": config.now_iso()})
+                db.set_setting(ADDON_HISTORY_KEY, rest[:ADDON_HISTORY_MAX])
+            return not finished
+        return {"ok": True, "kept": await asyncio.to_thread(save)}
+
+    @router.get("/api/screen/addon-progress")
+    async def addon_progress_one(request: Request, kind: str, ident: str, season: int | None = None, episode: int | None = None):
+        """Where this title stopped last time (0 when it did not, or it was nearly done)."""
+        require_auth(request)
+        hit = next((e for e in await asyncio.to_thread(_addon_history) if _same_addon_title(e, kind, ident, season, episode)), None)
+        return {"position": float(hit["position"]) if hit else 0.0}
+
     @router.get("/api/screen/home")
     async def screen_home(request: Request):
         """What the Home page shows from your own library: videos to carry on with, episodes airing this week, what was added last, and a few titles for the billboard."""
         require_auth(request)
+        await asyncio.to_thread(wake_identify)
 
         def read():
             out: dict = {}
             with db.reading() as c:
                 rows = c.execute(
-                    "SELECT wh.position,wh.duration,m.source_channel AS cid,m.source_message_id AS mid,m.title AS media_title,s.season,s.episode,t.kind,t.title AS ttitle,t.poster,t.year,e.name AS ename,e.still "
+                    "SELECT wh.last_played_at AS at,wh.position,wh.duration,m.source_channel AS cid,m.source_message_id AS mid,m.title AS media_title,s.season,s.episode,t.kind,t.title AS ttitle,t.poster,t.year,e.name AS ename,e.still "
                     "FROM watch_history wh JOIN media m ON m.id=wh.media_id LEFT JOIN media_screen s ON s.media_id=m.id AND s.state='MATCHED' LEFT JOIN screen_titles t ON t.id=s.title_id "
                     "LEFT JOIN screen_episodes e ON e.title_id=s.title_id AND e.season=s.season AND e.episode=s.episode "
                     "WHERE wh.completed=0 AND wh.position>=20 AND wh.duration>0 AND wh.position<wh.duration*0.95 ORDER BY wh.last_played_at DESC LIMIT 12").fetchall()
                 out["continue"] = [{
                     "cid": r["cid"], "mid": r["mid"], "title": r["ttitle"] or r["media_title"] or "Video",
                     "sub": (f"S{r['season']} · E{r['episode']}" + (f" · {r['ename']}" if r["ename"] else "")) if r["kind"] == "tv" and r["season"] is not None and r["episode"] is not None else (str(r["year"]) if r["year"] else ""),
-                    "image": si.image_url(r["still"] or r["poster"] or "", "w500"), "pct": round(100 * r["position"] / r["duration"]), "left": max(1, round((r["duration"] - r["position"]) / 60))} for r in rows]
+                    "image": si.image_url(r["still"] or r["poster"] or "", "w500"), "pct": round(100 * r["position"] / r["duration"]), "left": max(1, round((r["duration"] - r["position"]) / 60)), "at": r["at"] or ""} for r in rows]
+                for e in _addon_history():
+                    t = c.execute("SELECT title,poster,year FROM screen_titles WHERE imdb_id=? ORDER BY id LIMIT 1", (e["ident"],)).fetchone()
+                    ep = c.execute("SELECT e.name,e.still FROM screen_episodes e JOIN screen_titles t ON t.id=e.title_id WHERE t.imdb_id=? AND e.season=? AND e.episode=?", (e["ident"], e.get("season"), e.get("episode"))).fetchone() if e.get("season") is not None else None
+                    seasoned = e.get("season") is not None and e.get("episode") is not None
+                    out["continue"].append({
+                        "cid": "", "mid": 0, "addon": {"kind": e["kind"], "ident": e["ident"], "season": e.get("season"), "episode": e.get("episode")},
+                        "title": (t["title"] if t else "") or e.get("name") or "Video",
+                        "sub": (f"S{e['season']} · E{e['episode']}" + (f" · {ep['name']}" if ep and ep["name"] else "")) if seasoned else (str(t["year"]) if t and t["year"] else ""),
+                        "image": si.image_url((ep["still"] if ep and ep["still"] else "") or (t["poster"] if t else "") or "", "w500"),
+                        "pct": round(100 * float(e["position"]) / float(e["duration"])), "left": max(1, round((float(e["duration"]) - float(e["position"])) / 60)), "at": str(e.get("at") or "")})
+                out["continue"] = sorted(out["continue"], key=lambda r: r["at"], reverse=True)[:12]
                 rows = c.execute(
                     "SELECT t.id,t.title,t.poster,e.season,e.episode,e.name,e.air_date FROM screen_episodes e JOIN screen_titles t ON t.id=e.title_id AND t.kind='tv' "
                     "WHERE e.air_date>=date('now') AND e.air_date<=date('now','+7 day') AND e.title_id IN (SELECT s.title_id FROM media_screen s JOIN media m ON m.id=s.media_id WHERE s.state='MATCHED') "
@@ -1017,6 +1092,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def series_list(request: Request):
         """The TV shows that have episodes in the library (in the current mode), with a poster and how many episodes are here."""
         require_auth(request)
+        await asyncio.to_thread(wake_identify)
 
         def read():
             with db.reading() as c:
@@ -1086,6 +1162,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def movies_list(request: Request, cam: int = 0):
         """The movies in the library: one entry for each, with how many copies there are and the best one's picture size."""
         require_auth(request)
+        await asyncio.to_thread(wake_identify)
 
         def read():
             with db.reading() as c:

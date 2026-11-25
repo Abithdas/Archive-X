@@ -4,6 +4,14 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Pages refresh by themselves when something changes behind them: a video added by a scan, a performer renamed by a job or a channel created elsewhere shows up without a reload (the server already sent the change counters; the new app was not reading them)
+- Video page: full screen now stays on when you go to the next or previous video (the page was swapping the player for a loading screen), the buffer panel names the file's own container instead of the whole family ("mov,mp4,m4a,3gp,3g2,mj2"), and "Up next" lists what follows the current video instead of the first ten of the list
+- Duplicate videos: the scan shows a turning ring and a running timer so it no longer looks stuck, and scanning one channel answers from what is saved when Telegram is not connected or the channel is a folder on this PC (it failed with an error before)
+- Photos: a photo that is a file on this PC can be deleted from the disk too ("Delete file from this PC", after a confirmation; only a file inside its own folder is ever deleted), and no longer offers the Telegram delete
+- Photos: analysing faces no longer names people by itself. A face group that clearly matches a performer is shown as "Is this …?" and only your confirmation names it
+- Movies and shows: Continue watching on Home now includes titles you watched through an add-on stream (it only had your library's files) and picks them up where you stopped; videos of SFW Telegram channels that were never named are now named in the background when you open Home, Movies or Series (only folders on this PC were)
+- Movies and shows: an actor's page is a Filmography, without Similar Performers and Suggestions, and the video page says Cast
+
 - After you move the data folder in Settings, the log bundle now finds the launcher log in the new folder (it kept looking in the old, deleted one)
 
 ## 30.11.6 (2026-11-20)

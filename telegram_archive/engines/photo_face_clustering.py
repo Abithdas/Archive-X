@@ -695,8 +695,9 @@ async def _download_performer_images(ctx) -> dict[str, int]:
     return {"wanted": len(ids), "downloaded": got, "unavailable": failed}
 
 
-def _auto_match_people(db) -> dict[str, int]:
-    """Name each unnamed face group after the performer whose profile-picture face matches it clearly. Everything else stays a suggestion."""
+def _likely_people(db) -> dict[str, int]:
+    """Count the unnamed face groups whose faces clearly match one performer's pictures. Nothing is written: no group is named and no performer is
+    created or changed. The match shows up as a suggestion ("Is this ...?") that only the user's confirmation turns into a name."""
     import numpy as np
     from . import performer_gallery
     with db.reading() as rdb:
@@ -708,8 +709,8 @@ def _auto_match_people(db) -> dict[str, int]:
         rejected = {(int(r["group_id"]), int(r["performer_id"])) for r in rdb.execute(
             "SELECT group_id,performer_id FROM photo_face_suggestion_feedback WHERE status='REJECTED'").fetchall()}
     if pm is None or not groups:
-        return {"matched": 0, "groups": len(groups), "performers_with_faces": len(set(ids))}
-    matched = 0
+        return {"suggested": 0, "groups": len(groups), "performers_with_faces": len(set(ids))}
+    suggested = 0
     for g in groups:
         gid = int(g["id"])
         with db.reading() as rdb:
@@ -721,7 +722,7 @@ def _auto_match_people(db) -> dict[str, int]:
             try:
                 v = np.asarray(json.loads(r["embedding_json"]), dtype=np.float32)
             except Exception:
-                _swallowed_note("photo_face_clustering._auto_match_people")
+                _swallowed_note("photo_face_clustering._likely_people")
                 continue
             if v.shape == (128,) and np.isfinite(v).all() and float(np.linalg.norm(v)):
                 vecs.append(v / float(np.linalg.norm(v)))
@@ -738,18 +739,8 @@ def _auto_match_people(db) -> dict[str, int]:
         best = float(scores[order[0]]); second = float(scores[order[1]]) if len(order) > 1 else -1.0
         if best < _AUTO_MATCH_MIN_SCORE or best - second < _AUTO_MATCH_MARGIN:
             continue
-        pid = perf_ids[int(order[0])]
-        now = _now()
-        with db.lock:
-            db.conn.execute("UPDATE photo_face_groups SET performer_id=?,updated_at=? WHERE id=? AND performer_id IS NULL", (pid, now, gid))
-            db.conn.execute(
-                """INSERT INTO photo_face_suggestion_feedback(group_id,performer_id,source,status,similarity_score,reason,created_at,updated_at)
-                   VALUES(?,?,'profile_image','CONFIRMED',?,?,?,?)
-                   ON CONFLICT(group_id,performer_id,source) DO UPDATE SET status='CONFIRMED',similarity_score=excluded.similarity_score,reason=excluded.reason,updated_at=excluded.updated_at""",
-                (gid, pid, round(best, 4), "Matched automatically from the performer profile picture", now, now))
-            db.conn.commit()
-        matched += 1
-    return {"matched": matched, "groups": len(groups), "performers_with_faces": len(set(ids))}
+        suggested += 1
+    return {"suggested": suggested, "groups": len(groups), "performers_with_faces": len(set(ids))}
 
 
 async def run(ctx) -> dict[str, Any]:
@@ -863,16 +854,16 @@ async def run(ctx) -> dict[str, Any]:
         groups_count = int(rdb.execute("SELECT COUNT(*) n FROM photo_face_groups g WHERE EXISTS (SELECT 1 FROM photo_face_detections d WHERE d.group_id=g.id)").fetchone()["n"] or 0)
     matched_info: dict[str, int] = {}
     if match_people:
-        ctx.report(completed=len(rows), total=len(rows), current_item="", operation="Matching faces with performer pictures", force=True)
+        ctx.report(completed=len(rows), total=len(rows), current_item="", operation="Looking for likely performers (suggestions only)", force=True)
         try:
-            matched_info = await ctx.blocking(_auto_match_people, ctx.db)
+            matched_info = await ctx.blocking(_likely_people, ctx.db)
         except Exception as exc:
             ctx.db.log(f"Performer face matching failed: {type(exc).__name__}: {exc}", "WARN")
         with ctx.db.reading() as rdb:
             groups_count = int(rdb.execute("SELECT COUNT(*) n FROM photo_face_groups g WHERE EXISTS (SELECT 1 FROM photo_face_detections d WHERE d.group_id=g.id)").fetchone()["n"] or 0)
     summary = f"Analyzed {analyzed:,} photo(s); detected {faces_total:,} face(s) in {groups_count:,} visual groups"
     if match_people:
-        summary += f"; downloaded {pictures.get('downloaded', 0):,} performer picture(s) and {pictures.get('gallery_added', 0):,} gallery picture(s); named {matched_info.get('matched', 0):,} group(s) from performer pictures"
+        summary += f"; downloaded {pictures.get('downloaded', 0):,} performer picture(s) and {pictures.get('gallery_added', 0):,} gallery picture(s); {matched_info.get('suggested', 0):,} group(s) have a likely performer for you to confirm"
     if failed:
         summary += f"; {failed:,} photo(s) failed and can be retried"
     from ..core.job_results import record as record_job_result

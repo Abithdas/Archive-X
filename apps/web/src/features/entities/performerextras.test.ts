@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PTABS, birthWithAge, detailRows, isUnknownLocal, metadataLinked, prettyEnum, similarEmpty, studioCount, studiosFor } from './performerextras'
+import { PTABS, tabsFor, birthWithAge, detailRows, isUnknownLocal, metadataLinked, prettyEnum, similarEmpty, studioCount, studiosFor } from './performerextras'
 
 const NOW = new Date(2026, 5, 15)
 const prov = (details: Record<string, unknown>) => ({ providers: [{ provider: 'stashdb', normalized: JSON.stringify({ details }) }] })
@@ -21,4 +21,11 @@ describe('performer extras', () => {
     expect(studiosFor(v, [{ id: 1, name: 'A' }, { id: 2, name: 'B' }, { id: 3, name: 'C' }]).map((s) => [s.name, s.count])).toEqual([['B', 2], ['A', 1]]); expect(studioCount(v)).toBe(2)
   })
   it('words empty similar results and lists tabs', () => { expect(similarEmpty('gender_required')).toMatch(/known gender/); expect(similarEmpty()).toMatch(/No similar performers/); expect(PTABS.map((t) => t.value)).toEqual(['videos', 'studios', 'gallery', 'similar', 'suggestions']) })
+})
+
+describe('tabsFor', () => {
+  it('keeps every tab for adult content, and gives movies and shows a filmography without similar performers or suggestions', () => {
+    expect(tabsFor(false)).toBe(PTABS)
+    expect(tabsFor(true).map((t) => [t.value, t.label])).toEqual([['videos', 'Filmography'], ['studios', 'Studios & Networks'], ['gallery', 'Gallery']])
+  })
 })

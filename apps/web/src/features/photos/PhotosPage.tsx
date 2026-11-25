@@ -26,7 +26,7 @@ import { DIFFERENT_NEEDS_GROUP, differentBody, differentCopy } from './faces'
 import { ChannelEditor } from '@/features/channels/ChannelEditor'
 import { PhotoCard } from './PhotoCard'
 import { PhotoViewer } from './PhotoViewer'
-import { EMPTY_INDEX, LOAD_FAILED, NO_CHANNELS_SAVED, NO_SCANNED, SORTS, channelAvatar, channelTitle, deleteBody, deleteCopy, deleteDone, deletePath, deleteStatus, emptyText, initials, photoName, photosUrl, pruneSelection, scanTitle, sortLabel, toggleId, type Photo, type PhotoChannel, type PhotoPage, type PhotoSort } from './photos'
+import { isLocalPhoto, type Removal, EMPTY_INDEX, LOAD_FAILED, NO_CHANNELS_SAVED, NO_SCANNED, SORTS, channelAvatar, channelTitle, deleteBody, deleteCopy, deleteDone, deletePath, deleteStatus, emptyText, initials, photoName, photosUrl, pruneSelection, scanTitle, sortLabel, toggleId, type Photo, type PhotoChannel, type PhotoPage, type PhotoSort } from './photos'
 import { usePhotoStore } from './store'
 import { LikeHeart } from '@/design/LikeHeart'
 import { SpinCounter } from '@/design/SpinCounter'
@@ -48,7 +48,7 @@ export function PhotosPage() {
   const qc = useQueryClient()
   const list = channels.data?.channels ?? []
   const [viewer, setViewer] = useState<number | null>(null)
-  const [ask, setAsk] = useState<null | { photo: Photo; remote: boolean }>(null)
+  const [ask, setAsk] = useState<null | { photo: Photo; mode: Removal }>(null)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const [editChannel, setEditChannel] = useState<string | null>(null)
@@ -96,12 +96,12 @@ export function PhotosPage() {
 
   const remove = async () => {
     if (!ask) return
-    const { photo, remote } = ask
-    setBusy(true); setNote(deleteStatus(remote, photoName(photo)))
+    const { photo, mode } = ask
+    setBusy(true); setNote(deleteStatus(mode, photoName(photo)))
     try {
-      const r = await api<{ ok?: boolean; detail?: string; message?: string; cache_cleanup_warning?: string }>(deletePath(photo), { method: 'POST', json: deleteBody(remote) })
+      const r = await api<{ ok?: boolean; detail?: string; message?: string; cache_cleanup_warning?: string }>(deletePath(photo), { method: 'POST', json: deleteBody(mode) })
       if (!r || r.ok !== true) throw new ApiError(0, r?.detail || 'Photo deletion failed.')
-      setAsk(null); setNote(deleteDone(remote, r)); toast(deleteDone(remote, r))
+      setAsk(null); setNote(deleteDone(mode, r)); toast(deleteDone(mode, r))
       await Promise.all([qc.invalidateQueries({ queryKey: ['photos'] }), qc.invalidateQueries({ queryKey: ['photo-channels'] })])
     } catch (e) { const m = reason(e, 'Photo deletion failed. The library entry was retained.'); setAsk(null); setNote(m); toast.error(m) } finally { setBusy(false) }
   }
@@ -198,7 +198,7 @@ export function PhotosPage() {
         <div className="flex gap-2 sm:gap-3" aria-label="Photos in selected channels">
           {columns.map((col, c) => (
             <div key={c} className="flex min-w-0 flex-1 flex-col">
-              {col.map((i) => { const p = items[i]!; return <PhotoCard key={`${p.channel_id}:${p.message_id}`} photo={p} favorite={favorites.has(String(p.id))} onOpen={() => setViewer(i)} onRemove={(remote) => setAsk({ photo: p, remote })} onDifferent={face ? () => setDifferent(p) : undefined} onAddToPerson={() => setAdding(p)} /> })}
+              {col.map((i) => { const p = items[i]!; return <PhotoCard key={`${p.channel_id}:${p.message_id}`} photo={p} favorite={favorites.has(String(p.id))} onOpen={() => setViewer(i)} onRemove={(mode) => setAsk({ photo: p, mode })} onDifferent={face ? () => setDifferent(p) : undefined} onAddToPerson={() => setAdding(p)} /> })}
             </div>
           ))}
         </div>
@@ -208,7 +208,7 @@ export function PhotosPage() {
       </div>
       {viewer !== null && items[viewer] ? <PhotoViewer items={items} index={viewer} total={total} favorites={favorites} onIndex={setViewer} onClose={() => setViewer(null)} onFavorite={toggleFavorite} onNeedMore={more} /> : null}
       {different ? <Confirm title="Different person?" text={differentCopy} ok="Separate photo" danger busy={busy} onCancel={() => setDifferent(null)} onOk={() => void separate()} /> : null}
-      {ask ? (() => { const c = deleteCopy(ask.remote, photoName(ask.photo), ask.photo.channel_title || 'this channel'); return <Confirm title={c.title} text={c.text} ok={c.ok} danger busy={busy} onCancel={() => setAsk(null)} onOk={() => void remove()} /> })() : null}
+      {ask ? (() => { const c = deleteCopy(ask.mode, photoName(ask.photo), ask.photo.channel_title || 'this channel', isLocalPhoto(ask.photo)); return <Confirm title={c.title} text={c.text} ok={c.ok} danger busy={busy} onCancel={() => setAsk(null)} onOk={() => void remove()} /> })() : null}
     </section>
   )
 }
