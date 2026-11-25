@@ -501,9 +501,12 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                 total = time.monotonic() - t0
                 detail = ", ".join(f"{name} {secs:.1f}s" for name, secs in phases)
                 print(f"  Archive X ready in {total:.1f}s ({detail})")
+                steps = dict(getattr(db, "startup_steps", {}) or {})
+                if steps and any(v >= 0.5 for v in steps.values()):
+                    detail += "; database steps: " + ", ".join(f"{k} {v:.1f}s" for k, v in steps.items())
                 db.log(f"Startup ready in {total:.1f}s ({detail})", "INFO" if total < 20 else "WARN",
                        event="startup.timing",
-                       details={"total_seconds": round(total, 2), **{n: round(v, 2) for n, v in phases}})
+                       details={"total_seconds": round(total, 2), **{n: round(v, 2) for n, v in phases}, "database_steps": steps})
         except Exception:
             _swallowed_note("app.create_app.lifespan")
             pass
