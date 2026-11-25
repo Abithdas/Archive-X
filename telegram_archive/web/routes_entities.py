@@ -278,14 +278,16 @@ def register_entity_routes(
     async def channel_maintenance_duplicate_audit(request: Request):
         """Audit one saved Telegram channel for byte-identical duplicate video posts."""
         require_auth(request)
-        if not telegram.connected or telegram.client is None:
-            raise HTTPException(503, "Connect Telegram before scanning a channel")
         raw_channel_id = str(request.query_params.get("channel_id") or "").strip()
-        try:
-            channel_id = int(raw_channel_id)
-        except (TypeError, ValueError):
+        if not raw_channel_id:
             raise HTTPException(400, "Choose a valid channel before scanning")
-        channel_key = str(channel_id)
+        # A channel whose id is not a Telegram number (a folder on this PC) has no Telegram side: it is checked from what is saved.
+        try:
+            channel_id: int | None = int(raw_channel_id)
+        except (TypeError, ValueError):
+            channel_id = None
+        channel_key = str(channel_id) if channel_id is not None else raw_channel_id
+        telegram_ready = channel_id is not None and bool(telegram.connected) and telegram.client is not None
         from ..engines.channel_duplicate_audit import (
             build_duplicate_groups, load_channel_rows, missing_hash_candidate_buckets, save_oshash, row_oshash,
         )
@@ -313,12 +315,18 @@ def register_entity_routes(
         hashes_computed = 0
         fingerprint_errors: list[str] = []
         candidate_buckets = missing_hash_candidate_buckets(rows)
+        source = None
+        if candidate_buckets and not telegram_ready:
+            # Without Telegram the saved fingerprints are all there is: the result is still correct for what is known, only shorter.
+            fingerprint_errors.append("Telegram is not connected, so files without a saved fingerprint were not compared. Connect Telegram and scan again to include them.")
+            candidate_buckets = []
         if candidate_buckets:
             try:
                 source = await telegram.client.get_entity(channel_id)
                 loop = asyncio.get_running_loop()
             except Exception as exc:
-                raise HTTPException(502, f"Could not open the selected Telegram channel: {str(exc)[:180]}") from exc
+                fingerprint_errors.append(f"Could not open the Telegram channel ({str(exc)[:120]}), so files without a saved fingerprint were not compared.")
+                candidate_buckets = []
 
             def _compute_oshash(message):
                 from ..core.telegram_range_transport import DirectTelegramRangeSource

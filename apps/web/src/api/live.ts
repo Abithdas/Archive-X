@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import { queryKeys } from './hooks'
+import { watchDataVersions } from './dataVersions'
 import type { Status } from './types'
 
 export type LiveState = 'connecting' | 'live' | 'offline'
@@ -88,6 +89,9 @@ export function useLiveStatus(enabled: boolean): LiveState {
       socket?.close()
     }
   }, [enabled, client])
+
+  // Whatever feeds the status (the socket or the polling below), a moved data counter refreshes the pages that show that data.
+  useEffect(() => (enabled ? watchDataVersions(client) : undefined), [enabled, client])
 
   // While the live connection is not up (blocked by something on the way, or still connecting) the status is asked for every few seconds, so the
   // running-job counts, notices and the Telegram state keep moving instead of freezing at whatever was loaded first.

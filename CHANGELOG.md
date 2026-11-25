@@ -2,6 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+
+- After you move the data folder in Settings, the log bundle now finds the launcher log in the new folder (it kept looking in the old, deleted one)
+
 ## 30.11.6 (2026-11-20)
 
 - Under the hood, more of the library pages are answered by the Rust front door instead of the Python backend: the Library's channel list, search, the performer and studio pages (videos, edit forms, metadata, family), tags and their taxonomy, and the cached photo files of the Photos page. The answers are the same as before; a check that runs on every change now compares both servers' answers in SFW and NSFW mode. Two small differences it found are fixed: the performer list now carries its movie and series counts through the front door, and a studio hidden by the mode answers "Not found" as everywhere else

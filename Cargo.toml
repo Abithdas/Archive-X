@@ -11,6 +11,8 @@ members = [
     "crates/ax-core",
     "crates/ax-jobs",
     "crates/ax-backup",
+    "crates/ax-config",
+    "crates/ax-ai",
     "crates/ax-names",
     "crates/ax-faces",
     "crates/launcher-core",

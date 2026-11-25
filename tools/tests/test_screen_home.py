@@ -281,7 +281,7 @@ def test_the_calendar_file_lists_the_coming_episodes_of_your_shows(tmp_path):
     assert c.get("/api/screen/calendar.ics?days=1").text.count("BEGIN:VEVENT") == 0                                # nothing airs tomorrow
     from telegram_archive.web.routes_screen import ics_calendar
     long = ics_calendar([{"uid": "u", "date": "2026-01-02", "title": "A, B; C\nD " + "é" * 60, "note": ""}])
-    assert "A\\, B\; C\\nD" in long.replace("\r\n ", "") and all(len(x.encode()) <= 75 for x in long.split("\r\n"))
+    assert "A\\, B\\; C\\nD" in long.replace("\r\n ", "") and all(len(x.encode()) <= 75 for x in long.split("\r\n"))
 
 
 def test_cast_and_studios_count_movies_and_series_not_videos(tmp_path):
