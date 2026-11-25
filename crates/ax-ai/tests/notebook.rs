@@ -122,7 +122,16 @@ fn run_case(case: &Value) -> Result<(), String> {
         steps.push(step);
     }
     let expect = &case["expect"];
-    let got = json!({"steps": steps, "tables": dump(&conn)});
+    let mut tables = dump(&conn);
+    if case["files"].as_object().is_some_and(|f| f.values().any(|v| v["dir"] == true)) {
+        // the signature counts a folder's own size, which each file system sets differently (4096 on ext4, 0 on NTFS): that one row is not compared
+        for row in tables["settings"].as_array_mut().unwrap() {
+            if row[0] == "ai_kb_signature" {
+                row[1] = json!("<depends on the size of a folder>");
+            }
+        }
+    }
+    let got = json!({"steps": steps, "tables": tables});
     if got["steps"].to_string() != expect["steps"].to_string() {
         let (g, w) = (got["steps"].as_array().unwrap(), expect["steps"].as_array().unwrap());
         let at = (0..g.len().max(w.len())).find(|&i| g.get(i).map(Value::to_string) != w.get(i).map(Value::to_string)).unwrap_or(0);

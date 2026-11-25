@@ -64,6 +64,9 @@ def lay_out(base: Path, files: dict):
             os.utime(path, ns=(what["mtime_ns"], what["mtime_ns"]))
 
 
+SIZE_DEPENDS = "<depends on the size of a folder>"
+
+
 def dump(db):
     tables = {}
     for t, cols in (("ai_findings", "id,kind,title,title_key,detail,status,created_at,updated_at"), ("ai_knowledge", "id,source,ref,title,body,updated_at"), ("settings", "key,value")):
@@ -117,7 +120,13 @@ def run(case: dict) -> dict:
                 steps.append({"ok": res})
             except ValueError as exc:
                 steps.append({"error": str(exc)})
-    return {**case, "expect": {"steps": steps, "tables": dump(db)}}
+    tables = dump(db)
+    if any(isinstance(f, dict) and f.get("dir") for f in case.get("files", {}).values()):
+        # the signature counts a folder's own size, which each file system sets differently (4096 on ext4, 0 on NTFS): this one row is not compared
+        for row in tables["settings"]:
+            if row[0] == "ai_kb_signature":
+                row[1] = SIZE_DEPENDS
+    return {**case, "expect": {"steps": steps, "tables": tables}}
 
 
 # ------------------------------------------------------------------ cases
