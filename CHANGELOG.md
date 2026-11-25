@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased
+## 30.12.0 (2026-11-25)
 
 - Pages refresh by themselves when something changes behind them: a video added by a scan, a performer renamed by a job or a channel created elsewhere shows up without a reload (the server already sent the change counters; the new app was not reading them)
 - Video page: full screen now stays on when you go to the next or previous video (the page was swapping the player for a loading screen), the buffer panel names the file's own container instead of the whole family ("mov,mp4,m4a,3gp,3g2,mj2"), and "Up next" lists what follows the current video instead of the first ten of the list
