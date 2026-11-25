@@ -2,6 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+
+- Fixed the disk running at 100 % while the app opens: a start-up repair rewrote and flushed one row for every verified transfer at every launch (thousands of writes with a large library). It now skips transfers that are already prepared.
+
 ## 30.12.0 (2026-11-25)
 
 - Pages refresh by themselves when something changes behind them: a video added by a scan, a performer renamed by a job or a channel created elsewhere shows up without a reload (the server already sent the change counters; the new app was not reading them)

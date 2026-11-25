@@ -898,6 +898,18 @@ def repair_verified_transfer_source_library_rows(db) -> dict[str, int]:
                     (destination_channel, destination_message_id),
                 ).fetchone()
             if dest:
+                # Already prepared with the same hashes: nothing to repair. mark_prepared rewrites the row and commits every time, so
+                # calling it for every verified transfer made each start write (and flush to disk) thousands of rows.
+                with db.lock:
+                    done = db.conn.execute(
+                        "SELECT 1 FROM telegram_document_locations l JOIN telegram_document_registry r ON r.registry_key=l.registry_key "
+                        "WHERE l.channel_id=? AND l.message_id=? AND r.prepared_state='PREPARED' AND COALESCE(r.prepared_json,'{}')<>'{}' "
+                        "AND (?='' OR COALESCE(r.oshash,'')=?) AND (?='' OR COALESCE(r.phash,'')=?) LIMIT 1",
+                        (destination_channel, destination_message_id, str(dest["oshash"] or ""), str(dest["oshash"] or ""),
+                         str(dest["video_phash"] or ""), str(dest["video_phash"] or "")),
+                    ).fetchone()
+                if done:
+                    continue
                 did_mark = mark_prepared(
                     db, channel_id=destination_channel, message_id=destination_message_id,
                     prepared={"source": "verified_transfer_startup_repair", "media_id": int(dest["id"])},
