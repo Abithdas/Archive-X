@@ -31,10 +31,7 @@ from .. import config
 from ..engines.media_utils import flood_wait_seconds, is_flood_wait, TelegramRangeFloodError
 from .aligned_telegram_range import fetch_aligned_range
 
-try:
-    from telethon import functions, types
-except ImportError:  # allow local diagnostics without optional Telegram dependencies
-    functions = types = None
+from . import telethon_lazy   # the Telegram library is loaded when a range is first fetched, not at start-up
 
 
 def _scan_range_cache():
@@ -348,7 +345,7 @@ class DirectTelegramRangeSource:
             raise ValueError("Telegram precise range input must be 1 KiB aligned and <=1 MiB; the shared helper splits boundary crossings")
         return await fetch_aligned_range(
             self.client, self.message, int(offset), limit, fallback=True,
-            telethon_functions=functions, telethon_types=types,
+            telethon_functions=telethon_lazy.functions(), telethon_types=telethon_lazy.types(),
             refresh_message=self._refresh_message,
             # OSHASH must not wait for a snapshot-owned cache reservation for
             # the same bytes: its two tiny reads are independently scheduled.

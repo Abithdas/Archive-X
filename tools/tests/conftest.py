@@ -33,3 +33,23 @@ def wait_for_scans(timeout: float = 90.0) -> None:
 def _no_scan_outlives_its_test():
     yield
     wait_for_scans()
+
+
+# The two metadata scans (movies and shows, scene databases) keep how their last run went in a module-level dict, so the transfer lanes can show it for a
+# moment after it finishes. That dict outlives a test: the next one then saw a "finished" lane that was not its own (about one full run in three).
+import sys as _sys
+
+_SCAN_STATE_AT_REST = {"running": False, "total": 0, "done": 0, "failed": 0, "matched": 0, "review": 0, "unmatched": 0, "channel": "", "started": 0.0, "finished": 0.0, "reason": ""}
+
+
+@_pytest.fixture(autouse=True)
+def _scan_state_does_not_leak_between_tests():
+    def reset():
+        for name in ("telegram_archive.engines.local_identify_adult", "telegram_archive.engines.screen_identify"):
+            module = _sys.modules.get(name)
+            if module is not None and isinstance(getattr(module, "_state", None), dict):
+                module._state.update(_SCAN_STATE_AT_REST)
+    reset()
+    yield
+    wait_for_scans()
+    reset()

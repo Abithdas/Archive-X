@@ -31,23 +31,38 @@ from ..core.governor import TransferGovernor
 from .client_policy import add_reconnect_listener, configure_telethon_client, make_telegram_client, FLOOD_SLEEP_THRESHOLD_SECONDS, REQUEST_RETRIES
 from .capabilities import TelegramAccountProfile
 
-try:
-    from telethon import TelegramClient, functions, utils
-    from telethon.errors import FloodWaitError, SessionPasswordNeededError
+# The Telegram library takes about 0.4 s to import, so it is loaded when something first needs it (a connection, a login, an error to catch)
+# and not when the application starts. Whether it is installed is asked without importing it.
+import importlib.util as _importlib_util
+
+TELETHON_AVAILABLE = _importlib_util.find_spec("telethon") is not None
+
+
+class _TelethonUnavailableError(Exception):
+    pass
+
+
+def _errors():
+    """The library's error classes (stand-ins that never match anything when it is not installed)."""
+    try:
+        from telethon import errors
+        return errors
+    except ImportError:
+        return type("_Errors", (), {"FloodWaitError": _TelethonUnavailableError, "SessionPasswordNeededError": _TelethonUnavailableError})
+
+
+def _functions():
+    from telethon import functions
+    return functions
+
+
+def _obfuscated_connection():
+    """The obfuscated TCP transport class, or None when this version of the library does not have it."""
     try:
         from telethon.network.connection.tcpobfuscated import ConnectionTcpObfuscated
+        return ConnectionTcpObfuscated
     except Exception:
-        ConnectionTcpObfuscated = None
-    TELETHON_AVAILABLE = True
-except ImportError:
-    ConnectionTcpObfuscated = None
-    TELETHON_AVAILABLE = False
-    TelegramClient = None
-    functions = None
-    utils = None
-    class _TelethonUnavailableError(Exception):
-        pass
-    FloodWaitError = SessionPasswordNeededError = _TelethonUnavailableError
+        return None
 
 
 class TelegramService:
@@ -106,13 +121,13 @@ class TelegramService:
         Play; it only updates the shared request admission governor.
         """
         now = time.monotonic()
-        if self.client is None or not self.connected or functions is None:
+        if self.client is None or not self.connected or not TELETHON_AVAILABLE:
             return False
         if not force and now - self._last_download_config_attempt < 1800.0:
             return False
         self._last_download_config_attempt = now
         try:
-            request_type = getattr(getattr(functions, "help", None), "GetAppConfigRequest", None)
+            request_type = getattr(getattr(_functions(), "help", None), "GetAppConfigRequest", None)
             if request_type is None:
                 return False
             response = await self.client(request_type(hash=0))
@@ -223,9 +238,10 @@ class TelegramService:
             "flood_sleep_threshold": FLOOD_SLEEP_THRESHOLD_SECONDS,
         }
         if obfuscated:
-            if ConnectionTcpObfuscated is None:
+            transport = _obfuscated_connection()
+            if transport is None:
                 raise RuntimeError("Telethon obfuscated TCP transport is unavailable")
-            kwargs["connection"] = ConnectionTcpObfuscated
+            kwargs["connection"] = transport
         client = make_telegram_client(session, int(api_id), str(api_hash), **kwargs)
         configure_telethon_client(client)
         try:
@@ -258,7 +274,7 @@ class TelegramService:
             # reuse an MTProxy tuple safely.
             if getattr(client, "_archive_x_proxy_type", None) == "mtproto":
                 raise first_exc
-            if ConnectionTcpObfuscated is None:
+            if _obfuscated_connection() is None:
                 raise first_exc
             cfg = self.config()
             fallback = self._build_client(str(config.SESSION_PATH), cfg.get("api_id"), cfg.get("api_hash"), obfuscated=True)
@@ -396,7 +412,7 @@ class TelegramService:
             self.status_text = "LOGIN REQUIRED"
             self.db.log("Telegram session is not authorized; web login required", "WARN")
             return False
-        except FloodWaitError as e:
+        except _errors().FloodWaitError as e:
             seconds = getattr(e, "seconds", 60)
             self.governor.note_floodwait(seconds)
             self.status_text = f"FLOODWAIT {seconds}s"
@@ -463,7 +479,7 @@ class TelegramService:
                         # control-plane connectivity.
                         self._set_auth_priority_on(client, True)
                         try:
-                            await asyncio.wait_for(client(functions.help.GetConfigRequest()), timeout=min(5.0, per_attempt))
+                            await asyncio.wait_for(client(_functions().help.GetConfigRequest()), timeout=min(5.0, per_attempt))
                         finally:
                             self._set_auth_priority_on(client, False)
                         try:
@@ -558,7 +574,7 @@ class TelegramService:
         self._set_auth_priority(True)
         try:
             await self.client.sign_in(phone=phone, code=code, phone_code_hash=phone_code_hash)
-        except SessionPasswordNeededError:
+        except _errors().SessionPasswordNeededError:
             self.status_text = "2FA REQUIRED"
             self.db.log("Telegram requested 2FA password")
             return {"ok": True, "two_factor_required": True}
@@ -651,10 +667,10 @@ class TelegramService:
             raise RuntimeError(self.status_text or "Telegram connection is unavailable.")
 
         async def probe() -> None:
-            if functions is None:
+            if not TELETHON_AVAILABLE:
                 raise RuntimeError("Telethon is not installed.")
             try:
-                await asyncio.wait_for(self.client(functions.help.GetConfigRequest()), timeout=12.0)
+                await asyncio.wait_for(self.client(_functions().help.GetConfigRequest()), timeout=12.0)
             except asyncio.CancelledError as exc:
                 task = asyncio.current_task()
                 if task is not None and task.cancelling():
@@ -773,7 +789,7 @@ class TelegramService:
                 self._set_auth_priority(True)
                 try:
                     await qr_login.wait()
-                except SessionPasswordNeededError:
+                except _errors().SessionPasswordNeededError:
                     if self._qr_login is qr_login:
                         self._qr_2fa_pending = True
                         self._qr_login_status = "PASSWORD_REQUIRED"

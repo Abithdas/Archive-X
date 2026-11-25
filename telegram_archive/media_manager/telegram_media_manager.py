@@ -48,17 +48,8 @@ APP_VERSION = "4.2-512kb-sequential-file-transfer"
 from ..engines.media_utils import flood_wait_seconds, is_flood_wait, TelegramRangeFloodError
 
 
-try:
-    from telethon import TelegramClient, functions, types
-    from telethon.tl.types import DocumentAttributeFilename
-    from telethon.errors import FloodWaitError, SessionPasswordNeededError
-except ImportError as exc:
-    TelegramClient = None
-    functions = None
-    types = None
-    DocumentAttributeFilename = None
-    FloodWaitError = Exception
-    SessionPasswordNeededError = Exception
+from ..core import telethon_lazy   # the Telegram library is loaded when it is first used, not when the application starts
+if not telethon_lazy.available():
     STARTUP_IMPORT_ERRORS.append(
         "Telethon is not installed. Run the same environment/Install.bat used by your working Telegram scripts."
     )
@@ -311,7 +302,7 @@ async def _download_media_governed(client, media, *args, **kwargs):
                         size = min(512 * 1024, file_size - position)
                         data = await fetch_aligned_range(
                             client, current_message, position, size, fallback=True,
-                            telethon_functions=functions, telethon_types=types,
+                            telethon_functions=telethon_lazy.functions(), telethon_types=telethon_lazy.types(),
                             priority="range", cache_policy="coalesce", refresh_message=refresh_reference,
                             file_slot_held=file_slot_held,
                             status_callback=getattr(progress_callback, "status", None),
@@ -723,7 +714,7 @@ async def login_and_get_client(config):
         code = ask_nonempty("Telegram login code: ")
         try:
             await client.sign_in(phone=phone, code=code)
-        except SessionPasswordNeededError:
+        except telethon_lazy.errors().SessionPasswordNeededError:
             await client.sign_in(password=ask_nonempty("Telegram 2-step verification password: "))
     return client
 
@@ -968,10 +959,14 @@ _MM_PARTS = ('mm_thumbnail_engine', 'mm_vertical_archiver', 'mm_smart_router', '
 # ==============================================================================
 
 def _mm_load_parts(namespace):
+    from importlib.machinery import SourceFileLoader as _Loader
     from pathlib import Path as _Path
     for _name in _MM_PARTS:
         _path = _Path(__file__).with_name(_name + ".py")
-        exec(compile(_path.read_text(encoding="utf-8"), str(_path), "exec", dont_inherit=True), namespace)
+        # The code comes from the usual __pycache__ bytecode when it is current (and is compiled and saved there when it is not): compiling these six
+        # large files on every start took about 55 ms of it. A folder that cannot be written to just compiles each time, as before.
+        _module = "telegram_archive.media_manager." + _name
+        exec(_Loader(_module, str(_path)).get_code(_module), namespace)
 
 
 _mm_load_parts(globals())

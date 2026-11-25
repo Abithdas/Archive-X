@@ -101,13 +101,8 @@ from typing import Optional
 
 from .. import config
 
-try:
-    from telethon import TelegramClient, functions, types
-    from telethon.sessions import MemorySession
-    TELETHON_AVAILABLE = True
-except ImportError:  # pragma: no cover - app still starts without Telethon
-    TelegramClient = functions = types = MemorySession = None
-    TELETHON_AVAILABLE = False
+from ..core import telethon_lazy   # the Telegram library is loaded when it is first used, not when the application starts
+TELETHON_AVAILABLE = telethon_lazy.available()   # app still starts without Telethon
 
 try:
     from aiohttp import web as _aiohttp_web
@@ -3093,7 +3088,7 @@ class PlaybackEngine:
                     return
 
                 async def make_one():
-                    mem = MemorySession()
+                    mem = telethon_lazy.memory_session()
                     mem.set_dc(dc_id, address, port)
                     mem.auth_key = auth_key
                     tc = make_telegram_client(mem, int(api_id), str(api_hash),
@@ -3369,7 +3364,7 @@ class PlaybackEngine:
             dc_id = int(location.get("dc_id") or 0)
             if not (reference and size > 0 and document_id > 0 and access_hash):
                 return None
-            document = types.Document(
+            document = telethon_lazy.types().Document(
                 id=document_id, access_hash=access_hash, file_reference=reference,
                 date=int(time.time()),
                 mime_type=str(location.get("mime_type") or "video/mp4"),
@@ -3729,7 +3724,7 @@ class PlaybackEngine:
 
         data = await fetch_aligned_range(
             tc, message, offset, amount, request_call=request_call, fallback=True,
-            telethon_functions=functions, telethon_types=types,
+            telethon_functions=telethon_lazy.functions(), telethon_types=telethon_lazy.types(),
             priority="playback", cache_policy="coalesce",
             refresh_message=refresh_message_reference,
         )
@@ -3810,7 +3805,7 @@ class PlaybackEngine:
             # The common helper still bounds fallback to a single iterator chunk.
             data = await fetch_aligned_range(
                 tc, message, offset, amount, fallback=True, allow_direct=False,
-                telethon_functions=functions, telethon_types=types,
+                telethon_functions=telethon_lazy.functions(), telethon_types=telethon_lazy.types(),
                 priority="playback", cache_policy="coalesce",
             )
         if len(data) != amount:

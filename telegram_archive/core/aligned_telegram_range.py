@@ -20,10 +20,7 @@ import re
 import time
 from typing import Awaitable, Callable, Any
 
-try:
-    from telethon import functions, types
-except ImportError:  # diagnostics and local-only test environments
-    functions = types = None
+from . import telethon_lazy   # the Telegram library is loaded when a range is first fetched, not at start-up
 
 RequestCall = Callable[[Any, int, int], Awaitable[Any]]
 RefreshCall = Callable[[], Awaitable[Any]]
@@ -256,8 +253,8 @@ async def fetch_aligned_range(
     aligned_start = (start // _ONE_KIB) * _ONE_KIB
     aligned_end = ((end + _ONE_KIB - 1) // _ONE_KIB) * _ONE_KIB
     document = getattr(message, "document", None)
-    api_functions = telethon_functions if telethon_functions is not None else functions
-    api_types = telethon_types if telethon_types is not None else types
+    api_functions = telethon_functions if telethon_functions is not None else telethon_lazy.functions()
+    api_types = telethon_types if telethon_types is not None else telethon_lazy.types()
     if allow_direct and document is None:
         raise TypeError("Selected Telegram video has no document backing")
     if allow_direct and (api_functions is None or api_types is None):

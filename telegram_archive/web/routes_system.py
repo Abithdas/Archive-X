@@ -32,6 +32,10 @@ from ..core.session_cookie import set_session_cookie
 from ..operations import automation as content_automation
 from ..telegram.service import TELETHON_AVAILABLE
 
+from ..core import telethon_lazy
+
+_tl = telethon_lazy.errors()   # Telegram's error classes, looked up only when an exception reaches an `except _tl.X` (the library is not loaded at start-up)
+
 
 def register_system_routes(
     router: APIRouter,
@@ -48,7 +52,6 @@ def register_system_routes(
     _active_jobs_view,
     client_key,
     status_snapshot,
-    FloodWaitError,
 ) -> dict[str, object]:
     """Register static asset, diagnostics, login and status routes."""
     ICON_DIRS = (config.ICON_DIR, config.PACKAGE_DIR.parent / "icons",
@@ -630,7 +633,7 @@ def register_system_routes(
         data = await request.json()
         try:
             return await telegram.send_login_code(str(data.get("phone", "")).strip())
-        except FloodWaitError as e:
+        except _tl.FloodWaitError as e:
             seconds = getattr(e, "seconds", 60)
             governor.note_floodwait(seconds)
             raise HTTPException(429, f"Telegram FloodWait: wait {seconds} seconds")

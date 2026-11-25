@@ -53,16 +53,6 @@ from .routes_system import register_system_routes
 from .routes_tags_logs import register_tags_logs_routes
 from .routes_telegram import register_telegram_routes
 
-try:
-    from telethon.errors import FloodWaitError, PasswordHashInvalidError
-except ImportError:
-    class _TelethonUnavailableError(Exception):
-        pass
-    FloodWaitError = _TelethonUnavailableError
-    class PasswordHashInvalidError(Exception):
-        pass
-
-
 
 
 # ==============================================================================
@@ -783,7 +773,6 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                     _active_jobs_view=_active_jobs_view,
                     client_key=client_key,
                     status_snapshot=status_snapshot,
-                    FloodWaitError=FloodWaitError,
                 )
             )
         elif _module == "routes_telegram":
@@ -798,8 +787,6 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                     config=config,
                     content_automation=content_automation,
                     workflow_snapshot=workflow_snapshot,
-                    FloodWaitError=FloodWaitError,
-                    PasswordHashInvalidError=PasswordHashInvalidError,
                     TELETHON_AVAILABLE=TELETHON_AVAILABLE,
                     _channel_profile_photo_cache=_channel_profile_photo_cache,
                     _channel_profile_photo_locks=_channel_profile_photo_locks,
