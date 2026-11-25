@@ -10,6 +10,10 @@ One entry per release, newest first. Releases are published from the Desktop wor
 - Photos: a photo that is a file on this PC can be deleted from the disk too ("Delete file from this PC", after a confirmation; only a file inside its own folder is ever deleted), and no longer offers the Telegram delete
 - Photos: analysing faces no longer names people by itself. A face group that clearly matches a performer is shown as "Is this …?" and only your confirmation names it
 - Movies and shows: Continue watching on Home now includes titles you watched through an add-on stream (it only had your library's files) and picks them up where you stopped; videos of SFW Telegram channels that were never named are now named in the background when you open Home, Movies or Series (only folders on this PC were)
+- A real performer or studio now replaces "Unknown Performer" / "Unknown Studio" on a video however it was added (a hand edit and a bulk edit left the placeholder next to the new name); placeholders that already sit next to a real name are cleared when the app opens
+- Transfers: a folder or metadata scan that finished without any problem leaves the live lanes after 30 seconds instead of ten minutes (it looked like a scan that never ends); one with failures still stays ten minutes
+- The search button in the top bar opens and folds back as one smooth movement instead of jumping between a button and a box
+- The app no longer shows only a loading bar while it starts slowly: after 4 seconds it says it is still starting, and after 8 seconds it opens without waiting for the status (a sign-in is still asked for when needed)
 - Movies and shows: an actor's page is a Filmography, without Similar Performers and Suggestions, and the video page says Cast
 
 - After you move the data folder in Settings, the log bundle now finds the launcher log in the new folder (it kept looking in the old, deleted one)

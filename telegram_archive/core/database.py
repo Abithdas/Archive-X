@@ -170,6 +170,12 @@ class Database:
         # V29.4.131: change counters the web UI watches to refresh itself.
         from . import change_tracking
         step("change tracking", lambda: change_tracking.ensure(self))
+        from . import placeholders
+
+        def _placeholders():
+            with self.lock:
+                placeholders.install(self.conn)
+        step("placeholders", _placeholders)
 
     def _create_v6_indexes(self):
         """Additive indexes for high-frequency V6 reads."""

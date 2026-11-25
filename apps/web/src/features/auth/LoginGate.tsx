@@ -9,12 +9,30 @@ import { DEFAULT_ADMIN, MIN_PASSWORD, NO_SESSION, SETUP_DONE, SETUP_FAILED, SETU
 
 /** Renders children once a session exists; otherwise the sign-in form. In the desktop app the shell hands over a
  *  session before the page loads, so this form is only ever seen in browser/LAN mode. */
+/** How long the status may take before the page says it is still starting, and before the app opens without waiting for it. */
+export const SLOW_AFTER_MS = 4_000
+export const OPEN_ANYWAY_AFTER_MS = 8_000
+
 export function LoginGate({ children }: { children: ReactNode }) {
   const status = useStatus()
-  if (status.isPending) {
+  const [slow, setSlow] = useState(false)
+  const [openAnyway, setOpenAnyway] = useState(false)
+  // The status is the heaviest answer of the app and the only thing the gate waits for. Right after a start or an update it can take a while, and
+  // a page that shows nothing but a bar for that long looks hung. The session is not in doubt then (a 401 from any request brings the sign-in form
+  // back), so after a few seconds the app opens and its pages show their own loading state.
+  useEffect(() => {
+    if (!status.isPending) return
+    const a = setTimeout(() => setSlow(true), SLOW_AFTER_MS)
+    const b = setTimeout(() => setOpenAnyway(true), OPEN_ANYWAY_AFTER_MS)
+    return () => { clearTimeout(a); clearTimeout(b) }
+  }, [status.isPending])
+  if (status.isPending && !openAnyway) {
     return (
       <div className="grid h-full place-items-center">
-        <Skeleton className="h-10 w-48" />
+        <div role="status" className="grid justify-items-center gap-3 text-center">
+          <Skeleton className="h-10 w-48" />
+          {slow ? <p className="max-w-xs text-sm text-muted">Still starting. The app is getting your library ready, which can take a moment after an update.</p> : null}
+        </div>
       </div>
     )
   }

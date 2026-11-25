@@ -107,7 +107,8 @@ def _clock(started: float | None, done: int, total: int) -> dict:
     return out
 
 
-RECENT_SECONDS = 600   # a finished metadata scan stays on the lanes this long, so a failure is seen and not just gone
+RECENT_SECONDS = 600   # a finished metadata scan that had failures stays on the lanes this long, so a failure is seen and not just gone
+CLEAN_RECENT_SECONDS = 30   # one that finished without any: a line that says "finished" for ten minutes looks like a scan that never ends
 
 
 def _identify_rows(db) -> list[dict]:
@@ -122,11 +123,12 @@ def _identify_rows(db) -> list[dict]:
         finished = float(st.get("finished") or 0)
         if not total and not running:
             continue
-        if not running and (not finished or now - finished > RECENT_SECONDS):
+        failed = int(st.get("failed") or 0)
+        if not running and (not finished or now - finished > (RECENT_SECONDS if failed else CLEAN_RECENT_SECONDS)):
             continue
         ch = str(st.get("channel") or "")
         sid = source_id_of(ch) if ch else None
-        failed, matched = int(st.get("failed") or 0), int(st.get("matched") or 0)
+        matched = int(st.get("matched") or 0)
         name = "All folders and channels"
         if sid is not None:
             with db.reading() as conn:
