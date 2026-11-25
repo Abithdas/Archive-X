@@ -327,6 +327,58 @@ def _dict(value: Any) -> dict:
     return value if isinstance(value, dict) else {}
 
 
+def _stage_progress(payload: dict[str, Any]) -> dict[str, Any]:
+    """Progress by whole stages, for the one bar a job has in the lists.
+
+    Each stage reports items of its own (caption sync 3/30, then a visual check 1/10), and the number of items is often only known once the stage
+    starts, so a bar made of items steps back and rescales at every stage. A stage is the unit that does not change: the total is the number of
+    (channel, stage) pairs, a finished stage counts whole, the running one counts by its own items, and the percentage never goes down
+    (the highest value reached is kept in the checkpoint)."""
+    channels = payload.get("channel_queue") if isinstance(payload.get("channel_queue"), list) else []
+    selected = _selected_stages(payload)
+    total = 0
+    done = 0
+    partial = 0.0
+    for entry in channels:
+        if not isinstance(entry, dict):
+            continue
+        for phase in selected:
+            total += 1
+            state = str(_dict(entry.get("phases")).get(phase) or "PENDING").upper()
+            if state in {"COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED"}:
+                done += 1
+            elif state == "PROCESSING":
+                pp = _dict(_dict(entry.get("phase_progress")).get(phase))
+                items = max(0, _int(pp.get("total")))
+                if items:
+                    partial += max(0.0, min(1.0, _int(pp.get("completed")) / items))
+    caption = payload.get("caption_reconciliation") if isinstance(payload.get("caption_reconciliation"), dict) else {}
+    caption_total = max(0, _int(caption.get("total")))
+    if caption_total:
+        total += 1
+        if _int(caption.get("completed")) >= caption_total:
+            done += 1
+        else:
+            partial += max(0.0, min(1.0, _int(caption.get("completed")) / caption_total))
+    percent = round(100.0 * (done + partial) / total, 1) if total else 0.0
+    peak = payload.get("_stage_progress_peak")
+    if isinstance(peak, (int, float)) and not isinstance(peak, bool):
+        percent = max(percent, float(peak))
+    payload["_stage_progress_peak"] = percent
+    return {"stages_total": total, "stages_done": done, "stage_progress": percent}
+
+
+def stage_view(job_type: str, detail: Any) -> dict[str, Any] | None:
+    """The one bar a scan job shows in the lists, by stages (see `_stage_progress`): stages done, stages in all, the percentage, and the item counts of the stage
+    that is running now. None for any other job, and for a scan that has not counted its stages yet (its own counters are shown then)."""
+    if job_type != "METADATA_CHANNEL_PIPELINE" or not isinstance(detail, dict):
+        return None
+    snap = detail.get("progress")
+    if not isinstance(snap, dict) or _int(snap.get("stages_total")) <= 0:
+        return None
+    return {"completed": _int(snap.get("stages_done")), "total": _int(snap.get("stages_total")), "progress": float(snap.get("stage_progress") or 0.0)}
+
+
 def _work_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
     """Return a UI-safe hierarchical progress snapshot from the checkpoint."""
     if not isinstance(payload, dict):
@@ -422,6 +474,7 @@ def _work_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
         "current_phase": current_phase,
         "current_file": (str(payload.get("current_file") or "") if current_phase == "caption_reconciliation" else (current.get("current_file", "") if current else "")),
         "caption_reconciliation": dict(caption_state) if caption_state else {},
+        **_stage_progress(payload),
         "overall_progress": round(completed_work * 100.0 / total_work, 1) if total_work else 0.0,
         "completed_work": int(completed_work), "total_work": int(total_work),
         "remaining_work": remaining_work,

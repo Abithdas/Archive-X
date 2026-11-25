@@ -83,7 +83,7 @@ def test_live_captions_of_a_folder_video_cut_the_audio_from_the_file(tmp_path, m
     r = None
     for _ in range(50):                                             # the (stand-in) model is prepared in the background first
         r = c.get(f"/api/play/captions/{ch}/{mid}?start=0&at=0&task=transcribe")
-        if r.status_code == 200:
+        if r.status_code == 200 and not r.json().get("preparing"):      # a 200 with "preparing" still has no cues: the answer is not in yet
             break
         time.sleep(0.1)
     assert r is not None and r.status_code == 200, r.text
