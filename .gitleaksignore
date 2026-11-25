@@ -1,5 +1,8 @@
-# One finding, by its exact fingerprint (commit:file:rule:line), that is known not to be a secret.
-# crates/ax-core/tests/scene_parser_cases.json held `"key": "x264mp41080piscene"` in commit d8a4fad: a scene name lower-cased by the
-# parser test, not a credential. Commit 22e4398 renamed the field, so the file no longer has it; the old commit stays in history.
-# Nothing else is ignored here: every other file, rule and commit is still scanned.
+# Findings by their exact fingerprint (commit:file:rule:line) that are known not to be secrets. Nothing else is ignored here:
+# every other file, rule and commit is still scanned.
+#
+# 1. crates/ax-core/tests/scene_parser_cases.json, commit d8a4fad: a scene name lower-cased by the parser test and recorded in a field that
+#    was then called "key". Not a credential. Commit 22e4398 renamed the field; the old commit stays in history.
 d8a4fadf1f4088c9ec1620892813cebc89ad955d:crates/ax-core/tests/scene_parser_cases.json:generic-api-key:25194
+# 2. This file, commit 276a3f3: its first version quoted that recorded text in a comment, which the scanner read as the same finding again.
+276a3f31968655c365049b9406aff12cee9bc25a:.gitleaksignore:generic-api-key:2
