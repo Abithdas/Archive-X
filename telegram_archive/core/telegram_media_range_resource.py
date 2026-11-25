@@ -23,11 +23,7 @@ import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
 
-try:
-    from telethon import functions, types
-except ImportError:  # keep application importable for diagnostics/minimal environments
-    functions = None
-    types = None
+from . import telethon_lazy   # the Telegram library is loaded when a range is first fetched, not at start-up
 
 from ..engines.media_utils import flood_wait_seconds, is_flood_wait, TelegramRangeFloodError
 from .aligned_telegram_range import fetch_aligned_range
@@ -209,7 +205,7 @@ class DirectTelegramRangeSource:
                     self.rpc_requests += 1
                     data = await fetch_aligned_range(
                         self.client, self.message, offset, amount, fallback=True,
-                        telethon_functions=functions, telethon_types=types,
+                        telethon_functions=telethon_lazy.functions(), telethon_types=telethon_lazy.types(),
                         refresh_message=self._refresh_message, cache_policy="coalesce",
                         file_slot_held=True, message_scoped_floodwait=True,
                         admission_managed=self.governor is None,
@@ -356,7 +352,7 @@ class DirectTelegramRangeSource:
             self.rpc_requests += 1
             data = await fetch_aligned_range(
                 self.client, self.message, int(offset), expected, fallback=True,
-                telethon_functions=functions, telethon_types=types,
+                telethon_functions=telethon_lazy.functions(), telethon_types=telethon_lazy.types(),
                 refresh_message=self._refresh_message, cache_policy="caller",
                 file_slot_held=True, message_scoped_floodwait=True,
                 admission_managed=self.governor is None,

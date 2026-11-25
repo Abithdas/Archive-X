@@ -53,16 +53,6 @@ from .routes_system import register_system_routes
 from .routes_tags_logs import register_tags_logs_routes
 from .routes_telegram import register_telegram_routes
 
-try:
-    from telethon.errors import FloodWaitError, PasswordHashInvalidError
-except ImportError:
-    class _TelethonUnavailableError(Exception):
-        pass
-    FloodWaitError = _TelethonUnavailableError
-    class PasswordHashInvalidError(Exception):
-        pass
-
-
 
 
 # ==============================================================================
@@ -555,10 +545,17 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                 detail = json.loads(j.get("detail") or "{}")
             except Exception:
                 detail = {}
+            # A scan made of stages shows one bar by stages (the items of the stage running now go in `stage`), so it does not rescale when a stage starts.
+            from ..engines.metadata_channel_pipeline import stage_view
+            by_stage = stage_view(str(j["job_type"]), detail)
+            stage = {"completed": done, "total": total} if by_stage else None
+            progress_now = by_stage["progress"] if by_stage else (j.get("progress") or 0)
+            if by_stage:
+                done, total = by_stage["completed"], by_stage["total"]
             out.append({
                 "id": j["id"], "type": j["job_type"], "name": JOB_NAMES.get(j["job_type"], j["job_type"]),
-                "status": j["status"], "progress": j.get("progress") or 0,
-                "completed": done, "total": total,
+                "status": j["status"], "progress": progress_now,
+                "completed": done, "total": total, "stage": stage,
                 "pending": (total - (done or 0)) if total else None,
                 "operation": "" if sfw else (j.get("current_operation") or ""),
                 "item": "" if sfw else (j.get("current_item") or ""),
@@ -776,7 +773,6 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                     _active_jobs_view=_active_jobs_view,
                     client_key=client_key,
                     status_snapshot=status_snapshot,
-                    FloodWaitError=FloodWaitError,
                 )
             )
         elif _module == "routes_telegram":
@@ -791,8 +787,6 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
                     config=config,
                     content_automation=content_automation,
                     workflow_snapshot=workflow_snapshot,
-                    FloodWaitError=FloodWaitError,
-                    PasswordHashInvalidError=PasswordHashInvalidError,
                     TELETHON_AVAILABLE=TELETHON_AVAILABLE,
                     _channel_profile_photo_cache=_channel_profile_photo_cache,
                     _channel_profile_photo_locks=_channel_profile_photo_locks,

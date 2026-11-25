@@ -34,6 +34,17 @@ function mount(over: (u: string) => Response | undefined = () => undefined) {
 }
 
 describe('SFW Home', () => {
+  it('lists what was watched through an add-on too, and opens its title page (an episode, or the movie)', async () => {
+    mount((url) => url.startsWith('/api/screen/home') ? json({ ...HOME, continue: [
+      ...HOME.continue,
+      { cid: '', mid: 0, title: 'Breaking Bad', sub: 'S1 · E2', image: '', pct: 10, left: 50, addon: { kind: 'series', ident: 'tt0903747', season: 1, episode: 2 } },
+      { cid: '', mid: 0, title: 'The Matrix', sub: '1999', image: '', pct: 60, left: 7, addon: { kind: 'movie', ident: 'tt0133093', season: null, episode: null } },
+    ] }) : undefined)
+    expect(await screen.findByRole('link', { name: 'Continue Dark' })).toHaveAttribute('href', '/watch/-9000000000001/7')
+    expect(screen.getByRole('link', { name: 'Continue Breaking Bad' })).toHaveAttribute('href', '/discover/series/tt0903747/1/2')
+    expect(screen.getByRole('link', { name: 'Continue The Matrix' })).toHaveAttribute('href', '/discover/movie/tt0133093')
+  })
+
   it('shows what to continue, what airs this week, what was added and the featured title, from your library', async () => {
     mount()
     expect(await screen.findByRole('link', { name: 'Continue Dark' })).toHaveAttribute('href', '/watch/-9000000000001/7')

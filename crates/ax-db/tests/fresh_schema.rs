@@ -54,7 +54,7 @@ fn no_table_is_missing_or_extra() {
 fn indexes_triggers_views_and_the_full_text_tables_are_there() {
     let c = fresh();
     let count = |kind: &str| c.query_row("SELECT COUNT(*) FROM sqlite_master WHERE type=?", [kind], |r| r.get::<_, i64>(0)).unwrap();
-    assert_eq!((count("view"), count("trigger")), (3, 51));
+    assert_eq!((count("view"), count("trigger")), (3, 54));
     assert!(count("index") >= 190, "{} indexes", count("index"));
     for t in ["media_fts", "performer_fts", "tag_fts", "studio_fts"] {
         // the index tables work: an insert and a prefix search

@@ -2,6 +2,24 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+
+- Pages refresh by themselves when something changes behind them: a video added by a scan, a performer renamed by a job or a channel created elsewhere shows up without a reload (the server already sent the change counters; the new app was not reading them)
+- Video page: full screen now stays on when you go to the next or previous video (the page was swapping the player for a loading screen), the buffer panel names the file's own container instead of the whole family ("mov,mp4,m4a,3gp,3g2,mj2"), and "Up next" lists what follows the current video instead of the first ten of the list
+- Duplicate videos: the scan shows a turning ring and a running timer so it no longer looks stuck, and scanning one channel answers from what is saved when Telegram is not connected or the channel is a folder on this PC (it failed with an error before)
+- Photos: a photo that is a file on this PC can be deleted from the disk too ("Delete file from this PC", after a confirmation; only a file inside its own folder is ever deleted), and no longer offers the Telegram delete
+- Photos: analysing faces no longer names people by itself. A face group that clearly matches a performer is shown as "Is this …?" and only your confirmation names it
+- Movies and shows: Continue watching on Home now includes titles you watched through an add-on stream (it only had your library's files) and picks them up where you stopped; videos of SFW Telegram channels that were never named are now named in the background when you open Home, Movies or Series (only folders on this PC were)
+- A real performer or studio now replaces "Unknown Performer" / "Unknown Studio" on a video however it was added (a hand edit and a bulk edit left the placeholder next to the new name); placeholders that already sit next to a real name are cleared when the app opens
+- The app starts about 140 ms faster (about 1.08 s to about 0.94 s from launch until it is serving, with 10 channels of 1,000 videos and 1,000 photos each): the Telegram library (0.4 s to load) is now loaded when the first Telegram connection is made instead of at start-up, and the media manager's six code files are read from the saved bytecode instead of being compiled on every start (55 ms). What is left is mostly Python loading its web server (about 0.25 s) and registering the 420 routes (about 0.2 s)
+- A metadata scan's progress bar counts stages instead of items, so it no longer jumps (for example from "1 / 10" to "3 / 30") when a stage starts with a different number of items: the bar only moves forward, and the items of the stage running now are shown after it ("stage 2 of 5 · this stage 3 / 30")
+- Transfers: a folder or metadata scan that finished without any problem leaves the live lanes after 30 seconds instead of ten minutes (it looked like a scan that never ends); one with failures still stays ten minutes
+- The search button in the top bar opens and folds back as one smooth movement instead of jumping between a button and a box
+- The app no longer shows only a loading bar while it starts slowly: after 4 seconds it says it is still starting, and after 8 seconds it opens without waiting for the status (a sign-in is still asked for when needed)
+- Movies and shows: an actor's page is a Filmography, without Similar Performers and Suggestions, and the video page says Cast
+
+- After you move the data folder in Settings, the log bundle now finds the launcher log in the new folder (it kept looking in the old, deleted one)
+
 ## 30.11.6 (2026-11-20)
 
 - Under the hood, more of the library pages are answered by the Rust front door instead of the Python backend: the Library's channel list, search, the performer and studio pages (videos, edit forms, metadata, family), tags and their taxonomy, and the cached photo files of the Photos page. The answers are the same as before; a check that runs on every change now compares both servers' answers in SFW and NSFW mode. Two small differences it found are fixed: the performer list now carries its movie and series counts through the front door, and a studio hidden by the mode answers "Not found" as everywhere else

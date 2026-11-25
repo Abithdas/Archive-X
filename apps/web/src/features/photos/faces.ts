@@ -124,7 +124,7 @@ export const findPeopleHint = (groups: readonly FaceGroup[], analysis?: Analysis
 }
 
 /** The steps "Find people" goes through, in order. */
-export const FIND_STEPS = ['Download performer pictures', 'Read the faces in those pictures', 'Find faces in your photos', 'Match faces to performers'] as const
+export const FIND_STEPS = ['Download performer pictures', 'Read the faces in those pictures', 'Find faces in your photos', 'Suggest likely performers to confirm'] as const
 /** Which step the running job is on, from the operation text it reports (0 = not started yet). */
 export function findStage(operation: string | undefined | null, status = ''): number {
   if (jobDone(status)) return FIND_STEPS.length

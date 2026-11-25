@@ -1,0 +1,18 @@
+[package]
+name = "ax-ai"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "The local assistant's rules, ported from telegram_archive/ai: what it may see (secret redaction) and what it may do only with permission"
+
+[dependencies]
+ax-core = { path = "../ax-core" }
+ax-db = { path = "../ax-db" }
+ax-config = { path = "../ax-config" }
+fancy-regex = "0.14"
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+getrandom = "0.2"
+sha1 = "0.10"
+
+[dev-dependencies]
+tempfile = "3"

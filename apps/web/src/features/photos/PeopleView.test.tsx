@@ -111,7 +111,7 @@ describe('People inside Photos', () => {
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Find people?' })).getByRole('button', { name: 'Find people' }))
     const card = await screen.findByRole('region', { name: 'Finding people' })
     await waitFor(() => expect(within(card).getByRole('progressbar', { name: 'Progress' })).toHaveAttribute('aria-valuenow', '80'), { timeout: 4000 })
-    expect(within(card).getByText('Match faces to performers').closest('li')).toHaveAttribute('aria-current', 'step')
+    expect(within(card).getByText('Suggest likely performers to confirm').closest('li')).toHaveAttribute('aria-current', 'step')
   })
 })
 

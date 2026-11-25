@@ -25,6 +25,10 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
+from ..core import telethon_lazy
+
+_tl = telethon_lazy.errors()   # Telegram's error classes, looked up only when an exception reaches an `except _tl.X` (the library is not loaded at start-up)
+
 from .image_payloads import parse_manual_image_payload as _parse_manual_image_payload
 
 
@@ -39,8 +43,6 @@ def register_telegram_routes(
     config,
     content_automation,
     workflow_snapshot,
-    FloodWaitError,
-    PasswordHashInvalidError,
     TELETHON_AVAILABLE,
     _channel_profile_photo_cache,
     _channel_profile_photo_locks,
@@ -61,7 +63,7 @@ def register_telegram_routes(
                 str(data.get("phone", "")).strip(),
                 str(data.get("code", "")).strip()
             )
-        except FloodWaitError as e:
+        except _tl.FloodWaitError as e:
             seconds = getattr(e, "seconds", 60)
             governor.note_floodwait(seconds)
             raise HTTPException(429, f"Telegram FloodWait: wait {seconds} seconds")
@@ -76,9 +78,9 @@ def register_telegram_routes(
         data = await request.json()
         try:
             return await telegram.verify_2fa(str(data.get("password", "")))
-        except PasswordHashInvalidError:
+        except _tl.PasswordHashInvalidError:
             raise HTTPException(400, "Incorrect Telegram Cloud Password. Please try again.")
-        except FloodWaitError as e:
+        except _tl.FloodWaitError as e:
             seconds = getattr(e, "seconds", 60)
             governor.note_floodwait(seconds)
             raise HTTPException(429, f"Telegram FloodWait: wait {seconds} seconds")
@@ -92,7 +94,7 @@ def register_telegram_routes(
         require_auth(request)
         try:
             return await telegram.start_qr_login()
-        except FloodWaitError as e:
+        except _tl.FloodWaitError as e:
             seconds = getattr(e, "seconds", 60)
             governor.note_floodwait(seconds)
             raise HTTPException(429, f"Telegram FloodWait: wait {seconds} seconds")
@@ -114,7 +116,7 @@ def register_telegram_routes(
         require_auth(request)
         try:
             return await telegram.start_qr_login()
-        except FloodWaitError as e:
+        except _tl.FloodWaitError as e:
             seconds = getattr(e, "seconds", 60)
             governor.note_floodwait(seconds)
             raise HTTPException(429, f"Telegram FloodWait: wait {seconds} seconds")
@@ -222,7 +224,7 @@ def register_telegram_routes(
             return {"ok": True, "configured": configured, "api_verified": api_verified, **result}
         except ValueError as e:
             raise HTTPException(400, str(e))
-        except FloodWaitError as e:
+        except _tl.FloodWaitError as e:
             seconds = getattr(e, "seconds", 60)
             governor.note_floodwait(seconds)
             raise HTTPException(429, f"Telegram FloodWait: wait {seconds} seconds")
@@ -696,7 +698,7 @@ def register_telegram_routes(
                 synced.append("photo")
         except HTTPException:
             raise
-        except FloodWaitError as exc:
+        except _tl.FloodWaitError as exc:
             seconds = int(getattr(exc, "seconds", 60) or 60)
             try:
                 governor.note_floodwait(seconds)
@@ -836,7 +838,7 @@ def register_telegram_routes(
             # made outside Archive X, so discard those channels' in-memory avatars.
             for item in items:
                 _channel_profile_photo_cache.pop(str(item.get("id") or ""), None)
-        except FloodWaitError as e:
+        except _tl.FloodWaitError as e:
             seconds = getattr(e, "seconds", 60)
             governor.note_floodwait(seconds)
             raise HTTPException(429, f"Telegram FloodWait: wait {seconds} seconds")

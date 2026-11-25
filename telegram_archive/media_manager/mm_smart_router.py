@@ -589,7 +589,8 @@ async def copy_thumbnail_as_document_canonical(client, destination, source, thum
         print(f"\n  Uploading canonical thumbnail DOCUMENT: {target_name}")
         while True:
             try:
-                attrs = [DocumentAttributeFilename(target_name)] if DocumentAttributeFilename else None
+                _filename_attribute = telethon_lazy.document_attribute_filename()
+                attrs = [_filename_attribute(target_name)] if _filename_attribute else None
                 return await client.send_file(
                     destination,
                     str(downloaded),

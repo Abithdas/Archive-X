@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { statRows } from './streamStats'
+import { containerLabel, statRows } from './streamStats'
 import { DEFAULT_PS, isDefaultPS, normalizePS, pictureFilter, zoomScale } from './pictureSound'
 
 describe('stream stats', () => {
@@ -27,5 +27,20 @@ describe('picture and sound', () => {
     expect(normalizePS({ zoom: '999' as never, sound: 'night' })).toEqual({ ...DEFAULT_PS, sound: 'night' })
     expect(zoomScale('off', 2.4, 1.78)).toBe(1); expect(zoomScale('125', 1, 1)).toBe(1.25)
     expect(zoomScale('fill', 2.4, 16 / 9)).toBeCloseTo(2.4 / (16 / 9)); expect(zoomScale('fill', 16 / 9, 16 / 9)).toBe(1)
+  })
+})
+
+describe('containerLabel', () => {
+  it('names the one container of an MP4 or MOV file, not ffprobe\'s whole family', () => {
+    expect(containerLabel('mov,mp4,m4a,3gp,3g2,mj2', 'clip.mp4')).toBe('MP4')
+    expect(containerLabel('mov,mp4,m4a,3gp,3g2,mj2', 'clip.MOV')).toBe('MOV')
+    expect(containerLabel('matroska,webm', 'clip.mkv')).toBe('Matroska')
+    expect(containerLabel('matroska,webm', 'clip.webm')).toBe('WebM')
+  })
+  it('falls back to the family when the name says nothing, and to the name when ffprobe said nothing', () => {
+    expect(containerLabel('mov,mp4,m4a,3gp,3g2,mj2', 'no extension')).toBe('MP4')
+    expect(containerLabel('avi', undefined)).toBe('AVI')
+    expect(containerLabel(undefined, 'a.avi')).toBe('AVI')
+    expect(containerLabel(undefined, undefined)).toBeUndefined()
   })
 })

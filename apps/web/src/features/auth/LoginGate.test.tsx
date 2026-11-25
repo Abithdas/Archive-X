@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { LoginGate } from './LoginGate'
+import { LoginGate, OPEN_ANYWAY_AFTER_MS, SLOW_AFTER_MS } from './LoginGate'
 
 afterEach(() => vi.unstubAllGlobals())
 const json = (b: unknown, code = 200) => new Response(JSON.stringify(b), { status: code })
@@ -88,5 +88,23 @@ describe('LoginGate', () => {
     mount({ setup_required: false }, (u) => (u === '/login' ? json({ detail: 'Administrator credential setup is required' }, 428) : undefined))
     const go = await screen.findByRole('button', { name: 'Sign in' }); fill('Username', 'a'); fill('Password', 'b'); fireEvent.click(go)
     expect(await screen.findByText('Create your administrator account')).toBeInTheDocument()
+  })
+})
+
+describe('LoginGate while the status is slow', () => {
+  const slowStatus = () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('fetch', vi.fn((url: string) => (url === '/api/status' ? new Promise<Response>(() => undefined) : Promise.resolve(json({ ok: true })))))
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><LoginGate><p>The app</p></LoginGate></QueryClientProvider>)
+  }
+  afterEach(() => vi.useRealTimers())
+  it('says it is still starting after a few seconds, and opens the app after a few more instead of waiting for ever', async () => {
+    slowStatus()
+    expect(screen.queryByText(/Still starting/)).toBeNull()
+    await act(async () => { await vi.advanceTimersByTimeAsync(SLOW_AFTER_MS + 100) })
+    expect(screen.getByText(/Still starting/)).toBeInTheDocument()
+    expect(screen.queryByText('The app')).toBeNull()
+    await act(async () => { await vi.advanceTimersByTimeAsync(OPEN_ANYWAY_AFTER_MS - SLOW_AFTER_MS) })
+    expect(screen.getByText('The app')).toBeInTheDocument()
   })
 })

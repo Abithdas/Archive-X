@@ -89,6 +89,19 @@ function Copy({ row, group, saved, picked, disabled, onToggle }: { row: Candidat
   )
 }
 
+/** What a long check shows so it never looks stuck: a turning ring and how long it has been going. */
+export function Working({ text }: { text: string }) {
+  const [seconds, setSeconds] = useState(0)
+  useEffect(() => { const t = setInterval(() => setSeconds((n) => n + 1), 1000); return () => clearInterval(t) }, [])
+  return (
+    <div role="status" aria-live="off" className="flex items-center gap-3 rounded-2xl border border-line p-3.5 text-sm text-muted">
+      <span aria-hidden="true" className="size-5 shrink-0 animate-spin rounded-full border-2 border-line border-t-accent" />
+      <span className="min-w-0 flex-1">{text}</span>
+      <span className="shrink-0 tabular-nums text-xs">{seconds} s</span>
+    </div>
+  )
+}
+
 /** Verified duplicate video review. Scanning changes nothing; each delete is confirmed, checked against a kept copy, and run one at a time. */
 function DuplicateDialog({ scope, saved, onClose }: { scope: string; saved: Saved; onClose: () => void }) {
   const [scan, setScan] = useState<DupScan | null>(null)
@@ -181,7 +194,7 @@ function DuplicateDialog({ scope, saved, onClose }: { scope: string; saved: Save
             {sum.warnings.length ? <div className="rounded-lg border border-warn/50 p-2 text-xs text-muted">{sum.warnings.map((w, i) => <div key={i}>{w}</div>)}{scan?.fingerprint_warnings_truncated ? <div>Additional fingerprint warnings were omitted.</div> : null}</div> : null}
           </div>
         ) : <p role="status" aria-live="polite" className="text-sm text-muted">{status}</p>}
-        {busy && !scan ? <div className="rounded-2xl border border-line p-3.5 text-sm text-muted">{all ? 'Reading saved video identities across channels…' : 'Reading the saved channel inventory and verifying duplicate content identities against Telegram…'}</div> : null}
+        {busy && !deleting ? <Working text={scan ? 'Checking again…' : all ? 'Reading saved video identities across channels…' : 'Reading the saved channel inventory and verifying duplicate content identities…'} /> : null}
         {sum && !groups.length ? <div className="rounded-2xl border border-line p-3.5"><b>No verified duplicate videos found.</b><p className="mt-1 text-xs text-muted">{sum.emptyNote} No Telegram messages were changed.</p></div> : null}
         <AnimatePresence mode="popLayout" initial={false}>
           {groups.map((g, gi) => {

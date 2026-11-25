@@ -15,17 +15,17 @@ use unicode_normalization::UnicodeNormalization;
 use unicode_properties::{GeneralCategory, UnicodeGeneralCategory};
 
 /// Python's `\w`.
-const W: &str = r"[\p{L}\p{N}_]";
+pub const W: &str = r"[\p{L}\p{N}_]";
 /// Python's `\s`.
-const S: &str = r"[\s\x1c-\x1f]";
+pub const S: &str = r"[\s\x1c-\x1f]";
 /// `\b` between Python word characters.
-fn boundary() -> String {
+pub fn boundary() -> String {
     format!("(?:(?<={W})(?!{W})|(?<!{W})(?={W}))")
 }
 
 /// Python's `re.IGNORECASE` also lets U+0130 and U+0131 stand for `i`, U+017F for `s` and U+212A for `k`; the `regex` crate's case folding
 /// does not for the first two. A literal word written for `(?i)` goes through here so that every `i`, `s` and `k` takes them.
-fn ci(lit: &str) -> String {
+pub fn ci(lit: &str) -> String {
     lit.chars()
         .map(|c| match c.to_ascii_lowercase() {
             'i' if c.is_ascii_alphabetic() => "[iI\u{130}\u{131}]".to_string(),
@@ -37,12 +37,12 @@ fn ci(lit: &str) -> String {
 }
 
 /// Alternatives of literal words, each through [`ci`]; `[-_ ]?`-style pieces pass through (they have none of those letters).
-fn words(list: &[&str]) -> String {
+pub fn words(list: &[&str]) -> String {
     list.iter().map(|w| ci(w)).collect::<Vec<_>>().join("|")
 }
 
 /// `[A-Za-z0-9]` as `re.I` sees it.
-const ALNUM_CI: &str = "[A-Za-z0-9\u{130}\u{131}\u{17f}\u{212a}]";
+pub const ALNUM_CI: &str = "[A-Za-z0-9\u{130}\u{131}\u{17f}\u{212a}]";
 /// `[^a-z0-9]` as `re.I` sees it.
 const NOT_ALNUM_CI: &str = "[^a-z0-9\u{130}\u{131}]";
 
@@ -149,12 +149,12 @@ fn caps_of(re: &Regex, text: &str, from: usize) -> Option<Groups> {
     Some((0..caps.len()).map(|i| caps.get(i).map(|m| (m.start(), m.end()))).collect())
 }
 
-fn is_py_space(c: char) -> bool {
+pub fn is_py_space(c: char) -> bool {
     c.is_whitespace() || ('\x1c'..='\x1f').contains(&c)
 }
 
 /// `str.strip()`.
-fn py_strip(s: &str) -> &str {
+pub fn py_strip(s: &str) -> &str {
     s.trim_matches(is_py_space)
 }
 
@@ -164,7 +164,7 @@ fn strip_chars<'a>(s: &'a str, chars: &str) -> &'a str {
 }
 
 /// The value of a decimal digit (`int('٣') == 3`): a decimal-digit block is ten consecutive code points, the first of them zero.
-fn digit_value(c: char) -> Option<u32> {
+pub fn digit_value(c: char) -> Option<u32> {
     if c.general_category() != GeneralCategory::DecimalNumber {
         return None;
     }

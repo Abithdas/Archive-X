@@ -1570,6 +1570,12 @@ CREATE INDEX idx_events_created_id ON events(created_at DESC, id DESC);
 
 CREATE INDEX idx_provider_sync_updated ON provider_sync_state(provider, updated_at DESC);
 
+CREATE TRIGGER ax_placeholder_video_performers_insert AFTER INSERT ON video_performers WHEN NEW.performer_id NOT IN (SELECT id FROM performers WHERE lower(trim(name))='unknown performer') BEGIN DELETE FROM video_performers WHERE video_id=NEW.video_id AND performer_id IN (SELECT id FROM performers WHERE lower(trim(name))='unknown performer'); DELETE FROM local_video_performers WHERE video_id=NEW.video_id AND performer_id IN (SELECT id FROM performers WHERE lower(trim(name))='unknown performer'); END;
+
+CREATE TRIGGER ax_placeholder_local_video_performers_insert AFTER INSERT ON local_video_performers WHEN NEW.performer_id NOT IN (SELECT id FROM performers WHERE lower(trim(name))='unknown performer') BEGIN DELETE FROM video_performers WHERE video_id=NEW.video_id AND performer_id IN (SELECT id FROM performers WHERE lower(trim(name))='unknown performer'); DELETE FROM local_video_performers WHERE video_id=NEW.video_id AND performer_id IN (SELECT id FROM performers WHERE lower(trim(name))='unknown performer'); END;
+
+CREATE TRIGGER ax_placeholder_video_studios_insert AFTER INSERT ON video_studios WHEN NEW.studio_id NOT IN (SELECT id FROM studios WHERE lower(trim(name))='unknown studio') BEGIN DELETE FROM video_studios WHERE video_id=NEW.video_id AND studio_id IN (SELECT id FROM studios WHERE lower(trim(name))='unknown studio'); END;
+
 CREATE TABLE web_sessions ( token_hash TEXT PRIMARY KEY, username TEXT NOT NULL, expires REAL NOT NULL);
 
 -- the rows a new database starts with

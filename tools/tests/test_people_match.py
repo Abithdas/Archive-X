@@ -21,7 +21,7 @@ def make(tmp_path):
     return db
 
 
-def test_auto_match_names_only_clear_matches(tmp_path):
+def test_a_clear_match_is_only_a_suggestion_and_nothing_is_named(tmp_path):
     rng = random.Random(5)
     db = make(tmp_path)
     now = "2025-01-01T00:00:00"
@@ -39,11 +39,11 @@ def test_auto_match_names_only_clear_matches(tmp_path):
                 db.conn.execute("INSERT INTO photo_face_analysis(photo_id,status,face_count,updated_at) VALUES(?,?,?,?)", (photo, "COMPLETE", 1, now))
                 db.conn.execute("INSERT INTO photo_face_detections(photo_id,face_index,group_id,embedding_json,created_at,updated_at) VALUES(?,?,?,?,?,?)", (photo, 0, gid, json.dumps(near(base, rng)), now, now))
         db.conn.commit()
-    out = pf._auto_match_people(db)
+    out = pf._likely_people(db)
     rows = {r["id"]: r["performer_id"] for r in db.conn.execute("SELECT id,performer_id FROM photo_face_groups")}
-    assert out["matched"] == 1
-    assert rows[1] == 1          # Ava's face group is named
-    assert rows[2] is None       # an unrelated face is left unnamed
+    assert out["suggested"] == 1                 # Ava's face group is recognised as a likely match ...
+    assert rows == {1: None, 2: None}            # ... but no group is named: only the user's confirmation does that
+    assert db.conn.execute("SELECT COUNT(*) FROM photo_face_suggestion_feedback").fetchone()[0] == 0   # and nothing is recorded as confirmed
 
 
 def test_move_detections_makes_one_group_and_can_name_it(tmp_path):

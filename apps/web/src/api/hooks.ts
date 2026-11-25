@@ -117,6 +117,8 @@ export const useVideo = (cid: string, mid: number) =>
       return hit
     },
     staleTime: 15_000,
+    // Going from one video to the next keeps the page, and so the player and its full screen, until the next one arrives.
+    placeholderData: keepPreviousData,
     retry: (n, e) => !(e instanceof ApiError && e.status === 404) && n < 2,
   })
 

@@ -13,6 +13,7 @@ import { formatBytes } from '@/design/format'
 import { openExternal } from '@/features/library/CardMenu'
 import { formatDuration } from '@/features/library/format'
 import { useLibraryStore } from '@/features/library/store'
+import { containerLabel } from './streamStats'
 import { experienceFrom } from '@/features/settings/logic'
 import { useExperienceSettings } from '@/features/settings/queries'
 import { gridReady, gridTimes } from './grid'
@@ -48,11 +49,18 @@ function Skel() {
   )
 }
 
+/** What plays after this video: the ones that follow it in the list it came from, then (like autoplay's wrap-around) the ones before it. */
+export function upNext(items: LibraryItem[], current: LibraryItem): LibraryItem[] {
+  const same = (i: LibraryItem) => i.id === current.id && i._cid === current._cid
+  const at = items.findIndex(same)
+  return at < 0 ? items : [...items.slice(at + 1), ...items.slice(0, at)]
+}
+
 function UpNext({ items, current }: { items: LibraryItem[]; current: LibraryItem }) {
-  const rest = items.filter((i) => !(i.id === current.id && i._cid === current._cid)).slice(0, 10)
+  const rest = upNext(items, current).slice(0, 10)
   return (
     <section aria-label="Up next videos" className={cn(CARD, 'self-start')}>
-      <div className="mb-3 flex items-baseline justify-between"><h2 className="text-lg font-extrabold">Up next</h2><span className="text-xs text-faint">Current queue</span></div>
+      <div className="mb-3 flex items-baseline justify-between"><h2 className="text-lg font-extrabold">Up next</h2><span className="text-xs text-faint">After this one</span></div>
       <ul className="grid gap-2.5">
         <AnimatePresence initial={false}>{rest.map((i) => (
           <motion.li key={`${i._cid}:${i.id}`} {...listItem}>
@@ -176,7 +184,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
           engine === 'native' ? (
             <NativePane key={`${item._cid}:${item.id}`} media={{ cid: String(item._cid), mid: item.id }} durationHint={item.duration} size={{ width: item.width, height: item.height }} segments={segments} preview={preview} snapshots={snapshots} startAt={carry ?? resume.startAt} autoPlay={carry !== null ? true : resume.autoPlay} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onBrowser={toBrowser} />
           ) : (
-          <Player facts={{ vcodec: playInfo.data?.vcodec || item.codec || undefined, tenBit: playInfo.data?.ten_bit, container: playInfo.data?.format, acodec: playInfo.data?.acodec, bitrate: item.size && item.duration ? Math.round((item.size * 8) / item.duration) : undefined, source: local ? 'This PC' : 'Telegram' }} media={{ cid: String(item._cid), mid: item.id }} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={carry !== null ? true : resume.autoPlay} startAt={carry ?? resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} onOpenNative={nativeOk ? () => switchTo('native') : undefined} onUnplayable={nativeOk && nativeMode === 'fallback' && !chosenWeb ? () => switchTo('native') : undefined} />
+          <Player facts={{ vcodec: playInfo.data?.vcodec || item.codec || undefined, tenBit: playInfo.data?.ten_bit, container: containerLabel(playInfo.data?.format, item.name), acodec: playInfo.data?.acodec, bitrate: item.size && item.duration ? Math.round((item.size * 8) / item.duration) : undefined, source: local ? 'This PC' : 'Telegram' }} media={{ cid: String(item._cid), mid: item.id }} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={carry !== null ? true : resume.autoPlay} startAt={carry ?? resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} onOpenNative={nativeOk ? () => switchTo('native') : undefined} onUnplayable={nativeOk && nativeMode === 'fallback' && !chosenWeb ? () => switchTo('native') : undefined} />
           )
         ) : (
           <div className="aspect-video w-full rounded-[18px] border border-line bg-black" aria-hidden="true" />
@@ -198,7 +206,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
 
         <section className={CARD} aria-label="Performers and studio">
           <div className="mb-3 flex items-start justify-between gap-3">
-            <div><h2 className="text-base font-bold">{labels.performers} &amp; {labels.studios}</h2><p className="text-xs text-faint">People and studio linked to this video</p></div>
+            <div><h2 className="text-base font-bold">{labels.series !== null ? 'Cast' : `${labels.performers} & ${labels.studios}`}</h2><p className="text-xs text-faint">{labels.series !== null ? 'Who is in this title, and the studio or network behind it' : 'People and studio linked to this video'}</p></div>
             <button type="button" onClick={() => setEditing(true)} title="Edit video title, performers and studio" aria-label="Edit video title, performers and studio" className="grid size-9 shrink-0 place-items-center rounded-xl border border-line-2 text-muted hover:bg-fg/5 hover:text-fg"><Icon name="edit" className="size-4" /></button>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -221,7 +229,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
               </ul>
             </div>
             <div>
-              <p className="mb-2 text-xs font-semibold text-faint">Studio</p>
+              <p className="mb-2 text-xs font-semibold text-faint">{labels.series !== null ? 'Studio or network' : 'Studio'}</p>
               {studio ? (
                 <div className="flex items-center gap-3 rounded-xl border border-line bg-bg p-2">
                   <span className="size-9 shrink-0 overflow-hidden rounded-lg bg-surface-3">

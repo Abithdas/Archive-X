@@ -534,12 +534,17 @@ def register_job_routes(
                     completed, total = 0, 0
                 progress = float(job.get("progress") or (100.0 * completed / total if total else 0.0))
                 if not 0 <= progress <= 100: progress = max(0.0, min(100.0, progress))
+                from ..engines.metadata_channel_pipeline import stage_view
+                by_stage = stage_view(job_type, detail)   # a scan made of stages: one bar by stages, the running stage's own items in `stage`
+                stage = {"completed": completed, "total": total} if by_stage else None
+                if by_stage:
+                    completed, total, progress = by_stage["completed"], by_stage["total"], by_stage["progress"]
                 rows.append({
                     "id": str(job.get("id") or ""), "type": job_type,
                     "status": str(job.get("status") or ""),
                     "operation": str(job.get("current_operation") or detail.get("stage") or "Queued"),
                     "current_item": str(job.get("current_item") or detail.get("current_item") or ""),
-                    "completed": completed, "total": total, "progress": round(progress, 1),
+                    "completed": completed, "total": total, "progress": round(progress, 1), "stage": stage,
                     "source": str(detail.get("source") or ""),
                     "workflow": str(detail.get("workflow") or ""),
                     "source_channel": channel_names.get(str(job.get("source_channel") or ""), str(job.get("source_channel") or "")),

@@ -18,7 +18,7 @@ import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
 import { FavoriteButton } from './FavoriteButton'
 import { DetailsCard, SocialPanel, SuggestionsPanel } from './StudioExtras'
-import { PTABS, detailRows, isUnknownLocal, metadataLinked, similarEmpty, studioCount, studiosFor, STUDIOS_EMPTY, type PTab } from './performerextras'
+import { tabsFor, detailRows, isUnknownLocal, metadataLinked, similarEmpty, studioCount, studiosFor, STUDIOS_EMPTY, type PTab } from './performerextras'
 import { providerPills } from './studio'
 import { providerBio, socialLinks } from './studioExtrasLogic'
 import { PerformerPoster, PosterGrid, StudioPoster } from './PosterCard'
@@ -123,10 +123,10 @@ export function PerformerPage({ id }: { id: number }) {
       {adjusting ? <PortraitAdjust id={p.id} name={p.name} src={imgSrc} open onClose={() => setAdjusting(false)} onSaved={refreshFraming} /> : null}
       <DetailsCard label="Performer details" rows={detailRows(p, metadata, videos.length)} related={[]} />
       <EntityTabs label="Performer details" value={tab} onChange={setTab}
-        tabs={PTABS.map((t) => ({ value: t.value, label: t.label, count: t.value === 'videos' ? videos.length : t.value === 'studios' ? studioCount(videos) : t.value === 'gallery' ? galleryTabCount(gallery.data) : t.value === 'suggestions' ? (suggested.data?.length ?? 0) : 0 }))} />
+        tabs={tabsFor(labels.movies !== null).map((t) => ({ value: t.value, label: t.label, count: t.value === 'videos' ? videos.length : t.value === 'studios' ? studioCount(videos) : t.value === 'gallery' ? galleryTabCount(gallery.data) : t.value === 'suggestions' ? (suggested.data?.length ?? 0) : 0 }))} />
       {tab === 'videos' ? (
-        videos.length ? <><VideosHead kind="performer" videos={videos} />{labels.movies ? <div role="tabpanel" aria-label="Videos"><TitleCards videos={videos} loose={(items) => <div className={GRID}>{items.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div>} /></div>   /* movies and shows: one poster for each, not one card for each episode */
-          : <div className={GRID} ref={grid.ref} style={grid.style} role="tabpanel" aria-label="Videos">{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div>}<EditingBar videos={videos} /></> : <Empty role="tabpanel" aria-label="Videos" icon="library">No videos for this performer yet.</Empty>
+        videos.length ? <><VideosHead kind="performer" videos={videos} />{labels.movies ? <div role="tabpanel" aria-label={labels.movies ? 'Filmography' : 'Videos'}><TitleCards videos={videos} loose={(items) => <div className={GRID}>{items.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div>} /></div>   /* movies and shows: one poster for each, not one card for each episode */
+          : <div className={GRID} ref={grid.ref} style={grid.style} role="tabpanel" aria-label={labels.movies ? 'Filmography' : 'Videos'}>{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div>}<EditingBar videos={videos} /></> : <Empty role="tabpanel" aria-label={labels.movies ? 'Filmography' : 'Videos'} icon="library">No videos for this performer yet.</Empty>
       ) : tab === 'studios' ? (
         (() => { const items = studiosFor(videos, studios.data ?? []); return items.length ? (
           <PosterGrid label="Studios">{items.map((s) => <StudioPoster key={s.id} id={s.id} name={s.name} image={s.image} count={s.count} />)}</PosterGrid>

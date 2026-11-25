@@ -62,6 +62,14 @@ const statusTone = (st: string): Tone => (/^(RUNNING|ACTIVE)$/.test(st) ? 'ok' :
 export function listProgress(j: Obj): { known: boolean; percent: number; text: string } {
   const total = Number(j.total) || 0
   const done = Math.max(0, Number(j.completed) || 0)
+  // A scan made of stages: the counts are stages (they do not change while it runs), the percentage is the job's own (stages done plus the running stage's share),
+  // and the items of the stage running now come after it, so a stage that starts with a different number of items does not look like the same bar jumping.
+  const stage = j.stage && typeof j.stage === 'object' ? (j.stage as Obj) : null
+  if (stage && total > 0) {
+    const percent = Math.max(0, Math.min(100, Number(j.progress) || 0))
+    const items = Number(stage.total) > 0 ? ` · this stage ${Math.max(0, Number(stage.completed) || 0).toLocaleString()} / ${Number(stage.total).toLocaleString()}` : ''
+    return { known: true, percent, text: `${Math.round(percent)}% · stage ${Math.min(total, done + 1).toLocaleString()} of ${total.toLocaleString()}${items}` }
+  }
   if (total > 0) { const percent = Math.max(0, Math.min(100, Math.round((done / total) * 100))); return { known: true, percent, text: `${percent}% · ${done.toLocaleString()} / ${total.toLocaleString()}` } }
   const p = Number(j.progress)
   if (Number.isFinite(p) && p > 0) { const percent = Math.max(0, Math.min(100, p)); return { known: true, percent, text: `${percent.toFixed(percent < 10 ? 1 : 0)}%` } }

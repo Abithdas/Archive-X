@@ -7,7 +7,7 @@
  *    (after SmoothUI's favicon-search, MIT, Copyright (c) 2024 Eduardo Calvo).
  */
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
+import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent, type RefObject } from 'react'
 import { ClearField, type ClearHandle } from '@/design/ClearField'
 import { cn } from '@/design/cn'
 import { Icon } from '@/design/Icon'
@@ -39,6 +39,9 @@ export interface SearchFieldProps {
   collapsible?: boolean
 }
 
+const SEARCH_WIDTH = 407   // the open box, as wide as the always-open one
+const BUTTON_WIDTH = 40
+
 export function SearchField({ value, onChange, placeholder, suggestions, onPick, onFirstUse, inputRef, focusTick, collapsible = false }: SearchFieldProps) {
   const reduce = Boolean(useReducedMotion())
   const uid = useId()
@@ -49,6 +52,7 @@ export function SearchField({ value, onChange, placeholder, suggestions, onPick,
   const [active, setActive] = useState(-1)
   // Only a search button in the bar; it opens into the box when pressed (or on Ctrl K) and folds back when it is left empty.
   const [expanded, setExpanded] = useState(false)
+  const [moving, setMoving] = useState(false)
   const wide = !collapsible || expanded || value !== ''
   useEffect(() => { if (focusTick) setExpanded(true) }, [focusTick])
   useEffect(() => { if (expanded) requestAnimationFrame(() => inputRef.current?.focus()) }, [expanded, inputRef])
@@ -83,11 +87,11 @@ export function SearchField({ value, onChange, placeholder, suggestions, onPick,
   }
   const pick = (s: Suggestion) => { setOpen(false); setActive(-1); onPick(s) }
 
-  if (!wide) {
-    return <button type="button" aria-label="Search" title="Search (Ctrl K)" onClick={() => setExpanded(true)} className="grid size-10 shrink-0 place-items-center rounded-xl text-muted transition-colors hover:bg-fg/5 hover:text-fg"><Icon name="search" /></button>
-  }
-  return (
-    <div ref={box} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null) && value === '') { setExpanded(false); setOpen(false) } }} className="relative min-w-[140px] max-w-[407px] flex-1">
+  const fold = (e: FocusEvent<HTMLDivElement>) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null) && value === '') { setExpanded(false); setOpen(false) } }
+  const button = <button type="button" aria-label="Search" title="Search (Ctrl K)" onClick={() => setExpanded(true)} className="grid size-10 shrink-0 place-items-center rounded-xl text-muted transition-colors hover:bg-fg/5 hover:text-fg"><Icon name="search" /></button>
+  if (!wide && !collapsible) return button
+  const content = (
+    <>
       <ClearField
         value={value}
         onChange={(v) => { onChange(v); setOpen(true) }}
@@ -144,6 +148,27 @@ export function SearchField({ value, onChange, placeholder, suggestions, onPick,
           </motion.div>
         ) : null}
       </AnimatePresence>
-    </div>
+    </>
+  )
+  if (!collapsible) return <div ref={box} onBlur={fold} className="relative min-w-[140px] max-w-[407px] flex-1">{content}</div>
+  // The bar's search is one box whose width opens from the button to the full field and folds back, the field fading in as it opens (the width springs without overshoot;
+  // it is clipped only while it moves, so the suggestions below it are never cut off).
+  return (
+    <motion.div
+      ref={box}
+      onBlur={fold}
+      initial={false}
+      animate={{ width: wide ? SEARCH_WIDTH : BUTTON_WIDTH }}
+      transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 38, mass: 0.9 }}
+      onAnimationStart={() => setMoving(true)}
+      onAnimationComplete={() => setMoving(false)}
+      className={cn('relative h-11 min-w-0 max-w-full shrink', moving && 'overflow-hidden')}
+    >
+      {wide ? (
+        <motion.div key="field" initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={reduce ? { duration: 0 } : { duration: 0.18, delay: 0.06 }} className="relative">{content}</motion.div>
+      ) : (
+        <div key="button" className="flex h-11 items-center">{button}</div>
+      )}
+    </motion.div>
   )
 }

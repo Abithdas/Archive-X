@@ -467,7 +467,7 @@ def clean_face_tables(db):
         db.conn.commit()
 
 
-def test_a_group_is_named_from_gallery_pictures_when_the_profile_picture_alone_would_not_match():
+def test_a_group_is_suggested_from_gallery_pictures_when_the_profile_picture_alone_would_not_match():
     from telegram_archive.engines import photo_face_clustering as pfc
     db = h.fresh_db(); clean_face_tables(db)
     ava, other = performer(db), performer(db)
@@ -475,11 +475,11 @@ def test_a_group_is_named_from_gallery_pictures_when_the_profile_picture_alone_w
     vec_row(db, ava, 1)                                              # an unlike profile picture: one reference cannot match
     vec_row(db, other, 2)
     gid = make_group(db, range(4), base=target, noise=0.02)
-    assert pfc._auto_match_people(db)["matched"] == 0                # profile picture only: no match, as before
+    assert pfc._likely_people(db)["suggested"] == 0                # profile picture only: no match, as before
     sync(db, ava, Net({f"https://x.test/{i}.jpg": jpeg((i * 30, 9, 9), noise=i) for i in range(2)}), [f"https://x.test/{i}.jpg" for i in range(2)])
     pg.index_faces(db, lambda path: [face(0, 0, 90, 90, target)])    # her gallery pictures show the same face as the group
-    assert pfc._auto_match_people(db)["matched"] == 1
-    assert db.conn.execute("SELECT performer_id FROM photo_face_groups WHERE id=?", (gid,)).fetchone()[0] == ava
+    assert pfc._likely_people(db)["suggested"] == 1
+    assert db.conn.execute("SELECT performer_id FROM photo_face_groups WHERE id=?", (gid,)).fetchone()[0] is None   # a suggestion: the group stays unnamed
 
 
 def test_two_performers_whose_references_both_match_leave_the_group_for_you_to_decide():
@@ -492,20 +492,20 @@ def test_two_performers_whose_references_both_match_leave_the_group_for_you_to_d
     for who, name in ((ava, "a"), (bea, "b")):
         sync(db, who, Net({f"https://x.test/{name}.jpg": jpeg(noise=1 if name == "a" else 2)}), [f"https://x.test/{name}.jpg"])
     pg.index_faces(db, lambda path: [face(0, 0, 90, 90, target)])    # both galleries hold a picture with this very face
-    assert pfc._auto_match_people(db)["matched"] == 0
+    assert pfc._likely_people(db)["suggested"] == 0
     assert db.conn.execute("SELECT performer_id FROM photo_face_groups WHERE id=?", (gid,)).fetchone()[0] is None
 
 
-def test_confirming_faces_teaches_the_matcher_the_next_group():
+def test_confirming_faces_teaches_the_matcher_to_suggest_the_next_group():
     from telegram_archive.engines import photo_face_clustering as pfc
     db = h.fresh_db(); clean_face_tables(db)
     ava = performer(db)
     target = unit(700)
     vec_row(db, ava, 4)                                              # profile picture unlike her real face
     gid = make_group(db, range(4), base=target, noise=0.02)
-    assert pfc._auto_match_people(db)["matched"] == 0
+    assert pfc._likely_people(db)["suggested"] == 0
     known = make_group(db, range(4), base=target, noise=0.02)        # you confirm one group of her faces ...
     with db.lock:
         db.conn.execute("UPDATE photo_face_groups SET performer_id=? WHERE id=?", (ava, known)); db.conn.commit()
-    assert pfc._auto_match_people(db)["matched"] == 1                # ... and the other group is recognised
-    assert db.conn.execute("SELECT performer_id FROM photo_face_groups WHERE id=?", (gid,)).fetchone()[0] == ava
+    assert pfc._likely_people(db)["suggested"] == 1                # ... and the other group is recognised, as a suggestion only
+    assert db.conn.execute("SELECT performer_id FROM photo_face_groups WHERE id=?", (gid,)).fetchone()[0] is None
