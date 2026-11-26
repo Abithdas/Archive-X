@@ -72,7 +72,7 @@ export function ChannelMarks() {
         </div>
       </div>
       <p className="mb-3 text-sm text-muted">Only channels in the library are shown in the app, and only those marked like the current mode ({modeLabel(q.data?.mode ?? 'sfw')}). A channel is either SFW or NSFW, never both. Choose as many as you like, then press Save.</p>
-      {q.data?.hidden ? <p className="mb-3 rounded-xl bg-surface-2 px-3 py-2 text-xs text-muted">{q.data.hidden.toLocaleString()} channel{q.data.hidden === 1 ? ' is' : 's are'} in the library as NSFW and not listed in SFW mode. Switch to NSFW to manage {q.data.hidden === 1 ? 'it' : 'them'}.</p> : null}
+      {q.data?.hidden ? <p className="mb-3 rounded-xl bg-surface-2 px-3 py-2 text-xs text-muted">{q.data.hidden.toLocaleString()} channel{q.data.hidden === 1 ? ' is' : 's are'} marked NSFW (or not sorted yet) and not listed in SFW mode. Switch to NSFW to manage {q.data.hidden === 1 ? 'it' : 'them'}.</p> : null}
       {q.isPending ? <p role="status" className="py-3 text-sm text-muted">Loading channels…</p> : q.isError ? <p role="alert" className="py-3 text-sm text-warn">Could not load the channels. Connect Telegram first, then refresh.</p> : !all.length ? <p className="py-3 text-sm text-muted">No channels to sort here. Connect Telegram to list them.</p> : (
         <>
           <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">

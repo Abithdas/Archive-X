@@ -116,13 +116,15 @@ def test_the_pin_is_optional_and_when_there_is_one_it_is_asked_for(db):
 def test_channel_marks_are_listed_unfiltered_and_can_be_changed(db):
     c, H = _client(db)
     first = c.get("/api/telegram/channel-marks").json()
-    assert sorted(m["title"] for m in first["channels"]) == ["Hidden", "Movies"] and first["hidden"] == 1   # SFW: the NSFW channel's name is not listed
+    assert sorted(m["title"] for m in first["channels"]) == ["Movies"] and first["hidden"] == 2   # SFW: no NSFW channel's name is listed, in the library or not
     assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
     marks = c.get("/api/telegram/channel-marks").json()["channels"]
     assert sorted(m["title"] for m in marks) == ["Adult", "Hidden", "Movies"]       # NSFW: management sees every channel
     r = c.post("/api/telegram/channel-marks", json={"ids": ["3"], "in_library": True, "content_rating": "sfw"}, headers=H)
     assert r.json()["changed"] == 1
     after = {m["title"]: m for m in c.get("/api/telegram/channel-marks").json()["channels"]}
+    assert c.post("/api/content-mode", json={"mode": "sfw"}, headers=H).status_code == 200
+    assert sorted(m["title"] for m in c.get("/api/telegram/channel-marks").json()["channels"]) == ["Hidden", "Movies"]   # sorted as SFW, it shows in SFW now
     assert after["Hidden"]["in_library"] == 1 and after["Hidden"]["content_rating"] == "sfw"
     assert c.post("/api/telegram/channel-marks", json={"ids": ["3"], "content_rating": "maybe"}, headers=H).status_code == 400
 

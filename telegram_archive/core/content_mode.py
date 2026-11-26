@@ -102,11 +102,12 @@ def get_mode(db) -> str:
 
 
 def hidden_channels(db) -> set[str]:
-    """In SFW: the channels that are in the library as NSFW. Management lists leave them out, because a name alone says what a channel holds."""
+    """In SFW: every channel marked NSFW, whether or not it is in the library (a channel that is not sorted yet counts as NSFW too). Management lists
+    leave them out, because a name alone says what a channel holds; they are managed from NSFW mode."""
     if get_mode(db) != "sfw":
         return set()
     with db.reading() as conn:   # plain connection: this is the one place that has to see them
-        return {str(r[0]) for r in conn.execute("SELECT telegram_id FROM channels WHERE COALESCE(in_library,1)=1 AND COALESCE(content_rating,'nsfw')='nsfw'")}
+        return {str(r[0]) for r in conn.execute("SELECT telegram_id FROM channels WHERE COALESCE(content_rating,'nsfw')='nsfw'")}
 
 
 # The adult providers (StashDB, ThePornDB) are never asked about content marked SFW, whatever the app is showing at that moment: every scan that

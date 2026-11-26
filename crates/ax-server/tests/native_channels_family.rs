@@ -187,7 +187,7 @@ fn titles(v: &serde_json::Value) -> Vec<&str> {
 }
 
 #[tokio::test]
-async fn the_management_list_hides_only_the_nsfw_library_channels_and_only_in_sfw() {
+async fn the_management_list_hides_every_nsfw_channel_and_only_in_sfw() {
     let add = |c: &Connection| {
         // title, in_library, rating: the fixture's own "Main" channel is NSFW and in the library
         for (id, title, in_lib, rating) in [(10, "Alpha films", 1, "sfw"), (11, "Zed hidden from library", 0, "nsfw"), (12, "Beta", 1, "nsfw")] {
@@ -205,8 +205,8 @@ async fn the_management_list_hides_only_the_nsfw_library_channels_and_only_in_sf
     .await;
     let r = get(d.addr, "/api/source-channels", "").await;
     assert_eq!((r.status, r.headers["x-served-by"].as_str()), (200, "rust"));
-    // SFW: the SFW channel and the NSFW one that is not in the library; the NSFW library channels (Main, Beta) are left out
-    assert_eq!(titles(&json(&r)), ["Alpha films", "Zed hidden from library"]);
+    // SFW: only the SFW channel; every NSFW one is left out, in the library (Main, Beta) or not ("Zed hidden from library")
+    assert_eq!(titles(&json(&r)), ["Alpha films"]);
     let d = door(add).await;
     let all = json(&get(d.addr, "/api/source-channels", "").await);
     assert_eq!(titles(&all), ["Alpha films", "Beta", "Main", "Zed hidden from library"], "NSFW lists every channel, by title");

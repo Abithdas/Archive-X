@@ -82,9 +82,9 @@ def register_content_routes(router: APIRouter, *, db, require_auth):
         found = await asyncio.to_thread(rows)
         for r in found:
             r["unnamed"] = str(r["title"] or "").strip().lower() in ("", "unknown channel", "unknown")
-        # In SFW the names of channels that are in the library as NSFW are not shown here either (the names alone would say what they are).
-        # Channels still outside the library stay listed so they can be sorted; the NSFW ones are managed from NSFW mode.
-        hidden = [r for r in found if mode == "sfw" and r["in_library"] and r["content_rating"] == "nsfw"]
+        # In SFW the names of channels marked NSFW are not shown here either (the names alone would say what they are), in the library or not: a channel
+        # that is not sorted yet counts as NSFW. They are managed from NSFW mode.
+        hidden = [r for r in found if mode == "sfw" and r["content_rating"] == "nsfw"]
         shown = [r for r in found if r not in hidden] if hidden else found
         return {"ok": True, "mode": mode, "channels": shown, "hidden": len(hidden)}
 

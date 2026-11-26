@@ -32,9 +32,9 @@ def _nsfw(c, H):
 
 def test_the_channel_catalogue_does_not_list_adult_channels_in_sfw(tmp_path):
     db = _db(tmp_path)
-    assert cm.hidden_channels(db) == {"-1001"}                       # in the library as NSFW; a channel still outside the library is not hidden
+    assert cm.hidden_channels(db) == {"-1001", "-1003"}              # every channel marked NSFW, in the library or not (a channel not sorted yet counts as NSFW)
     c, H = _client(db)
-    assert sorted(r["title"] for r in c.get("/api/source-channels").json()) == ["Films", "New channel"]
+    assert sorted(r["title"] for r in c.get("/api/source-channels").json()) == ["Films"]
     _nsfw(c, H)
     assert sorted(r["title"] for r in c.get("/api/source-channels").json()) == ["Films", "New channel", M + " Channel"]
     assert cm.hidden_channels(db) == set()
@@ -130,3 +130,23 @@ def test_job_text_and_transfer_console_are_blank_in_sfw(tmp_path):
     assert M not in str(c.get("/api/telegram-transfer").json())
     _nsfw(c, H)
     assert M in str(c.get("/api/status").json())
+
+
+def test_a_channel_marked_nsfw_is_listed_nowhere_in_sfw_whether_or_not_it_is_in_the_library(tmp_path):
+    """The four states a channel can be in: SFW or NSFW, in the library or not. Only the SFW ones may be named in SFW, on every list that names channels."""
+    db = Database(tmp_path / "four.db")
+    with db.lock:
+        for tid, title, in_lib, rating in (("-1007", "ZZ-SFW-IN", 1, "sfw"), ("-1008", "ZZ-NSFW-IN", 1, "nsfw"), ("-1009", "ZZ-NSFW-OUT", 0, "nsfw"), ("-1010", "ZZ-SFW-OUT", 0, "sfw")):
+            db.conn.execute("INSERT INTO channels(telegram_id,title,role,in_library,content_rating,holds,updated_at) VALUES(?,?,'available',?,?,'both','2026-01-01')", (tid, title, in_lib, rating))
+        db.conn.commit()
+    c, H = _client(db)
+
+    def named():
+        lists = {"source-channels": [r["title"] for r in c.get("/api/source-channels").json()],
+                 "channel-marks": [r["title"] for r in c.get("/api/telegram/channel-marks").json()["channels"]]}
+        return {k: sorted(t for t in v if t.startswith("ZZ-")) for k, v in lists.items()}
+    assert named() == {"source-channels": ["ZZ-SFW-IN", "ZZ-SFW-OUT"], "channel-marks": ["ZZ-SFW-IN", "ZZ-SFW-OUT"]}      # no NSFW name, not even the one outside the library
+    assert c.get("/api/telegram/channel-marks").json()["hidden"] == 2
+    _nsfw(c, H)
+    every = ["ZZ-NSFW-IN", "ZZ-NSFW-OUT", "ZZ-SFW-IN", "ZZ-SFW-OUT"]
+    assert named() == {"source-channels": every, "channel-marks": every}                                                  # NSFW mode manages them all

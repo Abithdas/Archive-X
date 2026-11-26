@@ -23,7 +23,7 @@ describe('ChannelMarks', () => {
       return new Response(JSON.stringify(init?.method === 'POST' ? { changed: 3 } : { ok: true, mode: 'sfw', channels, hidden: 2 }), { status: 200 })
     }))
     withRouter(<ChannelMarks />)
-    expect(await screen.findByText(/2 channels are in the library as NSFW and not listed in SFW mode/)).toBeInTheDocument()
+    expect(await screen.findByText(/2 channels are marked NSFW \(or not sorted yet\) and not listed in SFW mode/)).toBeInTheDocument()
     for (const i of [1, 2, 3]) fireEvent.click(screen.getByLabelText(`Select Channel ${i}`))
     fireEvent.click(screen.getByRole('button', { name: 'Mark SFW' }))
     expect(screen.getByText('3 changes not saved')).toBeInTheDocument()

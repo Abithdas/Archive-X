@@ -1033,7 +1033,7 @@ fn first_text(values: &[Option<&Value>]) -> Option<String> {
 
 impl Native {
     /// GET /api/source-channels (routes_telegram.source_channels): the saved Telegram channels for the management screens. These see every
-    /// channel (`main.`), except that in SFW the channels that are in the library as NSFW are left out, because a name says what a channel holds.
+    /// channel (`main.`), except that in SFW every channel marked NSFW is left out (in the library or not), because a name says what a channel holds.
     async fn source_channels(&self, request: &HeaderMap) -> Response<Body> {
         let read = self
             .db
@@ -1043,7 +1043,7 @@ impl Native {
                 let sfw = raw.map(|v| v.trim().to_lowercase()).as_deref() != Some("nsfw");
                 rows_with(
                     c,
-                    "SELECT * FROM main.channels WHERE NOT (?1 AND COALESCE(in_library,1)=1 AND COALESCE(content_rating,'nsfw')='nsfw') ORDER BY title",
+                    "SELECT * FROM main.channels WHERE NOT (?1 AND COALESCE(content_rating,'nsfw')='nsfw') ORDER BY title",
                     ax_db::rusqlite::params![sfw],
                 )
             })
