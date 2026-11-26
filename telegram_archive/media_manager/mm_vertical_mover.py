@@ -266,6 +266,7 @@ async def copy_media_to_destination(
     prepared_local_video=None,
     prepared_video_meta=None,
     prepared_display_name=None,
+    cover_upload=None,
 ):
     """Copy media according to destination mode.
 
@@ -303,7 +304,7 @@ async def copy_media_to_destination(
         if not cover_bytes:
             raise RuntimeError("Telegram Media Manager requires a custom cover for every destination video")
         return await send_existing_video_with_cover(
-            client, destination, message, cover_bytes, caption=caption
+            client, destination, message, cover_bytes, caption=caption, cover_upload=cover_upload
         )
 
     if not cover_bytes:
@@ -705,7 +706,21 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
 
         destination_video_message = None
         created_media = False   # set below only when this run posts the video; a resumed item (its copy already exists) used to crash on the adjacency check
+        # The contact sheet is uploaded ONCE, starting now (before the wait for the destination), and that upload is used for the video's cover and for
+        # the separate picture. It used to be uploaded twice per video. Nothing to upload when the whole pair already exists in the destination.
+        cover_upload_task = None
+        picture_name = f"{Path(prepared_display_name or safe_video_name(message)).stem}.jpg"
+        if destination_mode == "VIDEO" and cover_bytes and (not dest_video_id or not dest_thumb_id or entry.get("thumbnail_kind") not in {"playback-contact-sheet-36"}):
+            cover_upload_task = asyncio.ensure_future(preupload_cover_file(client, cover_bytes, picture_name))
+        cover_upload = None
         async with _destination_delivery_lock(destination):
+            if cover_upload_task is not None:
+                try:
+                    cover_upload = await cover_upload_task
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    cover_upload = None
             if not dest_video_id:
                 print(f"  Uploading/copying source msg={message.id} -> destination as {destination_mode}...")
                 copied = await copy_media_to_destination(
@@ -720,6 +735,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
                     prepared_local_video=prepared_local_video,
                     prepared_video_meta=prepared_video_meta,
                     prepared_display_name=prepared_display_name,
+                    cover_upload=cover_upload,
                 )
                 destination_video_message = copied if int(getattr(copied, "id", 0) or 0) > 0 else None
                 dest_video_id = int(getattr(copied, "id", copied))
@@ -743,7 +759,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
             if not dest_thumb_id:
                 print(f"  Posting 36-frame contact-sheet DOCUMENT after MEDIA msg={dest_video_id}...")
                 thumb_msg = await upload_thumbnail_bytes_document(
-                    client, destination, cover_bytes, (prepared_display_name or safe_video_name(message))
+                    client, destination, cover_bytes, (prepared_display_name or safe_video_name(message)), uploaded=cover_upload
                 )
                 dest_thumb_id = int(getattr(thumb_msg, "id", thumb_msg) or 0)
                 if not dest_thumb_id or dest_thumb_id <= int(dest_video_id):

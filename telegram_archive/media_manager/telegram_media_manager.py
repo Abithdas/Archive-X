@@ -57,7 +57,7 @@ if not telethon_lazy.available():
 
 from .. import config
 from ..core.telegram_identity import canonical_peer_id
-from ..engines.telegram_sender import send_existing_video_with_cover, send_local_video_with_cover, render_caption, settings as sender_settings, _video_fields
+from ..engines.telegram_sender import CoverReuse, preupload_cover_file, upload_was_refused, send_existing_video_with_cover, send_local_video_with_cover, render_caption, settings as sender_settings, _video_fields
 from ..metadata.pipeline import identify_video
 from ..metadata.fingerprint import oshash_from_source
 from ..core.external_tools import ffmpeg as find_app_ffmpeg, ffprobe as find_app_ffprobe

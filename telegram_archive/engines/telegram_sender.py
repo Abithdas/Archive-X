@@ -915,17 +915,48 @@ def _md5_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-async def _upload_cover_photo(client, target_entity, thumb: bytes, *, status_callback=None):
-    """Upload a thumbnail as a Telegram Photo and return InputPhoto for video_cover."""
+class CoverReuse:
+    """Whether the contact sheet is uploaded once and used for both the video's cover and the picture document.
+
+    The sheet used to be uploaded twice for every transferred video (as the cover photo, then again as the separate picture). Telegram lets one uploaded
+    file be used by several messages, but that is not something this application can check without Telegram: the first time Telegram refuses an
+    uploaded file for the second use, reuse is switched off for the rest of the process and everything goes back to uploading each time, as before."""
+    enabled = True
+
+    @classmethod
+    def reset(cls) -> None:
+        cls.enabled = True
+
+
+_REFUSED_UPLOAD_TOKENS = ("FILE_ID_INVALID", "FILE_PARTS_INVALID", "FILE_PART_", "FILE_REFERENCE", "MEDIA_INVALID", "IMAGE_PROCESS_FAILED", "ALREADY_USED")
+_REFUSED_UPLOAD_CLASSES = ("FileIdInvalidError", "FilePartsInvalidError", "FilePartInvalidError", "FilePartMissingError", "FileReferenceInvalidError",
+                           "FileReferenceExpiredError", "FileReferenceEmptyError", "MediaInvalidError", "ImageProcessFailedError")
+
+
+def upload_was_refused(exc: BaseException) -> bool:
+    """Telegram refused an uploaded file handle (so no message was created): safe to upload again. Any other error is not treated this way."""
+    if type(exc).__name__ in _REFUSED_UPLOAD_CLASSES:
+        return True
+    text = f"{type(exc).__name__} {exc}".upper().replace(" ", "_")
+    return any(token in text for token in _REFUSED_UPLOAD_TOKENS)
+
+
+async def preupload_cover_file(client, thumb: bytes, file_name: str = "cover.jpg"):
+    """Upload the contact-sheet bytes once and return the uploaded-file handle, or None when reuse is off or the upload failed (callers then upload as before)."""
+    if not CoverReuse.enabled or not thumb:
+        return None
+    try:
+        return await client.upload_file(io.BytesIO(thumb), file_name=file_name, file_size=len(thumb), part_size_kb=UPLOAD_PART_SIZE_KB)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        _swallowed_note("telegram_sender.preupload_cover_file")
+        return None
+
+
+async def _register_cover_photo(client, target_entity, uploaded, status_callback=None):
+    """Register an uploaded file as a Telegram photo and return the InputPhoto for video_cover."""
     from telethon import functions, types, utils
-    uploaded = await _await_upload_stage(
-        lambda: client.upload_file(
-            io.BytesIO(thumb), file_name="cover.jpg", file_size=len(thumb),
-            part_size_kb=UPLOAD_PART_SIZE_KB,
-        ),
-        status_callback,
-        "Uploading Telegram video cover",
-    )
     res = await _retry(lambda: _await_upload_stage(
         lambda: client(functions.messages.UploadMediaRequest(
             peer=target_entity, media=types.InputMediaUploadedPhoto(file=uploaded))),
@@ -936,6 +967,32 @@ async def _upload_cover_photo(client, target_entity, thumb: bytes, *, status_cal
     if not photo:
         raise RuntimeError("Telegram did not return an uploaded cover photo")
     return utils.get_input_photo(photo)
+
+
+async def _upload_cover_photo(client, target_entity, thumb: bytes, *, status_callback=None, uploaded=None):
+    """Upload a thumbnail as a Telegram Photo and return InputPhoto for video_cover. `uploaded` is a handle from preupload_cover_file: used when
+    given (no second upload), and if Telegram refuses it the sheet is uploaded again and reuse is switched off."""
+    if uploaded is not None:
+        try:
+            return await _register_cover_photo(client, target_entity, uploaded, status_callback)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            if not upload_was_refused(exc):
+                raise
+            from .transfer_timing import TIMER
+            CoverReuse.enabled = False
+            TIMER.reuse(False)
+            _swallowed_note("telegram_sender._upload_cover_photo")
+    uploaded = await _await_upload_stage(
+        lambda: client.upload_file(
+            io.BytesIO(thumb), file_name="cover.jpg", file_size=len(thumb),
+            part_size_kb=UPLOAD_PART_SIZE_KB,
+        ),
+        status_callback,
+        "Uploading Telegram video cover",
+    )
+    return await _register_cover_photo(client, target_entity, uploaded, status_callback)
 
 
 def _message_has_custom_cover(message) -> bool:
@@ -1444,14 +1501,14 @@ async def verify_video_cover_message(client, target_entity, message_id):
         raise RuntimeError("Telegram video exists but the custom video cover was not persisted")
     return checked
 
-async def send_existing_video_with_cover(client, target, source_message, thumb: bytes, caption: str = ""):
+async def send_existing_video_with_cover(client, target, source_message, thumb: bytes, caption: str = "", *, cover_upload=None):
     """Re-send an existing Telegram video with an explicit custom cover.
 
     The same image is later allowed to be posted separately by the caller.
     The sent message is read back and the custom video_cover is required.
     """
     target_entity = await client.get_input_entity(target)
-    return await _send_existing_video_with_cover(client, target_entity, source_message, thumb, caption)
+    return await _send_existing_video_with_cover(client, target_entity, source_message, thumb, caption, cover_upload=cover_upload)
 
 
 async def send_local_video_with_cover(client, target, video_path, thumb: bytes, *,
@@ -1713,12 +1770,12 @@ async def send_local_video_with_cover(client, target, video_path, thumb: bytes, 
             _swallowed_note("telegram_sender.send_local_video_with_cover")
             pass
 
-async def _send_existing_video_with_cover(client, target_entity, source_message, thumb: bytes, caption: str):
+async def _send_existing_video_with_cover(client, target_entity, source_message, thumb: bytes, caption: str, *, cover_upload=None):
     """Send an existing Telegram video with an explicit MTProto video cover."""
     from telethon import types, utils
     if not getattr(source_message, "document", None):
         raise RuntimeError("Source message has no Telegram document")
-    cover = await _upload_cover_photo(client, target_entity, thumb)
+    cover = await _upload_cover_photo(client, target_entity, thumb, uploaded=cover_upload)
     media = types.InputMediaDocument(
         id=utils.get_input_document(source_message.document),
         video_cover=cover,

@@ -28,8 +28,8 @@ def test_the_copy_uses_the_telegram_side_media_not_an_upload_of_the_video(world)
     client, _, state = world
     msg = client.add_source_video("scene one.mp4")
     t.run(t.move_one(client, msg, state))
-    assert [c[2] for c in client.calls("send_file")] == ["media", "bytes"]      # the video by reference, the picture as an upload
-    assert [c[0] for c in client.log if c[0] in ("upload_file", "upload_media")] == ["upload_file", "upload_media", "upload_file"]   # the cover, registered; then the picture
+    assert [c[2] for c in client.calls("send_file")] == ["media", "uploaded"]   # the video by reference, the picture from the sheet that was already uploaded
+    assert [c[0] for c in client.log if c[0] in ("upload_file", "upload_media")] == ["upload_file", "upload_media"]   # the contact sheet is uploaded once, registered as the cover
 
 
 def test_a_destination_without_the_picture_keeps_the_source(world):

@@ -64,6 +64,15 @@ class TransferTimer:
         self.flood_seconds = 0.0
         self.batches = 0
         self.batch_items = 0
+        self.reuse_ok = 0
+        self.reuse_refused = 0
+
+    def reuse(self, ok: bool) -> None:
+        """The contact sheet was uploaded once and used for both its messages (ok), or Telegram refused the second use and it was uploaded again."""
+        if ok:
+            self.reuse_ok += 1
+        else:
+            self.reuse_refused += 1
 
     def flood(self, seconds: float) -> None:
         """Telegram asked to wait `seconds` before the next call."""
@@ -92,6 +101,7 @@ class TransferTimer:
                       for k in sorted(self.totals, key=lambda k: -self.totals[k])},
             "flood_waits": self.flood_count, "flood_wait_seconds": round(self.flood_seconds, 1),
             "batches": self.batches, "average_batch": round(self.batch_items / self.batches, 1) if self.batches else 0.0,
+            "sheet_uploaded_once": self.reuse_ok, "sheet_upload_refused": self.reuse_refused,
         }
 
     def text(self) -> str:
@@ -100,6 +110,8 @@ class TransferTimer:
             return "no video finished yet"
         steps = " · ".join(f"{LABELS.get(k, k)} {v['average_seconds']:.1f} s ({v['share_percent']:.0f}%)" for k, v in s["steps"].items() if v["average_seconds"] >= 0.05)
         line = f"{s['videos']} video(s), {s['average_seconds']:.1f} s each on average: {steps}"
+        if s["sheet_uploaded_once"] or s["sheet_upload_refused"]:
+            line += f"; contact sheet uploaded once for {s['sheet_uploaded_once']} video(s)" + (f", Telegram refused the shared upload {s['sheet_upload_refused']} time(s) (back to two uploads)" if s["sheet_upload_refused"] else "")
         if s["flood_waits"]:
             line += f"; Telegram asked to slow down {s['flood_waits']} time(s), {s['flood_wait_seconds']:.0f} s in all"
         return line

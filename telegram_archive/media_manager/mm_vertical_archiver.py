@@ -200,16 +200,41 @@ def _destination_delivery_lock(destination):
     return lock
 
 
-async def upload_thumbnail_bytes_document(client, destination, thumb_bytes: bytes, video_name: str):
+async def upload_thumbnail_bytes_document(client, destination, thumb_bytes: bytes, video_name: str, *, uploaded=None):
     """Post the exact thumbnail bytes used as the video cover as a separate DOCUMENT.
 
     The thumbnail is deliberately posted after the video. Using the same bytes
     for both the native video cover and the visible follow-up message keeps the
     two representations identical.
+
+    `uploaded` is the handle of the contact sheet already uploaded for the cover: posting it needs no second upload. If Telegram refuses the
+    handle (and only then: a refusal means no message was made), the sheet is uploaded again, reuse is switched off, and the post goes on as before.
     """
     if not thumb_bytes:
         raise RuntimeError("Cannot post an empty thumbnail")
     name = f"{Path(video_name).stem}.jpg" if str(video_name).strip() else "thumbnail.jpg"
+    if uploaded is not None:
+        from telethon import types as _tl_types
+        while uploaded is not None:
+            try:
+                sent = await client.send_file(
+                    destination, uploaded, force_document=True, mime_type="image/jpeg",
+                    attributes=[_tl_types.DocumentAttributeFilename(file_name=name)],
+                )
+                _transfer_timing.TIMER.reuse(True)
+                return sent
+            except Exception as exc:
+                wait = flood_wait_seconds(exc)
+                if wait:
+                    _transfer_timing.TIMER.flood(wait)
+                    print(f"\nTelegram flood wait detected: {wait}s. Waiting {wait + 2}s...")
+                    await asyncio.sleep(wait + 2)
+                    continue
+                if not upload_was_refused(exc):
+                    raise
+                CoverReuse.enabled = False
+                _transfer_timing.TIMER.reuse(False)
+                uploaded = None
     payload = io.BytesIO(bytes(thumb_bytes))
     payload.name = name
     while True:
