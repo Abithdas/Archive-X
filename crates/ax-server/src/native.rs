@@ -1041,11 +1041,7 @@ impl Native {
                 let raw: Option<String> = c.query_row("SELECT json_extract(value,'$') FROM main.settings WHERE key='content_mode'", [], |r| r.get(0)).ok().flatten();
                 // content_mode.get_mode: trimmed, lower-cased, and anything but "nsfw" is SFW
                 let sfw = raw.map(|v| v.trim().to_lowercase()).as_deref() != Some("nsfw");
-                rows_with(
-                    c,
-                    "SELECT * FROM main.channels WHERE NOT (?1 AND COALESCE(content_rating,'nsfw')='nsfw') ORDER BY title",
-                    ax_db::rusqlite::params![sfw],
-                )
+                rows_with(c, "SELECT * FROM main.channels WHERE NOT (?1 AND COALESCE(content_rating,'nsfw')='nsfw') ORDER BY title", ax_db::rusqlite::params![sfw])
             })
             .await;
         match read {
