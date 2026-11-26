@@ -201,7 +201,7 @@ def test_the_person_can_add_a_catalogue_addon_by_its_address_and_its_lists_show_
     db = Database(tmp_path / "a.db")
     _library(db)
     c = _client(db)
-    assert c.get("/api/screen/addons").json()["items"] == [] and len(c.get("/api/screen/addons").json()["builtin"]) == 3
+    assert c.get("/api/screen/addons").json()["items"] == [] and len(c.get("/api/screen/addons").json()["builtin"]) == 4
     for bad, why in (("http://good.example/manifest.json", "https://"), ("https://127.0.0.1/manifest.json", "inside"), ("https://user:pw@good.example/manifest.json", "not an add-on address"),
                      ("https://good.example:8080/manifest.json", "ports"), ("nonsense", "https://")):
         if "127.0.0.1" in bad:
