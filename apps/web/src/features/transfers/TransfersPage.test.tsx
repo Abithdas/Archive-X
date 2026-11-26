@@ -118,6 +118,53 @@ describe('Metadata & Assets workflow', () => {
     expect(body).toMatchObject({ channel_ids: ['-1001'], stages: ['inventory', 'metadata', 'performers', 'channel_data', 'snapshots'], unbounded: true, force_metadata: false })
     expect(await screen.findByText(/queued as job job9: Inventory → Metadata & Entity Data → Build snapshots/)).toBeInTheDocument()
   })
+  describe('the optional visual match (pHash)', () => {
+    const toStages = async () => {
+      fireEvent.click(await screen.findByRole('checkbox', { name: /Main Archive/ }))
+      fireEvent.click(screen.getByRole('button', { name: /Next: Processing Stages/ }))
+    }
+    const run = async (calls: Array<{ url: string; body: unknown }>) => {
+      fireEvent.click(screen.getByRole('button', { name: /Next: Review/ }))
+      fireEvent.click(screen.getByRole('button', { name: /Next: Run/ }))
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await waitFor(() => expect(calls.some((c) => c.url === '/api/metadata-assets/process-channel')).toBe(true))
+      return calls.find((c) => c.url === '/api/metadata-assets/process-channel')!.body as Record<string, unknown>
+    }
+    const handler: Handler = (url) => (url.endsWith('/preflight') ? json({ ok: true, ready: true }) : url.endsWith('/process-channel') ? json({ ok: true, id: 'job9' }) : undefined)
+
+    it('is on by default and a scan asks for it', async () => {
+      const calls = mount(handler)
+      await toStages()
+      expect(screen.getByRole('checkbox', { name: /Visual match \(pHash\)/ })).toBeChecked()
+      expect((await run(calls)).visual_match).toBe(true)
+    })
+
+    it('can be switched off, and then the scan says so', async () => {
+      const calls = mount(handler)
+      await toStages()
+      fireEvent.click(screen.getByRole('checkbox', { name: /Visual match \(pHash\)/ }))
+      expect(screen.getByRole('checkbox', { name: /Visual match \(pHash\)/ })).not.toBeChecked()
+      expect((await run(calls)).visual_match).toBe(false)
+    })
+
+    it('is shown as off and cannot be chosen without the metadata stage it belongs to', async () => {
+      mount(handler)
+      await toStages()
+      fireEvent.click(screen.getByRole('checkbox', { name: /^Metadata & Entity Data/ }))
+      const box = screen.getByRole('checkbox', { name: /Visual match \(pHash\)/ })
+      expect(box).toBeDisabled()
+      expect(box).not.toBeChecked()
+    })
+
+    it('is part of the review before the run', async () => {
+      mount(handler)
+      await toStages()
+      fireEvent.click(screen.getByRole('checkbox', { name: /Visual match \(pHash\)/ }))
+      fireEvent.click(screen.getByRole('button', { name: /Next: Review/ }))
+      const row = screen.getByText('Visual match (pHash)').closest('div')!
+      expect(within(row).getByText('No')).toBeInTheDocument()
+    })
+  })
   it('offers to add required stages when preflight says they are missing', async () => {
     const calls = mount((url) => (url.endsWith('/preflight') ? json({ ok: true, ready: false, required_stages: ['inventory'], missing_by_channel: [{ channel_id: '-1001', missing: ['inventory'] }] }) : url.endsWith('/process-channel') ? json({ ok: true }) : undefined))
     await toRun()

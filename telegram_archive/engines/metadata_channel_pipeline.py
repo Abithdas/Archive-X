@@ -1236,6 +1236,7 @@ def _phase_detail(phase: str, channel_id: str, videos: list[dict[str, Any]], pay
             "limit": len(videos) if not payload.get("unbounded") else 0,
             "unbounded": bool(payload.get("unbounded")),
             "force": bool(payload.get("force_metadata", False)),
+            "visual_match": bool(payload.get("visual_match", True)),
             "source_channels": [channel_id],
             "reconcile_filename_entities": False,
         }
@@ -1947,7 +1948,7 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
     # that the snapshots are guaranteed to be available. Only rows lacking a
     # saved video PHASH are selected, making this a one-time scan repair rather
     # than a repeated provider retry loop.
-    if snapshot_task is not None and "metadata" in selected and videos:
+    if snapshot_task is not None and "metadata" in selected and videos and bool(payload.get("visual_match", True)):   # the visual scan is optional
         try:
             from ..engines.preview_prefetch import preview_frames_path
             from ..metadata.pipeline import identify_video
@@ -2107,7 +2108,7 @@ def _verify_phases(entry: dict[str, Any], selected: list[str], readiness: dict[s
 # ==============================================================================
 
 async def run_local_media(ctx, media_items: list[dict[str, Any]], *, force_metadata: bool = False, force_entity: bool = False,
-                           parent_job_id: str = "", parent_automation_item: str = "") -> dict[str, Any]:
+                           parent_job_id: str = "", parent_automation_item: str = "", visual_match: bool = True) -> dict[str, Any]:
     """Run the same five Metadata & Assets phases for local media.
 
     Content Automation uses this canonical pipeline after a torrent file is
@@ -2265,7 +2266,7 @@ async def run_local_media(ctx, media_items: list[dict[str, Any]], *, force_metad
                         result = await ctx.cancellable(lambda v=video, channel=media_channel: identify_video(
                             ctx.db, channel_id=channel, message_id=int(v["message_id"]),
                             filename=v["filename"], oshash=v["oshash"], force=bool(force_metadata),
-                            preflight_result=v.get("identity_preflight"), visual_scan=True,
+                            preflight_result=v.get("identity_preflight"), visual_scan=bool(visual_match),
                         ))
                         action = str(result.get("action") or "no_match")
                         # identify_video reports successful catalogue updates as "applied"
@@ -2402,6 +2403,7 @@ async def _run_metadata_assets(ctx):
             media_items,
             force_metadata=bool(payload.get("force_metadata")),
             force_entity=bool(payload.get("force_entity")),
+            visual_match=bool(payload.get("visual_match", True)),
             parent_job_id=str(payload.get("parent_job_id") or ""),
             parent_automation_item=str(payload.get("parent_automation_item") or ""),
         )

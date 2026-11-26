@@ -2,6 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+
+- The visual match (pHash) of the metadata scan is now optional. The Metadata tab of Transfers has a "Visual match (pHash)" check box with the processing stages (on by default, so results do not change; it applies with Metadata & Entity Data and is shown in the review before the run). Switched off, the scan matches by file name and file hash only, and skips computing the video's picture fingerprint, the provider lookups by fingerprint, the provider pictures it fetches for comparison, and the extra pass that runs after the snapshots are made. The choice is saved in the job (`visual_match`) and honoured by the metadata step, the pass after the snapshots and the local-media path; a job saved before this change behaves as before.
+
 ## 30.12.2 (2026-11-26)
 
 - The database no longer only grows. A file never shrinks by itself: deleting a channel or rebuilding previews only marks space free inside it (measured: 837 MB on disk for 520 MB of content after half the previews were deleted). New databases are now made with incremental vacuum; an existing small one (under 256 MB) is switched at the start by one quick VACUUM (0.6 s for 80 MB, once); a larger one is switched from Settings → Storage → Database → Compact database, which also removes the space wasted inside half-empty pages (it shows the size, the unused space and the last times, asks first, needs free disk space about the size of the file, and refuses while a job runs).

@@ -175,6 +175,7 @@ def register_metadata_assets_routes(
             "unbounded": unbounded,
             "force_metadata": bool(data.get("force_metadata", False)),
             "force_entity": bool(data.get("force_entity", False)),
+            "visual_match": bool(data.get("visual_match", True)),   # the optional pHash scan: off skips the visual fingerprint and its provider lookups
             "full_inventory": full_inventory,
             "reconcile_uploaded_captions": reconcile_uploaded_captions,
             "pending_only": False,
@@ -260,6 +261,7 @@ def register_metadata_assets_routes(
             "unbounded": unbounded,
             "force_metadata": bool(data.get("force_metadata", False)),
             "force_entity": bool(data.get("force_entity", False)),
+            "visual_match": bool(data.get("visual_match", True)),   # the optional pHash scan: off skips the visual fingerprint and its provider lookups
             "pending_only": True,
             "snapshot_audit": snapshot_audit,
             "full_inventory": False,
@@ -336,6 +338,7 @@ def register_metadata_assets_routes(
                 "limit": max(25, min(5000, int(data.get("metadata_limit", 50)))),
                 "unbounded": bool(data.get("metadata_unbounded", False)),
                 "force": bool(data.get("metadata_force", False)),
+                "visual_match": bool(data.get("visual_match", True)),
                 "source_channels": [str(x) for x in (data.get("metadata_channels") or []) if str(x).strip()],
             }
             if not job_details["metadata"]["source_channels"]:

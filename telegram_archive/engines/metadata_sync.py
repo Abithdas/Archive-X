@@ -160,6 +160,7 @@ async def run(ctx):
     except Exception:
         _detail = {}
     reconcile_filename_entities = bool(_detail.get("reconcile_filename_entities", True))
+    visual_match = bool(_detail.get("visual_match", True))   # the optional pHash scan (off: filename and file-hash matching only)
     key_ready = bool(ctx.db.setting("stashdb_api_key") or ctx.db.setting("tpdb_api_token") or ctx.db.setting("tpdb_token"))
 
     # Already-VERIFIED/MATCHED videos are the whole point of the reference
@@ -386,7 +387,7 @@ async def run(ctx):
                 result = await ctx.cancellable(lambda: identify_video(
                     ctx.db, channel_id=channel_id, message_id=message_id,
                     filename=filename, oshash=oshash, force=force,
-                    reconcile_filename_entities=False, visual_scan=True,
+                    reconcile_filename_entities=False, visual_scan=visual_match,
                 ), timeout=PROVIDER_OPERATION_TIMEOUT_SECONDS, activity=True)
                 action = result.get("action")
                 _activity(ctx, f"Scene identification completed for {filename}: {action or 'no_match'}",
@@ -463,7 +464,7 @@ async def run(ctx):
                 try:
                     result = await ctx.cancellable(lambda: identify_video(
                         ctx.db, channel_id=info["channel"], message_id=info["message"], filename=info["filename"], oshash=info["oshash"] or None,
-                        force=force, reconcile_filename_entities=False, visual_scan=True,
+                        force=force, reconcile_filename_entities=False, visual_scan=visual_match,
                     ), timeout=PROVIDER_OPERATION_TIMEOUT_SECONDS, activity=True)
                 except (JobCancelled, asyncio.CancelledError):
                     raise

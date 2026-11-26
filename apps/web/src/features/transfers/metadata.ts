@@ -14,8 +14,10 @@ export interface RunOptions {
   imageScan: boolean
   photoReconcile: boolean
   fullInventory: boolean
+  /** The optional pHash scan: compare each video's stored snapshots with provider pictures by a picture fingerprint. On unless switched off. */
+  visualMatch: boolean
 }
-export const DEFAULT_OPTIONS: RunOptions = { inventory: true, entities: true, snapshots: true, scope: 'all', forceMetadata: false, forceEntity: false, fullInventory: false, imageScan: false, photoReconcile: false }
+export const DEFAULT_OPTIONS: RunOptions = { inventory: true, entities: true, snapshots: true, scope: 'all', forceMetadata: false, forceEntity: false, fullInventory: false, imageScan: false, photoReconcile: false, visualMatch: true }
 
 /** The three visible stage switches → concrete stage ids (entity data always runs as one pipeline). */
 export function selectedStages(o: RunOptions, forPending = false): Stage[] {
@@ -40,9 +42,9 @@ export function scopeBody(o: RunOptions): { limit: number; unbounded: boolean } 
 }
 /** Full run. Full inventory also reconciles delivered-post captions, as in the classic UI. */
 export function processBody(channels: string[], stages: Stage[], o: RunOptions, autoAdded: Record<string, string[]> = {}) {
-  return { channel_ids: channels, stages, ...scopeBody(o), force_metadata: o.forceMetadata, force_entity: o.forceEntity, full_inventory: o.fullInventory, reconcile_uploaded_captions: o.fullInventory, auto_added_prerequisites: autoAdded }
+  return { channel_ids: channels, stages, ...scopeBody(o), force_metadata: o.forceMetadata, force_entity: o.forceEntity, visual_match: o.visualMatch, full_inventory: o.fullInventory, reconcile_uploaded_captions: o.fullInventory, auto_added_prerequisites: autoAdded }
 }
-export const pendingBody = (channels: string[], o: RunOptions) => ({ channel_ids: channels, stages: selectedStages(o, true), ...scopeBody(o), force_metadata: o.forceMetadata, force_entity: o.forceEntity })
+export const pendingBody = (channels: string[], o: RunOptions) => ({ channel_ids: channels, stages: selectedStages(o, true), ...scopeBody(o), force_metadata: o.forceMetadata, force_entity: o.forceEntity, visual_match: o.visualMatch })
 
 export interface Preflight { ok?: boolean; ready?: boolean; detail?: string; required_stages?: Stage[]; missing_by_channel?: Array<{ channel_id: string | number; missing?: Stage[] }> }
 /** What the preflight asks to add before the run: stages to add, and which channels lacked which stage. */
