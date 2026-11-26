@@ -103,7 +103,8 @@ def get_json(url: str):
 # ---- streams: what an add-on's stream answer may do here -------------------------------------------------------------------------------------------
 # A stream is a link opened elsewhere (a YouTube id, an external page: the browser goes there, nothing is played here), or a direct video link. A direct
 # link is played inside the app only from the person's own sources (this PC or network, with the switch in Settings, Addons) or from a public HTTPS
-# host whose DNS answers contain only public IP addresses; other direct links are listed and not played. Torrents and the like (`infoHash`) are never handled.
+# host whose DNS answers contain only public IP addresses; other direct links are listed and not played. A torrent (`infoHash`) is played only through the
+# person's own Stremio streaming server (streaming_server.py), when one is set up; Archive X has no torrent code of its own.
 def _is_public_host(host: str) -> bool:
     """A host reachable only at public IP addresses, as required for an external direct stream."""
     host = (host or "").strip().lower().strip("[]").rstrip(".")
@@ -189,13 +190,38 @@ def subtitle_text(url: str) -> str:
         return raw.decode("latin-1")
 
 
+_SIZE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(TB|GB|MB|KB)\b", re.I)
+_UNIT = {"KB": 1024, "MB": 1024 ** 2, "GB": 1024 ** 3, "TB": 1024 ** 4}
+
+
+def stream_facts(st: dict) -> dict:
+    """What a stream's own text says about it, as Torrentio and its relatives write it ("👤 12 💾 1.4 GB ⚙️ SomeSite"): seeds, size, where it is from, and whether a
+    debrid service already has it ("[RD+]"). Only the keys that are found are returned."""
+    text = " ".join(str(st.get(k) or "") for k in ("name", "title", "description"))
+    out: dict = {}
+    m = re.search(r"👤\s*(\d{1,7})", text)
+    if m:
+        out["seeders"] = int(m.group(1))
+    m = _SIZE.search(text)
+    if m:
+        out["size"] = int(float(m.group(1).replace(",", ".")) * _UNIT[m.group(2).upper()])
+    m = re.search(r"⚙️?\s*([^\n👤💾]{1,40})", text)
+    if m and m.group(1).strip():
+        out["provider"] = m.group(1).strip()
+    if re.search(r"\[[A-Za-z]{1,3}\+\]", text):
+        out["cached"] = True
+    return out
+
+
 def classify_streams(streams, addon: str) -> tuple[list[dict], int]:
     """An add-on's streams as the title page shows them: links that open elsewhere, direct streams that play here, direct streams that do not. Anything else is counted and left out."""
+    from . import streaming_server       # (it uses this module's address checks, so it is read when needed)
     out: list[dict] = []
     skipped = 0
     for st in streams if isinstance(streams, list) else []:
         if not isinstance(st, dict):
             continue
+        made = len(out)
         name = " · ".join(x for x in (str(st.get("name") or "").strip(), str(st.get("title") or st.get("description") or "").strip()) if x).replace("\n", " ")[:220] or addon
         yt = str(st.get("ytId") or "")
         ext = str(st.get("externalUrl") or "")
@@ -210,8 +236,15 @@ def classify_streams(streams, addon: str) -> tuple[list[dict], int]:
             binge = str(hints.get("bingeGroup") or "")[:80]     # streams with the same label are "the same kind": the next episode starts with the one that matches
             out.append({"addon": addon, "name": name, "kind": "play" if origin else "blocked", "url": url if origin else "", "host": (urllib.parse.urlsplit(url).hostname or "")[:80],
                         **({"bingeGroup": binge} if binge else {})})
+        elif streaming_server.info_hash_of(st.get("infoHash")):
+            hints = st.get("behaviorHints") if isinstance(st.get("behaviorHints"), dict) else {}
+            binge = str(hints.get("bingeGroup") or "")[:80]
+            out.append({"addon": addon, "name": name, "kind": "torrent", "infoHash": streaming_server.info_hash_of(st.get("infoHash")), "fileIdx": st.get("fileIdx"),
+                        "trackers": streaming_server.trackers_of(st.get("sources")), **({"bingeGroup": binge} if binge else {})})
         else:
             skipped += 1
+        if len(out) > made:
+            out[-1].update(stream_facts(st))
     return out[:60], skipped
 
 
@@ -245,7 +278,7 @@ def parse_manifest(manifest) -> dict:
     if searches:
         notes.append("What you type in Discover's search box is also searched in " + ("its lists." if len(searches) > 1 else "its list."))
     if "stream" in resources:
-        notes.append("Title pages ask for streams. Only direct streams from your own sources or public HTTPS hosts are played here.")
+        notes.append("Title pages ask for streams. Direct streams from your own sources or public HTTPS hosts play here, and torrents play through Stremio's streaming server (set it up below).")
     if "subtitles" in resources:
         notes.append("Its subtitles are offered in the video player's subtitle menu for titles that have an IMDb number.")
     return {"name": str(manifest.get("name") or "Add-on")[:60], "description": str(manifest.get("description") or "")[:240], "version": str(manifest.get("version") or "")[:20],

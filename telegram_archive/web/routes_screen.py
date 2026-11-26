@@ -335,7 +335,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     # Add-ons the person adds (Settings, Addons): extra Stremio catalogue add-ons whose lists show in Discover.
     # ------------------------------------------------------------------
     import hashlib as _hashlib
-    from ..metadata import addon_client as ac
+    from ..metadata import addon_client as ac, streaming_server as ss
     MAX_ADDONS = 12
     from ..core import content_mode as _cm_addons
 
@@ -409,6 +409,18 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             return not prefixes or any(ident.startswith(str(x)) for x in prefixes)
         return False
 
+    server_seen: dict[str, tuple[float, bool]] = {}
+
+    def _server_up(base: str, fresh: bool = False) -> bool:
+        """Is the streaming server answering? Asked at most every 15 seconds (the title page asks for streams often)."""
+        now = _time.monotonic()
+        hit = server_seen.get(base)
+        if hit and not fresh and now - hit[0] < 15:
+            return hit[1]
+        up = ss.reachable(base)
+        server_seen[base] = (now, up)
+        return up
+
     def _stream_token(url: str) -> str:
         now = _time.monotonic()
         for k in [k for k, (at, _u) in stream_tokens.items() if now - at > 7200]:
@@ -422,7 +434,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     @router.get("/api/screen/streams/{kind}/{ident}")
     async def title_streams(kind: str, ident: str, request: Request, season: int | None = None, episode: int | None = None):
         """What the person's add-ons offer for a title: links that open elsewhere (a YouTube id, an external page), and direct streams. A direct stream plays here only from their own
-        sources or a public HTTPS host; any other is listed as not played. Torrents are never handled. Only add-ons that answer for streams are asked."""
+        sources or a public HTTPS host; any other is listed as not played. A torrent plays through the person's Stremio streaming server (Settings, Addons) when it is running. Only add-ons that answer for streams are asked."""
         require_auth(request)
         _sfw_only()
         if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident):
@@ -450,11 +462,21 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 asked.append(name)
                 skipped += skip
                 items.extend(found)
+            server = ss.configured(db)
             for it in items:
+                if it["kind"] == "torrent":
+                    # a torrent plays through the person's own Stremio streaming server, when it is there; without it the stream is listed and says what is missing
+                    hash_, idx, trackers = it.pop("infoHash", ""), it.pop("fileIdx", None), it.pop("trackers", [])
+                    it["torrent"] = True
+                    if _server_up(server):
+                        it["kind"], it["url"] = "play", ss.torrent_url(server, hash_, idx, trackers)
+                    else:
+                        it["kind"], it["url"], it["host"] = "blocked", "", "streaming server"
                 url = it.pop("url", "")
                 if it["kind"] == "play" and url:
                     it["play"] = f"/api/screen/stream/{_stream_token(url)}"
-            return {"ok": True, "items": items[:80], "skipped": skipped, "addons": asked}
+            return {"ok": True, "items": items[:80], "skipped": skipped, "addons": asked, "torrents": any(i.get("torrent") for i in items),
+                    "streaming_server": {"url": server, "up": _server_up(server)} if any(i.get("torrent") for i in items) else None}
         return await asyncio.to_thread(work)
 
     @router.get("/api/screen/stream/{token}")
@@ -466,8 +488,12 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             raise HTTPException(404, "That stream is no longer available. Open the title's page again.")
         url = hit[1]
 
+        server = ss.configured(db)
+
         def opened():
             _sync_local()
+            if ss.is_torrent_url(server, url):          # a torrent link of the streaming server: only that address, no redirects
+                return ss.open_torrent(server, url, request.headers.get("range", ""))
             return ac.open_stream(url, request.headers.get("range", ""))
         try:
             resp = await asyncio.to_thread(opened)
@@ -607,6 +633,29 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         except Exception as exc:
             raise HTTPException(502, "The subtitle could not be fetched.") from exc
         return Response(content=text, media_type="text/vtt; charset=utf-8", headers={"Cache-Control": "no-store"})
+
+    @router.get("/api/screen/streaming-server")
+    async def streaming_server_status(request: Request):
+        """The streaming server that plays torrents: its address (the usual one until another is saved) and whether it is answering."""
+        require_auth(request)
+        _sfw_only()
+        base = ss.configured(db)
+        return {"url": base, "default": ss.DEFAULT, "saved": bool(str(db.setting(ss.SETTING) or "").strip()), "up": await asyncio.to_thread(_server_up, base, True)}
+
+    @router.post("/api/screen/streaming-server")
+    async def streaming_server_save(request: Request):
+        """Save the streaming server's address (empty: back to the usual one). It may only be on this PC or the person's network."""
+        require_auth(request)
+        _sfw_only()
+        body = await request.json()
+        text = str((body or {}).get("url") or "").strip()
+        try:
+            base = ss.clean_url(text) if text else ""
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        await asyncio.to_thread(db.set_setting, ss.SETTING, base)
+        shown = base or ss.DEFAULT
+        return {"url": shown, "default": ss.DEFAULT, "saved": bool(base), "up": await asyncio.to_thread(_server_up, shown, True)}
 
     @router.post("/api/screen/addons/settings")
     async def addons_settings(request: Request):

@@ -104,4 +104,53 @@ describe('Settings, Addons', () => {
     expect(await screen.findByText('All built-in add-ons are removed.')).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /^Add back / })).toHaveLength(3)
   })
+
+  describe('streaming server for torrents', () => {
+    const serve = (state: { url: string; saved: boolean; up: boolean }) => {
+      const calls: Array<{ url: string; method: string; body?: string }> = []
+      vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push({ url, method: init?.method ?? 'GET', body: init?.body as string | undefined })
+        if (url === '/api/screen/streaming-server' && init?.method === 'POST') {
+          const asked = String(JSON.parse(String(init.body)).url)
+          if (asked.startsWith('https://')) return json({ detail: 'The streaming server has to be on this PC or your own network.' }, 400)
+          state = asked ? { url: asked.startsWith('http') ? asked : 'http://' + asked, saved: true, up: true } : { url: 'http://127.0.0.1:11470', saved: false, up: false }
+          return json({ ...state, default: 'http://127.0.0.1:11470' })
+        }
+        if (url === '/api/screen/streaming-server') return json({ ...state, default: 'http://127.0.0.1:11470' })
+        if (url === '/api/screen/addons') return json({ builtin: BUILTIN, removed: [], items: [] })
+        return json({})
+      }))
+      return calls
+    }
+    it('says whether the streaming server is running, and checks again on request', async () => {
+      const calls = serve({ url: 'http://127.0.0.1:11470', saved: false, up: false })
+      withRouter(<AddonsPanel />)
+      const box = await screen.findByRole('region', { name: 'Streaming server' })
+      expect(await within(box).findByText('Not found at http://127.0.0.1:11470')).toBeInTheDocument()
+      expect(within(box).queryByRole('button', { name: 'Use the usual address' })).toBeNull()
+      fireEvent.click(within(box).getByRole('button', { name: 'Check again' }))
+      await waitFor(() => expect(calls.filter((c) => c.url === '/api/screen/streaming-server' && c.method === 'GET').length).toBeGreaterThan(1))
+    })
+    it('saves an address, shows the server found there, and goes back to the usual address', async () => {
+      const calls = serve({ url: 'http://127.0.0.1:11470', saved: false, up: false })
+      withRouter(<AddonsPanel />)
+      const box = await screen.findByRole('region', { name: 'Streaming server' })
+      await within(box).findByText(/Not found at/)
+      fireEvent.change(within(box).getByLabelText(/^Address/), { target: { value: '192.168.1.20:11470' } })
+      fireEvent.click(within(box).getByRole('button', { name: 'Save' }))
+      expect(await within(box).findByText('Running at http://192.168.1.20:11470')).toBeInTheDocument()
+      expect(calls.some((c) => c.method === 'POST' && c.body === JSON.stringify({ url: '192.168.1.20:11470' }))).toBe(true)
+      fireEvent.click(within(box).getByRole('button', { name: 'Use the usual address' }))
+      expect(await within(box).findByText('Not found at http://127.0.0.1:11470')).toBeInTheDocument()
+    })
+    it('shows the server\'s own reason when an address is refused', async () => {
+      serve({ url: 'http://127.0.0.1:11470', saved: false, up: true })
+      withRouter(<AddonsPanel />)
+      const box = await screen.findByRole('region', { name: 'Streaming server' })
+      await within(box).findByText('Running at http://127.0.0.1:11470')
+      fireEvent.change(within(box).getByLabelText(/^Address/), { target: { value: 'https://example.com' } })
+      fireEvent.click(within(box).getByRole('button', { name: 'Save' }))
+      expect(await within(box).findByText('The streaming server has to be on this PC or your own network.')).toBeInTheDocument()
+    })
+  })
 })

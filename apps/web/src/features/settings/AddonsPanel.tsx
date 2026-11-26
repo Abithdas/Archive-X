@@ -14,17 +14,27 @@ export interface AddonsView { builtin: BuiltinAddon[]; removed?: BuiltinAddon[];
 
 const BOX = 'rounded-[18px] border border-line bg-surface p-5'
 export const addonsKey = ['screen-addons'] as const
+export interface StreamingServer { url: string; default: string; saved: boolean; up: boolean }
+export const serverKey = ['screen-streaming-server'] as const
 export const useAddons = (enabled = true) => useQuery({ queryKey: addonsKey, queryFn: () => api<AddonsView>('/api/screen/addons'), staleTime: 60_000, enabled })
 
 /**
  * Settings, Addons: the catalogue add-ons Discover uses. Three come with the app (they can be removed too, and added back); more can be added by pasting an add-on's address (a link ending in
- * manifest.json, or a stremio:// link). Only the add-on's lists of movies and series are read; it is asked which list you open, nothing else.
+ * manifest.json, or a stremio:// link). Lists of movies and series fill Discover; a title's page also asks for streams, subtitles and details.
  */
 export function AddonsPanel() {
   const qc = useQueryClient()
   const view = useAddons()
   const [url, setUrl] = useState('')
   const [asking, setAsking] = useState<{ id: string; name: string; builtin: boolean } | null>(null)
+  const server = useQuery({ queryKey: serverKey, queryFn: () => api<StreamingServer>('/api/screen/streaming-server'), staleTime: 15_000, retry: false })
+  const [addr, setAddr] = useState('')
+  const saveServer = useMutation({
+    mutationFn: (u: string) => api<StreamingServer>('/api/screen/streaming-server', { method: 'POST', json: { url: u } }),
+    onSuccess: (v) => { qc.setQueryData(serverKey, v); setAddr(''); toast(v.up ? 'Streaming server found' : 'Saved. No streaming server answers there yet.'); void qc.invalidateQueries({ queryKey: ['addon-streams'] }) },
+  })
+  const [checking, setChecking] = useState(false)
+  const checkServer = async () => { setChecking(true); try { await qc.invalidateQueries({ queryKey: serverKey }); await qc.invalidateQueries({ queryKey: ['addon-streams'] }) } finally { setChecking(false) } }
   const add = useMutation({
     mutationFn: (u: string) => api<AddonsView>('/api/screen/addons', { method: 'POST', json: { url: u } }),
     onSuccess: (v) => { qc.setQueryData(addonsKey, v); setUrl(''); toast(`Added ${v.items[v.items.length - 1]?.name ?? 'the add-on'}`) },
@@ -75,7 +85,7 @@ export function AddonsPanel() {
       </section>
       <section aria-label="Your add-ons" className={BOX}>
         <h2 className="text-lg font-bold">Your add-ons</h2>
-        <p className="mb-3 text-sm text-muted">Add any Stremio add-on by its address. Its lists of movies and series show in Discover (under Filters, List); what else it provides is named below. Streams are never asked for. What an add-on lists is its own choice: Archive X cannot check it.</p>
+        <p className="mb-3 text-sm text-muted">Add any Stremio add-on by its address. Its lists of movies and series show in Discover (under Filters, List); what else it provides is named below. A title's page asks the add-ons that have streams for them: direct streams play here, and torrents play through Stremio's streaming server (below). What an add-on lists is its own choice: Archive X cannot check it.</p>
         {view.isError ? <p role="alert" className="mb-3 text-sm text-warn">Could not read the add-ons.</p> : null}
         {items.length ? (
           <ul className="m-0 mb-4 grid list-none gap-2 p-0">
@@ -110,6 +120,29 @@ export function AddonsPanel() {
             <button type="submit" disabled={add.isPending || !url.trim()} className="h-12 rounded-xl bg-accent px-5 text-sm font-bold text-accent-fg disabled:opacity-60">{add.isPending ? 'Checking…' : 'Add'}</button>
           </div>
           {add.isError ? <p role="alert" className="text-sm text-warn">{errorText(add.error, 'Could not add that add-on.')}</p> : null}
+        </form>
+      </section>
+      <section aria-label="Streaming server" className={BOX}>
+        <h2 className="text-lg font-bold">Streaming server for torrents</h2>
+        <p className="mb-3 text-sm text-muted">Torrent streams (Torrentio and similar add-ons) are played by Stremio's streaming server, the small program Stremio itself uses. Start Stremio, or its streaming service, on this PC (or on a computer in your network) and Archive X plays torrents through it. Archive X has no torrent code of its own.</p>
+        {server.data ? (
+          <p role="status" className={'mb-3 flex items-center gap-2 text-sm font-semibold ' + (server.data.up ? 'text-good' : 'text-warn')}>
+            <span aria-hidden="true" className={'size-2 rounded-full ' + (server.data.up ? 'bg-good' : 'bg-warn')} />
+            {server.data.up ? `Running at ${server.data.url}` : `Not found at ${server.data.url}`}
+          </p>
+        ) : server.isError ? <p role="alert" className="mb-3 text-sm text-warn">Could not check the streaming server.</p> : null}
+        <div className="mb-3 flex flex-wrap gap-2">
+          <button type="button" disabled={checking} onClick={() => void checkServer()} className="h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5 disabled:opacity-60">{checking ? 'Checking…' : 'Check again'}</button>
+          {server.data?.saved ? <button type="button" disabled={saveServer.isPending} onClick={() => saveServer.mutate('')} className="h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5 disabled:opacity-60">Use the usual address</button> : null}
+        </div>
+        <form onSubmit={(e) => { e.preventDefault(); if (addr.trim()) saveServer.mutate(addr.trim()) }} className="grid gap-2" aria-label="Streaming server address">
+          <label className="text-sm font-semibold" htmlFor="streaming-server-url">Address (usually http://127.0.0.1:11470)</label>
+          <div className="flex flex-wrap gap-2">
+            <input id="streaming-server-url" type="text" inputMode="url" value={addr} onChange={(e) => setAddr(e.target.value)} placeholder={server.data?.default ?? 'http://127.0.0.1:11470'} autoComplete="off" spellCheck={false}
+              className="h-12 min-w-0 flex-1 rounded-xl border border-line-2 bg-bg px-3.5 text-[15px] text-fg outline-none placeholder:text-faint focus:border-accent/60" />
+            <button type="submit" disabled={saveServer.isPending || !addr.trim()} className="h-12 rounded-xl bg-accent px-5 text-sm font-bold text-accent-fg disabled:opacity-60">{saveServer.isPending ? 'Saving…' : 'Save'}</button>
+          </div>
+          {saveServer.isError ? <p role="alert" className="text-sm text-warn">{errorText(saveServer.error, 'Could not save that address.')}</p> : null}
         </form>
       </section>
       {asking ? <Confirm title={`Remove ${asking.name}?`} text={asking.builtin ? 'Its lists leave Discover. You can add it back here at any time.' : 'Its lists leave Discover. You can add it again with its address.'} ok="Remove" danger busy={remove.isPending} onCancel={() => setAsking(null)} onOk={() => remove.mutate(asking.id)} /> : null}

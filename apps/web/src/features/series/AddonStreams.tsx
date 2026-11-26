@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '@/api/client'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { Icon } from '@/design/Icon'
 
 interface StreamItem {
@@ -17,8 +17,15 @@ interface StreamItem {
   hdr?: string[]
   languages?: string[]
   bingeGroup?: string
+  /** A torrent (played through the Stremio streaming server), with what the add-on's text says about it. */
+  torrent?: boolean
+  seeders?: number
+  size?: number
+  provider?: string
+  /** A debrid service already has it: it starts at once. */
+  cached?: boolean
 }
-interface Streams { ok: boolean; items: StreamItem[]; skipped: number; addons: string[] }
+interface Streams { ok: boolean; items: StreamItem[]; skipped: number; addons: string[]; torrents?: boolean; streaming_server?: { url: string; up: boolean } | null }
 type StreamSort = 'addon' | 'quality' | 'seeds' | 'largest' | 'smallest'
 type HdrFilter = 'all' | 'hdr' | 'dv' | 'none'
 
@@ -26,6 +33,34 @@ const bingeKey = (ident: string) => `archive-x:binge:${ident}`
 /** The label (Stremio's "bingeGroup") of the stream played last for this show, so the next episode offers the same kind first. */
 const lastBinge = (ident: string): string => { try { return localStorage.getItem(bingeKey(ident)) ?? '' } catch { return '' } }
 const rememberBinge = (ident: string, group: string) => { try { localStorage.setItem(bingeKey(ident), group) } catch { /* private mode */ } }
+
+const PREFS_KEY = 'archive-x:streams-prefs'
+interface Prefs { sort: StreamSort; language: string; source: string; hdr: HdrFilter; instant: boolean }
+const SORTS: readonly StreamSort[] = ['addon', 'quality', 'seeds', 'largest', 'smallest']
+const HDRS: readonly HdrFilter[] = ['all', 'hdr', 'dv', 'none']
+/** How the person last sorted and filtered streams: kept, so every title opens the way they like (quality and add-on are per title and are not). */
+export function readStreamPrefs(): Prefs {
+  const blank: Prefs = { sort: 'addon', language: '', source: '', hdr: 'all', instant: false }
+  try {
+    const v = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') as Partial<Prefs>
+    return {
+      sort: SORTS.includes(v.sort as StreamSort) ? (v.sort as StreamSort) : blank.sort,
+      language: typeof v.language === 'string' ? v.language.slice(0, 40) : '',
+      source: typeof v.source === 'string' ? v.source.slice(0, 40) : '',
+      hdr: HDRS.includes(v.hdr as HdrFilter) ? (v.hdr as HdrFilter) : 'all',
+      instant: v.instant === true,
+    }
+  } catch { return blank }
+}
+const saveStreamPrefs = (p: Prefs) => { try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)) } catch { /* private mode */ } }
+
+export function sizeText(bytes: number): string {
+  if (!(bytes > 0)) return ''
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)))
+  const v = bytes / 1024 ** i
+  return `${v >= 100 || i < 2 ? Math.round(v) : v.toFixed(1)} ${units[i]}`
+}
 
 function qualityLabel(height: number): string {
   if (height >= 2000) return '4K'
@@ -56,17 +91,20 @@ function compareKnown(a: number, b: number, descending: boolean): number {
 /**
  * What the person's add-ons offer for a title. Links open elsewhere; eligible direct streams play here.
  * Add-on, quality, language, source and HDR/DV filters narrow the streams returned for this title.
- * Torrents are never used.
+ * A torrent plays through the person's Stremio streaming server (Settings, Addons); without it the torrent is listed and says what is missing.
  */
 export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' | 'series'; ident: string; season?: number; episode?: number }) {
   const navigate = useNavigate()
   const [group, setGroup] = useState(() => (kind === 'series' ? lastBinge(ident) : ''))
   const [selectedAddon, setSelectedAddon] = useState('')
-  const [sort, setSort] = useState<StreamSort>('addon')
+  const [prefs, setPrefs] = useState<Prefs>(readStreamPrefs)
+  const { sort, language, source, hdr, instant } = prefs
+  const change = (patch: Partial<Prefs>) => setPrefs((p) => { const next = { ...p, ...patch }; saveStreamPrefs(next); return next })
+  const setSort = (v: StreamSort) => change({ sort: v })
+  const setLanguage = (v: string) => change({ language: v })
+  const setSource = (v: string) => change({ source: v })
+  const setHdr = (v: HdrFilter) => change({ hdr: v })
   const [quality, setQuality] = useState('')
-  const [language, setLanguage] = useState('')
-  const [source, setSource] = useState('')
-  const [hdr, setHdr] = useState<HdrFilter>('all')
   const open = (item: StreamItem) => {
     if (!item.play) return
     if (kind === 'series' && item.bingeGroup) { rememberBinge(ident, item.bingeGroup); setGroup(item.bingeGroup) }
@@ -77,11 +115,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
   const d = q.data
   useEffect(() => {
     setSelectedAddon('')
-    setSort('addon')
     setQuality('')
-    setLanguage('')
-    setSource('')
-    setHdr('all')
     setGroup(kind === 'series' ? lastBinge(ident) : '')
   }, [kind, ident, season, episode])
   if (!d || !Array.isArray(d.items) || !Array.isArray(d.addons) || (!d.items.length && !d.addons.length)) return null
@@ -91,8 +125,9 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
   const languageOptions = [...new Set(d.items.flatMap((item) => item.languages ?? []))].sort((a, b) => a.localeCompare(b))
   const sourceOptions = [...new Set(d.items.map((item) => item.source ?? '').filter(Boolean))].sort((a, b) => a.localeCompare(b))
   const hdrOptions = [...new Set(d.items.flatMap((item) => item.hdr ?? []))]
-  const filtered = d.items.map((item, index) => ({ item, index, seeds: seedsOf(item.name), size: sizeOf(item.name) })).filter(({ item }) =>
+  const filtered = d.items.map((item, index) => ({ item, index, seeds: item.seeders ?? seedsOf(item.name), size: item.size ?? sizeOf(item.name) })).filter(({ item }) =>
     (!selectedAddon || item.addon === selectedAddon)
+    && (!instant || item.cached)
     && (!quality || (item.height ?? 0) === Number(quality))
     && (!language || (item.languages ?? []).includes(language))
     && (!source || item.source === source)
@@ -132,6 +167,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
             {languageOptions.length > 1 ? <label><span className="sr-only">Language</span><select aria-label="Language" className={selectClass} value={language} onChange={(e) => setLanguage(e.target.value)}><option value="">Language</option>{languageOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label> : null}
             {sourceOptions.length > 1 ? <label><span className="sr-only">Source</span><select aria-label="Source" className={selectClass} value={source} onChange={(e) => setSource(e.target.value)}><option value="">Source</option>{sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label> : null}
             {hdrOptions.length ? <label><span className="sr-only">HDR / DV</span><select aria-label="HDR / DV" className={selectClass} value={hdr} onChange={(e) => setHdr(e.target.value as HdrFilter)}><option value="all">HDR / DV</option>{hdrOptions.includes('HDR') ? <option value="hdr">HDR</option> : null}{hdrOptions.includes('DV') ? <option value="dv">Dolby Vision</option> : null}<option value="none">No HDR / DV</option></select></label> : null}
+            {d.items.some((item) => item.cached) ? <button type="button" aria-pressed={instant} onClick={() => change({ instant: !instant })} className={'h-8 rounded-full border px-3 text-[11px] font-semibold transition-colors ' + (instant ? 'border-accent/60 bg-accent/15 text-fg' : 'border-line bg-surface-2 text-muted hover:text-fg')}>Instant only</button> : null}
           </div>
           {!rows.length ? <p className="m-0 rounded-xl border border-dashed border-line px-3 py-3 text-xs text-muted">Nothing matches those filters.</p> : visibleAddons.map((name) => (
             <ul key={name} aria-label={name} className="m-0 grid list-none gap-1 p-0">
@@ -147,9 +183,10 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
                         : item.kind === 'play' ? <button type="button" onClick={() => open(item)} className="line-clamp-2 block w-full break-words text-left text-[13px] font-semibold hover:underline" title={item.name}>{item.name}</button>
                         : <p className="m-0 line-clamp-2 break-words text-[13px] font-semibold text-muted" title={item.name}>{item.name}</p>}
                       <p className="m-0 mt-0.5 flex flex-wrap items-center gap-x-1 text-[10px] text-muted">
-                        {[item.addon, item.source, (item.languages ?? []).join(', ')].filter(Boolean).join(' · ')}
+                        {[item.addon, item.provider, item.source, (item.languages ?? []).join(', '), item.seeders != null ? `${item.seeders} seeds` : '', sizeText(item.size ?? 0)].filter(Boolean).join(' · ')}
+                        {item.cached ? <span className="ml-2 rounded-full bg-fg/10 px-1.5 py-px text-[10px] font-bold">Instant</span> : null}
                         {group && item.bingeGroup === group ? <span className="ml-2 rounded-full bg-accent/15 px-1.5 py-px text-[10px] font-bold text-accent">Same as last episode</span> : null}
-                        {item.kind === 'play' ? <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-accent"><Icon name="play" className="size-3" />Play</span> : item.kind === 'blocked' && item.host ? <span className="ml-2">Not played here ({item.host})</span> : null}
+                        {item.kind === 'play' ? <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-accent"><Icon name="play" className="size-3" />Play</span> : item.kind === 'blocked' && item.torrent ? <span className="ml-2">A torrent: it needs Stremio's streaming server, which is not running{d.streaming_server ? ` at ${d.streaming_server.url}` : ''}. <Link to="/settings" onClick={() => { try { localStorage.setItem('ax_next_settings_panel', 'addons') } catch { /* private mode */ } }} className="font-semibold text-accent underline">Set it up</Link></span> : item.kind === 'blocked' && item.host ? <span className="ml-2">Not played here ({item.host})</span> : null}
                       </p>
                     </div>
                   </div>

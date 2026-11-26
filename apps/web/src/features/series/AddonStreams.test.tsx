@@ -1,7 +1,7 @@
 import { fireEvent, screen, within } from '@testing-library/react'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
-import { AddonExtras, AddonStreams } from './AddonStreams'
+import { AddonExtras, AddonStreams, readStreamPrefs, sizeText } from './AddonStreams'
 
 beforeAll(() => { HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }; HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') } })
 afterEach(() => vi.unstubAllGlobals())
@@ -40,6 +40,77 @@ describe('streams from the add-ons on a title page', () => {
     const { container } = withRouter(<AddonStreams kind="series" ident="tt0903747" season={1} episode={2} />)
     await vi.waitFor(() => expect(urls).toEqual(['/api/screen/streams/series/tt0903747?season=1&episode=2']))
     expect(container.querySelector('[aria-label="From your add-ons"]')).toBeNull()
+  })
+})
+
+const TORRENTS = { ok: true, skipped: 0, addons: ['Torrentio'], torrents: true, streaming_server: { url: 'http://127.0.0.1:11470', up: true }, items: [
+  { addon: 'Torrentio', name: 'Torrentio 1080p · A', kind: 'play', play: '/api/screen/stream/a', torrent: true, seeders: 5, size: 3 * 1024 ** 3, provider: 'IndexA', height: 1080 },
+  { addon: 'Torrentio', name: 'Torrentio 4k · B', kind: 'play', play: '/api/screen/stream/b', torrent: true, seeders: 90, size: 12 * 1024 ** 3, provider: 'IndexB', height: 2160, cached: true },
+  { addon: 'Torrentio', name: 'Torrentio 720p · C', kind: 'play', play: '/api/screen/stream/c', torrent: true, seeders: 40, size: 1.2 * 1024 ** 3, provider: 'IndexC', height: 720 },
+] }
+const order = () => within(screen.getByRole('list', { name: 'Torrentio' })).getAllByRole('button').map((b) => b.textContent?.slice(0, 22))
+
+describe('torrent streams', () => {
+  beforeEach(() => { localStorage.clear() })
+  it('shows seeds, size and where from, and sorts by the seeds and sizes the server read from the add-on text', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(TORRENTS)))
+    withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
+    const list = await screen.findByRole('list', { name: 'Torrentio' })
+    expect(within(list).getByText(/IndexB · 90 seeds · 12.0 GB/)).toBeInTheDocument()
+    expect(order()).toEqual(['Torrentio 1080p · A', 'Torrentio 4k · B', 'Torrentio 720p · C'])
+    fireEvent.change(screen.getByLabelText('Addon order'), { target: { value: 'seeds' } })
+    expect(order()).toEqual(['Torrentio 4k · B', 'Torrentio 720p · C', 'Torrentio 1080p · A'])
+    fireEvent.change(screen.getByLabelText('Addon order'), { target: { value: 'smallest' } })
+    expect(order()).toEqual(['Torrentio 720p · C', 'Torrentio 1080p · A', 'Torrentio 4k · B'])
+  })
+  it('has an "Instant only" filter when a debrid service already has some, and marks those', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(TORRENTS)))
+    withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
+    const list = await screen.findByRole('list', { name: 'Torrentio' })
+    expect(within(list).getByText('Instant')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Instant only' }))
+    expect(order()).toEqual(['Torrentio 4k · B'])
+    expect(screen.getByText('1 stream')).toBeInTheDocument()
+  })
+  it('does not offer "Instant only" when nothing is cached', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json({ ...TORRENTS, items: TORRENTS.items.map((i) => ({ ...i, cached: undefined })) })))
+    withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
+    await screen.findByRole('list', { name: 'Torrentio' })
+    expect(screen.queryByRole('button', { name: 'Instant only' })).toBeNull()
+  })
+  it('remembers how streams were sorted and filtered for the next title, but not the quality or the add-on', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(TORRENTS)))
+    const { unmount } = withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
+    await screen.findByRole('list', { name: 'Torrentio' })
+    fireEvent.change(screen.getByLabelText('Addon order'), { target: { value: 'seeds' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Instant only' }))
+    fireEvent.change(screen.getByLabelText('Quality'), { target: { value: '2160' } })
+    expect(readStreamPrefs()).toEqual({ sort: 'seeds', language: '', source: '', hdr: 'all', instant: true })
+    unmount()
+    withRouter(<AddonStreams kind="movie" ident="tt0133093" />)
+    await screen.findByRole('list', { name: 'Torrentio' })
+    expect(screen.getByLabelText('Addon order')).toHaveValue('seeds')
+    expect(screen.getByRole('button', { name: 'Instant only' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Quality')).toHaveValue('')
+  })
+  it('lists a torrent that cannot play yet, and says the streaming server is missing, with a link to set it up', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json({ ...TORRENTS, streaming_server: { url: 'http://127.0.0.1:11470', up: false }, items: [{ addon: 'Torrentio', name: 'Torrentio 1080p · A', kind: 'blocked', host: 'streaming server', torrent: true, seeders: 5 }] })))
+    withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
+    const list = await screen.findByRole('list', { name: 'Torrentio' })
+    expect(within(list).getByText(/it needs Stremio's streaming server, which is not running at http:\/\/127.0.0.1:11470/)).toBeInTheDocument()
+    expect(within(list).getByRole('link', { name: 'Set it up' })).toHaveAttribute('href', '/settings')
+    expect(within(list).queryByRole('button')).toBeNull()                                    // nothing to click: it cannot play
+    fireEvent.click(within(list).getByRole('link', { name: 'Set it up' }))
+    expect(localStorage.getItem('ax_next_settings_panel')).toBe('addons')
+  })
+  it('ignores broken saved choices', () => {
+    localStorage.setItem('archive-x:streams-prefs', '{"sort":"nonsense","hdr":5,"language":{"a":1},"instant":"yes"}')
+    expect(readStreamPrefs()).toEqual({ sort: 'addon', language: '', source: '', hdr: 'all', instant: false })
+    localStorage.setItem('archive-x:streams-prefs', 'not json')
+    expect(readStreamPrefs().sort).toBe('addon')
+  })
+  it('writes sizes the way people read them', () => {
+    expect([sizeText(0), sizeText(500), sizeText(1536), sizeText(3 * 1024 ** 3), sizeText(12.3 * 1024 ** 3), sizeText(1024 ** 4 * 2)]).toEqual(['', '500 B', '2 KB', '3.0 GB', '12.3 GB', '2.0 TB'])
   })
 })
 
