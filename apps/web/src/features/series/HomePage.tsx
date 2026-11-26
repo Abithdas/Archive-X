@@ -175,9 +175,7 @@ function DetailPanel({ item }: { item: Found }) {
         <Chips label="Cast" items={d.cast.slice(0, 4)} />
         <Chips label="Directors" items={d.director.slice(0, 2)} />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {lib ? <Link to={openIn(lib.kind)} params={{ id: String(lib.id) }} className="inline-flex h-11 items-center gap-2 rounded-full bg-fg px-6 text-sm font-bold text-bg transition-transform active:scale-[0.97]"><Icon name="play" className="size-4" />Open in your library</Link>
-            : <span className="inline-flex h-11 items-center rounded-full border border-line-2 px-5 text-sm text-muted">Not in your library</span>}
-          {hasPage(item) ? <Link to="/discover/$kind/$id" params={pageParams(item)} className="inline-flex h-11 items-center rounded-full border border-line-2 px-5 text-sm font-semibold transition-colors hover:bg-fg/10">Open the page</Link> : null}
+          {lib ? null : <span className="inline-flex h-11 items-center rounded-full border border-line-2 px-5 text-sm text-muted">Not in your library</span>}
           <TrailerButton id={d.trailer} title={item.title} label="Watch the trailer" className="inline-flex h-11 items-center rounded-full border border-line-2 px-5 text-sm font-semibold transition-colors hover:bg-fg/10" />
         </div>
       </div>

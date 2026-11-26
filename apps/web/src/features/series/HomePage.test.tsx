@@ -231,6 +231,23 @@ describe('SFW Home', () => {
     expect(screen.queryByText('Where to watch')).toBeNull()
     expect(urls.some((u) => u.startsWith('/api/screen/where/'))).toBe(false)
     fireEvent.focus(within(list).getByRole('link', { name: 'Open The Matrix' }))      // in the library
-    expect(await screen.findByRole('link', { name: 'Open in your library' })).toBeInTheDocument()
+    await within(await screen.findByRole('complementary', { name: 'Details' })).findByText('The Matrix')
+  })
+
+  it('has no "Open the page" or "Open in your library" button in the side panel: the poster itself opens the title', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('min-width'), addEventListener: () => undefined, removeEventListener: () => undefined }))
+    mount((u) => (u.includes('/discover/movie/tt0000002') ? json({ ...found(2, 'Dune'), runtime: '155 min', cast: [], director: [], trailer: '', seasons: 0 }) : undefined))
+    await toDiscover()
+    const list = await screen.findByRole('list', { name: 'Catalogue' })
+    for (const title of ['The Matrix', 'Dune']) {                                      // one in the library, one not
+      fireEvent.focus(within(list).getByRole('link', { name: `Open ${title}` }))
+      const panel = await screen.findByRole('complementary', { name: 'Details' })
+      await within(panel).findByRole('heading', { name: title })
+      expect(within(panel).queryByRole('link', { name: 'Open the page' })).toBeNull()
+      expect(within(panel).queryByRole('link', { name: 'Open in your library' })).toBeNull()
+      expect(within(panel).queryByRole('button', { name: /^Open/ })).toBeNull()
+    }
+    expect(within(await screen.findByRole('complementary', { name: 'Details' })).getByText('Not in your library')).toBeInTheDocument()   // Dune
+    expect(within(list).getByRole('link', { name: 'Open Dune' })).toHaveAttribute('href', expect.stringContaining('/discover/movie/'))   // the way in is the poster
   })
 })
