@@ -522,6 +522,51 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             raise HTTPException(404, "That stream is no longer available. Open the title's page again.")
         return {"url": hit[1]}
 
+    @router.get("/api/screen/person-credits/{performer_id}")
+    async def person_credits(performer_id: int, request: Request):
+        """The other movies and shows an actor of the SFW library is in (TMDB's credits for that person), most popular first, without the ones already in the library: they are listed above."""
+        require_auth(request)
+        if not _in_sfw():
+            return {"ok": True, "items": [], "reason": ""}
+
+        def work():
+            with db.reading() as c:
+                row = c.execute("SELECT name, tmdb_id, content_rating FROM performers WHERE id=?", (performer_id,)).fetchone()
+            if not row or (row["content_rating"] or "nsfw") != "sfw":
+                return {"ok": True, "items": [], "reason": ""}
+            tid = str(row["tmdb_id"] or "").strip()
+            scr = sid.make_screen(db, fetch)
+            if not scr.tmdb or not tid.isdigit():
+                return {"ok": True, "items": [], "reason": "tmdb" if not scr.tmdb else "unlinked"}
+            got = scr._t(f"/person/{int(tid)}/combined_credits")
+            rows = [r for r in (got.get("cast") or []) if r.get("media_type") in ("movie", "tv") and not (set(r.get("genre_ids") or []) & {10767, 10763})]   # no talk shows or news appearances
+            rows.sort(key=lambda r: -float(r.get("popularity") or 0))
+            seen: set[tuple] = set()
+            uniq = []
+            for r in rows:
+                key = (r["media_type"], r.get("id"))
+                if key not in seen:
+                    seen.add(key)
+                    uniq.append(r)
+            items = []
+            for media in ("movie", "tv"):
+                part = [r for r in uniq if r["media_type"] == media]
+                mine = _in_library_tmdb(media, [int(r.get("id") or 0) for r in part])
+                for r in part:
+                    if int(r.get("id") or 0) in mine:
+                        continue
+                    card = _tmdb_card(r, media, mine)
+                    card["character"] = str(r.get("character") or "")[:80]
+                    card["_pop"] = float(r.get("popularity") or 0)
+                    items.append(card)
+            items.sort(key=lambda x: -x.pop("_pop"))
+            return {"ok": True, "items": items[:30], "reason": ""}
+        try:
+            return await asyncio.to_thread(work)
+        except Exception as exc:
+            db.log(f"Credits lookup failed: {type(exc).__name__}: {exc}"[:300], "WARN")
+            return {"ok": True, "items": [], "reason": "unreachable"}
+
     @router.get("/api/screen/reviews/{kind}/{ident}")
     async def title_reviews(kind: str, ident: str, request: Request):
         """Critics' scores (Rotten Tomatoes, Metacritic) and the opening of what critics said, from Wikidata and Wikipedia: no key, only the IMDb number is sent."""

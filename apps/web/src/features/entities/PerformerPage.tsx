@@ -27,6 +27,7 @@ import { responsive } from '@/design/responsive'
 import { Empty } from '@/design/Empty'
 import { useLabels } from '@/features/content/labels'
 import { TitleCards } from '@/features/series/TitleCards'
+import { OtherCredits } from '@/features/series/OtherCredits'
 
 const GRID = 'grid gap-4'   // the library's own card size: the columns are measured (useFitGrid), not fixed
 const BIO_LIMIT = 280
@@ -126,7 +127,7 @@ export function PerformerPage({ id }: { id: number }) {
         tabs={tabsFor(labels.movies !== null).map((t) => ({ value: t.value, label: t.label, count: t.value === 'videos' ? videos.length : t.value === 'studios' ? studioCount(videos) : t.value === 'gallery' ? galleryTabCount(gallery.data) : t.value === 'suggestions' ? (suggested.data?.length ?? 0) : 0 }))} />
       {tab === 'videos' ? (
         videos.length ? <><VideosHead kind="performer" videos={videos} />{labels.movies ? <div role="tabpanel" aria-label={labels.movies ? 'Filmography' : 'Videos'}><TitleCards videos={videos} loose={(items) => <div className={GRID}>{items.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div>} /></div>   /* movies and shows: one poster for each, not one card for each episode */
-          : <div className={GRID} ref={grid.ref} style={grid.style} role="tabpanel" aria-label={labels.movies ? 'Filmography' : 'Videos'}>{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div>}<EditingBar videos={videos} /></> : <Empty role="tabpanel" aria-label={labels.movies ? 'Filmography' : 'Videos'} icon="library">No videos for this performer yet.</Empty>
+          : <div className={GRID} ref={grid.ref} style={grid.style} role="tabpanel" aria-label={labels.movies ? 'Filmography' : 'Videos'}>{videos.map((v) => <VideoCard key={`${v._cid}:${v.id}`} item={v} />)}</div>}{labels.movies ? <OtherCredits id={p.id} name={p.name} /> : null}<EditingBar videos={videos} /></> : <Empty role="tabpanel" aria-label={labels.movies ? 'Filmography' : 'Videos'} icon="library">No videos for this performer yet.</Empty>
       ) : tab === 'studios' ? (
         (() => { const items = studiosFor(videos, studios.data ?? []); return items.length ? (
           <PosterGrid label="Studios">{items.map((s) => <StudioPoster key={s.id} id={s.id} name={s.name} image={s.image} count={s.count} />)}</PosterGrid>

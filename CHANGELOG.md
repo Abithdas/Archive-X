@@ -2,6 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+
+- **An actor's page in SFW**: under Filmography the library's movies and series come first, then "More with …": the other movies and shows they are in (from TMDB, needs a TMDB key and a person linked to TMDB), each opening its Discover page. The Gallery tab is gone from SFW actors.
+
 ## 30.12.4 (2026-11-26)
 
 - **Subtitles for torrent and web streams in SFW.** Stremio's own subtitle add-on (OpenSubtitles) is now built in, so the player's subtitle menu has subtitles before any add-on is installed. It is listed in Settings, Addons and can be removed and added back like the other built-in ones.

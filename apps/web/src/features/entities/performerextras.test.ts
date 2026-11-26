@@ -26,6 +26,6 @@ describe('performer extras', () => {
 describe('tabsFor', () => {
   it('keeps every tab for adult content, and gives movies and shows a filmography without similar performers or suggestions', () => {
     expect(tabsFor(false)).toBe(PTABS)
-    expect(tabsFor(true).map((t) => [t.value, t.label])).toEqual([['videos', 'Filmography'], ['studios', 'Studios & Networks'], ['gallery', 'Gallery']])
+    expect(tabsFor(true).map((t) => [t.value, t.label])).toEqual([['videos', 'Filmography'], ['studios', 'Studios & Networks']])
   })
 })
