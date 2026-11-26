@@ -23,7 +23,7 @@ _NEEDS = ("media", "resource_state", "timeline_preview_cache", "thumbnail_cache"
 
 def _refresh(ids_sql: str) -> str:
     return (f"DELETE FROM {TABLE} WHERE media_id IN ({ids_sql}); "
-            f"INSERT OR IGNORE INTO {TABLE}(media_id) SELECT id FROM {EXACT_VIEW} WHERE id IN ({ids_sql});")
+            f"INSERT OR IGNORE INTO {TABLE}(media_id, source_channel) SELECT id, CAST(source_channel AS TEXT) FROM {EXACT_VIEW} WHERE id IN ({ids_sql});")
 
 
 def _by_key(channel: str, message: str) -> str:
@@ -76,14 +76,16 @@ def _triggers() -> list[str]:
 def rebuild(conn: sqlite3.Connection) -> int:
     """Make the table equal to the rule again; returns how many videos it holds."""
     conn.execute(f"DELETE FROM {TABLE}")
-    conn.execute(f"INSERT OR IGNORE INTO {TABLE}(media_id) SELECT id FROM {EXACT_VIEW}")
+    conn.execute(f"INSERT OR IGNORE INTO {TABLE}(media_id, source_channel) SELECT id, CAST(source_channel AS TEXT) FROM {EXACT_VIEW}")
     return int(conn.execute(f"SELECT COUNT(*) FROM {TABLE}").fetchone()[0])
 
 
 def check(conn: sqlite3.Connection) -> tuple[int, int]:
     """(videos the rule shows that the table lacks, videos the table holds that the rule does not show). Both are 0 when they agree."""
-    missing = conn.execute(f"SELECT COUNT(*) FROM {EXACT_VIEW} e WHERE NOT EXISTS (SELECT 1 FROM {TABLE} t WHERE t.media_id=e.id)").fetchone()[0]
-    extra = conn.execute(f"SELECT COUNT(*) FROM {TABLE} t WHERE NOT EXISTS (SELECT 1 FROM {EXACT_VIEW} e WHERE e.id=t.media_id)").fetchone()[0]
+    missing = conn.execute(f"SELECT COUNT(*) FROM {EXACT_VIEW} e WHERE NOT EXISTS "
+                           f"(SELECT 1 FROM {TABLE} t WHERE t.media_id=e.id AND t.source_channel=CAST(e.source_channel AS TEXT))").fetchone()[0]
+    extra = conn.execute(f"SELECT COUNT(*) FROM {TABLE} t WHERE NOT EXISTS "
+                         f"(SELECT 1 FROM {EXACT_VIEW} e WHERE e.id=t.media_id AND CAST(e.source_channel AS TEXT)=t.source_channel)").fetchone()[0]
     return int(missing), int(extra)
 
 
@@ -92,7 +94,13 @@ def install(conn: sqlite3.Connection) -> None:
     have = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     if any(t not in have for t in _NEEDS):
         return   # a database without the readiness tables has no Library to keep
-    conn.execute(f"CREATE TABLE IF NOT EXISTS {TABLE} (media_id INTEGER PRIMARY KEY)")
+    columns = {r[1] for r in conn.execute(f"PRAGMA table_info({TABLE})")}
+    if columns and "source_channel" not in columns:      # a table from before the channel was kept in it: made again and refilled below
+        conn.execute(f"DROP TABLE {TABLE}")
+        if "settings" in have:
+            conn.execute("DELETE FROM settings WHERE key=?", (MARKER,))
+    conn.execute(f"CREATE TABLE IF NOT EXISTS {TABLE} (media_id INTEGER PRIMARY KEY, source_channel TEXT NOT NULL)")
+    conn.execute(f"CREATE INDEX IF NOT EXISTS idx_ax_library_ready_channel ON {TABLE}(source_channel, media_id)")
     for sql in _triggers():
         conn.execute(sql)
     done = conn.execute("SELECT 1 FROM settings WHERE key=?", (MARKER,)).fetchone() if "settings" in have else None
@@ -100,3 +108,24 @@ def install(conn: sqlite3.Connection) -> None:
         rebuild(conn)
         if "settings" in have:
             conn.execute("INSERT OR REPLACE INTO settings(key,value) VALUES(?, '1')", (MARKER,))
+
+
+def create_view(conn: sqlite3.Connection) -> None:
+    """`archive_x_library_media`: the videos in the table, with the same columns the rule's view has.
+
+    Every video here passed the rule, so `library_ready` is 1 and `library_state` is 'Ready' without asking again, and the join on the channel
+    lets a question about some channels use the table's own index (a count over 75,000 videos reads that index, not the 175,000 videos).
+    """
+    conn.execute("DROP VIEW IF EXISTS archive_x_library_media")
+    conn.execute(f"""CREATE VIEW archive_x_library_media AS
+        SELECT m.*,
+               COALESCE(rs.catalogue_state,'PENDING') AS library_catalogue_state,
+               COALESCE(rs.metadata_state,'PENDING') AS library_metadata_state,
+               COALESCE(rs.entity_state,'PENDING') AS library_entity_state,
+               COALESCE(rs.snapshot_state,'PENDING') AS library_snapshot_state,
+               1 AS library_ready,
+               'Ready' AS library_state
+        FROM {TABLE} lr
+        JOIN media m ON m.id=lr.media_id AND m.source_channel=lr.source_channel
+        LEFT JOIN resource_state rs ON rs.media_id=m.id
+    """)

@@ -388,11 +388,7 @@ def _ensure_resource_schema(db) -> None:
         """)
         from . import library_ready
         library_ready.install(db.conn)
-        db.conn.execute("""CREATE VIEW archive_x_library_media AS
-            SELECT cm.*
-            FROM archive_x_catalogued_media cm
-            JOIN ax_library_ready lr ON lr.media_id=cm.id
-        """)
+        library_ready.create_view(db.conn)
         db.conn.commit()
     # V29.4.131: track changes to the tables created here as well.
     from . import change_tracking

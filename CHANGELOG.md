@@ -4,6 +4,9 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Faster still on a large library: the stored list of Library videos now also keeps each video's channel, so a count or a page for some channels reads that index and not every video (a Library page 0.30 s to 0.08 s, a scanned channel of 15,000 videos 0.15 s to 0.013 s, a Library search 0.68 s to 0.11 s, with 175,000 videos of which 75,000 are prepared).
+- The performers and studios lists are remembered until the data they are made from changes (videos, people, studios, channels, settings) and for at most 30 seconds; the first visit takes what it took (0.2 s and 0.4 s at 175,000 videos), the next ones about 10 ms.
+- The test of live captions waits up to 90 s for its stand-in model, as a full test run on a busy machine can take longer than 30 s.
 - The Library, channel, performer and studio pages no longer work out for every video, on every request, whether it is ready to be shown: the answer is kept in a table (`ax_library_ready`) that database triggers update when a video, its snapshots, thumbnail, representative image or split-file state changes. With 75,000 prepared videos the Library page went from 1.4 s to 0.24 s, a scanned channel from 0.15 s to 0.03 s, the performers list from 1.7 s to 0.3 s and a name search from 1.4 s to 0.26 s. The first start after the upgrade fills the table (about a second for 75,000 videos).
 - A performer's page no longer takes time in proportion to the size of the whole library: it starts from the performer's own videos (0.59 s down to 0.025 s for a performer with 59 videos in a library of 175,000).
 - A large library no longer makes the first start after an upgrade wait for the export of thumbnails and metadata to the user folders (15 s at 175,000 videos): it runs in the background, and the window opens at once.

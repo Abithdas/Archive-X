@@ -1050,4 +1050,6 @@ def register_media_routes(
         require_auth(request)
         # SQLite work (incl. the one-time backfill) runs in a worker thread so
         # the web server never freezes while it runs.
-        return await asyncio.to_thread(list_performers_sync, db, request.query_params)
+        from ..core.list_cache import cached
+        params = request.query_params
+        return await asyncio.to_thread(cached, db, "performers", params, lambda: list_performers_sync(db, params))

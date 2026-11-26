@@ -758,7 +758,8 @@ def register_entity_page_routes(
             if brief:
                 result = [{k: d.get(k) for k in ("id", "name", "video_count", "movies", "series", "image", "image_cache_updated_at", "has_cached_image")} for d in result]
             return result
-        return await asyncio.to_thread(_read_studios)
+        from ..core.list_cache import cached
+        return await asyncio.to_thread(cached, db, "studios", request.query_params, _read_studios)
 
     @router.get("/api/studios/{studio_id}/videos")
     def studio_videos(studio_id: int, request: Request, performer_id: int | None = None):

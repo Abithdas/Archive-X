@@ -771,6 +771,12 @@
    "notnull": false,
    "pk": true,
    "type": "INTEGER"
+  },
+  {
+   "name": "source_channel",
+   "notnull": true,
+   "pk": false,
+   "type": "TEXT"
   }
  ],
  "channel_image_cache": [
