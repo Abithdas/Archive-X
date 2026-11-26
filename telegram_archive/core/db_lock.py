@@ -14,6 +14,41 @@ import weakref
 
 _ALL: "weakref.WeakSet[TrackedRLock]" = weakref.WeakSet()
 
+# Holds at least this long are counted by the code that held them, so the slow ones can be found and fixed (see slow_summary).
+SLOW_HOLD_SECONDS = 0.25
+_MAX_SITES = 200
+_SLOW: dict[str, list] = {}          # "file:line function" of the holder -> [times, total seconds, longest seconds]
+_SLOW_LOCK = threading.Lock()
+_THIS_FILE = __file__.replace(".pyc", ".py")
+
+
+def _note_slow(seconds: float) -> None:
+    """Called when the lock is released after a long hold: the stack here is the code that held it."""
+    try:
+        site = "?"
+        for frame in reversed(traceback.extract_stack(limit=8)):
+            if frame.filename.replace(".pyc", ".py") != _THIS_FILE:
+                site = f"{frame.filename.replace(chr(92), '/').rsplit('/telegram_archive/', 1)[-1]}:{frame.lineno} {frame.name}"
+                break
+        with _SLOW_LOCK:
+            row = _SLOW.get(site)
+            if row is None:
+                if len(_SLOW) >= _MAX_SITES:
+                    return
+                row = _SLOW[site] = [0, 0.0, 0.0]
+            row[0] += 1
+            row[1] += seconds
+            row[2] = max(row[2], seconds)
+    except Exception:
+        pass
+
+
+def slow_summary(limit: int = 12) -> list[dict]:
+    """The code that held the database lock for 250 ms or more, longest total first: where the app can be made to stop waiting."""
+    with _SLOW_LOCK:
+        rows = sorted(_SLOW.items(), key=lambda kv: kv[1][1], reverse=True)[:limit]
+    return [{"where": site, "times": r[0], "total_seconds": round(r[1], 2), "longest_seconds": round(r[2], 2)} for site, r in rows]
+
 
 class TrackedRLock:
     """A re-entrant lock that remembers its owner and when the owner first took it. Same use as threading.RLock."""
@@ -39,8 +74,11 @@ class TrackedRLock:
     def release(self) -> None:
         # Only the owner may release (RLock raises otherwise, before this point is reached).
         if self._depth == 1:
+            held = time.monotonic() - self._since
             self._owner = None
             self._depth = 0
+            if held >= SLOW_HOLD_SECONDS:
+                _note_slow(held)
         elif self._depth > 1:
             self._depth -= 1
         self._lock.release()

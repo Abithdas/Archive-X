@@ -5,6 +5,7 @@ level `db`/`jobs`/etc. the way the original single-file v14 did.
 from __future__ import annotations
 
 from .core.swallowed import note as _swallowed_note
+from .core import db_lock as _db_lock
 from contextlib import asynccontextmanager
 from pathlib import Path
 import os
@@ -347,6 +348,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                             "telegram_capabilities": telegram.performance_status(),
                             "hardware": app_state.get("hardware_profile"),
                             "internet": app_state.get("internet_test"),
+                            "database_lock_slow_holders": _db_lock.slow_summary(),
                         },
                     )
                 except asyncio.CancelledError:
