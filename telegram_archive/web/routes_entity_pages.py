@@ -146,8 +146,10 @@ def register_entity_page_routes(
                     + name_lists_sql() +
                     " FROM archive_x_library_media m "
                     "LEFT JOIN channels c ON c.telegram_id=m.source_channel "
-                    "WHERE (EXISTS (SELECT 1 FROM video_performers vp WHERE vp.video_id=m.id AND vp.performer_id IN (SELECT id FROM same)) "
-                    "   OR EXISTS (SELECT 1 FROM local_video_performers lvp WHERE lvp.video_id=m.id AND lvp.performer_id IN (SELECT id FROM same))) "
+                    # Start from the performer's own links, not from every video of the Library: a performer with 59 videos used to cost a pass over
+                    # all 175,000 (about 0.5 s) because each video was asked whether it is linked.
+                    "WHERE m.id IN (SELECT video_id FROM video_performers WHERE performer_id IN (SELECT id FROM same) "
+                    "               UNION SELECT video_id FROM local_video_performers WHERE performer_id IN (SELECT id FROM same)) "
                      + (" AND EXISTS (SELECT 1 FROM video_studios rvs WHERE rvs.video_id=m.id AND rvs.studio_id=?) " if studio_id else "")
                      + " AND COALESCE(m.status,'')<>'SOURCE_DELETED' "
                      + " AND (CAST(m.source_channel AS TEXT) GLOB '-[0-9]*' OR (CAST(m.source_channel AS TEXT)<>'' AND CAST(m.source_channel AS TEXT) NOT GLOB '*[^0-9]*')) "
