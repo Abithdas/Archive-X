@@ -522,8 +522,9 @@ async def _sync_verified_transfer_destination_registry(db, client, destination, 
 # Processes one item.
 # ==============================================================================
 
-async def _media_process_one_unlocked(client, source, destination, message, state, source_mode, destination_mode, db=None, orientation="VERTICAL", cover_policy="AUTOMATIC", save_state_fn=None):
-    """Move one item through copy, thumbnail, verification and source cleanup."""
+async def _media_post_pair(client, source, destination, message, state, source_mode, destination_mode, db=None, orientation="VERTICAL", cover_policy="AUTOMATIC", save_state_fn=None):
+    """First half of moving one item: refresh, prepare, copy the video with its cover and post the picture after it. Returns the `_PendingMove` that
+    `_media_finish_moves` verifies and cleans up (one at a time, or many together)."""
     key = media_mode_key(source, destination, message.id, source_mode, destination_mode)
     entry = state["items"].setdefault(key, {})
     prefetch_key = f"{canonical_peer_id(source)}:{int(message.id)}"
@@ -543,7 +544,8 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
     message = fresh
     clock.mark("refresh")
 
-    with tempfile.TemporaryDirectory(prefix="tg_media_mover_") as td:
+    workdir = _HeldTempDir("tg_media_mover_")   # kept until the item is finished: the finish half may still need what was made here
+    with workdir as td:
         dest_video_id = entry.get("destination_video_id")
         dest_thumb_id = entry.get("destination_thumbnail_id")
         generated = None
@@ -773,117 +775,304 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
             else:
                 print(f"  Destination THUMBNAIL already exists: msg={dest_thumb_id}")
 
-        expected_delivery_name = prepared_display_name or safe_video_name(message)
-        ok, reason = await verify_destination_pair(
-            client, destination, dest_video_id, dest_thumb_id,
-            expected_video_name=expected_delivery_name,
-            destination_mode=destination_mode,
-            require_native_video=(destination_mode == "VIDEO"),
-            expected_source=message,
-            expected_meta=prepared_video_meta,
-            require_adjacent=created_media,
-        )
-        if not ok:
-            entry["status"] = "DESTINATION_VERIFY_FAILED"
-            entry["error"] = reason
-            save_state_fn(state)
-            raise RuntimeError(f"Destination verification failed: {reason}")
-        clock.mark("verify")
-        print(
-            f"  DESTINATION VERIFIED: {destination_mode}={dest_video_id} | "
-            f"thumbnail={dest_thumb_id} | native cover/thumbnail + separate message PASS"
-        )
-        previous_thumbnail_id = int(entry.get("source_thumbnail_message_id_to_delete") or 0)
-        source_thumbnail_id = await _resolve_associated_source_thumbnail_for_move(
-            client, source, message, db, known_message_id=previous_thumbnail_id or None,
-        )
-        if source_thumbnail_id:
-            entry["source_thumbnail_message_id_to_delete"] = int(source_thumbnail_id)
-            save_state_fn(state)
-            if not previous_thumbnail_id:
-                print(f"  Associated SOURCE thumbnail found: msg={source_thumbnail_id}")
-        else:
-            entry.pop("source_thumbnail_message_id_to_delete", None)
-        await _record_verified_transfer_location(
-            db, source, message, destination, dest_video_id, dest_thumb_id,
-            client=client, action="TRANSFER", caption=caption,
-            video_meta=prepared_video_meta,
-            filename=prepared_display_name or safe_video_name(message),
-            file_path=prepared_local_video, destination_message=destination_video_message,
-        )
-        # The destination is now verified and has its own Library record. Hide
-        # the old source record immediately so a failed Telegram delete cannot
-        # leave two visible Library copies. A later success promotes the source
-        # location from pending-delete to moved-by-Archive-X.
-        if db is not None:
-            # canonical_peer_id is imported at module scope. Do not re-import it
-            # inside this function: Python would treat it as a local throughout
-            # the function and the earlier prefetch_key calculation would fail
-            # with UnboundLocalError before any transfer operation starts.
-            from ..engines.delivery_ledger import mark_verified_transfer_source_hidden
-            await asyncio.to_thread(
-                mark_verified_transfer_source_hidden, db,
-                source_channel=canonical_peer_id(source), source_message_id=int(message.id),
-                destination_channel=canonical_peer_id(destination), destination_message_id=int(dest_video_id),
-                source_deleted=False,
-            )
-        entry["destination_channel_id"] = int(getattr(destination, "id", destination))
-        entry["destination_video_id"] = int(dest_video_id)
-        entry["destination_thumbnail_id"] = int(dest_thumb_id)
-        entry["destination_state"] = "VERIFIED"
-        save_state_fn(state)
-
-        await _store_delivery_representative_snapshot(
-            db, destination, dest_video_id, dest_thumb_id,
-            source=source, source_video=message, generated_sheet=generated,
-            local_video_path=prepared_local_video,
-        )
-        await _sync_verified_transfer_destination_registry(
-            db, client, destination, dest_video_id, dest_thumb_id,
-            destination_message=destination_video_message,
-        )
-        _cleanup_verified_delivery_artifacts(
-            source, message, local_video_path=prepared_local_video, db=db,
-            temporary_local_video=prepared_local_video is not None,
+        clock.pause()
+        return _PendingMove(
+            key=key, entry=entry, message=message, caption=caption, dest_video_id=int(dest_video_id), dest_thumb_id=int(dest_thumb_id),
+            created_media=created_media, destination_video_message=destination_video_message, prepared_local_video=prepared_local_video,
+            prepared_video_meta=prepared_video_meta, prepared_display_name=prepared_display_name, generated=generated, clock=clock, workdir=workdir,
         )
 
-        clock.mark("bookkeeping")
-        source_ids = [int(message.id)]
-        source_thumbnail_id = int(entry.get("source_thumbnail_message_id_to_delete") or 0)
-        if source_thumbnail_id > 0 and source_thumbnail_id != int(message.id):
-            source_ids.append(source_thumbnail_id)
-        entry["source_ids_to_delete"] = list(source_ids)
+
+class _HeldTempDir:
+    """A temporary directory that is removed by `cleanup()` and not when the `with` block ends: the finish half of a move may still need the
+    contact sheet and other files made while the video was posted. It is removed at once if posting fails."""
+
+    def __init__(self, prefix):
+        self.path = tempfile.mkdtemp(prefix=prefix)
+
+    def __enter__(self):
+        return self.path
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is not None:
+            self.cleanup()
+        return False
+
+    def cleanup(self):
+        shutil.rmtree(self.path, ignore_errors=True)
+
+
+class _PendingMove:
+    """A video that is posted in the destination and still has to be verified, recorded and removed from the source."""
+
+    def __init__(self, **fields):
+        self.__dict__.update(fields)
+        self.posted_at = time.monotonic()
+        self.source_ids = []
+
+    @property
+    def expected_name(self):
+        return self.prepared_display_name or safe_video_name(self.message)
+
+
+def _video_lock_for(db, source, message):
+    """The per-video lock that every operation on this video takes (the same identity as `media_process_one` uses)."""
+    from ..core.video_locks import video_operation_lock
+    source_channel = canonical_peer_id(source)
+    source_message_id = int(getattr(message, "id", 0) or 0)
+    identity_key = ""
+    if db is not None and source_channel and source_message_id > 0:
+        try:
+            with db.lock:
+                row = db.conn.execute("SELECT identity_key,oshash FROM media WHERE source_channel=? AND source_message_id=? LIMIT 1",
+                                      (str(source_channel), source_message_id)).fetchone()
+            if row:
+                identity_key = str(row["oshash"] or row["identity_key"] or "")
+        except Exception:
+            identity_key = ""
+    return video_operation_lock(identity_key=identity_key, source_channel=str(source_channel or ""),
+                                source_message_id=source_message_id, file_path=safe_video_name(message))
+
+
+async def _bookkeep_verified_move(client, source, destination, p, db, save_state_fn, state, destination_mode):
+    """Everything between 'the destination pair is verified' and 'the source is deleted': the records of the new copy, the hidden source, the
+    representative snapshot. Leaves `p.source_ids` as the Telegram messages to delete (the video and, when it has one, its own picture)."""
+    entry, message = p.entry, p.message
+    dest_video_id, dest_thumb_id = p.dest_video_id, p.dest_thumb_id
+    print(
+        f"  DESTINATION VERIFIED: {destination_mode}={dest_video_id} | "
+        f"thumbnail={dest_thumb_id} | native cover/thumbnail + separate message PASS"
+    )
+    previous_thumbnail_id = int(entry.get("source_thumbnail_message_id_to_delete") or 0)
+    source_thumbnail_id = await _resolve_associated_source_thumbnail_for_move(
+        client, source, message, db, known_message_id=previous_thumbnail_id or None,
+    )
+    if source_thumbnail_id:
+        entry["source_thumbnail_message_id_to_delete"] = int(source_thumbnail_id)
         save_state_fn(state)
-        print(f"  Deleting SOURCE after destination verification (video + associated thumbnail if present): {source_ids}")
-        await delete_source_after_verify(client, source, source_ids)
-        clock.mark("delete")
-        if source_thumbnail_id > 0 and source_thumbnail_id in source_ids[1:]:
-            _mark_moved_source_thumbnail_deleted(db, source, source_thumbnail_id)
-        remaining = await client.get_messages(source, ids=source_ids)
-        if not isinstance(remaining, list):
-            remaining = [remaining] if remaining else []
-        if [m for m in remaining if m and getattr(m, "id", None)]:
-            raise RuntimeError("Telegram deletion did not remove all requested source messages")
-        clock.mark("confirm")
-        if db is not None:
-            # canonical_peer_id is imported at module scope. Do not re-import it
-            # inside this function: Python would treat it as a local throughout
-            # the function and the earlier prefetch_key calculation would fail
-            # with UnboundLocalError before any transfer operation starts.
-            from ..engines.delivery_ledger import mark_verified_transfer_source_hidden
-            await asyncio.to_thread(
-                mark_verified_transfer_source_hidden, db,
-                source_channel=canonical_peer_id(source), source_message_id=int(message.id),
-                destination_channel=canonical_peer_id(destination), destination_message_id=int(dest_video_id),
-                source_deleted=True,
-            )
-        entry["source_deleted"] = True
-        entry["status"] = "COMPLETE"
-        save_state_fn(state)
-        print(f"  MOVE COMPLETE: {prepared_display_name or safe_video_name(message)}")
-        _transfer_timing.TIMER.finish(clock)
-        print(f"  TIMING {clock.text()}")
-        return True
+        if not previous_thumbnail_id:
+            print(f"  Associated SOURCE thumbnail found: msg={source_thumbnail_id}")
+    else:
+        entry.pop("source_thumbnail_message_id_to_delete", None)
+    await _record_verified_transfer_location(
+        db, source, message, destination, dest_video_id, dest_thumb_id,
+        client=client, action="TRANSFER", caption=p.caption,
+        video_meta=p.prepared_video_meta,
+        filename=p.prepared_display_name or safe_video_name(message),
+        file_path=p.prepared_local_video, destination_message=p.destination_video_message,
+    )
+    # The destination is now verified and has its own Library record. Hide
+    # the old source record immediately so a failed Telegram delete cannot
+    # leave two visible Library copies. A later success promotes the source
+    # location from pending-delete to moved-by-Archive-X.
+    if db is not None:
+        # canonical_peer_id is imported at module scope. Do not re-import it
+        # inside this function: Python would treat it as a local throughout
+        # the function and the earlier prefetch_key calculation would fail
+        # with UnboundLocalError before any transfer operation starts.
+        from ..engines.delivery_ledger import mark_verified_transfer_source_hidden
+        await asyncio.to_thread(
+            mark_verified_transfer_source_hidden, db,
+            source_channel=canonical_peer_id(source), source_message_id=int(message.id),
+            destination_channel=canonical_peer_id(destination), destination_message_id=int(dest_video_id),
+            source_deleted=False,
+        )
+    entry["destination_channel_id"] = int(getattr(destination, "id", destination))
+    entry["destination_video_id"] = int(dest_video_id)
+    entry["destination_thumbnail_id"] = int(dest_thumb_id)
+    entry["destination_state"] = "VERIFIED"
+    save_state_fn(state)
+
+    await _store_delivery_representative_snapshot(
+        db, destination, dest_video_id, dest_thumb_id,
+        source=source, source_video=message, generated_sheet=p.generated,
+        local_video_path=p.prepared_local_video,
+    )
+    await _sync_verified_transfer_destination_registry(
+        db, client, destination, dest_video_id, dest_thumb_id,
+        destination_message=p.destination_video_message,
+    )
+    _cleanup_verified_delivery_artifacts(
+        source, message, local_video_path=p.prepared_local_video, db=db,
+        temporary_local_video=p.prepared_local_video is not None,
+    )
+    source_ids = [int(message.id)]
+    source_thumbnail_id = int(entry.get("source_thumbnail_message_id_to_delete") or 0)
+    if source_thumbnail_id > 0 and source_thumbnail_id != int(message.id):
+        source_ids.append(source_thumbnail_id)
+    entry["source_ids_to_delete"] = list(source_ids)
+    save_state_fn(state)
+    p.source_ids = source_ids
+    print(f"  Deleting SOURCE after destination verification (video + associated thumbnail if present): {source_ids}")
+
+
+async def _complete_deleted_move(source, destination, p, db, save_state_fn, state):
+    """The source messages are gone (confirmed): record that, and finish the item."""
+    entry, message = p.entry, p.message
+    source_thumbnail_id = int(entry.get("source_thumbnail_message_id_to_delete") or 0)
+    if source_thumbnail_id > 0 and source_thumbnail_id in p.source_ids[1:]:
+        _mark_moved_source_thumbnail_deleted(db, source, source_thumbnail_id)
+    if db is not None:
+        # See the note in _bookkeep_verified_move about canonical_peer_id.
+        from ..engines.delivery_ledger import mark_verified_transfer_source_hidden
+        await asyncio.to_thread(
+            mark_verified_transfer_source_hidden, db,
+            source_channel=canonical_peer_id(source), source_message_id=int(message.id),
+            destination_channel=canonical_peer_id(destination), destination_message_id=int(p.dest_video_id),
+            source_deleted=True,
+        )
+    entry["source_deleted"] = True
+    entry["status"] = "COMPLETE"
+    save_state_fn(state)
+    print(f"  MOVE COMPLETE: {p.prepared_display_name or safe_video_name(message)}")
+
+
+async def _fetch_messages(client, chat, ids):
+    """Read many messages of one chat (100 per call, the most Telegram answers at once); returns {id: message or None}."""
+    found = {}
+    ids = [int(i) for i in ids]
+    for start in range(0, len(ids), 100):
+        chunk = ids[start:start + 100]
+        got = await client.get_messages(chat, ids=chunk)
+        if not isinstance(got, (list, tuple)):
+            got = [got]
+        got = list(got) + [None] * (len(chunk) - len(got))
+        for message_id, message in zip(chunk, got):
+            found[message_id] = message if message is not None and getattr(message, "id", None) else None
+    return found
+
+
+async def _media_finish_moves(client, source, destination, pendings, state, source_mode, destination_mode, *, db=None, save_state_fn=None):
+    """Second half of moving a group of posted videos: verify all their pairs with ONE read, record each, delete all their sources with ONE call and
+    confirm with ONE read. Returns one result per video, in order: None when its move is complete, or the exception that stopped it.
+
+    Safety, in the order it is enforced: a source is deleted only when its OWN destination pair passed verification and its own records were made; a
+    video that fails any step keeps its source and does not stop the others; if the group's delete or its confirmation fails in any way, the sources
+    are deleted and confirmed one at a time as they always were. A group of one does exactly what moving one video always did."""
+    save_state_fn = save_state_fn or vertical_mobile_save_state
+    results = [None] * len(pendings)
+    live = list(range(len(pendings)))
+    try:
+        for p in pendings:
+            p.clock.resume()
+        # ---- 1. verify every pair together
+        started = time.monotonic()
+        fetched, fetch_error = {}, ""
+        try:
+            fetched = await _fetch_messages(client, destination, [i for k in live for i in (pendings[k].dest_video_id, pendings[k].dest_thumb_id)])
+        except Exception as exc:
+            fetch_error = f"destination fetch failed: {type(exc).__name__}: {exc}"
+        share = (time.monotonic() - started) / max(1, len(live))
+        verified = []
+        for k in live:
+            p = pendings[k]
+            p.clock.add("verify", share)
+            if fetch_error:
+                ok, reason = False, fetch_error
+            else:
+                ok, reason = verify_pair_messages(
+                    fetched.get(p.dest_video_id), fetched.get(p.dest_thumb_id),
+                    expected_video_name=p.expected_name, destination_mode=destination_mode,
+                    require_native_video=(destination_mode == "VIDEO"), expected_source=p.message,
+                    expected_meta=p.prepared_video_meta, require_adjacent=p.created_media,
+                )
+            if not ok:
+                p.entry["status"] = "DESTINATION_VERIFY_FAILED"
+                p.entry["error"] = reason
+                save_state_fn(state)
+                results[k] = RuntimeError(f"Destination verification failed: {reason}")
+                continue
+            verified.append(k)
+        live = verified
+        # ---- 2. the records of each verified copy, one video at a time under that video's own lock
+        recorded = []
+        for k in live:
+            p = pendings[k]
+            try:
+                async with _video_lock_for(db, source, p.message):
+                    p.clock.resume()
+                    await _bookkeep_verified_move(client, source, destination, p, db, save_state_fn, state, destination_mode)
+                p.clock.mark("bookkeeping")
+                recorded.append(k)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                results[k] = exc
+        live = recorded
+        # ---- 3. delete the sources of the videos that got this far, together; confirm together
+        removed = []
+        if live:
+            all_ids = list(dict.fromkeys(i for k in live for i in pendings[k].source_ids))
+            started = time.monotonic()
+            group_failed = False
+            try:
+                await delete_messages(client, source, all_ids)
+                spent_delete = time.monotonic() - started
+                started = time.monotonic()
+                still_there = {i for i, m in (await _fetch_messages(client, source, all_ids)).items() if m is not None}
+                spent_confirm = time.monotonic() - started
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                group_failed = True
+                print(f"  Deleting the group of {len(live)} source(s) in one call failed ({type(exc).__name__}: {exc}); deleting them one at a time")
+            if group_failed:
+                for k in live:
+                    p = pendings[k]
+                    started = time.monotonic()
+                    try:
+                        await delete_source_after_verify(client, source, p.source_ids)
+                        p.clock.add("delete", time.monotonic() - started)
+                        removed.append(k)
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as exc:
+                        results[k] = exc
+            else:
+                for k in live:
+                    p = pendings[k]
+                    p.clock.add("delete", spent_delete / len(live))
+                    p.clock.add("confirm", spent_confirm / len(live))
+                    left = [i for i in p.source_ids if i in still_there]
+                    if left:
+                        results[k] = RuntimeError("source deletion could not be confirmed for message IDs: " + ", ".join(str(i) for i in left))
+                    else:
+                        removed.append(k)
+        # ---- 4. record the finished moves, one video at a time under its own lock
+        for k in removed:
+            p = pendings[k]
+            try:
+                async with _video_lock_for(db, source, p.message):
+                    p.clock.resume()
+                    await _complete_deleted_move(source, destination, p, db, save_state_fn, state)
+                p.clock.mark("bookkeeping")
+                _transfer_timing.TIMER.finish(p.clock)
+                print(f"  TIMING {p.clock.text()}")
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                results[k] = exc
+        return results
+    finally:
+        for p in pendings:
+            try:
+                p.workdir.cleanup()
+            except Exception:
+                pass
+
+
+async def _media_process_one_unlocked(client, source, destination, message, state, source_mode, destination_mode, db=None, orientation="VERTICAL", cover_policy="AUTOMATIC", save_state_fn=None):
+    """Move one item through copy, thumbnail, verification and source cleanup (a group of one: see `_media_finish_moves`)."""
+    pending = await _media_post_pair(
+        client, source, destination, message, state, source_mode, destination_mode, db=db,
+        orientation=orientation, cover_policy=cover_policy, save_state_fn=save_state_fn,
+    )
+    (result,) = await _media_finish_moves(
+        client, source, destination, [pending], state, source_mode, destination_mode, db=db, save_state_fn=save_state_fn,
+    )
+    if isinstance(result, BaseException):
+        raise result
+    return True
 
 
 # ==============================================================================
@@ -1670,6 +1859,34 @@ def transfer_requires_cli_confirmation(*, preconfigured: bool, can_resume: bool,
     return not bool(can_resume or (preconfigured and auto_confirm))
 
 
+DELIVERY_BATCH_DEFAULT = 20      # videos whose verification and source deletion are done together
+DELIVERY_BATCH_MAX = 40          # 2 messages per video, and Telegram answers at most 100 ids per call
+DELIVERY_BATCH_MAX_WAIT = 60.0   # seconds a posted video may wait for its group before the group is finished anyway
+
+
+def group_should_finish(pending, size: int, *, paused: bool = False, now: float | None = None) -> bool:
+    """Whether the posted videos waiting for their group should be verified and removed from the source now: the group is full, a pause was asked for
+    (deletions do not wait through a pause), or the oldest posted video has waited longer than DELIVERY_BATCH_MAX_WAIT."""
+    if not pending:
+        return False
+    if len(pending) >= max(1, int(size)):
+        return True
+    if paused:
+        return True
+    return (time.monotonic() if now is None else now) - pending[0].posted_at > DELIVERY_BATCH_MAX_WAIT
+
+
+def _delivery_batch_size(job_detail=None) -> int:
+    """How many posted videos are verified and removed from the source together. The job's `delivery_batch_size` sets it (1 = one video at a time, as
+    before this existed); anything else uses the default. Always between 1 and DELIVERY_BATCH_MAX."""
+    value = (job_detail or {}).get("delivery_batch_size") if isinstance(job_detail, dict) else None
+    try:
+        size = int(value) if value is not None else DELIVERY_BATCH_DEFAULT
+    except (TypeError, ValueError):
+        size = DELIVERY_BATCH_DEFAULT
+    return max(1, min(DELIVERY_BATCH_MAX, size))
+
+
 async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_detail=None, job_manager=None, manager_loop=None):
     """Guided Telegram transfer job with durable restart/resume state.
 
@@ -1906,6 +2123,8 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
     # once so resuming uses the canonical record book and does not redo preparation.
     for source in sources:
         raw_key, marked_key = str(int(source.id)), str(canonical_peer_id(source))
+        if raw_key == marked_key:
+            continue   # already canonical: promoting would pop the very entries it just kept
         for field in ("scan_manifest", "scan_progress", "database_inventory", "duplicate_analysis"):
             table = state.get(field)
             if isinstance(table, dict) and raw_key in table:
@@ -2033,7 +2252,53 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
     transfer_job_state_save(state)
 
     total_complete = total_failed = total_skipped = total_duplicates = total_needs_snapshots = 0
+    channel_moved = channel_failed = channel_skipped = 0
     _transfer_timing.TIMER.reset()   # the step timings of this job only
+    CoverReuse.reset()   # try sharing the contact-sheet upload again at the start of each job
+
+    # Videos are POSTED one at a time (the destination keeps each video with its picture right after it); the second half of each move (verify the
+    # pair, record it, delete the source) is done for a group of posted videos together. Not for FILE -> VIDEO, which converts each file locally
+    # first and is slow for other reasons.
+    delivery_batch = _delivery_batch_size(job_detail)
+    batched = delivery_batch > 1 and not (source_mode == "FILE" and destination_mode == "VIDEO")
+    pending_moves = []
+
+    def _count_done():
+        nonlocal channel_moved, total_complete
+        channel_moved += 1
+        total_complete += 1
+        if total_complete % 10 == 0:
+            print(f"  TRANSFER TIMING so far: {_transfer_timing.TIMER.text()}")
+
+    def _count_failed(failed_entry, exc):
+        nonlocal channel_failed, total_failed
+        _transfer_timing.TIMER.finish(_transfer_timing.ItemClock(), ok=False)
+        channel_failed += 1
+        total_failed += 1
+        failed_entry["status"] = "ERROR"
+        failed_entry["error"] = f"{type(exc).__name__}: {exc}"
+        transfer_job_state_save(state)
+        print(f"  ERROR: {type(exc).__name__}: {exc}")
+        print("  Source retained. The next item will be processed normally.")
+
+    async def _flush_pending(current_source):
+        """Verify, record and delete the sources of the posted videos together, and count each one's outcome."""
+        if not pending_moves:
+            return
+        group = list(pending_moves)
+        pending_moves.clear()
+        _transfer_timing.TIMER.batch(len(group))
+        print("\n" + f"  FINISHING {len(group)} posted video(s) together: verify, record, delete from the source")
+        results = await _media_finish_moves(
+            client, current_source, destination, group, state, source_mode, destination_mode,
+            db=globals().get("MEDIA_MANAGER_DB"), save_state_fn=transfer_job_state_save,
+        )
+        for moved, result in zip(group, results):
+            if result is None:
+                _count_done()
+            else:
+                print(f"  {safe_video_name(moved.message)}: not finished")
+                _count_failed(moved.entry, result)
 
     try:
         # Critical behavior: finish source #1 completely before scanning source #2.
@@ -2178,7 +2443,10 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
                 continue
 
             channel_moved = channel_failed = channel_skipped = 0
+            flush_now = False
             for index, message in enumerate(candidates, 1):
+                if group_should_finish(pending_moves, delivery_batch, paused=(PAUSE_EVENT is not None and not PAUSE_EVENT.is_set())):
+                    await _flush_pending(source)   # deletions do not wait through a pause or a slow stretch
                 await transfer_control_checkpoint()
                 key = media_mode_key(source, destination, message.id, source_mode, destination_mode)
                 entry = state["items"].setdefault(key, {})
@@ -2221,22 +2489,31 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
                                 print("  Duplicate skipped. Source retained.")
                                 continue
 
-                    ok = await media_process_one(
-                        client, source, destination, message, state, source_mode, destination_mode,
-                        db=globals().get("MEDIA_MANAGER_DB"), orientation=orientation,
-                        cover_policy=cover_policy, save_state_fn=transfer_job_state_save,
-                    )
-                    if ok:
+                    if batched:
+                        # Posted now; verified, recorded and deleted from the source with the rest of its group (see _flush_pending).
+                        pending_moves.append(await media_post_one(
+                            client, source, destination, message, state, source_mode, destination_mode,
+                            db=globals().get("MEDIA_MANAGER_DB"), orientation=orientation,
+                            cover_policy=cover_policy, save_state_fn=transfer_job_state_save,
+                        ))
+                        ok = None
+                    else:
+                        ok = await media_process_one(
+                            client, source, destination, message, state, source_mode, destination_mode,
+                            db=globals().get("MEDIA_MANAGER_DB"), orientation=orientation,
+                            cover_policy=cover_policy, save_state_fn=transfer_job_state_save,
+                        )
+                    if ok or ok is None:
                         if duplicate_policy != "NONE":
                             # Keep subsequent candidates from the same source
                             # batch aware of the successful destination delivery.
                             registered_id = int(entry.get("destination_video_id") or -int(message.id))
                             for duplicate_key in _transfer_duplicate_keys(message, source_oshash):
                                 destination_duplicate_index.setdefault(duplicate_key, []).append(registered_id)
-                        channel_moved += 1
-                        total_complete += 1
-                        if total_complete % 10 == 0:
-                            print(f"  TRANSFER TIMING so far: {_transfer_timing.TIMER.text()}")
+                        if ok:
+                            _count_done()
+                        else:
+                            flush_now = group_should_finish(pending_moves, delivery_batch)
                     else:
                         channel_failed += 1
                         total_failed += 1
@@ -2251,15 +2528,12 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
                     print(f"  SKIPPED — NEEDS SNAPSHOTS: {safe_video_name(message)} (message {int(getattr(message, 'id', 0) or 0)}): {exc}")
                     print("  Source retained. The next item will be processed normally.")
                 except Exception as exc:
-                    _transfer_timing.TIMER.finish(_transfer_timing.ItemClock(), ok=False)
-                    channel_failed += 1
-                    total_failed += 1
-                    entry["status"] = "ERROR"
-                    entry["error"] = f"{type(exc).__name__}: {exc}"
-                    transfer_job_state_save(state)
-                    print(f"  ERROR: {type(exc).__name__}: {exc}")
-                    print("  Source retained. The next item will be processed normally.")
+                    _count_failed(entry, exc)
+                if flush_now:
+                    flush_now = False
+                    await _flush_pending(source)   # outside the item's try: a problem finishing the group is not an error of this item
 
+            await _flush_pending(source)   # whatever is still waiting when this source channel ends
             print("\n" + "=" * 90)
             print(f" SOURCE CHANNEL {source_index}/{len(sources)} COMPLETE")
             print("=" * 90)
@@ -2300,7 +2574,8 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
                 pass
         print(f"Duplicates detected : {total_duplicates:,}")
         print(f"Failed items        : {total_failed:,}")
-        print("Processing model    : one source channel at a time; one transfer item at a time")
+        print("Processing model    : one source channel at a time; " + (
+            f"videos are posted one at a time and verified and removed from the source in groups of up to {delivery_batch}" if batched else "one transfer item at a time"))
         # Where the time went, in the activity list too: the average per video, each step's share, and what Telegram's own slow-down requests cost.
         if _transfer_timing.TIMER.items:
             print(f"Timing              : {_transfer_timing.TIMER.text()}")
@@ -2311,6 +2586,12 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
             except Exception:
                 pass
     finally:
+        for leftover in pending_moves:   # a cancelled or failed job: posted copies stay, sources stay, the next run verifies and finishes them
+            try:
+                leftover.workdir.cleanup()
+            except Exception:
+                pass
+        pending_moves.clear()
         if client is not None:
             try:
                 await client.disconnect()

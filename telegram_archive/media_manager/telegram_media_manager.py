@@ -1509,6 +1509,16 @@ async def convert_to_streamable_mp4(input_path, output_path, on_progress=None):
 
 
 
+async def media_post_one(client, source, destination, message, state, source_mode, destination_mode, db=None, orientation="VERTICAL", cover_policy="AUTOMATIC", save_state_fn=None):
+    """First half of moving one item, under the same per-video lock as `media_process_one`; returns the posted `_PendingMove`. The lock is released
+    on return: the finish half (`_media_finish_moves`) takes it again, video by video, for the records it makes."""
+    async with _video_lock_for(db, source, message):
+        return await _media_post_pair(
+            client, source, destination, message, state, source_mode, destination_mode, db=db,
+            orientation=orientation, cover_policy=cover_policy, save_state_fn=save_state_fn,
+        )
+
+
 async def media_process_one(client, source, destination, message, state, source_mode, destination_mode, db=None, orientation="VERTICAL", cover_policy="AUTOMATIC", save_state_fn=None):
     """Run one media-manager item under the process-wide stable identity lock."""
     source_channel = canonical_peer_id(source)

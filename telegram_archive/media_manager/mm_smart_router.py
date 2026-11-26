@@ -453,12 +453,22 @@ async def verify_destination_pair(client, destination, video_id, thumbnail_id, e
     if not video_id or not thumbnail_id:
         return False, "missing destination message IDs"
 
+    # One read for the video and its picture (it was two): the answers come back in the order asked, None for a message that is not there.
     try:
-        video = await client.get_messages(destination, ids=int(video_id))
-        thumb = await client.get_messages(destination, ids=int(thumbnail_id))
+        fetched = await client.get_messages(destination, ids=[int(video_id), int(thumbnail_id)])
     except Exception as exc:
         return False, f"destination fetch failed: {type(exc).__name__}: {exc}"
+    if not isinstance(fetched, (list, tuple)):
+        fetched = [fetched]
+    fetched = list(fetched) + [None] * (2 - len(fetched))
+    return verify_pair_messages(
+        fetched[0], fetched[1], expected_video_name=expected_video_name, require_native_video=require_native_video,
+        destination_mode=destination_mode, expected_source=expected_source, expected_meta=expected_meta, require_adjacent=require_adjacent,
+    )
 
+
+def verify_pair_messages(video, thumb, expected_video_name=None, require_native_video=True, destination_mode=None, expected_source=None, expected_meta=None, require_adjacent=False):
+    """The checks of verify_destination_pair on messages that were already read: the same for one pair and for each pair of a batched read."""
     if not video or not getattr(video, "id", None):
         return False, "destination video message not found"
     if not thumb or not getattr(thumb, "id", None):
