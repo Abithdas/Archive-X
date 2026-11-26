@@ -2,9 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased
+## 30.12.1 (2026-11-26)
 
 - Fixed the disk running at 100 % while the app opens: a start-up repair rewrote and flushed one row for every verified transfer at every launch (thousands of writes with a large library). It now skips transfers that are already prepared.
+- When a start is slow, the log line "Startup ready in …" now names the database step that took the time.
 
 ## 30.12.0 (2026-11-25)
 
