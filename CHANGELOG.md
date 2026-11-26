@@ -2,6 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+
+- Fixed "the Archive X backend exited before it was ready ... database disk image is malformed": when the database file is damaged, the app now moves it aside into a `damaged-<time>` folder, creates a new database and copies back every row that can still be read, instead of refusing to start.
+
 ## 30.12.1 (2026-11-26)
 
 - Fixed the disk running at 100 % while the app opens: a start-up repair rewrote and flushed one row for every verified transfer at every launch (thousands of writes with a large library). It now skips transfers that are already prepared.

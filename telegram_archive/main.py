@@ -144,8 +144,24 @@ def main():
         for m in moved:
             print(f"  Migrated from previous version: {m}")
         write_default_config()
+    recovered = None
     with _phase("database open + schema checks"):
-        db = Database()
+        try:
+            db = Database()
+        except Exception as exc:
+            from .core import db_recovery
+            if not db_recovery.is_corruption(exc):
+                raise
+            # A damaged database file used to end the start here for good. Move it aside, start a new one and copy back what can be read.
+            print(f"  Database is damaged ({exc}); recovering what can be read", flush=True)
+            moved = db_recovery.quarantine(config.DB_PATH)
+            db = Database()
+            recovered = (db_recovery.salvage(moved, db), moved.parent)
+    if recovered:
+        from .core import db_recovery
+        message = db_recovery.describe(*recovered)
+        print("  " + message, flush=True)
+        db.log(message, "ERROR", event="database.recovered")
     print("  database steps: " + ", ".join(f"{k} {v}s" for k, v in getattr(db, "startup_steps", {}).items()), flush=True)
     with _phase("asset store"):
         try:

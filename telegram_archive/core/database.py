@@ -151,6 +151,17 @@ class Database:
         self._read_local = threading.local()
         self._read_conns: set[sqlite3.Connection] = set()
         self._read_conns_lock = threading.Lock()
+        try:
+            self._open_steps()
+        except BaseException:
+            # A file that cannot be opened must not stay locked: core/db_recovery.py moves a damaged database aside, and Windows refuses while it is open.
+            try:
+                self.conn.close()
+            except Exception:
+                pass
+            raise
+
+    def _open_steps(self):
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA synchronous=NORMAL")
         self.conn.execute("PRAGMA busy_timeout=5000")
