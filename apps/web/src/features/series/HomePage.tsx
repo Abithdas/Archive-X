@@ -455,7 +455,7 @@ export function SfwHome() {
               </Row>
             ) : null}
             {HOME_ROWS.map((r) => <WhenNear key={r.title}><CatalogRow {...r} onSeeAll={() => seeAll(r.kind, r.catalog, r.genre)} /></WhenNear>)}
-            {addons.data?.items.flatMap((a) => a.lists.slice(0, 4).map((l) => <WhenNear key={addonKey(a, l)}><CatalogRow title={`${a.name}: ${l.name}`} kind="series" catalog={addonKey(a, l)} onSeeAll={() => seeAll('series', addonKey(a, l))} /></WhenNear>))}
+            {(addons.data?.items ?? []).flatMap((a) => (a.lists ?? []).slice(0, 4).map((l) => <WhenNear key={addonKey(a, l)}><CatalogRow title={`${a.name}: ${l.name}`} kind="series" catalog={addonKey(a, l)} onSeeAll={() => seeAll('series', addonKey(a, l))} /></WhenNear>))}
             </div>
           </>
       ))}
