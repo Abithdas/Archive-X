@@ -4,6 +4,9 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **The cast of a movie or show is clickable** (library and Discover pages): it opens a page with that person's movies and shows in your library, then their other work from TMDB, each opening its own page.
+- **Missing episodes are shown in the show's page**: the episodes (and whole seasons) you do not have are listed with the catalogue's names, and each opens its episode page, where your add-ons offer streams for it.
+
 - **An actor's page in SFW**: under Filmography the library's movies and series come first, then "More with …": the other movies and shows they are in (from TMDB, needs a TMDB key and a person linked to TMDB), each opening its Discover page. The Gallery tab is gone from SFW actors.
 
 ## 30.12.4 (2026-11-26)

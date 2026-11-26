@@ -46,3 +46,24 @@ def test_an_unlinked_or_adult_or_unknown_person_gets_nothing(tmp_path, monkeypat
         db.conn.execute("UPDATE performers SET content_rating='nsfw', tmdb_id='6384' WHERE id=501")
         db.conn.commit()
     assert c.get("/api/screen/person-credits/501").json()["items"] == []                                              # a performer of the adult library is never sent to TMDB
+
+
+def test_a_cast_member_by_name_has_the_library_titles_and_the_other_work(tmp_path, monkeypatch):
+    def fetch(url, params, headers):
+        if "/search/person" in url:
+            return {"results": [{"id": 6384, "name": "Keanu Reeves", "popularity": 50, "profile_path": "/k.jpg"}, {"id": 1, "name": "Keanu Reeves Jr", "popularity": 99}]}
+        return credits_fetch(url, params, headers)
+    monkeypatch.setattr(sid, "http_fetch", fetch)
+    db = Database(tmp_path / "n.db")
+    _library(db)
+    c = _client(db)
+    db.set_setting("tmdb_api_key", "k" * 32)
+    unknown = c.get("/api/screen/cast/Keanu%20Reeves").json()                      # not in the library at all: found by name at TMDB
+    assert unknown["library"] == [] and [i["title"] for i in unknown["items"]] == ["A Show", "John Wick"] and unknown["image"].endswith("/k.jpg")
+    add_actor(db)
+    with db.lock:
+        db.conn.execute("INSERT INTO video_performers(video_id,performer_id,confidence) VALUES(1,501,1)")
+        db.conn.commit()
+    known = c.get("/api/screen/cast/keanu reeves").json()                           # a performer of the library: its own titles come first
+    assert [(t["title"], t["kind"]) for t in known["library"]] == [("The Matrix", "movie")]
+    assert c.get("/api/screen/cast/Nobody%20Atall").json()["reason"] == "unlinked"

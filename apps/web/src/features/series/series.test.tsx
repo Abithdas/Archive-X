@@ -97,6 +97,20 @@ describe('missing episodes and movies', () => {
   })
 })
 
+describe('episodes the library does not have', () => {
+  it('are listed with the catalogue names and open the episode page where the add-ons offer streams; the cast opens that person', async () => {
+    const d = { id: 1, imdb: 'tt5753856', title: 'Dark', year: 2017, overview: '', tagline: '', poster: '', backdrop: '', genres: [], companies: [], cast: [{ name: 'Louis Hofmann', character: 'Jonas', profile: '' }], rating: 8, status: '',
+      seasons: [{ season: 3, name: 'Season 3', total: 3, missing: [1, 2], episodes: [{ episode: 3, name: 'Here', overview: '', air_date: '', still: '', runtime: 0, duration: 0, cid: '-1', mid: 3 }] }] }
+    const found = { imdb: 'tt5753856', kind: 'tv', title: 'Dark', year: 2017, poster: '', background: '', rating: '', overview: '', genres: [], library: null, runtime: '', cast: [], director: [], trailer: '', seasons: 3, episodes: [{ season: 3, episodes: [{ episode: 1, name: 'Deja-vu', overview: '', released: '2020-06-27', thumb: '' }, { episode: 2, name: 'The Ouroboros', overview: '', released: '', thumb: '' }] }] }
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => json(String(url).includes('/api/screen/discover/') ? found : d)))
+    withRouter(<SeriesDetailPage id={1} />)
+    const gap = await screen.findByRole('link', { name: 'Episode 1 is not in your library: find it in your add-ons' })
+    expect(gap).toHaveAttribute('href', '/discover/series/tt5753856/3/1')
+    expect(await screen.findByText(/Deja-vu/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Everything with Louis Hofmann' })).toHaveAttribute('href', '/cast/Louis%20Hofmann')
+  })
+})
+
 describe('Filters on the Movies and Series lists', () => {
   const uhd = { res: [2160], sources: ['BluRay'], hdr: ['HDR'], langs: ['German'] }
   const web = { res: [720], sources: ['WEB-DL'], hdr: [], langs: [] }

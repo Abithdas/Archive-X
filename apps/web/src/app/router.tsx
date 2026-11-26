@@ -9,6 +9,7 @@ const LibraryPage = lazy(() => import('@/features/library/LibraryPage').then((m)
 const EntityDirectory = lazy(() => import('@/features/entities/EntityDirectory').then((m) => ({ default: m.EntityDirectory })))
 const StudioPage = lazy(() => import('@/features/entities/StudioPage').then((m) => ({ default: m.StudioPage })))
 const PerformerPage = lazy(() => import('@/features/entities/PerformerPage').then((m) => ({ default: m.PerformerPage })))
+import { CastPage } from '@/features/series/CastPage'
 const AddonPlayPage = lazy(() => import('@/features/series/AddonPlayPage').then((m) => ({ default: m.AddonPlayPage })))
 const WatchPage = lazy(() => import('@/features/watch/WatchPage').then((m) => ({ default: m.WatchPage })))
 const OperationsPage = lazy(() => import('@/features/operations/OperationsPage').then((m) => ({ default: m.OperationsPage })))
@@ -61,6 +62,15 @@ const discoverEpisode = createRoute({
   component: function DiscoverEpisodeRoute() {
     const { id, season, episode } = discoverEpisode.useParams()
     return <DiscoverEpisodePage key={`${id}:${season}:${episode}`} id={id} season={Number(season)} episode={Number(episode)} />
+  },
+})
+
+const castPage = createRoute({
+  getParentRoute: () => root,
+  path: '/cast/$name',
+  component: function CastRoute() {
+    const { name } = castPage.useParams()
+    return <CastPage key={name} name={name} />
   },
 })
 
@@ -128,6 +138,7 @@ const routeTree = root.addChildren([
   createRoute({ getParentRoute: () => root, path: '/movies', beforeLoad: () => { useScreenView.getState().setView('movies'); throw redirect({ to: '/videos', replace: true }) } }),
   seriesDetail,
   discoverTitle,
+  castPage,
   discoverEpisode,
   createRoute({ getParentRoute: () => root, path: '/series', beforeLoad: () => { useScreenView.getState().setView('series'); throw redirect({ to: '/videos', replace: true }) } }),
   studio,

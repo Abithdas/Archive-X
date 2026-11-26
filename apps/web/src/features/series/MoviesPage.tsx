@@ -77,7 +77,7 @@ export function MovieDetailPage({ id }: { id: number }) {
         </p>
         <p className="max-w-xl text-[15px] leading-relaxed text-fg/80">{d.overview}</p>
         <Chips label="Genres" items={d.genres} />
-        <Chips label="Cast" items={d.cast.slice(0, 6).map((c) => c.name)} title={(n) => d.cast.find((c) => c.name === n)?.character} />
+        <Chips label="Cast" cast items={d.cast.slice(0, 6).map((c) => c.name)} title={(n) => d.cast.find((c) => c.name === n)?.character} />
         {d.companies.length ? <p className="text-xs text-faint">{d.companies.join(' · ')}</p> : null}
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {best ? <Link to="/watch/$cid/$mid" params={{ cid: best.cid, mid: String(best.mid) }} className="inline-flex h-12 w-fit items-center gap-2 rounded-full bg-accent px-6 text-[15px] font-bold text-accent-fg transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"><Icon name="play" className="size-4" />Play</Link> : null}

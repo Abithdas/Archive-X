@@ -14,6 +14,7 @@ import { ListFilters } from './FilterPanel'
 import { NO_FILTER, filterCount, matchesFilter, type ListFilter } from './listFilters'
 import { episodeLabel, countText, lengthText, missingText, seasonSummary, type SeriesCard, type SeriesDetail } from './series'
 import { ReviewsButton, ScoreBadges, useReviews } from './Reviews'
+import { useTitle } from './DiscoverPages'
 
 
 /** The TV shows in the library, shown inside Movies & Shows: a poster for each, with how many episodes are here. */
@@ -53,6 +54,20 @@ export function SeriesList() {
   )
 }
 
+function GapBody({ d, f, n, season }: { d: SeriesDetail; f?: { name: string; released: string; thumb: string }; n: number; season: number }) {
+  return (
+    <>
+      <span className="relative grid aspect-video w-32 shrink-0 place-items-center overflow-hidden rounded-lg bg-surface-3">
+        {f?.thumb ? <img src={f.thumb} alt="" loading="lazy" className="size-full object-cover" /> : <img src={d.poster || PLACEHOLDER} alt="" loading="lazy" className="size-full object-cover opacity-40" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[15px] font-bold">{n}. {f?.name || `Episode ${n}`}</span>
+        <span className="block truncate text-xs text-muted">{[episodeLabel(season, { episode: n }), f?.released, 'Not in your library · find it in your add-ons'].filter(Boolean).join(' · ')}</span>
+      </span>
+    </>
+  )
+}
+
 /** One show, laid out like a streaming app: the artwork fills the page, the story is on the left, and the seasons and their episodes are in a panel on the right. */
 export function SeriesDetailPage({ id }: { id: number }) {
   const q = useQuery({ queryKey: ['series', id], queryFn: () => api<SeriesDetail>(`/api/screen/series/${id}`) })
@@ -63,6 +78,10 @@ export function SeriesDetailPage({ id }: { id: number }) {
   const season = d?.seasons.find((s) => s.season === picked) ?? d?.seasons.find((s) => s.episodes.length) ?? d?.seasons[0]
   const word = find.trim().toLowerCase()
   const episodes = (season?.episodes ?? []).filter((e) => !word || e.name.toLowerCase().includes(word))
+  // Episodes the library does not have: named by the catalogue, and opened on their own page, where the person's add-ons offer streams for them.
+  const found = useTitle('series', d?.imdb ?? '')
+  const foundSeason = found.data?.episodes?.find((x) => x.season === season?.season)?.episodes
+  const gaps = (season?.missing ?? []).map((n) => ({ n, f: foundSeason?.find((x) => x.episode === n) })).filter((g) => !word || (g.f?.name ?? '').toLowerCase().includes(word))
   const first = d?.seasons.flatMap((s) => s.episodes)[0]
   const left = q.isPending ? <p role="status" className="py-8 text-sm text-muted">Loading…</p>
     : q.isError || !d ? <p role="alert" className="py-8 text-sm text-warn">This show is not in the library.</p>
@@ -78,7 +97,7 @@ export function SeriesDetailPage({ id }: { id: number }) {
         </p>
         <p className="max-w-xl text-[15px] leading-relaxed text-fg/80">{d.overview}</p>
         <Chips label="Genres" items={d.genres} />
-        <Chips label="Cast" items={d.cast.slice(0, 6).map((c) => c.name)} title={(n) => d.cast.find((c) => c.name === n)?.character} />
+        <Chips label="Cast" cast items={d.cast.slice(0, 6).map((c) => c.name)} title={(n) => d.cast.find((c) => c.name === n)?.character} />
         {d.companies.length ? <p className="text-xs text-faint">{d.companies.join(' · ')}</p> : null}
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {first ? <Link to="/watch/$cid/$mid" params={{ cid: first.cid, mid: String(first.mid) }} className="inline-flex h-12 w-fit items-center gap-2 rounded-full bg-accent px-6 text-[15px] font-bold text-accent-fg transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"><Icon name="play" className="size-4" />Play {episodeLabel(d.seasons.find((s) => s.episodes.includes(first))?.season ?? 1, first) || 'first episode'}</Link> : null}
@@ -110,7 +129,16 @@ export function SeriesDetailPage({ id }: { id: number }) {
             </Link>
           </li>
         ))}
-        {!episodes.length && season?.episodes.length ? <li className="px-2 py-4 text-sm text-muted">No episode matches “{find}”.</li> : null}
+        {gaps.map(({ n, f }) => (
+          <li key={`gap${n}`} className="m-0">
+            {d?.imdb && /^(tt|tmdb-)/.test(d.imdb)
+              ? <Link to="/discover/$kind/$id/$season/$episode" params={{ kind: 'series', id: d.imdb, season: String(season?.season ?? 1), episode: String(n) }} aria-label={`Episode ${n} is not in your library: find it in your add-ons`} className="group flex items-center gap-3 rounded-2xl p-2 opacity-80 transition-colors hover:bg-fg/10 hover:opacity-100 focus-visible:bg-fg/10">
+                <GapBody d={d} f={f} n={n} season={season?.season ?? 1} />
+              </Link>
+              : <div className="flex items-center gap-3 rounded-2xl p-2 opacity-70"><GapBody d={d!} f={f} n={n} season={season?.season ?? 1} /></div>}
+          </li>
+        ))}
+        {!episodes.length && !gaps.length && season?.episodes.length ? <li className="px-2 py-4 text-sm text-muted">No episode matches “{find}”.</li> : null}
       </ul>
     </>
   ) : <Empty icon="library" title="No episodes in the library">Episodes appear here once their files are in an SFW folder and identified.</Empty>

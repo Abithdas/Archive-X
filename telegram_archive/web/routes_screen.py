@@ -522,6 +522,67 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             raise HTTPException(404, "That stream is no longer available. Open the title's page again.")
         return {"url": hit[1]}
 
+    @router.get("/api/screen/cast/{name}")
+    async def cast_person(name: str, request: Request):
+        """What a cast member is in: the movies and shows of the library that list them, and their other work from TMDB. Asked by name, from a title's cast list."""
+        require_auth(request)
+        if not _in_sfw():
+            return {"ok": True, "name": name, "image": "", "library": [], "items": [], "reason": ""}
+        name = " ".join(name.split())[:120]
+
+        def work():
+            with db.reading() as c:
+                row = c.execute("SELECT id, name, image, tmdb_id FROM performers WHERE content_rating='sfw' AND LOWER(name)=LOWER(?) ORDER BY id LIMIT 1", (name,)).fetchone()
+                library = []
+                if row:
+                    library = [{"id": r["id"], "kind": r["kind"], "title": r["title"], "year": r["year"], "poster": si.image_url(r["poster"], "w342")} for r in c.execute(
+                        "SELECT DISTINCT t.id,t.kind,t.title,t.year,t.poster FROM video_performers vp JOIN media_screen s ON s.media_id=vp.video_id AND s.state='MATCHED' "
+                        "JOIN screen_titles t ON t.id=s.title_id WHERE vp.performer_id=? ORDER BY t.title", (row["id"],)).fetchall()]
+            tid = str(row["tmdb_id"] or "").strip() if row else ""
+            scr = sid.make_screen(db, fetch)
+            image = si.image_url(row["image"], "w185") if row and row["image"] and not str(row["image"]).startswith(("http", "/")) else ""
+            if not scr.tmdb:
+                return {"ok": True, "name": name, "image": image, "library": library, "items": [], "reason": "tmdb"}
+            if not tid.isdigit():                                       # not in the library or not linked: the best-known person with exactly that name
+                hits = [r for r in (scr._t("/search/person", query=name).get("results") or []) if si._norm_title(r.get("name", "")) == si._norm_title(name)]
+                hits.sort(key=lambda r: -float(r.get("popularity") or 0))
+                tid = str(hits[0]["id"]) if hits else ""
+                if hits and not image:
+                    image = si.image_url(hits[0].get("profile_path") or "", "w185")
+            if not tid.isdigit():
+                return {"ok": True, "name": name, "image": image, "library": library, "items": [], "reason": "unlinked"}
+            return {"ok": True, "name": name, "image": image, "library": library, "items": _credits_of(scr, int(tid)), "reason": ""}
+        try:
+            return await asyncio.to_thread(work)
+        except Exception as exc:
+            db.log(f"Cast lookup failed: {type(exc).__name__}: {exc}"[:300], "WARN")
+            return {"ok": True, "name": name, "image": "", "library": [], "items": [], "reason": "unreachable"}
+
+    def _credits_of(scr, tid: int) -> list[dict]:
+        got = scr._t(f"/person/{tid}/combined_credits")
+        rows = [r for r in (got.get("cast") or []) if r.get("media_type") in ("movie", "tv") and not (set(r.get("genre_ids") or []) & {10767, 10763})]   # no talk shows or news appearances
+        rows.sort(key=lambda r: -float(r.get("popularity") or 0))
+        seen: set[tuple] = set()
+        uniq = []
+        for r in rows:
+            key = (r["media_type"], r.get("id"))
+            if key not in seen:
+                seen.add(key)
+                uniq.append(r)
+        items = []
+        for media in ("movie", "tv"):
+            part = [r for r in uniq if r["media_type"] == media]
+            mine = _in_library_tmdb(media, [int(r.get("id") or 0) for r in part])
+            for r in part:
+                if int(r.get("id") or 0) in mine:
+                    continue
+                card = _tmdb_card(r, media, mine)
+                card["character"] = str(r.get("character") or "")[:80]
+                card["_pop"] = float(r.get("popularity") or 0)
+                items.append(card)
+        items.sort(key=lambda x: -x.pop("_pop"))
+        return items[:30]
+
     @router.get("/api/screen/person-credits/{performer_id}")
     async def person_credits(performer_id: int, request: Request):
         """The other movies and shows an actor of the SFW library is in (TMDB's credits for that person), most popular first, without the ones already in the library: they are listed above."""
@@ -538,29 +599,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             scr = sid.make_screen(db, fetch)
             if not scr.tmdb or not tid.isdigit():
                 return {"ok": True, "items": [], "reason": "tmdb" if not scr.tmdb else "unlinked"}
-            got = scr._t(f"/person/{int(tid)}/combined_credits")
-            rows = [r for r in (got.get("cast") or []) if r.get("media_type") in ("movie", "tv") and not (set(r.get("genre_ids") or []) & {10767, 10763})]   # no talk shows or news appearances
-            rows.sort(key=lambda r: -float(r.get("popularity") or 0))
-            seen: set[tuple] = set()
-            uniq = []
-            for r in rows:
-                key = (r["media_type"], r.get("id"))
-                if key not in seen:
-                    seen.add(key)
-                    uniq.append(r)
-            items = []
-            for media in ("movie", "tv"):
-                part = [r for r in uniq if r["media_type"] == media]
-                mine = _in_library_tmdb(media, [int(r.get("id") or 0) for r in part])
-                for r in part:
-                    if int(r.get("id") or 0) in mine:
-                        continue
-                    card = _tmdb_card(r, media, mine)
-                    card["character"] = str(r.get("character") or "")[:80]
-                    card["_pop"] = float(r.get("popularity") or 0)
-                    items.append(card)
-            items.sort(key=lambda x: -x.pop("_pop"))
-            return {"ok": True, "items": items[:30], "reason": ""}
+            return {"ok": True, "items": _credits_of(scr, int(tid)), "reason": ""}
         try:
             return await asyncio.to_thread(work)
         except Exception as exc:

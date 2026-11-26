@@ -32,12 +32,14 @@ export function TitleStage({ backdrop, back, onBack, backLabel, left, panel, pan
 }
 
 /** A short list of names as chips, under a small heading (genres, cast, directors). */
-export function Chips({ label, items, title }: { label: string; items: string[]; title?: (s: string) => string | undefined }) {
+export function Chips({ label, items, title, cast }: { label: string; items: string[]; title?: (s: string) => string | undefined; cast?: boolean }) {
   if (!items.length) return null
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="w-20 text-[11px] font-bold uppercase tracking-wide text-faint">{label}</span>
-      <ul aria-label={label} className="m-0 flex list-none flex-wrap gap-2 p-0">{items.map((g) => <li key={g} title={title?.(g)} className="rounded-full bg-fg/10 px-3.5 py-1.5 text-[13px] font-semibold backdrop-blur">{g}</li>)}</ul>
+      <ul aria-label={label} className="m-0 flex list-none flex-wrap gap-2 p-0">{items.map((g) => <li key={g} title={title?.(g)} className="rounded-full bg-fg/10 text-[13px] font-semibold backdrop-blur">{cast
+        ? <Link to="/cast/$name" params={{ name: g }} aria-label={`Everything with ${g}`} className="block rounded-full px-3.5 py-1.5 transition-colors hover:bg-fg/20 focus-visible:bg-fg/20">{g}</Link>
+        : <span className="block px-3.5 py-1.5">{g}</span>}</li>)}</ul>
     </div>
   )
 }

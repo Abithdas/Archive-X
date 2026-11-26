@@ -70,7 +70,7 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
         </p>
         <p className="max-w-xl text-[15px] leading-relaxed text-fg/80">{d.overview || 'No description.'}</p>
         <Chips label="Genres" items={d.genres} />
-        <Chips label="Cast" items={d.cast.slice(0, 6)} />
+        <Chips label="Cast" cast items={d.cast.slice(0, 6)} />
         <Chips label="Directors" items={d.director.slice(0, 3)} />
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {lib ? <Link to={openIn(lib.kind)} params={{ id: String(lib.id) }} className={cn(BTN, 'bg-accent text-accent-fg hover:brightness-110')}><Icon name="play" className="size-4" />Open in your library</Link>
