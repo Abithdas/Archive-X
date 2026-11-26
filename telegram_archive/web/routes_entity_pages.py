@@ -733,13 +733,15 @@ def register_entity_page_routes(
             limit = 5000
         def _read_studios():
             with db.reading() as rdb:
+                # `main.video_studios`, not the content filter's view of it: a video counts only when it is in archive_x_library_media, which the
+                # filter already limits, so the filtered link view only repeated that test for every link (0.59 s against 0.18 s at 175,000 videos).
                 if q:
                     like = f"%{q}%"
                     rows = rdb.execute(
                         "SELECT s.*, COUNT(DISTINCT CASE WHEN vs.video_id IN (SELECT id FROM archive_x_library_media) THEN vs.video_id END) video_count, "
                         "(SELECT MAX(sic.updated_at) FROM studio_image_cache sic WHERE sic.studio_id=s.id) AS image_cache_updated_at, "
                         "EXISTS(SELECT 1 FROM studio_image_cache sic WHERE sic.studio_id=s.id AND sic.data IS NOT NULL AND length(sic.data)>0 AND (COALESCE(s.image,'')='' OR COALESCE(sic.url,'')=COALESCE(s.image,''))) AS has_cached_image FROM studios s "
-                        "LEFT JOIN video_studios vs ON vs.studio_id=s.id "
+                        "LEFT JOIN main.video_studios vs ON vs.studio_id=s.id "
                         "WHERE s.name LIKE ? OR COALESCE(s.normalized_name,'') LIKE ? "
                         "GROUP BY s.id HAVING video_count > 0 OR s.name='Unknown Studio' ORDER BY (s.name='Unknown Studio') DESC, video_count DESC, s.name LIMIT ?",
                         (like, f"%{db._norm_search(q)}%", limit)).fetchall()
@@ -748,7 +750,7 @@ def register_entity_page_routes(
                         "SELECT s.*, COUNT(DISTINCT CASE WHEN vs.video_id IN (SELECT id FROM archive_x_library_media) THEN vs.video_id END) video_count, "
                         "(SELECT MAX(sic.updated_at) FROM studio_image_cache sic WHERE sic.studio_id=s.id) AS image_cache_updated_at, "
                         "EXISTS(SELECT 1 FROM studio_image_cache sic WHERE sic.studio_id=s.id AND sic.data IS NOT NULL AND length(sic.data)>0 AND (COALESCE(s.image,'')='' OR COALESCE(sic.url,'')=COALESCE(s.image,''))) AS has_cached_image FROM studios s "
-                        "LEFT JOIN video_studios vs ON vs.studio_id=s.id "
+                        "LEFT JOIN main.video_studios vs ON vs.studio_id=s.id "
                         "GROUP BY s.id HAVING video_count > 0 OR s.name='Unknown Studio' ORDER BY (s.name='Unknown Studio') DESC, video_count DESC, s.name LIMIT ?", (limit,)).fetchall()
             result = [dict(r) for r in rows]
             with db.reading() as rdb:

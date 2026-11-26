@@ -403,21 +403,8 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
             disk = {'total': int(usage.total), 'free': int(usage.free), 'used': int(usage.used)}
         except Exception:
             disk = {'total': 0, 'free': 0, 'used': 0}
-        def _size():
-            count = 0
-            total = 0
-            try:
-                for p in root.rglob('*'):
-                    try:
-                        if p.is_file():
-                            count += 1
-                            total += p.stat().st_size
-                    except OSError:
-                        pass
-            except OSError:
-                pass
-            return count, total
-        files, bytes_used = await asyncio.to_thread(_size)
+        from ..core import data_usage
+        files, bytes_used = await asyncio.to_thread(data_usage.usage, root)
         active_jobs = db.active_jobs()
         blocking_jobs = [j for j in active_jobs if str(j.get('status') or '').upper() in {'QUEUED','RUNNING','PAUSING','CANCEL_REQUESTED'}]
         return {

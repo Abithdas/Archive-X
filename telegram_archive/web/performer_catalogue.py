@@ -74,12 +74,12 @@ def list_performers_sync(db, query_params):
         "SELECT p.*, COUNT(DISTINCT combined.video_id) video_count, "
         "EXISTS(SELECT 1 FROM performer_image_cache pic WHERE pic.performer_id=p.id "
         "AND pic.data IS NOT NULL AND length(pic.data)>0) AS has_cached_image FROM performers p "
-        "LEFT JOIN (SELECT performer_id, video_id FROM video_performers "
+        "LEFT JOIN (SELECT performer_id, video_id FROM main.video_performers "
         "WHERE video_id IN (SELECT id FROM archive_x_library_media) "
-        "UNION SELECT performer_id, video_id FROM local_video_performers "
+        "UNION SELECT performer_id, video_id FROM main.local_video_performers "
         "WHERE video_id IN (SELECT id FROM archive_x_library_media)) combined "
         "ON combined.performer_id=p.id "
-    )
+    )   # the base link tables: the library view already holds back what the content mode hides, so their filtered views only repeated that
     with db.reading() as read_db:
         rows = None
         if q:
