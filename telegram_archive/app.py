@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from .core.swallowed import note as _swallowed_note
 from .core import db_lock as _db_lock
+from .core import route_timing as _route_timing
 from contextlib import asynccontextmanager
 from pathlib import Path
 import os
@@ -349,6 +350,7 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                             "hardware": app_state.get("hardware_profile"),
                             "internet": app_state.get("internet_test"),
                             "database_lock_slow_holders": _db_lock.slow_summary(),
+                            "slowest_routes": _route_timing.summary(),
                         },
                     )
                 except asyncio.CancelledError:
@@ -598,6 +600,8 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
     route_usage = RouteUsage(config.LOG_DIR / "route-usage.json")
     app.state.route_usage = route_usage
     app.add_middleware(RouteUsageMiddleware, usage=route_usage)   # innermost, so the route is known when it answers
+    from .core.route_timing import RouteTimingMiddleware
+    app.add_middleware(RouteTimingMiddleware)   # how long each route takes to start answering (diagnostics snapshot)
     app.add_middleware(ContentFilterMiddleware, db=db)
     app.add_middleware(RequestCorrelationMiddleware)
     app.add_middleware(APIRateLimitMiddleware)
