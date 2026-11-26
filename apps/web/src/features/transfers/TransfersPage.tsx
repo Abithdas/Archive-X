@@ -100,7 +100,7 @@ function LiveLanes() {
           </ul>
           <p className="mb-3 text-xs text-faint" role="status">{n} active/queued lane job{n === 1 ? '' : 's'}</p>
           <OtherModeNote summary={lanes.data?.other_mode_jobs} />
-          {list.length ? <div className="grid grid-cols-[minmax(0,1fr)] gap-2.5 md:grid-cols-2"><AnimatePresence initial={false}>{list.map((l) => <LaneCard key={l.key} lane={l} busy={busy === l.id} onAct={(x, a) => void act(x, a)} />)}</AnimatePresence></div> : <p className="text-sm text-muted">No active lane jobs. Start a transfer, local upload, manual Metadata &amp; Assets scan, or Content Automation to see its independent progress here.</p>}
+          {list.length ? <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-2.5', list.length > 1 && 'md:grid-cols-2')}><AnimatePresence initial={false}>{list.map((l) => <LaneCard key={l.key} lane={l} busy={busy === l.id} onAct={(x, a) => void act(x, a)} />)}</AnimatePresence></div> : <p className="text-sm text-muted">No active lane jobs. Start a transfer, local upload, manual Metadata &amp; Assets scan, or Content Automation to see its independent progress here.</p>}
         </>
       )}
       {stop ? (

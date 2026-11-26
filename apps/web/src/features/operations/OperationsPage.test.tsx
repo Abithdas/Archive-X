@@ -40,6 +40,15 @@ describe('OperationsPage', () => {
     mount({ count: 1, running: 1 })
     expect(await screen.findByRole('status', { name: 'Tasks in the other mode' })).toHaveTextContent('A task is running in the other mode.')
   })
+  it('lists the jobs in one column when one job is shown and in two when more are', async () => {
+    mount()
+    await screen.findByText('Index channel')
+    const list = () => screen.getByText('Index channel').closest('ul')!
+    expect(list().className).toContain('md:grid-cols-2')                       // three jobs
+    fireEvent.click(screen.getByRole('button', { name: 'Queued' }))
+    await waitFor(() => expect(screen.queryByText('Index channel')).not.toBeInTheDocument())
+    expect(screen.getByText('Upload batch').closest('ul')!.className).not.toContain('md:grid-cols-2')   // the one queued job fills the row
+  })
   it('shows the job counters and the live jobs, and filters them', async () => {
     mount()
     const summary = await screen.findByRole('group', { name: 'Job summary' })

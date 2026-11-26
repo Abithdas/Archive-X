@@ -4,6 +4,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Operations and Transfers list their jobs in one full-width column when there is only one job (it used to leave the right half empty), and in two columns when there are more. The same goes for the transfer processes on Operations.
 - Add-ons can all be removed, including the three that come with the app (Cinemeta, Streaming Catalogs, Anime Catalogs). Removing one takes only its own lists out of Discover (Discover moves to a list that is still offered), and a removed one is listed under "Removed" in Settings, Addons with an "Add back" button. The whole-catalogue switch in Metadata still turns every built-in off.
 - Add-ons exist in SFW mode only. In NSFW mode there is no Addons section in Settings, and the add-on endpoints refuse (or, for subtitles and details, find nothing), so no title or file name is sent to an add-on from NSFW.
 - Each mode shows only its own tasks. Operations and Transfers (and the activity indicators, notifications and the Transfers lanes) list the tasks of the open mode; a task belongs to the mode of the channels or folders it works on, a task that names no channel shows in both, and a channel the library does not know counts as NSFW. The other mode's tasks are not listed: a line says how many are running or waiting in the other mode, and nothing about what they are.

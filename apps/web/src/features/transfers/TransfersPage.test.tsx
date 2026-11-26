@@ -49,6 +49,16 @@ describe('Live lanes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }))
     await waitFor(() => expect(calls.some((c) => c.url === '/api/jobs/j1/pause')).toBe(true))
   })
+  it('uses one full-width column for a single job and two columns for more', async () => {
+    const job = (id: string) => ({ id, type: 'UPLOAD_LOCAL', status: 'RUNNING', operation: 'Uploading video', current_item: `${id}.mp4`, progress: 40 })
+    mount(undefined, [job('a')])
+    const one = (await screen.findByText('Uploading a.mp4')).closest('div.grid')!
+    expect(one.className).not.toContain('md:grid-cols-2')
+    cleanup()
+    mount(undefined, [job('a'), job('b')])
+    const two = (await screen.findByText('Uploading a.mp4')).closest('div.grid')!
+    expect(two.className).toContain('md:grid-cols-2')
+  })
   it('asks before stopping a job, and only then cancels it', async () => {
     const calls = mount((url) => (url.endsWith('/cancel') ? json({ ok: true, status: 'CANCELLED' }) : undefined), [{ id: 'j2', type: 'TELEGRAM_TRANSFER', status: 'RUNNING', progress: 10 }])
     fireEvent.click(await screen.findByRole('button', { name: 'Stop' }))
