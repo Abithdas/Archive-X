@@ -356,8 +356,12 @@ def _ensure_resource_schema(db) -> None:
               AND (CAST(m.source_channel AS TEXT) GLOB '-[0-9]*'
                    OR (CAST(m.source_channel AS TEXT)<>'' AND CAST(m.source_channel AS TEXT) NOT GLOB '*[^0-9]*'))
         """)
+        # The rule for what the Library shows (below) is kept as `archive_x_library_media_exact`. `archive_x_library_media`, which every page,
+        # count and list reads, is that rule's answer stored in a table and kept current by triggers (core/library_ready.py), because working
+        # the rule out for every video on every request took 1 to 1.7 s with 75,000 prepared videos.
         db.conn.execute("DROP VIEW IF EXISTS archive_x_library_media")
-        db.conn.execute("""CREATE VIEW archive_x_library_media AS
+        db.conn.execute("DROP VIEW IF EXISTS archive_x_library_media_exact")
+        db.conn.execute("""CREATE VIEW archive_x_library_media_exact AS
             SELECT cm.*
             FROM archive_x_catalogued_media cm
             WHERE
@@ -381,6 +385,13 @@ def _ensure_resource_schema(db) -> None:
                     AND sp.message_id=cm.source_message_id
                     AND (sg.status<>'VERIFIED' OR sp.message_id<>sg.primary_message_id)
               )
+        """)
+        from . import library_ready
+        library_ready.install(db.conn)
+        db.conn.execute("""CREATE VIEW archive_x_library_media AS
+            SELECT cm.*
+            FROM archive_x_catalogued_media cm
+            JOIN ax_library_ready lr ON lr.media_id=cm.id
         """)
         db.conn.commit()
     # V29.4.131: track changes to the tables created here as well.

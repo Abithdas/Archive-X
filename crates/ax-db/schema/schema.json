@@ -765,6 +765,14 @@
    "type": "TEXT"
   }
  ],
+ "ax_library_ready": [
+  {
+   "name": "media_id",
+   "notnull": false,
+   "pk": true,
+   "type": "INTEGER"
+  }
+ ],
  "channel_image_cache": [
   {
    "name": "telegram_id",

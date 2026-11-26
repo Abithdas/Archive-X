@@ -54,7 +54,7 @@ fn no_table_is_missing_or_extra() {
 fn indexes_triggers_views_and_the_full_text_tables_are_there() {
     let c = fresh();
     let count = |kind: &str| c.query_row("SELECT COUNT(*) FROM sqlite_master WHERE type=?", [kind], |r| r.get::<_, i64>(0)).unwrap();
-    assert_eq!((count("view"), count("trigger")), (3, 54));
+    assert_eq!((count("view"), count("trigger")), (4, 75));
     assert!(count("index") >= 190, "{} indexes", count("index"));
     for t in ["media_fts", "performer_fts", "tag_fts", "studio_fts"] {
         // the index tables work: an insert and a prefix search
@@ -80,6 +80,7 @@ fn the_starting_rows_are_the_ones_python_leaves() {
         [
             ("archive_x_delivery_reconcile_v168".to_string(), "1".to_string()),
             ("archive_x_peer_identity_snapshots_v197".to_string(), "1".to_string()),
+            ("ax_library_ready_v1".to_string(), "1".to_string()),
             ("search_index_version".to_string(), "\"search-index-v2\"".to_string()),
             ("v18.25_ambiguous_title_repair_done".to_string(), "1".to_string()),
         ]

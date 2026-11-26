@@ -4,6 +4,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- The Library, channel, performer and studio pages no longer work out for every video, on every request, whether it is ready to be shown: the answer is kept in a table (`ax_library_ready`) that database triggers update when a video, its snapshots, thumbnail, representative image or split-file state changes. With 75,000 prepared videos the Library page went from 1.4 s to 0.24 s, a scanned channel from 0.15 s to 0.03 s, the performers list from 1.7 s to 0.3 s and a name search from 1.4 s to 0.26 s. The first start after the upgrade fills the table (about a second for 75,000 videos).
 - A performer's page no longer takes time in proportion to the size of the whole library: it starts from the performer's own videos (0.59 s down to 0.025 s for a performer with 59 videos in a library of 175,000).
 - A large library no longer makes the first start after an upgrade wait for the export of thumbnails and metadata to the user folders (15 s at 175,000 videos): it runs in the background, and the window opens at once.
 - Fixed "the Archive X backend exited before it was ready ... database disk image is malformed": when the database file is damaged, the app now moves it aside into a `damaged-<time>` folder, creates a new database and copies back every row that can still be read, instead of refusing to start.
