@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased
+## 30.12.3 (2026-11-26)
 
 - Title pages show critics' scores and what critics said. Rotten Tomatoes and Metacritic scores sit beside the IMDb rating (on the Discover title page and on your library's movie and show pages), and a Reviews button next to Trailer opens the scores and the opening of the title's "Critical response" from Wikipedia, with a link to read the rest. They come from Wikidata and Wikipedia: no key and no account, only the title's IMDb number is sent (and only in SFW), the answer is kept for half a day, and a title they do not know simply has no marks or button.
 - A title page takes its accent colour from its artwork (the buttons, links and marks on it), always moved to a shade white text reads on, and a black-and-white title keeps your accent. The picture is read on this computer. It is on unless you turn off "Match each title's colours" in Settings, Appearance (kept per computer); a picture from a host that does not allow reading is left alone.
