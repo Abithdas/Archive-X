@@ -158,3 +158,39 @@ def test_an_uploaded_handle_makes_the_same_document_as_the_bytes_did():
     names = lambda m: [a.file_name for a in m.attributes if isinstance(a, types.DocumentAttributeFilename)]
     assert names(after) == names(before) == [name]
     assert type(after) is type(before) and after.force_file == before.force_file
+
+
+def test_when_the_cover_registration_is_refused_it_uploads_again_and_the_picture_does_not_try_the_refused_handle(world):
+    client, _, state = world
+    client.fail["upload_media"] = [RuntimeError("FILE_ID_INVALID")]                 # the first registration of the shared upload
+    msg = client.add_source_video("scene one.mp4")
+    assert t.run(t.move_one(client, msg, state)) is True
+    assert len(client.calls("upload_media")) == 2                                   # refused, then registered from a fresh upload
+    assert len(client.calls("upload_file")) == 3                                    # the early one, the cover's fresh one, the picture's own (the handle is not tried again)
+    assert [p[2] for p in client.posts] == ["video", "thumbnail"] and len(picture_posts(client)) == 1
+    assert telegram_sender.CoverReuse.enabled is False and TIMER.reuse_refused == 1 and TIMER.reuse_ok == 0
+
+
+def test_an_error_that_is_not_a_refusal_when_registering_the_cover_is_not_swallowed(world, monkeypatch):
+    client, _, state = world
+
+    async def no_sleep(s):
+        pass
+    monkeypatch.setattr(tmm.asyncio, "sleep", no_sleep)
+    client.fail["upload_media"] = [ConnectionError("dropped")] * 3                  # the send helper's own three attempts all fail
+    msg = client.add_source_video("scene one.mp4")
+    with pytest.raises(ConnectionError):
+        t.run(t.move_one(client, msg, state))
+    assert client.posts == [] and msg.id in client.chats[t.SOURCE_ID].messages and telegram_sender.CoverReuse.enabled is True
+
+
+def test_a_single_hiccup_when_registering_the_cover_is_still_retried_as_before(world, monkeypatch):
+    client, _, state = world
+
+    async def no_sleep(s):
+        pass
+    monkeypatch.setattr(tmm.asyncio, "sleep", no_sleep)
+    client.fail["upload_media"] = [ConnectionError("dropped")]
+    msg = client.add_source_video("scene one.mp4")
+    assert t.run(t.move_one(client, msg, state)) is True
+    assert len(client.calls("upload_media")) == 2 and telegram_sender.CoverReuse.enabled is True and TIMER.reuse_ok == 1

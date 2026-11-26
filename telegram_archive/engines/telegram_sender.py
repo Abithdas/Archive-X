@@ -954,15 +954,16 @@ async def preupload_cover_file(client, thumb: bytes, file_name: str = "cover.jpg
         return None
 
 
-async def _register_cover_photo(client, target_entity, uploaded, status_callback=None):
-    """Register an uploaded file as a Telegram photo and return the InputPhoto for video_cover."""
+async def _register_cover_photo(client, target_entity, uploaded, status_callback=None, *, stop_on_refusal=False):
+    """Register an uploaded file as a Telegram photo and return the InputPhoto for video_cover. `stop_on_refusal`: for a shared upload, a refusal is
+    reported at once (the caller uploads again) and not retried three times first."""
     from telethon import functions, types, utils
     res = await _retry(lambda: _await_upload_stage(
         lambda: client(functions.messages.UploadMediaRequest(
             peer=target_entity, media=types.InputMediaUploadedPhoto(file=uploaded))),
         status_callback,
         "Registering Telegram video cover",
-    ))
+    ), stop_if=upload_was_refused if stop_on_refusal else None)
     photo = getattr(res, "photo", None)
     if not photo:
         raise RuntimeError("Telegram did not return an uploaded cover photo")
@@ -974,7 +975,7 @@ async def _upload_cover_photo(client, target_entity, thumb: bytes, *, status_cal
     given (no second upload), and if Telegram refuses it the sheet is uploaded again and reuse is switched off."""
     if uploaded is not None:
         try:
-            return await _register_cover_photo(client, target_entity, uploaded, status_callback)
+            return await _register_cover_photo(client, target_entity, uploaded, status_callback, stop_on_refusal=True)
         except asyncio.CancelledError:
             raise
         except Exception as exc:

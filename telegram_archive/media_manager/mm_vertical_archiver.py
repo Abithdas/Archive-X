@@ -213,7 +213,7 @@ async def upload_thumbnail_bytes_document(client, destination, thumb_bytes: byte
     if not thumb_bytes:
         raise RuntimeError("Cannot post an empty thumbnail")
     name = f"{Path(video_name).stem}.jpg" if str(video_name).strip() else "thumbnail.jpg"
-    if uploaded is not None:
+    if uploaded is not None and CoverReuse.enabled:   # not after the cover already found the handle refused
         from telethon import types as _tl_types
         while uploaded is not None:
             try:
