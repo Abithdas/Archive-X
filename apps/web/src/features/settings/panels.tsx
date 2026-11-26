@@ -22,6 +22,7 @@ import { Disclosure } from '@/design/Accordion'
 import { setNavMode, useNavMode } from '@/app/navMode'
 import { useStatus } from '@/api/hooks'
 import { versionLabel } from '@/app/versionLabel'
+import { setArtColours, useArtColours } from '@/features/series/artColor'
 
 const BOX = 'rounded-[18px] border border-line bg-surface p-5'
 function Head({ icon, title, count, aside }: { icon: string; title: string; count: string; aside?: ReactNode }) {
@@ -184,10 +185,14 @@ export function AppearancePanel() {
     try { await fn(); setStatus(ok) } catch { setStatus('Applied locally; server save failed.') }
   }
   const nav = useNavMode()
+  const artColours = useArtColours()
   return (
     <div className="grid gap-4">
       <section aria-label="Menu" className={BOX}>
         <Row title="Menu on top" hint="The pages sit in a bar along the top, with search and your account. In the desktop app the window's minimize, maximize and close buttons are in it too."><Switch label="Menu on top" checked={nav === 'top'} onChange={(v) => setNavMode(v ? 'top' : 'side')} /></Row>
+      </section>
+      <section aria-label="Title pages" className={BOX}>
+        <Row title="Match each title's colours" hint="A movie or show's page takes its accent colour from its artwork, always a shade white text reads on. Black-and-white titles keep your accent. Kept on this computer."><Switch label="Match each title's colours" checked={artColours} onChange={setArtColours} /></Row>
       </section>
       <section aria-label="Themes" className={BOX}>
         <div className="mb-1 flex flex-wrap items-center justify-between gap-3">

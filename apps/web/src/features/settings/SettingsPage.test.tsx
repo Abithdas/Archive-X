@@ -50,6 +50,17 @@ describe('Settings', () => {
     expect(within(nav).getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-current', 'page')
     expect(screen.queryByRole('region', { name: 'Built in' })).not.toBeInTheDocument()
   })
+  it("has a switch for matching each title's colours in Appearance: on by default, kept on this computer", async () => {
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: 'Appearance' }))
+    const sw = await screen.findByRole('switch', { name: "Match each title's colours" })
+    expect(sw).toBeChecked()
+    fireEvent.click(sw)
+    expect(localStorage.getItem('ax_next_art_colours')).toBe('off')
+    await waitFor(() => expect(screen.getByRole('switch', { name: "Match each title's colours" })).not.toBeChecked())
+    fireEvent.click(screen.getByRole('switch', { name: "Match each title's colours" }))
+    expect(localStorage.getItem('ax_next_art_colours')).toBe('on')
+  })
   it('Overview ends with an About note that says it is a personal project built with Claude Code', async () => {
     mount()
     const about = await screen.findByRole('region', { name: 'About' })

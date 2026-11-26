@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { Icon } from '@/design/Icon'
 import { PLACEHOLDER } from './PosterCard'
+import { useArtworkAccent } from './artColor'
 
 /**
  * The page of one title, laid out like a streaming app: the artwork fills the page and fades into it, what the title is sits on the left,
@@ -10,8 +11,9 @@ import { PLACEHOLDER } from './PosterCard'
 export function TitleStage({ backdrop, back, onBack, backLabel, left, panel, panelLabel }: {
   backdrop?: string; back: string; onBack?: () => void; backLabel: string; left: ReactNode; panel?: ReactNode; panelLabel: string
 }) {
+  const accent = useArtworkAccent(backdrop)   // the page wears its artwork's colour (the accent of everything inside it), unless that is switched off in Settings, Appearance
   return (
-    <div className="relative isolate min-h-[calc(100dvh-64px)] overflow-hidden">
+    <div style={accent} className="relative isolate min-h-[calc(100dvh-64px)] overflow-hidden">
       {backdrop ? (
         <>
           <img src={backdrop || PLACEHOLDER} alt="" aria-hidden="true" className="mo-fade-in absolute inset-0 -z-20 size-full object-cover object-[70%_20%]" />
