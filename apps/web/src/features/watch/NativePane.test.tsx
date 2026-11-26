@@ -209,22 +209,20 @@ describe('NativePane, an add-on stream and full screen', () => {
     expect(calls.find((c) => c.command === 'native_open')!.args).toMatchObject({ url: 'https://cdn.example/film.mkv' })
   })
 
-  it('has a back arrow, the title and a leave-full-screen button in full screen', async () => {
+  it('has a back arrow and the title on top in full screen', async () => {
     const exit = vi.fn(async () => undefined)
     Object.defineProperty(document, 'exitFullscreen', { value: exit, configurable: true })
     const onClose = vi.fn()
     mount({ onClose, title: 'The Matrix' })
     await ready()
-    expect(screen.queryByRole('button', { name: 'Leave full screen' })).toBeNull()   // on the page the page's own back arrow is used
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()   // on the page the page's own back arrow is used
     const pane = screen.getByTestId('native-pane')
     Object.defineProperty(document, 'fullscreenElement', { value: pane, configurable: true })
     act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
     expect(await screen.findByText('The Matrix')).toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('button', { name: 'Leave full screen' }))
+    expect(screen.queryByRole('button', { name: 'Leave full screen' })).toBeNull()   // the bottom bar has the full screen button
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }))
     expect(exit).toHaveBeenCalledTimes(1)
-    expect(onClose).not.toHaveBeenCalled()                                     // leaving full screen stays on the page
-    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
-    expect(exit).toHaveBeenCalledTimes(2)
     expect(onClose).toHaveBeenCalledTimes(1)                                   // the arrow leaves full screen and goes back
     Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
   })

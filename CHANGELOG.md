@@ -4,7 +4,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
-- The native player in full screen is laid out like dx.bi's: a slim bar on top with a back arrow, the title and a leave-full-screen button, the picture in the middle, the controls at the bottom.
+- The native player in full screen is laid out like dx.bi's: a slim bar on top with a back arrow and the title, the picture in the middle, the controls at the bottom.
 
 - **Add-on streams play in the native player** in the desktop app (the same engine as the library's videos, with a "Use the browser player" fallback). In full screen the native player now has **Back** and **Close** buttons, in SFW and NSFW alike.
 - Saving a provider key no longer shows "Paste the key into the box first" next to a key that was just saved; pressing Save with an empty box re-checks the saved key.

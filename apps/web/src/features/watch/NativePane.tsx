@@ -245,11 +245,11 @@ export function NativePane({ media, addon, linkPath, onClose, title, durationHin
     <div ref={box} className={cn('@container relative grid outline-none', isFs ? 'h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-2 bg-black' : 'w-full gap-4 sm:w-[var(--pw)] sm:gap-5')} data-testid="native-pane" tabIndex={-1}
       style={isFs ? undefined : ({ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${shape.toFixed(4)})))` } as CSSProperties)}>
       {isFs ? (
-        // As in dx.bi: a slim bar above the picture, the way back on the left, the title in the middle, leaving full screen on the right.
+        // As in dx.bi: a slim bar above the picture, the way back on the left, the title in the middle (leaving full screen is the button in the bar below, or Esc).
         <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 pt-2 text-white">
           <button type="button" onClick={() => { void document.exitFullscreen().catch(noop); onClose?.() }} aria-label="Back" title="Back" className="grid size-10 place-items-center rounded-full hover:bg-white/15"><Icon name="arrow-left" className="size-5" /></button>
           <p className="m-0 truncate text-center text-sm font-semibold text-white/85">{title}</p>
-          <button type="button" onClick={() => void document.exitFullscreen().catch(noop)} aria-label="Leave full screen" title="Leave full screen" className="grid size-10 place-items-center rounded-full hover:bg-white/15"><FullscreenIcon /></button>
+          <span className="size-10" aria-hidden="true" />   {/* keeps the title centred */}
         </div>
       ) : null}
       <div ref={stage} data-testid="stage" style={isFs ? undefined : { aspectRatio: shape }} className={cn('relative w-full overflow-hidden', isFs ? 'h-full min-h-0 bg-black' : 'bg-[#111215] rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
