@@ -13,6 +13,7 @@ import { useScreenView } from './view'
 import { ListFilters } from './FilterPanel'
 import { NO_FILTER, filterCount, matchesFilter, type ListFilter } from './listFilters'
 import { episodeLabel, countText, lengthText, missingText, seasonSummary, type SeriesCard, type SeriesDetail } from './series'
+import { ReviewsButton, ScoreBadges, useReviews } from './Reviews'
 
 
 /** The TV shows in the library, shown inside Movies & Shows: a poster for each, with how many episodes are here. */
@@ -56,6 +57,7 @@ export function SeriesList() {
 export function SeriesDetailPage({ id }: { id: number }) {
   const q = useQuery({ queryKey: ['series', id], queryFn: () => api<SeriesDetail>(`/api/screen/series/${id}`) })
   const d = q.data
+  const reviews = useReviews('series', d?.imdb ?? '')
   const [picked, setPicked] = useState<number | null>(null)
   const [find, setFind] = useState('')
   const season = d?.seasons.find((s) => s.season === picked) ?? d?.seasons.find((s) => s.episodes.length) ?? d?.seasons[0]
@@ -72,12 +74,16 @@ export function SeriesDetailPage({ id }: { id: number }) {
           {d.year ? <span>{d.year}{d.status === 'Returning Series' ? '–' : ''}</span> : null}
           {d.seasons.length ? <span>{countText(d.seasons.filter((s) => s.season > 0).length || d.seasons.length, 'season')}</span> : null}
           {d.rating ? <span className="inline-flex items-center gap-1.5">{d.rating.toFixed(1)}<span className="rounded bg-amber-400 px-1 text-[11px] font-black text-black">RATING</span></span> : null}
+          <ScoreBadges data={reviews.data} />
         </p>
         <p className="max-w-xl text-[15px] leading-relaxed text-fg/80">{d.overview}</p>
         <Chips label="Genres" items={d.genres} />
         <Chips label="Cast" items={d.cast.slice(0, 6).map((c) => c.name)} title={(n) => d.cast.find((c) => c.name === n)?.character} />
         {d.companies.length ? <p className="text-xs text-faint">{d.companies.join(' · ')}</p> : null}
-        {first ? <Link to="/watch/$cid/$mid" params={{ cid: first.cid, mid: String(first.mid) }} className="mt-2 inline-flex h-12 w-fit items-center gap-2 rounded-full bg-accent px-6 text-[15px] font-bold text-accent-fg transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"><Icon name="play" className="size-4" />Play {episodeLabel(d.seasons.find((s) => s.episodes.includes(first))?.season ?? 1, first) || 'first episode'}</Link> : null}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {first ? <Link to="/watch/$cid/$mid" params={{ cid: first.cid, mid: String(first.mid) }} className="inline-flex h-12 w-fit items-center gap-2 rounded-full bg-accent px-6 text-[15px] font-bold text-accent-fg transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"><Icon name="play" className="size-4" />Play {episodeLabel(d.seasons.find((s) => s.episodes.includes(first))?.season ?? 1, first) || 'first episode'}</Link> : null}
+          <ReviewsButton data={reviews.data} title={d.title} className="inline-flex h-12 items-center rounded-full border border-line-2 px-5 text-sm font-semibold transition-colors hover:bg-fg/10" />
+        </div>
       </div>
     )
   const panel = !d ? null : d.seasons.length ? (

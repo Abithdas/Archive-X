@@ -3,7 +3,7 @@ import type { Facets } from './listFilters'
 export interface EpisodeRow { episode: number | null; name: string; overview: string; air_date: string; still: string; runtime: number; duration: number; cid: string; mid: number }
 export interface SeasonBlock { season: number; name: string; total: number; episodes: EpisodeRow[]; missing?: number[] }
 export interface SeriesDetail {
-  id: number; title: string; year: number | null; overview: string; tagline: string; poster: string; backdrop: string; genres: string[]; companies: string[]
+  id: number; imdb?: string; title: string; year: number | null; overview: string; tagline: string; poster: string; backdrop: string; genres: string[]; companies: string[]
   cast: { name: string; character: string; profile: string }[]; rating: number; status: string; seasons: SeasonBlock[]
 }
 
@@ -41,7 +41,7 @@ export function missingText(missing: readonly number[]): string {
 export interface MovieCard extends Partial<Facets> { id: number; title: string; year: number | null; poster: string; overview: string; genres: string[]; rating: number; release_date: string; added: number; versions: number; best: string; cam_only: boolean }
 export interface MovieVersion { cid: string; mid: number; media_id: number; filename: string; resolution: string; height: number; source: string; cam: boolean; codec: string; size: number; duration: number; hdr?: string[]; languages?: string[] }
 export interface MovieDetail {
-  id: number; title: string; year: number | null; overview: string; tagline: string; poster: string; backdrop: string; genres: string[]; companies: string[]; rating: number; runtime: number
+  id: number; imdb?: string; title: string; year: number | null; overview: string; tagline: string; poster: string; backdrop: string; genres: string[]; companies: string[]; rating: number; runtime: number
   cast: { name: string; character: string; profile: string }[]; versions: MovieVersion[]
 }
 

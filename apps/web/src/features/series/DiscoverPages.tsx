@@ -8,6 +8,7 @@ import { PLACEHOLDER } from './PosterCard'
 import { Chips, TitleStage } from './TitleStage'
 import { AddonExtras, AddonStreams } from './AddonStreams'
 import { TrailerButton } from './TrailerButton'
+import { ReviewsButton, ScoreBadges, useReviews } from './Reviews'
 import { WhereToWatch } from './WhereToWatch'
 import { useHomeTab } from './view'
 import { countText } from './series'
@@ -50,6 +51,7 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
   const d = q.data
   const seasons = d?.episodes ?? []
   const wid = WATCH_ID.test(id) ? id : d?.watch ?? ''   // an anime page is Kitsu's number; its streams are asked for by the IMDb number it lists
+  const reviews = useReviews(kind, wid.startsWith('tt') ? wid : '')
   const [pick, setPick] = useState<number | null>(null)
   useEffect(() => setPick(null), [id])
   const shown = seasons.find((s) => s.season === (pick ?? seasons.find((x) => x.season > 0)?.season ?? seasons[0]?.season)) ?? null
@@ -64,6 +66,7 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
           {d.runtime ? <span>{d.runtime}</span> : null}
           {d.kind === 'tv' && d.seasons ? <span>{countText(d.seasons, 'season')}</span> : null}
           {d.rating ? <span className="inline-flex items-center gap-1.5">{d.rating}<span className="rounded bg-amber-400 px-1 text-[11px] font-black text-black">IMDb</span></span> : null}
+          <ScoreBadges data={reviews.data} />
         </p>
         <p className="max-w-xl text-[15px] leading-relaxed text-fg/80">{d.overview || 'No description.'}</p>
         <Chips label="Genres" items={d.genres} />
@@ -73,6 +76,7 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
           {lib ? <Link to={openIn(lib.kind)} params={{ id: String(lib.id) }} className={cn(BTN, 'bg-accent text-accent-fg hover:brightness-110')}><Icon name="play" className="size-4" />Open in your library</Link>
             : <span className={cn(BTN, 'border border-line-2 font-semibold text-muted')}>Not in your library</span>}
           <TrailerButton id={d.trailer} title={d.title} className={cn(BTN, 'border border-line-2 font-semibold hover:bg-fg/10')} />
+          <ReviewsButton data={reviews.data} title={d.title} className={cn(BTN, 'border border-line-2 font-semibold hover:bg-fg/10')} />
         </div>
         <div className="grid gap-4 empty:hidden">
       {!lib && wid ? <WhereToWatch kind={d.kind} ident={wid} title={d.title} flat /> : lib ? <p className="px-1 text-sm text-muted">You have this in your library, so there is nothing to look for elsewhere.</p> : null}

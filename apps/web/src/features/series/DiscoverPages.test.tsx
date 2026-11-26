@@ -31,6 +31,23 @@ describe('the page of a title that is not in the library', () => {
     expect(within(list).getAllByRole('link')).toHaveLength(2)
     expect(within(list).getByText('1. Pilot')).toBeInTheDocument(); expect(within(list).getByText("2. Cat's in the Bag...")).toBeInTheDocument(); expect(within(list).getByText('Jan 27, 2008')).toBeInTheDocument()
   })
+  it('shows the critics\' scores beside the IMDb rating and a Reviews button next to Trailer, and nothing when the title has none', async () => {
+    const REVIEWS = { ok: true, scores: [{ source: 'Rotten Tomatoes', value: '96%' }, { source: 'Metacritic', value: '87' }], summary: { text: 'Widely acclaimed.', title: 'Breaking Bad', url: 'https://en.wikipedia.org/wiki/Breaking_Bad' } }
+    const urls: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => { urls.push(url); return url.startsWith('/api/screen/reviews/') ? json(REVIEWS) : url.startsWith('/api/screen/where/') ? json(WHERE) : url.startsWith('/api/screen/discover/') ? json(SHOW) : json({}) }))
+    const { unmount } = withRouter(<DiscoverTitlePage kind="series" id="tt0903747" />)
+    const facts = await screen.findByLabelText('Facts')
+    expect(await within(facts).findByLabelText('Rotten Tomatoes 96%')).toBeInTheDocument()
+    expect(within(facts).getByLabelText('Metacritic 87')).toBeInTheDocument()
+    expect(urls).toContain('/api/screen/reviews/series/tt0903747')
+    fireEvent.click(await screen.findByRole('button', { name: 'Reviews' }))
+    expect(within(screen.getByRole('dialog')).getByText('Widely acclaimed.')).toBeInTheDocument()
+    unmount()
+    stub()                                                        // the default answer has no reviews: no marks, no button
+    withRouter(<DiscoverTitlePage kind="series" id="tt0903747" />)
+    await screen.findByRole('heading', { name: 'Breaking Bad' })
+    expect(screen.queryByRole('button', { name: 'Reviews' })).toBeNull()
+  })
   it('says the show is already in the library when it is, and does not send you elsewhere', async () => {
     stub({ ...SHOW, library: { kind: 'tv', id: 7 } })
     withRouter(<DiscoverTitlePage kind="series" id="tt0903747" />)

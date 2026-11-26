@@ -335,7 +335,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     # Add-ons the person adds (Settings, Addons): extra Stremio catalogue add-ons whose lists show in Discover.
     # ------------------------------------------------------------------
     import hashlib as _hashlib
-    from ..metadata import addon_client as ac, streaming_server as ss
+    from ..metadata import addon_client as ac, reviews as rv, streaming_server as ss
     MAX_ADDONS = 12
     from ..core import content_mode as _cm_addons
 
@@ -511,6 +511,16 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             finally:
                 resp.close()
         return StreamingResponse(body(), status_code=getattr(resp, "status", 200) or 200, headers=headers)
+
+    @router.get("/api/screen/reviews/{kind}/{ident}")
+    async def title_reviews(kind: str, ident: str, request: Request):
+        """Critics' scores (Rotten Tomatoes, Metacritic) and the opening of what critics said, from Wikidata and Wikipedia: no key, only the IMDb number is sent."""
+        require_auth(request)
+        if not _in_sfw():
+            return {"ok": True, "scores": [], "summary": None}
+        if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident):
+            raise HTTPException(400, "Unknown title")
+        return {"ok": True, **await asyncio.to_thread(rv.reviews_for, ident)}
 
     @router.get("/api/screen/addon-meta/{kind}/{ident}")
     async def addon_meta(kind: str, ident: str, request: Request):
@@ -1220,7 +1230,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             for k, info in known.items():       # a season of the show with nothing of it here still appears, as all missing
                 if k and k not in seasons and (info.get("episodes") or 0) > 0:
                     seasons[k] = []
-            return {"id": t["id"], "title": t["title"], "year": t["year"], "overview": t["overview"], "tagline": t["tagline"], "poster": si.image_url(t["poster"], "w500"),
+            return {"id": t["id"], "imdb": t["imdb_id"] or "", "title": t["title"], "year": t["year"], "overview": t["overview"], "tagline": t["tagline"], "poster": si.image_url(t["poster"], "w500"),
                     "backdrop": si.image_url(t["backdrop"], "w780"), "genres": json.loads(t["genres"] or "[]"), "companies": json.loads(t["companies"] or "[]"),
                     "cast": [{"name": p["name"], "character": p.get("character", ""), "profile": si.image_url(p.get("profile", ""), "w185")} for p in json.loads(t["cast_json"] or "[]")][:12],
                     "rating": t["rating"], "status": t["status"],
@@ -1284,7 +1294,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             v = _versions(rows, not cam)
             if not v:
                 return None
-            return {"id": t["id"], "title": t["title"], "year": t["year"], "overview": t["overview"], "tagline": t["tagline"], "poster": si.image_url(t["poster"], "w500"), "backdrop": si.image_url(t["backdrop"], "w780"),
+            return {"id": t["id"], "imdb": t["imdb_id"] or "", "title": t["title"], "year": t["year"], "overview": t["overview"], "tagline": t["tagline"], "poster": si.image_url(t["poster"], "w500"), "backdrop": si.image_url(t["backdrop"], "w780"),
                     "genres": json.loads(t["genres"] or "[]"), "companies": json.loads(t["companies"] or "[]"), "rating": t["rating"], "runtime": t["runtime"],
                     "cast": [{"name": p["name"], "character": p.get("character", ""), "profile": si.image_url(p.get("profile", ""), "w185")} for p in json.loads(t["cast_json"] or "[]")][:12], "versions": v}
         out = await asyncio.to_thread(read)

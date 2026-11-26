@@ -14,6 +14,7 @@ import { COPY_SORTS, MOVIE_SORTS, copyBadge, movieBadge, sortCopies, sortMovies,
 import { lengthText } from './series'
 import { ListFilters } from './FilterPanel'
 import { NO_FILTER, filterCount, matchesFilter, type ListFilter } from './listFilters'
+import { ReviewsButton, ScoreBadges, useReviews } from './Reviews'
 
 
 /** The movies in the library, shown inside Movies & Shows: one poster for each, however many copies there are. */
@@ -56,6 +57,7 @@ export function MovieDetailPage({ id }: { id: number }) {
   const [cam, setCam] = useState(false)
   const q = useQuery({ queryKey: ['movies', id, cam], queryFn: () => api<MovieDetail>(`/api/screen/movies/${id}${cam ? '?cam=1' : ''}`) })
   const d = q.data
+  const reviews = useReviews('movie', d?.imdb ?? '')
   const best = d?.versions[0]
   const [copySort, setCopySort] = useState<CopySort>('best')
   const [copyFilter, setCopyFilter] = useState<ListFilter>(NO_FILTER)
@@ -71,12 +73,16 @@ export function MovieDetailPage({ id }: { id: number }) {
           {d.year ? <span>{d.year}</span> : null}
           {d.runtime ? <span>{d.runtime} min</span> : null}
           {d.rating ? <span className="inline-flex items-center gap-1.5">{d.rating.toFixed(1)}<span className="rounded bg-amber-400 px-1 text-[11px] font-black text-black">RATING</span></span> : null}
+          <ScoreBadges data={reviews.data} />
         </p>
         <p className="max-w-xl text-[15px] leading-relaxed text-fg/80">{d.overview}</p>
         <Chips label="Genres" items={d.genres} />
         <Chips label="Cast" items={d.cast.slice(0, 6).map((c) => c.name)} title={(n) => d.cast.find((c) => c.name === n)?.character} />
         {d.companies.length ? <p className="text-xs text-faint">{d.companies.join(' · ')}</p> : null}
-        {best ? <Link to="/watch/$cid/$mid" params={{ cid: best.cid, mid: String(best.mid) }} className="mt-2 inline-flex h-12 w-fit items-center gap-2 rounded-full bg-accent px-6 text-[15px] font-bold text-accent-fg transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"><Icon name="play" className="size-4" />Play</Link> : null}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {best ? <Link to="/watch/$cid/$mid" params={{ cid: best.cid, mid: String(best.mid) }} className="inline-flex h-12 w-fit items-center gap-2 rounded-full bg-accent px-6 text-[15px] font-bold text-accent-fg transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"><Icon name="play" className="size-4" />Play</Link> : null}
+          <ReviewsButton data={reviews.data} title={d.title} className="inline-flex h-12 items-center rounded-full border border-line-2 px-5 text-sm font-semibold transition-colors hover:bg-fg/10" />
+        </div>
       </div>
     )
   const panel = !d ? null : (
