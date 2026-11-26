@@ -45,6 +45,43 @@ describe('SFW Home', () => {
     expect(screen.getByRole('link', { name: 'Continue The Matrix' })).toHaveAttribute('href', '/discover/movie/tt0133093')
   })
 
+  it('keeps a part of the page after it is left: coming back shows it at once, asks for nothing, and replays no entrance', async () => {
+    const urls = mount()
+    await toDiscover()
+    const catalogue = await screen.findByRole('list', { name: 'Catalogue' })
+    const asked = () => urls.filter((u) => u.startsWith('/api/screen/discover?')).length
+    const before = asked()
+    fireEvent.click(screen.getByRole('tab', { name: 'Library' }))
+    expect(await screen.findByRole('region', { name: 'Your library' })).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Catalogue' })).not.toBeInTheDocument()          // hidden, not gone
+    fireEvent.click(screen.getByRole('tab', { name: 'Discover' }))
+    expect(screen.getByRole('list', { name: 'Catalogue' })).toBe(catalogue)                      // the very same list: nothing was rebuilt
+    expect(asked()).toBe(before)
+    expect(screen.queryByRole('region', { name: 'Your library' })).not.toBeInTheDocument()
+    expect(catalogue.closest('.mo-enter')).toBeNull()                                            // no slide-in on every switch
+  })
+
+  it('prepares Discover and the Library out of sight once For you has settled, so the first switch to them is instant', async () => {
+    const urls = mount()
+    await screen.findByRole('link', { name: 'Continue Dark' })
+    expect(screen.queryByRole('list', { name: 'Catalogue' })).not.toBeInTheDocument()
+    await vi.waitFor(() => expect(urls.some((u) => u.startsWith('/api/screen/discover?type=movie&skip=0') && urls.filter((x) => x.startsWith('/api/screen/discover?')).length >= 1)).toBe(true), { timeout: 4000 })
+    await vi.waitFor(() => expect(screen.getAllByRole('list', { name: 'Catalogue', hidden: true }).length).toBeGreaterThan(0), { timeout: 4000 })
+    expect(screen.queryByRole('list', { name: 'Catalogue' })).not.toBeInTheDocument()          // prepared, but not shown
+    await toDiscover()
+    expect(screen.getByRole('list', { name: 'Catalogue' })).toBeInTheDocument()                  // there at once
+  })
+
+  it('has one tab bar, at the same place whichever part is open, and one page heading', async () => {
+    mount()
+    await screen.findByRole('link', { name: 'Continue Dark' })
+    expect(screen.getAllByRole('tablist', { name: 'Home' })).toHaveLength(1)                     // over the hero on For you
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    await toDiscover()
+    expect(screen.getAllByRole('tablist', { name: 'Home' })).toHaveLength(1)                     // under the bar on the others
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+  })
+
   it('shows what to continue, what airs this week, what was added and the featured title, from your library', async () => {
     mount()
     expect(await screen.findByRole('link', { name: 'Continue Dark' })).toHaveAttribute('href', '/watch/-9000000000001/7')

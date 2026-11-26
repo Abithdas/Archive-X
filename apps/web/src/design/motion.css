@@ -290,5 +290,7 @@ html[data-theme="light"] .ax-puff { --smoke: 90 96 110; }
 .mo-panel-in { animation: mo-panel-in 400ms cubic-bezier(0.2, 0.85, 0.25, 1) both; }
 @keyframes mo-panel-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
 .mo-fade-in { animation: mo-fade-in 550ms ease both; }
+/* A part of a page that is shown again (the tabs of Home): a quick fade, never a slide, so switching reads as one surface. */
+.mo-tab-in { animation: mo-fade-in 180ms ease both; }
 @keyframes mo-fade-in { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-poster, .mo-dot, .mo-hero-img { transition: none !important; transform: none !important; } .mo-hero-img, .mo-dot-fill, .mo-enter, .mo-panel-in, .mo-fade-in { animation: none !important; } .mo-dot-fill { transform: none; } } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { .mo-poster, .mo-dot, .mo-hero-img { transition: none !important; transform: none !important; } .mo-hero-img, .mo-dot-fill, .mo-enter, .mo-panel-in, .mo-fade-in, .mo-tab-in { animation: none !important; } .mo-dot-fill { transform: none; } } }

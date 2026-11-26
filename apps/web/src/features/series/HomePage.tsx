@@ -1,12 +1,11 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { api } from '@/api/client'
 import { Button } from '@/design/Button'
 import { Dialog } from '@/design/Dialog'
 import { HScroll } from '@/design/HScroll'
 import { Icon } from '@/design/Icon'
-import { PageHead } from '@/design/PageHead'
 import { cn } from '@/design/cn'
 import { useLabels } from '@/features/content/labels'
 import { useSearch } from '@/app/search'
@@ -322,6 +321,7 @@ function PopularRow({ kind, onSeeAll }: { kind: Kind; onSeeAll: () => void }) {
   )
 }
 
+const WARM_UP_MS = 1500
 const TABS: ReadonlyArray<readonly [HomeTab, string]> = [['home', 'For you'], ['discover', 'Discover'], ['library', 'Library']]
 
 /**
@@ -347,7 +347,7 @@ export function SfwHome() {
   const seeAll = (k: Kind) => { setKind(k); setGenre(''); setCatalog('popular'); go('discover') }
   const d = home.data
   const setImmersive = useUi((x) => x.setImmersive)
-  const bleed = tab === 'home' && !searching && Boolean(d?.billboard.length)
+  const bleed = tab === 'home' && !searching && (home.isPending || Boolean(d?.billboard.length))   // while it loads, the hero's place is kept: nothing jumps when the data arrives
   useEffect(() => { setImmersive(bleed); return () => setImmersive(false) }, [bleed, setImmersive])
   const tabs = (glass: boolean) => (
     <div role="tablist" aria-label="Home" className={cn('flex w-fit gap-1 rounded-full p-1', glass ? 'bg-black/50 text-white' : 'mb-6 bg-fg/10')}>
@@ -357,20 +357,36 @@ export function SfwHome() {
       ))}
     </div>
   )
+  // The three parts stay mounted once opened and are only hidden: switching back shows them at once, as they were, with no refetch, no skeleton and no
+  // replayed entrance. The tab pill sits at the same place in all three (over the hero on For you, under the bar on the others).
+  const [seen, setSeen] = useState<ReadonlySet<HomeTab>>(() => new Set<HomeTab>([tab]))
+  if (!seen.has(tab)) setSeen(new Set(seen).add(tab))
+  // Once For you has settled, the other two are prepared out of sight, so the first switch to them is as instant as the later ones.
+  useEffect(() => {
+    if (tab !== 'home' || home.isPending || seen.size === TABS.length) return
+    const t = setTimeout(() => setSeen(new Set(TABS.map(([id]) => id))), WARM_UP_MS)
+    return () => clearTimeout(t)
+  }, [tab, home.isPending, seen.size])
+  const box = useRef<HTMLElement>(null)
+  const scrolls = useRef<Partial<Record<HomeTab, number>>>({})
+  const shownTab = useRef<HomeTab>(tab)
+  useLayoutEffect(() => {
+    const scroller = box.current?.closest('main')
+    if (!scroller || shownTab.current === tab) return
+    scrolls.current[shownTab.current] = scroller.scrollTop       // each part keeps its own place
+    shownTab.current = tab
+    scroller.scrollTop = scrolls.current[tab] ?? 0
+  }, [tab])
+  const part = (id: HomeTab, layout: string, body: ReactNode) => (seen.has(id) ? <div key={id} hidden={tab !== id} className={tab === id ? `mo-tab-in ${layout}` : undefined}>{body}</div> : null)
   return (
-    <section className={cn('flex w-full flex-1 flex-col', !bleed && 'px-4 pb-10 pt-6 sm:px-10')}>
-      {bleed ? null : (
-        <>
-          <PageHead title={labels.videos} blurb={labels.videosBlurb} />
-          {tabs(false)}
-        </>
-      )}
-      <div key={tab} className={cn('mo-enter', bleed ? 'flex flex-col' : 'grid gap-8')}>
-        {tab === 'home' ? (
+    <section ref={box} className={cn('flex w-full flex-1 flex-col', !bleed && 'px-4 pb-10 pt-4 sm:px-10')}>
+      <h1 className="sr-only">{labels.videos}</h1>
+      {bleed ? null : tabs(false)}
+      {part('home', bleed ? 'flex flex-col' : 'grid gap-8', (
           <>
-            {bleed && d ? (
+            {bleed ? (
               <div className="relative">
-                <Hero items={d.billboard} />
+                {d?.billboard.length ? <Hero items={d.billboard} /> : <div aria-hidden="true" className="-mb-28 min-h-[min(84vh,780px)] bg-surface-2" />}
                 <div className="absolute inset-x-0 top-20 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10">{tabs(true)}</div>
               </div>
             ) : null}
@@ -412,8 +428,9 @@ export function SfwHome() {
             <PopularRow kind="series" onSeeAll={() => seeAll('series')} />
             </div>
           </>
-        ) : tab === 'discover' ? <Discover text={text} kind={kind} setKind={setKind} genre={genre} setGenre={setGenre} catalog={catalog} setCatalog={setCatalog} />
-        : (
+      ))}
+      {part('discover', 'grid gap-8', <Discover text={text} kind={kind} setKind={setKind} genre={genre} setGenre={setGenre} catalog={catalog} setCatalog={setCatalog} />)}
+      {part('library', 'grid gap-8', (
           <section aria-label="Your library" className="grid gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-extrabold tracking-tight">Your library</h2>
@@ -423,8 +440,7 @@ export function SfwHome() {
             </div>
             {lib === 'series' ? <SeriesList /> : <MoviesList />}
           </section>
-        )}
-      </div>
+      ))}
     </section>
   )
 }
