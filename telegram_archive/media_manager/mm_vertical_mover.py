@@ -1481,6 +1481,28 @@ def transfer_destination_duplicate_ids(index, message, oshash=""):
 # Prefetch, candidate scan and metadata child jobs.
 # ==============================================================================
 
+class PrefetchSaver:
+    """Saves the transfer state every `every_items` prepared videos or `every_seconds`, whichever comes first, and on `flush`.
+
+    What the prefetch prepares is derived from the database in well under a millisecond per video, so a crash loses little; the whole state file,
+    however, is megabytes at 15,000 videos and was written after every single video.
+    """
+    def __init__(self, save, *, every_items: int = 200, every_seconds: float = 5.0, clock=time.monotonic):
+        self._save, self._items, self._seconds, self._clock = save, every_items, every_seconds, clock
+        self._pending, self._last, self.saves = 0, clock(), 0
+
+    def item_done(self) -> None:
+        self._pending += 1
+        if self._pending >= self._items or self._clock() - self._last >= self._seconds:
+            self.flush()
+
+    def flush(self) -> None:
+        if self._pending:
+            self._save()
+            self.saves += 1
+        self._pending, self._last = 0, self._clock()
+
+
 async def transfer_prefetch_metadata(client, source, candidates, state, db=None):
     """Prefetch transfer metadata before any destination upload/copy begins.
 
@@ -1503,6 +1525,7 @@ async def transfer_prefetch_metadata(client, source, candidates, state, db=None)
     state.setdefault("metadata_prefetch", {})
     sem = asyncio.Semaphore(2)
     started = time.monotonic()
+    saver = PrefetchSaver(lambda: transfer_job_state_save(state))
 
     async def one(index, message):
         """Prefetch metadata for one message and save it in the job state."""
@@ -1541,14 +1564,17 @@ async def transfer_prefetch_metadata(client, source, candidates, state, db=None)
             existing["status"] = "PARTIAL"
             existing["error"] = f"{type(exc).__name__}: {exc}"
         state["metadata_prefetch"][key] = existing
-        transfer_job_state_save(state)
+        saver.item_done()   # not one whole-file save per video: at 15,000 videos that was ~50 ms each, on the event loop, ~6 minutes in all
         if index % 10 == 0 or index == len(candidates):
             ready = sum(1 for x in state["metadata_prefetch"].values() if x.get("status") == "READY")
             total_known = sum(len(v) for v in (state.get("scan_manifest") or {}).values()) or len(candidates)
             print(f"\r[PREFETCH] {ready:,}/{total_known:,} | metadata ready: {ready:,}", end="", flush=True)
         return existing
 
-    await asyncio.gather(*(one(i, m) for i, m in enumerate(candidates, 1)))
+    try:
+        await asyncio.gather(*(one(i, m) for i, m in enumerate(candidates, 1)))
+    finally:
+        saver.flush()   # also when cancelled: what was prepared is kept
     ready = sum(1 for x in state["metadata_prefetch"].values() if x.get("status") == "READY")
     elapsed = max(time.monotonic() - started, 0.001)
     state["metadata_prefetch_summary"] = {

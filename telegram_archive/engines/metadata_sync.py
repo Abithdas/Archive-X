@@ -167,6 +167,9 @@ async def run(ctx):
     # database -- they're excluded from the candidate set up front (section
     # 12) rather than fetched and then skipped one at a time, so a library
     # that's mostly identified stays fast to re-sync.
+    from ..metadata import lookup_memo
+    lookup_memo.ensure(ctx.db)
+    providers_now = lookup_memo.providers_signature(ctx.db, visual_match)
     where = ["(identification_state IS NULL OR identification_state NOT IN ('MATCHED','VERIFIED'))"]
     if repair_only:
         where = ["identification_state='REPAIR'"]
@@ -174,7 +177,10 @@ async def run(ctx):
     if force:
         where = ["1=1"]
     else:
-        where.append("(metadata_synced_at IS NULL OR metadata_synced_at < datetime('now','-30 day'))")
+        # a no-match is left alone for 30 days, unless what it was searched with has changed since (filename, file hash, providers asked)
+        changed_sql, changed_params = lookup_memo.changed_clause(providers_now)
+        where.append(f"(metadata_synced_at IS NULL OR metadata_synced_at < datetime('now','-30 day') OR {changed_sql})")
+        params.extend(changed_params)
     ctx.report(operation=("Finding videos requiring metadata repair" if repair_only else ("Finding videos linked to performer" if log_prefix == "Performer video recheck" else ("Finding videos linked to site" if log_prefix == "Site video recheck" else "Finding videos without metadata"))), force=True)
     rows, seen = [], set()
     for source_id in (sources or [""]):
@@ -498,6 +504,15 @@ async def run(ctx):
         if not unresolved or not progress:
             break
         progress = (await follow_up_round(round_number)) > 0 and any(v["last"] == "no_match" or v["last"] == "failed" for v in unresolved.values())
+
+    # Remember what the videos still without a match were searched with; every other video of this run has no no-match to remember.
+    try:
+        final_no_match = [vid for vid, info in unresolved.items() if info.get("last") == "no_match"]
+        await asyncio.to_thread(lookup_memo.forget, ctx.db, [int(r["id"]) for r in rows if int(r["id"]) not in set(final_no_match)])
+        await asyncio.to_thread(lookup_memo.remember, ctx.db, final_no_match, providers_now,
+                                __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(timespec="seconds"))
+    except Exception:
+        _swallowed_note("metadata_sync.lookup_memo")
 
     # Apply deterministic filename entity links only to videos for which the
     # provider pipeline returned no scene candidate. Exact hash matches and
