@@ -4,6 +4,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- A large library no longer makes the first start after an upgrade wait for the export of thumbnails and metadata to the user folders (15 s at 175,000 videos): it runs in the background, and the window opens at once.
 - Fixed "the Archive X backend exited before it was ready ... database disk image is malformed": when the database file is damaged, the app now moves it aside into a `damaged-<time>` folder, creates a new database and copies back every row that can still be read, instead of refusing to start.
 
 ## Unreleased

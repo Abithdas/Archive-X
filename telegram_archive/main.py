@@ -164,12 +164,16 @@ def main():
         db.log(message, "ERROR", event="database.recovered")
     print("  database steps: " + ", ".join(f"{k} {v}s" for k, v in getattr(db, "startup_steps", {}).items()), flush=True)
     with _phase("asset store"):
-        try:
-            asset_result = db.hydrate_persistent_asset_store()
-            if asset_result and not asset_result.get("skipped"):
-                print(f"  Persistent asset export: {asset_result}")
-        except Exception as exc:
-            print(f"  Persistent asset export skipped: {type(exc).__name__}: {exc}")
+        # The export of thumbnails and metadata to the user folders runs once after an upgrade. With a large library it read every media row and
+        # wrote every thumbnail (15 s for 175,000 videos), and the window waited for it. Nothing needs it to be finished: it is a readable copy.
+        def _export_asset_store():
+            try:
+                asset_result = db.hydrate_persistent_asset_store()
+                if asset_result and not asset_result.get("skipped"):
+                    print(f"  Persistent asset export: {asset_result}", flush=True)
+            except Exception as exc:
+                print(f"  Persistent asset export skipped: {type(exc).__name__}: {exc}", flush=True)
+        threading.Thread(target=_export_asset_store, name="asset-store-export", daemon=True).start()
     with _phase("credentials"):
         ensure_web_credentials(db)
         desktop_mode.prepare_credentials(db)   # no web login: a random, never-shown password
