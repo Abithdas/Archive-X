@@ -11,7 +11,7 @@ const FRAME = 'mo-poster relative block aspect-[2/3] w-full overflow-hidden roun
  * It is a link when it has somewhere to go (`to`), a button otherwise; the pointer resting on it (`onHover`) lets a page show its details.
  */
 export function PosterCard({ to, params, onClick, onHover, image, title, sub, rating, badge, corner, active, label, className }: {
-  to?: string; params?: Record<string, string>; onClick?: () => void; onHover?: () => void
+  to?: string; params?: Record<string, string>; onClick?: () => void; onHover?: (el: HTMLElement) => void
   image: string; title: string; sub?: string; rating?: string | number | null; badge?: string; corner?: ReactNode; active?: boolean; label?: string; className?: string
 }) {
   const inner = (
@@ -22,7 +22,7 @@ export function PosterCard({ to, params, onClick, onHover, image, title, sub, ra
       {corner ? <span className="absolute right-2 top-2">{corner}</span> : null}
     </>
   )
-  const hover = onHover ? { onPointerEnter: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') onHover() }, onFocus: onHover } : {}
+  const hover = onHover ? { onPointerEnter: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') onHover(e.currentTarget as HTMLElement) }, onFocus: (e: React.FocusEvent) => onHover(e.currentTarget as HTMLElement) } : {}
   return (
     <div className={cn('grid gap-2', className)}>
       {to

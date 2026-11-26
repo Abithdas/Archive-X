@@ -4,6 +4,9 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Home (SFW) has many more rows**, like a streaming app: new and featured movies and series, what is on Netflix, HBO Max, Disney+, Prime Video and Apple TV+, anime, rows for genres (Action, Comedy, Drama, Sci-Fi, Thriller, Horror and more) and the lists of the add-ons you added. Each row loads when you scroll to it, and leaves itself out when it has nothing (a removed add-on, no TMDB key).
+- **A card's preview unfolds out of the card** when the pointer rests on it: a wide picture that pushes in slowly, rating, genres and the story, and a way to open the page.
+
 - **The cast of a movie or show is clickable** (library and Discover pages): it opens a page with that person's movies and shows in your library, then their other work from TMDB, each opening its own page.
 - **Missing episodes are shown in the show's page**: the episodes (and whole seasons) you do not have are listed with the catalogue's names, and each opens its episode page, where your add-ons offer streams for it.
 

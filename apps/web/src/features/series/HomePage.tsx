@@ -15,6 +15,7 @@ import { useAddons, type Addon } from '@/features/settings/AddonsPanel'
 import { Chips } from './TitleStage'
 import { MoviesList } from './MoviesPage'
 import { PLACEHOLDER, PosterCard } from './PosterCard'
+import { useRowPreview } from './RowPreview'
 import { TrailerButton } from './TrailerButton'
 import { SeriesList } from './SeriesPage'
 import { countText } from './series'
@@ -304,20 +305,50 @@ function Discover({ text, kind, setKind, genre, setGenre, catalog, setCatalog }:
   )
 }
 
-/** A row of what is popular in the open catalogue (movies or series), under For you; "See all" opens it in Discover. */
-function PopularRow({ kind, onSeeAll }: { kind: Kind; onSeeAll: () => void }) {
-  const [open, setOpen] = useState<Found | null>(null)
-  const q = useQuery({ queryKey: ['discover-popular', kind] as const, queryFn: () => api<FoundPage>(`/api/screen/discover?type=${kind}&skip=0`), staleTime: 5 * 60_000, retry: false, select: (p) => ({ ...p, items: p.items.slice(0, 14) }) })
+/** Mounts its children once it is near the screen: Home has many rows, and each asks the catalogue, so only the ones scrolled to are asked. */
+function WhenNear({ children, height = 300 }: { children: ReactNode; height?: number }) {
+  const box = useRef<HTMLDivElement>(null)
+  const [near, setNear] = useState(typeof IntersectionObserver === 'undefined')
+  useEffect(() => {
+    const el = box.current
+    if (near || !el) return
+    const io = new IntersectionObserver((e) => { if (e.some((x) => x.isIntersecting)) { setNear(true); io.disconnect() } }, { rootMargin: '600px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [near])
+  return near ? <>{children}</> : <div ref={box} aria-hidden="true" style={{ minHeight: height }} />
+}
+
+/** A list of the open catalogue as a row: a kind, a catalogue and a genre. It leaves out by itself what has nothing to show (a switched-off add-on, a missing TMDB key). */
+function CatalogRow({ title, kind, catalog = 'popular', genre = '', onSeeAll }: { title: string; kind: Kind; catalog?: Catalog; genre?: string; onSeeAll: () => void }) {
+  const preview = useRowPreview()
+  const q = useQuery({
+    queryKey: ['discover-row', kind, catalog, genre] as const,
+    queryFn: () => api<FoundPage>(`/api/screen/discover?type=${kind}&skip=0${genre ? `&genre=${encodeURIComponent(genre)}` : ''}${catalog !== 'popular' ? `&catalog=${encodeURIComponent(catalog)}` : ''}`),
+    staleTime: 5 * 60_000, retry: false, select: (p) => ({ ...p, items: p.items.slice(0, 16) }),
+  })
   if (!q.data?.items.length) return null
   return (
     <>
-      <Row title={kind === 'movie' ? 'Popular movies' : 'Popular series'} onSeeAll={onSeeAll}>
-        {q.data.items.map((it) => <PosterCard key={`${it.kind}:${it.imdb}`} image={it.poster} title={it.title} sub={it.year ? String(it.year) : ''} rating={it.rating} className="w-[168px] shrink-0 snap-start" corner={it.library ? <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-accent-fg">In your library</span> : null} {...cardGo(it)} onClick={() => setOpen(it)} />)}
+      <Row title={title} onSeeAll={onSeeAll}>
+        {q.data.items.map((it) => <PosterCard key={`${it.kind}:${it.imdb}`} image={it.poster} title={it.title} sub={it.year ? String(it.year) : ''} rating={it.rating} className="w-[168px] shrink-0 snap-start" corner={it.library ? <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-accent-fg">In your library</span> : null} {...cardGo(it)} onHover={preview.hover(it)} />)}
       </Row>
-      {open ? <Details item={open} onClose={() => setOpen(null)} /> : null}
+      {preview.node}
     </>
   )
 }
+
+/** The rows under For you, in the order of a streaming app: what is popular, what is new, what each streaming service has, anime, genres, and the lists of the add-ons the person added. */
+const HOME_ROWS: ReadonlyArray<{ title: string; kind: Kind; catalog?: Catalog; genre?: string }> = [
+  { title: 'Popular movies', kind: 'movie' }, { title: 'Popular series', kind: 'series' },
+  { title: 'New movies', kind: 'movie', catalog: 'new' }, { title: 'New series', kind: 'series', catalog: 'new' },
+  { title: 'Featured movies', kind: 'movie', catalog: 'featured' }, { title: 'Featured series', kind: 'series', catalog: 'featured' },
+  { title: 'On Netflix', kind: 'movie', catalog: 'netflix' }, { title: 'On HBO Max', kind: 'movie', catalog: 'hbomax' }, { title: 'On Disney+', kind: 'movie', catalog: 'disney' },
+  { title: 'On Prime Video', kind: 'movie', catalog: 'prime' }, { title: 'On Apple TV+', kind: 'movie', catalog: 'apple' },
+  { title: 'Anime airing now', kind: 'series', catalog: 'anime-airing' }, { title: 'Top anime series', kind: 'series', catalog: 'anime-series' }, { title: 'Top anime movies', kind: 'series', catalog: 'anime-movies' },
+  ...(['Action', 'Comedy', 'Drama', 'Sci-Fi', 'Thriller', 'Horror', 'Animation', 'Documentary', 'Romance', 'Crime'] as const).map((g) => ({ title: `${g} movies`, kind: 'movie' as Kind, genre: g })),
+  ...(['Drama', 'Comedy', 'Crime', 'Sci-Fi', 'Animation', 'Documentary'] as const).map((g) => ({ title: `${g} series`, kind: 'series' as Kind, genre: g })),
+]
 
 const WARM_UP_MS = 1500
 const TABS: ReadonlyArray<readonly [HomeTab, string]> = [['home', 'For you'], ['discover', 'Discover'], ['library', 'Library']]
@@ -342,7 +373,8 @@ export function SfwHome() {
   const searching = text.trim().length >= 2
   const tab: HomeTab = searching ? 'discover' : view !== 'all' && stored === 'home' ? 'library' : stored
   const go = (t: HomeTab) => { setStored(t); if (t !== 'library') useScreenView.getState().setView('all') }
-  const seeAll = (k: Kind) => { setKind(k); setGenre(''); setCatalog('popular'); go('discover') }
+  const seeAll = (k: Kind, c: Catalog = 'popular', g = '') => { setKind(k); setGenre(g); setCatalog(c); go('discover') }
+  const addons = useAddons()
   const d = home.data
   const setImmersive = useUi((x) => x.setImmersive)
   const bleed = tab === 'home' && !searching && (home.isPending || Boolean(d?.billboard.length))   // while it loads, the hero's place is kept: nothing jumps when the data arrives
@@ -422,8 +454,8 @@ export function SfwHome() {
                 {d.recent.map((r) => <Poster key={`${r.kind}:${r.id}`} to={openIn(r.kind)} params={{ id: String(r.id) }} image={r.poster} title={r.title} sub={r.year ? String(r.year) : r.kind === 'tv' ? 'Series' : 'Movie'} />)}
               </Row>
             ) : null}
-            <PopularRow kind="movie" onSeeAll={() => seeAll('movie')} />
-            <PopularRow kind="series" onSeeAll={() => seeAll('series')} />
+            {HOME_ROWS.map((r) => <WhenNear key={r.title}><CatalogRow {...r} onSeeAll={() => seeAll(r.kind, r.catalog, r.genre)} /></WhenNear>)}
+            {addons.data?.items.flatMap((a) => a.lists.slice(0, 4).map((l) => <WhenNear key={addonKey(a, l)}><CatalogRow title={`${a.name}: ${l.name}`} kind="series" catalog={addonKey(a, l)} onSeeAll={() => seeAll('series', addonKey(a, l))} /></WhenNear>))}
             </div>
           </>
       ))}
