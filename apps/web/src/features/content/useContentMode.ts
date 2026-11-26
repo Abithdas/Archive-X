@@ -1,20 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api } from '@/api/client'
 import { groupPatches, type ContentState, type MarksPayload, type Mode, type Patch } from './content'
+import { swapModeData } from './modeSwap'
 
 export const CONTENT_KEY = ['content-mode'] as const
 
 export const useContentMode = () =>
   useQuery({ queryKey: CONTENT_KEY, queryFn: () => api<ContentState>('/api/content-mode'), staleTime: 60_000, retry: false })
 
-/** Switch the mode. Everything on screen belongs to the old mode, so every other query is dropped and fetched again. */
+/** Switch the mode. Everything on screen belongs to the old mode: see modeSwap.ts for what is put back, dropped and fetched again. */
 export function useSwitchMode() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: { mode: Mode; pin?: string; new_pin?: string }) => api<ContentState>('/api/content-mode', { method: 'POST', json: body }),
     onSuccess: (state) => {
+      const from = qc.getQueryData<ContentState>(CONTENT_KEY)?.mode
       qc.setQueryData(CONTENT_KEY, (old: ContentState | undefined) => ({ ...(old ?? { locked_for: 0 }), ...state }))
-      void qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== CONTENT_KEY[0] })   // not awaited: the switch is done now, the pages refresh behind it
+      // Not awaited: the switch is done now. The screen shows what was last seen in the new mode (or a skeleton), and refreshes behind that.
+      if (from) swapModeData(qc, from, state.mode)
+      else void qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== CONTENT_KEY[0] })
     },
   })
 }

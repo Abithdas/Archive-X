@@ -1,4 +1,5 @@
 import { ContentSwitch } from '@/features/content/ContentSwitch'
+import { forgetModeData } from '@/features/content/modeSwap'
 import { useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState } from 'react'
 import { SESSION_LOST_EVENT, api } from '@/api/client'
@@ -33,6 +34,7 @@ export function AccountMenu({ live, pillFrom = 'sm' }: { live: string; pillFrom?
       /* the session may already be gone */
     }
     qc.clear()
+    forgetModeData()   // the other mode's remembered screens go with the session
     window.dispatchEvent(new Event(SESSION_LOST_EVENT))
   }
 

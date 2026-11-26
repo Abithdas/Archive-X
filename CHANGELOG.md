@@ -4,6 +4,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- Switching between SFW and NSFW is smoother and refreshes less: the screen no longer fills in piece by piece (five steps over a second when switching to NSFW, and the old mode's cards still showing for a moment after switching to SFW). The data of the mode you leave is remembered and the data you last saw in the mode you enter is shown at once, then refreshed behind it; a page with nothing remembered shows a skeleton, never the other mode's content; only what depends on the mode is fetched again (28 requests became 10), and what is remembered is forgotten when you sign out or after 10 minutes.
 - Settings no longer walks the whole data folder every time it opens: the size is found by a direct directory scan (twice as fast, same totals) and kept; an old figure is shown at once and measured again in the background. With 250,000 files the storage request took 3.4 s and the page 4.4 s to settle; the first visit is now 1.2 s and the page 2.1 s, later visits are immediate.
 - The studios list (0.42 s to 0.23 s for a first visit at 175,000 videos) and the performers list count through the base link tables, with the same answers in both content modes (checked on data with channels of both ratings).
 - The channels list, asked by Videos, Transfers and Movies, reads its three big answers side by side (0.32-0.38 s to 0.18 s), through three long-lived workers, with the same answer.
