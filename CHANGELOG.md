@@ -2,7 +2,7 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased
+## 30.12.2 (2026-11-26)
 
 - The database no longer only grows. A file never shrinks by itself: deleting a channel or rebuilding previews only marks space free inside it (measured: 837 MB on disk for 520 MB of content after half the previews were deleted). New databases are now made with incremental vacuum; an existing small one (under 256 MB) is switched at the start by one quick VACUUM (0.6 s for 80 MB, once); a larger one is switched from Settings → Storage → Database → Compact database, which also removes the space wasted inside half-empty pages (it shows the size, the unused space and the last times, asks first, needs free disk space about the size of the file, and refuses while a job runs).
 - While the app is idle it gives unused space back in slices of 500 pages (each holds writing for under 100 ms), trims a write-ahead log above 128 MB, and refreshes the query statistics once a week (`PRAGMA optimize`, which also helps queries choose better plans). The first pass is two minutes after the start, then every six hours, and never while a job is running.
@@ -20,9 +20,6 @@ One entry per release, newest first. Releases are published from the Desktop wor
 - A performer's page no longer takes time in proportion to the size of the whole library: it starts from the performer's own videos (0.59 s down to 0.025 s for a performer with 59 videos in a library of 175,000).
 - A large library no longer makes the first start after an upgrade wait for the export of thumbnails and metadata to the user folders (15 s at 175,000 videos): it runs in the background, and the window opens at once.
 - Fixed "the Archive X backend exited before it was ready ... database disk image is malformed": when the database file is damaged, the app now moves it aside into a `damaged-<time>` folder, creates a new database and copies back every row that can still be read, instead of refusing to start.
-
-## Unreleased
-
 - Sixteen more handlers that read or write the database no longer do it on the web server's event loop, so a busy database cannot freeze the whole app (live updates, status) while they wait. Handlers that need the event loop to queue a job or a task keep that step on the loop.
 
 ## 30.12.1 (2026-11-26)
