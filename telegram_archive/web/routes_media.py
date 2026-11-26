@@ -274,33 +274,39 @@ def register_media_routes(
     async def reconcile_verified_delivery_captions(request: Request):
         """Reconcile captions of already-registered destination posts without channel scans."""
         require_auth(request)
-        with db.lock:
-            tables = {str(row[0]) for row in db.conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('transfer_locations','archive_x_deliveries','automation_delivery_fingerprints')"
-            ).fetchall()}
-            clauses = []
-            if "transfer_locations" in tables:
-                clauses.append(
-                    "EXISTS (SELECT 1 FROM transfer_locations t WHERE t.status='VERIFIED' "
-                    "AND t.destination_channel=m.source_channel AND t.destination_message_id=m.source_message_id)"
-                )
-            if "archive_x_deliveries" in tables:
-                clauses.append(
-                    "EXISTS (SELECT 1 FROM archive_x_deliveries d WHERE d.status='VERIFIED' "
-                    "AND d.destination_channel=m.source_channel AND d.destination_video_message_id=m.source_message_id)"
-                )
-            if "automation_delivery_fingerprints" in tables:
-                clauses.append(
-                    "EXISTS (SELECT 1 FROM automation_delivery_fingerprints f "
-                    "WHERE f.destination_channel=m.source_channel AND f.destination_video_id=m.source_message_id)"
-                )
-            if not clauses:
-                return {"ok": True, "queued": 0, "message": "No verified-delivery ledger is available yet."}
-            rows = db.conn.execute(
-                "SELECT m.id FROM media m WHERE m.source_message_id>0 AND COALESCE(m.status,'')<>'SOURCE_DELETED' AND (" + " OR ".join(clauses) + ") "
-                "ORDER BY COALESCE(m.updated_at,m.created_at,''),m.id"
-            ).fetchall()
-            ids = [int(row["id"] or 0) for row in rows if int(row["id"] or 0) > 0]
+        def _verified_ids():
+            with db.lock:
+                tables = {str(row[0]) for row in db.conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('transfer_locations','archive_x_deliveries','automation_delivery_fingerprints')"
+                ).fetchall()}
+                clauses = []
+                if "transfer_locations" in tables:
+                    clauses.append(
+                        "EXISTS (SELECT 1 FROM transfer_locations t WHERE t.status='VERIFIED' "
+                        "AND t.destination_channel=m.source_channel AND t.destination_message_id=m.source_message_id)"
+                    )
+                if "archive_x_deliveries" in tables:
+                    clauses.append(
+                        "EXISTS (SELECT 1 FROM archive_x_deliveries d WHERE d.status='VERIFIED' "
+                        "AND d.destination_channel=m.source_channel AND d.destination_video_message_id=m.source_message_id)"
+                    )
+                if "automation_delivery_fingerprints" in tables:
+                    clauses.append(
+                        "EXISTS (SELECT 1 FROM automation_delivery_fingerprints f "
+                        "WHERE f.destination_channel=m.source_channel AND f.destination_video_id=m.source_message_id)"
+                    )
+                if not clauses:
+                    return None
+                rows = db.conn.execute(
+                    "SELECT m.id FROM media m WHERE m.source_message_id>0 AND COALESCE(m.status,'')<>'SOURCE_DELETED' AND (" + " OR ".join(clauses) + ") "
+                    "ORDER BY COALESCE(m.updated_at,m.created_at,''),m.id"
+                ).fetchall()
+                ids = [int(row["id"] or 0) for row in rows if int(row["id"] or 0) > 0]
+            return ids
+        # The query runs in a worker thread; the caption sync is queued here on the event loop, which it needs.
+        ids = await asyncio.to_thread(_verified_ids)
+        if ids is None:
+            return {"ok": True, "queued": 0, "message": "No verified-delivery ledger is available yet."}
         ids = list(dict.fromkeys(ids))
         queued = _queue_catalogue_caption_sync(ids)
         db.log(
@@ -746,8 +752,10 @@ def register_media_routes(
         if not ok:
             raise HTTPException(404, "Suggestion not found, already handled, or blocked by performer-identity safety")
         caption_sync = await _sync_catalogue_caption(int(suggestion_row["video_id"])) if suggestion_row else None
-        db.log(f"Metadata suggestion {suggestion_id} confirmed")
-        return {"ok": True, "caption_sync": caption_sync}
+        def _work():
+            db.log(f"Metadata suggestion {suggestion_id} confirmed")
+            return {"ok": True, "caption_sync": caption_sync}
+        return await asyncio.to_thread(_work)
 
     @router.post("/api/suggestions/{suggestion_id}/confirm-entity")
     async def confirm_suggestion_entity(suggestion_id: int, request: Request):

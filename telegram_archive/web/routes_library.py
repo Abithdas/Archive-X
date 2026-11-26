@@ -1374,16 +1374,18 @@ def register_library_routes(
         from fastapi.responses import FileResponse as _FileResponse
         import mimetypes as _mimetypes
         path = await _photo_library_file_path(channel_id, message_id, thumbnail=True)
-        if path.suffix.lower() == ".jpg":
-            mime = "image/jpeg"
-        else:
-            with db.reading() as rdb:
-                row = rdb.execute("SELECT filename,mime_type FROM photo_library_items WHERE channel_id=? AND message_id=?", (str(channel_id), int(message_id))).fetchone()
-            mime = str(row["mime_type"] or "") if row else ""
-            if not mime.startswith("image/"):
-                mime = _mimetypes.guess_type(str(row["filename"] or ""))[0] if row else None
-            mime = mime if mime and mime.startswith("image/") else "image/jpeg"
-        return _FileResponse(path, media_type=mime, headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"})
+        def _work():
+            if path.suffix.lower() == ".jpg":
+                mime = "image/jpeg"
+            else:
+                with db.reading() as rdb:
+                    row = rdb.execute("SELECT filename,mime_type FROM photo_library_items WHERE channel_id=? AND message_id=?", (str(channel_id), int(message_id))).fetchone()
+                mime = str(row["mime_type"] or "") if row else ""
+                if not mime.startswith("image/"):
+                    mime = _mimetypes.guess_type(str(row["filename"] or ""))[0] if row else None
+                mime = mime if mime and mime.startswith("image/") else "image/jpeg"
+            return _FileResponse(path, media_type=mime, headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"})
+        return await asyncio.to_thread(_work)
 
 
     @router.get("/api/photos/{channel_id}/{message_id}/preview")
@@ -1429,13 +1431,15 @@ def register_library_routes(
         from fastapi.responses import FileResponse as _FileResponse
         import mimetypes as _mimetypes
         path = await _photo_library_file_path(channel_id, message_id, thumbnail=False)
-        with db.reading() as rdb:
-            row = rdb.execute("SELECT filename,mime_type FROM photo_library_items WHERE channel_id=? AND message_id=?", (str(channel_id), int(message_id))).fetchone()
-        mime = str(row["mime_type"] or "") if row else ""
-        if not mime.startswith("image/"):
-            mime = _mimetypes.guess_type(str(row["filename"] or ""))[0] if row else None
-        return _FileResponse(path, media_type=mime if mime and mime.startswith("image/") else "image/jpeg",
-                             headers={"Cache-Control": "private, max-age=3600", "Content-Disposition": "inline", "X-Content-Type-Options": "nosniff"})
+        def _work():
+            with db.reading() as rdb:
+                row = rdb.execute("SELECT filename,mime_type FROM photo_library_items WHERE channel_id=? AND message_id=?", (str(channel_id), int(message_id))).fetchone()
+            mime = str(row["mime_type"] or "") if row else ""
+            if not mime.startswith("image/"):
+                mime = _mimetypes.guess_type(str(row["filename"] or ""))[0] if row else None
+            return _FileResponse(path, media_type=mime if mime and mime.startswith("image/") else "image/jpeg",
+                                 headers={"Cache-Control": "private, max-age=3600", "Content-Disposition": "inline", "X-Content-Type-Options": "nosniff"})
+        return await asyncio.to_thread(_work)
 
     @router.post("/api/performers/{performer_id}/photos/use-as-profile")
     async def performer_photo_use_as_profile(performer_id: int, request: Request):
@@ -1726,37 +1730,39 @@ def register_library_routes(
             body = await request.json()
         except Exception:
             raise HTTPException(400, "request body must be valid JSON")
-        if not isinstance(body, dict):
-            raise HTTPException(400, "request body must be an object")
-        raw_ids, favorite = body.get("media_ids"), body.get("favorite")
-        if not isinstance(raw_ids, list) or not raw_ids:
-            raise HTTPException(400, "media_ids must be a non-empty list")
-        if len(raw_ids) > 500:
-            raise HTTPException(413, "At most 500 media IDs may be submitted at once")
-        if not isinstance(favorite, bool):
-            raise HTTPException(400, "favorite must be a boolean")
-        try:
-            ids = list(dict.fromkeys(int(value) for value in raw_ids if int(value) > 0))
-        except (TypeError, ValueError):
-            raise HTTPException(400, "media_ids must contain positive integers")
-        if len(ids) > 500:
-            raise HTTPException(413, "At most 500 media items may be updated at once")
-        if not ids:
-            raise HTTPException(400, "media_ids must contain positive integers")
-        marks = ",".join("?" for _ in ids)
-        with db.lock:
-            rows = db.conn.execute(f"SELECT id FROM media WHERE id IN ({marks})", ids).fetchall()
-            valid_ids = [int(row["id"]) for row in rows]
-            if valid_ids:
-                valid_marks = ",".join("?" for _ in valid_ids)
-                db.conn.execute(
-                    f"UPDATE media SET favorite=?, updated_at=? WHERE id IN ({valid_marks})",
-                    [1 if favorite else 0, config.now_iso(), *valid_ids],
-                )
-            db.conn.commit()
-        valid_set = set(valid_ids)
-        return {"ok": True, "favorite": favorite, "updated": len(valid_ids),
-                "media_ids": valid_ids, "missing_ids": [value for value in ids if value not in valid_set]}
+        def _work():
+            if not isinstance(body, dict):
+                raise HTTPException(400, "request body must be an object")
+            raw_ids, favorite = body.get("media_ids"), body.get("favorite")
+            if not isinstance(raw_ids, list) or not raw_ids:
+                raise HTTPException(400, "media_ids must be a non-empty list")
+            if len(raw_ids) > 500:
+                raise HTTPException(413, "At most 500 media IDs may be submitted at once")
+            if not isinstance(favorite, bool):
+                raise HTTPException(400, "favorite must be a boolean")
+            try:
+                ids = list(dict.fromkeys(int(value) for value in raw_ids if int(value) > 0))
+            except (TypeError, ValueError):
+                raise HTTPException(400, "media_ids must contain positive integers")
+            if len(ids) > 500:
+                raise HTTPException(413, "At most 500 media items may be updated at once")
+            if not ids:
+                raise HTTPException(400, "media_ids must contain positive integers")
+            marks = ",".join("?" for _ in ids)
+            with db.lock:
+                rows = db.conn.execute(f"SELECT id FROM media WHERE id IN ({marks})", ids).fetchall()
+                valid_ids = [int(row["id"]) for row in rows]
+                if valid_ids:
+                    valid_marks = ",".join("?" for _ in valid_ids)
+                    db.conn.execute(
+                        f"UPDATE media SET favorite=?, updated_at=? WHERE id IN ({valid_marks})",
+                        [1 if favorite else 0, config.now_iso(), *valid_ids],
+                    )
+                db.conn.commit()
+            valid_set = set(valid_ids)
+            return {"ok": True, "favorite": favorite, "updated": len(valid_ids),
+                    "media_ids": valid_ids, "missing_ids": [value for value in ids if value not in valid_set]}
+        return await asyncio.to_thread(_work)
 
     @router.post("/api/library/move-delete")
     async def library_move_delete(request: Request):

@@ -314,26 +314,28 @@ def register_tags_logs_routes(
         plus filename/API links when you explicitly remove them here)."""
         require_auth(request)
         body = await request.json()
-        channel_id = str(body.get("channel_id") or "").strip()
-        message_id = int(body.get("message_id") or 0)
-        name = str(body.get("name") or "").strip()
-        if not channel_id or not message_id or not name:
-            raise HTTPException(400, "channel_id, message_id and performer name are required")
-        with db.lock:
-            media = db.conn.execute("SELECT id FROM media WHERE source_channel=? AND source_message_id=?",
-                                    (channel_id, message_id)).fetchone()
-            perf = db.conn.execute("SELECT id FROM performers WHERE lower(name)=lower(?)", (name,)).fetchone()
-            if not media or not perf:
-                raise HTTPException(404, "Not linked")
-            db.conn.execute("DELETE FROM local_video_performers WHERE video_id=? AND performer_id=?", (media["id"], perf["id"]))
-            db.conn.execute("DELETE FROM video_performers WHERE video_id=? AND performer_id=?", (media["id"], perf["id"]))
-            # Removing the explicit local mapping also releases its metadata
-            # lock; otherwise future API scans would remain suppressed after
-            # the operator has deliberately removed the mapping.
-            db.conn.execute("DELETE FROM metadata_mapping_locks WHERE video_id=? AND field='performer'", (media["id"],))
-            db.conn.commit()
-        db.log(f"Performer {name} removed from channel {channel_id} message {message_id}")
-        return {"ok": True}
+        def _work():
+            channel_id = str(body.get("channel_id") or "").strip()
+            message_id = int(body.get("message_id") or 0)
+            name = str(body.get("name") or "").strip()
+            if not channel_id or not message_id or not name:
+                raise HTTPException(400, "channel_id, message_id and performer name are required")
+            with db.lock:
+                media = db.conn.execute("SELECT id FROM media WHERE source_channel=? AND source_message_id=?",
+                                        (channel_id, message_id)).fetchone()
+                perf = db.conn.execute("SELECT id FROM performers WHERE lower(name)=lower(?)", (name,)).fetchone()
+                if not media or not perf:
+                    raise HTTPException(404, "Not linked")
+                db.conn.execute("DELETE FROM local_video_performers WHERE video_id=? AND performer_id=?", (media["id"], perf["id"]))
+                db.conn.execute("DELETE FROM video_performers WHERE video_id=? AND performer_id=?", (media["id"], perf["id"]))
+                # Removing the explicit local mapping also releases its metadata
+                # lock; otherwise future API scans would remain suppressed after
+                # the operator has deliberately removed the mapping.
+                db.conn.execute("DELETE FROM metadata_mapping_locks WHERE video_id=? AND field='performer'", (media["id"],))
+                db.conn.commit()
+            db.log(f"Performer {name} removed from channel {channel_id} message {message_id}")
+            return {"ok": True}
+        return await asyncio.to_thread(_work)
 
     # ---------------- background details for the visible page ----------------
     from ..engines.page_enricher import PageEnricher
@@ -437,9 +439,11 @@ def register_tags_logs_routes(
                             "error": type(e).__name__,
                         })
 
-        db.log(f"Telegram cover repair: repaired={repaired}, skipped={skipped}, failed={failed}")
-        return {"ok": True, "total": len(rows), "repaired": repaired,
-                "skipped": skipped, "failed": failed, "errors": errors}
+        def _work():
+            db.log(f"Telegram cover repair: repaired={repaired}, skipped={skipped}, failed={failed}")
+            return {"ok": True, "total": len(rows), "repaired": repaired,
+                    "skipped": skipped, "failed": failed, "errors": errors}
+        return await asyncio.to_thread(_work)
 
     @router.post("/api/send")
     async def send_to_telegram(request: Request):

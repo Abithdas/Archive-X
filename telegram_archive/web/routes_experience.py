@@ -132,38 +132,40 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
     async def save_play_progress(request: Request):
         require_auth(request)
         data = await request.json()
-        try:
-            channel_id = str(data['channel_id'])
-            message_id = int(data['message_id'])
-            position = max(0.0, float(data.get('position') or 0))
-            duration = max(0.0, float(data.get('duration') or 0))
-            playing_delta = max(0.0, float(data.get('watch_delta') or 0))
-        except Exception:
-            raise HTTPException(400, 'channel_id, message_id, position and duration are required')
-        with db.lock:
-            row = db.conn.execute('SELECT id FROM media WHERE source_channel=? AND source_message_id=?', (channel_id, message_id)).fetchone()
-            if not row:
-                return {'ok': False, 'stored': False}
-            media_id = int(row['id'])
-            now = _iso_now()
-            existing = db.conn.execute('SELECT play_count,total_watch_seconds FROM watch_history WHERE media_id=?', (media_id,)).fetchone()
-            play_count = int(existing['play_count'] or 0) if existing else 0
-            total = float(existing['total_watch_seconds'] or 0) if existing else 0.0
-            # A small delta is supplied every few seconds; large jumps are ignored to avoid inflating watch time during seeks.
-            total += playing_delta if playing_delta <= 20 else 0
-            completed = int(bool(duration and position >= max(0.0, duration - 10)))
-            if existing is None:
-                play_count = 1
-            elif position < 5 and playing_delta > 0:
-                play_count += 1
-            db.conn.execute(
-                'INSERT INTO watch_history(media_id,position,duration,play_count,total_watch_seconds,last_played_at,completed,updated_at) '
-                'VALUES(?,?,?,?,?,?,?,?) '
-                'ON CONFLICT(media_id) DO UPDATE SET position=excluded.position,duration=excluded.duration,play_count=excluded.play_count,total_watch_seconds=excluded.total_watch_seconds,last_played_at=excluded.last_played_at,completed=excluded.completed,updated_at=excluded.updated_at',
-                (media_id, position, duration, play_count, total, now, completed, now)
-            )
-            db.conn.commit()
-        return {'ok': True, 'stored': True, 'completed': bool(completed)}
+        def _work():
+            try:
+                channel_id = str(data['channel_id'])
+                message_id = int(data['message_id'])
+                position = max(0.0, float(data.get('position') or 0))
+                duration = max(0.0, float(data.get('duration') or 0))
+                playing_delta = max(0.0, float(data.get('watch_delta') or 0))
+            except Exception:
+                raise HTTPException(400, 'channel_id, message_id, position and duration are required')
+            with db.lock:
+                row = db.conn.execute('SELECT id FROM media WHERE source_channel=? AND source_message_id=?', (channel_id, message_id)).fetchone()
+                if not row:
+                    return {'ok': False, 'stored': False}
+                media_id = int(row['id'])
+                now = _iso_now()
+                existing = db.conn.execute('SELECT play_count,total_watch_seconds FROM watch_history WHERE media_id=?', (media_id,)).fetchone()
+                play_count = int(existing['play_count'] or 0) if existing else 0
+                total = float(existing['total_watch_seconds'] or 0) if existing else 0.0
+                # A small delta is supplied every few seconds; large jumps are ignored to avoid inflating watch time during seeks.
+                total += playing_delta if playing_delta <= 20 else 0
+                completed = int(bool(duration and position >= max(0.0, duration - 10)))
+                if existing is None:
+                    play_count = 1
+                elif position < 5 and playing_delta > 0:
+                    play_count += 1
+                db.conn.execute(
+                    'INSERT INTO watch_history(media_id,position,duration,play_count,total_watch_seconds,last_played_at,completed,updated_at) '
+                    'VALUES(?,?,?,?,?,?,?,?) '
+                    'ON CONFLICT(media_id) DO UPDATE SET position=excluded.position,duration=excluded.duration,play_count=excluded.play_count,total_watch_seconds=excluded.total_watch_seconds,last_played_at=excluded.last_played_at,completed=excluded.completed,updated_at=excluded.updated_at',
+                    (media_id, position, duration, play_count, total, now, completed, now)
+                )
+                db.conn.commit()
+            return {'ok': True, 'stored': True, 'completed': bool(completed)}
+        return await asyncio.to_thread(_work)
 
     @router.get('/api/play/history/{channel_id}/{message_id}')
     async def get_play_history(channel_id: int, message_id: int, request: Request):
@@ -210,21 +212,23 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
     async def create_marker(media_id: int, request: Request):
         require_auth(request)
         data = await request.json()
-        try:
-            position = max(0.0, float(data.get('position') or 0))
-        except Exception:
-            raise HTTPException(400, 'position is required')
-        title = str(data.get('title') or '').strip()[:160]
-        note = str(data.get('note') or '').strip()[:500]
-        tag = str(data.get('tag') or '').strip()[:80]
-        with db.lock:
-            if not db.conn.execute('SELECT 1 FROM media WHERE id=?', (int(media_id),)).fetchone():
-                raise HTTPException(404, 'Media not found')
-            now = _iso_now()
-            cur = db.conn.execute('INSERT INTO scene_markers(media_id,position,title,note,tag,created_at,updated_at) VALUES(?,?,?,?,?,?,?)', (int(media_id),position,title,note,tag,now,now))
-            db.conn.commit()
-            marker_id = int(cur.lastrowid)
-        return {'ok': True, 'marker': {'id': marker_id, 'media_id': int(media_id), 'position': position, 'title': title, 'note': note, 'tag': tag, 'created_at': now, 'updated_at': now}}
+        def _work():
+            try:
+                position = max(0.0, float(data.get('position') or 0))
+            except Exception:
+                raise HTTPException(400, 'position is required')
+            title = str(data.get('title') or '').strip()[:160]
+            note = str(data.get('note') or '').strip()[:500]
+            tag = str(data.get('tag') or '').strip()[:80]
+            with db.lock:
+                if not db.conn.execute('SELECT 1 FROM media WHERE id=?', (int(media_id),)).fetchone():
+                    raise HTTPException(404, 'Media not found')
+                now = _iso_now()
+                cur = db.conn.execute('INSERT INTO scene_markers(media_id,position,title,note,tag,created_at,updated_at) VALUES(?,?,?,?,?,?,?)', (int(media_id),position,title,note,tag,now,now))
+                db.conn.commit()
+                marker_id = int(cur.lastrowid)
+            return {'ok': True, 'marker': {'id': marker_id, 'media_id': int(media_id), 'position': position, 'title': title, 'note': note, 'tag': tag, 'created_at': now, 'updated_at': now}}
+        return await asyncio.to_thread(_work)
 
     @router.delete('/api/media/{media_id}/markers/{marker_id}')
     def delete_marker(media_id: int, marker_id: int, request: Request):
@@ -515,16 +519,18 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
     async def provider_sync_mark(request: Request):
         require_auth(request)
         data = await request.json()
-        provider = str(data.get('provider') or '').strip().casefold()
-        entity_type = str(data.get('entity_type') or 'scene').strip().casefold()
-        if not provider:
-            raise HTTPException(400, 'provider is required')
-        now = _iso_now()
-        with db.lock:
-            db.conn.execute(
-                'INSERT INTO provider_sync_state(provider,entity_type,last_sync_at,status,error,request_count,last_latency_ms,rate_remaining,rate_reset_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) '
-                'ON CONFLICT(provider,entity_type) DO UPDATE SET last_sync_at=excluded.last_sync_at,status=excluded.status,error=excluded.error,request_count=provider_sync_state.request_count+excluded.request_count,last_latency_ms=excluded.last_latency_ms,rate_remaining=excluded.rate_remaining,rate_reset_at=excluded.rate_reset_at,updated_at=excluded.updated_at',
-                (provider, entity_type, now, str(data.get('status') or 'OK'), str(data.get('error') or ''), int(data.get('request_count') or 0), float(data.get('latency_ms')) if data.get('latency_ms') is not None else None, int(data.get('rate_remaining')) if data.get('rate_remaining') is not None else None, float(data.get('rate_reset_at')) if data.get('rate_reset_at') is not None else None, now)
-            )
-            db.conn.commit()
-        return {'ok': True}
+        def _work():
+            provider = str(data.get('provider') or '').strip().casefold()
+            entity_type = str(data.get('entity_type') or 'scene').strip().casefold()
+            if not provider:
+                raise HTTPException(400, 'provider is required')
+            now = _iso_now()
+            with db.lock:
+                db.conn.execute(
+                    'INSERT INTO provider_sync_state(provider,entity_type,last_sync_at,status,error,request_count,last_latency_ms,rate_remaining,rate_reset_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) '
+                    'ON CONFLICT(provider,entity_type) DO UPDATE SET last_sync_at=excluded.last_sync_at,status=excluded.status,error=excluded.error,request_count=provider_sync_state.request_count+excluded.request_count,last_latency_ms=excluded.last_latency_ms,rate_remaining=excluded.rate_remaining,rate_reset_at=excluded.rate_reset_at,updated_at=excluded.updated_at',
+                    (provider, entity_type, now, str(data.get('status') or 'OK'), str(data.get('error') or ''), int(data.get('request_count') or 0), float(data.get('latency_ms')) if data.get('latency_ms') is not None else None, int(data.get('rate_remaining')) if data.get('rate_remaining') is not None else None, float(data.get('rate_reset_at')) if data.get('rate_reset_at') is not None else None, now)
+                )
+                db.conn.commit()
+            return {'ok': True}
+        return await asyncio.to_thread(_work)

@@ -710,13 +710,15 @@ def register_telegram_routes(
         except Exception as exc:
             db.log(f"Telegram channel sync failed for {channel_id} ({','.join(synced) or 'none'}): {type(exc).__name__}: {exc}", "ERROR")
             raise HTTPException(502, f"Telegram channel sync failed after {','.join(synced) or 'no'} changes: {type(exc).__name__}") from exc
-        with db.lock:
-            db.conn.execute("UPDATE channels SET updated_at=? WHERE telegram_id=?", (config.now_iso(), str(channel_id)))
-            db.conn.commit()
-        _channel_profile_photo_cache.pop(str(channel_id), None)
-        db.log(f"Telegram channel sync completed for {channel_id}: {', '.join(synced)}")
-        return {"ok": True, "channel_id": str(channel_id), "synced": synced,
-                "warning": "Telegram was changed; local edits are separate and may be refreshed from Telegram later."}
+        def _work():
+            with db.lock:
+                db.conn.execute("UPDATE channels SET updated_at=? WHERE telegram_id=?", (config.now_iso(), str(channel_id)))
+                db.conn.commit()
+            _channel_profile_photo_cache.pop(str(channel_id), None)
+            db.log(f"Telegram channel sync completed for {channel_id}: {', '.join(synced)}")
+            return {"ok": True, "channel_id": str(channel_id), "synced": synced,
+                    "warning": "Telegram was changed; local edits are separate and may be refreshed from Telegram later."}
+        return await asyncio.to_thread(_work)
 
     @router.get("/api/source-channels")
     async def source_channels(request: Request):

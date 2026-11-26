@@ -138,22 +138,24 @@ def register_entity_routes(
         except Exception as exc:
             db.log(f"Performer image candidate lookup failed id={performer_id}: {type(exc).__name__}: {exc}", "WARN")
             raise HTTPException(502, "Provider image lookup failed")
-        current = str(row["image"] or "").strip()
-        provider_counts = {}
-        for item in candidates:
-            provider_key = str(item.get("provider") or "").strip().lower()
-            provider_counts[provider_key] = provider_counts.get(provider_key, 0) + 1
-        has_more = any(count > limit for count in provider_counts.values())
-        trimmed = []
-        for provider_key in ("stashdb", "theporndb"):
-            trimmed.extend([item for item in candidates if str(item.get("provider") or "").strip().lower() == provider_key][:limit])
-        out = []
-        for item in trimmed:
-            entry = dict(item)
-            entry["current"] = bool(current and entry.get("url") == current)
-            out.append(entry)
-        return {"ok": True, "current_image": current, "candidates": out, "offset": offset, "limit": limit,
-                "has_more": has_more}
+        def _work():
+            current = str(row["image"] or "").strip()
+            provider_counts = {}
+            for item in candidates:
+                provider_key = str(item.get("provider") or "").strip().lower()
+                provider_counts[provider_key] = provider_counts.get(provider_key, 0) + 1
+            has_more = any(count > limit for count in provider_counts.values())
+            trimmed = []
+            for provider_key in ("stashdb", "theporndb"):
+                trimmed.extend([item for item in candidates if str(item.get("provider") or "").strip().lower() == provider_key][:limit])
+            out = []
+            for item in trimmed:
+                entry = dict(item)
+                entry["current"] = bool(current and entry.get("url") == current)
+                out.append(entry)
+            return {"ok": True, "current_image": current, "candidates": out, "offset": offset, "limit": limit,
+                    "has_more": has_more}
+        return await asyncio.to_thread(_work)
 
 
     # ------------------------------------------------------------------
@@ -903,22 +905,24 @@ def register_entity_routes(
         except Exception as exc:
             db.log(f"Studio image candidate lookup failed id={studio_id}: {type(exc).__name__}: {exc}", "WARN")
             raise HTTPException(502, "Provider image lookup failed")
-        current = str(row["image"] or "").strip()
-        provider_counts = {}
-        for item in candidates:
-            provider_key = str(item.get("provider") or "").strip().lower()
-            provider_counts[provider_key] = provider_counts.get(provider_key, 0) + 1
-        has_more = any(count > limit for count in provider_counts.values())
-        trimmed = []
-        for provider_key in ("stashdb", "theporndb"):
-            trimmed.extend([item for item in candidates if str(item.get("provider") or "").strip().lower() == provider_key][:limit])
-        out = []
-        for item in trimmed:
-            entry = dict(item)
-            entry["current"] = bool(current and entry.get("url") == current)
-            out.append(entry)
-        return {"ok": True, "current_image": current, "candidates": out, "offset": offset, "limit": limit,
-                "has_more": has_more}
+        def _work():
+            current = str(row["image"] or "").strip()
+            provider_counts = {}
+            for item in candidates:
+                provider_key = str(item.get("provider") or "").strip().lower()
+                provider_counts[provider_key] = provider_counts.get(provider_key, 0) + 1
+            has_more = any(count > limit for count in provider_counts.values())
+            trimmed = []
+            for provider_key in ("stashdb", "theporndb"):
+                trimmed.extend([item for item in candidates if str(item.get("provider") or "").strip().lower() == provider_key][:limit])
+            out = []
+            for item in trimmed:
+                entry = dict(item)
+                entry["current"] = bool(current and entry.get("url") == current)
+                out.append(entry)
+            return {"ok": True, "current_image": current, "candidates": out, "offset": offset, "limit": limit,
+                    "has_more": has_more}
+        return await asyncio.to_thread(_work)
 
     @router.get("/api/studios/{studio_id}/edit")
     async def studio_edit_data(studio_id: int, request: Request):
@@ -1213,8 +1217,10 @@ def register_entity_routes(
         from ..core.resource_registry import mark_media_entity_complete
         mark_media_entity_complete(db, [vid])
         caption_sync = await _sync_catalogue_caption(vid)
-        db.log(f"Local site mapping: {new} -> channel {channel_id} message {message_id}")
-        return {"ok": True, "site": {"id": int(studio["id"]), "name": new} if studio else None, "local": True, "caption_sync": caption_sync}
+        def _work():
+            db.log(f"Local site mapping: {new} -> channel {channel_id} message {message_id}")
+            return {"ok": True, "site": {"id": int(studio["id"]), "name": new} if studio else None, "local": True, "caption_sync": caption_sync}
+        return await asyncio.to_thread(_work)
 
     # ─── Metadata match suggestions (Claude engineering prompt §5-8) ───
     # Only HIGH-confidence provider matches are auto-linked (page_enricher.py);
@@ -1311,43 +1317,45 @@ def register_entity_routes(
         # Do not use OSHASH here: the editor is often changing title/entity
         # clues, and an exact hash could return a stale or irrelevant title record.
         result = await identify(db, oshash=None, filename=filename, context=context, filename_parameters=hints)
-        from ..engines.entity_identity import mapped_video_entity_context
-        from ..metadata.suggestions import candidate_mapping_conflicts
-        saved_mapping_context = mapped_video_entity_context(db, int(media["id"]))
-        mapping_filter_fields = set()
-        if saved_mapping_context.get("performer_names") and not (performer_query or performer_selected_explicit):
-            mapping_filter_fields.add("performer")
-        if saved_mapping_context.get("studio_names") and not (studio_query or studio_selected_explicit):
-            mapping_filter_fields.add("studio")
-        matches = []
-        filtered_count = 0
-        for match in result.get("matches") or []:
-            if not isinstance(match, dict):
-                continue
-            if candidate_mapping_conflicts(
-                db, int(media["id"]), match, mapping_context=saved_mapping_context,
-                fields=mapping_filter_fields,
-            ):
-                filtered_count += 1
-                continue
-            row = dict(match)
-            row["confidence"] = row.get("confidence") or "provider filename match — confirm"
-            matches.append(row)
-        # Keep this endpoint read-only even if provider services return an empty result.
-        filename_hints = {key: hints.get(key) for key in (
-            "title", "title_search_variants", "performers", "performer_candidates", "studio",
-            "studio_candidates", "date", "year", "parameters_found",
-        )}
-        return {"ok": True, "matches": matches[:8], "method": result.get("method"),
-                "filename_hints": filename_hints, "search_title": search_title,
-                "filtered_count": filtered_count,
-                "mapping_filters": [
-                    label for field, label in (("performer", "confirmed performer"),
-                                               ("studio", "confirmed studio"))
-                    if field in mapping_filter_fields
-                ],
-                "mapping_filter_names": {
-                    "performer": saved_mapping_context.get("performer_names", []) if "performer" in mapping_filter_fields else [],
-                    "studio": saved_mapping_context.get("studio_names", []) if "studio" in mapping_filter_fields else [],
-                },
-                "errors": result.get("errors") or []}
+        def _work():
+            from ..engines.entity_identity import mapped_video_entity_context
+            from ..metadata.suggestions import candidate_mapping_conflicts
+            saved_mapping_context = mapped_video_entity_context(db, int(media["id"]))
+            mapping_filter_fields = set()
+            if saved_mapping_context.get("performer_names") and not (performer_query or performer_selected_explicit):
+                mapping_filter_fields.add("performer")
+            if saved_mapping_context.get("studio_names") and not (studio_query or studio_selected_explicit):
+                mapping_filter_fields.add("studio")
+            matches = []
+            filtered_count = 0
+            for match in result.get("matches") or []:
+                if not isinstance(match, dict):
+                    continue
+                if candidate_mapping_conflicts(
+                    db, int(media["id"]), match, mapping_context=saved_mapping_context,
+                    fields=mapping_filter_fields,
+                ):
+                    filtered_count += 1
+                    continue
+                row = dict(match)
+                row["confidence"] = row.get("confidence") or "provider filename match — confirm"
+                matches.append(row)
+            # Keep this endpoint read-only even if provider services return an empty result.
+            filename_hints = {key: hints.get(key) for key in (
+                "title", "title_search_variants", "performers", "performer_candidates", "studio",
+                "studio_candidates", "date", "year", "parameters_found",
+            )}
+            return {"ok": True, "matches": matches[:8], "method": result.get("method"),
+                    "filename_hints": filename_hints, "search_title": search_title,
+                    "filtered_count": filtered_count,
+                    "mapping_filters": [
+                        label for field, label in (("performer", "confirmed performer"),
+                                                   ("studio", "confirmed studio"))
+                        if field in mapping_filter_fields
+                    ],
+                    "mapping_filter_names": {
+                        "performer": saved_mapping_context.get("performer_names", []) if "performer" in mapping_filter_fields else [],
+                        "studio": saved_mapping_context.get("studio_names", []) if "studio" in mapping_filter_fields else [],
+                    },
+                    "errors": result.get("errors") or []}
+        return await asyncio.to_thread(_work)

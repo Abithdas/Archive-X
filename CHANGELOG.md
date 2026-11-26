@@ -6,6 +6,10 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 - Fixed "the Archive X backend exited before it was ready ... database disk image is malformed": when the database file is damaged, the app now moves it aside into a `damaged-<time>` folder, creates a new database and copies back every row that can still be read, instead of refusing to start.
 
+## Unreleased
+
+- Sixteen more handlers that read or write the database no longer do it on the web server's event loop, so a busy database cannot freeze the whole app (live updates, status) while they wait. Handlers that need the event loop to queue a job or a task keep that step on the loop.
+
 ## 30.12.1 (2026-11-26)
 
 - Fixed the disk running at 100 % while the app opens: a start-up repair rewrote and flushed one row for every verified transfer at every launch (thousands of writes with a large library). It now skips transfers that are already prepared.

@@ -337,16 +337,18 @@ def register_automation_routes(
             raise HTTPException(409, "There is no active queue item")
         row = dict(found)
         cleaned = await content_automation._cleanup_controlled_item(db, row)
-        if cleaned is False:
-            raise HTTPException(503, "Could not remove the torrent safely. It was not marked cancelled or skipped; check qBittorrent and retry.")
-        content_automation._upsert(
-            db, row["item_key"], status=target_status,
-            error=f"{action_label} by operator", retry_stage="", next_retry_at="",
-            failure_kind="", download_progress=0.0, upload_progress=0.0,
-            download_state=content_automation.TASK_LABELS[target_status],
-        )
-        db.log(f"Content Automation: {action_label.lower()} current item {row.get('title') or row.get('item_key')}")
-        return {"ok": True, "item_key": row["item_key"], "title": row.get("title"), "action": action_label}
+        def _work():
+            if cleaned is False:
+                raise HTTPException(503, "Could not remove the torrent safely. It was not marked cancelled or skipped; check qBittorrent and retry.")
+            content_automation._upsert(
+                db, row["item_key"], status=target_status,
+                error=f"{action_label} by operator", retry_stage="", next_retry_at="",
+                failure_kind="", download_progress=0.0, upload_progress=0.0,
+                download_state=content_automation.TASK_LABELS[target_status],
+            )
+            db.log(f"Content Automation: {action_label.lower()} current item {row.get('title') or row.get('item_key')}")
+            return {"ok": True, "item_key": row["item_key"], "title": row.get("title"), "action": action_label}
+        return await asyncio.to_thread(_work)
 
     @router.post("/api/operations/automation/cancel-current")
     async def automation_cancel_current(request: Request):
@@ -399,36 +401,38 @@ def register_automation_routes(
         else:
             cleanup_error = "The torrent is still present in the download engine"
 
-        if cleaned is False:
-            # If the torrent could not be removed, restore a pollable state so
-            # the row doesn't become permanently stuck in SKIPPING. Never claim
-            # success while a managed torrent may still be running.
-            with db.lock:
-                db.conn.execute(
-                    "UPDATE automation_items SET status='DOWNLOADING',download_state=?,error=?,updated_at=? "
-                    "WHERE item_key=? AND status='SKIPPING'",
-                    (content_automation.TASK_LABELS["DOWNLOADING"],
-                     f"Skip failed: {cleanup_error}", content_automation.config.now_iso(), item_key),
+        def _work():
+            if cleaned is False:
+                # If the torrent could not be removed, restore a pollable state so
+                # the row doesn't become permanently stuck in SKIPPING. Never claim
+                # success while a managed torrent may still be running.
+                with db.lock:
+                    db.conn.execute(
+                        "UPDATE automation_items SET status='DOWNLOADING',download_state=?,error=?,updated_at=? "
+                        "WHERE item_key=? AND status='SKIPPING'",
+                        (content_automation.TASK_LABELS["DOWNLOADING"],
+                         f"Skip failed: {cleanup_error}", content_automation.config.now_iso(), item_key),
+                    )
+                    db.conn.commit()
+                db.log(
+                    f"Content Automation: item skip failed for {row.get('title') or item_key}: {cleanup_error}",
+                    "WARN",
                 )
-                db.conn.commit()
-            db.log(
-                f"Content Automation: item skip failed for {row.get('title') or item_key}: {cleanup_error}",
-                "WARN",
-            )
-            raise HTTPException(503, f"Could not skip this torrent safely: {cleanup_error}")
+                raise HTTPException(503, f"Could not skip this torrent safely: {cleanup_error}")
 
-        content_automation._upsert(
-            db, item_key, status="SKIPPED", retry_stage="", next_retry_at=None,
-            failure_kind="", error="Skipped by operator", download_progress=0.0,
-            download_rate=0, eta_seconds=-1,
-            download_state=content_automation.TASK_LABELS["SKIPPED"],
-        )
-        db.log(
-            f"Content Automation: skipped selected torrent {row.get('title') or item_key}",
-            "INFO", event="content_automation.item_skipped",
-            details={"automation_item": item_key, "torrent_hash": row.get("torrent_hash") or ""},
-        )
-        return {"ok": True, "item_key": item_key, "title": row.get("title"), "action": "Skipped"}
+            content_automation._upsert(
+                db, item_key, status="SKIPPED", retry_stage="", next_retry_at=None,
+                failure_kind="", error="Skipped by operator", download_progress=0.0,
+                download_rate=0, eta_seconds=-1,
+                download_state=content_automation.TASK_LABELS["SKIPPED"],
+            )
+            db.log(
+                f"Content Automation: skipped selected torrent {row.get('title') or item_key}",
+                "INFO", event="content_automation.item_skipped",
+                details={"automation_item": item_key, "torrent_hash": row.get("torrent_hash") or ""},
+            )
+            return {"ok": True, "item_key": item_key, "title": row.get("title"), "action": "Skipped"}
+        return await asyncio.to_thread(_work)
 
 
     # ------------------------------------------------------------------
