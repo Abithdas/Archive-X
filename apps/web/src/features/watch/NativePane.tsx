@@ -6,7 +6,7 @@ import { CcMenu } from './CcMenu'
 import { deviceScale, native, pixelRect, type NativeCommand, type NativeTrack, type Opened, type Snapshot } from './nativeBridge'
 import { afterJump, aspectOf, quiet, stallStep, videoVisible, type StallState } from './nativeLogic'
 import { releasePlayback } from './release'
-import { PlayIcon } from './PlayerIcons'
+import { FullscreenIcon, PlayIcon } from './PlayerIcons'
 import { CaptionStyleItems, PlaybackItems, PlayerControls, playerKey } from './PlayerControls'
 import { loadStyle, saveStyle } from './captionStyle'
 import { SnapshotGrid, type SnapshotData } from './SnapshotGrid'
@@ -32,9 +32,9 @@ function covered(): boolean {
  * captions (live or from the file) are in a strip under it. The picture steps aside while a dialog or menu is open or the stage is scrolled partly out
  * of view. After a jump, if the stream is too slow and the picture crawls, playback stops for a moment to refill, as a browser would.
  */
-export function NativePane({ media, addon, linkPath, onClose, durationHint, size, segments = [], preview, snapshots, startAt = 0, autoPlay = true, autoNext = false, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onBrowser }: {
+export function NativePane({ media, addon, linkPath, onClose, title, durationHint, size, segments = [], preview, snapshots, startAt = 0, autoPlay = true, autoNext = false, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onBrowser }: {
   /** A library video (`media`), or an add-on stream: `linkPath` answers `{ url }` with the address the engine opens, `addon` names the title for its subtitle files. */
-  media?: { cid: string; mid: number }; addon?: AddonRef; linkPath?: string; onClose?: () => void; durationHint?: number | null; size?: { width?: number | null; height?: number | null }; segments?: Segment[]; preview?: PreviewInfo; snapshots?: SnapshotData
+  media?: { cid: string; mid: number }; addon?: AddonRef; linkPath?: string; onClose?: () => void; title?: string; durationHint?: number | null; size?: { width?: number | null; height?: number | null }; segments?: Segment[]; preview?: PreviewInfo; snapshots?: SnapshotData
   startAt?: number; autoPlay?: boolean; autoNext?: boolean; seekRequest?: { t: number; n: number }
   onTime?: (t: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; onPrev?: () => void; onNext?: () => void; onBrowser?: () => void
 }) {
@@ -242,8 +242,16 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
   return (
     // One page for both engines (see PlayerControls.tsx): the same frame, the same bar, menus and keys. The one difference is that the controls cannot sit
     // on the picture, because the native picture is a window above the page; in full screen the bar stays under the picture for the same reason.
-    <div ref={box} className={cn('@container relative grid outline-none', isFs ? 'h-full w-full grid-rows-[minmax(0,1fr)_auto] gap-2 bg-black' : 'w-full gap-4 sm:w-[var(--pw)] sm:gap-5')} data-testid="native-pane" tabIndex={-1}
+    <div ref={box} className={cn('@container relative grid outline-none', isFs ? 'h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-2 bg-black' : 'w-full gap-4 sm:w-[var(--pw)] sm:gap-5')} data-testid="native-pane" tabIndex={-1}
       style={isFs ? undefined : ({ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${shape.toFixed(4)})))` } as CSSProperties)}>
+      {isFs ? (
+        // As in dx.bi: a slim bar above the picture, the way back on the left, the title in the middle, leaving full screen on the right.
+        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 pt-2 text-white">
+          <button type="button" onClick={() => { void document.exitFullscreen().catch(noop); onClose?.() }} aria-label="Back" title="Back" className="grid size-10 place-items-center rounded-full hover:bg-white/15"><Icon name="arrow-left" className="size-5" /></button>
+          <p className="m-0 truncate text-center text-sm font-semibold text-white/85">{title}</p>
+          <button type="button" onClick={() => void document.exitFullscreen().catch(noop)} aria-label="Leave full screen" title="Leave full screen" className="grid size-10 place-items-center rounded-full hover:bg-white/15"><FullscreenIcon /></button>
+        </div>
+      ) : null}
       <div ref={stage} data-testid="stage" style={isFs ? undefined : { aspectRatio: shape }} className={cn('relative w-full overflow-hidden', isFs ? 'h-full min-h-0 bg-black' : 'bg-[#111215] rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
         {phase === 'ready' && mini ? <div role="status" className="absolute inset-0 grid place-items-center content-center gap-2 p-4 text-center text-sm text-white/70"><p>Playing in the mini player.</p><button type="button" onClick={flipMini} className="h-9 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Back to the page</button></div> : null}
         {phase === 'ready' && started && !shown && !scrolling && !mini ? <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-white/70">The picture is hidden while a menu is open or it is scrolled partly out of view. The sound keeps playing.</p> : null}
@@ -269,12 +277,6 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
       ) : null}
 
       <div className="@container relative grid gap-3">
-        {isFs ? (
-          <div className="flex items-center justify-between gap-2 px-1">
-            <button type="button" onClick={() => void document.exitFullscreen()} aria-label="Back to the page" className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3.5 text-sm font-semibold text-white hover:bg-white/20"><Icon name="arrow-left" />Back</button>
-            {onClose ? <button type="button" onClick={() => { void document.exitFullscreen().catch(noop); onClose() }} aria-label="Close the video" className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3.5 text-sm font-semibold text-white hover:bg-white/20"><Icon name="close" />Close</button> : null}
-          </div>
-        ) : null}
         {hint ? <div role="status" className="pointer-events-none absolute -top-9 left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-[#141417]/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-md">{hint}</div> : null}
         <PlayerControls
           time={jump?.to ?? position} duration={duration} buffered={0} segments={segments} preview={preview} onSeek={seekTo} tipBelow

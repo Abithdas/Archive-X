@@ -49,7 +49,7 @@ export function AddonPlayPage({ play }: { play: AddonPlay }) {
         <h1 className="m-0 min-w-0 text-[clamp(16px,1.8vw,22px)] font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere]">{play.name}</h1>
       </div>
       {nativeOk ? (
-        <NativePane key={play.src} linkPath={`/api/screen/stream-link/${token}`} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} startAt={startAt} autoPlay onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} onBrowser={() => setEngine('web')} onClose={() => router.history.back()} />
+        <NativePane key={play.src} linkPath={`/api/screen/stream-link/${token}`} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} startAt={startAt} autoPlay onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} onBrowser={() => setEngine('web')} onClose={() => router.history.back()} title={play.name} />
       ) : <Player key={play.src} src={play.src} autoPlay startAt={startAt} onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} />}
     </div>
   )
