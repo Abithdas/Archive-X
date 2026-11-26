@@ -165,3 +165,16 @@ def test_the_table_is_filled_from_the_rule_when_it_is_first_made(tmp_path):
         db.conn.commit()
     _agree(db)
     assert db.conn.execute("SELECT COUNT(*) FROM ax_library_ready").fetchone()[0] == 1
+
+
+def test_a_database_that_lost_the_table_but_kept_the_triggers_still_starts_and_fills_it_again(tmp_path):
+    db = _db(tmp_path)
+    _make_ready(db, CHANNELS[0], 1)
+    path = db.path
+    with db.lock:
+        db.conn.execute(f"DROP TABLE {lr.TABLE}")      # the triggers and the marker stay
+        db.conn.commit()
+    db.conn.close()
+    reopened = Database(path)                           # must not fail on the first write of the start-up
+    assert reopened.conn.execute("SELECT COUNT(*) FROM archive_x_library_media").fetchone()[0] == 1
+    assert lr.check(reopened.conn) == (0, 0)

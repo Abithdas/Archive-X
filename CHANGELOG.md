@@ -4,6 +4,9 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- An open page no longer keeps the processor busy: the live connection asked for a fresh status four times a second, and each one counted every video's state in Python (0.18 s at 175,000 videos), about 40% of a core with the app idle. The three counts are now made by SQLite in one pass (reused for a few seconds), and the live connection sends the status only when something other than a heartbeat age changed (it sent 11 KB four times a second to an idle page; now once every 10 s). Idle processor with the page open: 41% to 2%.
+- The one-time export of thumbnails and metadata after an upgrade works in batches (200 thumbnails and 500 videos at a time) and pauses briefly between them, instead of loading everything into memory at once: allocated memory during it stayed near 177 MB where it climbed to 1 GB at 175,000 videos, and real thumbnails are larger than the test ones.
+- A database that kept the triggers of the stored Library list but lost its table (a partly copied or restored file) no longer stops the application starting: the table is made again and filled from the rule.
 - Faster still on a large library: the stored list of Library videos now also keeps each video's channel, so a count or a page for some channels reads that index and not every video (a Library page 0.30 s to 0.08 s, a scanned channel of 15,000 videos 0.15 s to 0.013 s, a Library search 0.68 s to 0.11 s, with 175,000 videos of which 75,000 are prepared).
 - The performers and studios lists are remembered until the data they are made from changes (videos, people, studios, channels, settings) and for at most 30 seconds; the first visit takes what it took (0.2 s and 0.4 s at 175,000 videos), the next ones about 10 ms.
 - The test of live captions waits up to 90 s for its stand-in model, as a full test run on a busy machine can take longer than 30 s.

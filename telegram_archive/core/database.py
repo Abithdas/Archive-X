@@ -2389,16 +2389,11 @@ class Database:
             return {"image/png": ".png", "image/webp": ".webp", "image/jpeg": ".jpg"}.get(str(mime or "").lower(), ".jpg")
 
         with self.reading() as rdb:
-            thumbs = rdb.execute(
-                "SELECT source_channel,video_message_id,thumbnail_message_id,mime,data FROM thumbnail_cache "
-                "WHERE data IS NOT NULL AND source='playback-snapshot'"
-            ).fetchall()
             performer_images = rdb.execute("SELECT * FROM performer_image_cache WHERE data IS NOT NULL").fetchall()
             studio_images = rdb.execute("SELECT * FROM studio_image_cache WHERE data IS NOT NULL").fetchall()
             performers = rdb.execute("SELECT * FROM performers ORDER BY id").fetchall()
             studios = rdb.execute("SELECT * FROM studios ORDER BY id").fetchall()
             refs = rdb.execute("SELECT * FROM reference_keys ORDER BY canonical_key").fetchall()
-            media_rows = rdb.execute("SELECT * FROM media ORDER BY id").fetchall()
 
         # Pre-index lookups to avoid per-row queries
         performer_by_id = {int(p["id"]): p for p in performers}
@@ -2414,7 +2409,23 @@ class Database:
         for m in media_identity:
             media_by_channel_msg[(str(m["source_channel"]), int(m["source_message_id"]))] = m
 
-        for row in thumbs:
+        def thumb_rows():
+            # In batches: the thumbnails with their image data used to be read into memory all at once (1 GB at 75,000 small ones, and real
+            # thumbnails are many times larger).
+            last = 0
+            while True:
+                with self.reading() as rdb:
+                    batch = rdb.execute(
+                        "SELECT rowid AS rid,source_channel,video_message_id,thumbnail_message_id,mime,data FROM thumbnail_cache "
+                        "WHERE data IS NOT NULL AND source='playback-snapshot' AND rowid>? ORDER BY rowid LIMIT 200", (last,)
+                    ).fetchall()
+                if not batch:
+                    return
+                last = int(batch[-1]["rid"])
+                yield from batch
+                time.sleep(0.03)    # a one-time background job: leave the processor to the person using the app
+
+        for row in thumb_rows():
             try:
                 data = bytes(row["data"])
                 ext = suffix(row["mime"])
@@ -2520,58 +2531,64 @@ class Database:
                 )
                 continue
 
-        # Batch-fetch all video-performer/studio/tag associations instead of per-row queries
-        media_ids = [int(r["id"]) for r in media_rows]
-        vp_map = {}  # video_id -> [performer_dict, ...]
-        vs_map = {}  # video_id -> [studio_dict, ...]
-        vt_map = {}  # video_id -> [tag_dict, ...]
-        if media_ids:
+        # The videos 500 at a time, each batch with only its own performer, studio and tag links (all of them at once was every media row and
+        # every link of the library in memory).
+        last_id = 0
+        while True:
+            with self.reading() as rdb:
+                media_rows = rdb.execute("SELECT * FROM media WHERE id>? ORDER BY id LIMIT 500", (last_id,)).fetchall()
+            if not media_rows:
+                break
+            time.sleep(0.03)        # as above
+            last_id = int(media_rows[-1]["id"])
+            chunk = [int(r["id"]) for r in media_rows]
+            ph = ",".join("?" for _ in chunk)
+            vp_map = {}  # video_id -> [performer_dict, ...]
+            vs_map = {}  # video_id -> [studio_dict, ...]
+            vt_map = {}  # video_id -> [tag_dict, ...]
             with self.lock:
-                for start in range(0, len(media_ids), 500):
-                    chunk = media_ids[start:start + 500]
-                    ph = ",".join("?" for _ in chunk)
-                    for vp_row in self.conn.execute(
-                        f"SELECT vp.video_id, p.* FROM performers p "
-                        f"JOIN video_performers vp ON vp.performer_id=p.id "
-                        f"WHERE vp.video_id IN ({ph}) ORDER BY p.name", chunk
-                    ).fetchall():
-                        vp_map.setdefault(int(vp_row["video_id"]), []).append(
-                            {k: vp_row[k] for k in vp_row.keys() if k != "video_id"})
-                    for vs_row in self.conn.execute(
-                        f"SELECT vs.video_id, s.* FROM studios s "
-                        f"JOIN video_studios vs ON vs.studio_id=s.id "
-                        f"WHERE vs.video_id IN ({ph}) ORDER BY s.name", chunk
-                    ).fetchall():
-                        vs_map.setdefault(int(vs_row["video_id"]), []).append(
-                            {k: vs_row[k] for k in vs_row.keys() if k != "video_id"})
-                    for vt_row in self.conn.execute(
-                        f"SELECT vt.video_id, t.* FROM tags t "
-                        f"JOIN video_tags vt ON vt.tag_id=t.id "
-                        f"WHERE vt.video_id IN ({ph}) ORDER BY t.name", chunk
-                    ).fetchall():
-                        vt_map.setdefault(int(vt_row["video_id"]), []).append(
-                            {k: vt_row[k] for k in vt_row.keys() if k != "video_id"})
+                for vp_row in self.conn.execute(
+                    f"SELECT vp.video_id, p.* FROM performers p "
+                    f"JOIN video_performers vp ON vp.performer_id=p.id "
+                    f"WHERE vp.video_id IN ({ph}) ORDER BY p.name", chunk
+                ).fetchall():
+                    vp_map.setdefault(int(vp_row["video_id"]), []).append(
+                        {k: vp_row[k] for k in vp_row.keys() if k != "video_id"})
+                for vs_row in self.conn.execute(
+                    f"SELECT vs.video_id, s.* FROM studios s "
+                    f"JOIN video_studios vs ON vs.studio_id=s.id "
+                    f"WHERE vs.video_id IN ({ph}) ORDER BY s.name", chunk
+                ).fetchall():
+                    vs_map.setdefault(int(vs_row["video_id"]), []).append(
+                        {k: vs_row[k] for k in vs_row.keys() if k != "video_id"})
+                for vt_row in self.conn.execute(
+                    f"SELECT vt.video_id, t.* FROM tags t "
+                    f"JOIN video_tags vt ON vt.tag_id=t.id "
+                    f"WHERE vt.video_id IN ({ph}) ORDER BY t.name", chunk
+                ).fetchall():
+                    vt_map.setdefault(int(vt_row["video_id"]), []).append(
+                        {k: vt_row[k] for k in vt_row.keys() if k != "video_id"})
 
-        for row in media_rows:
-            try:
-                mid = int(row["id"])
-                payload = {k: row[k] for k in row.keys()}
-                payload["performers"] = vp_map.get(mid, [])
-                payload["studios"] = vs_map.get(mid, [])
-                payload["tags"] = vt_map.get(mid, [])
-                if row["identity_key"]:
-                    scene_id = hashlib.sha256(str(row["identity_key"]).encode("utf-8")).hexdigest()[:20]
-                    payload["scene_metadata_file"] = str((config.SCENE_METADATA_DIR / f"{scene_id}.json").relative_to(config.USER_DATA_DIR))
-                (config.MEDIA_METADATA_DIR / f"{mid}.json").write_text(
-                    json.dumps(payload, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
-                counts["media"] += 1
-            except Exception as exc:
-                self.log(
-                    f"Persistent media metadata export failed for {row['id']}: "
-                    f"{type(exc).__name__}: {exc}",
-                    "WARN",
-                )
-                continue
+            for row in media_rows:
+                try:
+                    mid = int(row["id"])
+                    payload = {k: row[k] for k in row.keys()}
+                    payload["performers"] = vp_map.get(mid, [])
+                    payload["studios"] = vs_map.get(mid, [])
+                    payload["tags"] = vt_map.get(mid, [])
+                    if row["identity_key"]:
+                        scene_id = hashlib.sha256(str(row["identity_key"]).encode("utf-8")).hexdigest()[:20]
+                        payload["scene_metadata_file"] = str((config.SCENE_METADATA_DIR / f"{scene_id}.json").relative_to(config.USER_DATA_DIR))
+                    (config.MEDIA_METADATA_DIR / f"{mid}.json").write_text(
+                        json.dumps(payload, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+                    counts["media"] += 1
+                except Exception as exc:
+                    self.log(
+                        f"Persistent media metadata export failed for {row['id']}: "
+                        f"{type(exc).__name__}: {exc}",
+                        "WARN",
+                    )
+                    continue
 
         manifest = {
             "version": 1,

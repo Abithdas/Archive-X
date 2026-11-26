@@ -113,6 +113,8 @@ def ensure_resource_tables(db) -> None:
 def _ensure_resource_schema(db) -> None:
     """One-time (per write connection) schema, repair and view installation."""
     with db.lock:
+        from . import library_ready
+        library_ready.guard(db.conn)   # first: a missing table behind existing triggers would fail the first write below
         db.conn.executescript("""
         CREATE TABLE IF NOT EXISTS resource_state (
             media_id INTEGER PRIMARY KEY,
@@ -711,21 +713,30 @@ def media_readiness_stats(db, *, channel_id: str | int | None = None, media_ids:
 
 
 def registry_stats(db) -> dict:
+    """Counts for the status payload. The live connection asks for a fresh status several times a second while a page is open, so this must be cheap:
+    SQLite counts the three states in one pass (it used to load every `resource_state` row into Python, 0.1 s at 175,000 videos), and the answer is
+    reused for a few seconds unless the data-change counters move."""
+    from .list_cache import cached
+    return cached(db, "registry_stats", {}, lambda: _registry_stats_now(db), ttl=5.0)
+
+
+def _registry_stats_now(db) -> dict:
     ensure_resource_tables(db)
     with db.reading() as conn:
         total = conn.execute("SELECT COUNT(*) n FROM media").fetchone()["n"]
-        states = conn.execute("SELECT snapshot_state,metadata_state,provider_state FROM resource_state").fetchall()
+        states = conn.execute(
+            "SELECT COALESCE(SUM(COALESCE(metadata_state,'')='COMPLETE'),0) AS metadata_complete, "
+            "COALESCE(SUM(COALESCE(snapshot_state,'')='READY'),0) AS snapshot_ready, "
+            "COALESCE(SUM(COALESCE(provider_state,'')='COMPLETE'),0) AS provider_complete FROM resource_state").fetchone()
         assets = conn.execute("SELECT COUNT(*) n FROM asset_registry WHERE state='READY'").fetchone()["n"]
         events = conn.execute("SELECT COUNT(*) n FROM resource_events WHERE created_at >= datetime('now','-24 hours')").fetchone()["n"]
-    def count(col, value):
-        return sum(1 for r in states if str(r[col] or '') == value)
     return {
         "media_objects": int(total or 0),
         "ready_assets": int(assets or 0),
         "events_24h": int(events or 0),
-        "metadata_complete": count("metadata_state", "COMPLETE"),
-        "snapshot_ready": count("snapshot_state", "READY"),
-        "provider_complete": count("provider_state", "COMPLETE"),
+        "metadata_complete": int(states["metadata_complete"]),
+        "snapshot_ready": int(states["snapshot_ready"]),
+        "provider_complete": int(states["provider_complete"]),
         "telegram_media_policy": "video-only-object-store",
     }
 

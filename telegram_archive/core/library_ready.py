@@ -89,6 +89,20 @@ def check(conn: sqlite3.Connection) -> tuple[int, int]:
     return int(missing), int(extra)
 
 
+def guard(conn: sqlite3.Connection) -> None:
+    """Call first, before anything writes: triggers without their table would make every write to a video fail, and the application not start.
+
+    That is the state of a database whose table was lost while its triggers stayed (a partly copied or restored file). The table is made again,
+    empty, and the marker is cleared so `install` fills it from the rule.
+    """
+    objects = {(r[0], r[1]) for r in conn.execute("SELECT type, name FROM sqlite_master WHERE name=? OR name LIKE 'ax_lr_%'", (TABLE,))}
+    if ("table", TABLE) in objects or not any(kind == "trigger" for kind, _ in objects):
+        return
+    conn.execute(f"CREATE TABLE {TABLE} (media_id INTEGER PRIMARY KEY, source_channel TEXT NOT NULL)")
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='settings'").fetchone():
+        conn.execute("DELETE FROM settings WHERE key=?", (MARKER,))
+
+
 def install(conn: sqlite3.Connection) -> None:
     """Create the table and the triggers (once), and fill the table the first time. The rule view must exist already."""
     have = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}

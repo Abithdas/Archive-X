@@ -24,6 +24,22 @@ from fastapi.responses import JSONResponse
 from .video_lists import name_lists_sql
 
 
+def _without_ages(value):
+    """A copy of a status part without the counters that only say how long ago a heartbeat was (keys ending in `_age`)."""
+    if isinstance(value, dict):
+        return {k: _without_ages(v) for k, v in value.items() if not str(k).endswith("_age")}
+    if isinstance(value, list):
+        return [_without_ages(v) for v in value]
+    return value
+
+
+def steady_status_json(data) -> str:
+    """The status as JSON with the watchdog heartbeat ages left out: equal for two snapshots when nothing but those ages moved."""
+    if isinstance(data, dict) and "watchdogs" in data:
+        data = {**data, "watchdogs": _without_ages(data["watchdogs"])}
+    return json.dumps(data, sort_keys=True, default=str, separators=(",", ":"))
+
+
 def register_settings_routes(
     router: APIRouter,
     *,
@@ -394,7 +410,8 @@ def register_settings_routes(
                 await ws.close(code=4403)
                 return
         await ws.accept()
-        last_json = None
+        last_data = None
+        last_steady = None
         last_sent = 0.0
         try:
             while True:
@@ -403,12 +420,19 @@ def register_settings_routes(
                     return
                 from .. import config
                 interval = max(0.1, float(getattr(config, "OPERATIONS_WEBSOCKET_INTERVAL_SECONDS", 0.25)))
-                _, payload_json = await status_snapshot(max_age=max(0.1, float(getattr(config, "OPERATIONS_STATUS_CACHE_SECONDS", 0.25))))
+                data, payload_json = await status_snapshot(max_age=max(0.1, float(getattr(config, "OPERATIONS_STATUS_CACHE_SECONDS", 0.25))))
+                # The watchdog "age" counters (seconds since a heartbeat) differ in every snapshot, so a snapshot was never "unchanged" and the
+                # whole payload (11 KB) went out four times a second to an idle page. Compare without them; they still arrive with every real change
+                # and with the heartbeat below.
+                steady = last_steady
+                if data is not last_data:
+                    last_data = data
+                    steady = steady_status_json(data)
                 # Send an unchanged snapshot as a heartbeat too, so an idle
                 # library is distinguishable from a half-open proxy socket.
-                if payload_json != last_json or time.monotonic() - last_sent >= 10:
+                if steady != last_steady or time.monotonic() - last_sent >= 10:
                     await ws.send_text(payload_json)
-                    last_json = payload_json
+                    last_steady = steady
                     last_sent = time.monotonic()
                 await asyncio.sleep(interval)
         except WebSocketDisconnect:
