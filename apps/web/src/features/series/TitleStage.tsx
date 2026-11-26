@@ -13,19 +13,19 @@ export function TitleStage({ backdrop, back, onBack, backLabel, left, panel, pan
 }) {
   const accent = useArtworkAccent(backdrop)   // the page wears its artwork's colour (the accent of everything inside it), unless that is switched off in Settings, Appearance
   return (
-    <div style={accent} className="relative isolate min-h-[calc(100dvh-64px)] overflow-hidden">
+    <div style={accent} className="relative isolate min-h-[calc(100dvh-64px)] overflow-hidden lg:h-[calc(100dvh-64px)]">
       {backdrop ? (
         <>
           <img src={backdrop || PLACEHOLDER} alt="" aria-hidden="true" className="mo-fade-in absolute inset-0 -z-20 size-full object-cover object-[70%_20%]" />
           <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,color-mix(in_srgb,var(--color-bg)_96%,transparent)_0%,color-mix(in_srgb,var(--color-bg)_70%,transparent)_38%,color-mix(in_srgb,var(--color-bg)_12%,transparent)_72%),linear-gradient(0deg,color-mix(in_srgb,var(--color-bg)_95%,transparent)_0%,transparent_45%)]" />
         </>
       ) : null}
-      <div className="grid gap-6 px-4 pb-8 pt-4 sm:px-10 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] lg:gap-10">
-        <div className="flex min-h-[60vh] flex-col lg:min-h-[calc(100dvh-110px)]">
+      <div className="grid gap-6 px-4 pb-8 pt-4 sm:px-10 lg:h-full lg:grid-rows-[minmax(0,1fr)] lg:pb-4 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] lg:gap-10">
+        <div className="flex min-h-[60vh] flex-col lg:min-h-0 lg:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Link to={back} onClick={onBack} aria-label={backLabel} className="grid size-10 place-items-center self-start rounded-full bg-fg/10 text-fg backdrop-blur transition-colors hover:bg-fg/20"><Icon name="arrow-left" className="size-5" /></Link>
           {left}
         </div>
-        {panel ? <aside aria-label={panelLabel} className="mo-panel-in self-start rounded-[26px] border border-line bg-surface/80 p-4 shadow-2xl backdrop-blur-xl lg:sticky lg:top-20 lg:max-h-[calc(100dvh-100px)] lg:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{panel}</aside> : null}
+        {panel ? <aside aria-label={panelLabel} className="mo-panel-in self-start rounded-[26px] border border-line bg-surface/80 p-4 shadow-2xl backdrop-blur-xl lg:max-h-full lg:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{panel}</aside> : null}
       </div>
     </div>
   )

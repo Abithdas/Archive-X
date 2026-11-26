@@ -10,6 +10,10 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 - In SFW mode no channel marked NSFW is listed any more, in the library or not. Before, only the NSFW channels that were in the library were hidden, so an NSFW channel outside the library (including one not sorted yet, which counts as NSFW) still showed by name on Transfers, Operations, the Photos and People pickers and in Settings, Telegram. The Rust front door answers the same. The channel list in Settings says how many are hidden; to sort or change them, switch to NSFW mode.
 
+## Unreleased
+
+- Movie, series and Discover title pages no longer scroll as a page on wide windows: the page fits the window, and only a long overview or the episode and add-on panel scroll inside themselves.
+
 ## 30.12.3 (2026-11-26)
 
 - Title pages show critics' scores and what critics said. Rotten Tomatoes and Metacritic scores sit beside the IMDb rating (on the Discover title page and on your library's movie and show pages), and a Reviews button next to Trailer opens the scores and the opening of the title's "Critical response" from Wikipedia, with a link to read the rest. They come from Wikidata and Wikipedia: no key and no account, only the title's IMDb number is sent (and only in SFW), the answer is kept for half a day, and a title they do not know simply has no marks or button.
