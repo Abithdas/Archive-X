@@ -37,8 +37,11 @@ describe('ScreenProviders', () => {
     fireEvent.change(screen.getByLabelText(/OMDb/), { target: { value: 'omdbkey123' } })
     const save = screen.getAllByRole('button', { name: 'Save' })
     expect(save.map((b) => (b as HTMLButtonElement).disabled)).toEqual([false, false, false])   // never greyed out
-    fireEvent.click(save[0]!)
-    expect(await screen.findByText('Paste the key into the box first.')).toBeInTheDocument()   // an empty box says what to do instead
+    fireEvent.click(save[0]!)   // TMDB: nothing typed, but a key is saved: it is checked again
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/screen/check')).toBe(true))
+    expect(screen.queryByText('Paste the key into the box first.')).toBeNull()   // a saved key is never told to paste one
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[1]!)         // OpenSubtitles: nothing typed and nothing saved
+    expect(await screen.findByText('Paste the key into the box first.')).toBeInTheDocument()
     fireEvent.click(save[2]!)
     await waitFor(() => expect(calls.find((c) => c.url === '/api/screen/settings' && c.method === 'POST')?.body).toEqual({ omdb_api_key: 'omdbkey123' }))
     expect(screen.queryByRole('button', { name: /Identify what is waiting/ })).toBeNull()      // naming what waits is on the Transfers page

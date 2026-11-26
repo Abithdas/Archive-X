@@ -200,3 +200,30 @@ describe('NativePane after a jump', () => {
     expect(cmds('play')).toHaveLength(1)                                                         // only the first start: it did not resume by itself
   })
 })
+
+describe('NativePane, an add-on stream and full screen', () => {
+  it('opens the address the server gives for an add-on stream, not a library video', async () => {
+    ;(fetch as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (url: string) => String(url).includes('/api/screen/stream-link/') ? new Response(JSON.stringify({ url: 'https://cdn.example/film.mkv' }), { status: 200 }) : new Response('{}', { status: 404 }))
+    render(<NativePane linkPath="/api/screen/stream-link/tok1" addon={{ kind: 'movie', ident: 'tt0133093' }} durationHint={120} />)
+    await ready()
+    expect(calls.find((c) => c.command === 'native_open')!.args).toMatchObject({ url: 'https://cdn.example/film.mkv' })
+  })
+
+  it('has Back and Close in full screen, and both leave full screen', async () => {
+    const exit = vi.fn(async () => undefined)
+    Object.defineProperty(document, 'exitFullscreen', { value: exit, configurable: true })
+    const onClose = vi.fn()
+    mount({ onClose })
+    await ready()
+    expect(screen.queryByRole('button', { name: 'Back to the page' })).toBeNull()   // on the page the page's own back arrow is used
+    const pane = screen.getByTestId('native-pane')
+    Object.defineProperty(document, 'fullscreenElement', { value: pane, configurable: true })
+    act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to the page' }))
+    expect(exit).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Close the video' }))
+    expect(exit).toHaveBeenCalledTimes(2)
+    expect(onClose).toHaveBeenCalledTimes(1)
+    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
+  })
+})

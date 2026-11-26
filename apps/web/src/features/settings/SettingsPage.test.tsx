@@ -35,7 +35,7 @@ describe('Settings', () => {
     mount()
     const nav = await screen.findByRole('navigation', { name: 'Settings sections' })
     await within(nav).findByRole('button', { name: 'Addons' })   // the Addons section appears once the mode is known to be SFW
-    expect(within(nav).getAllByRole('button').slice(0, 11).map((b) => b.textContent)).toEqual(['Overview', 'Telegram', 'Local files', 'Metadata', 'Addons', 'Integrations', 'Experience', 'Appearance', 'Storage & Backup', 'Security', 'System & network'])
+    expect(within(nav).getAllByRole('button').slice(0, 10).map((b) => b.textContent)).toEqual(['Overview', 'Telegram', 'Local files', 'Metadata', 'Addons', 'Experience', 'Appearance', 'Storage & Backup', 'Security', 'System & network'])
     const status = await screen.findByRole('region', { name: 'Status' })
     await waitFor(() => expect(within(status).getByText('All found')).toBeInTheDocument())
     expect(within(status).getByText('not connected — CONFIG REQUIRED')).toBeInTheDocument()

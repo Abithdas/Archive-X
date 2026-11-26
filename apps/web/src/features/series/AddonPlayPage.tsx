@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '@/api/client'
 import { Icon } from '@/design/Icon'
 import { useRouter } from '@tanstack/react-router'
 import { Player } from '@/features/watch/Player'
+import { NativePane } from '@/features/watch/NativePane'
+import { hasNativeBridge, native } from '@/features/watch/nativeBridge'
 
 export interface AddonPlay { src: string; name: string; kind: 'movie' | 'series'; ident: string; season?: number; episode?: number }
 
@@ -28,6 +30,16 @@ export function AddonPlayPage({ play }: { play: AddonPlay }) {
     if (!play.ident || !(duration > 0)) return
     void api('/api/screen/addon-progress', { method: 'POST', json: { kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, name: play.name, position, duration } }).catch(() => { /* best-effort */ })
   }
+  // In the desktop app the native player plays it (the same engine as the library's videos); the browser's player is one click away.
+  const [engine, setEngine] = useState<'native' | 'web'>('web')
+  useEffect(() => {
+    if (!hasNativeBridge()) return
+    let dead = false
+    native.available().then((a) => { if (!dead && a.available) setEngine('native') }).catch(() => undefined)
+    return () => { dead = true }
+  }, [])
+  const token = play.src.split('/api/screen/stream/')[1]
+  const nativeOk = engine === 'native' && Boolean(token)
   if (saved.isPending) return <div role="status" aria-label="Loading" className="grid place-items-center py-24"><span className="size-6 animate-spin rounded-full border-2 border-line border-t-accent" /></div>
   const startAt = worthResuming(saved.data?.position ?? 0) ? saved.data!.position : 0
   return (
@@ -36,7 +48,9 @@ export function AddonPlayPage({ play }: { play: AddonPlay }) {
         <button type="button" onClick={() => router.history.back()} aria-label="Go back" title="Go back" className="grid size-10 shrink-0 place-items-center rounded-xl border border-line bg-surface hover:bg-surface-2"><Icon name="arrow-left" /></button>
         <h1 className="m-0 min-w-0 text-[clamp(16px,1.8vw,22px)] font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere]">{play.name}</h1>
       </div>
-      <Player key={play.src} src={play.src} autoPlay startAt={startAt} onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} />
+      {nativeOk ? (
+        <NativePane key={play.src} linkPath={`/api/screen/stream-link/${token}`} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} startAt={startAt} autoPlay onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} onBrowser={() => setEngine('web')} onClose={() => router.history.back()} />
+      ) : <Player key={play.src} src={play.src} autoPlay startAt={startAt} onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} />}
     </div>
   )
 }

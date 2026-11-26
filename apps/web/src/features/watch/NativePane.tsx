@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { api } from '@/api/client'
 import { cn } from '@/design/cn'
+import { Icon } from '@/design/Icon'
 import { CcMenu } from './CcMenu'
 import { deviceScale, native, pixelRect, type NativeCommand, type NativeTrack, type Opened, type Snapshot } from './nativeBridge'
 import { afterJump, aspectOf, quiet, stallStep, videoVisible, type StallState } from './nativeLogic'
@@ -13,7 +14,7 @@ import { MenuHead, MenuItem } from './PlayerParts'
 import type { PreviewInfo } from './Timeline'
 import type { Segment } from './timelineLogic'
 import type { AudioTrack, TrackInfo } from './tracks'
-import { useTracks } from './useTracks'
+import { useTracks, type AddonRef } from './useTracks'
 import { loadPrefs as loadPlayerPrefs, savePrefs as savePlayerPrefs } from './playerPrefs'
 
 const noop = () => undefined
@@ -31,8 +32,9 @@ function covered(): boolean {
  * captions (live or from the file) are in a strip under it. The picture steps aside while a dialog or menu is open or the stage is scrolled partly out
  * of view. After a jump, if the stream is too slow and the picture crawls, playback stops for a moment to refill, as a browser would.
  */
-export function NativePane({ media, durationHint, size, segments = [], preview, snapshots, startAt = 0, autoPlay = true, autoNext = false, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onBrowser }: {
-  media: { cid: string; mid: number }; durationHint?: number | null; size?: { width?: number | null; height?: number | null }; segments?: Segment[]; preview?: PreviewInfo; snapshots?: SnapshotData
+export function NativePane({ media, addon, linkPath, onClose, durationHint, size, segments = [], preview, snapshots, startAt = 0, autoPlay = true, autoNext = false, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onBrowser }: {
+  /** A library video (`media`), or an add-on stream: `linkPath` answers `{ url }` with the address the engine opens, `addon` names the title for its subtitle files. */
+  media?: { cid: string; mid: number }; addon?: AddonRef; linkPath?: string; onClose?: () => void; durationHint?: number | null; size?: { width?: number | null; height?: number | null }; segments?: Segment[]; preview?: PreviewInfo; snapshots?: SnapshotData
   startAt?: number; autoPlay?: boolean; autoNext?: boolean; seekRequest?: { t: number; n: number }
   onTime?: (t: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; onPrev?: () => void; onNext?: () => void; onBrowser?: () => void
 }) {
@@ -77,7 +79,7 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
   const position = snap?.position ?? 0
   const playing = Boolean(snap?.playing)
   const duration = snap?.duration || opened?.duration || durationHint || 0
-  const tracks = useTracks(media, noVideo, position, playing)
+  const tracks = useTracks(media, noVideo, position, playing, 0, addon)
   const send = useCallback((command: NativeCommand, value?: number) => { void native.command(command, value).catch((e: unknown) => setMessage(e instanceof Error ? e.message : '')) }, [])
   const shapeRef = useRef(16 / 9)
   /** Where the video goes: on the stage, or (mini player) in the lower right corner of the window, above everything. */
@@ -104,7 +106,7 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
       if (dead) return
       if (!avail.available) { setPhase('unavailable'); setMessage(avail.reason); return }
       setPhase('opening')
-      const link = await api<{ url: string }>(`/api/play/device-link/${encodeURIComponent(media.cid)}/${media.mid}`)
+      const link = await api<{ url: string }>(media ? `/api/play/device-link/${encodeURIComponent(media.cid)}/${media.mid}` : String(linkPath))
       if (dead) return
       const o = await native.open(link.url, rect())
       if (dead) { void native.command('close').catch(noop); return }
@@ -121,8 +123,8 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
       if (playRef.current) await native.command('play')
       setNativeTracks(await native.tracks().catch(() => []))
     })().catch((e: unknown) => { if (!dead) { setPhase('failed'); setMessage(e instanceof Error ? e.message : 'The native player failed') } })
-    return () => { dead = true; void native.command('close').catch(noop); releasePlayback(media.cid, media.mid) }   // the server drops this video's session and temporary downloads
-  }, [media.cid, media.mid, rect])
+    return () => { dead = true; void native.command('close').catch(noop); if (media) releasePlayback(media.cid, media.mid) }   // the server drops this video's session and temporary downloads
+  }, [media?.cid, media?.mid, linkPath, rect])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- keep the video window on the stage; step aside when it cannot be shown whole or something is open over it
   const sync = useCallback(() => {
@@ -267,6 +269,12 @@ export function NativePane({ media, durationHint, size, segments = [], preview, 
       ) : null}
 
       <div className="@container relative grid gap-3">
+        {isFs ? (
+          <div className="flex items-center justify-between gap-2 px-1">
+            <button type="button" onClick={() => void document.exitFullscreen()} aria-label="Back to the page" className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3.5 text-sm font-semibold text-white hover:bg-white/20"><Icon name="arrow-left" />Back</button>
+            {onClose ? <button type="button" onClick={() => { void document.exitFullscreen().catch(noop); onClose() }} aria-label="Close the video" className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3.5 text-sm font-semibold text-white hover:bg-white/20"><Icon name="close" />Close</button> : null}
+          </div>
+        ) : null}
         {hint ? <div role="status" className="pointer-events-none absolute -top-9 left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-[#141417]/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-md">{hint}</div> : null}
         <PlayerControls
           time={jump?.to ?? position} duration={duration} buffered={0} segments={segments} preview={preview} onSeek={seekTo} tipBelow

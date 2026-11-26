@@ -13,7 +13,6 @@ import { SecurityPanel } from './SecurityPanel'
 import { StoragePanel } from './StoragePanel'
 import { TelegramPanel } from './TelegramPanel'
 import { AddonsPanel } from './AddonsPanel'
-import { IntegrationsPanel } from './IntegrationsPanel'
 import { MetadataPanel } from './MetadataPanel'
 import { SystemPanel } from './SystemPanel'
 import { AppearancePanel, ExperiencePanel, OverviewPanel } from './panels'
@@ -61,7 +60,7 @@ export function SettingsPage() {
           <button type="button" onClick={() => { void qc.invalidateQueries({ queryKey: ['settings'] }); void qc.invalidateQueries({ queryKey: ['storage'] }); toast('Status refreshed') }} className="h-11 rounded-xl border border-line bg-surface text-sm font-bold hover:bg-surface-2">Refresh status</button>
         </nav>
         <div className="min-w-0" aria-live="polite">
-          {shown === 'overview' ? <OverviewPanel go={go} /> : shown === 'experience' ? <ExperiencePanel /> : shown === 'appearance' ? <AppearancePanel /> : shown === 'telegram' ? <TelegramPanel /> : shown === 'local' ? <LocalFolders /> : shown === 'security' ? <SecurityPanel /> : shown === 'storage' ? <StoragePanel /> : shown === 'metadata' ? <MetadataPanel /> : shown === 'addons' ? <AddonsPanel /> : shown === 'integrations' ? <IntegrationsPanel /> : shown === 'system' ? <SystemPanel /> : null}
+          {shown === 'overview' ? <OverviewPanel go={go} /> : shown === 'experience' ? <ExperiencePanel /> : shown === 'appearance' ? <AppearancePanel /> : shown === 'telegram' ? <TelegramPanel /> : shown === 'local' ? <LocalFolders /> : shown === 'security' ? <SecurityPanel /> : shown === 'storage' ? <StoragePanel /> : shown === 'metadata' ? <MetadataPanel /> : shown === 'addons' ? <AddonsPanel /> : shown === 'system' ? <SystemPanel /> : null}
           <p className="mt-2 text-right text-xs text-faint">{String(index + 1).padStart(2, '0')} / {String(panels.length).padStart(2, '0')}</p>
         </div>
       </div>

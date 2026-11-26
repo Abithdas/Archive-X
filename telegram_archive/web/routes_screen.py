@@ -512,6 +512,16 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 resp.close()
         return StreamingResponse(body(), status_code=getattr(resp, "status", 200) or 200, headers=headers)
 
+    @router.get("/api/screen/stream-link/{token}")
+    async def stream_link(token: str, request: Request):
+        """The address of a listed stream, for the desktop app's native player: it opens addresses itself and cannot carry the web session. Only streams this app listed as playable."""
+        require_auth(request)
+        _sfw_only()
+        hit = stream_tokens.get(token)
+        if not hit:
+            raise HTTPException(404, "That stream is no longer available. Open the title's page again.")
+        return {"url": hit[1]}
+
     @router.get("/api/screen/reviews/{kind}/{ident}")
     async def title_reviews(kind: str, ident: str, request: Request):
         """Critics' scores (Rotten Tomatoes, Metacritic) and the opening of what critics said, from Wikidata and Wikipedia: no key, only the IMDb number is sent."""

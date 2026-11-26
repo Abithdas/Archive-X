@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { Icon } from '@/design/Icon'
@@ -22,6 +22,7 @@ export function ScreenProviders() {
   const [vals, setVals] = useState<Record<Provider, string>>({ tmdb: '', omdb: '', opensubtitles: '' })
   const [tests, setTests] = useState<Partial<Record<Provider, { state: 'checking' | 'ok' | 'bad'; text: string }>>>({})
   const [busy, setBusy] = useState(false)
+  const saving = useRef(false)
   if (mode.data?.mode !== 'sfw') return null
   const refresh = () => void qc.invalidateQueries({ predicate: (q) => ['screen-settings', 'screen-status', 'screen-review'].includes(String(q.queryKey[0])) })
 
@@ -44,13 +45,19 @@ export function ScreenProviders() {
     return typed.map((p) => p.id)
   }
   const save = async (p: Provider) => {
-    if (!vals[p].trim()) return note(p, 'bad', 'Paste the key into the box first.')
+    if (saving.current) return   // a second click while the first is still saving must not report an empty box: the first click already took the key
+    if (!vals[p].trim()) {
+      // nothing typed: a key that is already saved is simply checked again, instead of a warning that contradicts the "Saved" badge
+      if (configuredOf(settings.data, p)) return void verify(p)
+      return note(p, 'bad', 'Paste the key into the box first.')
+    }
+    saving.current = true
     setBusy(true)
     try {
       await saveTyped(p)
       toast.success('Key saved. Checking it now.')
       await verify(p)
-    } catch (e) { note(p, 'bad', errorText(e, 'Could not save the key.')) } finally { setBusy(false) }
+    } catch (e) { note(p, 'bad', errorText(e, 'Could not save the key.')) } finally { saving.current = false; setBusy(false) }
   }
   const check = async (p: Provider) => {
     try {

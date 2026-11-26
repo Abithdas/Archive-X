@@ -4,6 +4,10 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Add-on streams play in the native player** in the desktop app (the same engine as the library's videos, with a "Use the browser player" fallback). In full screen the native player now has **Back** and **Close** buttons, in SFW and NSFW alike.
+- Saving a provider key no longer shows "Paste the key into the box first" next to a key that was just saved; pressing Save with an empty box re-checks the saved key.
+- Removed the **Integrations** page from Settings.
+
 - In SFW mode no channel marked NSFW is listed any more, in the library or not. Before, only the NSFW channels that were in the library were hidden, so an NSFW channel outside the library (including one not sorted yet, which counts as NSFW) still showed by name on Transfers, Operations, the Photos and People pickers and in Settings, Telegram. The Rust front door answers the same. The channel list in Settings says how many are hidden; to sort or change them, switch to NSFW mode.
 
 ## 30.12.3 (2026-11-26)
