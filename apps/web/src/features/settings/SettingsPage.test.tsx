@@ -13,6 +13,8 @@ const mount = (extra: Handler = () => undefined) => {
     calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined })
     const x = extra(url, init)
     if (x) return x
+    if (url === '/api/screen/status') return json({ progress: { running: false }, titles: 0, waiting: 0 })
+    if (url === '/api/content-mode') return json({ ok: true, mode: 'sfw', pin_set: false, locked_for: 0 })
     if (url === '/api/telegram/auth-status') return json({ connected: false, status: 'CONFIG REQUIRED' })
     if (url === '/api/media-manager/preflight') return json({ telethon: { ok: true }, av: { ok: true }, pillow: { ok: true }, ffmpeg: { ok: true }, ffprobe: { ok: true } })
     if (url === '/api/icons/status') return json({ icons: { VLC: '/x' } })
@@ -32,12 +34,21 @@ describe('Settings', () => {
   it('lists the eleven sections and opens on Overview with the live checks', async () => {
     mount()
     const nav = await screen.findByRole('navigation', { name: 'Settings sections' })
+    await within(nav).findByRole('button', { name: 'Addons' })   // the Addons section appears once the mode is known to be SFW
     expect(within(nav).getAllByRole('button').slice(0, 11).map((b) => b.textContent)).toEqual(['Overview', 'Telegram', 'Local files', 'Metadata', 'Addons', 'Integrations', 'Experience', 'Appearance', 'Storage & Backup', 'Security', 'System & network'])
     const status = await screen.findByRole('region', { name: 'Status' })
     await waitFor(() => expect(within(status).getByText('All found')).toBeInTheDocument())
     expect(within(status).getByText('not connected — CONFIG REQUIRED')).toBeInTheDocument()
     expect(within(status).getByText('1 KB · 5 files')).toBeInTheDocument()
     expect(screen.getByText('Telegram · Not connected')).toBeInTheDocument()
+  })
+  it('has no Addons section in NSFW mode, and a remembered Addons section falls back to Overview', async () => {
+    localStorage.setItem('ax_next_settings_panel', 'addons')
+    mount((url) => (url === '/api/content-mode' ? json({ ok: true, mode: 'nsfw', pin_set: false, locked_for: 0 }) : undefined))
+    const nav = await screen.findByRole('navigation', { name: 'Settings sections' })
+    await waitFor(() => expect(within(nav).getAllByRole('button').map((b) => b.textContent)).not.toContain('Addons'))
+    expect(within(nav).getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.queryByRole('region', { name: 'Built in' })).not.toBeInTheDocument()
   })
   it('Overview ends with an About note that says it is a personal project built with Claude Code', async () => {
     mount()

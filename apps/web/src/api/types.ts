@@ -74,6 +74,7 @@ export interface Status {
   telegram_connected?: boolean
   telegram_status?: string
   data_versions?: Record<string, number>
+  other_mode_jobs?: { count: number; running: number }
   version?: string
   [key: string]: unknown
 }

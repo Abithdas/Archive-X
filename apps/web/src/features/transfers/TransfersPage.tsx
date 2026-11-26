@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, api } from '@/api/client'
 import { useChannels, useSourceChannels, useLanes } from '@/api/hooks'
+import { OtherModeNote } from '@/features/content/OtherModeNote'
 import type { Channel } from '@/api/types'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
@@ -98,6 +99,7 @@ function LiveLanes() {
             {chips.map((c) => <li key={c.key} className="rounded-full bg-surface-3 px-3.5 py-2 text-xs text-muted">{c.label} <strong className="ml-1 text-fg">{c.value}</strong></li>)}
           </ul>
           <p className="mb-3 text-xs text-faint" role="status">{n} active/queued lane job{n === 1 ? '' : 's'}</p>
+          <OtherModeNote summary={lanes.data?.other_mode_jobs} />
           {list.length ? <div className="grid grid-cols-[minmax(0,1fr)] gap-2.5 md:grid-cols-2"><AnimatePresence initial={false}>{list.map((l) => <LaneCard key={l.key} lane={l} busy={busy === l.id} onAct={(x, a) => void act(x, a)} />)}</AnimatePresence></div> : <p className="text-sm text-muted">No active lane jobs. Start a transfer, local upload, manual Metadata &amp; Assets scan, or Content Automation to see its independent progress here.</p>}
         </>
       )}

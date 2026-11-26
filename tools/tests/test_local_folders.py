@@ -436,11 +436,7 @@ def test_a_scan_in_progress_shows_as_a_lane_with_time_and_a_guess(tmp_path):
     from telegram_archive.engines import local_videos as lv
     db = Database(tmp_path / "l.db")
     c, H = _client(db)
-    sid = c.post("/api/local-folders", json={"path": str(tmp_path), "content_rating": "nsfw"}, headers=H)
-    sid = sid.json()["id"] if sid.status_code == 200 else None
-    if sid is None:
-        assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
-        sid = c.post("/api/local-folders", json={"path": str(tmp_path), "content_rating": "nsfw"}, headers=H).json()["id"]
+    sid = c.post("/api/local-folders", json={"path": str(tmp_path), "content_rating": "sfw"}, headers=H).json()["id"]   # a lane shows in the mode its folder belongs to
     time.sleep(0.5)
     lv._state[sid] = {"running": True, "total": 10, "done": 4, "failed": 0, "workers": 2, "started": time.time() - 40}
     try:
@@ -449,6 +445,10 @@ def test_a_scan_in_progress_shows_as_a_lane_with_time_and_a_guess(tmp_path):
         row = rows[0]
         assert (row["completed"], row["total"], row["progress"]) == (4, 10, 40.0)
         assert 35 <= row["metrics"]["elapsed_s"] <= 50 and 50 <= row["metrics"]["eta_s"] <= 75      # 40 s for 4, so about 60 s for the other 6
+        assert c.get("/api/telegram-transfer/lanes").json()["other_mode_jobs"] == {"count": 0, "running": 0}
+        assert c.post("/api/content-mode", json={"mode": "nsfw"}, headers=H).json()["mode"] == "nsfw"        # in the other mode this SFW folder's scan is only counted
+        other = c.get("/api/telegram-transfer/lanes").json()
+        assert [r for r in other["jobs"] if r["type"] == "LOCAL_SCAN"] == [] and other["other_mode_jobs"] == {"count": 1, "running": 1}
     finally:
         lv._state.pop(sid, None)
 

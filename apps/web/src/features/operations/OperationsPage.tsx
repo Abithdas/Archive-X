@@ -1,3 +1,4 @@
+import { OtherModeNote } from '@/features/content/OtherModeNote'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
@@ -281,6 +282,7 @@ export function OperationsPage() {
       <RunningNowCard data={runningNow(res.data, jobs)} />
 
       <Card title="Jobs" className="mb-4">
+        <OtherModeNote summary={st.other_mode_jobs as { count: number; running: number } | undefined} />
         <div className="mb-3"><Segmented label="Job filter" value={tab} onChange={setTab} options={JOB_TABS} /></div>
         {shown.length ? <ul className="grid grid-cols-[minmax(0,1fr)] auto-rows-fr gap-2.5 md:grid-cols-2"><AnimatePresence initial={false}>{shown.map((j, i) => <JobRow key={String(j.id ?? j.job_id ?? i)} j={j} />)}</AnimatePresence></ul> : <p className="py-3 text-sm text-muted">{tab === 'all' ? 'No active jobs.' : 'No jobs match this filter.'}</p>}
       </Card>

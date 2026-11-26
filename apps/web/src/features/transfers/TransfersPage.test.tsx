@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { TransfersPage } from './TransfersPage'
@@ -32,6 +32,15 @@ describe('Live lanes', () => {
     const chips = await screen.findByRole('list', { name: 'Resource usage' })
     expect(within(chips).getByText('1/3')).toBeInTheDocument()
     expect(await screen.findByText(/No active lane jobs/)).toBeInTheDocument()
+  })
+  it('says when the other mode has tasks running, and says nothing when it has none', async () => {
+    const withOther = (other?: { count: number; running: number }) => (url: string) => (url === '/api/telegram-transfer/lanes' ? json({ governor: {}, resources: {}, jobs: [], other_mode_jobs: other }) : undefined)
+    mount(withOther({ count: 2, running: 1 }))
+    expect(await screen.findByRole('status', { name: 'Tasks in the other mode' })).toHaveTextContent('2 tasks are in the other mode, 1 of them running.')
+    cleanup()
+    mount(withOther({ count: 0, running: 0 }))
+    await screen.findByText(/No active lane jobs/)
+    expect(screen.queryByRole('status', { name: 'Tasks in the other mode' })).not.toBeInTheDocument()
   })
   it('lists a running lane job with progress and pauses it', async () => {
     const calls = mount((url) => (url.endsWith('/pause') ? json({ ok: true, status: 'PAUSED' }) : undefined), [{ id: 'j1', type: 'UPLOAD_LOCAL', status: 'RUNNING', operation: 'Uploading video', current_item: 'a.mp4', progress: 40 }])

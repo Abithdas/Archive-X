@@ -113,7 +113,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             out[key] = _mask(v)
             out[key.replace("_api_key", "") + "_configured"] = bool(v)
         out["tvmaze_enabled"] = sid.tvmaze_on(db)
-        out["cinemeta_enabled"] = sid.cinemeta_on(db)
+        out["cinemeta_enabled"] = sid.catalogues_on(db)
         return out
 
     @router.post("/api/screen/settings")
@@ -336,12 +336,16 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     # ------------------------------------------------------------------
     import hashlib as _hashlib
     from ..metadata import addon_client as ac
-    BUILTIN_ADDONS = [
-        {"name": "Cinemeta", "what": "Popular, New and Featured movies and series, and the details of every title"},
-        {"name": "Streaming Catalogs", "what": "What is on Netflix, HBO Max, Disney+, Prime Video and Apple TV+"},
-        {"name": "Anime Catalogs", "what": "MyAnimeList's top airing, top series and top movies"},
-    ]
     MAX_ADDONS = 12
+    from ..core import content_mode as _cm_addons
+
+    def _sfw_only() -> None:
+        """Add-ons are an SFW feature: in NSFW mode nothing is shown of them and nothing is asked of them (no title or file name leaves for an add-on)."""
+        if _cm_addons.get_mode(db) != "sfw":
+            raise HTTPException(409, "Add-ons are available in SFW mode only.")
+
+    def _in_sfw() -> bool:
+        return _cm_addons.get_mode(db) == "sfw"
 
     def _saved_addons() -> list[dict]:
         raw = db.setting("catalog_addons")
@@ -376,11 +380,15 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 items.append({"id": a["id"], "url": a["url"], **ac.parse_manifest(_addon_json(a["url"] + "/manifest.json"))})
             except Exception as exc:
                 items.append({"id": a["id"], "url": a["url"], "name": a["name"] or a["url"].split("/")[2], "description": "", "version": "", "lists": [], "error": str(exc)[:160] or "It could not be reached."})
-        return {"builtin": BUILTIN_ADDONS, "items": items, "allow_local": _sync_local()}
+        gone = sid.removed_builtins(db)
+        return {"builtin": [{"id": k, "name": n, "what": w} for k, n, w in sid.BUILTIN_ADDONS if k not in gone],
+                "removed": [{"id": k, "name": n, "what": w} for k, n, w in sid.BUILTIN_ADDONS if k in gone],
+                "items": items, "allow_local": _sync_local()}
 
     @router.get("/api/screen/addons")
     async def addons_list(request: Request):
         require_auth(request)
+        _sfw_only()
         return await asyncio.to_thread(_addons_view)
 
     # ------------------------------------------------------------------
@@ -416,6 +424,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         """What the person's add-ons offer for a title: links that open elsewhere (a YouTube id, an external page), and direct streams. A direct stream plays here only from their own
         sources or a public HTTPS host; any other is listed as not played. Torrents are never handled. Only add-ons that answer for streams are asked."""
         require_auth(request)
+        _sfw_only()
         if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident):
             raise HTTPException(400, "Unknown title")
         sid_ = ident if kind == "movie" else (f"{ident}:{int(season)}:{int(episode)}" if season is not None and episode is not None else "")
@@ -481,6 +490,8 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def addon_meta(kind: str, ident: str, request: Request):
         """Extra details about a title from the person's add-ons that answer for details (ratings, cast and production notes, post-credit scenes and the like): plain text and https links."""
         require_auth(request)
+        if not _in_sfw():
+            return {"ok": True, "items": []}
         if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident):
             raise HTTPException(400, "Unknown title")
 
@@ -549,6 +560,8 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def addon_subtitles(cid: str, mid: int, request: Request):
         """Subtitle files the person's add-ons have for this video (by its IMDb number, and season and episode for a show), listed by language. Nothing is fetched until one is chosen."""
         require_auth(request)
+        if not _in_sfw():
+            return {"ok": True, "items": []}
 
         def work():
             with db.reading() as c:
@@ -568,6 +581,8 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def addon_subtitles_for(kind: str, ident: str, request: Request, season: int | None = None, episode: int | None = None, filename: str = ""):
         """The same list for a title being played from an add-on stream rather than from the library."""
         require_auth(request)
+        if not _in_sfw():
+            return {"ok": True, "items": []}
         if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident):
             raise HTTPException(400, "Unknown title")
         sid_ = ident if kind == "movie" else (f"{ident}:{int(season)}:{int(episode)}" if season is not None and episode is not None else "")
@@ -579,6 +594,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def addon_subtitle_file(token: str, request: Request):
         """One subtitle file that was listed, as text the player reads (SRT or WebVTT)."""
         require_auth(request)
+        _sfw_only()
         hit = sub_tokens.get(token)
         if not hit:
             raise HTTPException(404, "That subtitle is no longer available. Open the video again.")
@@ -596,6 +612,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def addons_settings(request: Request):
         """The switch for add-ons on this PC or network."""
         require_auth(request)
+        _sfw_only()
         body = await request.json()
         await asyncio.to_thread(db.set_setting, "addons_allow_local", "1" if (body or {}).get("allow_local") else "0")
         return await asyncio.to_thread(_addons_view)
@@ -604,6 +621,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def addons_add(request: Request):
         """Add a catalogue add-on by its address (a manifest link, or a stremio:// link): it must answer as an add-on with lists to browse."""
         require_auth(request)
+        _sfw_only()
         body = await request.json()
         saved = _saved_addons()
         if len(saved) >= MAX_ADDONS:
@@ -626,9 +644,24 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
 
     @router.delete("/api/screen/addons/{addon_id}")
     async def addons_remove(addon_id: str, request: Request):
+        """Remove an add-on. The three that come with the app can be removed too (their lists leave Discover) and added back."""
         require_auth(request)
+        _sfw_only()
+        if addon_id in sid.BUILTIN_IDS:
+            await asyncio.to_thread(sid.set_builtin_removed, db, addon_id, True)
+            return await asyncio.to_thread(_addons_view)
         saved = _saved_addons()
         await asyncio.to_thread(db.set_setting, "catalog_addons", [a for a in saved if a["id"] != addon_id])
+        return await asyncio.to_thread(_addons_view)
+
+    @router.post("/api/screen/addons/{addon_id}/restore")
+    async def addons_restore(addon_id: str, request: Request):
+        """Add back a built-in add-on that was removed."""
+        require_auth(request)
+        _sfw_only()
+        if addon_id not in sid.BUILTIN_IDS:
+            raise HTTPException(404, "That is not a built-in add-on")
+        await asyncio.to_thread(sid.set_builtin_removed, db, addon_id, False)
         return await asyncio.to_thread(_addons_view)
 
     def _addon_search(kind: str, text: str, have: set[str]) -> list[dict]:
@@ -676,6 +709,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def _discover_one(request: Request, kind: str, genre: str, skip: int, search: str, catalog: str, wanted: list):
         """A list of movies or series to find (Popular, New, Featured from Cinemeta; Netflix, HBO Max, Disney+, Prime Video, Apple TV+ from TMDB), by genre, or a search: what you could add, with the ones you already have marked."""
         require_auth(request)
+        _sfw_only()
         if kind not in ("movie", "series"):
             raise HTTPException(400, "type must be movie or series")
         if genre and genre not in GENRES:
@@ -685,7 +719,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         text = re.sub(r"\s+", " ", str(search or "")).strip()[:80]
         skip_n = max(0, int(skip or 0))
         if catalog.startswith("addon:") and not text:
-            if not await asyncio.to_thread(sid.cinemeta_on, db):
+            if not await asyncio.to_thread(sid.catalogues_on, db):
                 return {"ok": True, "disabled": True, "items": []}
             _, aid, atype, cid = catalog.split(":", 3)
             addon = next((a for a in _saved_addons() if a["id"] == aid), None)
@@ -717,7 +751,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 raise HTTPException(502, "The list could not be reached")
             return {"ok": True, "disabled": False, "items": made_addon[0], "more": made_addon[1], "next": made_addon[2]}
         if catalog in ANIME_LISTS and not text:
-            if not await asyncio.to_thread(sid.cinemeta_on, db):
+            if not await asyncio.to_thread(sid.builtin_on, db, "anime"):
                 return {"ok": True, "disabled": True, "items": []}
             extras = ([f"genre={genre}"] if genre else []) + ([f"skip={min(skip_n, 2000)}"] if skip_n else [])
 
@@ -734,7 +768,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 raise HTTPException(502, "The list could not be reached")
             return {"ok": True, "disabled": False, "items": anime, "more": len(anime) >= 90, "next": min(skip_n, 2000) + len(anime)}
         if catalog in SERVICES and not text:
-            if not await asyncio.to_thread(sid.cinemeta_on, db):
+            if not await asyncio.to_thread(sid.builtin_on, db, "streaming"):
                 return {"ok": True, "disabled": True, "items": []}
 
             def stream_work():
@@ -785,7 +819,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 raise HTTPException(502, "The list could not be reached")
             items, pages = made
             return {"ok": True, "disabled": False, "items": items, "more": page < min(pages, 41), "next": page}
-        if not await asyncio.to_thread(sid.cinemeta_on, db):
+        if not await asyncio.to_thread(sid.builtin_on, db, "cinemeta"):
             return {"ok": True, "disabled": True, "items": []}
         parts = []
         if genre:
@@ -882,11 +916,12 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def discover_one(kind: str, imdb: str, request: Request):
         """One title from Cinemeta in full (story, cast, genres, rating, trailer), and whether the library has it."""
         require_auth(request)
+        _sfw_only()
         if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}|tmdb-\d{1,9}|kitsu:\d{1,9}", imdb):
             raise HTTPException(400, "Unknown title")
         if imdb.startswith("kitsu:"):
             # An anime from the anime lists: Kitsu's own catalogue knows its story and its episodes.
-            if not await asyncio.to_thread(sid.cinemeta_on, db):
+            if not await asyncio.to_thread(sid.builtin_on, db, "anime"):
                 raise HTTPException(409, "Cinemeta is switched off in Settings, Metadata")
 
             def kitsu_work():
@@ -934,7 +969,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                              "cast": [], "director": [], "trailer": "", "seasons": int(basic.get("number_of_seasons") or 0)})
                 return card
             imdb = found
-        if not await asyncio.to_thread(sid.cinemeta_on, db):
+        if not await asyncio.to_thread(sid.builtin_on, db, "cinemeta"):
             raise HTTPException(409, "Cinemeta is switched off in Settings, Metadata")
 
         def work():
@@ -972,6 +1007,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def addon_progress(request: Request):
         """Remember where a title played from an add-on stopped, so Home can offer to continue it. A finished title is dropped from the list."""
         require_auth(request)
+        _sfw_only()
         try:
             body = await request.json()
             kind, ident = str(body.get("kind")), str(body.get("ident"))
@@ -1000,6 +1036,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     async def addon_progress_one(request: Request, kind: str, ident: str, season: int | None = None, episode: int | None = None):
         """Where this title stopped last time (0 when it did not, or it was nearly done)."""
         require_auth(request)
+        _sfw_only()
         hit = next((e for e in await asyncio.to_thread(_addon_history) if _same_addon_title(e, kind, ident, season, episode)), None)
         return {"position": float(hit["position"]) if hit else 0.0}
 

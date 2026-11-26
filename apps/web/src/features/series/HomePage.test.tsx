@@ -167,6 +167,23 @@ describe('SFW Home', () => {
     expect(within(screen.getByRole('group', { name: 'Kind' })).getByRole('button', { name: 'Series' })).toBeDisabled()    // the add-on's list has its own kind
   })
 
+  it('leaves the lists of a removed built-in add-on out of Filters', async () => {
+    mount((u) => (u === '/api/screen/addons' ? json({ builtin: [{ id: 'cinemeta', name: 'Cinemeta', what: '' }], removed: [{ id: 'streaming', name: 'Streaming Catalogs', what: '' }, { id: 'anime', name: 'Anime Catalogs', what: '' }], items: [] }) : undefined))
+    await toDiscover()
+    fireEvent.click(await screen.findByRole('button', { name: /Filters/ }))
+    const names = async () => within(await screen.findByRole('group', { name: 'List' })).getAllByRole('button').map((b) => b.textContent)
+    await vi.waitFor(async () => expect(await names()).toEqual(['Popular', 'New', 'Featured']))
+  })
+
+  it('moves to a list that is still offered when the one that was open is removed', async () => {
+    mount((u) => (u === '/api/screen/addons' ? json({ builtin: [{ id: 'streaming', name: 'Streaming Catalogs', what: '' }], removed: [{ id: 'cinemeta', name: 'Cinemeta', what: '' }, { id: 'anime', name: 'Anime Catalogs', what: '' }], items: [] }) : undefined))
+    await toDiscover()
+    fireEvent.click(await screen.findByRole('button', { name: /Filters/ }))
+    const group = await screen.findByRole('group', { name: 'List' })
+    await vi.waitFor(() => expect(within(group).getByRole('button', { name: 'Netflix' })).toHaveAttribute('aria-pressed', 'true'))   // Popular is gone, so the first list left is open
+    expect(within(group).queryByRole('button', { name: 'Popular' })).not.toBeInTheDocument()
+  })
+
   it('keeps Where to watch off the Discover preview: it is on the title page (the title you own does not need it)', async () => {
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('min-width'), addEventListener: () => undefined, removeEventListener: () => undefined }))
     const urls = mount((u) => (u.includes('/discover/movie/tt0000002') ? json({ ...found(2, 'Dune'), runtime: '155 min', cast: [], director: [], trailer: '', seasons: 0 }) : undefined))

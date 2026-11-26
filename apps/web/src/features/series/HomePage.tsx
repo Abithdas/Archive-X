@@ -195,10 +195,12 @@ const isAnime = (c: Catalog) => c.startsWith('anime-') || c.startsWith('addon:')
 const addonKey = (a: Addon, l: Addon['lists'][number]): Catalog => `addon:${a.id}:${l.type}:${encodeURIComponent(l.id)}`
 const addonLabel = (a: Addon, l: Addon['lists'][number]) => `${a.name}: ${l.name} (${l.type === 'movie' ? 'movies' : l.type === 'series' ? 'series' : 'anime'})`
 const labelOf = (c: Catalog, addons: readonly Addon[]) => CATALOGS.find(([v]) => v === c)?.[1] ?? addons.flatMap((a) => a.lists.map((l) => [addonKey(a, l), addonLabel(a, l)] as const)).find(([v]) => v === c)?.[1] ?? c
+/** Which built-in add-on a list comes from (Settings, Addons): removing the add-on takes its lists out of the picker. */
+const groupOf = (c: Catalog): 'cinemeta' | 'streaming' | 'anime' => (c.startsWith('anime-') ? 'anime' : ['netflix', 'hbomax', 'disney', 'prime', 'apple'].includes(c) ? 'streaming' : 'cinemeta')
 const OPTION = 'h-9 rounded-full border px-3.5 text-[13px] font-semibold transition-colors'
 
 /** One filter for Discover, like the one on the Photos page: a pill with a count of what is chosen, opening a panel with the kind and the genre. */
-function DiscoverFilters({ kind, setKind, genre, setGenre, catalog, setCatalog, addons, off }: { kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void; catalog: Catalog; setCatalog: (c: Catalog) => void; addons: readonly Addon[]; off: boolean }) {
+function DiscoverFilters({ kind, setKind, genre, setGenre, catalog, setCatalog, addons, lists, off }: { kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void; catalog: Catalog; setCatalog: (c: Catalog) => void; addons: readonly Addon[]; lists: typeof CATALOGS; off: boolean }) {
   const chosen = genre ? genre.split(',') : []
   const count = (kind === 'series' && !isAnime(catalog) ? 1 : 0) + chosen.length + (catalog !== 'popular' ? 1 : 0)
   const pick = (on: boolean) => cn(OPTION, on ? 'border-accent/60 bg-accent/15 text-fg' : 'border-line text-muted hover:bg-fg/5 hover:text-fg')
@@ -213,12 +215,12 @@ function DiscoverFilters({ kind, setKind, genre, setGenre, catalog, setCatalog, 
             </div>
             {isAnime(catalog) ? <p className="text-xs text-muted">This list has its own kind of titles.</p> : null}
           </div>
-          <div className="grid gap-2">
+          {lists.length ? <div className="grid gap-2">
             <h3 className="text-sm font-bold">List</h3>
             <div role="group" aria-label="List" className="flex flex-wrap gap-1.5">
-              {CATALOGS.map(([v, label]) => <button key={v} type="button" aria-pressed={catalog === v} onClick={() => setCatalog(v)} className={pick(catalog === v)}>{label}</button>)}
+              {lists.map(([v, label]) => <button key={v} type="button" aria-pressed={catalog === v} onClick={() => setCatalog(v)} className={pick(catalog === v)}>{label}</button>)}
             </div>
-          </div>
+          </div> : null}
           {addons.some((a) => a.lists.length) ? (
             <div className="grid gap-2">
               <h3 className="text-sm font-bold">Your add-ons</h3>
@@ -247,7 +249,14 @@ function DiscoverFilters({ kind, setKind, genre, setGenre, catalog, setCatalog, 
 function Discover({ text, kind, setKind, genre, setGenre, catalog, setCatalog }: { text: string; kind: Kind; setKind: (k: Kind) => void; genre: string; setGenre: (g: string) => void; catalog: Catalog; setCatalog: (c: Catalog) => void }) {
   const [open, setOpen] = useState<Found | null>(null)
   const [focus, setFocus] = useState<Found | null>(null)
-  const addons = useAddons().data?.items ?? []
+  const addonsView = useAddons().data
+  const addons = addonsView?.items ?? []
+  const gone = (addonsView?.removed ?? []).map((r) => r.id)
+  const lists = CATALOGS.filter(([v]) => !gone.includes(groupOf(v)))
+  // the list that was open belongs to an add-on that is now removed: move to one that is still offered
+  const offered = lists.some(([v]) => v === catalog) || catalog.startsWith('addon:')
+  const first = lists[0]?.[0]
+  useEffect(() => { if (addonsView && !offered && first) setCatalog(first) }, [addonsView, offered, first, setCatalog])
   const wide = useWide()
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
@@ -269,7 +278,7 @@ function Discover({ text, kind, setKind, genre, setGenre, catalog, setCatalog }:
     <section aria-label="Discover" className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-extrabold tracking-tight">{search ? `Results for “${search}”` : (isAnime(catalog) ? [labelOf(catalog, addons), genre.split(',').join(' · ')] : [catalog !== 'popular' ? labelOf(catalog, addons) : '', genre.split(',').join(' · ') || (catalog === 'popular' ? 'Popular' : ''), kind === 'movie' ? 'movies' : 'series']).filter(Boolean).join(' ')}</h2>
-        <DiscoverFilters kind={kind} setKind={(k) => { setKind(k); setFocus(null) }} genre={genre} setGenre={(g) => { setGenre(g); setFocus(null) }} catalog={catalog} setCatalog={(c) => { setCatalog(c); setFocus(null) }} addons={addons} off={Boolean(search)} />
+        <DiscoverFilters kind={kind} setKind={(k) => { setKind(k); setFocus(null) }} genre={genre} setGenre={(g) => { setGenre(g); setFocus(null) }} catalog={catalog} setCatalog={(c) => { setCatalog(c); setFocus(null) }} addons={addons} lists={lists} off={Boolean(search)} />
       </div>
       {off ? <p role="status" className="rounded-2xl border border-dashed border-line p-6 text-sm text-muted">Discover uses Cinemeta, the Stremio project's open catalogue, and it is switched off. Turn it on in Settings, Metadata.</p>
         : needKey ? <p role="status" className="rounded-2xl border border-dashed border-line p-6 text-sm text-muted">What is on {labelOf(catalog, addons)} comes from TMDB. Add a free TMDB key in Settings, Metadata to see it.</p>

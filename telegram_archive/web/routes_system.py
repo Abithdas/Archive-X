@@ -147,12 +147,13 @@ def register_system_routes(
         from ..core import swallowed
         return {"ok": True, "items": swallowed.snapshot(100)}
 
-    _diagnostics_view = SnapshotCache(3.0)   # polled every 5 s by each open Operations page; one answer is shared
+    _diagnostics_views = {"sfw": SnapshotCache(3.0), "nsfw": SnapshotCache(3.0)}   # polled every 5 s by each open Operations page; one answer per mode is shared (each mode lists only its own tasks)
 
     @router.get("/api/diagnostics/summary")
     def diagnostics_summary(request: Request):
         require_auth(request)
-        return _diagnostics_view.get(_build_diagnostics_summary)
+        from ..core import content_mode as _cm_diag
+        return _diagnostics_views[_cm_diag.get_mode(db)].get(_build_diagnostics_summary)
 
     def _build_diagnostics_summary():
         from ..core.diagnostics import observability_snapshot, metadata_assets_diagnostics, telegram_transfer_diagnostics, content_automation_diagnostics

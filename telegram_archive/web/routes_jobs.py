@@ -510,9 +510,17 @@ def register_job_routes(
             "TELEGRAM_TRANSFER", "UPLOAD_LOCAL", "MEDIA_MANAGER",
             "METADATA_CHANNEL_PIPELINE", "METADATA_ASSETS", "CONTENT_AUTOMATION",
         }
+        other_mode: list[dict] = []
+
+        def _split_for_mode(rows):
+            from ..core import content_mode as _cm_lanes, job_mode as _job_mode
+            return _job_mode.split_by_mode(db, rows, _cm_lanes.get_mode(db))
+
         def build_rows():
             rows = []
             lane_jobs = [job for job in db.active_jobs() if str(job.get("job_type") or "") in relevant]
+            lane_jobs, other = _split_for_mode(lane_jobs)       # only this mode's tasks are listed; the other mode's are counted
+            other_mode.extend(other)
             telemetry_by_job = db.get_job_transfer_telemetry([job["id"] for job in lane_jobs]) if lane_jobs else {}
             with db.lock:
                 channel_names = {str(row["telegram_id"]): str(row["title"] or row["telegram_id"])
@@ -553,7 +561,13 @@ def register_job_routes(
                 })
             try:
                 from ..engines import local_scanner
-                rows.extend(local_scanner.lane_rows(db))   # folders on this PC being looked through or prepared
+                local_rows = local_scanner.lane_rows(db)   # folders on this PC being looked through or prepared
+                folder_jobs = [{"id": r["id"], "source_channel": local_scanner.channel_id(int(str(r["id"])[6:]))}
+                               for r in local_rows if str(r.get("id") or "").startswith("local:") and str(r["id"])[6:].isdigit()]
+                _, other_folders = _split_for_mode(folder_jobs)
+                hidden_folders = {str(j["id"]) for j in other_folders}
+                other_mode.extend({"id": r["id"], "status": r.get("status")} for r in local_rows if str(r.get("id")) in hidden_folders)
+                rows.extend(r for r in local_rows if str(r.get("id")) not in hidden_folders)
             except Exception:
                 pass
             return rows
@@ -563,8 +577,9 @@ def register_job_routes(
             governor_snapshot = governor.snapshot()
         except Exception:
             governor_snapshot = {}
+        from ..core import job_mode as _job_mode
         return {"ok": True, "jobs": rows, "resources": resource_snapshot,
-                "governor": governor_snapshot}
+                "governor": governor_snapshot, "other_mode_jobs": _job_mode.other_summary(other_mode)}
 
     @router.post("/api/telegram-transfer/scan-photos")
     async def telegram_transfer_scan_photos(request: Request):

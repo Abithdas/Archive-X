@@ -517,6 +517,15 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
     # SUBSECTION: Status aggregation
     # Status payload and cached snapshot.
     # ------------------------------------------------------------------
+    def _jobs_of_this_mode(rows: list) -> tuple[list, list]:
+        """(the jobs of the mode that is open, the jobs of the other mode). The other mode's tasks are not listed: only their number is shown."""
+        from ..core import content_mode as _cm_jobs, job_mode as _job_mode
+        try:
+            return _job_mode.split_by_mode(db, rows, _cm_jobs.get_mode(db))
+        except Exception:
+            _swallowed_note("routes.build_router._jobs_of_this_mode")
+            return rows, []
+
     def _active_jobs_view(active_jobs=None, watchdogs=None) -> list:
         """Shape active jobs for the UI, adding names, watchdog state and dependencies."""
         from ..jobs.manager import JOB_NAMES
@@ -538,7 +547,8 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
             sfw = _cm_sfw.get_mode(db) == "sfw"   # job text carries file and channel names, adult ones included
         except Exception:
             sfw = True
-        for j in (active_jobs if active_jobs is not None else db.active_jobs()):
+        _jobs_now = active_jobs if active_jobs is not None else _jobs_of_this_mode(db.active_jobs())[0]
+        for j in _jobs_now:
             total = j.get("total")
             done = j.get("completed")
             try:
@@ -669,7 +679,11 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
         """Assemble the full status response."""
         from ..core.diagnostics import recent_structured_events
         active_jobs, last_jobs = db.job_dashboard_snapshot()
+        active_jobs, other_mode_jobs = _jobs_of_this_mode(active_jobs)
         watchdogs = jobs.watchdogs.snapshot() if hasattr(jobs, "watchdogs") else {}
+        if other_mode_jobs and isinstance(watchdogs, dict) and isinstance(watchdogs.get("jobs"), list):
+            hidden = {str(j.get("id")) for j in other_mode_jobs}
+            watchdogs = {**watchdogs, "jobs": [w for w in watchdogs["jobs"] if str(w.get("name")) not in hidden]}
         current_job = next((j for j in active_jobs if j.get("status") in ("RUNNING", "PAUSING", "PAUSED", "CANCEL_REQUESTED")), None)
         governor_snapshot = governor.status()
         channel_scans = __import__("telegram_archive.core.telegram_registry", fromlist=["recent_channel_scan_diagnostics"]).recent_channel_scan_diagnostics(db, limit=12)
@@ -695,6 +709,7 @@ def build_router(*, db, governor, telegram, jobs, sessions, login_limiter, token
             "telegram_performance": telegram.performance_status() if hasattr(telegram, "performance_status") else {},
             "current_job": current_job,
             "jobs": _active_jobs_view(active_jobs, watchdogs),        # active jobs only, never history
+            "other_mode_jobs": __import__("telegram_archive.core.job_mode", fromlist=["other_summary"]).other_summary(other_mode_jobs),   # how many tasks the other mode has going
             "events": [
                 {**e, "created_at": e.get("ts"), "message": e.get("message") or e.get("event") or "", "module": e.get("component") or "", "event": e.get("event"), "outcome": e.get("outcome"), "severity": e.get("severity")}
                 for e in recent_structured_events(150)

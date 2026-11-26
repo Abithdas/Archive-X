@@ -29,11 +29,43 @@ def tvmaze_on(db) -> bool:
     return str(db.setting("tvmaze_enabled") or "").lower() in ("1", "true", "yes")
 
 
+BUILTIN_ADDONS = (
+    ("cinemeta", "Cinemeta", "Popular, New and Featured movies and series, and the details of every title"),
+    ("streaming", "Streaming Catalogs", "What is on Netflix, HBO Max, Disney+, Prime Video and Apple TV+"),
+    ("anime", "Anime Catalogs", "MyAnimeList's top airing, top series and top movies"),
+)
+BUILTIN_IDS = tuple(b[0] for b in BUILTIN_ADDONS)
+
+
+def removed_builtins(db) -> set[str]:
+    """The built-in add-ons the person removed (Settings, Addons). Removing one takes its lists out of Discover; it can be added back."""
+    raw = db.setting("removed_builtin_addons")
+    return {str(x) for x in raw if str(x) in BUILTIN_IDS} if isinstance(raw, list) else set()
+
+
+def set_builtin_removed(db, key: str, removed: bool) -> None:
+    if key not in BUILTIN_IDS:
+        raise KeyError(key)
+    now = removed_builtins(db)
+    (now.add if removed else now.discard)(key)
+    db.set_setting("removed_builtin_addons", [k for k in BUILTIN_IDS if k in now])
+
+
+def builtin_on(db, key: str) -> bool:
+    """Is this built-in add-on in use? Not removed, and the catalogues are not switched off as a whole (Settings, Metadata)."""
+    if key == "cinemeta":
+        return cinemeta_on(db)
+    return catalogues_on(db) and key not in removed_builtins(db)
+
+
+def catalogues_on(db) -> bool:
+    return str(db.setting("cinemeta_enabled") or "").strip().lower() in ("", "1", "true", "yes")
+
+
 def cinemeta_on(db) -> bool:
     """Cinemeta (the Stremio project's open catalog) needs no key. It is on until someone switches it off: without it (and without a TMDB key) nothing
     in a movie folder is ever identified, and Movies & Shows stays empty."""
-    value = str(db.setting("cinemeta_enabled") or "").strip().lower()
-    return value in ("", "1", "true", "yes")
+    return catalogues_on(db) and "cinemeta" not in removed_builtins(db)
 
 
 def configured(db) -> bool:

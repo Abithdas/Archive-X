@@ -9,21 +9,22 @@ import { errorText } from '@/features/content/useContentMode'
 
 export interface AddonList { type: 'movie' | 'series' | 'anime'; id: string; name: string }
 export interface Addon { id: string; url: string; name: string; description: string; version: string; lists: AddonList[]; provides?: string[]; note?: string; configurable?: boolean; error?: string }
-export interface AddonsView { builtin: Array<{ name: string; what: string }>; items: Addon[]; allow_local?: boolean }
+export interface BuiltinAddon { id: string; name: string; what: string }
+export interface AddonsView { builtin: BuiltinAddon[]; removed?: BuiltinAddon[]; items: Addon[]; allow_local?: boolean }
 
 const BOX = 'rounded-[18px] border border-line bg-surface p-5'
 export const addonsKey = ['screen-addons'] as const
 export const useAddons = (enabled = true) => useQuery({ queryKey: addonsKey, queryFn: () => api<AddonsView>('/api/screen/addons'), staleTime: 60_000, enabled })
 
 /**
- * Settings, Addons: the catalogue add-ons Discover uses. Three come with the app; more can be added by pasting an add-on's address (a link ending in
+ * Settings, Addons: the catalogue add-ons Discover uses. Three come with the app (they can be removed too, and added back); more can be added by pasting an add-on's address (a link ending in
  * manifest.json, or a stremio:// link). Only the add-on's lists of movies and series are read; it is asked which list you open, nothing else.
  */
 export function AddonsPanel() {
   const qc = useQueryClient()
   const view = useAddons()
   const [url, setUrl] = useState('')
-  const [asking, setAsking] = useState<Addon | null>(null)
+  const [asking, setAsking] = useState<{ id: string; name: string; builtin: boolean } | null>(null)
   const add = useMutation({
     mutationFn: (u: string) => api<AddonsView>('/api/screen/addons', { method: 'POST', json: { url: u } }),
     onSuccess: (v) => { qc.setQueryData(addonsKey, v); setUrl(''); toast(`Added ${v.items[v.items.length - 1]?.name ?? 'the add-on'}`) },
@@ -31,6 +32,10 @@ export function AddonsPanel() {
   const remove = useMutation({
     mutationFn: (id: string) => api<AddonsView>(`/api/screen/addons/${id}`, { method: 'DELETE' }),
     onSuccess: (v) => { qc.setQueryData(addonsKey, v); setAsking(null); toast('Add-on removed') },
+  })
+  const restore = useMutation({
+    mutationFn: (id: string) => api<AddonsView>(`/api/screen/addons/${id}/restore`, { method: 'POST', json: {} }),
+    onSuccess: (v) => { qc.setQueryData(addonsKey, v); toast('Add-on added back') },
   })
   const local = useMutation({
     mutationFn: (on: boolean) => api<AddonsView>('/api/screen/addons/settings', { method: 'POST', json: { allow_local: on } }),
@@ -42,10 +47,31 @@ export function AddonsPanel() {
     <div className="grid gap-4">
       <section aria-label="Built in" className={BOX}>
         <h2 className="text-lg font-bold">Built in</h2>
-        <p className="mb-3 text-sm text-muted">These come with the app and fill Discover. They are switched off together with Cinemeta in Metadata.</p>
-        <ul className="m-0 grid list-none gap-2 p-0">
-          {(view.data?.builtin ?? []).map((b) => <li key={b.name} className="flex items-start gap-3 rounded-xl border border-line px-3.5 py-3"><Icon name="database" className="mt-0.5 size-4 shrink-0 text-muted" /><span className="min-w-0"><span className="block text-sm font-semibold">{b.name}</span><span className="block text-xs text-muted">{b.what}</span></span></li>)}
-        </ul>
+        <p className="mb-3 text-sm text-muted">These come with the app and fill Discover. Remove the ones you do not want; a removed one can be added back. All of them are also switched off with Cinemeta in Metadata.</p>
+        {(view.data?.builtin ?? []).length ? (
+          <ul className="m-0 grid list-none gap-2 p-0">
+            {(view.data?.builtin ?? []).map((b) => (
+              <li key={b.id} className="flex items-start gap-3 rounded-xl border border-line px-3.5 py-3">
+                <Icon name="database" className="mt-0.5 size-4 shrink-0 text-muted" />
+                <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{b.name}</span><span className="block text-xs text-muted">{b.what}</span></span>
+                <button type="button" onClick={() => setAsking({ id: b.id, name: b.name, builtin: true })} aria-label={`Remove ${b.name}`} className="h-9 shrink-0 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5">Remove</button>
+              </li>
+            ))}
+          </ul>
+        ) : view.data ? <p className="text-sm text-muted">All built-in add-ons are removed.</p> : null}
+        {(view.data?.removed ?? []).length ? (
+          <div className="mt-4 grid gap-2">
+            <h3 className="text-sm font-bold">Removed</h3>
+            <ul aria-label="Removed built-in add-ons" className="m-0 grid list-none gap-2 p-0">
+              {(view.data?.removed ?? []).map((b) => (
+                <li key={b.id} className="flex items-start gap-3 rounded-xl border border-dashed border-line px-3.5 py-3">
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-muted">{b.name}</span><span className="block text-xs text-faint">{b.what}</span></span>
+                  <button type="button" disabled={restore.isPending} onClick={() => restore.mutate(b.id)} aria-label={`Add back ${b.name}`} className="h-9 shrink-0 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5 disabled:opacity-60">Add back</button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
       <section aria-label="Your add-ons" className={BOX}>
         <h2 className="text-lg font-bold">Your add-ons</h2>
@@ -58,7 +84,7 @@ export function AddonsPanel() {
                 <div className="flex items-start justify-between gap-3">
                   <span className="min-w-0"><span className="block text-sm font-semibold">{a.name}{a.version ? <span className="ml-2 text-xs font-normal text-faint">v{a.version}</span> : null}</span>
                     {a.description ? <span className="block text-xs text-muted">{a.description}</span> : null}</span>
-                  <button type="button" onClick={() => setAsking(a)} aria-label={`Remove ${a.name}`} className="h-9 shrink-0 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5">Remove</button>
+                  <button type="button" onClick={() => setAsking({ id: a.id, name: a.name, builtin: false })} aria-label={`Remove ${a.name}`} className="h-9 shrink-0 rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5">Remove</button>
                 </div>
                 {a.error ? <p role="status" className="text-xs text-warn">{a.error}</p>
                   : (<>
@@ -86,7 +112,7 @@ export function AddonsPanel() {
           {add.isError ? <p role="alert" className="text-sm text-warn">{errorText(add.error, 'Could not add that add-on.')}</p> : null}
         </form>
       </section>
-      {asking ? <Confirm title={`Remove ${asking.name}?`} text="Its lists leave Discover. You can add it again with its address." ok="Remove" danger busy={remove.isPending} onCancel={() => setAsking(null)} onOk={() => remove.mutate(asking.id)} /> : null}
+      {asking ? <Confirm title={`Remove ${asking.name}?`} text={asking.builtin ? 'Its lists leave Discover. You can add it back here at any time.' : 'Its lists leave Discover. You can add it again with its address.'} ok="Remove" danger busy={remove.isPending} onCancel={() => setAsking(null)} onOk={() => remove.mutate(asking.id)} /> : null}
     </div>
   )
 }

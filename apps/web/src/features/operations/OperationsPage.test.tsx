@@ -24,9 +24,9 @@ const status = {
   ],
 }
 const json = (b: unknown, code = 200) => new Response(JSON.stringify(b), { status: code })
-const mount = () => {
+const mount = (other?: { count: number; running: number }) => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-    if (url === '/api/status') return json(status)
+    if (url === '/api/status') return json(other ? { ...status, other_mode_jobs: other } : status)
     if (url === '/api/diagnostics/summary') return json({ levels: { ERROR: 1 }, diagnostic_health: { state: 'ATTENTION' } })
     if (url === '/api/operations/resources') return json({ resources: { background_capacity: 2, control: { mode_label: 'Automatic' }, category_active: {} } })
     if (url.startsWith('/api/performers') || url.startsWith('/api/studios')) return json([{ id: 1, name: 'x', video_count: 1 }])
@@ -36,6 +36,10 @@ const mount = () => {
 }
 
 describe('OperationsPage', () => {
+  it('says how many tasks the other mode has going, without listing them', async () => {
+    mount({ count: 1, running: 1 })
+    expect(await screen.findByRole('status', { name: 'Tasks in the other mode' })).toHaveTextContent('A task is running in the other mode.')
+  })
   it('shows the job counters and the live jobs, and filters them', async () => {
     mount()
     const summary = await screen.findByRole('group', { name: 'Job summary' })

@@ -7,6 +7,7 @@ import { PageHead } from '@/design/PageHead'
 import { cn } from '@/design/cn'
 import { useScrollRow } from '@/design/useScrollRow'
 import { LocalFolders } from '@/features/content/LocalFolders'
+import { useContentMode } from '@/features/content/useContentMode'
 import { PANELS, isPanel, validationMessage, type PanelId } from './logic'
 import { SecurityPanel } from './SecurityPanel'
 import { StoragePanel } from './StoragePanel'
@@ -24,6 +25,9 @@ const settle = <T,>(p: Promise<T>) => p.then((value) => ({ value }), () => ({ va
 export function SettingsPage() {
   const [panel, setPanel] = useState<PanelId>(read)
   const [validating, setValidating] = useState(false)
+  const sfw = useContentMode().data?.mode === 'sfw'
+  const panels = PANELS.filter((p) => p.id !== 'addons' || sfw)   // add-ons are an SFW feature: no tab (and no panel) in NSFW
+  const shown: PanelId = panel === 'addons' && !sfw ? 'overview' : panel
   const qc = useQueryClient()
   const row = useRef<HTMLUListElement>(null)
   useScrollRow(row)   // in a narrow window the sections are one row that scrolls sideways: the mouse wheel and a drag move it
@@ -38,16 +42,16 @@ export function SettingsPage() {
       setValidating(false)
     }
   }
-  const index = PANELS.findIndex((p) => p.id === panel)
+  const index = panels.findIndex((p) => p.id === shown)
   return (
     <section className="w-full px-4 pb-10 pt-6 sm:px-10">
       <PageHead eyebrow="Configuration" title="Settings" blurb="Settings are validated before they are applied" />
       <div className="grid items-start gap-5 lg:grid-cols-[256px_minmax(0,1fr)]">
         <nav aria-label="Settings sections" className="grid gap-1 lg:sticky lg:top-20 lg:self-start">
           <ul ref={row} className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] lg:grid lg:overflow-visible lg:pb-0">
-            {PANELS.map((p) => (
+            {panels.map((p) => (
               <li key={p.id} className="shrink-0 lg:shrink">
-                <button type="button" aria-current={p.id === panel ? 'page' : undefined} onClick={() => go(p.id)} title={p.blurb} className={cn('flex h-11 w-full items-center gap-3 whitespace-nowrap rounded-xl px-3 text-[15px] font-medium transition-colors', p.id === panel ? 'bg-accent/15 text-fg [&_svg]:text-accent' : 'text-muted hover:bg-fg/5 hover:text-fg')}>
+                <button type="button" aria-current={p.id === shown ? 'page' : undefined} onClick={() => go(p.id)} title={p.blurb} className={cn('flex h-11 w-full items-center gap-3 whitespace-nowrap rounded-xl px-3 text-[15px] font-medium transition-colors', p.id === shown ? 'bg-accent/15 text-fg [&_svg]:text-accent' : 'text-muted hover:bg-fg/5 hover:text-fg')}>
                   <Icon name={p.icon} />{p.title}
                 </button>
               </li>
@@ -57,8 +61,8 @@ export function SettingsPage() {
           <button type="button" onClick={() => { void qc.invalidateQueries({ queryKey: ['settings'] }); void qc.invalidateQueries({ queryKey: ['storage'] }); toast('Status refreshed') }} className="h-11 rounded-xl border border-line bg-surface text-sm font-bold hover:bg-surface-2">Refresh status</button>
         </nav>
         <div className="min-w-0" aria-live="polite">
-          {panel === 'overview' ? <OverviewPanel go={go} /> : panel === 'experience' ? <ExperiencePanel /> : panel === 'appearance' ? <AppearancePanel /> : panel === 'telegram' ? <TelegramPanel /> : panel === 'local' ? <LocalFolders /> : panel === 'security' ? <SecurityPanel /> : panel === 'storage' ? <StoragePanel /> : panel === 'metadata' ? <MetadataPanel /> : panel === 'addons' ? <AddonsPanel /> : panel === 'integrations' ? <IntegrationsPanel /> : panel === 'system' ? <SystemPanel /> : null}
-          <p className="mt-2 text-right text-xs text-faint">{String(index + 1).padStart(2, '0')} / {String(PANELS.length).padStart(2, '0')}</p>
+          {shown === 'overview' ? <OverviewPanel go={go} /> : shown === 'experience' ? <ExperiencePanel /> : shown === 'appearance' ? <AppearancePanel /> : shown === 'telegram' ? <TelegramPanel /> : shown === 'local' ? <LocalFolders /> : shown === 'security' ? <SecurityPanel /> : shown === 'storage' ? <StoragePanel /> : shown === 'metadata' ? <MetadataPanel /> : shown === 'addons' ? <AddonsPanel /> : shown === 'integrations' ? <IntegrationsPanel /> : shown === 'system' ? <SystemPanel /> : null}
+          <p className="mt-2 text-right text-xs text-faint">{String(index + 1).padStart(2, '0')} / {String(panels.length).padStart(2, '0')}</p>
         </div>
       </div>
     </section>
