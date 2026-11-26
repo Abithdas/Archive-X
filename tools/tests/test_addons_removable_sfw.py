@@ -19,13 +19,13 @@ def ids(view):
 def test_every_built_in_add_on_can_be_removed_and_added_back(app):
     db, c = app
     view = c.get("/api/screen/addons").json()
-    assert ids(view) == ["cinemeta", "streaming", "anime"] and view["removed"] == []
-    for key in ("cinemeta", "streaming", "anime"):
+    assert ids(view) == ["cinemeta", "streaming", "anime", "subtitles"] and view["removed"] == []
+    for key in ("cinemeta", "streaming", "anime", "subtitles"):
         view = c.delete(f"/api/screen/addons/{key}", headers=H).json()
-        assert key not in ids(view) and [r["id"] for r in view["removed"]] == [k for k in ("cinemeta", "streaming", "anime") if k not in ids(view)]
-    assert ids(view) == [] and len(view["removed"]) == 3
+        assert key not in ids(view) and [r["id"] for r in view["removed"]] == [k for k in ("cinemeta", "streaming", "anime", "subtitles") if k not in ids(view)]
+    assert ids(view) == [] and len(view["removed"]) == 4
     view = c.post("/api/screen/addons/streaming/restore", headers=H).json()
-    assert ids(view) == ["streaming"] and len(view["removed"]) == 2
+    assert ids(view) == ["streaming"] and len(view["removed"]) == 3
     assert c.post("/api/screen/addons/nonsense/restore", headers=H).status_code == 404
 
 
@@ -75,3 +75,23 @@ def test_in_nsfw_mode_add_ons_are_not_available(app):
     assert sid.removed_builtins(db) == set()                    # and the refused removal changed nothing
     assert c.post("/api/content-mode", json={"mode": "sfw"}, headers=H).json()["mode"] == "sfw"
     assert c.get("/api/screen/addons").status_code == 200
+
+
+def test_subtitles_are_offered_for_a_streamed_title_with_no_add_on_installed_and_stop_when_removed(app, monkeypatch):
+    from telegram_archive.metadata import addon_client as ac
+    from test_screen_home import PUBLIC
+    asked = []
+
+    def get_json(url):
+        asked.append(url)
+        if url.endswith("/manifest.json"):
+            return {"name": "OpenSubtitles v3", "resources": ["subtitles"], "types": ["movie", "series"], "idPrefixes": ["tt"], "catalogs": []}
+        return {"subtitles": [{"id": "1", "url": "https://subs5.example/en/1.srt", "lang": "eng"}]}
+    monkeypatch.setattr(ac, "get_json", get_json)
+    monkeypatch.setattr(ac, "_resolve", lambda host: PUBLIC)
+    db, c = app
+    got = c.get("/api/screen/subtitles-for/movie/tt0133093?filename=x.mkv").json()
+    assert [i["language"] for i in got["items"]] == ["eng"] and "OpenSubtitles" in got["items"][0]["label"]
+    assert any(u.startswith(sid.OPENSUBTITLES_URL) for u in asked)
+    c.delete("/api/screen/addons/subtitles", headers=H)
+    assert c.get("/api/screen/subtitles-for/movie/tt0133093").json()["items"] == []

@@ -33,7 +33,9 @@ BUILTIN_ADDONS = (
     ("cinemeta", "Cinemeta", "Popular, New and Featured movies and series, and the details of every title"),
     ("streaming", "Streaming Catalogs", "What is on Netflix, HBO Max, Disney+, Prime Video and Apple TV+"),
     ("anime", "Anime Catalogs", "MyAnimeList's top airing, top series and top movies"),
+    ("subtitles", "OpenSubtitles", "Subtitles in the video player for movies and series (Stremio's own subtitle add-on)"),
 )
+OPENSUBTITLES_URL = "https://opensubtitles-v3.strem.io"
 BUILTIN_IDS = tuple(b[0] for b in BUILTIN_ADDONS)
 
 

@@ -580,7 +580,9 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         now = _time.monotonic()
         for k in [k for k, (at, _u) in sub_tokens.items() if now - at > 7200]:
             sub_tokens.pop(k, None)
-        for a in _saved_addons():
+        # Stremio's own subtitle add-on is built in (removable like the other built-in ones), so subtitles are there before any add-on is installed.
+        sources = _saved_addons() + ([{"id": "", "url": sid.OPENSUBTITLES_URL, "name": "OpenSubtitles"}] if sid.builtin_on(db, "subtitles") else [])
+        for a in sources:
             try:
                 manifest = _addon_json(a["url"] + "/manifest.json")
                 if not isinstance(manifest, dict) or not _asks_for(manifest, "subtitles", kind, ident):
