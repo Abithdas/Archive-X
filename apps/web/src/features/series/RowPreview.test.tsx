@@ -38,7 +38,7 @@ describe('a row card preview', () => {
     act(() => { vi.advanceTimersByTime(400) })
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     at(900, 800)                                                                         // far away
-    act(() => { vi.advanceTimersByTime(300) })
+    act(() => { vi.advanceTimersByTime(500) })                                            // the pause, then the short fade out
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
