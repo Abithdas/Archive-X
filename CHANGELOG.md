@@ -2,14 +2,12 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
-## Unreleased
+## 30.12.5 (2026-11-26)
 
 - **Home (SFW) has many more rows**, like a streaming app: new and featured movies and series, what is on Netflix, HBO Max, Disney+, Prime Video and Apple TV+, anime, rows for genres (Action, Comedy, Drama, Sci-Fi, Thriller, Horror and more) and the lists of the add-ons you added. Each row loads when you scroll to it, and leaves itself out when it has nothing (a removed add-on, no TMDB key).
 - **A card's preview unfolds out of the card** when the pointer rests on it, the way dx.bi's does: the panel is revealed from the poster's own outline while the poster fades into its picture, the titles beside it glide aside, and a soft glow of the title's colours comes up around it. It shows the rating, genres and the story, and opens the page on a click.
-
 - **The cast of a movie or show is clickable** (library and Discover pages): it opens a page with that person's movies and shows in your library, then their other work from TMDB, each opening its own page.
 - **Missing episodes are shown in the show's page**: the episodes (and whole seasons) you do not have are listed with the catalogue's names, and each opens its episode page, where your add-ons offer streams for it.
-
 - **An actor's page in SFW**: under Filmography the library's movies and series come first, then "More with …": the other movies and shows they are in (from TMDB, needs a TMDB key and a person linked to TMDB), each opening its Discover page. The Gallery tab is gone from SFW actors.
 
 ## 30.12.4 (2026-11-26)
