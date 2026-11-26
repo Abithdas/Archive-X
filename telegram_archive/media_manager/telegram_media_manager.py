@@ -17,6 +17,7 @@ them into real modules requires giving each fragment explicit imports first.
 #   - FFmpeg conversion
 # ------------------------------------------------------------------
 from ..core.swallowed import note as _swallowed_note
+from ..engines import transfer_timing as _transfer_timing   # per-step timing of a transfer, shared by the mm_*.py fragments
 import asyncio
 import json
 import io

@@ -397,6 +397,9 @@ async def _retry(coro_factory, attempts=3, *, base_delay: float = 1.0, max_delay
             if i >= attempts - 1:
                 raise
             wait_seconds = flood_seconds + 1 if flood_seconds else min(float(max_delay), float(base_delay) * (2 ** i))
+            if flood_seconds:
+                from .transfer_timing import TIMER
+                TIMER.flood(flood_seconds)
             await asyncio.sleep(wait_seconds)
 
 

@@ -333,6 +333,8 @@ async def delete_messages(client, entity, ids: list):
             return
         except Exception as e:
             if is_flood_wait(e):
+                from .transfer_timing import TIMER
+                TIMER.flood(flood_wait_seconds(e))
                 await asyncio.sleep(flood_wait_seconds(e) + 2)
                 continue
             raise

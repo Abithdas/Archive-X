@@ -292,6 +292,7 @@ async def copy_media_to_destination(
             except Exception as exc:
                 wait = flood_wait_seconds(exc)
                 if wait:
+                    _transfer_timing.TIMER.flood(wait)
                     print(f"\nTelegram flood wait: {wait}s. Waiting {wait + 2}s...")
                     await asyncio.sleep(wait + 2)
                     continue
@@ -339,6 +340,7 @@ async def copy_media_to_destination(
             except Exception as exc:
                 wait = flood_wait_seconds(exc)
                 if wait:
+                    _transfer_timing.TIMER.flood(wait)
                     print(f"\nTelegram flood wait: {wait}s. Waiting {wait + 2}s...")
                     await asyncio.sleep(wait + 2)
                     continue
@@ -365,6 +367,7 @@ async def copy_media_to_destination(
             except Exception as exc:
                 wait = flood_wait_seconds(exc)
                 if wait:
+                    _transfer_timing.TIMER.flood(wait)
                     print(f"\nTelegram flood wait: {wait}s. Waiting {wait + 2}s...")
                     await asyncio.sleep(wait + 2)
                     continue
@@ -527,6 +530,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
     entry.update({"source_message_id": int(message.id), "source_filename": safe_video_name(message), "source_mode": source_mode, "destination_mode": destination_mode, "status": entry.get("status", "STARTED")})
     save_state_fn = save_state_fn or vertical_mobile_save_state
     save_state_fn(state)
+    clock = _transfer_timing.ItemClock()   # how long each step of this video takes (printed at the end, totalled for the job)
 
     fresh = await client.get_messages(source, ids=int(message.id))
     if not fresh:
@@ -536,6 +540,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
             f"source msg={message.id} is no longer an eligible {orientation.lower()} {source_mode} video"
         )
     message = fresh
+    clock.mark("refresh")
 
     with tempfile.TemporaryDirectory(prefix="tg_media_mover_") as td:
         dest_video_id = entry.get("destination_video_id")
@@ -641,6 +646,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
             caption = caption_with_converted_name(caption, safe_video_name(message), prepared_display_name)
         if prefetched_meta:
             entry["prefetched_metadata"] = prefetched_meta
+        clock.mark("prepare")
 
         # Cover policy for Telegram -> Telegram / FILE -> VIDEO delivery:
         # every policy uses the Archive X 36-frame contact sheet; EXISTING uses
@@ -670,6 +676,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
         entry["thumbnail_kind"] = thumbnail_kind
         entry["representative_snapshot_path"] = str(generated) if generated else None
         save_state_fn(state)
+        clock.mark("cover")
 
         # Existing destination IDs can originate from the legacy media-only
         # mover. Rebuild that pair when the caption changed so the new metadata
@@ -697,6 +704,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
                 ) from exc
 
         destination_video_message = None
+        created_media = False   # set below only when this run posts the video; a resumed item (its copy already exists) used to crash on the adjacency check
         async with _destination_delivery_lock(destination):
             if not dest_video_id:
                 print(f"  Uploading/copying source msg={message.id} -> destination as {destination_mode}...")
@@ -720,6 +728,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
                 entry["status"] = "MEDIA_COPIED"
                 save_state_fn(state)
                 print(f"  DESTINATION MEDIA COPIED: msg={dest_video_id}")
+                clock.mark("copy")
             else:
                 print(f"  Destination MEDIA already exists: msg={dest_video_id}")
 
@@ -744,6 +753,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
                 entry["destination_thumbnail_id"] = dest_thumb_id
                 entry["status"] = "PAIR_COPIED"
                 save_state_fn(state)
+                clock.mark("picture")
             else:
                 print(f"  Destination THUMBNAIL already exists: msg={dest_thumb_id}")
 
@@ -762,6 +772,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
             entry["error"] = reason
             save_state_fn(state)
             raise RuntimeError(f"Destination verification failed: {reason}")
+        clock.mark("verify")
         print(
             f"  DESTINATION VERIFIED: {destination_mode}={dest_video_id} | "
             f"thumbnail={dest_thumb_id} | native cover/thumbnail + separate message PASS"
@@ -820,6 +831,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
             temporary_local_video=prepared_local_video is not None,
         )
 
+        clock.mark("bookkeeping")
         source_ids = [int(message.id)]
         source_thumbnail_id = int(entry.get("source_thumbnail_message_id_to_delete") or 0)
         if source_thumbnail_id > 0 and source_thumbnail_id != int(message.id):
@@ -828,6 +840,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
         save_state_fn(state)
         print(f"  Deleting SOURCE after destination verification (video + associated thumbnail if present): {source_ids}")
         await delete_source_after_verify(client, source, source_ids)
+        clock.mark("delete")
         if source_thumbnail_id > 0 and source_thumbnail_id in source_ids[1:]:
             _mark_moved_source_thumbnail_deleted(db, source, source_thumbnail_id)
         remaining = await client.get_messages(source, ids=source_ids)
@@ -835,6 +848,7 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
             remaining = [remaining] if remaining else []
         if [m for m in remaining if m and getattr(m, "id", None)]:
             raise RuntimeError("Telegram deletion did not remove all requested source messages")
+        clock.mark("confirm")
         if db is not None:
             # canonical_peer_id is imported at module scope. Do not re-import it
             # inside this function: Python would treat it as a local throughout
@@ -851,6 +865,8 @@ async def _media_process_one_unlocked(client, source, destination, message, stat
         entry["status"] = "COMPLETE"
         save_state_fn(state)
         print(f"  MOVE COMPLETE: {prepared_display_name or safe_video_name(message)}")
+        _transfer_timing.TIMER.finish(clock)
+        print(f"  TIMING {clock.text()}")
         return True
 
 
@@ -953,6 +969,7 @@ async def _vertical_mobile_scan_impl(client, source, source_mode):
         except Exception as exc:
             wait = flood_wait_seconds(exc)
             if wait:
+                _transfer_timing.TIMER.flood(wait)
                 wait += 2
                 print(f"\n[SCAN] Telegram rate limit. Waiting {wait}s and resuming from msg {last_id}...")
                 await asyncio.sleep(wait)
@@ -1517,6 +1534,7 @@ async def transfer_scan_candidates(client, source, source_mode, orientation, sta
         except Exception as exc:
             wait = flood_wait_seconds(exc)
             if wait:
+                _transfer_timing.TIMER.flood(wait)
                 wait += 2
                 print(f"\n[SCAN] Telegram rate limit. Waiting {wait}s and resuming from msg {last_id}...")
                 await asyncio.sleep(wait)
@@ -1999,6 +2017,7 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
     transfer_job_state_save(state)
 
     total_complete = total_failed = total_skipped = total_duplicates = total_needs_snapshots = 0
+    _transfer_timing.TIMER.reset()   # the step timings of this job only
 
     try:
         # Critical behavior: finish source #1 completely before scanning source #2.
@@ -2200,6 +2219,8 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
                                 destination_duplicate_index.setdefault(duplicate_key, []).append(registered_id)
                         channel_moved += 1
                         total_complete += 1
+                        if total_complete % 10 == 0:
+                            print(f"  TRANSFER TIMING so far: {_transfer_timing.TIMER.text()}")
                     else:
                         channel_failed += 1
                         total_failed += 1
@@ -2214,6 +2235,7 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
                     print(f"  SKIPPED — NEEDS SNAPSHOTS: {safe_video_name(message)} (message {int(getattr(message, 'id', 0) or 0)}): {exc}")
                     print("  Source retained. The next item will be processed normally.")
                 except Exception as exc:
+                    _transfer_timing.TIMER.finish(_transfer_timing.ItemClock(), ok=False)
                     channel_failed += 1
                     total_failed += 1
                     entry["status"] = "ERROR"
@@ -2263,6 +2285,15 @@ async def telegram_transfer_job_main(*, job_id=None, resume_job_id=None, job_det
         print(f"Duplicates detected : {total_duplicates:,}")
         print(f"Failed items        : {total_failed:,}")
         print("Processing model    : one source channel at a time; one transfer item at a time")
+        # Where the time went, in the activity list too: the average per video, each step's share, and what Telegram's own slow-down requests cost.
+        if _transfer_timing.TIMER.items:
+            print(f"Timing              : {_transfer_timing.TIMER.text()}")
+            try:
+                getattr(globals().get("MEDIA_MANAGER_DB"), "log", lambda *_a, **_k: None)(
+                    f"Telegram Transfer Manager timing: {_transfer_timing.TIMER.text()}", "INFO", event="telegram_transfer.timing", job_id=job_id,
+                    details=_transfer_timing.TIMER.summary())
+            except Exception:
+                pass
     finally:
         if client is not None:
             try:

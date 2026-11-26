@@ -153,6 +153,7 @@ async def forward_without_tag_safe(client, destination, source, message):
         except Exception as exc:
             wait = flood_wait_seconds(exc)
             if wait:
+                _transfer_timing.TIMER.flood(wait)
                 print(f"\nTelegram flood wait detected: {wait}s. Waiting {wait + 2}s...")
                 await asyncio.sleep(wait + 2)
                 continue
@@ -179,6 +180,7 @@ async def upload_thumbnail_document(client, destination, path):
         except Exception as exc:
             wait = flood_wait_seconds(exc)
             if wait:
+                _transfer_timing.TIMER.flood(wait)
                 print(f"\nTelegram flood wait detected: {wait}s. Waiting {wait + 2}s...")
                 await asyncio.sleep(wait + 2)
                 continue
@@ -222,6 +224,7 @@ async def upload_thumbnail_bytes_document(client, destination, thumb_bytes: byte
         except Exception as exc:
             wait = flood_wait_seconds(exc)
             if wait:
+                _transfer_timing.TIMER.flood(wait)
                 print(f"\nTelegram flood wait detected: {wait}s. Waiting {wait + 2}s...")
                 await asyncio.sleep(wait + 2)
                 continue
