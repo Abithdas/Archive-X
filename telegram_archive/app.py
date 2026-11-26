@@ -186,6 +186,8 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
         # when Telegram is offline, credentials need setup, or the network is slow.
         content_automation.disarm_on_boot(db)
         jobs.start()          # restores interrupted jobs; Content Automation and Upload Local require explicit Resume/Cancel
+        from .core import db_maintenance
+        db_maintenance.start_background(db)   # gives free space back and refreshes statistics when idle (first pass after two minutes)
 
         # Upgrade existing snapshot directories locally. This startup task may
         # create validation.json/grid_sprite.jpg and repair the saved DB manifest

@@ -163,6 +163,13 @@ def main():
         print("  " + message, flush=True)
         db.log(message, "ERROR", event="database.recovered")
     print("  database steps: " + ", ".join(f"{k} {v}s" for k, v in getattr(db, "startup_steps", {}).items()), flush=True)
+    try:
+        from .core import db_maintenance
+        _t_vacuum = time.monotonic()
+        if db_maintenance.convert_small_database(db):   # a large database is left for Settings -> Compact database
+            print(f"  Database switched to incremental vacuum ({time.monotonic() - _t_vacuum:.1f}s, once)", flush=True)
+    except Exception as exc:
+        print(f"  Database maintenance skipped: {type(exc).__name__}: {exc}", flush=True)
     with _phase("asset store"):
         # The export of thumbnails and metadata to the user folders runs once after an upgrade. With a large library it read every media row and
         # wrote every thumbnail (15 s for 175,000 videos), and the window waited for it. Nothing needs it to be finished: it is a readable copy.

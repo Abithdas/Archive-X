@@ -421,6 +421,23 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
             'active_job_types': sorted({str(j.get('job_type') or '') for j in active_jobs}),
         }
 
+    @router.get('/api/settings/database')
+    async def database_settings(request: Request):
+        """The database file's size, the free space inside it, and whether it can be compacted now."""
+        require_auth(request)
+        from ..core import db_maintenance
+        return {'ok': True, **(await asyncio.to_thread(db_maintenance.status, db))}
+
+    @router.post('/api/settings/database/compact')
+    async def database_compact(request: Request):
+        """A full VACUUM: gives back all the unused space and switches the file to incremental vacuum. Writing waits while it runs."""
+        require_auth(request)
+        from ..core import db_maintenance
+        try:
+            return await asyncio.to_thread(db_maintenance.compact, db)
+        except db_maintenance.MaintenanceRefused as exc:
+            raise HTTPException(409, str(exc))
+
     @router.post('/api/settings/storage/browse')
     async def browse_storage_folder(request: Request):
         require_auth(request)

@@ -162,6 +162,8 @@ class Database:
             raise
 
     def _open_steps(self):
+        from . import db_maintenance
+        db_maintenance.make_new_database_incremental(self.conn)   # only possible before the first table exists; an existing file is switched by a VACUUM
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA synchronous=NORMAL")
         self.conn.execute("PRAGMA busy_timeout=5000")

@@ -7,6 +7,7 @@ import { Icon } from '@/design/Icon'
 import { Switch } from '@/design/Switch'
 import { cn } from '@/design/cn'
 import { formatBytes } from '@/design/format'
+import { DatabasePanel } from './DatabasePanel'
 import { useBackupInfo, useCacheUsage, useStorageInfo } from './queries'
 import {
   BACKUP_TYPES, BUDGETS, DEFAULT_POLICY, PROFILES, RAMS, READAHEADS, RETENTIONS, backupFrom, backupPasswordProblem, backupRows, backupSettingsBody, backupStatusLine, moveBlocked, moveConfirmText, moveProblem, moveWarning,
@@ -210,6 +211,7 @@ export function StoragePanel() {
         </div>
       </section>
 
+      <DatabasePanel />
       <section aria-label="Backup and restore" className={BOX}>
         <h3 className="mb-4 flex items-center gap-3 text-xl font-extrabold"><span className="text-accent"><Icon name="database" className="size-5" /></span>Backup &amp; Restore</h3>
         <div className="grid gap-3">
