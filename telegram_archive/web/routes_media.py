@@ -102,7 +102,8 @@ def register_media_routes(
                 _swallowed_note("routes_media.snapshot_suggestions_run.models")
                 extract = None
             found = snapshot_identity.identify_video(db, media_id, extract=extract)
-            return {"suggestions": snapshot_identity.suggestions(db, media_id), "frames": found["frames"], "faces_checked": extract is not None}
+            return {"suggestions": snapshot_identity.suggestions(db, media_id), "frames": found["frames"], "faces_checked": extract is not None,
+                    "studio_has": found.get("studio_has", False), "people_has": found.get("people_has", False), "faces_known": found.get("faces_known", 0), "marks_known": found.get("marks_known", 0)}
         return await asyncio.to_thread(work)
 
     @router.post("/api/media/snapshot-suggestions/reject")

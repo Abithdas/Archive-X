@@ -22,7 +22,11 @@ describe('snapshot suggestions', () => {
   })
   it('reports the run honestly, including unchecked faces', () => {
     expect(runNote({ suggestions: [], frames: 0 })).toMatch(/no snapshots/)
-    expect(runNote({ suggestions: [stud], frames: 36, faces_checked: true })).toBe('Found 1 suggestion.')
-    expect(runNote({ suggestions: [], frames: 36, faces_checked: false })).toMatch(/Nothing recognised.*not on this PC/)
+    expect(runNote({ suggestions: [stud], frames: 36, faces_checked: true })).toBe('Found 1 suggestion from 36 snapshots.')
+    expect(runNote({ suggestions: [], frames: 36, faces_checked: false })).toMatch(/found nothing.*not on this PC/)
+    expect(runNote({ suggestions: [], frames: 5 })).toMatch(/Only 5 snapshots.*at least 12/)
+    expect(runNote({ suggestions: [], frames: 36, faces_checked: true, faces_known: 0, marks_known: 0 })).toMatch(/no performer has a reference face.*no studio watermark is known/)
+    expect(runNote({ suggestions: [], frames: 36, faces_checked: true, faces_known: 40, marks_known: 3 })).toMatch(/no face matched any of the 40 known faces; no watermark matched any of the 3 known studios/)
+    expect(runNote({ suggestions: [], frames: 36, faces_checked: true, people_has: true, studio_has: true })).toMatch(/already has performers.*already has a studio/)
   })
 })

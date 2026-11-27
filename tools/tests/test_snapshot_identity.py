@@ -278,3 +278,24 @@ def test_the_limit_bounds_how_many_videos_one_run_looks_at(tmp_path):
         make_video(db, tmp_path, 210 + i)
     out = si.run(db, limit=2, extract=Faces(lambda path: []))
     assert out["videos"] == 2
+
+
+def test_a_video_that_only_has_the_unknown_placeholders_is_still_looked_at(tmp_path):
+    """Unknown Performer / Unknown Studio mean nobody was found yet: they must not make the video look 'already named'."""
+    db = private_db(tmp_path)
+    a = studio(db, "Studio A")
+    for i in range(4):
+        link_studio(db, make_video(db, tmp_path, 300 + i, "BRAZZ"), a)
+    p = performer(db, "Real Person")
+    add_reference(db, p, vec(21))
+    unknown_perf, unknown_studio = performer(db, "Unknown Performer"), studio(db, "Unknown Studio")
+    vid = make_video(db, tmp_path, 310, "BRAZZ")
+    with db.lock:
+        db.conn.execute("INSERT INTO video_performers(video_id,performer_id) VALUES (?,?)", (vid, unknown_perf))
+        db.conn.execute("INSERT INTO video_studios(video_id,studio_id,confidence) VALUES (?,?,1.0)", (vid, unknown_studio))
+        db.conn.commit()
+    si.learn_studio_marks(db)
+    found = si.identify_video(db, vid, extract=Faces(lambda path: [vec(21)]))
+    assert found["people_has"] is False and found["studio_has"] is False and found["faces_known"] >= 1
+    kinds = {(s["kind"], s["id"]) for s in si.suggestions(db, vid)}
+    assert ("performer", p) in kinds and ("studio", a) in kinds

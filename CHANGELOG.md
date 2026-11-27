@@ -4,6 +4,9 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Edit video** shows the video it is about: its picture and four snapshots at a readable size, the file name, the title, performers and studio it has now, its length, size, picture size, channel and message number. **Matched metadata** is a full-width section of larger cards (provider picture, title, studio and date, cast, how well it matches) instead of a cramped column, with a clear "Use this match" button.
+- **Check snapshots** now says why it found nothing (too few snapshots, face models missing, no known faces or studio watermarks yet, or the video already has performers or a studio). A video that only had Unknown Performer / Unknown Studio used to be skipped as "already named"; it is now looked at.
+
 - **Photos: select several at once.** The **Select** button in the Photos tools turns the tiles into tick boxes. A bar then offers **Add to a person…** (each photo with a single face is added; photos with none or several faces are left out and counted) and **Delete…** (remove from Archive X, delete the files from this PC, or delete from Telegram too, one after another, with failures reported).
 
 - **Local folders are no longer scanned by themselves when the app opens.** The automatic re-check (30 seconds after start and every 15 minutes: file listing, probing, previews and name lookups for every folder, photos included) kept large libraries busy and the app slow to open. A folder is looked through when you add it, with **Scan now** on its row in Settings, Local files, or from the Transfers page. The old behaviour is still there for anyone who sets `ARCHIVE_X_LOCAL_RESCAN=1`.

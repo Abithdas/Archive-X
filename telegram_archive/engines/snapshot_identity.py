@@ -381,20 +381,25 @@ def _mark_looked(db, media_id: int, face_refs: int, studio_marks: int) -> None:
 
 def identify_video(db, media_id: int, *, extract: Callable[[str], list[list[float]]] | None, refs=None, studios=None) -> dict:
     """Suggest a studio and performers for one video from its snapshots. Never changes the video itself. Returns what was suggested."""
-    result = {"studio": [], "performers": [], "frames": 0}
+    result = {"studio": [], "performers": [], "frames": 0, "studio_has": False, "people_has": False, "faces_known": 0, "marks_known": 0}
     with db.lock:
         ref = video_ref(db.conn, media_id)
-        linked_studio = db.conn.execute("SELECT 1 FROM video_studios WHERE video_id=? LIMIT 1", (int(media_id),)).fetchone() is not None
+        # Unknown Performer / Unknown Studio are placeholders for "nobody found yet": a video that only has those is exactly the one to look at.
+        linked_studio = db.conn.execute(
+            "SELECT 1 FROM video_studios vs JOIN studios s ON s.id=vs.studio_id WHERE vs.video_id=? AND LOWER(TRIM(s.name))<>'unknown studio' LIMIT 1", (int(media_id),)).fetchone() is not None
         linked_people = {int(r[0]) for r in db.conn.execute(
-            "SELECT performer_id FROM video_performers WHERE video_id=? UNION SELECT performer_id FROM local_video_performers WHERE video_id=?",
+            "SELECT vp.performer_id FROM video_performers vp JOIN performers p ON p.id=vp.performer_id WHERE vp.video_id=? AND LOWER(TRIM(p.name))<>'unknown performer' "
+            "UNION SELECT lvp.performer_id FROM local_video_performers lvp JOIN performers p ON p.id=lvp.performer_id WHERE lvp.video_id=? AND LOWER(TRIM(p.name))<>'unknown performer'",
             (int(media_id), int(media_id))).fetchall()}
     if ref is None:
         return result
     files = frame_files(*ref)
     result["frames"] = len(files)
+    result["studio_has"], result["people_has"] = linked_studio, bool(linked_people)
     if len(files) < MIN_FRAMES:
         return result
     studios = studios if studios is not None else studio_references(db)
+    result["marks_known"] = len(studios)
     if extract is not None and refs is None and not linked_people:
         refs = _references(db)
     if not linked_studio:
@@ -404,6 +409,7 @@ def identify_video(db, media_id: int, *, extract: Callable[[str], list[list[floa
             result["studio"].append(m)
     if extract is not None and not linked_people:
         ids, matrix = refs
+        result["faces_known"] = len(ids or [])
         if matrix is not None and ids:
             per_frame: list[list[list[float]]] = []
             for path in files:

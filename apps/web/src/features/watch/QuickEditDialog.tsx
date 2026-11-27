@@ -6,7 +6,7 @@ import type { LibraryItem } from '@/api/types'
 import { Dialog } from '@/design/Dialog'
 import { Icon } from '@/design/Icon'
 import { cn } from '@/design/cn'
-import { formatDuration } from '@/features/library/format'
+import { formatBytes, formatDuration } from '@/features/library/format'
 import { useDebounced } from '@/features/library/useDebounced'
 import { LOOKUP_FAILED, LOOKUP_IDLE, LOOKUP_NEEDS_INPUT, LOOKUP_SEARCHING, applyMatch, candidateView, hintChips, initialPeople, initialStudio, lookupAllowed, lookupBody, lookupStatus, originLabel, pickPerformer, pickStudio, safeHttpUrl, samePerformer, saveBody, saveOutcome, searchItems, stagedItems, type CaptionSync, type Item, type LocalHit, type LookupResult, type Match, type Person, type ProviderHit, type Studio } from './quickedit'
 import { ClearField } from '@/design/ClearField'
@@ -35,6 +35,39 @@ function Picker({ kind, q, onQ, items, loading, onPick }: { kind: 'performer' | 
           )) : <p className="p-3 text-sm text-muted">No matches in local catalogue or configured providers.</p>}
       </div>
     </>
+  )
+}
+
+/** The video being edited, so the rest of the dialog can be checked against it: its picture and snapshots, its file name, what it is called and tagged with now, and its size. */
+function ThisVideo({ item }: { item: LibraryItem }) {
+  const cid = encodeURIComponent(String(item._cid))
+  const [frames, setFrames] = useState([0, 11, 23, 35])
+  const rows: Array<[string, string]> = [
+    ['File name', item.filename || '—'],
+    ['Title now', item.name && item.name !== item.filename ? item.name : '(same as the file name)'],
+    ['Performers now', item.performers?.length ? item.performers.join(', ') : 'None'],
+    ['Studio now', item.studio || item.studios?.join(', ') || 'None'],
+    ['Length', item.duration ? formatDuration(item.duration) : '—'],
+    ['Size', item.size ? formatBytes(item.size) : '—'],
+    ['Picture', item.width && item.height ? `${item.width}×${item.height}${item.resolution_category ? ` · ${item.resolution_category}` : ''}${item.codec ? ` · ${item.codec}` : ''}` : '—'],
+    ['Channel', item.channel_title || '—'],
+    ['Message ID', String(item.id)],
+  ]
+  return (
+    <section className={PANE} aria-label="This video">
+      <h3 className="text-sm font-bold">This video</h3>
+      <div className="grid gap-3 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+        <div className="grid content-start gap-2">
+          <img src={`/api/thumb/${cid}/${item.id}`} alt={`Picture of ${item.name}`} className="aspect-video w-full rounded-xl bg-surface-3 object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
+          <div className="grid grid-cols-4 gap-1.5" aria-label="Snapshots of this video">
+            {frames.map((n) => <img key={n} src={`/api/play/preview-frame/${cid}/${item.id}/${n}`} alt={`Snapshot ${n + 1} of 36`} loading="lazy" className="aspect-video w-full rounded-md bg-surface-3 object-cover" onError={() => setFrames((cur) => cur.filter((x) => x !== n))} />)}
+          </div>
+        </div>
+        <dl className="m-0 grid content-start gap-x-4 gap-y-1.5 text-sm sm:grid-cols-[auto_minmax(0,1fr)]">
+          {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-xs font-semibold text-muted">{k}</dt><dd className="m-0 min-w-0 [overflow-wrap:anywhere]">{v}</dd></div>)}
+        </dl>
+      </div>
+    </section>
   )
 }
 
@@ -122,7 +155,6 @@ export function QuickEditDialog({ item, onDone }: { item: LibraryItem; onDone: (
     } finally { setSaving(false) }
   }
 
-  const summary = [item.filename || item.name || 'Video', item.duration ? formatDuration(item.duration) : ''].filter(Boolean).join(' · ')
   return (
     <Dialog wide open onClose={() => !saving && onDone()} title="Edit video"
       footer={
@@ -133,7 +165,7 @@ export function QuickEditDialog({ item, onDone }: { item: LibraryItem; onDone: (
         </div>
       }>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-        <p className="text-xs text-muted">{summary}</p>
+        <ThisVideo item={item} />
         <section className={PANE} aria-label="Title">
           <label htmlFor="qe-title" className="text-xs font-semibold text-muted">Title</label>
           <div className="flex gap-2">
@@ -150,7 +182,7 @@ export function QuickEditDialog({ item, onDone }: { item: LibraryItem; onDone: (
           onAddPerformer={(p) => { setPerformers((cur) => pickPerformer(cur, { ...p, kind: 'local' })); setPerformerPicked(true) }}
           onSetStudio={(s) => { setStudio(pickStudio({ ...s, kind: 'local' })); setStudioPicked(true) }} />
 
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-3">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-2">
           <section className={PANE} aria-label="Performer">
             <h3 className="text-sm font-bold">Performer</h3>
             <div role="group" aria-label="Selected performers" className="flex min-h-9 flex-wrap gap-1.5">
@@ -176,31 +208,33 @@ export function QuickEditDialog({ item, onDone }: { item: LibraryItem; onDone: (
             </div>
             <Picker kind="studio" q={sq} onQ={setSq} items={sItems} loading={sLoading} onPick={(i) => pick('studio', i)} />
           </section>
-
-          <section className={PANE} aria-label="Matched metadata">
-            <h3 className="text-sm font-bold">Matched metadata</h3>
-            <div className="grid max-h-72 gap-2 overflow-y-auto">
-              {matches.length ? matches.map((m, i) => {
+        </div>
+        <section className={PANE} aria-label="Matched metadata">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-sm font-bold">Matched metadata{matches.length ? ` · ${matches.length}` : ''}</h3>
+            <p role="status" aria-live="polite" className="text-[11px] text-muted">{status === 'Loading current metadata…' && !looking ? LOOKUP_IDLE : status}</p>
+          </div>
+          {matches.length ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {matches.map((m, i) => {
                 const v = candidateView(m)
+                const cast = (m.performer_details?.length ? m.performer_details : m.performers ?? []).map((p) => (typeof p === 'string' ? p : String((p as { name?: unknown })?.name ?? ''))).filter(Boolean)
                 return (
-                  <article key={i} className="grid gap-2 rounded-xl border border-line p-2.5">
-                    <div className="flex gap-2.5">
-                      {safeHttpUrl(v.thumb) ? <img src={v.thumb} alt="" loading="lazy" className="h-12 w-20 shrink-0 rounded-lg bg-surface-2 object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /> : <span className="h-12 w-20 shrink-0 rounded-lg bg-surface-2" aria-hidden="true" />}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold" title={v.title}>{v.title}</p>
-                        <p className="truncate text-[11px] text-muted">{v.detail}</p>
-                        <p className="truncate text-[11px] text-muted">{v.cast}</p>
-                      </div>
-                      <span className={cn('h-fit shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold', v.tone === 'good' ? 'bg-good/15 text-good' : v.tone === 'warn' ? 'bg-warn/15 text-warn' : v.tone === 'bad' ? 'bg-bad/15 text-bad' : 'bg-surface-3 text-muted')}>{v.confidence}</span>
+                  <article key={i} className="grid content-start gap-2 rounded-xl border border-line p-2.5">
+                    {safeHttpUrl(v.thumb) ? <img src={v.thumb} alt={`Picture for ${v.title}`} loading="lazy" referrerPolicy="no-referrer" className="aspect-video w-full rounded-lg bg-surface-2 object-cover" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /> : <span className="grid aspect-video w-full place-items-center rounded-lg bg-surface-2 text-xs text-muted">No picture from the provider</span>}
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="min-w-0 text-sm font-bold [overflow-wrap:anywhere]" title={v.title}>{v.title}</p>
+                      <span className={cn('h-fit shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold', v.tone === 'good' ? 'bg-good/15 text-good' : v.tone === 'warn' ? 'bg-warn/15 text-warn' : v.tone === 'bad' ? 'bg-bad/15 text-bad' : 'bg-surface-3 text-muted')} title="How well it matches">{v.confidence}</span>
                     </div>
-                    <button type="button" onClick={() => apply(m)} className="h-9 rounded-lg border border-line-2 text-sm font-semibold hover:bg-fg/5" aria-label={`Apply match: ${v.title}`}>Apply</button>
+                    <p className="text-xs text-muted [overflow-wrap:anywhere]">{v.detail}</p>
+                    <p className="text-xs [overflow-wrap:anywhere]"><b className="text-muted">Performers </b>{cast.length ? cast.slice(0, 8).join(', ') : v.cast}</p>
+                    <button type="button" onClick={() => apply(m)} className="h-9 rounded-lg bg-accent text-sm font-bold text-accent-fg" aria-label={`Apply match: ${v.title}`}>Use this match</button>
                   </article>
                 )
-              }) : <p className="text-sm text-muted">No matching provider video data.</p>}
+              })}
             </div>
-            <p role="status" aria-live="polite" className="text-[11px] text-muted">{status === 'Loading current metadata…' && !looking ? LOOKUP_IDLE : status}</p>
-          </section>
-        </div>
+          ) : <p className="text-sm text-muted">{looking ? 'Searching the providers…' : 'No matching provider video data yet. Change the title, performer or studio above and it searches again.'}</p>}
+        </section>
       </div>
     </Dialog>
   )
