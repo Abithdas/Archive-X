@@ -17,6 +17,10 @@ def write(version: str, commit: str = "", root: Path = ROOT) -> None:
         '"""The version of this build, written by tools/release/write_version.py."""\n'
         f"VERSION = {version!r}\nCOMMIT = {commit[:12]!r}\n", encoding="utf-8")
     conf = root / "apps" / "desktop" / "src-tauri" / "tauri.conf.json"
+    cargo = root / "apps" / "desktop" / "src-tauri" / "Cargo.toml"
+    if version != "dev" and cargo.is_file():     # the crate's own version too: it was what the desktop shell reported as its version (0.1.0)
+        text = cargo.read_text(encoding="utf-8")
+        cargo.write_text(re.sub(r'(?m)^version = "[^"]*"', f'version = "{version}"', text, count=1), encoding="utf-8")
     if version != "dev" and conf.is_file():
         data = json.loads(conf.read_text(encoding="utf-8"))
         data["version"] = version

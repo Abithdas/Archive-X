@@ -41,3 +41,12 @@ def test_nonsense_is_refused(tmp_path):
 def test_the_backend_reads_its_version_from_that_one_file():
     out = subprocess.run([sys.executable, "-c", "import telegram_archive.config as c; print(c.APP_VERSION, bool(c.APP_COMMIT is not None))"], cwd=ROOT, capture_output=True, text=True, timeout=60)
     assert out.returncode == 0 and out.stdout.split()[0] == "dev"
+
+
+def test_a_release_number_also_goes_into_the_crate_so_the_shell_does_not_report_0_1_0(tmp_path):
+    root = _tree(tmp_path)
+    cargo = root / "apps" / "desktop" / "src-tauri" / "Cargo.toml"
+    cargo.write_text('[package]\nname = "archive-x"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { version = "2" }\n')
+    write_version.write("30.2.3", "abc", root)
+    text = cargo.read_text()
+    assert 'version = "30.2.3"' in text and 'tauri = { version = "2" }' in text and "0.1.0" not in text

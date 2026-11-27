@@ -79,6 +79,9 @@ fn now_secs() -> u64 {
 
 pub fn spawn_checks(app: AppHandle, stop_backend: fn(&AppHandle)) {
     let _ = STOPPER.set(stop_backend);
+    // The version the app was built as: tauri.conf.json, which a release rewrites. Cargo's own package version (0.1.0) was shown as the current version.
+    let built = app.package_info().version.to_string();
+    change(|s| s.current = built);
     if std::env::var("ARCHIVE_X_NO_UPDATE_CHECK").map(|v| v == "1").unwrap_or(false) {
         return;
     }
