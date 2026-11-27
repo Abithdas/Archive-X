@@ -12,15 +12,16 @@ export function TitleStage({ backdrop, back, onBack, backLabel, left, panel, pan
   backdrop?: string; back: string; onBack?: () => void; backLabel: string; left: ReactNode; panel?: ReactNode; panelLabel: string
 }) {
   const accent = useArtworkAccent(backdrop)   // the page wears its artwork's colour (the accent of everything inside it), unless that is switched off in Settings, Appearance
+  // fills what is left under the header (whatever its height), so on a wide window the page itself never scrolls
   return (
-    <div style={accent} className="relative isolate min-h-[calc(100dvh-64px)] overflow-hidden lg:h-[calc(100dvh-64px)]">
+    <div style={accent} className="relative isolate flex min-h-[70dvh] flex-1 flex-col overflow-hidden lg:min-h-0">
       {backdrop ? (
         <>
           <img src={backdrop || PLACEHOLDER} alt="" aria-hidden="true" className="mo-fade-in absolute inset-0 -z-20 size-full object-cover object-[70%_20%]" />
           <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,color-mix(in_srgb,var(--color-bg)_96%,transparent)_0%,color-mix(in_srgb,var(--color-bg)_70%,transparent)_38%,color-mix(in_srgb,var(--color-bg)_12%,transparent)_72%),linear-gradient(0deg,color-mix(in_srgb,var(--color-bg)_95%,transparent)_0%,transparent_45%)]" />
         </>
       ) : null}
-      <div className="grid gap-6 px-4 pb-8 pt-4 sm:px-10 lg:h-full lg:grid-rows-[minmax(0,1fr)] lg:pb-4 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] lg:gap-10">
+      <div className="grid flex-1 gap-6 px-4 pb-8 pt-4 sm:px-10 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)] lg:pb-4 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] lg:gap-10">
         <div className="flex min-h-[60vh] flex-col lg:min-h-0 lg:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Link to={back} onClick={onBack} aria-label={backLabel} className="grid size-10 place-items-center self-start rounded-full bg-fg/10 text-fg backdrop-blur transition-colors hover:bg-fg/20"><Icon name="arrow-left" className="size-5" /></Link>
           {left}
