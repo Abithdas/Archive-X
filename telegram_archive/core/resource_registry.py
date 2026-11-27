@@ -530,7 +530,7 @@ def mark_media_entity_complete(db, media_ids: list[int] | tuple[int, ...] | None
 def settle_lookup(db, media_ids: list[int] | tuple[int, ...], *, unknown: bool = True) -> int:
     """A video the providers were asked about is finished with its lookup, matched or not: its metadata step is COMPLETE and a video with no performer or
     studio gets the Unknown Performer and Unknown Studio, so it can be shown in the Library (and be corrected by hand later). A lookup that FAILED (a provider
-    that could not be reached) must not be settled: it is tried again. `unknown=False` (movies and shows) leaves the Unknown records out: they are the adult library's fallback."""
+    that could not be reached) is settled the same way so the video shows, but its identification stays open, so the next run asks again. `unknown=False` (movies and shows) leaves the Unknown records out: they are the adult library's fallback."""
     mids = [int(x) for x in media_ids if int(x) > 0]
     if not mids or not hasattr(db, "lock") or not hasattr(db, "conn"):
         return 0

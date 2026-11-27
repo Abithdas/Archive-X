@@ -355,6 +355,11 @@ def run(db, channel: str | None = None, fetch=None) -> dict:
                     _state["reason"] = explain(exc, "TMDB") or f"{type(exc).__name__}: {exc}"[:160]
                     db.log(f"Identify failed for media {row['id']}: {_state['reason']}"[:300], "WARN")
                 _state["failed"] += 1
+                # TMDB could not be reached: the video is still shown (under its file name, unidentified) and stays on the list, so the next run with a working connection names it.
+                try:
+                    settle_lookup(db, [int(row["id"])], unknown=False)
+                except Exception:
+                    _swallowed_note("screen_identify.run.settle")
             _state["done"] += 1
         _state["requests"] = screen.calls
         return {"ok": True, **_state}

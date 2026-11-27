@@ -88,6 +88,12 @@ def run(db, channel: str, retry: bool = True) -> dict:
                     _state["reason"] = explain(exc, "StashDB / ThePornDB") or f"{type(exc).__name__}: {exc}"[:160]
                     db.log(f"Identify failed for {row.get('filename')}: {_state['reason']}"[:300], "WARN")
                 _state["failed"] += 1
+                # The databases could not be reached (a blocked network, a provider down): the video still shows under Unknown Performer and Unknown Studio, as any video
+                # that is not identified does, and it stays on the list to look up, so the next scan with a working connection names it.
+                try:
+                    settle_lookup(db, [int(row["id"])])
+                except Exception:
+                    _swallowed_note("local_identify_adult.run.settle")
             _state["done"] += 1
         return {"ok": True, **_state}
     finally:
