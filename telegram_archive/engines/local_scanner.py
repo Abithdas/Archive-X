@@ -76,6 +76,8 @@ def walk_files(root: Path, *, recursive: bool, excluded: list[str]):
 
 def _image_info(path: str) -> tuple[int, int, str]:
     from PIL import Image
+    from ..core.imaging import allow_large_images
+    allow_large_images()   # a 150-megapixel picture is a picture, not a decompression bomb
     with Image.open(path) as im:   # opens the header only
         w, h = im.size
         fmt = (im.format or "").lower()

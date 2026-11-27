@@ -264,7 +264,8 @@ async def run(ctx) -> dict[str, Any]:
         try:
             path = await _ensure_photo_file(ctx, row)
             def work():
-                with Image.open(path) as im:
+                from ..core.imaging import open_reduced
+                with open_reduced(path, (2400, 2400)) as im:
                     im = ImageOps.exif_transpose(im).convert("RGB")
                     return model.tags(im, largest_face(im, detector))
             await ctx.blocking(store, ctx.db, pid, await ctx.blocking(work))

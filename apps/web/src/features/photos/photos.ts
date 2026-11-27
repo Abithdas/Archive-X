@@ -162,9 +162,16 @@ export const deletePath = (p: Pick<Photo, 'channel_id' | 'message_id'>) => `/api
 export const deleteStatus = (mode: Removal, name: string) => (mode === 'telegram' ? `Deleting ${name} from Telegram and Archive X…` : mode === 'file' ? `Deleting the file ${name}…` : `Removing ${name} from Archive X…`)
 export const deleteDone = (mode: Removal, r: { message?: string }) => r.message || (mode === 'telegram' ? 'Photo deleted from Archive X and Telegram.' : mode === 'file' ? 'Photo and its file deleted.' : 'Photo removed from Archive X.')
 
+/** A picture this large (about 40 megapixels and up) is not decoded in full by the viewer: a browser needs about 4 bytes a pixel for it (600 MB at 150 MP), several at once when neighbours are fetched ahead,
+ * and the tab stalls. The viewer shows the server's large preview of it instead (2880 px, kept at high quality). */
+export const HUGE_PIXELS = 40_000_000
+export const isHuge = (p: { width?: number | null; height?: number | null }) => Number(p.width || 0) * Number(p.height || 0) > HUGE_PIXELS
+/** What the viewer loads for a photo, best first: the original unless it is huge, then the preview. */
+export const viewUrls = (p: { width?: number | null; height?: number | null; image_url?: string; preview_url?: string }): string[] => (isHuge(p) ? [p.preview_url] : [p.image_url, p.preview_url]).filter((u): u is string => Boolean(u))
+
 /** Pictures worth fetching ahead while one photo is open: the next two and the previous one, the full image first and the preview as a quick fallback. */
-export function neighborUrls(items: ReadonlyArray<{ preview_url?: string; image_url?: string }>, index: number): string[] {
-  return [index + 1, index + 2, index - 1].flatMap((i) => [items[i]?.image_url, items[i]?.preview_url]).filter((u): u is string => Boolean(u))
+export function neighborUrls(items: ReadonlyArray<{ preview_url?: string; image_url?: string; width?: number | null; height?: number | null }>, index: number): string[] {
+  return [index + 1, index + 2, index - 1].flatMap((i) => (items[i] ? viewUrls(items[i]!) : [])).filter((u): u is string => Boolean(u))
 }
 
 /** Mouse wheel zoom: a smooth exponential factor (same feel as the classic viewer), whatever unit the wheel reports. */

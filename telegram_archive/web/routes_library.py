@@ -1405,8 +1405,9 @@ def register_library_routes(
             pass
 
         def _build_preview() -> Path:
-            from ..engines.photo_cache import render_jpeg_derivative as _render, PREVIEW_BOX as _box, PREVIEW_QUALITY as _q
-            _render(original, target, _box, _q, (16, 19, 25))
+            from ..engines.photo_cache import render_jpeg_derivative as _render, PREVIEW_BOX as _box, PREVIEW_QUALITY as _q, preview_box_for
+            box, quality = preview_box_for(original, _box, _q)    # a very large original gets a larger, finer preview: it is shown instead of the original
+            _render(original, target, box, quality, (16, 19, 25))
             return target
 
         try:

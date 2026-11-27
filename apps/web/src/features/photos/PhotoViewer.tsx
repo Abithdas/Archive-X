@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { cn } from '@/design/cn'
 import { firstLoaded, loadImage } from './imageCache'
 import { IconClose, IconFit, IconFullscreen, IconNext, IconPause, IconPlay, IconPrev, IconRotateLeft, IconRotateRight, IconZoomIn, IconZoomOut } from './ViewerIcons'
-import { MIN_REL, SLIDE_MS, SWIPE_PX, anchorPan, paddedBox, clampPan, clampScale, pinchScale, wheelFactor, wheelSteps, counterText, favKey, fitScale, hud, neighborUrls, photoName, rotate, stepIndex, stripRange, zoomBy, zoomPercent, type Photo } from './photos'
+import { MIN_REL, SLIDE_MS, SWIPE_PX, anchorPan, paddedBox, clampPan, clampScale, pinchScale, wheelFactor, wheelSteps, counterText, favKey, fitScale, hud, isHuge, neighborUrls, photoName, viewUrls, rotate, stepIndex, stripRange, zoomBy, zoomPercent, type Photo } from './photos'
 import { LikeHeart } from '@/design/LikeHeart'
 import { IconSwap } from '@/design/IconSwap'
 
@@ -68,14 +68,14 @@ export function PhotoViewer({ items, index, total, favorites, onIndex, onClose, 
     let live = true
     setSlow(false)
     const t = setTimeout(() => { if (live) setSlow(true) }, 900)
-    const urls = [item.image_url, item.preview_url].filter(Boolean)
+    const urls = viewUrls(item)
     void firstLoaded(urls, referrerPolicy).then(({ url, img }) => {
       if (!live) return
       clearTimeout(t); setSlow(false)
       setAnim(false); setMul(1); setRot(0); setPan({ x: 0, y: 0 })
       setNat({ w: item.width || img.naturalWidth, h: item.height || img.naturalHeight })
       setShown({ key, src: url, alt: photoName(item) })
-      if (url !== item.image_url && item.image_url) void loadImage(item.image_url, referrerPolicy).then(() => { if (live) setShown({ key, src: item.image_url, alt: photoName(item) }) }).catch(() => undefined)
+      if (!isHuge(item) && url !== item.image_url && item.image_url) void loadImage(item.image_url, referrerPolicy).then(() => { if (live) setShown({ key, src: item.image_url, alt: photoName(item) }) }).catch(() => undefined)
     }).catch(() => { if (live) { clearTimeout(t); setSlow(false) } })
     return () => { live = false; clearTimeout(t) }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -52,7 +52,8 @@ def render_jpeg_derivative(source_path: Path, target: Path, box: tuple[int, int]
     import tempfile
     from PIL import Image, ImageOps
 
-    with Image.open(source_path) as source:
+    from ..core.imaging import open_reduced
+    with open_reduced(source_path, box) as source:   # a very large JPEG is decoded at a reduced size straight away
         image = ImageOps.exif_transpose(source)
         image.seek(0)
         has_alpha = "A" in image.getbands() or image.mode in ("P", "LA", "PA") and "transparency" in image.info
@@ -78,6 +79,18 @@ def render_jpeg_derivative(source_path: Path, target: Path, box: tuple[int, int]
             os.replace(temp, target)
         finally:
             temp.unlink(missing_ok=True)
+
+
+HUGE_PREVIEW_BOX = (2880, 2880)
+HUGE_PREVIEW_QUALITY = 90
+HUGE_AT_PIXELS = 24_000_000
+
+
+def preview_box_for(path: Path, box: tuple[int, int] = PREVIEW_BOX, quality: int = PREVIEW_QUALITY) -> tuple[tuple[int, int], int]:
+    """The preview size and quality for this original: the usual 1440 px, or 2880 px at a finer quality when it is 24 megapixels or more (the viewer shows the
+    preview of such a picture instead of its original, which a browser cannot decode comfortably)."""
+    width, height = _dimensions(path)
+    return ((HUGE_PREVIEW_BOX, HUGE_PREVIEW_QUALITY) if width * height >= HUGE_AT_PIXELS else (box, quality))
 
 
 def photo_preview_path(channel_id: str, message_id: int) -> Path:
@@ -142,9 +155,17 @@ def _sha256(path: Path) -> str:
 def _dimensions(path: Path) -> tuple[int, int]:
     try:
         from PIL import Image, ImageOps
+        from ..core.imaging import allow_large_images
+        allow_large_images()
         with Image.open(path) as source:
-            image = ImageOps.exif_transpose(source)
-            return int(image.width), int(image.height)
+            # the header is enough for the size; only a picture that carries a rotation needs its sides swapped
+            width, height = int(source.width), int(source.height)
+            try:
+                if source.getexif().get(0x0112, 1) in (5, 6, 7, 8):
+                    width, height = height, width
+            except Exception:
+                pass
+            return width, height
     except Exception:
         return 0, 0
 

@@ -143,7 +143,8 @@ def _extract_faces(image_path: str, crop_dir_path: str, detector, recognizer) ->
     source_path = Path(image_path)
     crop_dir = Path(crop_dir_path)
     crop_dir.mkdir(parents=True, exist_ok=True)
-    with Image.open(source_path) as source:
+    from ..core.imaging import open_reduced
+    with open_reduced(source_path, (3200, 3200)) as source:
         source = ImageOps.exif_transpose(source)
         try:
             source.seek(0)

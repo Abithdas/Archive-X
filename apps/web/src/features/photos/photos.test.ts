@@ -146,3 +146,16 @@ describe('face scope filter', () => {
     expect(p.get('face_scope')).toBe('no_face')
   })
 })
+
+describe('very large photos', () => {
+  const big = { width: 14204, height: 10652, image_url: '/i', preview_url: '/p' }
+  const small = { width: 4000, height: 3000, image_url: '/i2', preview_url: '/p2' }
+  it('are not decoded in full by the viewer: only their preview is loaded, for the photo and for its neighbours', async () => {
+    const { isHuge, viewUrls, neighborUrls } = await import('./photos')
+    expect(isHuge(big)).toBe(true)
+    expect(isHuge(small)).toBe(false)
+    expect(viewUrls(big)).toEqual(['/p'])
+    expect(viewUrls(small)).toEqual(['/i2', '/p2'])
+    expect(neighborUrls([small, small, big, big], 1)).toEqual(['/p', '/p', '/i2', '/p2'])      // the next two are huge (preview only), the previous one is not
+  })
+})
