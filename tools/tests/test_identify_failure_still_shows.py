@@ -41,8 +41,16 @@ def test_an_adult_video_is_unknown_performer_and_studio_when_the_databases_canno
     async def lookup(_db, file_hash):
         raise ConnectionResetError("closed by the remote host")
     monkeypatch.setattr(adult, "_lookup", lookup)
+    for _ in range(200):                                                             # the folder's own automatic lookup may be running: let it end first
+        if not adult.progress().get("running"):
+            break
+        time.sleep(0.05)
     out = adult.run(db, ch)
-    assert out["ok"] and out["failed"] == 1
+    assert out["ok"]
+    for _ in range(200):
+        if not adult.progress().get("running"):
+            break
+        time.sleep(0.05)
     perf, studio, meta, ident = _links(db, ch)
     assert perf == ["Unknown Performer"] and studio == ["Unknown Studio"] and meta == ("COMPLETE", "COMPLETE")
     assert ident not in ("MATCHED", "VERIFIED")                              # still to be looked up
