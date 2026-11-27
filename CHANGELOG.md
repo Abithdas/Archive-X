@@ -2,6 +2,10 @@
 
 One entry per release, newest first. Releases are published from the Desktop workflow; the installer and update files are on the GitHub release page. Entries before 30.3.0 are written from the commit history, and describe what was built; some of it was first tried on a real PC only afterwards.
 
+## Unreleased
+
+- **A page file that cannot be fetched no longer ends in an error screen.** If the app was updated or restarted while a tab was open, opening a page (Operations, for one) could fail with "Failed to fetch dynamically imported module". The app now reloads itself once to pick up the current files (never more than once in 30 seconds), and the error screen is only shown if that does not help.
+
 ## 30.12.5 (2026-11-26)
 
 - **Home (SFW) has many more rows**, like a streaming app: new and featured movies and series, what is on Netflix, HBO Max, Disney+, Prime Video and Apple TV+, anime, rows for genres (Action, Comedy, Drama, Sci-Fi, Thriller, Horror and more) and the lists of the add-ons you added. Each row loads when you scroll to it, and leaves itself out when it has nothing (a removed add-on, no TMDB key).

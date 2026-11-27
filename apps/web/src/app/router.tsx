@@ -1,6 +1,6 @@
 import { noteLeft } from '@/features/entities/origin'
 import { Link, createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
-import { lazy } from 'react'
+import { lazyPage as lazy } from './lazyRetry'
 const MovieDetailPage = lazy(() => import('@/features/series/MoviesPage').then((m) => ({ default: m.MovieDetailPage })))
 const DiscoverTitlePage = lazy(() => import('@/features/series/DiscoverPages').then((m) => ({ default: m.DiscoverTitlePage })))
 const DiscoverEpisodePage = lazy(() => import('@/features/series/DiscoverPages').then((m) => ({ default: m.DiscoverEpisodePage })))
