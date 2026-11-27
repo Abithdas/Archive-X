@@ -67,3 +67,28 @@ def test_a_movie_file_is_shown_unidentified_when_tmdb_cannot_be_reached_and_is_a
     perf, studio, meta, _ = _links(db, ch)
     assert perf == [] and studio == [] and meta == ("COMPLETE", "COMPLETE")        # shown; the Unknown records are the adult library's, not a film's
     assert len(sid.pending(db, ch)) == 1                                             # and still to be named when TMDB can be reached
+
+
+def test_a_folder_with_no_provider_key_still_shows_its_videos_under_unknown_performer_and_studio(tmp_path):
+    import shutil
+    import subprocess
+    import pytest
+    if not shutil.which("ffmpeg"):
+        pytest.skip("ffmpeg is not installed")
+    db = Database(tmp_path / "k.db")
+    c, H = _client(db)
+    assert c.post("/api/content-mode", json={"mode": "nsfw", "new_pin": "2468"}, headers=H).status_code == 200
+    folder = tmp_path / "Real"
+    folder.mkdir()
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=15:duration=40", "-f", "lavfi", "-i", "sine=duration=40", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(folder / "scene one.mp4")], check=True)
+    sid_ = c.post("/api/local-folders", json={"path": str(folder), "content_rating": "nsfw", "holds": "videos"}, headers=H).json()["id"]
+    ch = ls.channel_id(sid_)
+    for _ in range(400):                                                              # the folder is looked through, probed and given its snapshots by itself
+        with db.reading() as conn:
+            r = conn.execute("SELECT rs.snapshot_state, rs.metadata_state FROM resource_state rs JOIN media m ON m.id=rs.media_id WHERE m.source_channel=?", (ch,)).fetchone()
+        if r and tuple(r) == ("READY", "COMPLETE"):
+            break
+        time.sleep(0.1)
+    perf, studio, meta, _ = _links(db, ch)
+    assert perf == ["Unknown Performer"] and studio == ["Unknown Studio"] and meta == ("COMPLETE", "COMPLETE")     # no key was ever saved
+    assert len(c.get("/api/library", params={"channels": ch, "per": 10}).json()["items"]) == 1                      # and the video is in the Library

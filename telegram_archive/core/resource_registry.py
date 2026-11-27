@@ -563,6 +563,16 @@ def settle_lookup(db, media_ids: list[int] | tuple[int, ...], *, unknown: bool =
     return done
 
 
+def settle_unidentified(db, channel: str, *, unknown: bool = True) -> int:
+    """No provider can be asked for this folder (no key saved): its videos are finished with their lookup all the same, so they show in the Library under Unknown Performer and
+    Unknown Studio (a film under its file name, with `unknown=False`) instead of waiting for a key. Returns how many were settled. Adding a key and scanning names them later."""
+    ensure_resource_tables(db)
+    with db.reading() as conn:
+        ids = [int(r[0]) for r in conn.execute(
+            "SELECT m.id FROM media m LEFT JOIN resource_state r ON r.media_id=m.id WHERE m.source_channel=? AND COALESCE(r.metadata_state,'')<>'COMPLETE'", (str(channel),))]
+    return len(ids) if ids and settle_lookup(db, ids, unknown=unknown) >= 0 else 0
+
+
 def sync_media_state(db, media_id: int, *, catalogue: str | None = None,
                      metadata: str | None = None, fingerprint: str | None = None,
                      snapshot: str | None = None, entity: str | None = None,

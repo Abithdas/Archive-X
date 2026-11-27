@@ -49,11 +49,18 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config, jobs=N
     def identify(channel: str, retry: bool = True) -> dict:
         """Name the folder's videos with the providers that fit its mark: movies and shows (TMDB) for SFW, scene databases (by file hash) for NSFW."""
         from ..engines import local_identify_adult, screen_identify
+        from ..core.resource_registry import settle_unidentified
         with db.reading() as conn:
             row = conn.execute("SELECT COALESCE(content_rating,'nsfw') AS r FROM channels WHERE telegram_id=?", (channel,)).fetchone()
         if row and row["r"] == "sfw":
-            return screen_identify.run(db, channel) if screen_identify.configured(db) else {"ok": False, "error": "Add a TMDB key (Settings → Metadata) to identify movies and shows."}
-        return local_identify_adult.run(db, channel, retry) if local_identify_adult.configured(db) else {"ok": False, "error": "Add a StashDB or ThePornDB key (Settings → Metadata) to identify these videos."}
+            if screen_identify.configured(db):
+                return screen_identify.run(db, channel)
+            settle_unidentified(db, channel, unknown=False)     # no key: the films still show, under their file names
+            return {"ok": False, "error": "Add a TMDB key (Settings → Metadata) to identify movies and shows."}
+        if local_identify_adult.configured(db):
+            return local_identify_adult.run(db, channel, retry)
+        settle_unidentified(db, channel)                        # no key: the videos still show, under Unknown Performer and Unknown Studio
+        return {"ok": False, "error": "Add a StashDB or ThePornDB key (Settings → Metadata) to identify these videos."}
 
     def start_scan(sid: int) -> bool:
         t = running.get(sid)
@@ -235,6 +242,8 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config, jobs=N
             row = conn.execute("SELECT COALESCE(content_rating,'nsfw') AS r FROM channels WHERE telegram_id=?", (ch,)).fetchone()
         sfw = bool(row and row["r"] == "sfw")
         if not (screen_identify.configured(db) if sfw else local_identify_adult.configured(db)):
+            from ..core.resource_registry import settle_unidentified
+            await asyncio.to_thread(settle_unidentified, db, ch, unknown=not sfw)
             raise HTTPException(400, "Add a TMDB key first (Settings → Metadata)" if sfw else "Add a StashDB or ThePornDB key first (Settings → Metadata)")
 
         def work():
