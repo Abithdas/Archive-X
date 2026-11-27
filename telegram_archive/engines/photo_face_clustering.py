@@ -134,6 +134,34 @@ def _new_models(yunet_path: Path, sface_path: Path):
 # Face extraction and photo file resolution.
 # ==============================================================================
 
+MIN_FACE_PIXELS = 32     # of the picture as analysed (at most 3200 px on the long side): smaller faces are not used
+
+
+def embed_aligned(recognizer, aligned):
+    """The face's embedding as a unit vector, or None when the model gave nothing usable. It is the mean of the embeddings of the aligned face and of its mirror image
+    (test-time flip augmentation): a face is never exactly symmetric, and averaging the two views removes much of the noise one pose adds, which makes the same person
+    group more reliably. The vectors stay in the same space and size as before, so the embeddings already stored remain comparable."""
+    import cv2
+    import numpy as np
+
+    def one(image):
+        v = np.asarray(recognizer.feature(image), dtype=np.float32).reshape(-1)
+        n = float(np.linalg.norm(v))
+        return v / n if n and np.isfinite(n) else None
+    first = one(aligned)
+    if first is None:
+        return None
+    try:
+        mirrored = one(cv2.flip(aligned, 1))
+    except Exception:
+        mirrored = None
+    if mirrored is None:
+        return first
+    mean = first + mirrored
+    n = float(np.linalg.norm(mean))
+    return mean / n if n and np.isfinite(n) else first
+
+
 def _extract_faces(image_path: str, crop_dir_path: str, detector, recognizer) -> list[dict[str, Any]]:
     """Return image-derived embeddings and aligned face crops from one image."""
     import cv2
@@ -172,12 +200,12 @@ def _extract_faces(image_path: str, crop_dir_path: str, detector, recognizer) ->
     faces = sorted(list(detected), key=lambda row: (float(row[2]) * float(row[3]), float(row[14]) if len(row) > 14 else 0), reverse=True)
     for face_index, face in enumerate(faces[:30]):
         try:
+            if min(float(face[2]), float(face[3])) < MIN_FACE_PIXELS:
+                continue            # a face this small has too few pixels to tell people apart: it only adds noise to the groups
             aligned = recognizer.alignCrop(bgr, face)
-            feature = np.asarray(recognizer.feature(aligned), dtype=np.float32).reshape(-1)
-            norm = float(np.linalg.norm(feature))
-            if not norm or not np.isfinite(norm):
+            feature = embed_aligned(recognizer, aligned)
+            if feature is None:
                 continue
-            feature = feature / norm
             crop_path = crop_dir / f"{source_path.stem}_{face_index}.jpg"
             ok, encoded = cv2.imencode(".jpg", aligned, [int(cv2.IMWRITE_JPEG_QUALITY), 88])
             if not ok:
