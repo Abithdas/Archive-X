@@ -15,6 +15,7 @@ import { Popover, PILL } from './Popover'
 import { useDebounced } from '@/features/library/useDebounced'
 import { useFaceGroups } from './useFaceGroups'
 import { AddToPerson } from './AddToPerson'
+import { BulkAddToPerson, BulkDelete, SelectionBar, photoKey } from './PhotoBulk'
 import { PeopleRow } from './PeopleRow'
 import { ContentTags, useContentSummary } from './ContentTags'
 import { newMatchesText, useReviewCounts } from './useFaceReview'
@@ -62,6 +63,12 @@ export function PhotosPage() {
   const faces = useFaceGroups(selected, true, false, 24)   // the busiest 24 people for the row, not everyone and not who they might be
   const [different, setDifferent] = useState<Photo | null>(null)
   const [adding, setAdding] = useState<Photo | null>(null)
+  // Selecting several photos: tick tiles, then add them to a person or delete them together.
+  const [selecting, setSelecting] = useState(false)
+  const [picks, setPicks] = useState<Set<string>>(new Set())
+  const [bulk, setBulk] = useState<null | 'delete' | 'person'>(null)
+  const flipPick = (p: Photo) => setPicks((cur) => { const n = new Set(cur); const k = photoKey(p); if (n.has(k)) n.delete(k); else n.add(k); return n })
+  const stopSelecting = () => { setSelecting(false); setPicks(new Set()) }
 
   // A channel that is no longer scanned cannot stay selected.
   useEffect(() => { if (channels.data) { const keep = pruneSelection(selected, list); if (keep.length !== selected.length) setSelected(keep) } }, [channels.data]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -164,6 +171,9 @@ export function PhotosPage() {
           <button type="button" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(!favoritesOnly)} title="Show only photos starred in this browser" className={cn(PILL, favoritesOnly && 'border-warn text-warn')}>
             <LikeHeart liked={favoritesOnly} />Favourites
           </button>
+          <button type="button" aria-pressed={selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))} title="Tick several photos to add them to a person or delete them together" className={cn(PILL, selecting && 'border-accent text-accent')}>
+            <Icon name="check" className="size-4" />Select
+          </button>
           <button type="button" onClick={() => void refresh()} aria-label="Refresh photo library" title="Refresh channels and the indexed photo library" className={cn(PILL, 'w-10 justify-center px-0')}><Icon name="refresh" /></button>
         </>) : null}
       </div>
@@ -178,6 +188,9 @@ export function PhotosPage() {
         </div>
       ) : null}
       {adding ? <AddToPerson photo={adding} onClose={() => setAdding(null)} /> : null}
+      {selecting && tab === 'library' ? <SelectionBar count={picks.size} loaded={items.length} onAll={() => setPicks(new Set(items.map(photoKey)))} onNone={() => setPicks(new Set())} onPerson={() => setBulk('person')} onDelete={() => setBulk('delete')} onDone={stopSelecting} /> : null}
+      {bulk === 'delete' ? <BulkDelete photos={items.filter((p) => picks.has(photoKey(p)))} onClose={() => setBulk(null)} onDone={(gone) => setPicks((cur) => new Set([...cur].filter((k) => !gone.includes(k))))} /> : null}
+      {bulk === 'person' ? <BulkAddToPerson photos={items.filter((p) => picks.has(photoKey(p)))} onClose={() => setBulk(null)} onDone={stopSelecting} /> : null}
       {checking && face && !face.scope ? <FaceReview performerId={face.performerId} groupIds={face.groupIds.length ? face.groupIds : face.groupId && face.groupId > 0 ? [face.groupId] : []} label={face.label} onClose={() => setChecking(false)} /> : null}
       {tab === 'faces' ? <PeopleView /> : null}
       <div hidden={tab === 'faces'}>
@@ -198,7 +211,7 @@ export function PhotosPage() {
         <div className="flex gap-2 sm:gap-3" aria-label="Photos in selected channels">
           {columns.map((col, c) => (
             <div key={c} className="flex min-w-0 flex-1 flex-col">
-              {col.map((i) => { const p = items[i]!; return <PhotoCard key={`${p.channel_id}:${p.message_id}`} photo={p} favorite={favorites.has(String(p.id))} onOpen={() => setViewer(i)} onRemove={(mode) => setAsk({ photo: p, mode })} onDifferent={face ? () => setDifferent(p) : undefined} onAddToPerson={() => setAdding(p)} /> })}
+              {col.map((i) => { const p = items[i]!; return <PhotoCard key={`${p.channel_id}:${p.message_id}`} photo={p} favorite={favorites.has(String(p.id))} onOpen={() => setViewer(i)} onRemove={(mode) => setAsk({ photo: p, mode })} onDifferent={face ? () => setDifferent(p) : undefined} onAddToPerson={() => setAdding(p)} selecting={selecting} picked={picks.has(photoKey(p))} onPick={() => flipPick(p)} /> })}
             </div>
           ))}
         </div>

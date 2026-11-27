@@ -92,6 +92,20 @@ describe('PhotosPage', () => {
     expect(other.className).toContain('opacity-0')
   })
 
+  it('Select ticks tiles instead of opening them, and the bar deletes the ticked photos one by one', async () => {
+    const calls = mount()
+    await screen.findByRole('article', { name: 'IMG_1.jpg' })
+    fireEvent.click(screen.getByRole('button', { name: 'Select' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Select IMG_1.jpg' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Select IMG_3.jpg' }))
+    expect(screen.getByText('2 selected')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()                                           // ticking does not open the viewer
+    fireEvent.click(screen.getByRole('button', { name: /Delete…/ }))
+    fireEvent.click(await screen.findByRole('radio', { name: /Remove from Archive X/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    await waitFor(() => expect(calls.filter((c) => c.url.endsWith('/delete')).map((c) => c.url)).toEqual(['/api/photos/-1001/1/delete', '/api/photos/-1001/3/delete']))
+    await waitFor(() => expect(screen.getByText('0 selected')).toBeInTheDocument())            // what was removed is no longer selected
+  })
   it('explains an empty index', async () => {
     mount(() => undefined, [])
     await pickMain()

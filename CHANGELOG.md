@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Photos: select several at once.** The **Select** button in the Photos tools turns the tiles into tick boxes. A bar then offers **Add to a person…** (each photo with a single face is added; photos with none or several faces are left out and counted) and **Delete…** (remove from Archive X, delete the files from this PC, or delete from Telegram too, one after another, with failures reported).
+
 - **Local folders are no longer scanned by themselves when the app opens.** The automatic re-check (30 seconds after start and every 15 minutes: file listing, probing, previews and name lookups for every folder, photos included) kept large libraries busy and the app slow to open. A folder is looked through when you add it, with **Scan now** on its row in Settings, Local files, or from the Transfers page. The old behaviour is still there for anyone who sets `ARCHIVE_X_LOCAL_RESCAN=1`.
 - The **app update card** and the Overview no longer disagree on the version: the desktop shell reported its crate version (0.1.0) instead of the release number.
 - Removed "Watch the trailer" from the Discover side panels.
