@@ -26,6 +26,8 @@ apps/desktop/src-tauri/resources/web/*
 # fetched by packaging/scripts/fetch-lav.sh
 apps/desktop/src-tauri/resources/lav/*
 !apps/desktop/src-tauri/resources/lav/.gitkeep
+apps/desktop/src-tauri/resources/mpv/*
+!apps/desktop/src-tauri/resources/mpv/.gitkeep
 native/axplayer/third_party/
 apps/desktop/src-tauri/resources/axplayer/*
 !apps/desktop/src-tauri/resources/axplayer/.gitkeep

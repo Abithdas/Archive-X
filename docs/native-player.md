@@ -166,3 +166,20 @@ run Phase 0 and the Phase 1 spike for both and pick the one that passes arrangem
 - The video **plays in its own window** (the "own window" layer: a borderless window owned by the app, placed over the stage). The picture shows. So the decoding and rendering chain works end to end on a real PC; what failed earlier was only where the window sat. A child window in front of or behind the web view is hidden or painted over by it (the "airspace" problem).
 - The own window is now the default layer.
 - What it cannot do: the page cannot draw over the picture, so captions, the seek preview and markers cannot be web elements on top of it. They need to be drawn by the player itself (an overlay window or the renderer's own text), which is the next step (phase 5).
+
+## libmpv engine (spike)
+
+The same C API (`native/axplayer/include/axplayer.h`) is also implemented on **libmpv** (`native/axplayer/src/axmpv.cpp`), so the Rust crate, the Tauri commands and the page need no change.
+Build it with `cmake -S native/axplayer -B build -A x64 -DAX_ENGINE=mpv` (output `axmpv.dll`); libmpv itself (`libmpv-2.dll`, about 120 MB) is loaded from a folder at run time, fetched by
+`packaging/scripts/fetch-mpv.sh` (pinned by SHA-256). What it does the same: the three window layers (behind, in front, own window above the app), position, seek, speed, volume, mute, audio
+tracks, hardware decoding choice (mpv falls back to software by itself), the end and error reports, diagnostics. What differs: mpv draws with Direct3D 11 into its own window inside ours (so
+clicks are let through best-effort), and changing the layer between a child window and the own window opens the video again at the same second (mpv draws into one window for good).
+
+| State | |
+|---|---|
+| Compiles (MinGW cross build) | **Yes** |
+| Plays generated H.264, 10-bit HEVC + AC3 and MPEG-4 + MP3 videos headless on a Windows runner | Job `engine-mpv` in `native-player.yml` (**not run yet**; Wine does not work in the development sandbox) |
+| Picture in the video window, hardware decoding, sound, clicks through the window | **Not verified on a real PC** |
+
+To try it on a PC: run the `desktop.yml` workflow with `bundle_mpv` set (the installer then holds both engines, about 120 MB larger) and start the app with `ARCHIVE_X_NATIVE_ENGINE=mpv`.
+Without that variable the LAV engine is used when it is installed, and libmpv only when it is all there is. The Experience setting and the page do not change.

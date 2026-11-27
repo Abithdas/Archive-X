@@ -41,6 +41,7 @@
       "resources/ffmpeg": "ffmpeg",
       "resources/rust": "rust",
       "resources/lav": "lav",
+      "resources/mpv": "mpv",
       "resources/axplayer": "axplayer",
       "resources/web": "web",
       "../../../LICENSE": "licenses/LICENSE",

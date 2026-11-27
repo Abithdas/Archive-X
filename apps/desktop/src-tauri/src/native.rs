@@ -36,19 +36,41 @@ struct Inner {
     player: Option<Arc<Player>>,
 }
 
-/// Where the engine and the LAV filters are: the bundled copies, or the paths in ARCHIVE_X_AXPLAYER_DLL / ARCHIVE_X_LAV_DIR (development).
+/// Which engine plays: `ARCHIVE_X_NATIVE_ENGINE=mpv` picks libmpv (axmpv.dll and the folder with libmpv-2.dll), `lav` picks the LAV Filters (axplayer.dll). Unset, the LAV
+/// engine is used when it is installed, and libmpv otherwise (an installer that has only libmpv, see packaging/scripts/fetch-mpv.sh).
+fn engine_choice(has_lav: bool, has_mpv: bool) -> &'static str {
+    match std::env::var("ARCHIVE_X_NATIVE_ENGINE").ok().as_deref() {
+        Some("mpv") => "mpv",
+        Some("lav") => "lav",
+        _ if has_lav || !has_mpv => "lav",
+        _ => "mpv",
+    }
+}
+
+/// Where the engine and the folder with its decoders are: the bundled copies, or the paths in ARCHIVE_X_AXPLAYER_DLL / ARCHIVE_X_LAV_DIR (LAV) and
+/// ARCHIVE_X_AXMPV_DLL / ARCHIVE_X_MPV_DIR (libmpv), for development.
 fn locate(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
     let resources = app.path().resource_dir().ok();
-    let dll = std::env::var("ARCHIVE_X_AXPLAYER_DLL")
-        .ok()
-        .map(PathBuf::from)
-        .or_else(|| resources.as_ref().map(|r| r.join("axplayer").join("axplayer.dll")))
-        .ok_or("no resource directory")?;
-    let lav = std::env::var("ARCHIVE_X_LAV_DIR")
-        .ok()
-        .map(PathBuf::from)
-        .or_else(|| resources.as_ref().map(|r| r.join("lav")))
-        .ok_or("no resource directory")?;
+    let pick = |var: &str, rel: &[&str]| -> Option<PathBuf> {
+        std::env::var(var).ok().map(PathBuf::from).or_else(|| resources.as_ref().map(|r| rel.iter().fold(r.clone(), |p, x| p.join(x))))
+    };
+    let lav_dll = pick("ARCHIVE_X_AXPLAYER_DLL", &["axplayer", "axplayer.dll"]);
+    let lav_dir = pick("ARCHIVE_X_LAV_DIR", &["lav"]);
+    let mpv_dll = pick("ARCHIVE_X_AXMPV_DLL", &["axplayer", "axmpv.dll"]);
+    let mpv_dir = pick("ARCHIVE_X_MPV_DIR", &["mpv"]);
+    let has_lav = lav_dll.as_ref().is_some_and(|p| p.is_file()) && lav_dir.as_ref().is_some_and(|d| d.join("LAVVideo.ax").is_file());
+    let has_mpv = mpv_dll.as_ref().is_some_and(|p| p.is_file()) && mpv_dir.as_ref().is_some_and(|d| d.join("libmpv-2.dll").is_file());
+    if engine_choice(has_lav, has_mpv) == "mpv" {
+        let (dll, dir) = (mpv_dll.ok_or("no resource directory")?, mpv_dir.ok_or("no resource directory")?);
+        if !dll.is_file() {
+            return Err(format!("the libmpv player engine is not installed ({} is missing)", dll.display()));
+        }
+        if !dir.join("libmpv-2.dll").is_file() {
+            return Err(format!("libmpv is not installed ({} has no libmpv-2.dll)", dir.display()));
+        }
+        return Ok((dll, dir));
+    }
+    let (dll, lav) = (lav_dll.ok_or("no resource directory")?, lav_dir.ok_or("no resource directory")?);
     if !dll.is_file() {
         return Err(format!("the native player engine is not installed ({} is missing)", dll.display()));
     }
@@ -56,6 +78,20 @@ fn locate(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
         return Err(format!("the LAV decoders are not installed ({} has no LAVVideo.ax)", lav.display()));
     }
     Ok((dll, lav))
+}
+
+#[cfg(test)]
+mod engine_tests {
+    use super::engine_choice;
+
+    #[test]
+    fn lav_is_used_when_installed_and_libmpv_only_when_it_is_all_there_is() {
+        std::env::remove_var("ARCHIVE_X_NATIVE_ENGINE");
+        assert_eq!(engine_choice(true, true), "lav");
+        assert_eq!(engine_choice(true, false), "lav");
+        assert_eq!(engine_choice(false, true), "mpv");
+        assert_eq!(engine_choice(false, false), "lav");    // nothing installed: the LAV message says what is missing
+    }
 }
 
 fn hw_from(code: Option<i32>) -> HwAccel {

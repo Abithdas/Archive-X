@@ -16,6 +16,10 @@ on:
         description: "Publish a release with this version (for example 30.1.0). Empty = only build the installers."
         required: false
         default: ""
+      bundle_mpv:
+        description: "Also bundle the libmpv player engine (about 120 MB more) to try it: set ARCHIVE_X_NATIVE_ENGINE=mpv on the PC. Empty = LAV only."
+        required: false
+        default: ""
   push:
     tags: ["desktop-v*"]
 
@@ -94,6 +98,15 @@ jobs:
           cmake --build build-axplayer --config Release
           mkdir -p apps/desktop/src-tauri/resources/axplayer
           cp build-axplayer/Release/axplayer.dll apps/desktop/src-tauri/resources/axplayer/
+
+      - name: Fetch libmpv and build its engine (only when asked for)
+        if: ${{ github.event.inputs.bundle_mpv != '' }}
+        shell: bash
+        run: |
+          bash packaging/scripts/fetch-mpv.sh
+          cmake -S native/axplayer -B build-axmpv -A x64 -DAX_ENGINE=mpv
+          cmake --build build-axmpv --config Release
+          cp build-axmpv/Release/axmpv.dll apps/desktop/src-tauri/resources/axplayer/
 
       - name: Launcher tests against the frozen backend
         env: { ARCHIVE_X_BACKEND_EXE: "${{ github.workspace }}\\packaging\\backend\\dist\\archive-x-backend\\archive-x-backend.exe" }

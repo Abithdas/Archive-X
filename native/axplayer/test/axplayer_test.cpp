@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
         static wchar_t report[8192];
         int n = ax_diagnostics(p, report, 8192);
         std::printf("INFO  report:\n%ls\n", report);
-        check(n > 0 && std::wcsstr(report, L"filters in the graph") != nullptr, "diagnostics report lists the graph");
+        check(n > 0 && (std::wcsstr(report, L"filters in the graph") != nullptr || std::wcsstr(report, L"engine: libmpv") != nullptr), "diagnostics report describes the engine");   // the same test runs against either engine
     }
     check(ax_pause(p) == 0, "pause");
     Sleep(400);
