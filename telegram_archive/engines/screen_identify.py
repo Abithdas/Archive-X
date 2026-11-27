@@ -12,6 +12,7 @@ import os
 import threading
 
 from .. import config
+from ..core.resource_registry import settle_lookup
 from ..core.swallowed import note as _swallowed_note
 from ..metadata import screen_ids as si
 
@@ -308,9 +309,11 @@ def identify_one(db, screen: si.Screen, media_id: int, path: str, ctx: dict | No
             if d:
                 ep = screen.episode(d["tmdb_id"], result["season"], result["episode"]) if kind == "tv" and result["season"] is not None and result["episode"] is not None else None
                 apply_match(db, media_id, d, ep, season=result["season"], number=result["episode"], confidence=best["score"], source=best["source"], ctx=ctx)
+                settle_lookup(db, [media_id], unknown=False)
                 return "MATCHED"
             result["state"] = "REVIEW"
     _record(db, media_id, result["state"], result)
+    settle_lookup(db, [media_id], unknown=False)        # nothing found (or a doubtful match to check): the lookup is finished, the video is shown under Unknown Performer and Studio and can be settled by hand
     return result["state"]
 
 

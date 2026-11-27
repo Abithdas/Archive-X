@@ -527,6 +527,42 @@ def mark_media_entity_complete(db, media_ids: list[int] | tuple[int, ...] | None
         return done
 
 
+def settle_lookup(db, media_ids: list[int] | tuple[int, ...], *, unknown: bool = True) -> int:
+    """A video the providers were asked about is finished with its lookup, matched or not: its metadata step is COMPLETE and a video with no performer or
+    studio gets the Unknown Performer and Unknown Studio, so it can be shown in the Library (and be corrected by hand later). A lookup that FAILED (a provider
+    that could not be reached) must not be settled: it is tried again. `unknown=False` (movies and shows) leaves the Unknown records out: they are the adult library's fallback."""
+    mids = [int(x) for x in media_ids if int(x) > 0]
+    if not mids or not hasattr(db, "lock") or not hasattr(db, "conn"):
+        return 0
+    ensure_resource_tables(db)
+    from .. import config
+    from .sql_batches import batches, marks as _marks
+    now = config.now_iso()
+    with db.lock:
+        for batch in batches(mids):
+            db.conn.executemany("INSERT OR IGNORE INTO resource_state(media_id,updated_at) VALUES(?,?)", [(m, now) for m in batch])
+            db.conn.execute(
+                f"UPDATE resource_state SET metadata_state='COMPLETE', provider_state=CASE WHEN provider_state IN ('UNKNOWN','STALE') THEN 'COMPLETE' ELSE provider_state END, "
+                f"last_reason=CASE WHEN metadata_state<>'COMPLETE' THEN 'LOOKUP_FINISHED' ELSE last_reason END, updated_at=? "
+                f"WHERE media_id IN ({_marks(len(batch))}) AND metadata_state<>'COMPLETE'", [now, *batch])
+        db.conn.commit()
+    # Unknown Performer / Unknown Studio only where something is missing: a video whose cast and studios were found must not touch them.
+    lacking: list[int] = []
+    with db.reading() as conn:
+        for batch in (batches(mids) if unknown else []):
+            lacking.extend(int(r[0]) for r in conn.execute(
+                f"SELECT m.id FROM media m WHERE m.id IN ({_marks(len(batch))}) AND (NOT EXISTS (SELECT 1 FROM video_performers vp WHERE vp.video_id=m.id) "
+                "AND NOT EXISTS (SELECT 1 FROM local_video_performers lvp WHERE lvp.video_id=m.id) OR NOT EXISTS (SELECT 1 FROM video_studios vs WHERE vs.video_id=m.id))", batch))
+    if lacking:
+        ensure_unknown_entity_links(db, lacking)
+    done = 0
+    with db.lock:
+        for batch in batches(mids):
+            done += int(db.conn.execute(f"UPDATE resource_state SET entity_state='COMPLETE', updated_at=? WHERE media_id IN ({_marks(len(batch))}) AND entity_state<>'COMPLETE'", [now, *batch]).rowcount or 0)
+        db.conn.commit()
+    return done
+
+
 def sync_media_state(db, media_id: int, *, catalogue: str | None = None,
                      metadata: str | None = None, fingerprint: str | None = None,
                      snapshot: str | None = None, entity: str | None = None,

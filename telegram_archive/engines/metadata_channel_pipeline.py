@@ -2337,7 +2337,10 @@ async def run_local_media(ctx, media_items: list[dict[str, Any]], *, force_metad
             _save(ctx, payload)
             _log_pipeline_event(ctx, "metadata_assets.phase_failed", "ERROR", channel_id=source_namespace, phase=phase, message=f"Metadata & Assets local phase failed: {PHASE_LABELS[phase]}: {type(exc).__name__}: {exc}", details={"workflow": "local_media", "error": str(exc)[:1000]})
             raise
-    if {"metadata", "performers", "channel_data"}.issubset(set(selected_stages)):
+    # A local video whose metadata step ran has finished its entity step too: whoever was not found is Unknown Performer / Unknown Studio (the same as for
+    # a Telegram channel), which a later performer or studio stage replaces. This used to wait for all three stages to be ticked, and a folder that was scanned with
+    # fewer never showed its videos.
+    if "metadata" in set(selected_stages):
         mark_media_entity_complete(ctx.db, [int(v["media_id"]) for v in videos])
     snapshot_failures = entry.get("snapshot_failures") if isinstance(entry.get("snapshot_failures"), list) else []
     ready_count = max(0, len(videos) - len(snapshot_failures))

@@ -10,6 +10,7 @@ import os
 import threading
 import time
 
+from ..core.resource_registry import settle_lookup
 from ..core.swallowed import note as _swallowed_note
 from ..metadata import providers
 from ..metadata import screen_ids as si
@@ -68,6 +69,7 @@ def run(db, channel: str, retry: bool = True) -> dict:
                 if not file_hash:                    # smaller than 128 KiB: the hash needs more than the file has
                     _state["unmatched"] += 1
                     _tried.add(int(row["id"]))
+                    settle_lookup(db, [int(row["id"])])
                 else:
                     with db.lock:
                         db.conn.execute("UPDATE media SET oshash=? WHERE id=?", (file_hash, int(row["id"])))
@@ -78,6 +80,7 @@ def run(db, channel: str, retry: bool = True) -> dict:
                     else:
                         _state["unmatched"] += 1
                         _tried.add(int(row["id"]))
+                    settle_lookup(db, [int(row["id"])])      # asked and answered, with or without a match: Unknown Performer and Studio where nothing was found
             except Exception as exc:
                 _swallowed_note("local_identify_adult.run")
                 from ..core.net_errors import explain
