@@ -11,12 +11,11 @@ const BASE_MS = 240
 const PER_STEP_MS = 55       // a longer roll takes longer
 const LAND = 'cubic-bezier(0.25, 1.3, 0.5, 1)'
 
-interface Col { strip: HTMLElement; digit: number; cell: number }
+interface Col { strip: HTMLElement; digit: number }
 
 function build(el: HTMLElement, str: string): Col[] {
   el.replaceChildren()
   const cols: Col[] = []
-  const size = parseFloat(getComputedStyle(el).fontSize) || 24
   for (const ch of str) {
     if (ch < '0' || ch > '9') {
       const sep = document.createElement('span')
@@ -39,11 +38,13 @@ function build(el: HTMLElement, str: string): Col[] {
     }
     col.append(sizer, strip)
     el.appendChild(col)
-    cols.push({ strip, digit: +ch, cell: col.offsetHeight || size * CELL_EM })
+    cols.push({ strip, digit: +ch })
   }
   return cols
 }
-const rest = (c: Col, digit: number) => { c.strip.style.transform = `translateY(${-digit * c.cell}px)` }
+// In em, like the cells themselves: a pixel count measured from the column is rounded to a whole pixel (15.6 px becomes 16), and every digit above 0 then sat a little off its cell, the higher digits the more.
+const at = (digit: number) => `translateY(${(-digit * CELL_EM).toFixed(3)}em)`
+const rest = (c: Col, digit: number) => { c.strip.style.transform = at(digit) }
 
 /** Show `to` on the columns with no motion. */
 export function showReel(el: HTMLElement, to: number): void {
@@ -69,7 +70,7 @@ export function rollReel(el: HTMLElement, from: number, to: number, onDone?: () 
     if (!steps) return
     waiting++
     const a = c.strip.animate(
-      [{ transform: `translateY(${-start * c.cell}px)` }, { transform: `translateY(${-(start + steps) * c.cell}px)` }],
+      [{ transform: at(start) }, { transform: at(start + steps) }],
       { duration: BASE_MS + steps * PER_STEP_MS, delay: i * COLUMN_GAP_MS, easing: LAND, fill: 'both' },
     )
     anims.push(a)

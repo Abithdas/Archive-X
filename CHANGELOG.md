@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Counts no longer have crooked digits.** The rolling number in "831 videos · 1 channel", "314 performers" and the other counts placed each digit by a pixel measure that was rounded to a whole pixel, so digits such as 7 and 9 sat up to 3 px too high next to the words around them. The digits are now placed in the same unit as the text.
+
 - **A page file that cannot be fetched no longer ends in an error screen.** If the app was updated or restarted while a tab was open, opening a page (Operations, for one) could fail with "Failed to fetch dynamically imported module". The app now reloads itself once to pick up the current files (never more than once in 30 seconds), and the error screen is only shown if that does not help.
 
 ## 30.12.5 (2026-11-26)
