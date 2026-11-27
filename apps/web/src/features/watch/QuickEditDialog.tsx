@@ -11,6 +11,7 @@ import { useDebounced } from '@/features/library/useDebounced'
 import { LOOKUP_FAILED, LOOKUP_IDLE, LOOKUP_NEEDS_INPUT, LOOKUP_SEARCHING, applyMatch, candidateView, hintChips, initialPeople, initialStudio, lookupAllowed, lookupBody, lookupStatus, originLabel, pickPerformer, pickStudio, safeHttpUrl, samePerformer, saveBody, saveOutcome, searchItems, stagedItems, type CaptionSync, type Item, type LocalHit, type LookupResult, type Match, type Person, type ProviderHit, type Studio } from './quickedit'
 import { ClearField } from '@/design/ClearField'
 import { SnapshotSuggestions } from './SnapshotSuggestions'
+import { useContentMode } from '@/features/content/useContentMode'
 
 const INPUT = 'h-11 w-full min-w-0 rounded-xl border border-line-2 bg-bg px-3.5 text-[15px] text-fg outline-none placeholder:text-faint focus:border-accent/60'
 const PANE = 'grid min-w-0 content-start gap-2 rounded-2xl border border-line p-3'
@@ -89,20 +90,23 @@ export function QuickEditDialog({ item, onDone }: { item: LibraryItem; onDone: (
   const [saving, setSaving] = useState(false)
   const lookupSeq = useRef(0)
 
+  // The adult databases (StashDB, ThePornDB) belong to the adult library only: in SFW nothing here asks them or shows what they would answer, and until the mode is known nothing does.
+  const adult = useContentMode().data?.mode === 'nsfw'
   // ---- searches (local + provider), debounced
   const pTerm = useDebounced(pq.trim(), 140), sTerm = useDebounced(sq.trim(), 140)
   const pLocal = useQuery({ queryKey: ['qe-performers', pTerm], queryFn: () => api<LocalHit[]>(`/api/performers?limit=18&q=${encodeURIComponent(pTerm)}`).catch(() => [] as LocalHit[]), enabled: pTerm !== '', staleTime: 10_000 })
-  const pProv = useQuery({ queryKey: ['qe-performers-prov', pTerm], queryFn: () => api<ProviderHit[]>(`/api/performers/provider-search?limit=8&q=${encodeURIComponent(pTerm)}`).catch(() => [] as ProviderHit[]), enabled: pTerm.length >= 2, staleTime: 30_000 })
+  const pProv = useQuery({ queryKey: ['qe-performers-prov', pTerm], queryFn: () => api<ProviderHit[]>(`/api/performers/provider-search?limit=8&q=${encodeURIComponent(pTerm)}`).catch(() => [] as ProviderHit[]), enabled: adult && pTerm.length >= 2, staleTime: 30_000 })
   const sLocal = useQuery({ queryKey: ['qe-studios', sTerm], queryFn: () => api<LocalHit[]>(`/api/studios?limit=18&q=${encodeURIComponent(sTerm)}`).catch(() => [] as LocalHit[]), enabled: sTerm !== '', staleTime: 10_000 })
-  const sProv = useQuery({ queryKey: ['qe-studios-prov', sTerm], queryFn: () => api<ProviderHit[]>(`/api/studios/provider-search?limit=8&q=${encodeURIComponent(sTerm)}`).catch(() => [] as ProviderHit[]), enabled: sTerm.length >= 2, staleTime: 30_000 })
+  const sProv = useQuery({ queryKey: ['qe-studios-prov', sTerm], queryFn: () => api<ProviderHit[]>(`/api/studios/provider-search?limit=8&q=${encodeURIComponent(sTerm)}`).catch(() => [] as ProviderHit[]), enabled: adult && sTerm.length >= 2, staleTime: 30_000 })
   const staged = { performers, studio }
   const pItems: Item[] = pq.trim() ? (pTerm === pq.trim() ? searchItems(pTerm, asList(pLocal.data), asList(pProv.data), staged).map((x) => ({ ...x, selected: x.create ? false : performers.some((p) => samePerformer(p, x)) })) : []) : stagedItems(performers, studio, 'performer')
   const sItems: Item[] = sq.trim() ? (sTerm === sq.trim() ? searchItems(sTerm, asList(sLocal.data), asList(sProv.data), staged) : []) : stagedItems(performers, studio, 'studio')
-  const pLoading = pq.trim() !== '' && (pTerm !== pq.trim() || pLocal.isFetching || (pTerm.length >= 2 && pProv.isFetching))
-  const sLoading = sq.trim() !== '' && (sTerm !== sq.trim() || sLocal.isFetching || (sTerm.length >= 2 && sProv.isFetching))
+  const pLoading = pq.trim() !== '' && (pTerm !== pq.trim() || pLocal.isFetching || (adult && pTerm.length >= 2 && pProv.isFetching))
+  const sLoading = sq.trim() !== '' && (sTerm !== sq.trim() || sLocal.isFetching || (adult && sTerm.length >= 2 && sProv.isFetching))
 
   // ---- provider video-data lookup
   const lookup = async () => {
+    if (!adult) return
     const t = title.trim()
     const performer = pq.trim() || String(performers[0]?.name ?? '').trim()
     const studioName = sq.trim() || String(studio?.name ?? '').trim()
@@ -121,10 +125,11 @@ export function QuickEditDialog({ item, onDone }: { item: LibraryItem; onDone: (
   const first = useRef(true)
   // Looks up on open and again shortly after the title, the staged people/studio or a search box changes.
   useEffect(() => {
+    if (!adult) return
     const t = setTimeout(() => void lookupRef.current(), first.current ? 0 : 500)
     first.current = false
     return () => clearTimeout(t)
-  }, [title, pq, sq, performers, studio])
+  }, [adult, title, pq, sq, performers, studio])
   useEffect(() => () => { lookupSeq.current += 1 }, [])
 
   const pick = (kind: 'performer' | 'studio', i: number) => {
@@ -170,17 +175,19 @@ export function QuickEditDialog({ item, onDone }: { item: LibraryItem; onDone: (
           <label htmlFor="qe-title" className="text-xs font-semibold text-muted">Title</label>
           <div className="flex gap-2">
             <input id="qe-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Video title" className={INPUT} />
-            <button type="button" disabled={looking} onClick={() => void lookup()} aria-label="Find video data" title="Find video data" className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-60">
+            {adult ? (
+              <button type="button" disabled={looking} onClick={() => void lookup()} aria-label="Find video data" title="Find video data" className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-60">
               <Icon name="search" className="size-4" /><span className="hidden sm:inline">{looking ? 'Searching…' : 'Find video data'}</span>
             </button>
+            ) : null}
           </div>
           {note ? <p role="status" className="rounded-lg bg-accent/10 px-3 py-2 text-xs text-accent">{note}</p> : null}
-          {hints.length ? <div aria-label="Filename clues" className="flex flex-wrap gap-1.5">{hints.map((h) => <span key={`${h.kind}:${h.label}`} className={cn('rounded-full border px-2.5 py-0.5 text-[11px] font-semibold', h.kind === 'unverified' ? 'border-dashed border-line-2 text-muted' : h.kind === 'date' ? 'border-line-2 text-muted' : 'border-accent/40 text-accent')}>{h.label}</span>)}</div> : null}
+          {adult && hints.length ? <div aria-label="Filename clues" className="flex flex-wrap gap-1.5">{hints.map((h) => <span key={`${h.kind}:${h.label}`} className={cn('rounded-full border px-2.5 py-0.5 text-[11px] font-semibold', h.kind === 'unverified' ? 'border-dashed border-line-2 text-muted' : h.kind === 'date' ? 'border-line-2 text-muted' : 'border-accent/40 text-accent')}>{h.label}</span>)}</div> : null}
         </section>
 
-        <SnapshotSuggestions item={item} performers={performers} studio={studio}
+        {adult ? <SnapshotSuggestions item={item} performers={performers} studio={studio}
           onAddPerformer={(p) => { setPerformers((cur) => pickPerformer(cur, { ...p, kind: 'local' })); setPerformerPicked(true) }}
-          onSetStudio={(s) => { setStudio(pickStudio({ ...s, kind: 'local' })); setStudioPicked(true) }} />
+          onSetStudio={(s) => { setStudio(pickStudio({ ...s, kind: 'local' })); setStudioPicked(true) }} /> : null}
 
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-2">
           <section className={PANE} aria-label="Performer">
@@ -209,7 +216,7 @@ export function QuickEditDialog({ item, onDone }: { item: LibraryItem; onDone: (
             <Picker kind="studio" q={sq} onQ={setSq} items={sItems} loading={sLoading} onPick={(i) => pick('studio', i)} />
           </section>
         </div>
-        <section className={PANE} aria-label="Matched metadata">
+        {adult ? <section className={PANE} aria-label="Matched metadata">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="text-sm font-bold">Matched metadata{matches.length ? ` · ${matches.length}` : ''}</h3>
             <p role="status" aria-live="polite" className="text-[11px] text-muted">{status === 'Loading current metadata…' && !looking ? LOOKUP_IDLE : status}</p>
@@ -234,7 +241,7 @@ export function QuickEditDialog({ item, onDone }: { item: LibraryItem; onDone: (
               })}
             </div>
           ) : <p className="text-sm text-muted">{looking ? 'Searching the providers…' : 'No matching provider video data yet. Change the title, performer or studio above and it searches again.'}</p>}
-        </section>
+        </section> : null}
       </div>
     </Dialog>
   )

@@ -78,10 +78,17 @@ def register_media_routes(
             raise HTTPException(404, "Video not found")
         return int(row[0])
 
+    def _adult_names_off() -> bool:
+        """SFW has no adult performer or studio names: the snapshot suggestions are made from the adult library's faces and watermarks."""
+        from ..core import content_mode as _cm_media
+        return _cm_media.get_mode(db) == "sfw"
+
     @router.get("/api/media/snapshot-suggestions")
     async def snapshot_suggestions(request: Request, channel_id: str = "", message_id: int = 0):
         """Performers / studio proposed from this video's snapshots that nobody has accepted or rejected yet."""
         require_auth(request)
+        if _adult_names_off():
+            return {"suggestions": []}
         from ..engines import snapshot_identity
         media_id = _snapshot_media_id(channel_id, message_id)
         return {"suggestions": await asyncio.to_thread(snapshot_identity.suggestions, db, media_id)}
@@ -90,6 +97,8 @@ def register_media_routes(
     async def snapshot_suggestions_run(request: Request):
         """Look at this one video's snapshots now (its studio's watermark and the faces in it) and return what was found."""
         require_auth(request)
+        if _adult_names_off():
+            raise HTTPException(409, "Suggestions from snapshots name adult performers and studios and are not part of SFW mode.")
         body = await request.json()
         from ..engines import snapshot_identity
         media_id = _snapshot_media_id(body.get("channel_id"), body.get("message_id"))
@@ -110,6 +119,8 @@ def register_media_routes(
     async def snapshot_suggestions_reject(request: Request):
         """"That is not them": this suggestion is not made again for this video."""
         require_auth(request)
+        if _adult_names_off():
+            raise HTTPException(409, "Suggestions from snapshots are not part of SFW mode.")
         body = await request.json()
         from ..engines import snapshot_identity
         kind = str(body.get("kind") or "")

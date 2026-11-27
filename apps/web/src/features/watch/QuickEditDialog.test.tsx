@@ -15,11 +15,12 @@ afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks() })
 const item = { id: 7, _cid: '-1', media_id: 5, name: 'Old title', filename: 'f.mp4', duration: 125, thumbnail_id: 7, performers: ['Ava Stone'], studios: ['Northlight'], studio: 'Northlight', tags: [] } as unknown as LibraryItem
 const json = (b: unknown, code = 200) => new Response(JSON.stringify(b), { status: code })
 type Call = { url: string; method: string; body: Record<string, unknown> | undefined }
-interface Over { snap?: unknown[]; lookup?: () => Response; save?: () => Response; performers?: unknown[]; provider?: unknown[]; studios?: unknown[] }
+interface Over { mode?: 'sfw' | 'nsfw'; snap?: unknown[]; lookup?: () => Response; save?: () => Response; performers?: unknown[]; provider?: unknown[]; studios?: unknown[] }
 const mount = (o: Over = {}) => {
   const calls: Call[] = []
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined })
+    if (url === '/api/content-mode') return json({ mode: o.mode ?? 'nsfw' })
     if (url.startsWith('/api/media/snapshot-suggestions?')) return json({ suggestions: o.snap ?? [] })
     if (url === '/api/media/quick-edit/lookup') return (o.lookup ?? (() => json({ ok: true, matches: [], filename_hints: { performers: ['Ava Stone'], date: '2024-01-02' } })))()
     if (url === '/api/media/quick-edit') return (o.save ?? (() => json({ ok: true, caption_sync: { ok: true, status: 'synced' } })))()
@@ -189,5 +190,25 @@ describe('Edit video', () => {
     const body = posts(calls, '/api/media/quick-edit')[0]!.body as { performers: Array<{ name: string; id?: number }>; studio: { name: string; id?: number } }
     expect(body.performers.map((p) => p.name)).toEqual(['Ava Stone', 'Mia Frost'])
     expect(body.studio).toMatchObject({ name: 'Brightside', id: 21 })
+  })
+})
+
+describe('Edit video in SFW mode', () => {
+  it('has nothing of the adult databases: no video-data lookup, no matched metadata, no snapshot suggestions, no provider search', async () => {
+    const { calls } = mount({ mode: 'sfw', snap: [{ kind: 'performer', name: 'Ava Stone', score: 0.9 }], provider: [{ name: 'Someone', provider: 'stashdb', provider_id: 'x' }] })
+    expect(await screen.findByDisplayValue('Old title')).toBeInTheDocument()
+    fireEvent.change(within(pane('Performer')).getByLabelText('Search performer'), { target: { value: 'ava' } })
+    await new Promise((r) => setTimeout(r, 700))
+    expect(screen.queryByRole('button', { name: 'Find video data' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Matched metadata' })).toBeNull()
+    expect(screen.queryByText(/snapshots/i)).toBeNull()
+    expect(calls.filter((c) => c.url === '/api/media/quick-edit/lookup' || c.url.startsWith('/api/media/snapshot-suggestions') || c.url.includes('provider-search'))).toEqual([])
+  })
+  it('still edits the title, performers and studio', async () => {
+    const { calls } = mount({ mode: 'sfw' })
+    fireEvent.change(await screen.findByDisplayValue('Old title'), { target: { value: 'Renamed' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(posts(calls, '/api/media/quick-edit')).toHaveLength(1))
+    expect(posts(calls, '/api/media/quick-edit')[0]!.body).toMatchObject({ title: 'Renamed' })
   })
 })

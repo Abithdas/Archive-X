@@ -1236,6 +1236,8 @@ def register_entity_routes(
         back to ThePornDB only when the StashDB candidates need it.
         """
         require_auth(request)
+        if _cm.get_mode(db) == "sfw":   # StashDB and ThePornDB are adult databases: nothing of a video's name goes to them from SFW
+            raise HTTPException(409, "Provider video data comes from adult databases and is not part of SFW mode.")
         body = await request.json()
         try:
             channel_id = str(body.get("channel_id") or "").strip()
