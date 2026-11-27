@@ -16,6 +16,7 @@ import { Chips } from './TitleStage'
 import { MoviesList } from './MoviesPage'
 import { PLACEHOLDER, PosterCard } from './PosterCard'
 import { useRowPreview } from './RowPreview'
+import { CollectionPage } from '@/features/collection/CollectionPage'
 import { SeriesList } from './SeriesPage'
 import { countText } from './series'
 import { useHomeTab, useScreenView, type HomeTab } from './view'
@@ -348,7 +349,7 @@ const HOME_ROWS: ReadonlyArray<{ title: string; kind: Kind; catalog?: Catalog; g
 ]
 
 const WARM_UP_MS = 1500
-const TABS: ReadonlyArray<readonly [HomeTab, string]> = [['home', 'For you'], ['discover', 'Discover'], ['library', 'Library']]
+const TABS: ReadonlyArray<readonly [HomeTab, string]> = [['home', 'For you'], ['discover', 'Discover'], ['library', 'Library'], ['collection', 'Collection']]
 
 /**
  * Home for movies and shows (SFW), in three parts under one heading: For you (what to carry on with, what airs, what was added, and what is
@@ -457,6 +458,7 @@ export function SfwHome() {
           </>
       ))}
       {part('discover', 'grid gap-8', <Discover text={text} kind={kind} setKind={setKind} genre={genre} setGenre={setGenre} catalog={catalog} setCatalog={setCatalog} />)}
+      {part('collection', 'grid gap-8', <CollectionPage />)}
       {part('library', 'grid gap-8', (
           <section aria-label="Your library" className="grid gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">

@@ -15,6 +15,7 @@ import { NO_FILTER, filterCount, matchesFilter, type ListFilter } from './listFi
 import { episodeLabel, countText, lengthText, missingText, seasonSummary, type SeriesCard, type SeriesDetail } from './series'
 import { ReviewsButton, ScoreBadges, useReviews } from './Reviews'
 import { useTitle } from './DiscoverPages'
+import { KeepButton } from '@/features/collection/KeepButton'
 
 
 /** The TV shows in the library, shown inside Movies & Shows: a poster for each, with how many episodes are here. */
@@ -102,6 +103,7 @@ export function SeriesDetailPage({ id }: { id: number }) {
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {first ? <Link to="/watch/$cid/$mid" params={{ cid: first.cid, mid: String(first.mid) }} className="inline-flex h-12 w-fit items-center gap-2 rounded-full bg-accent px-6 text-[15px] font-bold text-accent-fg transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"><Icon name="play" className="size-4" />Play {episodeLabel(d.seasons.find((s) => s.episodes.includes(first))?.season ?? 1, first) || 'first episode'}</Link> : null}
           <ReviewsButton data={reviews.data} title={d.title} className="inline-flex h-12 items-center rounded-full border border-line-2 px-5 text-sm font-semibold transition-colors hover:bg-fg/10" />
+          {d.imdb && d.seasons.some((s) => s.missing?.length) ? <KeepButton kind="series" imdb={d.imdb} title={d.title} year={d.year} poster={d.poster} label="Get the missing episodes" className="h-12" /> : null}
         </div>
       </div>
     )

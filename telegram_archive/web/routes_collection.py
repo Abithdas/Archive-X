@@ -26,7 +26,8 @@ def register_collection_routes(router: APIRouter, *, db, require_auth) -> None:
         def work():
             out = col.overview(db)
             base = ss.configured(db)
-            out["server"] = {"up": ss.reachable(base), "ready": rt.ready(), "installed": bool(ss.installed_program())}
+            # the server is probed only when something is kept: an empty Collection page must not wait on a program nobody asked for
+            out["server"] = {"up": ss.reachable(base) if out["titles"] else True, "ready": rt.ready(), "installed": bool(ss.installed_program())}
             out["running"] = cw.worker_for(db).running
             return out
         return await asyncio.to_thread(work)
