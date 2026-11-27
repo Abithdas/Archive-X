@@ -3,6 +3,7 @@ import { api } from '@/api/client'
 import { Icon } from '@/design/Icon'
 import { PlayIcon } from './PlayerIcons'
 import { MenuItem, MenuSection } from './PlayerParts'
+import { SkipButton, skipNow, skipTarget, type Skip } from './skip'
 import { CaptionStyleItems, PictureSoundItems, PlaybackItems, PlayerControls, RATES, playerKey } from './PlayerControls'
 import { cn } from '@/design/cn'
 import { SnapshotGrid, type SnapshotData } from './SnapshotGrid'
@@ -32,7 +33,7 @@ const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) &
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
 
-export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable, facts, addon, convert, title }: { title?: string; convert?: Convert; addon?: AddonRef; facts?: StreamFacts; onUnplayable?: () => void; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc?: () => void; onOpenNative?: () => void }) {
+export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable, facts, addon, convert, title, skips = [] }: { skips?: Skip[]; title?: string; convert?: Convert; addon?: AddonRef; facts?: StreamFacts; onUnplayable?: () => void; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc?: () => void; onOpenNative?: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
   const pendingStart = useRef<number | null>(null)
@@ -197,6 +198,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   }, [])
   useEffect(() => { if (isFs) wake(); return () => clearTimeout(idleTimer.current) }, [isFs, wake])
   const hideBar = isFs && idle && playing
+  const passing = skipNow(skips, time, dur)   // the Skip button: intro, recap, credits
   const overlay = isFs || ratio < 0.9   // tall and square videos carry the controls on the picture, so everything fits the window
   const pip = () => void (document.pictureInPictureElement ? document.exitPictureInPicture() : video.current?.requestPictureInPicture?.())?.catch(() => {})
 
@@ -296,6 +298,8 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
             </div>
           </div>
         ) : null}
+        <SkipButton skip={passing} canNext={Boolean(onNext)} className={cn('absolute right-4 sm:right-8', overlay ? 'bottom-24' : 'bottom-4')}
+          onPress={() => { if (passing?.type === 'credits' && onNext) onNext(); else if (passing) seek(skipTarget(passing, dur)) }} />
       </div>
       {isFs && title ? (
         // The name of the video across the top in full screen (as in dx.bi), fading with the controls.

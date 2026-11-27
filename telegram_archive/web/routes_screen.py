@@ -1309,6 +1309,34 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         hit = next((e for e in await asyncio.to_thread(_addon_history) if _same_addon_title(e, kind, ident, season, episode)), None)
         return {"position": float(hit["position"]) if hit else 0.0}
 
+    @router.get("/api/screen/skip-times/{cid}/{mid}")
+    async def skip_times_for_video(cid: str, mid: int, request: Request):
+        """Where the intro, recap and credits are in a library video that is matched to a title (empty when it is not, or nobody has submitted times)."""
+        require_auth(request)
+        _sfw_only()
+        from ..engines import skip_times as st
+
+        def work():
+            with db.reading() as c:
+                r = c.execute(
+                    "SELECT t.kind,t.imdb_id,t.tmdb_id,s.season,s.episode FROM media m JOIN media_screen s ON s.media_id=m.id AND s.state='MATCHED' JOIN screen_titles t ON t.id=s.title_id "
+                    "WHERE m.source_channel=? AND m.source_message_id=?", (str(cid), int(mid))).fetchone()
+            if not r:
+                return []
+            ident = r["imdb_id"] or (f"tmdb:{r['tmdb_id']}" if r["tmdb_id"] else "")
+            return st.lookup(ident, "series" if r["kind"] == "tv" else "movie", r["season"], r["episode"])
+        return {"segments": await asyncio.to_thread(work)}
+
+    @router.get("/api/screen/addon-skip-times")
+    async def skip_times_for_addon(request: Request, kind: str, ident: str, season: int | None = None, episode: int | None = None):
+        """The same for a stream from an add-on (a title's own page): the title is named by its IMDb or Kitsu number."""
+        require_auth(request)
+        _sfw_only()
+        from ..engines import skip_times as st
+        if kind not in ("movie", "series") or not st.IDENT.match(ident):
+            raise HTTPException(400, "Invalid title")
+        return {"segments": await asyncio.to_thread(st.lookup, ident, kind, season, episode)}
+
     @router.get("/api/screen/home")
     async def screen_home(request: Request):
         """What the Home page shows from your own library: videos to carry on with, episodes airing this week, what was added last, and a few titles for the billboard."""

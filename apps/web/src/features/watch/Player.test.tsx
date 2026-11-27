@@ -5,6 +5,30 @@ import { enterFullscreen } from './fullscreen'
 import { Timeline } from './Timeline'
 import { telegramLink } from './WatchPage'
 
+describe('Player skip button', () => {
+  const skips = [{ type: 'intro' as const, start: 30, end: 90 }, { type: 'credits' as const, start: 500, end: null }]
+  const at = (v: HTMLVideoElement, t: number) => { Object.defineProperty(v, 'currentTime', { value: t, configurable: true, writable: true }); fireEvent.timeUpdate(v) }
+  it('shows Skip intro inside the opening and jumps to its end', () => {
+    const { container } = render(<Player src="/stream/-1/1" durationHint={600} skips={skips} onOpenVlc={() => {}} />)
+    const v = container.querySelector('video')!
+    Object.defineProperty(v, 'duration', { value: 600, configurable: true })
+    at(v, 10)
+    expect(screen.queryByTestId('skip-button')).toBeNull()
+    at(v, 45)
+    fireEvent.click(screen.getByRole('button', { name: 'Skip intro' }))
+    expect(v.currentTime).toBe(90)
+  })
+  it('offers Next episode in the credits when there is a next one', () => {
+    const next = vi.fn()
+    const { container } = render(<Player src="/stream/-1/1" durationHint={600} skips={skips} onNext={next} onOpenVlc={() => {}} />)
+    const v = container.querySelector('video')!
+    Object.defineProperty(v, 'duration', { value: 600, configurable: true })
+    at(v, 520)
+    fireEvent.click(screen.getByRole('button', { name: 'Next episode' }))
+    expect(next).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('Player seek requests (scene-marker chips)', () => {
   it('seeks without starting playback, and seeks again on every new request', () => {
     const { container, rerender } = render(<Player src="/stream/-1/1" durationHint={600} onOpenVlc={() => {}} />)

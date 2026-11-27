@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Skip intro, recap and credits (from dx.bi).** The player shows a Skip intro / Skip recap / Skip credits button while those parts play (the credits button says Next episode when there is a next one), in both the browser player and the native player, for library videos matched to a title and for add-on streams. The times come from TheIntroDB (movies and series) and AniSkip (anime, found through Kitsu): only the title's public number is sent, never a file name, and only in SFW mode. When nobody has submitted times, or a database is down, there is simply no button.
+
 - **Row previews sit evenly and switch smoothly.** The preview panel now leaves the same gap to the card on its left and its right (it used to leave a wide gap on one side and cover the next card on the other), moving to the next card opens its preview almost at once instead of waiting and letting the row bounce back, and a title with no wide picture shows its whole poster on a soft copy of itself instead of a thin slice.
 
 - **The native player is no longer the default.** The setting now starts at "Never by itself": the native player is a button on the video page, and Settings > Experience can still make it automatic ("Only when the browser cannot play the video" or "Always"). A choice you saved earlier is kept.

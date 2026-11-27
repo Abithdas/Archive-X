@@ -24,6 +24,8 @@ import { QuickEditDialog } from './QuickEditDialog'
 import { Player } from './Player'
 import { leaveFullscreen, markPlayNext, shouldPlayNow, useFullscreen } from './fullscreen'
 import { hasNativeBridge, native } from './nativeBridge'
+import { useSkipTimes } from './skip'
+import { useContentMode } from '@/features/content/useContentMode'
 import { NativePane } from './NativePane'
 import { useResume } from './useResume'
 import { QUEUE_MODES, isQueueMode, queueFor, type QueueMode } from './queue'
@@ -156,6 +158,8 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
       aspect: Number(m!.frame_width || 320) / Math.max(1, Number(m!.frame_height || 180)),
     }
   }, [manifest.data, item?.duration, cid, mid])
+  const sfw = useContentMode().data?.mode === 'sfw'   // the times come from community databases, asked for by a title's public number: SFW only
+  const skips = useSkipTimes(sfw ? `/api/screen/skip-times/${encodeURIComponent(cid)}/${mid}` : null)
   const resume = useResume({ cid, mid, name: item?.name ?? '', duration: item?.duration ?? 0, enabled: exp.resume_prompt, settled: Boolean(item) && !expQuery.isPending, autoplay: exp.autoplay, frameFor })
   const idOf = (list: Array<{ id: number; name: string }> | undefined, name: string) => list?.find((e) => e.name.toLowerCase() === name.toLowerCase())?.id
 
@@ -218,9 +222,9 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
 
         {resume.ready ? (
           engine === 'native' ? (
-            <NativePane key={`${item._cid}:${item.id}`} media={{ cid: String(item._cid), mid: item.id }} durationHint={item.duration} size={{ width: item.width, height: item.height }} segments={segments} preview={preview} snapshots={snapshots} startAt={carry ?? resume.startAt} autoPlay={carry !== null ? true : resume.autoPlay || shouldPlayNow(item._cid, item.id)} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onBrowser={toBrowser} onClose={() => router.history.back()} title={item.name} />
+            <NativePane key={`${item._cid}:${item.id}`} skips={skips} media={{ cid: String(item._cid), mid: item.id }} durationHint={item.duration} size={{ width: item.width, height: item.height }} segments={segments} preview={preview} snapshots={snapshots} startAt={carry ?? resume.startAt} autoPlay={carry !== null ? true : resume.autoPlay || shouldPlayNow(item._cid, item.id)} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onBrowser={toBrowser} onClose={() => router.history.back()} title={item.name} />
           ) : (
-          <Player facts={{ vcodec: playInfo.data?.vcodec || item.codec || undefined, tenBit: playInfo.data?.ten_bit, container: containerLabel(playInfo.data?.format, item.name), acodec: playInfo.data?.acodec, bitrate: item.size && item.duration ? Math.round((item.size * 8) / item.duration) : undefined, source: local ? 'This PC' : 'Telegram' }} media={{ cid: String(item._cid), mid: item.id }} title={item.name} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={carry !== null ? true : resume.autoPlay || shouldPlayNow(item._cid, item.id)} startAt={carry ?? resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} onOpenNative={nativeOk ? () => switchTo('native') : undefined} onUnplayable={nativeOk && nativeMode === 'fallback' && !chosenWeb ? () => switchTo('native') : undefined} convert={{ url: (t) => `/stream-compat/${encodeURIComponent(item._cid)}/${item.id}?t=${t.toFixed(3)}`, silentOnly: nativeOk && nativeMode === 'fallback' && !chosenWeb }} />
+          <Player skips={skips} facts={{ vcodec: playInfo.data?.vcodec || item.codec || undefined, tenBit: playInfo.data?.ten_bit, container: containerLabel(playInfo.data?.format, item.name), acodec: playInfo.data?.acodec, bitrate: item.size && item.duration ? Math.round((item.size * 8) / item.duration) : undefined, source: local ? 'This PC' : 'Telegram' }} media={{ cid: String(item._cid), mid: item.id }} title={item.name} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={carry !== null ? true : resume.autoPlay || shouldPlayNow(item._cid, item.id)} startAt={carry ?? resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} onOpenNative={nativeOk ? () => switchTo('native') : undefined} onUnplayable={nativeOk && nativeMode === 'fallback' && !chosenWeb ? () => switchTo('native') : undefined} convert={{ url: (t) => `/stream-compat/${encodeURIComponent(item._cid)}/${item.id}?t=${t.toFixed(3)}`, silentOnly: nativeOk && nativeMode === 'fallback' && !chosenWeb }} />
           )
         ) : fs ? <Curtain /> : (
           <div className="aspect-video w-full rounded-[18px] border border-line bg-black" aria-hidden="true" />

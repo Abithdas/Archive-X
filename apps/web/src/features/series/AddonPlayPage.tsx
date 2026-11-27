@@ -6,6 +6,7 @@ import { useRouter } from '@tanstack/react-router'
 import { Player } from '@/features/watch/Player'
 import { NativePane } from '@/features/watch/NativePane'
 import { hasNativeBridge, native } from '@/features/watch/nativeBridge'
+import { useSkipTimes } from '@/features/watch/skip'
 
 export interface AddonPlay { src: string; name: string; kind: 'movie' | 'series'; ident: string; season?: number; episode?: number }
 
@@ -22,6 +23,7 @@ export function AddonPlayPage({ play }: { play: AddonPlay }) {
   const known = useRef({ t: 0, d: 0 })
   // Where this title stopped before (the player waits for the answer, so it starts there instead of jumping after it began).
   const saved = useQuery({ queryKey: ['addon-progress', play.kind, play.ident, play.season ?? null, play.episode ?? null] as const, queryFn: () => api<{ position: number }>(progressUrl(play)), retry: false, staleTime: 0, gcTime: 0 })
+  const skips = useSkipTimes(play.ident ? `/api/screen/addon-skip-times?${new URLSearchParams({ kind: play.kind, ident: play.ident, ...(play.season != null && play.episode != null ? { season: String(play.season), episode: String(play.episode) } : {}) })}` : null)
   const save = (position: number, duration: number, force = false) => {
     known.current = { t: position, d: duration }
     const now = Date.now()
@@ -49,8 +51,8 @@ export function AddonPlayPage({ play }: { play: AddonPlay }) {
         <h1 className="m-0 min-w-0 text-[clamp(16px,1.8vw,22px)] font-extrabold leading-tight tracking-tight [overflow-wrap:anywhere]">{play.name}</h1>
       </div>
       {nativeOk ? (
-        <NativePane key={play.src} linkPath={`/api/screen/stream-link/${token}`} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} startAt={startAt} autoPlay onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} onBrowser={() => setEngine('web')} onClose={() => router.history.back()} title={play.name} />
-      ) : <Player key={play.src} src={play.src} title={play.name} convert={{ url: (t) => `/api/screen/stream-compat/${token}?t=${t.toFixed(3)}`, info: `/api/screen/stream-compat/${token}/info` }} autoPlay startAt={startAt} onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} />}
+        <NativePane key={play.src} skips={skips} linkPath={`/api/screen/stream-link/${token}`} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} startAt={startAt} autoPlay onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} onBrowser={() => setEngine('web')} onClose={() => router.history.back()} title={play.name} />
+      ) : <Player key={play.src} skips={skips} src={play.src} title={play.name} convert={{ url: (t) => `/api/screen/stream-compat/${token}?t=${t.toFixed(3)}`, info: `/api/screen/stream-compat/${token}/info` }} autoPlay startAt={startAt} onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} />}
     </div>
   )
 }

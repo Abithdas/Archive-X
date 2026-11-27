@@ -9,6 +9,7 @@ import { releasePlayback } from './release'
 import { PlayIcon } from './PlayerIcons'
 import { CaptionStyleItems, PlaybackItems, PlayerControls, playerKey } from './PlayerControls'
 import { loadStyle, saveStyle } from './captionStyle'
+import { SkipButton, skipNow, skipTarget, type Skip } from './skip'
 import { SnapshotGrid, type SnapshotData } from './SnapshotGrid'
 import { MenuHead, MenuItem } from './PlayerParts'
 import type { PreviewInfo } from './Timeline'
@@ -32,7 +33,7 @@ function covered(): boolean {
  * captions (live or from the file) are in a strip under it. The picture steps aside while a dialog or menu is open or the stage is scrolled partly out
  * of view. After a jump, if the stream is too slow and the picture crawls, playback stops for a moment to refill, as a browser would.
  */
-export function NativePane({ media, addon, linkPath, onClose, title, durationHint, size, segments = [], preview, snapshots, startAt = 0, autoPlay = true, autoNext = false, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onBrowser }: {
+export function NativePane({ media, addon, linkPath, onClose, title, durationHint, size, segments = [], preview, snapshots, startAt = 0, autoPlay = true, autoNext = false, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onBrowser, skips = [] }: { skips?: Skip[];
   /** A library video (`media`), or an add-on stream: `linkPath` answers `{ url }` with the address the engine opens, `addon` names the title for its subtitle files. */
   media?: { cid: string; mid: number }; addon?: AddonRef; linkPath?: string; onClose?: () => void; title?: string; durationHint?: number | null; size?: { width?: number | null; height?: number | null }; segments?: Segment[]; preview?: PreviewInfo; snapshots?: SnapshotData
   startAt?: number; autoPlay?: boolean; autoNext?: boolean; seekRequest?: { t: number; n: number }
@@ -278,6 +279,8 @@ export function NativePane({ media, addon, linkPath, onClose, title, durationHin
 
       <div className="@container relative grid gap-3">
         {hint ? <div role="status" className="pointer-events-none absolute -top-9 left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-[#141417]/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-md">{hint}</div> : null}
+        <SkipButton skip={skipNow(skips, position, duration)} canNext={Boolean(onNext)} className="absolute -top-14 right-0"
+          onPress={() => { const p = skipNow(skips, position, duration); if (p?.type === 'credits' && onNext) onNext(); else if (p) seekTo(skipTarget(p, duration)) }} />
         <PlayerControls
           time={jump?.to ?? position} duration={duration} buffered={0} segments={segments} preview={preview} onSeek={seekTo} tipBelow
           playing={playing || holding} onToggle={toggle} toggleDisabled={phase !== 'ready'} disabled={phase !== 'ready'} onPrev={onPrev} onNext={onNext}
