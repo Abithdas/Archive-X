@@ -4,6 +4,12 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **The native player is no longer the default.** The setting now starts at "Never by itself": the native player is a button on the video page, and Settings > Experience can still make it automatic ("Only when the browser cannot play the video" or "Always"). A choice you saved earlier is kept.
+
+- **The video's name shows across the top in full screen.** The browser player now shows the name (not the file name when the video has a title) over the picture in full screen, and add-on streams do the same.
+
+- **Continue watching shows a picture for every video.** A video with no title art (not matched yet, or a file that is not on this PC) shows its own snapshot, the same picture as its library card, instead of an empty card.
+
 - **Edit video in SFW has nothing from the adult databases.** In SFW mode the Edit video dialog no longer offers or asks for StashDB / ThePornDB: the "Find video data" button, the filename clues, the Matched metadata list (which was recommendations from those databases) and the suggestions from the snapshots are gone, and no performer or studio search goes to them. The server refuses those requests in SFW as well (the video-data lookup and the snapshot suggestions), so nothing of a video's name can leave for an adult database from SFW. The title, performers and studio can still be edited by hand.
 
 - **A folder with no scene-database key now shows its videos under Unknown Performer and Unknown Studio.** In an adult folder with no StashDB or ThePornDB key saved, the lookup never ran, so nothing finished the videos and they stayed out of the Library (nothing was mapped to Unknown at all). Now, when there is no key to ask with, the folder's videos are settled at once: Unknown Performer and Unknown Studio (a movie or show folder: its file names), and adding a key and scanning names them later. This was the case behind "even in NSFW it does not work".

@@ -341,6 +341,18 @@ describe('Player frame shape and full screen', () => {
     expect(box.className).not.toContain('h-full')
     expect(box.getAttribute('popover')).toBeNull()
   })
+  it('shows the name of the video across the top in full screen, and not on the page where the heading already says it', () => {
+    const { container } = render(<Player src="/stream/-1/1" durationHint={60} title="The Matrix (1999)" onOpenVlc={() => {}} />)
+    expect(screen.queryByTestId('player-title')).toBeNull()
+    document.documentElement.requestFullscreen = vi.fn(async () => undefined) as never
+    act(() => enterFullscreen())
+    Object.defineProperty(document, 'fullscreenElement', { value: document.documentElement, configurable: true })
+    act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
+    expect(screen.getByTestId('player-title').textContent).toBe('The Matrix (1999)')
+    expect(container.querySelector('[data-testid="player-title"]')).not.toBeNull()
+    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
+    act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
+  })
   it('the next video is still in full screen: the page stays in full screen while the player is replaced', () => {
     document.documentElement.requestFullscreen = vi.fn(async () => undefined) as never
     const first = render(<Player src="/stream/-1/1" durationHint={60} onOpenVlc={() => {}} />)

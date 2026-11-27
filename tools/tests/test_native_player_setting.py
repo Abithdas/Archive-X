@@ -20,9 +20,9 @@ def client(tmp_path):
     return c, db
 
 
-def test_the_default_is_only_when_the_browser_cannot_play_it(client):
+def test_the_default_is_a_button_only_never_automatic(client):
     c, _ = client
-    assert c.get("/api/settings/experience", headers=H).json()["native_player"] == "fallback"
+    assert c.get("/api/settings/experience", headers=H).json()["native_player"] == "off"
 
 
 @pytest.mark.parametrize("mode", ["off", "always", "fallback"])
@@ -43,7 +43,7 @@ def test_a_mode_it_does_not_know_is_refused_and_nothing_changes(client):
 def test_a_damaged_stored_value_reads_as_the_default(client):
     c, db = client
     db.set_setting("ta_native_player", "banana")
-    assert c.get("/api/settings/experience", headers=H).json()["native_player"] == "fallback"
+    assert c.get("/api/settings/experience", headers=H).json()["native_player"] == "off"
 
 
 def test_other_experience_settings_do_not_touch_it(client):

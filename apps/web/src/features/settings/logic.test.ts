@@ -63,11 +63,11 @@ describe('experienceFrom', () => {
   it('reads the native player mode and falls back to "only when the browser cannot play it"', () => {
     expect(experienceFrom({ native_player: 'always' }).native_player).toBe('always')
     expect(experienceFrom({ native_player: 'off' }).native_player).toBe('off')
-    expect(experienceFrom({ native_player: 'sometimes' }).native_player).toBe('fallback')
-    expect(NATIVE_MODES.map(([k]) => k)).toEqual(['fallback', 'always', 'off'])
+    expect(experienceFrom({ native_player: 'sometimes' }).native_player).toBe('off')
+    expect(NATIVE_MODES.map(([k]) => k)).toEqual(['off', 'fallback', 'always'])
   })
   it('applies the classic defaults', () => {
-    expect(experienceFrom(undefined)).toEqual({ native_player: 'fallback', autoplay: false, autonext: false, resume_prompt: true, live_seek_preview: true, partial_cache_prompt: false, autonext_mode: 'context' })
+    expect(experienceFrom(undefined)).toEqual({ native_player: 'off', autoplay: false, autonext: false, resume_prompt: true, live_seek_preview: true, partial_cache_prompt: false, autonext_mode: 'context' })
   })
   it('reads saved values and rejects an unknown autoplay source', () => {
     expect(experienceFrom({ autoplay: true, resume_prompt: false, partial_cache_prompt: true, autonext_mode: 'studio' })).toMatchObject({ autoplay: true, resume_prompt: false, partial_cache_prompt: true, autonext_mode: 'studio' })

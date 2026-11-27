@@ -136,6 +136,19 @@ def test_home_has_what_to_continue_what_airs_what_was_added_and_a_billboard(tmp_
     assert {x["title"] for x in home["billboard"]} == {"The Matrix", "Breaking Bad"} and all(x["backdrop"] for x in home["billboard"])
 
 
+def test_a_video_with_no_title_art_still_has_a_picture_in_continue_watching(tmp_path):
+    """A file that is not matched to a title (or whose title has no poster) shows its own snapshot, the same picture its card has in the library."""
+    db = Database(tmp_path / "p.db")
+    _library(db)
+    with db.lock:
+        db.conn.execute("INSERT INTO media(id,source_channel,source_message_id,filename,title,status,duration) VALUES(3,'-9000000000001',3,'holiday.mp4','holiday','SCANNED',3600)")
+        db.conn.execute("INSERT INTO watch_history(media_id,position,duration,last_played_at,completed,updated_at) VALUES(3,900,3000,'2026-11-02T10:00:00',0,'2026-11-02T10:00:00')")
+        db.conn.commit()
+    got = {x["mid"]: x for x in _client(db).get("/api/screen/home").json()["continue"]}
+    assert got[3]["image"] == "/api/thumb/-9000000000001/3"
+    assert got[2]["image"].startswith("http") or "/bb.jpg" in got[2]["image"]       # a matched title keeps its own art
+
+
 def test_discover_has_new_and_featured_from_cinemeta_streaming_lists_from_an_addon_with_tmdb_as_the_backup_and_anime(tmp_path, monkeypatch):
     monkeypatch.setattr(sid, "http_fetch", fake)
     ADDON_DOWN[0] = False

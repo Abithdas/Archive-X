@@ -1326,7 +1326,8 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 out["continue"] = [{
                     "cid": r["cid"], "mid": r["mid"], "title": r["ttitle"] or r["media_title"] or "Video",
                     "sub": (f"S{r['season']} · E{r['episode']}" + (f" · {r['ename']}" if r["ename"] else "")) if r["kind"] == "tv" and r["season"] is not None and r["episode"] is not None else (str(r["year"]) if r["year"] else ""),
-                    "image": si.image_url(r["still"] or r["poster"] or "", "w500"), "pct": round(100 * r["position"] / r["duration"]), "left": max(1, round((r["duration"] - r["position"]) / 60)), "at": r["at"] or ""} for r in rows]
+                    "image": si.image_url(r["still"] or r["poster"] or "", "w500") or f"/api/thumb/{r['cid']}/{r['mid']}",   # no title art (a file that is not matched, or not on this PC): the video's own snapshot
+                    "pct": round(100 * r["position"] / r["duration"]), "left": max(1, round((r["duration"] - r["position"]) / 60)), "at": r["at"] or ""} for r in rows]
                 for e in _addon_history():
                     t = c.execute("SELECT title,poster,year FROM screen_titles WHERE imdb_id=? ORDER BY id LIMIT 1", (e["ident"],)).fetchone()
                     ep = c.execute("SELECT e.name,e.still FROM screen_episodes e JOIN screen_titles t ON t.id=e.title_id WHERE t.imdb_id=? AND e.season=? AND e.episode=?", (e["ident"], e.get("season"), e.get("episode"))).fetchone() if e.get("season") is not None else None

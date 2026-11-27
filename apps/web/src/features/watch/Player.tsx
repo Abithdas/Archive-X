@@ -32,7 +32,7 @@ const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) &
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
 
-export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable, facts, addon, convert }: { convert?: Convert; addon?: AddonRef; facts?: StreamFacts; onUnplayable?: () => void; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc?: () => void; onOpenNative?: () => void }) {
+export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable, facts, addon, convert, title }: { title?: string; convert?: Convert; addon?: AddonRef; facts?: StreamFacts; onUnplayable?: () => void; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc?: () => void; onOpenNative?: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
   const pendingStart = useRef<number | null>(null)
@@ -297,6 +297,10 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
           </div>
         ) : null}
       </div>
+      {isFs && title ? (
+        // The name of the video across the top in full screen (as in dx.bi), fading with the controls.
+        <p data-testid="player-title" className={cn('pointer-events-none absolute inset-x-0 top-0 z-30 m-0 truncate bg-gradient-to-b from-black/70 to-transparent px-4 pb-8 pt-3 text-center text-sm font-semibold text-white transition-opacity duration-300', hideBar && 'opacity-0')}>{title}</p>
+      ) : null}
       <div data-ov={overlay ? '' : undefined} onPointerEnter={() => { overBar.current = true; setIdle(false) }} onPointerLeave={() => { overBar.current = false }}
         className={cn('@container grid gap-1.5', overlay && 'absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-3 pb-2 pt-12 text-white [--color-fg:#fff] [--color-muted:#c9d1e0] transition-opacity duration-300 sm:px-4', isFs && 'px-4 pb-3 sm:px-8', !overlay && 'gap-3', overlay && !isFs && 'rounded-b-[18px] sm:rounded-b-[22px]', hideBar && 'pointer-events-none opacity-0')}>
         <PlayerControls

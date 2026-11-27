@@ -100,7 +100,7 @@ describe('Experience', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Autoplay next' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save experience settings' }))
     await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url === '/api/settings/experience')).toBe(true))
-    expect(calls.find((c) => c.method === 'POST')!.body).toEqual({ native_player: 'fallback', autoplay: true, autonext: true, resume_prompt: true, live_seek_preview: true, partial_cache_prompt: false, autonext_mode: 'studio' })
+    expect(calls.find((c) => c.method === 'POST')!.body).toEqual({ native_player: 'off', autoplay: true, autonext: true, resume_prompt: true, live_seek_preview: true, partial_cache_prompt: false, autonext_mode: 'studio' })
   })
 })
 

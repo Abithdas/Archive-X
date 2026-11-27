@@ -69,9 +69,9 @@ _NATIVE_MODES = {'off', 'fallback', 'always'}
 
 
 def _native_mode(value):
-    """How the desktop app's native player is used: 'fallback' (only when the browser cannot play the video), 'always', or 'off' (a button only)."""
+    """How the desktop app's native player is used: 'off' (a button only, the default), 'fallback' (only when the browser cannot play the video), or 'always'."""
     v = str(value or '').strip().lower()
-    return v if v in _NATIVE_MODES else 'fallback'
+    return v if v in _NATIVE_MODES else 'off'
 
 
 def _safe_grid_density(value):
@@ -339,7 +339,7 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
             'live_seek_preview': bool(db.setting('ta_live_seek_preview', '1') not in {'0', 'false', 'False'}),
             'resume_prompt': bool(db.setting('ta_resume_prompt', '1') not in {'0', 'false', 'False'}),
             'partial_cache_prompt': bool(db.setting('ta_partial_cache_prompt', '0') not in {'0', 'false', 'False'}),
-            'native_player': _native_mode(db.setting('ta_native_player', 'fallback')),
+            'native_player': _native_mode(db.setting('ta_native_player', 'off')),
         }
         return keys
 
