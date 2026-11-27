@@ -21,7 +21,7 @@ def test_it_is_not_started_when_it_already_answers():
 
 def test_it_says_so_when_it_is_not_installed():
     out = ss.start(BASE, program="", launch=lambda: None, probe=lambda b: False)
-    assert out["up"] is False and out["found"] is False and "not installed" in out["reason"]
+    assert out["up"] is False and out["found"] is False and "not set up" in out["reason"]
 
 
 def test_it_is_started_and_waited_for_until_it_answers():

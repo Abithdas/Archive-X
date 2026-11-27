@@ -171,9 +171,14 @@ def start(base: str, *, program: str | None = None, launch=None, probe=None, wai
     sleep = sleep or time.sleep
     if probe(base):
         return {"up": True, "started": False, "found": True, "reason": ""}
+    managed = False
     path = installed_program() if program is None else program
+    if not path and program is None:
+        from . import stremio_runtime as rt
+        if rt.ready():                     # the streaming server Archive X set up itself (Settings, Addons, Set it up)
+            managed, path = True, "managed"
     if not path:
-        return {"up": False, "started": False, "found": False, "reason": "The streaming server is not installed on this PC. Install Stremio's streaming service first."}
+        return {"up": False, "started": False, "found": False, "reason": "The streaming server is not set up on this PC. Use Set it up, or install Stremio's streaming service."}
     host = urllib.parse.urlsplit(base).hostname or ""
     if not ac.is_local_host(host) or host not in ("127.0.0.1", "localhost", "::1"):
         return {"up": False, "started": False, "found": True, "reason": "The saved address is another computer: start the streaming server there."}
@@ -182,7 +187,11 @@ def start(base: str, *, program: str | None = None, launch=None, probe=None, wai
         flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0)
         subprocess.Popen([path], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags, close_fds=True)
     try:
-        (launch or spawn)()
+        if managed:
+            from . import stremio_runtime as rt
+            rt.start_process()
+        else:
+            (launch or spawn)()
     except OSError as exc:
         return {"up": False, "started": False, "found": True, "program": path, "reason": f"It could not be started: {exc.strerror or exc}"}
     waited = 0.0

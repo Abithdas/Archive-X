@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
+import { StreamingActions, serverInfoKey } from './StreamingSetup'
 import { api } from '@/api/client'
 import { Confirm } from '@/design/Confirm'
 import { Icon } from '@/design/Icon'
@@ -15,7 +16,7 @@ export interface AddonsView { builtin: BuiltinAddon[]; removed?: BuiltinAddon[];
 const BOX = 'rounded-[18px] border border-line bg-surface p-5'
 export const addonsKey = ['screen-addons'] as const
 export interface StreamingServer { url: string; default: string; saved: boolean; up: boolean; installed?: boolean; download?: string }
-export const serverKey = ['screen-streaming-server'] as const
+export const serverKey = serverInfoKey
 export const useAddons = (enabled = true) => useQuery({ queryKey: addonsKey, queryFn: () => api<AddonsView>('/api/screen/addons'), staleTime: 60_000, enabled })
 
 /**
@@ -34,15 +35,6 @@ export function AddonsPanel() {
     onSuccess: (v) => { qc.setQueryData(serverKey, v); setAddr(''); toast(v.up ? 'Streaming server found' : 'Saved. No streaming server answers there yet.'); void qc.invalidateQueries({ queryKey: ['addon-streams'] }) },
   })
   const [checking, setChecking] = useState(false)
-  const [starting, setStarting] = useState(false)
-  const startServer = async () => {
-    setStarting(true)
-    try {
-      const r = await api<{ up?: boolean; reason?: string }>('/api/screen/streaming-server/start', { method: 'POST', json: {} })
-      toast(r.up ? 'Streaming server is running' : r.reason || 'It did not start.')
-      await qc.invalidateQueries({ queryKey: serverKey }); await qc.invalidateQueries({ queryKey: ['addon-streams'] })
-    } catch (e) { toast.error(errorText(e, 'Could not start the streaming server.')) } finally { setStarting(false) }
-  }
   const checkServer = async () => { setChecking(true); try { await qc.invalidateQueries({ queryKey: serverKey }); await qc.invalidateQueries({ queryKey: ['addon-streams'] }) } finally { setChecking(false) } }
   const add = useMutation({
     mutationFn: (u: string) => api<AddonsView>('/api/screen/addons', { method: 'POST', json: { url: u } }),
@@ -142,10 +134,9 @@ export function AddonsPanel() {
         ) : server.isError ? <p role="alert" className="mb-3 text-sm text-warn">Could not check the streaming server.</p> : null}
         <div className="mb-3 flex flex-wrap gap-2">
           <button type="button" disabled={checking} onClick={() => void checkServer()} className="h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5 disabled:opacity-60">{checking ? 'Checking…' : 'Check again'}</button>
-          {server.data && !server.data.up && server.data.installed ? <button type="button" disabled={starting} onClick={() => void startServer()} className="h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg disabled:opacity-60">{starting ? 'Starting…' : 'Start it'}</button> : null}
-          {server.data && !server.data.up && !server.data.installed ? <a href={server.data.download ?? 'https://github.com/Stremio/stremio-service/releases/latest'} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5">Get the streaming server</a> : null}
           {server.data?.saved ? <button type="button" disabled={saveServer.isPending} onClick={() => saveServer.mutate('')} className="h-10 rounded-xl border border-line-2 px-4 text-sm font-semibold hover:bg-fg/5 disabled:opacity-60">Use the usual address</button> : null}
         </div>
+        <div className="mb-3"><StreamingActions onUp={() => void checkServer()} /></div>
         <form onSubmit={(e) => { e.preventDefault(); if (addr.trim()) saveServer.mutate(addr.trim()) }} className="grid gap-2" aria-label="Streaming server address">
           <label className="text-sm font-semibold" htmlFor="streaming-server-url">Address (usually http://127.0.0.1:11470)</label>
           <div className="flex flex-wrap gap-2">

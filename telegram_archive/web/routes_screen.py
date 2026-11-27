@@ -335,7 +335,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     # Add-ons the person adds (Settings, Addons): extra Stremio catalogue add-ons whose lists show in Discover.
     # ------------------------------------------------------------------
     import hashlib as _hashlib
-    from ..metadata import addon_client as ac, reviews as rv, streaming_server as ss
+    from ..metadata import addon_client as ac, reviews as rv, streaming_server as ss, stremio_runtime as _runtime
     MAX_ADDONS = 12
     from ..core import content_mode as _cm_addons
 
@@ -463,6 +463,11 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 skipped += skip
                 items.extend(found)
             server = ss.configured(db)
+            if any(i["kind"] == "torrent" for i in items) and not _server_up(server):
+                # a streaming server that Archive X set up itself is started now, in the background: by the time a stream is chosen it is usually answering
+                from ..metadata import stremio_runtime as _rt
+                if _rt.warm(server == ss.DEFAULT, False):
+                    _server_up(server, True)
             for it in items:
                 if it["kind"] == "torrent":
                     # a torrent plays through the person's own Stremio streaming server, when it is there; without it the stream is listed and says what is missing
@@ -747,7 +752,21 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         _sfw_only()
         base = ss.configured(db)
         return {"url": base, "default": ss.DEFAULT, "saved": bool(str(db.setting(ss.SETTING) or "").strip()), "up": await asyncio.to_thread(_server_up, base, True),
-                "installed": bool(await asyncio.to_thread(ss.installed_program)), "download": ss.DOWNLOAD_PAGE}
+                "installed": bool(await asyncio.to_thread(ss.installed_program)), "download": ss.DOWNLOAD_PAGE,
+                "ready": bool(await asyncio.to_thread(_runtime.ready)), "setup": _runtime.state()}
+
+    @router.get("/api/screen/streaming-server/setup")
+    async def streaming_server_setup_state(request: Request):
+        require_auth(request)
+        _sfw_only()
+        return {"ok": True, **_runtime.state(), "ready": bool(await asyncio.to_thread(_runtime.ready))}
+
+    @router.post("/api/screen/streaming-server/setup")
+    async def streaming_server_setup(request: Request):
+        """Download and set up Stremio's streaming server (server.js and a Node.js to run it) in the background; the state is polled from the GET."""
+        require_auth(request)
+        _sfw_only()
+        return {"ok": True, **_runtime.setup_in_background()}
 
     @router.post("/api/screen/streaming-server/start")
     async def streaming_server_start(request: Request):

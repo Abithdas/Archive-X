@@ -565,6 +565,11 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
             except Exception as exc:
                 db.log(f"Local AI shutdown error: {type(exc).__name__}: {exc}", "WARN", event="ai.runtime.shutdown")
         try:
+            from .metadata import stremio_runtime as _streaming_runtime
+            await asyncio.to_thread(_streaming_runtime.stop)   # the streaming server that was started for torrents goes with the app
+        except Exception as exc:
+            db.log(f"Streaming server shutdown error: {type(exc).__name__}: {exc}", "WARN")
+        try:
             await asyncio.wait_for(telegram.disconnect(), timeout=3)   # a dead connection can take far longer than this to give up
         except Exception as exc:
             db.log(f"Telegram shutdown error: {type(exc).__name__}: {exc}", "WARN")
