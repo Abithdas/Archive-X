@@ -163,6 +163,12 @@ def _ensure_playback_log_handler() -> None:
         # NullHandler that would silence playback.log for the rest of the run.
         logging.getLogger(__name__).warning("Could not initialize playback.log at %s: %s", LOG_PATH, exc)
 
+def range_timeout_for(base: float, *, cold: bool, preview: bool, cold_limit: float) -> float:
+    """How long one range request may take. The first range from a data centre not used yet in this session needs a new connection and a key exchange first, so it
+    gets the long allowance (a seek preview never does: it is only a side request); a warm data centre keeps the short limit."""
+    return max(base, cold_limit) if cold and not preview else base
+
+
 def _stream_log(message: str, level: str = "INFO") -> None:
     try:
         _ensure_playback_log_handler()
@@ -3850,6 +3856,13 @@ class PlaybackEngine:
             float(getattr(config, "PLAYBACK_FOREGROUND_RANGE_TIMEOUT_SECONDS", 8.0)) if foreground else
             SEGMENT_TIMEOUT_SECONDS
         )
+        # The first range from a data centre this session has not used yet needs a new connection to it (and a key exchange) before the first byte: from some
+        # networks that takes well over the 5.5 s a warm range gets, and every timeout threw the half-made connection away, so such a video never started. A cold
+        # data centre gets a long first allowance; once a range has come from it, the short limit applies again.
+        warm_dcs = self.__dict__.setdefault("_warm_dcs", set())
+        cold_dc = int(getattr(getattr(message, "document", None), "dc_id", 0) or 0)
+        timeout_seconds = range_timeout_for(timeout_seconds, cold=bool(cold_dc and cold_dc not in warm_dcs), preview=preview,
+                                            cold_limit=float(getattr(config, "PLAYBACK_COLD_DC_RANGE_TIMEOUT_SECONDS", 30.0)))
         attempt = 0
         attempt_limit = max(1, attempts)
         file_reference_refreshes = 0
@@ -3916,6 +3929,8 @@ class PlaybackEngine:
                     self.metrics["foreground_completed_ranges"] = int(self.metrics.get("foreground_completed_ranges", 0)) + 1
                     self.metrics["foreground_bytes_per_second"] = round(len(data or b"") / max(0.001, transfer_ms / 1000.0), 1)
                 self._client_sample(tc, len(data), elapsed, False)
+                if cold_dc and data:
+                    warm_dcs.add(cold_dc)
                 # A seek-preview is an interactive side request. Do not let a
                 # single preview's transfer speed change the global playback
                 # AIMD ceiling or make the main video more/less aggressive.

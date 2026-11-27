@@ -11,14 +11,16 @@ class FakeCtx {
   resumed = 0
   constructor() { FakeCtx.made++ }
   last: unknown = null
-  node = (): { connect: (d: unknown) => void; [k: string]: unknown } => ({ connect: () => undefined, gain: { value: 1 }, frequency: { value: 0 }, Q: { value: 0 }, threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 }, attack: { value: 0 }, release: { value: 0 }, type: '' })
-  createGain() { const g = this.node(); g.connect = (d: unknown) => { FakeCtx.connected.push([this.last, d]) }; return g }
+  static nodes: Array<Record<string, { value: number } | string | unknown>> = []
+  node = (): { connect: (d: unknown) => void; [k: string]: unknown } => { const n = this.raw(); FakeCtx.nodes.push(n); n.connect = (d: unknown) => { if (d === this.destination) FakeCtx.connected.push([this.last, d]) }; return n }
+  raw = (): { connect: (d: unknown) => void; [k: string]: unknown } => ({ connect: () => undefined, gain: { value: 1 }, frequency: { value: 0 }, Q: { value: 0 }, threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 }, attack: { value: 0 }, release: { value: 0 }, type: '' })
+  createGain() { return this.node() }
   createBiquadFilter() { return this.node() }
   createDynamicsCompressor() { return this.node() }
   createMediaElementSource(el: unknown) { this.last = el; return { connect: () => undefined } }
   resume() { this.resumed++; this.state = 'running'; return Promise.resolve() }
 }
-beforeEach(() => { localStorage.clear(); FakeCtx.made = 0; FakeCtx.connected = []; _resetAudioGraph(); vi.stubGlobal('AudioContext', FakeCtx) })
+beforeEach(() => { localStorage.clear(); FakeCtx.made = 0; FakeCtx.connected = []; FakeCtx.nodes = []; _resetAudioGraph(); vi.stubGlobal('AudioContext', FakeCtx) })
 afterEach(() => vi.unstubAllGlobals())
 
 describe('keeping Chrome Live Caption away', () => {
@@ -70,5 +72,40 @@ describe('keeping Chrome Live Caption away', () => {
     expect(setSoundMode(a, 'night')).toBe(true)
     expect(FakeCtx.connected).toHaveLength(1)
     expect(setSoundMode(a, 'normal')).toBe(true)
+  })
+
+  const chainOf = () => {   // the nodes in the order the graph makes them: high-pass, low shelf, body, presence, compressor, gain, limiter
+    const [hp, low, body, presence, comp, gain, limit] = FakeCtx.nodes.slice(-7) as Array<Record<string, { value: number }>>
+    return { hp: hp!, low: low!, body: body!, presence: presence!, comp: comp!, gain: gain!, limit: limit! }
+  }
+  const val = (n: Record<string, { value: number }>, k: string) => n[k]!.value
+
+  it('Normal leaves the sound alone: flat filters, a compressor that does nothing, no ceiling', () => {
+    setBlocking(false)
+    const v = document.createElement('video')
+    setSoundMode(v, 'dialogue'); setSoundMode(v, 'normal')
+    const c = chainOf()
+    expect([val(c.low, 'gain'), val(c.body, 'gain'), val(c.presence, 'gain'), val(c.comp, 'ratio'), val(c.gain, 'gain'), val(c.limit, 'ratio')]).toEqual([0, 0, 0, 1, 1, 1])
+  })
+
+  it('Dialogue boost cuts rumble and the weight of music, lifts the speech range, evens the level and keeps it from clipping', () => {
+    setBlocking(false)
+    setSoundMode(document.createElement('video'), 'dialogue')
+    const c = chainOf()
+    expect([val(c.hp, 'frequency'), val(c.low, 'gain'), val(c.body, 'gain'), val(c.presence, 'gain')]).toEqual([90, -4, 5, 7])
+    expect(val(c.comp, 'ratio')).toBe(3)
+    expect(val(c.gain, 'gain')).toBeCloseTo(1.35)
+    expect(val(c.limit, 'ratio')).toBe(20)
+  })
+
+  it('Night mode cuts the bass hard, compresses hard and levels up under a limiter; a volume boost multiplies on top', () => {
+    setBlocking(false)
+    const a = document.createElement('video')
+    setSoundMode(a, 'night')
+    let c = chainOf()
+    expect([val(c.low, 'gain'), val(c.comp, 'threshold'), val(c.comp, 'ratio'), val(c.gain, 'gain'), val(c.limit, 'threshold')]).toEqual([-7, -42, 8, 1.9, -3])
+    setBoost(a, 2)
+    c = chainOf()
+    expect(val(c.gain, 'gain')).toBeCloseTo(3.8)
   })
 })

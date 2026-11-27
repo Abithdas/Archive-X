@@ -138,3 +138,57 @@ def open_torrent(base: str, url: str, byte_range: str = ""):
     if byte_range and byte_range.startswith("bytes=") and len(byte_range) < 64:
         headers["Range"] = byte_range
     return urllib.request.build_opener(_NoRedirect).open(urllib.request.Request(url, headers=headers), timeout=OPEN_TIMEOUT)
+
+
+# ---- starting it ---------------------------------------------------------------------------------------------------------------------------------
+DOWNLOAD_PAGE = "https://github.com/Stremio/stremio-service/releases/latest"
+START_WAIT = 25.0          # a freshly started server needs a few seconds before it answers
+
+
+def installed_program(env: dict | None = None, exists=None) -> str:
+    """Where Stremio's streaming service (or Stremio itself, which runs the same server) is installed on this PC, or "" when it cannot be found. Windows only: the places
+    its installers use. The path is only ever one of these fixed names under a folder taken from the system's own settings."""
+    import os
+    env = os.environ if env is None else env
+    exists = exists or os.path.isfile
+    roots = [env.get(k) for k in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA")]
+    local = env.get("LOCALAPPDATA")
+    names = [(r, rel) for r in roots[:2] if r for rel in ("StremioService/stremio-service.exe",)]
+    if local:
+        names += [(local, "Programs/StremioService/stremio-service.exe"), (local, "Programs/LNV/Stremio-4/stremio.exe"), (local, "Programs/Stremio/stremio.exe")]
+    for root, rel in names:
+        path = os.path.join(root, *rel.split("/"))
+        if exists(path):
+            return path
+    return ""
+
+
+def start(base: str, *, program: str | None = None, launch=None, probe=None, wait: float = START_WAIT, sleep=None) -> dict:
+    """Start the streaming server that is installed on this PC and wait until it answers. `{up, started, found, program?, reason}`: never raises."""
+    import subprocess
+    import time
+    probe = probe or reachable
+    sleep = sleep or time.sleep
+    if probe(base):
+        return {"up": True, "started": False, "found": True, "reason": ""}
+    path = installed_program() if program is None else program
+    if not path:
+        return {"up": False, "started": False, "found": False, "reason": "The streaming server is not installed on this PC. Install Stremio's streaming service first."}
+    host = urllib.parse.urlsplit(base).hostname or ""
+    if not ac.is_local_host(host) or host not in ("127.0.0.1", "localhost", "::1"):
+        return {"up": False, "started": False, "found": True, "reason": "The saved address is another computer: start the streaming server there."}
+
+    def spawn() -> None:
+        flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        subprocess.Popen([path], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags, close_fds=True)
+    try:
+        (launch or spawn)()
+    except OSError as exc:
+        return {"up": False, "started": False, "found": True, "program": path, "reason": f"It could not be started: {exc.strerror or exc}"}
+    waited = 0.0
+    while waited < wait:
+        sleep(0.5)
+        waited += 0.5
+        if probe(base):
+            return {"up": True, "started": True, "found": True, "program": path, "reason": ""}
+    return {"up": False, "started": True, "found": True, "program": path, "reason": "It was started but is not answering yet. Give it a moment and check again."}

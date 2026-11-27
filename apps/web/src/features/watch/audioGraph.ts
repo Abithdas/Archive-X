@@ -10,7 +10,8 @@
 export const BLOCK_KEY = 'archive-x:block-browser-captions'
 const routed = new WeakSet<HTMLMediaElement>()
 export type SoundMode = 'normal' | 'dialogue' | 'night'
-interface Chain { gain: GainNode; voice: BiquadFilterNode; comp: DynamicsCompressorNode }
+/** The sound path of one element: input → high-pass → low shelf → two speech peaks → compressor → make-up gain → limiter → speakers. Every stage is neutral in Normal mode. */
+interface Chain { hp: BiquadFilterNode; low: BiquadFilterNode; body: BiquadFilterNode; presence: BiquadFilterNode; comp: DynamicsCompressorNode; gain: GainNode; limit: DynamicsCompressorNode }
 const chains = new WeakMap<HTMLMediaElement, Chain>()
 let context: AudioContext | null = null
 let wanted = 1   // the volume boost, 1 = none; applied to every routed element
@@ -28,13 +29,18 @@ export function routeThroughApp(el: HTMLMediaElement | null | undefined, force =
   if (!Ctor) return false
   try {
     context ??= new Ctor({ latencyHint: 'playback' })
-    const gain = context.createGain()
-    const voice = context.createBiquadFilter()     // lifts the range where speech sits
-    voice.type = 'peaking'; voice.frequency.value = 2500; voice.Q.value = 0.9
-    const comp = context.createDynamicsCompressor()   // evens out loud and quiet scenes
-    context.createMediaElementSource(el).connect(voice)
-    voice.connect(comp); comp.connect(gain); gain.connect(context.destination)
-    chains.set(el, { gain, voice, comp })
+    const ctx = context
+    const filter = (type: BiquadFilterType, frequency: number, q = 0.7) => { const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = frequency; f.Q.value = q; return f }
+    const hp = filter('highpass', 10)                      // out of the way until a mode moves it (10 Hz passes everything audible)
+    const low = filter('lowshelf', 150)                    // the weight of music and effects
+    const body = filter('peaking', 1400, 0.8)              // the body of a voice
+    const presence = filter('peaking', 3000, 1.0)          // the consonants that make speech understood
+    const comp = ctx.createDynamicsCompressor()            // evens out loud and quiet
+    const gain = ctx.createGain()                          // brings the level back after the compressor, and carries the volume boost
+    const limit = ctx.createDynamicsCompressor()           // nothing the make-up gain adds may clip
+    ctx.createMediaElementSource(el).connect(hp)
+    hp.connect(low); low.connect(body); body.connect(presence); presence.connect(comp); comp.connect(gain); gain.connect(limit); limit.connect(ctx.destination)
+    chains.set(el, { hp, low, body, presence, comp, gain, limit })
     apply(el)
     routed.add(el)
     void context.resume?.().catch(() => undefined)
@@ -42,18 +48,32 @@ export function routeThroughApp(el: HTMLMediaElement | null | undefined, force =
   } catch { return false }
 }
 
-/** The sound mode and boost as set now, on one element's chain. Normal leaves the sound alone (flat filter, compressor that does nothing). */
+/**
+ * The sound mode and boost as set now, on one element's chain.
+ * Dialogue boost: rumble and the weight of music and effects come down, the range where speech sits comes up (about 1.4 and 3 kHz), and a gentle compressor keeps
+ * every line at a similar level. Night mode: bass (explosions) is cut hard and everything is compressed so the loud parts come down towards the quiet ones, then the
+ * level is brought back up and limited, so a whisper can be heard without the loud scene waking the house. Normal leaves the sound alone.
+ */
 function apply(el: HTMLMediaElement) {
   const c = chains.get(el)
   if (!c) return
-  const night = mode === 'night'
-  c.voice.gain.value = mode === 'dialogue' ? 6 : 0
-  c.comp.threshold.value = night ? -45 : 0
-  c.comp.knee.value = night ? 30 : 0
-  c.comp.ratio.value = night ? 10 : 1
-  c.comp.attack.value = 0.003
-  c.comp.release.value = 0.25
-  c.gain.gain.value = wanted * (night ? 1.6 : 1)      // the compressor lowers the loud parts: bring the level back up
+  const dialogue = mode === 'dialogue', night = mode === 'night'
+  c.hp.frequency.value = dialogue ? 90 : night ? 40 : 10
+  c.low.gain.value = dialogue ? -4 : night ? -7 : 0
+  c.low.frequency.value = night ? 140 : 180
+  c.body.gain.value = dialogue ? 5 : night ? 2 : 0
+  c.presence.gain.value = dialogue ? 7 : night ? 3 : 0
+  c.comp.threshold.value = dialogue ? -26 : night ? -42 : 0
+  c.comp.knee.value = dialogue ? 20 : night ? 24 : 0
+  c.comp.ratio.value = dialogue ? 3 : night ? 8 : 1
+  c.comp.attack.value = night ? 0.004 : 0.003
+  c.comp.release.value = night ? 0.3 : 0.25
+  c.gain.gain.value = wanted * (dialogue ? 1.35 : night ? 1.9 : 1)      // the compressor lowers the loud parts: bring the level back up
+  c.limit.threshold.value = dialogue || night || wanted > 1 ? -3 : 0     // a ceiling only when something has made the sound louder
+  c.limit.knee.value = 0
+  c.limit.ratio.value = dialogue || night || wanted > 1 ? 20 : 1
+  c.limit.attack.value = 0.001
+  c.limit.release.value = 0.1
 }
 
 /** Dialogue boost or night mode. Routes the element through the app if it is not yet; returns false when that is not possible. */

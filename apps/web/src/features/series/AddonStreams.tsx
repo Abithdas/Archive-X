@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '@/api/client'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -93,8 +93,33 @@ function compareKnown(a: number, b: number, descending: boolean): number {
  * Add-on, quality, language, source and HDR/DV filters narrow the streams returned for this title.
  * A torrent plays through the person's Stremio streaming server (Settings, Addons); without it the torrent is listed and says what is missing.
  */
+/** Shown while torrents are listed but Stremio's streaming server is not running: start it from here when it is installed on this PC, or open its download page. */
+function StartServer({ onUp }: { onUp: () => void }) {
+  const info = useQuery({ queryKey: ['streaming-server'] as const, queryFn: () => api<{ installed?: boolean; download?: string }>('/api/screen/streaming-server'), staleTime: 30_000, retry: false })
+  const [state, setState] = useState<'idle' | 'starting' | 'failed'>('idle')
+  const [why, setWhy] = useState('')
+  const start = async () => {
+    setState('starting'); setWhy('')
+    try {
+      const r = await api<{ up?: boolean; reason?: string }>('/api/screen/streaming-server/start', { method: 'POST', json: {} })
+      if (r.up) { setState('idle'); onUp() } else { setState('failed'); setWhy(r.reason || 'It did not start.') }
+    } catch { setState('failed'); setWhy('Could not ask the app to start it.') }
+  }
+  return (
+    <div role="status" className="mb-2 grid gap-1.5 rounded-xl border border-warn/40 bg-warn/10 p-2.5 text-xs">
+      <p className="m-0 font-semibold">Torrents need Stremio&apos;s streaming server, which is not running.</p>
+      <div className="flex flex-wrap items-center gap-2">
+        {info.data?.installed ? <button type="button" disabled={state === 'starting'} onClick={() => void start()} className="h-8 rounded-lg bg-accent px-3 text-xs font-bold text-accent-fg disabled:opacity-60">{state === 'starting' ? 'Starting…' : 'Start it'}</button> : null}
+        <a href={info.data?.download ?? 'https://github.com/Stremio/stremio-service/releases/latest'} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center rounded-lg border border-line-2 px-3 text-xs font-semibold hover:bg-fg/5">{info.data?.installed ? 'Get an update' : 'Get the streaming server'}</a>
+      </div>
+      {why ? <p className="m-0 text-muted">{why}</p> : null}
+    </div>
+  )
+}
+
 export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' | 'series'; ident: string; season?: number; episode?: number }) {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const [group, setGroup] = useState(() => (kind === 'series' ? lastBinge(ident) : ''))
   const [selectedAddon, setSelectedAddon] = useState('')
   const [prefs, setPrefs] = useState<Prefs>(readStreamPrefs)
@@ -153,6 +178,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
       </div>
       {d.items.length ? (
         <>
+          {d.torrents && d.streaming_server && !d.streaming_server.up ? <StartServer onUp={() => void qc.invalidateQueries({ queryKey: ['addon-streams'] })} /> : null}
           <div role="tablist" aria-label="Stream add-ons" className="flex w-fit max-w-full flex-wrap gap-1 rounded-[20px] border border-line bg-fg/5 p-1">
             <button type="button" role="tab" aria-selected={!selectedAddon} onClick={() => setSelectedAddon('')} className={'shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ' + (!selectedAddon ? 'bg-fg text-bg' : 'text-muted hover:text-fg')}>All <span className="ml-1 opacity-70">{d.items.length}</span></button>
             {addonNames.filter((name) => d.items.some((item) => item.addon === name)).map((name) => {   // an add-on with nothing for this title has no tab

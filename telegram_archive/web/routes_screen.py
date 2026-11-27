@@ -746,7 +746,19 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         require_auth(request)
         _sfw_only()
         base = ss.configured(db)
-        return {"url": base, "default": ss.DEFAULT, "saved": bool(str(db.setting(ss.SETTING) or "").strip()), "up": await asyncio.to_thread(_server_up, base, True)}
+        return {"url": base, "default": ss.DEFAULT, "saved": bool(str(db.setting(ss.SETTING) or "").strip()), "up": await asyncio.to_thread(_server_up, base, True),
+                "installed": bool(await asyncio.to_thread(ss.installed_program)), "download": ss.DOWNLOAD_PAGE}
+
+    @router.post("/api/screen/streaming-server/start")
+    async def streaming_server_start(request: Request):
+        """Start the streaming server installed on this PC (Windows) and wait until it answers."""
+        require_auth(request)
+        _sfw_only()
+        base = ss.configured(db)
+        out = await asyncio.to_thread(ss.start, base)
+        server_seen.pop(base, None)       # the next look asks again
+        out.pop("program", None)          # a file path on the person's PC is not something the page needs
+        return {"ok": True, **out, "download": ss.DOWNLOAD_PAGE}
 
     @router.post("/api/screen/streaming-server")
     async def streaming_server_save(request: Request):

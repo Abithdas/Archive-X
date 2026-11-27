@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { AddonExtras, AddonStreams, readStreamPrefs, sizeText } from './AddonStreams'
@@ -145,5 +145,22 @@ describe('same kind of stream on the next episode (bingeGroup)', () => {
     const names = within(list).getAllByRole('button').map((b) => b.textContent)
     expect(names[0]).toBe('Mine 720p')                                  // the kind played last time comes first
     expect(screen.getByText('Same as last episode')).toBeInTheDocument()
+  })
+})
+
+describe('torrents without the streaming server', () => {
+  it('offers to start it when it is installed, and refreshes the streams once it is up', async () => {
+    const calls: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? 'GET'} ${url}`)
+      if (url.startsWith('/api/screen/streams/')) return new Response(JSON.stringify({ ok: true, skipped: 0, addons: ['Torrentio'], torrents: true, streaming_server: { url: 'http://127.0.0.1:11470', up: false }, items: [{ addon: 'Torrentio', name: 'Torrentio 1080p', kind: 'blocked', host: 'streaming server', torrent: true, height: 1080 }] }), { status: 200 })
+      if (url === '/api/screen/streaming-server/start') return new Response(JSON.stringify({ ok: true, up: true }), { status: 200 })
+      if (url === '/api/screen/streaming-server') return new Response(JSON.stringify({ url: 'http://127.0.0.1:11470', up: false, installed: true, download: 'https://example.test/get' }), { status: 200 })
+      return new Response('{}', { status: 200 })
+    }))
+    withRouter(<AddonStreams kind="movie" ident="tt0133093" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Start it' }))
+    await waitFor(() => expect(calls).toContain('POST /api/screen/streaming-server/start'))
+    await waitFor(() => expect(calls.filter((c) => c.includes('/api/screen/streams/')).length).toBeGreaterThan(1))   // asked again now that it is up
   })
 })
