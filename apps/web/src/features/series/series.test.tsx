@@ -1,4 +1,5 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { useSearch } from '@/app/search'
+import { act, fireEvent, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
 import { labelsFor } from '@/features/content/labels'
@@ -137,8 +138,10 @@ describe('Filters on the Movies and Series lists', () => {
     fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
     fireEvent.click(screen.getByRole('button', { name: 'WEB-DL' }))
     expect(screen.queryByText('Dark')).toBeNull(); expect(screen.getByText('Lost')).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Find a show'), { target: { value: 'zzz' } })
+    expect(screen.queryByLabelText('Find a show')).toBeNull()                    // the top bar's search is the only search box
+    act(() => useSearch.getState().set('zzz'))
     expect(await screen.findByText('No show matches')).toBeInTheDocument()
+    act(() => useSearch.getState().set(''))
   })
 })
 

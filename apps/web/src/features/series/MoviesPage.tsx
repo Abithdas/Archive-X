@@ -1,3 +1,4 @@
+import { useSearch } from '@/app/search'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -20,10 +21,9 @@ import { ReviewsButton, ScoreBadges, useReviews } from './Reviews'
 /** The movies in the library, shown inside Movies & Shows: one poster for each, however many copies there are. */
 export function MoviesList() {
   const [sort, setSort] = useState<MovieSort>('title')
-  const [find, setFind] = useState('')
-  const [cam, setCam] = useState(false)
+  const find = useSearch((x) => x.q)   // the top bar's search is the one search box (the library list is narrowed by it)
   const [filter, setFilter] = useState<ListFilter>(NO_FILTER)
-  const q = useQuery({ queryKey: ['movies', cam], queryFn: () => api<{ items: MovieCard[] }>(`/api/screen/movies${cam ? '?cam=1' : ''}`) })
+  const q = useQuery({ queryKey: ['movies'], queryFn: () => api<{ items: MovieCard[] }>('/api/screen/movies') })
   const all = q.data?.items ?? []
   const items = sortMovies(all, sort, find).filter((m) => matchesFilter(filter, m))
   const narrowed = Boolean(find.trim()) || filterCount(filter) > 0
@@ -31,9 +31,7 @@ export function MoviesList() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted">One poster for each movie, with its copies under it{q.data ? <span className="ml-2 text-faint">· {narrowed ? `${items.length.toLocaleString()} of ${all.length.toLocaleString()}` : all.length.toLocaleString()} movies</span> : null}</p>
         <div className="flex flex-wrap items-center gap-2">
-          <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a movie" aria-label="Find a movie" className="h-10 w-44 rounded-xl border border-line-2 bg-bg px-3 text-sm" />
           <ListFilters items={all} value={filter} onChange={setFilter} sort={{ value: sort, options: MOVIE_SORTS, onChange: (v) => setSort(v as MovieSort) }} />
-          <label className="inline-flex items-center gap-2 text-sm text-muted"><input type="checkbox" checked={cam} onChange={(e) => setCam(e.target.checked)} />Show cinema recordings</label>
         </div>
       </div>
       {q.isError ? <p role="alert" className="py-8 text-center text-sm text-warn">Could not load the movies.</p>
@@ -54,8 +52,7 @@ export function MoviesList() {
 
 /** One movie, laid out like a streaming app: the artwork across the page, the story on the left, and every copy of it, best first, in a panel on the right. */
 export function MovieDetailPage({ id }: { id: number }) {
-  const [cam, setCam] = useState(false)
-  const q = useQuery({ queryKey: ['movies', id, cam], queryFn: () => api<MovieDetail>(`/api/screen/movies/${id}${cam ? '?cam=1' : ''}`) })
+  const q = useQuery({ queryKey: ['movies', id], queryFn: () => api<MovieDetail>(`/api/screen/movies/${id}`) })
   const d = q.data
   const reviews = useReviews('movie', d?.imdb ?? '')
   const best = d?.versions[0]
@@ -94,7 +91,6 @@ export function MovieDetailPage({ id }: { id: number }) {
           <span className="text-xs font-medium text-muted">{filterCount(copyFilter) ? `${shownCopies.length} of ${d.versions.length}` : d.versions.length} copies</span>
         </div>
       ) : null}
-      <label className="inline-flex items-center gap-2 px-1 text-xs font-medium text-muted"><input type="checkbox" checked={cam} onChange={(e) => setCam(e.target.checked)} />Show cinema recordings</label>
       {!shownCopies.length ? <p role="status" className="px-1 py-4 text-sm text-muted">No copy matches these filters. <button type="button" onClick={() => setCopyFilter(NO_FILTER)} className="font-semibold text-accent underline">Clear filters</button></p> : null}
       <ul className="m-0 grid list-none gap-1 p-0">
         {shownCopies.map((v, i) => {

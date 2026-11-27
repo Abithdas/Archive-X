@@ -240,10 +240,9 @@ def test_movies_are_one_card_with_their_copies_best_first_and_cinema_prints_hidd
     c, H = _client()(db)
     items = c.get("/api/screen/movies").json()["items"]
     matrix = next(m for m in items if m["title"] == "The Matrix")
-    assert (matrix["versions"], matrix["best"], matrix["cam_only"]) == (2, "1080p", False)          # the recording is hidden, the other two are one card
-    heat = next(m for m in items if m["title"] == "Heat")
-    assert heat["cam_only"] is True and heat["versions"] == 1                                       # all there is is a recording: shown, and said so
-    assert next(m for m in c.get("/api/screen/movies?cam=1").json()["items"] if m["title"] == "The Matrix")["versions"] == 3
+    assert (matrix["versions"], matrix["best"]) == (2, "1080p")                                     # the cinema recording is never there: the other two are one card
+    assert not any(m["title"] == "Heat" for m in items)                                             # all there is is a recording: the title is not listed
+    assert c.get("/api/screen/movies?cam=1").json()["items"] == items                               # and nothing turns them back on
     detail = c.get(f"/api/screen/movies/{matrix['id']}").json()
     assert [v["resolution"] for v in detail["versions"]] == ["1080p", "720p"] and detail["versions"][0]["mid"] == 2 and detail["versions"][0]["source"] == "WEB-DL"
     assert c.get("/api/screen/movies/9999").status_code == 404

@@ -1,3 +1,4 @@
+import { useSearch } from '@/app/search'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
@@ -25,7 +26,7 @@ type SeriesSort = (typeof SERIES_SORTS)[number]['value']
 export function SeriesList() {
   const q = useQuery({ queryKey: ['series'], queryFn: () => api<{ items: SeriesCard[] }>('/api/screen/series') })
   const [sort, setSort] = useState<SeriesSort>('title')
-  const [find, setFind] = useState('')
+  const find = useSearch((x) => x.q)   // the top bar's search is the one search box (the library list is narrowed by it)
   const [filter, setFilter] = useState<ListFilter>(NO_FILTER)
   const all = q.data?.items ?? []
   const text = find.trim().toLowerCase()
@@ -36,7 +37,6 @@ export function SeriesList() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted">Your TV shows, season by season{q.data ? <span className="ml-2 text-faint">· {narrowed ? `${items.length.toLocaleString()} of ${all.length.toLocaleString()}` : all.length.toLocaleString()} shows</span> : null}</p>
         <div className="flex flex-wrap items-center gap-2">
-          <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a show" aria-label="Find a show" className="h-10 w-44 rounded-xl border border-line-2 bg-bg px-3 text-sm" />
           <ListFilters items={all} value={filter} onChange={setFilter} sort={{ value: sort, options: SERIES_SORTS, onChange: (v) => setSort(v as SeriesSort) }} />
         </div>
       </div>

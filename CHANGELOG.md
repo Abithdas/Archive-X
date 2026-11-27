@@ -4,6 +4,9 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **No cinema recordings, anywhere.** A CAM, telesync or similar copy of a movie (a recording made in a cinema) is no longer shown, counted or played: the "Show cinema recordings" switches are gone from the Movies list and from a movie's page, and a movie whose only copy is such a recording is not listed. The files themselves are not deleted. (The Collection already never downloaded them.)
+- **One search box in the Library.** The extra "Find a movie" and "Find a show" boxes are gone: the search in the top bar narrows the Movies and Series lists.
+
 - **Full screen stays full screen when the next video starts.** Choosing Next, Previous, an Up next video, or letting one end no longer drops out of full screen and pauses: the page stays in full screen (the black screen with a spinner shows while the next video loads) and the next video starts playing. Leaving the video page leaves full screen.
 - **Home row previews are steady when you move between neighbouring cards.** Moving from one card to the one beside it opened the new preview over the place the card was passing through (the titles were still gliding back from the old preview), so it sat off to one side, and the old preview's delayed clean-up then cancelled the new one's animation and re-snapped the row, which closed it. A preview now opens over the card's resting place and only the newest preview puts the row back. Sweeping across several cards and leaving puts every title back exactly where it was.
 

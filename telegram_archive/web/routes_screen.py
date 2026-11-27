@@ -1452,20 +1452,18 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         return out
 
 
-    def _versions(rows, hide_cam: bool) -> list[dict]:
-        """The copies of one movie, best first. A cinema recording is left out when a real copy exists (and is marked when it is all there is)."""
+    def _versions(rows) -> list[dict]:
+        """The copies of one movie, best first. A cinema recording (CAM, telesync) is never one of them: it is not shown, listed or played."""
         copies = []
         for r in rows:
             q = si.quality_of(r["filename"] or "", r["height"] or 0)
             copies.append({"cid": r["source_channel"], "mid": r["source_message_id"], "media_id": r["media_id"], "filename": r["filename"] or "", "resolution": q["resolution"], "height": q["height"],
                            "source": q["source"], "cam": q["cam"], "codec": r["codec"] or "", "size": r["size"] or 0, "duration": r["duration"] or 0, "hdr": q["hdr"], "languages": q["languages"]})
         copies.sort(key=lambda v: si.version_sort_key(v))
-        if hide_cam and any(not v["cam"] for v in copies):
-            copies = [v for v in copies if not v["cam"]]
-        return copies
+        return [v for v in copies if not v["cam"]]
 
     @router.get("/api/screen/movies")
-    async def movies_list(request: Request, cam: int = 0):
+    async def movies_list(request: Request):
         """The movies in the library: one entry for each, with how many copies there are and the best one's picture size."""
         require_auth(request)
         await asyncio.to_thread(wake_identify)
@@ -1480,16 +1478,18 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 groups.setdefault(r["title_id"], []).append(r)
             out = []
             for tid, rs in groups.items():
-                v = _versions(rs, not cam)
+                v = _versions(rs)
+                if not v:
+                    continue                                       # all there is is a cinema recording: the title is not listed
                 first = rs[0]
                 out.append({"id": tid, "title": first["title"], "year": first["year"], "poster": si.image_url(first["poster"], "w342"), "overview": first["overview"], "genres": json.loads(first["genres"] or "[]"),
                             "rating": first["rating"] or 0, "release_date": first["release_date"] or "", "added": max(r["media_id"] for r in rs), "versions": len(v), "best": v[0]["resolution"] if v else "",
-                            "cam_only": bool(v) and all(x["cam"] for x in v), **si.facets_of({"height": x["height"], "source": x["source"], "hdr": x["hdr"], "languages": x["languages"]} for x in v)})
+                            "cam_only": False, **si.facets_of({"height": x["height"], "source": x["source"], "hdr": x["hdr"], "languages": x["languages"]} for x in v)})
             return sorted(out, key=lambda m: m["title"].lower())
         return {"items": await asyncio.to_thread(read)}
 
     @router.get("/api/screen/movies/{title_id}")
-    async def movie_detail(title_id: int, request: Request, cam: int = 0):
+    async def movie_detail(title_id: int, request: Request):
         """One movie: its story, cast and every copy of it (best first), each one playable."""
         require_auth(request)
 
@@ -1501,7 +1501,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 rows = c.execute(
                     "SELECT m.id AS media_id,m.source_channel,m.source_message_id,m.filename,m.height,m.size,m.duration,m.codec FROM media_screen s JOIN media m ON m.id=s.media_id "
                     "WHERE s.title_id=? AND s.state='MATCHED' ORDER BY m.id", (int(title_id),)).fetchall()
-            v = _versions(rows, not cam)
+            v = _versions(rows)
             if not v:
                 return None
             return {"id": t["id"], "imdb": t["imdb_id"] or "", "title": t["title"], "year": t["year"], "overview": t["overview"], "tagline": t["tagline"], "poster": si.image_url(t["poster"], "w500"), "backdrop": si.image_url(t["backdrop"], "w780"),
