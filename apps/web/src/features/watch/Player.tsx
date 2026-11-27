@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { api } from '@/api/client'
 import { Icon } from '@/design/Icon'
 import { PlayIcon } from './PlayerIcons'
 import { MenuItem, MenuSection } from './PlayerParts'
@@ -19,6 +20,8 @@ import { loadStyle, saveStyle } from './captionStyle'
 import { useAltAudio, useTracks, type AddonRef, type MediaRef } from './useTracks'
 
 export const nextRate = (r: number) => RATES[(RATES.findIndex((x) => x === r) + 1) % RATES.length] ?? 1
+/** How to ask this PC for a converted version of the video: `url(t)` starts it at second `t`; `info` answers its length (`{ duration }`) when the page does not know it. */
+export interface Convert { url: (t: number) => string; info?: string }
 const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) && dur > 0 ? Math.min(dur, t) : t)
 
 /**
@@ -26,7 +29,7 @@ const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) &
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
 
-export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable, facts, addon }: { addon?: AddonRef; facts?: StreamFacts; onUnplayable?: () => void; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc?: () => void; onOpenNative?: () => void }) {
+export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable, facts, addon, convert }: { convert?: Convert; addon?: AddonRef; facts?: StreamFacts; onUnplayable?: () => void; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc?: () => void; onOpenNative?: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
   const pendingStart = useRef<number | null>(null)
@@ -56,6 +59,29 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   const [failed, setFailed] = useState(false)
   useEffect(() => { if (failed) onUnplayable?.() }, [failed]) // eslint-disable-line react-hooks/exhaustive-deps -- the page switches to the native player once, when this video cannot be played here
   const [attempt, setAttempt] = useState(0)
+  // A file this web view cannot decode is converted by this PC into an MP4 it can (what Stremio's streaming server does): `conv.base` is the second the converted stream starts at,
+  // so the clock, the timeline and every seek are shifted by it, and a seek outside what was already converted starts a new conversion there.
+  const [conv, setConv] = useState<{ base: number } | null>(null)
+  const [convDur, setConvDur] = useState(0)
+  const base = conv?.base ?? 0
+  const now = () => base + (video.current?.currentTime ?? 0)
+  const activeSrc = conv && convert ? convert.url(conv.base) : src
+  useEffect(() => { setConv(null); setConvDur(0) }, [src])
+  useEffect(() => {
+    if (!conv || !convert?.info) return
+    let dead = false
+    api<{ duration?: number }>(convert.info).then((r) => { if (!dead && Number(r.duration) > 0) setConvDur(Number(r.duration)) }).catch(() => undefined)
+    return () => { dead = true }
+  }, [!conv, convert?.info]) // eslint-disable-line react-hooks/exhaustive-deps -- asked once, when the conversion begins
+  useEffect(() => { if (conv && convDur > 0) setDur(convDur) }, [conv, convDur])   // a live converted stream cannot tell its own length: the server does
+  /** The player cannot play this: convert it from where it stopped (once), and only when that fails too is the video unplayable. */
+  const fail = () => {
+    if (convert && !conv) { keepPlaying.current = !(video.current?.paused ?? true) || autoPlay; setConv({ base: Math.max(0, now() || pendingStart.current || startAt || 0) }); setLoading(true); return }
+    setFailed(true); setLoading(false)
+  }
+  const failRef = useRef(fail)
+  failRef.current = fail
+  const keepPlaying = useRef(false)   // a seek that starts a new conversion reloads the video: it carries on playing if it was playing
   // The video plays as it is: this web view plays what Windows can decode. A file it cannot play is handed to the native player (see WatchPage), never converted here.
   const [committed, setCommitted] = useState(false)   // the source was handed to the video: late codec info must not switch it mid-play
   const ready = !infoPending
@@ -93,27 +119,32 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
 
   const seek = useCallback((t: number) => {
     const v = video.current
-    if (v) v.currentTime = clampTime(t, v.duration || dur)
-  }, [dur])
+    if (!v) return
+    if (!conv) { v.currentTime = clampTime(t, v.duration || dur); return }
+    const to = clampTime(t, dur || convDur)
+    const ahead = v.buffered.length ? base + v.buffered.end(v.buffered.length - 1) : base
+    if (to >= base && to <= ahead - 1) v.currentTime = to - base      // already converted: a plain seek
+    else { keepPlaying.current = !v.paused; setConv({ base: to }); setLoading(true) }   // not yet: convert from there
+  }, [dur, conv, convDur, base])
   const toggle = useCallback(() => {
     const v = video.current
     if (!v) return
-    if (v.paused) void v.play().catch(() => setFailed(true))
+    if (v.paused) void v.play().catch(() => failRef.current())
     else v.pause()
   }, [])
   /** A snapshot tile was chosen: play from that moment (now if the video knows its length, otherwise as soon as it does). */
   const pickTime = (t: number) => {
     const v = video.current
     if (!v) return
-    if (v.readyState >= 1) v.currentTime = clampTime(t, v.duration || dur)
+    if (conv || v.readyState >= 1) seek(t)
     else pendingStart.current = t
-    void v.play().catch(() => setFailed(true))
+    void v.play().catch(() => failRef.current())
   }
   /** A seek asked for from outside the player (a scene-marker chip): seek now, or as soon as the video knows its length. Does not start playback. */
   useEffect(() => {
     const v = video.current
     if (!seekRequest || !v) return
-    if (v.readyState >= 1) v.currentTime = clampTime(seekRequest.t, v.duration || dur)
+    if (conv || v.readyState >= 1) seek(seekRequest.t)
     else pendingStart.current = seekRequest.t
   }, [seekRequest]) // eslint-disable-line react-hooks/exhaustive-deps
   const flash = (text: string) => {
@@ -130,7 +161,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
     tap.current = state
     clearTimeout(tapTimer.current)
     if (by !== null) {
-      seek((video.current?.currentTime ?? 0) + by)
+      seek(now() + by)
       setSkip({ side: state.side === 'left' ? 'left' : 'right', total: state.total })
       tapTimer.current = setTimeout(() => { tap.current = null; setSkip(null) }, KEEP_SKIPPING_MS)
       return
@@ -161,7 +192,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   }, [src, attempt])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => playerKey(e, { toggle, seekBy: (d) => seek((video.current?.currentTime ?? 0) + d), mute: () => setMuted((m) => !m), full, next: onNext, prev: onPrev })
+    const onKey = (e: KeyboardEvent) => playerKey(e, { toggle, seekBy: (d) => seek(now() + d), mute: () => setMuted((m) => !m), full, next: onNext, prev: onPrev })
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [toggle, seek, onNext, onPrev])
@@ -185,7 +216,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
         <video
           key={attempt}
           ref={video}
-          src={committed ? src : undefined}
+          src={committed ? activeSrc : undefined}
           poster={poster}
           playsInline
           preload="metadata"
@@ -196,24 +227,26 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
           onPause={() => setPlaying(false)}
           onWaiting={() => setLoading(true)}
           onPlaying={() => { resumeAudio(); setLoading(false) }}
-          onCanPlay={() => setLoading(false)}
+          onCanPlay={(e) => { setLoading(false); if (keepPlaying.current) { keepPlaying.current = false; void e.currentTarget.play().catch(() => undefined) } }}
           onLoadedMetadata={(e) => {
             const v = e.currentTarget
-            setDur(v.duration || durationHint || 0)
+            setDur(conv ? (convDur || durationHint || 0) : (v.duration || durationHint || 0))
             if (v.videoWidth) { setRatio(Math.min(2.4, Math.max(0.5, v.videoWidth / v.videoHeight))) }
             // Start where the viewer chose to resume, once per video (a retry keeps the position it reached).
-            if (pendingStart.current !== null) { v.currentTime = clampTime(pendingStart.current, v.duration || durationHint || 0); pendingStart.current = null; startApplied.current = true }
+            if (conv) { pendingStart.current = null; startApplied.current = true }   // a converted stream already starts where it was asked to
+            else if (pendingStart.current !== null) { v.currentTime = clampTime(pendingStart.current, v.duration || durationHint || 0); pendingStart.current = null; startApplied.current = true }
             else if (startAt > 0 && !startApplied.current) { startApplied.current = true; v.currentTime = clampTime(startAt, v.duration || durationHint || 0) }
           }}
           onTimeUpdate={(e) => {
-            setTime(e.currentTarget.currentTime)
-            onTime?.(e.currentTarget.currentTime, e.currentTarget.duration || durationHint || 0)
+            const at = base + e.currentTarget.currentTime
+            setTime(at)
+            onTime?.(at, conv ? (dur || convDur || durationHint || 0) : (e.currentTarget.duration || durationHint || 0))
             const b = e.currentTarget.buffered
-            setBuffered(b.length ? b.end(b.length - 1) : 0)
+            setBuffered(b.length ? base + b.end(b.length - 1) : base)
             setSample(sampleOf(e.currentTarget))
           }}
           onEnded={() => { onEnd?.(); if (autoNext) onNext?.() }}
-          onError={() => { setFailed(true); setLoading(false) }}
+          onError={fail}
           style={{ filter: pictureFilter(ps), transform: ps.zoom === 'off' ? undefined : `scale(${zoomScale(ps.zoom, ratio, isFs ? window.innerWidth / Math.max(1, window.innerHeight) : ratio)})` }}
           className="absolute inset-0 h-full w-full cursor-pointer object-contain"
         />

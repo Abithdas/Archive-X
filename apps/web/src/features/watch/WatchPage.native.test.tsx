@@ -137,7 +137,8 @@ describe('which engine plays the video', () => {
     await screen.findByTestId('native-pane')
     fireEvent.click(screen.getByRole('button', { name: 'Use the browser player' }))
     await waitFor(() => expect(video()).not.toBeNull())
-    fireEvent.error(video()!)
+    fireEvent.error(video()!)                                                                   // the browser player now converts the video itself first
+    fireEvent.error(video()!)                                                                   // and only when that fails too is it unplayable
     await act(async () => { await new Promise((r) => setTimeout(r, 100)) })
     expect(screen.queryByTestId('native-pane')).toBeNull()
     expect(screen.getByRole('alert')).toBeInTheDocument()                                       // the failure screen stays, with its own buttons

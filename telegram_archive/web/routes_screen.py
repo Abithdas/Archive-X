@@ -517,6 +517,85 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 resp.close()
         return StreamingResponse(body(), status_code=getattr(resp, "status", 200) or 200, headers=headers)
 
+    compat_info: dict[str, dict] = {}
+
+    async def _compat_probe(url: str, token: str) -> dict:
+        """What ffprobe says about a listed stream (asked once per stream, and remembered while the stream is listed)."""
+        from ..playback import media_tools
+        if token not in compat_info:
+            if len(compat_info) > 200:
+                compat_info.clear()
+            try:
+                compat_info[token] = await media_tools.probe(url, 45.0)
+            except FileNotFoundError as exc:
+                raise HTTPException(503, "ffmpeg is needed to convert this video for the browser.") from exc
+            except Exception as exc:
+                raise HTTPException(502, "The stream could not be read.") from exc
+        return compat_info[token]
+
+    @router.get("/api/screen/stream-compat/{token}/info")
+    async def stream_compat_info(token: str, request: Request):
+        """The length and codecs of a listed stream, for the player when it plays the converted version (the converted stream is live, so it cannot tell its own length)."""
+        require_auth(request)
+        _sfw_only()
+        hit = stream_tokens.get(token)
+        if not hit:
+            raise HTTPException(404, "That stream is no longer available. Open the title's page again.")
+        info = await _compat_probe(hit[1], token)
+        return {"duration": info.get("duration") or 0, "vcodec": info.get("vcodec") or "", "acodec": info.get("acodec") or "", "height": info.get("height") or 0}
+
+    @router.get("/api/screen/stream-compat/{token}")
+    async def stream_compat(token: str, request: Request, t: float = 0.0):
+        """A listed stream converted on this PC into a fragmented MP4 every browser plays (what Stremio's streaming server does for the player): video is copied when it is H.264 and
+        converted otherwise, audio becomes AAC unless it already plays. `t` starts at that second, which is how the player seeks."""
+        require_auth(request)
+        _sfw_only()
+        from ..playback import media_tools
+        hit = stream_tokens.get(token)
+        if not hit:
+            raise HTTPException(404, "That stream is no longer available. Open the title's page again.")
+        ffmpeg = media_tools.find_ffmpeg()
+        if not ffmpeg:
+            raise HTTPException(503, "ffmpeg is needed to convert this video for the browser.")
+        info = await _compat_probe(hit[1], token)
+        t0 = max(0.0, min(float(t), float(info.get("duration") or 0) or 1e9)) if t == t else 0.0
+        encoder = await media_tools.best_h264_encoder()
+        plan = media_tools.plan_compat(info)
+        if not plan["copy_video"] and encoder == "copy":
+            encoder = "libx264"
+        cmd = media_tools.compat_command(ffmpeg, hit[1], info, t0, "copy" if plan["copy_video"] else encoder)
+        proc = await asyncio.create_subprocess_exec(*cmd, stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, creationflags=media_tools._NO_WINDOW)
+        try:
+            first = await asyncio.wait_for(proc.stdout.read(256 * 1024), timeout=25.0)
+        except asyncio.TimeoutError:
+            first = b""
+        if not first:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+            raise HTTPException(502, "This video could not be converted.")
+
+        async def body():
+            try:
+                yield first
+                while True:
+                    chunk = await proc.stdout.read(256 * 1024)
+                    if not chunk:
+                        break
+                    yield chunk
+            finally:
+                if proc.returncode is None:
+                    try:
+                        proc.kill()
+                    except ProcessLookupError:
+                        pass
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=3)
+                except Exception:
+                    pass
+        return StreamingResponse(body(), media_type="video/mp4", headers={"Accept-Ranges": "none", "Cache-Control": "no-store", "X-Accel-Buffering": "no", "X-Compat-Start": f"{t0:.3f}"})
+
     @router.get("/api/screen/stream-link/{token}")
     async def stream_link(token: str, request: Request):
         """The address of a listed stream, for the desktop app's native player: it opens addresses itself and cannot carry the web session. Only streams this app listed as playable."""
