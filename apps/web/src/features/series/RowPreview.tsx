@@ -6,6 +6,7 @@ import { PLACEHOLDER } from './PosterCard'
 export interface Previewable { imdb: string; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string; background: string; rating: string; overview: string; genres: string[]; library: { kind: 'tv' | 'movie'; id: number } | null }
 const hasPage = (item: Previewable) => /^(tt\d+|tmdb-\d+|kitsu:\d+)$/.test(item.imdb)
 const OPEN_AFTER_MS = 450
+const SWITCH_AFTER_MS = 110   // moving from one card's preview to the next opens the next almost at once, so the row glides instead of waiting and resetting
 const CLOSE_AFTER_MS = 140
 const CLOSING_MS = 200
 const EASE = 'cubic-bezier(0.2, 0.85, 0.25, 1)'
@@ -36,6 +37,8 @@ export function useRowPreview(): { hover: (item: Previewable) => (el: HTMLElemen
   const close = useRef<ReturnType<typeof setTimeout>>(undefined)
   const gone = useRef<ReturnType<typeof setTimeout>>(undefined)
   const card = useRef<HTMLElement | null>(null)
+  const lastOpen = useRef(0)   // when a preview was last on screen (shown now, or closed a moment ago)
+  const showing = useRef(false)
   const rowAt = useRef<{ row: HTMLElement | null | undefined; left: number }>({ row: null, left: 0 })
   const end = useCallback((quick?: boolean) => {
     clearTimeout(gone.current)
@@ -54,7 +57,8 @@ export function useRowPreview(): { hover: (item: Previewable) => (el: HTMLElemen
     if (typeof window.matchMedia === 'function' && !window.matchMedia('(hover: hover)').matches) return   // touch: the card simply opens
     clearTimeout(open.current); clearTimeout(close.current); clearTimeout(gone.current)
     card.current = el
-    open.current = setTimeout(() => { if (el.isConnected) { const row = el.parentElement?.parentElement; rowAt.current = { row, left: row?.scrollLeft ?? 0 }; setShown({ item, card: el }) } }, OPEN_AFTER_MS)
+    const switching = showing.current || Date.now() - lastOpen.current < 400
+    open.current = setTimeout(() => { if (el.isConnected) { const row = el.parentElement?.parentElement; rowAt.current = { row, left: row?.scrollLeft ?? 0 }; setShown({ item, card: el }) } }, switching ? SWITCH_AFTER_MS : OPEN_AFTER_MS)
   }, [])
   useEffect(() => {
     const move = (e: PointerEvent) => {
@@ -69,6 +73,8 @@ export function useRowPreview(): { hover: (item: Previewable) => (el: HTMLElemen
     window.addEventListener('resize', away)
     return () => { document.removeEventListener('pointermove', move); window.removeEventListener('scroll', away, true); window.removeEventListener('resize', away); clearTimeout(open.current); clearTimeout(close.current); clearTimeout(gone.current) }
   }, [hide, inside, end])
+  showing.current = Boolean(shown && !shown.closing)
+  if (showing.current) lastOpen.current = Date.now()
   const node = shown ? <Preview key={`${shown.item.kind}:${shown.item.imdb}`} {...shown} onDone={() => end(true)} /> : null
   return { hover, node }
 }
@@ -99,9 +105,13 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
     const px = (v: number) => `${Math.max(0, Math.round(v))}px`
     const row = wrapper?.parentElement
     const siblings = row ? [...row.children] as HTMLElement[] : []
-    const gap = siblings.length > 1 ? Math.max(4, siblings[1]!.offsetLeft - siblings[0]!.offsetLeft - siblings[0]!.offsetWidth) : 10
     const at = wrapper ? siblings.indexOf(wrapper) : -1
-    const pushes: Array<[HTMLElement, number]> = at < 0 ? [] : siblings.filter((_, i) => i !== at).map((n, i) => [n, (i < at ? -1 : 1) * ((i < at ? Math.max(0, rect.left - left) : Math.max(0, left + width - rect.right)) + gap)])
+    // The neighbours keep the gap they already have to this card: each side moves by exactly how far the panel reaches past the card on that side (measured from where
+    // the card and its neighbours rest, not where a previous preview may still be moving them).
+    const resting = (n: HTMLElement) => { const r = n.getBoundingClientRect(), dx = displacedBy(n); return { left: r.left - dx, right: r.right - dx } }
+    const mine = wrapper ? resting(wrapper) : { left: rect.left, right: rect.right }
+    const toLeft = Math.max(0, mine.left - left), toRight = Math.max(0, left + width - mine.right)
+    const pushes: Array<[HTMLElement, number]> = at < 0 ? [] : siblings.filter((_, i) => i !== at).map((n) => [n, siblings.indexOf(n) < at ? -toLeft : toRight])
     setGeo({ left: Math.round(left), top: Math.round(top), width, pushes,
       from: `inset(${px(rect.top - top)} ${px(left + width - rect.right)} ${px(top + height - rect.bottom)} ${px(rect.left - left)} round 8px)`,
       ghost: { left: Math.round(rect.left - left), top: Math.round(rect.top - top), width: Math.round(rect.width), height: Math.round(rect.height) } })
@@ -132,7 +142,13 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
   const on = opened && !closing
   const media = (
     <span className="relative block aspect-video w-full overflow-hidden bg-surface-3">
-      <img src={art} alt="" className={on ? 'mo-preview-art absolute inset-0 size-full object-cover' : 'absolute inset-0 size-full object-cover'} />
+      {item.background ? <img src={art} alt="" className={on ? 'mo-preview-art absolute inset-0 size-full object-cover' : 'absolute inset-0 size-full object-cover'} /> : (
+        // No wide picture for this title: the poster whole on a soft copy of itself, not a thin slice cut out of it
+        <>
+          <img src={art} alt="" aria-hidden="true" className="absolute inset-0 size-full scale-125 object-cover opacity-70 blur-xl" />
+          <img src={art} alt="" className={on ? 'mo-preview-art absolute inset-y-0 left-1/2 h-full -translate-x-1/2 object-contain' : 'absolute inset-y-0 left-1/2 h-full -translate-x-1/2 object-contain'} />
+        </>
+      )}
       <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(0deg,#181818_0%,rgba(24,24,24,0.35)_22%,transparent_45%)]" />
       <span className="absolute inset-x-3.5 bottom-2.5 text-lg font-extrabold leading-tight text-white drop-shadow-lg">{item.title}</span>
     </span>

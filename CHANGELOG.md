@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Row previews sit evenly and switch smoothly.** The preview panel now leaves the same gap to the card on its left and its right (it used to leave a wide gap on one side and cover the next card on the other), moving to the next card opens its preview almost at once instead of waiting and letting the row bounce back, and a title with no wide picture shows its whole poster on a soft copy of itself instead of a thin slice.
+
 - **The native player is no longer the default.** The setting now starts at "Never by itself": the native player is a button on the video page, and Settings > Experience can still make it automatic ("Only when the browser cannot play the video" or "Always"). A choice you saved earlier is kept.
 
 - **The video's name shows across the top in full screen.** The browser player now shows the name (not the file name when the video has a title) over the picture in full screen, and add-on streams do the same.
