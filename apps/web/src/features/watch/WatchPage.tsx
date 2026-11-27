@@ -3,6 +3,8 @@ import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, thumbUrl } from '@/api/client'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/api/client'
 import { useEntityLookup, useFavorite, useLibrary, useMarkers, usePlayInfo, usePreviewManifest, useVideo } from '@/api/hooks'
 import type { LibraryItem } from '@/api/types'
 import { isLocalId } from '@/features/channels/local'
@@ -23,6 +25,7 @@ import { Player } from './Player'
 import { hasNativeBridge, native } from './nativeBridge'
 import { NativePane } from './NativePane'
 import { useResume } from './useResume'
+import { QUEUE_MODES, isQueueMode, queueFor, type QueueMode } from './queue'
 import { frameIndexFor, normaliseChapters, toSegments } from './timelineLogic'
 import { withWidth } from '@/design/responsive'
 import { AnimatePresence, listItem, motion } from '@/design/motion'
@@ -56,11 +59,19 @@ export function upNext(items: LibraryItem[], current: LibraryItem): LibraryItem[
   return at < 0 ? items : [...items.slice(at + 1), ...items.slice(0, at)]
 }
 
-function UpNext({ items, current }: { items: LibraryItem[]; current: LibraryItem }) {
-  const rest = upNext(items, current).slice(0, 10)
+export function UpNext({ queue, mode, source, onMode }: { queue: LibraryItem[]; mode: QueueMode; source: QueueMode; onMode: (m: QueueMode) => void }) {
+  const rest = queue.slice(0, 10)
+  const fellBack = source !== mode
   return (
     <section aria-label="Up next videos" className={cn(CARD, 'self-start')}>
-      <div className="mb-3 flex items-baseline justify-between"><h2 className="text-lg font-extrabold">Up next</h2><span className="text-xs text-faint">After this one</span></div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-extrabold">Up next</h2>
+        <label className="inline-flex items-center gap-2 text-xs text-muted"><span className="sr-only">Choose what plays next</span>
+          <select value={mode} onChange={(e) => onMode(e.target.value as QueueMode)} aria-label="Up next source" className="h-9 rounded-lg border border-line-2 bg-bg px-2 text-sm font-semibold text-fg">
+            {QUEUE_MODES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        </label>
+      </div>
+      {fellBack ? <p role="status" className="mb-2 text-xs text-muted">Nothing else matches “{QUEUE_MODES.find(([k]) => k === mode)?.[1]}” for this video, so the {source === 'collection' ? "channel's" : 'current'} order is used.</p> : null}
       <ul className="grid gap-2.5">
         <AnimatePresence initial={false}>{rest.map((i) => (
           <motion.li key={`${i._cid}:${i.id}`} {...listItem}>
@@ -85,7 +96,8 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const router = useRouter()
   const navigate = useNavigate()
   const { channels, sort } = useLibraryStore()
-  const queue = useLibrary({ channels: channels.length ? channels : [cid], page: 0, per: 24, sort })
+  const queue = useLibrary({ channels: channels.length ? channels : [cid], page: 0, per: 100, sort })
+  const collection = useLibrary({ channels: [cid], page: 0, per: 100, sort })
   const markers = useMarkers(video.data?.media_id)
   const manifest = usePreviewManifest(cid, mid)
   const playInfo = usePlayInfo(cid, mid)
@@ -103,10 +115,24 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const performers = useEntityLookup('performers', item?.performers ?? [])
   const studios = useEntityLookup('studios', [item?.studio, ...(item?.studios ?? [])])
   const items = queue.data?.items ?? []
-  const index = item ? items.findIndex((i) => i.id === item.id && i._cid === item._cid) : -1
   const go = (i?: LibraryItem) => i && void navigate({ to: '/watch/$cid/$mid', params: { cid: i._cid, mid: String(i.id) } })
-  const prev = index > 0 ? items[index - 1] : undefined
-  const next = index >= 0 ? items[index + 1] : items.find((i) => item && !(i.id === item.id && i._cid === item._cid))
+  // What plays next: the mode set in Settings (Experience, "Autoplay source"), which can also be changed from the Up next box right here.
+  const qc = useQueryClient()
+  const [picked, setPicked] = useState<QueueMode | null>(null)
+  const mode: QueueMode = picked ?? (isQueueMode(exp.autonext_mode) ? exp.autonext_mode : 'context')
+  const real = (n: string) => n.trim().toLowerCase() !== 'unknown performer' && n.trim().toLowerCase() !== 'unknown studio'
+  const performerId = performers.data?.find((p) => real(p.name))?.id ?? 0
+  const studioId = studios.data?.find((p) => real(p.name))?.id ?? 0
+  const asItems = (rows: Array<Record<string, unknown>>): LibraryItem[] => rows.map((v) => ({ ...v, _cid: String(v.source_channel), name: String(v.title || v.filename || '') }) as unknown as LibraryItem)
+  const withPerformer = useQuery({ queryKey: ['upnext', 'performer', performerId] as const, enabled: mode === 'performer' && performerId > 0, staleTime: 60_000, queryFn: () => api<{ videos: Array<Record<string, unknown>> }>(`/api/performers/${performerId}/videos`).then((d) => asItems(d.videos ?? [])) })
+  const withStudio = useQuery({ queryKey: ['upnext', 'studio', studioId] as const, enabled: mode === 'studio' && studioId > 0, staleTime: 60_000, queryFn: () => api<{ videos: Array<Record<string, unknown>> }>(`/api/studios/${studioId}/videos`).then((d) => asItems(d.videos ?? [])) })
+  const plan = useMemo(() => (item ? queueFor(mode, item, { context: items, collection: collection.data?.items ?? [], performer: withPerformer.data ?? [], studio: withStudio.data ?? [] }) : null), [mode, item, items, collection.data, withPerformer.data, withStudio.data])
+  const chooseMode = (m: QueueMode) => {
+    setPicked(m)
+    void api('/api/settings/experience', { method: 'POST', json: { autonext_mode: m } }).then(() => qc.invalidateQueries({ queryKey: ['settings', 'experience'] })).catch(() => toast.error('Could not remember this choice.'))
+  }
+  const prev = plan?.previous
+  const next = plan?.next[0]
   const segments = useMemo(() => toSegments(normaliseChapters(markers.data, item?.duration ?? 0), item?.duration ?? 0), [markers.data, item?.duration])
   // Live seek preview: a frame made at the exact second under the pointer; the stored snapshots (when all cached) are the fallback.
   const snapshotsReady = Boolean(manifest.data?.frames_ready && manifest.data.frame_times.length)
@@ -269,7 +295,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
           </div>
         </section>
       </div>
-      <UpNext items={items} current={item} />
+      <UpNext queue={plan?.next ?? []} mode={mode} source={plan?.source ?? mode} onMode={chooseMode} />
       </div>
     </div>
   )

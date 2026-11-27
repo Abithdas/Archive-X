@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Up next now follows the setting, and can be changed on the video page.** The "Autoplay source" choice in Settings (current queue, same channel, same performer, same studio, recommended) was saved but never used: the next video was only ever the next one in the first 24 of the library list. The video page's Up next box now has a selector, the choice is remembered, and what plays after the video (and the Previous / Next buttons) follow it. Recommended ranks other videos by shared performers, then the same studio, then shared tags. A source with nothing else to offer falls back to the channel's order and says so.
+
 - **Edit video** shows the video it is about: its picture and four snapshots at a readable size, the file name, the title, performers and studio it has now, its length, size, picture size, channel and message number. **Matched metadata** is a full-width section of larger cards (provider picture, title, studio and date, cast, how well it matches) instead of a cramped column, with a clear "Use this match" button.
 - **Check snapshots** now says why it found nothing (too few snapshots, face models missing, no known faces or studio watermarks yet, or the video already has performers or a studio). A video that only had Unknown Performer / Unknown Studio used to be skipped as "already named"; it is now looked at.
 
