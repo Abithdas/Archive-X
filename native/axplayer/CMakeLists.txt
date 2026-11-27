@@ -10,10 +10,10 @@ set(AX_ENGINE "lav" CACHE STRING "Native video engine: lav or mpv")
 set_property(CACHE AX_ENGINE PROPERTY STRINGS lav mpv)
 
 if(AX_ENGINE STREQUAL "mpv")
-  # Only mpv's client.h (ISC licence) is needed to build: libmpv itself is loaded from its folder at run time.
+  # Only mpv's client.h (ISC licence, kept in vendor/mpv) is needed to build: libmpv itself is loaded from its folder at run time.
   add_library(axplayer SHARED src/axmpv.cpp)
   target_compile_definitions(axplayer PRIVATE AXPLAYER_EXPORTS UNICODE _UNICODE)
-  target_include_directories(axplayer PUBLIC include PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/mpv)
+  target_include_directories(axplayer PUBLIC include PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/mpv)
   target_link_libraries(axplayer PRIVATE user32 gdi32)
   set_target_properties(axplayer PROPERTIES OUTPUT_NAME axmpv)   # axmpv.dll, so both engines can sit side by side in the installer
 else()
