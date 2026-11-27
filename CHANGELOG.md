@@ -4,6 +4,10 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Local folders are no longer scanned by themselves when the app opens.** The automatic re-check (30 seconds after start and every 15 minutes: file listing, probing, previews and name lookups for every folder, photos included) kept large libraries busy and the app slow to open. A folder is looked through when you add it, with **Scan now** on its row in Settings, Local files, or from the Transfers page. The old behaviour is still there for anyone who sets `ARCHIVE_X_LOCAL_RESCAN=1`.
+- The **app update card** and the Overview no longer disagree on the version: the desktop shell reported its crate version (0.1.0) instead of the release number.
+- Removed "Watch the trailer" from the Discover side panels.
+
 - **A video nothing was found for now ends under Unknown Performer and Unknown Studio** instead of waiting forever. When a lookup finishes (StashDB / ThePornDB by file hash for a local folder, or the movie and show providers), the video's metadata step is complete, and a video with no performer or studio is linked to the Unknown ones, so it shows in its channel and can be corrected by hand later. A lookup that failed because a provider could not be reached is not counted as finished: it is tried again. This also covers local folders scanned with fewer than all of the Metadata, Performers and Studios stages ticked.
 
 - **Movies and shows are named even when TMDB is blocked.** On a network where TMDB closes the connection, a video's lookup used to fail on the first TMDB request and never reached Cinemeta, TVmaze or OMDb, so it stayed under "waiting" and was retried every few minutes. The other providers are now asked, and the failure is only reported when none of them could answer.

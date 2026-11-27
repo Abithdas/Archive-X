@@ -41,7 +41,7 @@ export function LocalFolders() {
           <h3 className="flex items-center gap-3 text-xl font-extrabold"><span className="text-accent"><Icon name="folders" className="size-5" /></span>Local files</h3>
           <button type="button" onClick={() => setAdding(true)} className="h-10 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Add a folder</button>
         </div>
-        <p className="mb-4 text-sm text-muted">Folders on this PC join the library like channels do. Photos and videos stay where they are; Archive X reads them from there. Mark each folder SFW or NSFW, and it is shown only in that mode ({modeLabel(mode)} now). A folder behaves like a channel: its videos are in the library, and you upload it to Telegram or scan its metadata from the Transfers page.</p>
+        <p className="mb-4 text-sm text-muted">Folders on this PC join the library like channels do. Photos and videos stay where they are; Archive X reads them from there. Mark each folder SFW or NSFW, and it is shown only in that mode ({modeLabel(mode)} now). A folder is looked through when you add it and when you press Scan now (it is not scanned by itself when the app opens). A folder behaves like a channel: its videos are in the library, and you upload it to Telegram or scan its metadata from the Transfers page.</p>
         <label className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted">Prepare
           <select aria-label="Videos prepared at once" value={prep.data?.workers ?? 2} onChange={(e) => setWorkers(Number(e.target.value))} className="h-8 rounded-lg border border-line-2 bg-bg px-2 text-sm text-fg">{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}</select>
           videos at once (snapshots and details). More is faster on a strong PC, and busier.</label>
@@ -64,7 +64,10 @@ export function LocalFolders() {
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p role="status" className={cn('text-xs', f.last_status === 'FAILED' || !f.exists ? 'text-bad' : 'text-muted')}>{scanText(f)}</p>
-                  <button type="button" className={BTN} onClick={() => setRemoving(f)}>Remove</button>
+                  <span className="flex flex-wrap gap-2">
+                    <button type="button" className={BTN} disabled={act.scan.isPending || f.scan?.running === true || !f.exists} onClick={() => act.scan.mutate(f.id, { onSuccess: () => toast('Looking through the folder now'), onError: (e) => toast.error(errorText(e, 'Could not start the scan.')) })} title="Look through this folder for new and changed files, prepare their previews and look up their names">Scan now</button>
+                    <button type="button" className={BTN} onClick={() => setRemoving(f)}>Remove</button>
+                  </span>
                 </div>
               </li>
               )

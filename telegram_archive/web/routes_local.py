@@ -30,7 +30,8 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config, jobs=N
     running: dict[int, threading.Thread] = {}
 
     def keep_in_step() -> None:
-        """Every 15 minutes (and shortly after start) look at each folder again: cheap, since unchanged files are skipped."""
+        """Opt-in only (ARCHIVE_X_LOCAL_RESCAN=1): every 15 minutes look at each folder again. Off by default: scanning every folder when the app opens (file listing, probing,
+        snapshots, name lookups) kept a large library busy and the app slow to open. A folder is scanned when you ask (Settings, Local files, or the Transfers page)."""
         import time
         time.sleep(30)
         while True:
@@ -41,7 +42,7 @@ def register_local_routes(router: APIRouter, *, db, require_auth, config, jobs=N
                 db.log(f"Local folder re-check failed: {type(exc).__name__}: {exc}", "WARN")
             time.sleep(900)
     global _WATCHER
-    if not _WATCHER and os.environ.get("ARCHIVE_X_LOCAL_RESCAN", "1") != "0":
+    if not _WATCHER and os.environ.get("ARCHIVE_X_LOCAL_RESCAN", "0") == "1":
         _WATCHER = True
         threading.Thread(target=keep_in_step, name="local-folders-rescan", daemon=True).start()
 
