@@ -397,16 +397,28 @@ def register_settings_routes(
         jobs.resume()
         return {"ok": True}
 
+    _ws_refusals: dict[str, float] = {}
+
     @router.websocket("/ws")
     async def websocket(ws: WebSocket):
         """Authenticated operational event stream with change coalescing."""
+        from .. import config as _app_config
+        # A connection refused before it is accepted reaches the page only as "closed (1006), never opened": the reason is written to the log, once a minute at most.
+        def _refused(why: str) -> None:
+            now = time.monotonic()
+            if now - _ws_refusals.get(why, -1e9) >= 60:
+                _ws_refusals[why] = now
+                db.log(f"Live updates connection refused: {why} (host={ws.headers.get('host') or '-'}, origin={ws.headers.get('origin') or '-'}, "
+                       f"cookie={'yes' if ws.cookies.get(_app_config.SESSION_COOKIE) else 'no'})", "WARN")
         if not session_from_ws(ws):
+            _refused("no valid session on the connection" if ws.cookies.get(_app_config.SESSION_COOKIE) else "no session cookie sent with the connection")
             await ws.close(code=4401)
             return
         _origin = ws.headers.get("origin") or ""
         if _origin:
             from urllib.parse import urlsplit
             if urlsplit(_origin).netloc.lower() != (ws.headers.get("host") or "").lower():
+                _refused("the page's address and the connection's address differ")
                 await ws.close(code=4403)
                 return
         await ws.accept()

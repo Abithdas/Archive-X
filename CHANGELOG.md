@@ -4,6 +4,9 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Videos in a far data centre start more reliably.** The logs showed videos whose file lives in a different Telegram data centre than the account's (here data centre 4) sometimes never starting: the connection to that data centre needs a key exchange, and it was made inside the first range request, whose time limit (30 s) threw the half-made connection away, again and again. The connection is now opened on a task of its own the moment the video is known (two minutes allowed, nothing cancels it), the ranges that wait for it retry meanwhile, and the first-range allowance is 60 s.
+- **Why live updates never connect is now written to the log.** The page's "Live updates connection closed (code 1006); it never opened" means the server refused the connection before it opened. The server now logs why (no session cookie on the connection, a session it does not know, or a page address that differs from the connection's), with the addresses, once a minute at most, so the next log bundle shows the cause.
+
 - **No cinema recordings, anywhere.** A CAM, telesync or similar copy of a movie (a recording made in a cinema) is no longer shown, counted or played: the "Show cinema recordings" switches are gone from the Movies list and from a movie's page, and a movie whose only copy is such a recording is not listed. The files themselves are not deleted. (The Collection already never downloaded them.)
 - **One search box in the Library.** The extra "Find a movie" and "Find a show" boxes are gone: the search in the top bar narrows the Movies and Series lists.
 

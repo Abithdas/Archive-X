@@ -3469,7 +3469,36 @@ class PlaybackEngine:
             f"dc={int(getattr(document, 'dc_id', 0) or 0)} "
             f"saved_proxy={bool(getattr(message, '_archive_x_saved_location', False))}"
         )
+        self._warm_dc_in_background(int(getattr(document, "dc_id", 0) or 0))
         return message
+
+    def _warm_dc_in_background(self, target_dc: int) -> None:
+        """Open the connection to the data centre a video lives in (a different one from the account's) on a task of its own, as soon as the video is known.
+
+        That connection needs a key exchange first, and on some networks it takes a minute or never finishes at the first try. Made inside the first range request it
+        was thrown away by that request's time limit, again and again, so the video never started. Here nothing cancels it: it is allowed two minutes, the ranges
+        that wait for it retry meanwhile, and once it is open every range finds it ready."""
+        base_dc = int(getattr(getattr(self.client, "session", None), "dc_id", 0) or 0)
+        warm = self.__dict__.setdefault("_warm_dcs", set())
+        pending = self.__dict__.setdefault("_warming_dcs", {})
+        borrower = getattr(self.client, "_borrow_exported_sender", None)
+        returner = getattr(self.client, "_return_exported_sender", None)
+        if not target_dc or not base_dc or target_dc == base_dc or target_dc in warm or target_dc in pending or not (callable(borrower) and callable(returner)):
+            return
+
+        async def open_it() -> None:
+            began = time.monotonic()
+            try:
+                sender = await asyncio.wait_for(borrower(target_dc), 120.0)
+                await returner(sender)
+                warm.add(target_dc)
+                _stream_log(f"DC {target_dc} connection ready after {time.monotonic() - began:.1f} s (opened ahead of the first range)")
+            except Exception as exc:
+                _stream_log(f"DC {target_dc} connection could not be opened ahead of the first range after {time.monotonic() - began:.1f} s: {type(exc).__name__}: {exc}", "WARN")
+            finally:
+                pending.pop(target_dc, None)
+
+        pending[target_dc] = asyncio.get_running_loop().create_task(open_it(), name=f"warm-dc-{target_dc}")
 
 
     # ------------------------------------------------------------------

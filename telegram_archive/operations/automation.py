@@ -3721,7 +3721,9 @@ async def pause_qbittorrent_automation_torrents(db) -> int:
         # starting. The next explicit automation start will perform normal
         # dependency startup/connection.
         try:
-            db.log(f"Content Automation: boot qBittorrent safety check skipped: {type(exc).__name__}: {exc}", "WARN")
+            # Not set up at all (no qBittorrent login saved) is the normal state for most people: a note, not a warning that marks every start as degraded.
+            level = "INFO" if "username/password" in str(exc) else "WARN"
+            db.log(f"Content Automation: boot qBittorrent safety check skipped: {type(exc).__name__}: {exc}", level)
         except Exception:
             _swallowed_note("automation.pause_qbittorrent_automation_torrents")
             pass

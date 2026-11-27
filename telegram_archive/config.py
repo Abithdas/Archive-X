@@ -146,7 +146,7 @@ PLAYBACK_FOREGROUND_RPC_INTERVAL_SECONDS = 0.02
 # legacy retry budget below. These are admission/transfer safeguards, not UI
 # timeouts.
 PLAYBACK_FOREGROUND_RANGE_TIMEOUT_SECONDS = 5.5
-PLAYBACK_COLD_DC_RANGE_TIMEOUT_SECONDS = 30.0   # the first range from a data centre not used yet in this session: a connection and a key exchange come first
+PLAYBACK_COLD_DC_RANGE_TIMEOUT_SECONDS = 60.0   # the first range from a data centre not used yet in this session: a connection and a key exchange come first
 PLAYBACK_BROWSER_RANGE_DEADLINE_SECONDS = 12.0  # bound a browser Range response; return HTTP 503 if the scheduler stalls
 PLAYBACK_FOREGROUND_RANGE_ATTEMPTS = 3
 # After a seek, protect a short contiguous burst so the browser can refill
