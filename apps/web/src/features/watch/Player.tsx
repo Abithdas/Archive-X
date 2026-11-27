@@ -21,7 +21,7 @@ import { useAltAudio, useTracks, type AddonRef, type MediaRef } from './useTrack
 
 export const nextRate = (r: number) => RATES[(RATES.findIndex((x) => x === r) + 1) % RATES.length] ?? 1
 /** How to ask this PC for a converted version of the video: `url(t)` starts it at second `t`; `info` answers its length (`{ duration }`) when the page does not know it. */
-export interface Convert { url: (t: number) => string; info?: string }
+export interface Convert { url: (t: number) => string; info?: string; /** Convert only a video that plays without sound, never one that fails (another engine takes those). */ silentOnly?: boolean }
 const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) && dur > 0 ? Math.min(dur, t) : t)
 
 /**
@@ -44,7 +44,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
     window.addEventListener('pagehide', release)
     return () => { window.removeEventListener('pagehide', release); release() }
   }, [mediaCid, mediaMid])
-  useEffect(() => { startApplied.current = false; pendingStart.current = null; setStarted(false) }, [src])   // a new video may have its own start position
+  useEffect(() => { startApplied.current = false; pendingStart.current = null; silentChecked.current = false; setStarted(false) }, [src])   // a new video may have its own start position
   const box = useRef<HTMLDivElement>(null)
   const [playing, setPlaying] = useState(false)
   const [time, setTime] = useState(0)
@@ -76,8 +76,18 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   useEffect(() => { if (conv && convDur > 0) setDur(convDur) }, [conv, convDur])   // a live converted stream cannot tell its own length: the server does
   /** The player cannot play this: convert it from where it stopped (once), and only when that fails too is the video unplayable. */
   const fail = () => {
-    if (convert && !conv) { keepPlaying.current = !(video.current?.paused ?? true) || autoPlay; setConv({ base: Math.max(0, now() || pendingStart.current || startAt || 0) }); setLoading(true); return }
+    if (convert && !convert.silentOnly && !conv) { keepPlaying.current = !(video.current?.paused ?? true) || autoPlay; setConv({ base: Math.max(0, now() || pendingStart.current || startAt || 0) }); setLoading(true); return }
     setFailed(true); setLoading(false)
+  }
+  const silentChecked = useRef(false)
+  /** The picture plays but no sound is ever decoded (the browser says it supports Dolby audio and then has no decoder): the sound is converted, or another engine takes over. */
+  const checkSilent = (v: HTMLVideoElement) => {
+    if (silentChecked.current || conv || v.paused || v.muted || v.volume === 0 || v.currentTime < 3) return
+    silentChecked.current = true
+    const c = v as HTMLVideoElement & { webkitAudioDecodedByteCount?: number; webkitVideoDecodedByteCount?: number }
+    if (c.webkitAudioDecodedByteCount !== 0 || !((c.webkitVideoDecodedByteCount ?? 0) > 0)) return   // sound is coming (or this browser does not tell)
+    if (convert) { keepPlaying.current = true; setConv({ base: v.currentTime }); setLoading(true) }
+    else onUnplayable?.()
   }
   const failRef = useRef(fail)
   failRef.current = fail
@@ -244,6 +254,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
             const b = e.currentTarget.buffered
             setBuffered(b.length ? base + b.end(b.length - 1) : base)
             setSample(sampleOf(e.currentTarget))
+            checkSilent(e.currentTarget)
           }}
           onEnded={() => { onEnd?.(); if (autoNext) onNext?.() }}
           onError={fail}

@@ -51,4 +51,37 @@ describe('Player converts what the web view cannot decode', () => {
     rerender(<Player src="/raw2" convert={convert} />)
     expect(video().getAttribute('src')).toBe('/raw2')
   })
+
+  describe('a video that plays without any sound', () => {
+    const playing = (v: HTMLVideoElement, audioBytes: number | undefined, at = 5) => {
+      Object.defineProperty(v, 'paused', { value: false, configurable: true })
+      Object.defineProperty(v, 'currentTime', { value: at, configurable: true, writable: true })
+      if (audioBytes !== undefined) { Object.defineProperty(v, 'webkitAudioDecodedByteCount', { value: audioBytes, configurable: true }); Object.defineProperty(v, 'webkitVideoDecodedByteCount', { value: 900000, configurable: true }) }
+      fireEvent.timeUpdate(v)
+    }
+    it('is converted from where it is when the picture plays and no sound was ever decoded', () => {
+      const { video } = opened()
+      playing(video(), 0)
+      expect(video().getAttribute('src')).toBe('/convert?t=5')
+    })
+    it('is left alone when sound is being decoded, or the browser does not say', () => {
+      const a = opened(); playing(a.video(), 48000); expect(a.video().getAttribute('src')).toBe('/raw'); a.unmount()
+      const b = opened(); playing(b.video(), undefined); expect(b.video().getAttribute('src')).toBe('/raw')
+    })
+    it('waits for the first seconds, and never checks a muted video', () => {
+      const a = opened(); playing(a.video(), 0, 1); expect(a.video().getAttribute('src')).toBe('/raw'); a.unmount()
+      const b = opened(); Object.defineProperty(b.video(), 'muted', { value: true, configurable: true }); playing(b.video(), 0); expect(b.video().getAttribute('src')).toBe('/raw')
+    })
+    it('hands over to the other engine when it cannot convert, and with silentOnly a failure is not converted', () => {
+      const away = vi.fn()
+      const { container } = render(<Player src="/raw" onUnplayable={away} />)
+      playing(container.querySelector('video')!, 0)
+      expect(away).toHaveBeenCalledTimes(1)
+      const other = render(<Player src="/raw2" convert={{ ...convert, silentOnly: true }} />)
+      const v = other.container.querySelector('video')!
+      fireEvent.error(v)
+      expect(v.getAttribute('src')).toBe('/raw2')
+      expect(screen.getAllByRole('alert').length).toBeGreaterThan(0)
+    })
+  })
 })

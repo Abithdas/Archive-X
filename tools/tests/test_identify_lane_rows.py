@@ -24,8 +24,8 @@ def test_a_clean_finished_scan_is_shown_for_a_moment_only(monkeypatch):
 
 def test_a_scan_with_failures_stays_until_it_has_been_seen(monkeypatch):
     monkeypatch.setattr(screen_identify, "progress", lambda: {})
-    assert rows(monkeypatch, finished(120, failed=1)) == ["identify:nsfw"]
-    assert rows(monkeypatch, finished(700, failed=1)) == []
+    assert rows(monkeypatch, finished(60, failed=1)) == ["identify:nsfw"]
+    assert rows(monkeypatch, finished(120, failed=1)) == []        # a minute and a half: long enough to see the failure, short enough not to look stuck
 
 
 def test_a_running_scan_is_always_shown(monkeypatch):

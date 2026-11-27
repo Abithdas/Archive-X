@@ -109,7 +109,7 @@ def _clock(started: float | None, done: int, total: int) -> dict:
     return out
 
 
-RECENT_SECONDS = 600   # a finished metadata scan that had failures stays on the lanes this long, so a failure is seen and not just gone
+RECENT_SECONDS = 90   # a finished metadata scan that had failures stays on the lanes this long, so a failure is seen and not just gone (10 minutes looked like a job stuck there)
 CLEAN_RECENT_SECONDS = 30   # one that finished without any: a line that says "finished" for ten minutes looks like a scan that never ends
 
 
