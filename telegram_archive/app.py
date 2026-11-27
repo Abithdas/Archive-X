@@ -516,6 +516,11 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
         except Exception:
             _swallowed_note("app.create_app.lifespan")
             pass
+        try:
+            from .engines import collection_worker as _collection_start
+            _collection_start.start_for(db)      # idle (one sleeping thread) until automatic downloads are turned on
+        except Exception as exc:
+            db.log(f"Collection worker did not start: {type(exc).__name__}: {exc}", "WARN")
         yield
         warm.cancel()
         feed.cancel()
@@ -564,6 +569,11 @@ def create_app(db: Database | None = None, *, session_store: SessionStore | None
                 ai_service.close()
             except Exception as exc:
                 db.log(f"Local AI shutdown error: {type(exc).__name__}: {exc}", "WARN", event="ai.runtime.shutdown")
+        try:
+            from .engines import collection_worker as _collection_worker
+            await asyncio.to_thread(_collection_worker.stop_for, db)
+        except Exception as exc:
+            db.log(f"Collection shutdown error: {type(exc).__name__}: {exc}", "WARN")
         try:
             from .metadata import stremio_runtime as _streaming_runtime
             await asyncio.to_thread(_streaming_runtime.stop)   # the streaming server that was started for torrents goes with the app
