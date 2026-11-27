@@ -74,7 +74,7 @@ fn a_missing_filter_folder_is_a_clear_error() {
         Err(e) => e,
     };
     match err {
-        Error::Engine { message, .. } => assert!(message.contains("LAVSplitter.ax"), "message: {message}"),
+        Error::Engine { message, .. } => assert!(message.contains("LAVSplitter.ax") || message.contains("libmpv-2.dll"), "message: {message}")   // each engine names what it could not find,
         other => panic!("unexpected error: {other}"),
     }
 }
