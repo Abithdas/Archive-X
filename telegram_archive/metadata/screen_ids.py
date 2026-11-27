@@ -383,30 +383,50 @@ class Screen:
                 k = (c["kind"], c["tmdb_id"])
                 if k not in found or c["score"] > found[k]["score"]:
                     found[k] = c
+        # A provider that cannot be reached (TMDB is blocked by some networks) must not end the search: the next one is asked, and the error is only
+        # raised when nobody could answer, so the video is tried again later instead of being marked as found nothing.
+        errors: list[Exception] = []
+        down: set[str] = set()
+
+        def ask(name: str, fn, *args) -> list[dict]:
+            if name in down:
+                return []
+            try:
+                return fn(*args)
+            except Exception as exc:
+                errors.append(exc)
+                down.add(name)          # one failure per provider per video: its other queries would only fail the same way
+                return []
         if self.tmdb:
             for q in queries:
                 for y in years:
-                    add(self._tmdb_candidates(parsed, q, y, want_kind))
+                    add(ask("tmdb", self._tmdb_candidates, parsed, q, y, want_kind))
                     if best() >= REVIEW:
                         break
                 if best() >= REVIEW:
                     break
         if self.tvmaze and want_kind == "tv" and best() < ACCEPT:
             for q in queries:
-                add(self._tvmaze_candidates(parsed, q))
+                add(ask("tvmaze", self._tvmaze_candidates, parsed, q))
                 if best() >= REVIEW:
                     break
         if self.cinemeta and best() < ACCEPT:
             for q in queries:
-                add(self._cinemeta_candidates(parsed, q, want_kind))
+                add(ask("cinemeta", self._cinemeta_candidates, parsed, q, want_kind))
                 if best() >= REVIEW:
                     break
         if not found and self.omdb:                                  # nothing from TMDB: OMDb by title
-            data = self._ask("omdb", OMDB, {"t": title, "type": "series" if want_kind == "tv" else "movie", **({"y": parsed["year"]} if parsed.get("year") and want_kind == "movie" else {}), "apikey": self.omdb}, {}) or {}
-            if data.get("Response") == "True" and data.get("imdbID"):
-                y = _year_of(str(data.get("Year", "")))
-                found[(want_kind, 0)] = {"kind": want_kind, "tmdb_id": 0, "imdb_id": data["imdbID"], "title": data.get("Title", ""), "year": y, "source": "omdb",
-                                         "score": round(similarity(title, data.get("Title", "")), 3), "poster": "", "overview": data.get("Plot") or ""}
+            def omdb_by_title() -> list[dict]:
+                data = self._ask("omdb", OMDB, {"t": title, "type": "series" if want_kind == "tv" else "movie", **({"y": parsed["year"]} if parsed.get("year") and want_kind == "movie" else {}), "apikey": self.omdb}, {}) or {}
+                if data.get("Response") == "True" and data.get("imdbID"):
+                    y = _year_of(str(data.get("Year", "")))
+                    return [{"kind": want_kind, "tmdb_id": 0, "imdb_id": data["imdbID"], "title": data.get("Title", ""), "year": y, "source": "omdb",
+                             "score": round(similarity(title, data.get("Title", "")), 3), "poster": "", "overview": data.get("Plot") or ""}]
+                return []
+            for c in ask("omdb", omdb_by_title):
+                found[(want_kind, 0)] = c
+        if not found and errors:
+            raise errors[0]
         return sorted(found.values(), key=lambda c: -c["score"])
 
     def by_hash(self, file_hash: str, size: int = 0) -> dict | None:

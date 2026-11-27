@@ -4,6 +4,9 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Movies and shows are named even when TMDB is blocked.** On a network where TMDB closes the connection, a video's lookup used to fail on the first TMDB request and never reached Cinemeta, TVmaze or OMDb, so it stayed under "waiting" and was retried every few minutes. The other providers are now asked, and the failure is only reported when none of them could answer.
+- "Where to watch" no longer ends in an error when TMDB cannot be reached: the page just shows no services.
+
 - **Counts no longer have crooked digits.** The rolling number in "831 videos · 1 channel", "314 performers" and the other counts placed each digit by a pixel measure that was rounded to a whole pixel, so digits such as 7 and 9 sat up to 3 px too high next to the words around them. The digits are now placed in the same unit as the text.
 
 - **A page file that cannot be fetched no longer ends in an error screen.** If the app was updated or restarted while a tab was open, opening a page (Operations, for one) could fail with "Failed to fetch dynamically imported module". The app now reloads itself once to pick up the current files (never more than once in 30 seconds), and the error screen is only shown if that does not help.

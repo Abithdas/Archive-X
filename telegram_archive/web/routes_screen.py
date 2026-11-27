@@ -1053,7 +1053,11 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
             if not link.startswith("https://www.themoviedb.org/"):
                 link = f"https://www.themoviedb.org/{media}/{tid}/watch?locale={region}"
             return {"ok": True, "region": region, "groups": groups, "link": link}
-        return await asyncio.to_thread(work)
+        try:
+            return await asyncio.to_thread(work)
+        except Exception as exc:        # TMDB unreachable (some networks block it): the page shows no services instead of a 500 error
+            db.log(f"Where-to-watch lookup failed: {type(exc).__name__}: {exc}"[:300], "WARN")
+            return {"ok": True, "region": region, "groups": [], "link": "", "unreachable": True}
 
     def _episodes(meta: dict) -> list[dict]:
         """The seasons of a show as its catalogue lists them: each with its episodes (number, name, story, date, picture). Specials are season 0."""
