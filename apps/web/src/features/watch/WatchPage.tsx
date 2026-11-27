@@ -1,6 +1,6 @@
 import { startsNative } from './nativeLogic'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ApiError, thumbUrl } from '@/api/client'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -22,6 +22,7 @@ import { gridReady, gridTimes } from './grid'
 import { MarkersSection } from './MarkersSection'
 import { QuickEditDialog } from './QuickEditDialog'
 import { Player } from './Player'
+import { leaveFullscreen, markPlayNext, shouldPlayNow, useFullscreen } from './fullscreen'
 import { hasNativeBridge, native } from './nativeBridge'
 import { NativePane } from './NativePane'
 import { useResume } from './useResume'
@@ -37,6 +38,13 @@ const CHIP = 'inline-flex h-7 items-center rounded-full bg-surface-3 px-3 text-x
 
 /** Telegram deep link for a message in a channel (-100… ids are public-link channel ids). */
 export const telegramLink = (cid: string, mid: number) => (/^-100\d+$/.test(cid) ? `https://t.me/c/${cid.slice(4)}/${mid}` : null)
+
+/** While the next video loads in full screen the screen stays black (not the page's skeleton), and the page stays in full screen. */
+function Curtain() {
+  const box = useRef<HTMLDivElement & { showPopover?: () => void }>(null)
+  useLayoutEffect(() => { try { box.current?.showPopover?.() } catch { /* already shown */ } }, [])
+  return <div ref={box} popover="manual" role="status" aria-label="Loading video" style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', maxWidth: 'none', maxHeight: 'none', margin: 0, padding: 0, border: 0 }} className="grid place-items-center bg-black"><span className="size-10 animate-spin rounded-full border-4 border-white/20 border-t-white" /></div>
+}
 
 function Skel() {
   return (
@@ -115,7 +123,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const performers = useEntityLookup('performers', item?.performers ?? [])
   const studios = useEntityLookup('studios', [item?.studio, ...(item?.studios ?? [])])
   const items = queue.data?.items ?? []
-  const go = (i?: LibraryItem) => i && void navigate({ to: '/watch/$cid/$mid', params: { cid: i._cid, mid: String(i.id) } })
+  const go = (i?: LibraryItem) => i && (markPlayNext(i._cid, i.id), void navigate({ to: '/watch/$cid/$mid', params: { cid: i._cid, mid: String(i.id) } }))
   // What plays next: the mode set in Settings (Experience, "Autoplay source"), which can also be changed from the Up next box right here.
   const qc = useQueryClient()
   const [picked, setPicked] = useState<QueueMode | null>(null)
@@ -178,7 +186,9 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const switchTo = (to: 'web' | 'native') => { if (here.current > 2) setCarry(here.current); setEngine(to) }
   const track = (t: number, d: number) => { here.current = t; resume.onTime(t, d) }
   const toBrowser = () => { setChosenWeb(true); switchTo('web') }
-  if (video.isPending) return <Skel />
+  const fs = useFullscreen()
+  useEffect(() => () => leaveFullscreen(), [])   // leaving the video page leaves full screen
+  if (video.isPending) return fs ? <Curtain /> : <Skel />
   if (video.isError || !item) {
     const missing = video.error instanceof ApiError && video.error.status === 404
     return (
@@ -208,11 +218,11 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
 
         {resume.ready ? (
           engine === 'native' ? (
-            <NativePane key={`${item._cid}:${item.id}`} media={{ cid: String(item._cid), mid: item.id }} durationHint={item.duration} size={{ width: item.width, height: item.height }} segments={segments} preview={preview} snapshots={snapshots} startAt={carry ?? resume.startAt} autoPlay={carry !== null ? true : resume.autoPlay} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onBrowser={toBrowser} onClose={() => router.history.back()} title={item.name} />
+            <NativePane key={`${item._cid}:${item.id}`} media={{ cid: String(item._cid), mid: item.id }} durationHint={item.duration} size={{ width: item.width, height: item.height }} segments={segments} preview={preview} snapshots={snapshots} startAt={carry ?? resume.startAt} autoPlay={carry !== null ? true : resume.autoPlay || shouldPlayNow(item._cid, item.id)} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onBrowser={toBrowser} onClose={() => router.history.back()} title={item.name} />
           ) : (
-          <Player facts={{ vcodec: playInfo.data?.vcodec || item.codec || undefined, tenBit: playInfo.data?.ten_bit, container: containerLabel(playInfo.data?.format, item.name), acodec: playInfo.data?.acodec, bitrate: item.size && item.duration ? Math.round((item.size * 8) / item.duration) : undefined, source: local ? 'This PC' : 'Telegram' }} media={{ cid: String(item._cid), mid: item.id }} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={carry !== null ? true : resume.autoPlay} startAt={carry ?? resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} onOpenNative={nativeOk ? () => switchTo('native') : undefined} onUnplayable={nativeOk && nativeMode === 'fallback' && !chosenWeb ? () => switchTo('native') : undefined} convert={{ url: (t) => `/stream-compat/${encodeURIComponent(item._cid)}/${item.id}?t=${t.toFixed(3)}`, silentOnly: nativeOk && nativeMode === 'fallback' && !chosenWeb }} />
+          <Player facts={{ vcodec: playInfo.data?.vcodec || item.codec || undefined, tenBit: playInfo.data?.ten_bit, container: containerLabel(playInfo.data?.format, item.name), acodec: playInfo.data?.acodec, bitrate: item.size && item.duration ? Math.round((item.size * 8) / item.duration) : undefined, source: local ? 'This PC' : 'Telegram' }} media={{ cid: String(item._cid), mid: item.id }} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={carry !== null ? true : resume.autoPlay || shouldPlayNow(item._cid, item.id)} startAt={carry ?? resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} onOpenNative={nativeOk ? () => switchTo('native') : undefined} onUnplayable={nativeOk && nativeMode === 'fallback' && !chosenWeb ? () => switchTo('native') : undefined} convert={{ url: (t) => `/stream-compat/${encodeURIComponent(item._cid)}/${item.id}?t=${t.toFixed(3)}`, silentOnly: nativeOk && nativeMode === 'fallback' && !chosenWeb }} />
           )
-        ) : (
+        ) : fs ? <Curtain /> : (
           <div className="aspect-video w-full rounded-[18px] border border-line bg-black" aria-hidden="true" />
         )}
         {resume.dialog}

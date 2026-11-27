@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Player, nextRate } from './Player'
+import { enterFullscreen } from './fullscreen'
 import { Timeline } from './Timeline'
 import { telegramLink } from './WatchPage'
 
@@ -327,13 +328,29 @@ describe('Player frame shape and full screen', () => {
   it('fills the screen in full screen and puts the controls over the picture', () => {
     const { container } = render(<Player src="/stream/-1/1" durationHint={60} onOpenVlc={() => {}} />)
     const box = container.firstElementChild as HTMLElement
-    Object.defineProperty(document, 'fullscreenElement', { value: box, configurable: true })
-    fireEvent(document, new Event('fullscreenchange'))
+    document.documentElement.requestFullscreen = vi.fn(async () => undefined) as never
+    act(() => enterFullscreen())
+    Object.defineProperty(document, 'fullscreenElement', { value: document.documentElement, configurable: true })
+    act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
     expect(box.className).toContain('h-full')
+    expect(box.getAttribute('popover')).toBe('manual')                       // shown in the top layer, over whatever the page is doing
     expect((container.querySelector('video')!.parentElement as HTMLElement).className).toContain('inset-0')
     expect(box.querySelector('[class*="bottom-0"]')).not.toBeNull()
     Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
-    fireEvent(document, new Event('fullscreenchange'))
+    act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
     expect(box.className).not.toContain('h-full')
+    expect(box.getAttribute('popover')).toBeNull()
+  })
+  it('the next video is still in full screen: the page stays in full screen while the player is replaced', () => {
+    document.documentElement.requestFullscreen = vi.fn(async () => undefined) as never
+    const first = render(<Player src="/stream/-1/1" durationHint={60} onOpenVlc={() => {}} />)
+    act(() => enterFullscreen())
+    Object.defineProperty(document, 'fullscreenElement', { value: document.documentElement, configurable: true })
+    act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
+    first.unmount()                                                           // the page swaps the player out while the next video loads
+    const next = render(<Player src="/stream/-1/2" durationHint={60} onOpenVlc={() => {}} />)
+    expect((next.container.firstElementChild as HTMLElement).className).toContain('h-full')
+    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
+    act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
   })
 })

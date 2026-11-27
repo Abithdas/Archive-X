@@ -11,6 +11,18 @@ const CLOSING_MS = 200
 const EASE = 'cubic-bezier(0.2, 0.85, 0.25, 1)'
 const reduced = () => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches && document.documentElement.dataset.motion !== 'full'
 
+// Moving from one card to its neighbour: the old preview's clean-up (its delayed timers) must not undo what the new one has started, so only the newest preview
+// is allowed to put the row and its titles back.
+let newest = 0
+
+/** How far the titles of the row are displaced right now (a preview pushing them aside, or letting them go): a preview opens over a title's resting place, never where it is passing. */
+function displacedBy(wrapper: HTMLElement | null): number {
+  if (!wrapper) return 0
+  const t = getComputedStyle(wrapper).transform
+  if (!t || t === 'none') return 0
+  try { return new DOMMatrix(t).m41 } catch { return 0 }
+}
+
 interface Shown { item: Previewable; card: HTMLElement; closing?: boolean }
 
 /**
@@ -70,8 +82,7 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
   const still = reduced()
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
   const wrapper = card.parentElement   // the poster's own box in the row: its neighbours are the other titles
-  const seen = card.getBoundingClientRect()
-  const [rect] = useState(() => seen)
+  const [rect] = useState(() => { const r = card.getBoundingClientRect(), dx = displacedBy(wrapper); return new DOMRect(r.left - dx, r.top, r.width, r.height) })   // where the card rests, not where it is passing
   const width = Math.round(Math.min(Math.max(rect.width * 1.72, 19 * rem), Math.min(30 * rem, window.innerWidth - 24)))
 
   // Final geometry: wider than the card, centred on it, always fully on screen (at either end it grows inwards from the card's own edge).
@@ -100,6 +111,7 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
   useEffect(() => {
     if (!geo) return
     const row = wrapper?.parentElement
+    const mine = ++newest
     const raf = requestAnimationFrame(() => {
       setOpened(true)
       if (row && geo.pushes.length) row.style.scrollSnapType = 'none'   // rows snap to their titles: pushing titles aside moves the snap points, and the re-snap would scroll the row and close this
@@ -110,8 +122,8 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
     return () => {
       cancelAnimationFrame(raf)
       card.style.opacity = ''
-      if (row) setTimeout(() => { row.style.scrollSnapType = '' }, 500)
-      for (const [n] of geo.pushes) { n.style.transform = ''; setTimeout(() => { n.style.transition = '' }, 500) }
+      if (row) setTimeout(() => { if (newest === mine) row.style.scrollSnapType = '' }, 500)
+      for (const [n] of geo.pushes) { n.style.transform = ''; setTimeout(() => { if (newest === mine) n.style.transition = '' }, 500) }
     }
   }, [geo, card, still, wrapper])
 

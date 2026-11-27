@@ -16,10 +16,13 @@ import { loadPrefs as loadPlayerPrefs, savePrefs as savePlayerPrefs } from './pl
 import { sampleOf, statRows, type StreamFacts, type StreamSample } from './streamStats'
 import { CaptionOverlay } from './CaptionOverlay'
 import { releasePlayback } from './release'
+import { enterFullscreen, leaveFullscreen, useFullscreen } from './fullscreen'
 import { loadStyle, saveStyle } from './captionStyle'
 import { useAltAudio, useTracks, type AddonRef, type MediaRef } from './useTracks'
 
 export const nextRate = (r: number) => RATES[(RATES.findIndex((x) => x === r) + 1) % RATES.length] ?? 1
+/** The player's box over the whole screen (it is in the top layer, whose containing block is the screen). */
+const FULL_BOX: React.CSSProperties = { position: 'fixed', inset: 0, width: '100%', height: '100%', maxWidth: 'none', maxHeight: 'none', margin: 0, padding: 0, border: 0, overflow: 'hidden' }
 /** How to ask this PC for a converted version of the video: `url(t)` starts it at second `t`; `info` answers its length (`{ duration }`) when the page does not know it. */
 export interface Convert { url: (t: number) => string; info?: string; /** Convert only a video that plays without sound, never one that fails (another engine takes those). */ silentOnly?: boolean }
 const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) && dur > 0 ? Math.min(dur, t) : t)
@@ -104,7 +107,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   const [block, setBlock] = useState(blockingEnabled)
   const [hint, setHint] = useState('')
   const [ratio, setRatio] = useState(16 / 9)   // the video's own shape, so the frame fits it instead of leaving black bars
-  const [isFs, setIsFs] = useState(false)
+  const isFs = useFullscreen()   // the whole page is in full screen (see fullscreen.ts); this player shows itself over it
   const [idle, setIdle] = useState(false)
   const overBar = useRef(false)
   const idleTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -178,12 +181,14 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
     }
     tapTimer.current = setTimeout(() => { tap.current = null; toggle() }, DOUBLE_TAP_MS)
   }
-  const full = () => (document.fullscreenElement ? void document.exitFullscreen() : void box.current?.requestFullscreen?.())
+  const full = () => (isFs ? leaveFullscreen() : enterFullscreen())
   useEffect(() => {
-    const change = () => { const on = document.fullscreenElement === box.current; setIsFs(on); setIdle(false) }
-    document.addEventListener('fullscreenchange', change)
-    return () => document.removeEventListener('fullscreenchange', change)
-  }, [])
+    setIdle(false)
+    // In full screen the player is in the browser's top layer: it covers the screen whatever the page around it is doing, and it stays in its place in the page (nothing is moved, so the video keeps playing).
+    const el = box.current as (HTMLDivElement & { showPopover?: () => void; hidePopover?: () => void }) | null
+    if (isFs) { try { el?.showPopover?.() } catch { /* already shown */ } }
+    return () => { try { el?.hidePopover?.() } catch { /* already hidden */ } }
+  }, [isFs])
   // Full screen: controls fade out after a moment without movement (like YouTube), and come back on any movement or key.
   const wake = useCallback(() => {
     setIdle(false)
@@ -218,8 +223,8 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
 
   const buffer = dur > 0 ? Math.min(100, Math.round((buffered / dur) * 100)) : 0
   return (
-    <div ref={box} onPointerMove={isFs ? wake : undefined} onKeyDown={isFs ? wake : undefined} onTouchStart={isFs ? wake : undefined}
-      style={isFs ? undefined : ({ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${ratio.toFixed(4)})))` } as React.CSSProperties)}
+    <div ref={box} popover={isFs ? 'manual' : undefined} onPointerMove={isFs ? wake : undefined} onKeyDown={isFs ? wake : undefined} onTouchStart={isFs ? wake : undefined}
+      style={isFs ? FULL_BOX : ({ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${ratio.toFixed(4)})))` } as React.CSSProperties)}
       className={cn(isFs ? 'relative h-full w-full bg-black' : cn('relative grid w-full sm:w-[var(--pw)]', !overlay && 'gap-4 sm:gap-5'), hideBar && 'cursor-none [&_video]:cursor-none')}>
       <div data-caption-frame style={isFs ? undefined : { aspectRatio: ratio }} className={cn('@container relative w-full overflow-hidden bg-[#111215]', isFs ? 'absolute inset-0 h-full' : 'rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
         <svg aria-hidden="true" focusable="false" className="pointer-events-none absolute size-0"><filter id={SHARPEN_ID} colorInterpolationFilters="sRGB"><feConvolveMatrix order="3" kernelMatrix="0 -0.6 0 -0.6 3.4 -0.6 0 -0.6 0" divisor="1" preserveAlpha="true" /></filter></svg>

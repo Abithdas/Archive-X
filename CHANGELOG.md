@@ -4,6 +4,9 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Full screen stays full screen when the next video starts.** Choosing Next, Previous, an Up next video, or letting one end no longer drops out of full screen and pauses: the page stays in full screen (the black screen with a spinner shows while the next video loads) and the next video starts playing. Leaving the video page leaves full screen.
+- **Home row previews are steady when you move between neighbouring cards.** Moving from one card to the one beside it opened the new preview over the place the card was passing through (the titles were still gliding back from the old preview), so it sat off to one side, and the old preview's delayed clean-up then cancelled the new one's animation and re-snapped the row, which closed it. A preview now opens over the card's resting place and only the newest preview puts the row back. Sweeping across several cards and leaving puts every title back exactly where it was.
+
 - **Videos that played with no sound now get their sound.** When a video's picture plays but the browser decodes no audio at all (it says it supports Dolby AC3/E-AC3 audio, then has no decoder, which is what the "DDP5.1" and "AC3" titles did), the player notices after a few seconds and converts the sound to AAC from where it is, or hands the video to the native player when that is the engine in use. Videos with sound are not touched.
 - **A finished scan with errors no longer sits on Transfers.** The "Completed with errors" card of a metadata scan stayed for ten minutes and looked stuck; it now goes after a minute and a half (the reason is still in the log and in Settings, Metadata).
 
