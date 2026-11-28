@@ -10,7 +10,7 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 - **The native player is no longer the default.** The setting now starts at "Never by itself": the native player is a button on the video page, and Settings > Experience can still make it automatic ("Only when the browser cannot play the video" or "Always"). A choice you saved earlier is kept.
 
-- **Full screen shows no name of the video or file.** The browser player and the native player show only the picture and the controls in full screen (the native player keeps its back arrow).
+- **Full screen shows no name of the video or file, and the native player has nothing across the top.** The browser player and the native player show only the picture and the controls in full screen; the native player's back arrow moved into the bar under the picture, so the picture now fills the screen from the top.
 
 - **Continue watching shows a picture for every video.** A video with no title art (not matched yet, or a file that is not on this PC) shows its own snapshot, the same picture as its library card, instead of an empty card.
 

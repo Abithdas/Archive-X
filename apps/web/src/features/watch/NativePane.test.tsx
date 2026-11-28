@@ -209,7 +209,7 @@ describe('NativePane, an add-on stream and full screen', () => {
     expect(calls.find((c) => c.command === 'native_open')!.args).toMatchObject({ url: 'https://cdn.example/film.mkv' })
   })
 
-  it('has a back arrow on top in full screen, and no name of the video', async () => {
+  it('has the back arrow in the bar under the picture in full screen, and no name of the video', async () => {
     const exit = vi.fn(async () => undefined)
     Object.defineProperty(document, 'exitFullscreen', { value: exit, configurable: true })
     const onClose = vi.fn()
