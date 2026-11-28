@@ -16,7 +16,7 @@ import { useAddons, type Addon } from '@/features/settings/AddonsPanel'
 import { Chips } from './TitleStage'
 import { MoviesList } from './MoviesPage'
 import { PLACEHOLDER, PosterCard } from './PosterCard'
-import { useRowPreview } from './RowPreview'
+import { useRowPreview, type Previewable } from './RowPreview'
 import { DownloadsDialog, downloadsOf } from '@/features/collection/DownloadsDialog'
 import { useCollection } from '@/features/collection/useCollection'
 import { SeriesList } from './SeriesPage'
@@ -29,7 +29,7 @@ interface Billboard { id: number; kind: 'tv' | 'movie'; title: string; year: num
 /** A title watched through an add-on has no library file: its card goes back to the title's own page, where the streams are listed and the last position is picked up. */
 interface Resume { cid: string; mid: number; title: string; sub: string; image: string; pct: number; left: number; /** The torrent that was playing is remembered: the card starts it again in full screen. */ resume?: boolean; addon?: { kind: 'movie' | 'series'; ident: string; season?: number | null; episode?: number | null } }
 interface Airing { id: number; title: string; poster: string; season: number; episode: number; name: string; date: string }
-interface Recent { id: number; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string }
+interface Recent { id: number; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string; imdb?: string; background?: string; overview?: string; genres?: string[] }
 interface HomeData { continue: Resume[]; airing: Airing[]; recent: Recent[]; billboard: Billboard[] }
 interface Found { imdb: string; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string; background: string; rating: string; overview: string; genres: string[]; library: { kind: 'tv' | 'movie'; id: number } | null }
 interface FoundPage { items: Found[]; more?: boolean; next?: number; disabled?: boolean; needs_key?: boolean }
@@ -40,6 +40,21 @@ const cardGo = (item: Found) => (hasPage(item) ? { to: '/discover/$kind/$id', pa
 const pageParams = (item: Found) => ({ kind: item.kind === 'tv' ? 'series' : 'movie', id: item.imdb })
 
 const openIn = (kind: 'tv' | 'movie') => (kind === 'tv' ? '/series/$id' : '/movies/$id')
+
+/** The cards of "Recently added": they expand on hover like the catalogue rows' (play, length, trailer in SFW), and open the title's own library page. */
+function RecentCards({ recent }: { recent: Recent[] }) {
+  const preview = useRowPreview()
+  return (
+    <>
+      {recent.map((r) => {
+        const item: Previewable = { imdb: r.imdb ?? '', kind: r.kind, title: r.title, year: r.year, poster: r.poster, background: r.background ?? '', rating: '', overview: r.overview ?? '', genres: r.genres ?? [], library: null,   // (the whole row is the library: no "In your library" tag on each)
+          open: { to: openIn(r.kind), params: { id: String(r.id) } } }
+        return <PosterCard key={`${r.kind}:${r.id}`} to={openIn(r.kind)} params={{ id: String(r.id) }} image={r.poster} title={r.title} sub={r.year ? String(r.year) : r.kind === 'tv' ? 'Series' : 'Movie'} className="w-[168px] shrink-0 snap-start" onHover={preview.hover(item)} />
+      })}
+      {preview.node}
+    </>
+  )
+}
 
 /** A row of things to scroll sideways, under a heading; arrows appear on the sides when something is out of view. */
 function Row({ title, hint, children, arrowTop = 132, onSeeAll }: { title: string; hint?: string; children: ReactNode; arrowTop?: number; onSeeAll?: () => void }) {
@@ -473,7 +488,7 @@ export function SfwHome() {
             ) : null}
             {d?.recent.length ? (
               <Row title="Recently added" hint="Newest in your library">
-                {d.recent.map((r) => <Poster key={`${r.kind}:${r.id}`} to={openIn(r.kind)} params={{ id: String(r.id) }} image={r.poster} title={r.title} sub={r.year ? String(r.year) : r.kind === 'tv' ? 'Series' : 'Movie'} />)}
+                <RecentCards recent={d.recent} />
               </Row>
             ) : null}
             {HOME_ROWS.map((r) => <WhenNear key={r.title}><CatalogRow {...r} onSeeAll={() => seeAll(r.kind, r.catalog, r.genre)} /></WhenNear>)}

@@ -136,6 +136,16 @@ def test_home_has_what_to_continue_what_airs_what_was_added_and_a_billboard(tmp_
     assert {x["title"] for x in home["billboard"]} == {"The Matrix", "Breaking Bad"} and all(x["backdrop"] for x in home["billboard"])
 
 
+def test_recently_added_carries_what_the_expanding_card_needs(tmp_path):
+    db = Database(tmp_path / "h.db")
+    _library(db)
+    home = _client(db).get("/api/screen/home").json()
+    for x in home["recent"]:
+        assert set(x) >= {"imdb", "background", "overview", "genres", "poster"}
+        assert isinstance(x["genres"], list) and len(x["genres"]) <= 4
+        assert x["imdb"].startswith(("tt", "tmdb-"))            # always something the card can look the title up by (a TMDB id when there is no IMDb one)
+
+
 def test_a_video_with_no_title_art_still_has_a_picture_in_continue_watching(tmp_path):
     """A file that is not matched to a title (or whose title has no poster) shows its own snapshot, the same picture its card has in the library."""
     db = Database(tmp_path / "p.db")

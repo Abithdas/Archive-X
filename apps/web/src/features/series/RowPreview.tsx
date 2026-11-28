@@ -10,7 +10,9 @@ import { HoverTrailer } from './HoverTrailer'
 import { PLACEHOLDER } from './PosterCard'
 
 /** What a preview shows: what the row's list already knows about the title. */
-export interface Previewable { imdb: string; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string; background: string; rating: string; overview: string; genres: string[]; library: { kind: 'tv' | 'movie'; id: number } | null }
+export interface Previewable { imdb: string; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string; background: string; rating: string; overview: string; genres: string[]; library: { kind: 'tv' | 'movie'; id: number } | null
+  /** Where Play and the arrow go when it is not the catalogue's page of the title: a title already in the library opens its own page. */
+  open?: { to: '/movies/$id' | '/series/$id'; params: { id: string } } }
 const hasPage = (item: Previewable) => /^(tt\d+|tmdb-\d+|kitsu:\d+)$/.test(item.imdb)
 const OPEN_AFTER_MS = 450
 const SWITCH_AFTER_MS = 110   // moving from one card's preview to the next opens the next almost at once, so the row glides instead of waiting and resetting
@@ -154,10 +156,11 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
   useEffect(() => { if (closing && !still) { card.style.transition = 'opacity .2s ease'; card.style.opacity = '' } }, [closing, card, still])
 
   // The row's list does not carry the length or the title's logo: the same one-title lookup the details use fills them in a moment after the panel opens.
-  const detail = useQuery({ queryKey: ['discover-one', item.kind, item.imdb] as const, queryFn: () => api<{ runtime?: string; logo?: string; trailer?: string }>(`/api/screen/discover/${item.kind === 'tv' ? 'series' : 'movie'}/${item.imdb}`), retry: false, enabled: hasPage(item), staleTime: 600_000 })
+  const detail = useQuery({ queryKey: ['discover-one', item.kind, item.imdb] as const, queryFn: () => api<{ runtime?: string; logo?: string; trailer?: string; rating?: string }>(`/api/screen/discover/${item.kind === 'tv' ? 'series' : 'movie'}/${item.imdb}`), retry: false, enabled: hasPage(item), staleTime: 600_000 })
   const minutes = Number(/^(\d+)\s*(?:min)?$/i.exec(String(detail.data?.runtime ?? '').trim())?.[1] ?? 0)
   const length = minutes ? (minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`) : String(detail.data?.runtime ?? '')
   const endsAt = minutes && item.kind === 'movie' ? new Date(Date.now() + minutes * 60_000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
+  const rating = item.rating || detail.data?.rating || ''   // a title from the library has no IMDb rating in its row: the one-title lookup brings it
   const art = item.background || item.poster || PLACEHOLDER
   const on = opened && !closing
   // The trailer plays in the card only in SFW and only when Settings allow it (it is loaded from YouTube); the card's own picture stays until the trailer really plays.
@@ -180,7 +183,7 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
     </span>
   )
   const round = 'grid size-9 shrink-0 place-items-center rounded-full border-2 border-white/45 text-white transition-colors hover:border-white hover:bg-white/10'
-  const go = hasPage(item) ? { to: '/discover/$kind/$id' as const, params: { kind: item.kind === 'tv' ? 'series' : 'movie', id: item.imdb }, onClick: onDone } : null
+  const go = item.open ? { ...item.open, onClick: onDone } : hasPage(item) ? { to: '/discover/$kind/$id' as const, params: { kind: item.kind === 'tv' ? 'series' : 'movie', id: item.imdb }, onClick: onDone } : null
   return (
     <div ref={box} role="dialog" data-row-preview aria-label={`Preview of ${item.title}`}
       style={{ position: 'fixed', zIndex: 900, left: geo?.left ?? 0, top: geo?.top ?? 0, width, minHeight: Math.round(rect.height), visibility: geo ? 'visible' : 'hidden',
@@ -189,14 +192,14 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
       <span aria-hidden="true" style={{ position: 'absolute', inset: '10% 6% -4%', zIndex: -2, borderRadius: 18, background: 'rgba(0,0,0,.85)', filter: 'blur(28px)', opacity: on ? 1 : 0, transition: still ? 'none' : 'opacity .4s ease .12s', pointerEvents: 'none' }} />
       <span aria-hidden="true" style={{ position: 'absolute', inset: '-14px -18px -22px', zIndex: -1, borderRadius: 22, background: `#181818 center / cover no-repeat url("${art}")`, filter: 'blur(30px) saturate(1.5) brightness(.9)', opacity: on ? 0.55 : 0, transform: on ? 'none' : 'scale(.92)', transition: still ? 'none' : `opacity .55s ease .16s, transform .6s ${EASE} .1s`, pointerEvents: 'none' }} />
       <div style={{ position: 'relative', minHeight: 'inherit', display: 'flex', flexDirection: 'column', borderRadius: 6, background: '#181818', overflow: 'hidden', clipPath: geo && !on && !closing ? geo.from : 'inset(0 round 6px)', transition: still ? 'none' : `clip-path .48s ${EASE}`, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.08)' }}>
-        {hasPage(item) ? <Link to="/discover/$kind/$id" params={{ kind: item.kind === 'tv' ? 'series' : 'movie', id: item.imdb }} onClick={onDone} aria-label={`Open ${item.title}`} className="block">{media}</Link> : media}
+        {go ? <Link {...go} aria-label={`Open ${item.title}`} className="block">{media}</Link> : media}
         <div className={on ? 'mo-preview-body grid gap-2.5 px-4 pb-4 pt-2' : 'grid gap-2.5 px-4 pb-4 pt-2 opacity-0'}>
           <div className="flex items-center gap-2">
             {go ? <Link {...go} aria-label={`Play ${item.title}`} className="grid size-9 shrink-0 place-items-center rounded-full bg-white text-black transition-transform hover:scale-105"><Icon name="play" className="size-4" /></Link> : null}
             {go ? <Link {...go} aria-label={`More about ${item.title}`} className={`${round} ml-auto`}><Icon name="chevron-down" className="size-4" /></Link> : null}
           </div>
           <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-semibold text-white/85">
-            {item.rating ? <span><b className="font-bold text-emerald-400">{item.rating}</b> IMDb</span> : null}
+            {rating ? <span><b className="font-bold text-emerald-400">{rating}</b> IMDb</span> : null}
             {item.year ? <span>{item.year}</span> : null}
             {length ? <span>{length}</span> : null}
             {endsAt ? <span>Ends at {endsAt}</span> : null}

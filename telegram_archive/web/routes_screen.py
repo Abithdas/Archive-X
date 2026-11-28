@@ -324,6 +324,14 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 "poster": si.image_url(r.get("poster_path") or "", "w500"), "background": si.image_url(r.get("backdrop_path") or "", "w780"), "rating": f"{vote:.1f}" if vote else "",
                 "overview": r.get("overview") or "", "genres": [], "library": mine.get(tid)}
 
+    def _genre_names(raw) -> list[str]:
+        """The genres of a stored title (a JSON list of names or of {name} objects) as up to four names."""
+        try:
+            items = json.loads(raw or "[]")
+        except (TypeError, ValueError):
+            return []
+        return [str(g.get("name") if isinstance(g, dict) else g) for g in items if g][:4] if isinstance(items, list) else []
+
     def _card(m: dict, mine: dict[str, dict]) -> dict:
         imdb = str(m.get("imdb_id") or m.get("id") or "")
         year = str(m.get("year") or m.get("releaseInfo") or "")[:4]
@@ -1489,9 +1497,12 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                     "ORDER BY e.air_date,t.title LIMIT 24").fetchall()
                 out["airing"] = [{"id": r["id"], "title": r["title"], "poster": si.image_url(r["poster"], "w342"), "season": r["season"], "episode": r["episode"], "name": r["name"], "date": r["air_date"]} for r in rows]
                 rows = c.execute(
-                    "SELECT t.id,t.kind,t.title,t.year,t.poster,t.backdrop,t.overview,t.genres,t.rating,MAX(m.created_at) AS added FROM media_screen s JOIN media m ON m.id=s.media_id "
+                    "SELECT t.id,t.kind,t.title,t.year,t.poster,t.backdrop,t.overview,t.genres,t.rating,t.imdb_id,t.tmdb_id,MAX(m.created_at) AS added FROM media_screen s JOIN media m ON m.id=s.media_id "
                     "JOIN screen_titles t ON t.id=s.title_id WHERE s.state='MATCHED' GROUP BY t.id ORDER BY added DESC LIMIT 18").fetchall()
-            out["recent"] = [{"id": r["id"], "kind": r["kind"], "title": r["title"], "year": r["year"], "poster": si.image_url(r["poster"], "w342")} for r in rows]
+            out["recent"] = [{"id": r["id"], "kind": r["kind"], "title": r["title"], "year": r["year"], "poster": si.image_url(r["poster"], "w342"),
+                              # what the expanding card needs (the same fields as a catalogue card); "imdb" is the title's IMDb id, or its TMDB one when it has none
+                              "imdb": r["imdb_id"] if re.fullmatch(r"tt\d{5,10}", r["imdb_id"] or "") else f"tmdb-{r['tmdb_id']}", "background": si.image_url(r["backdrop"], "w780"),
+                              "overview": (r["overview"] or "")[:320], "genres": _genre_names(r["genres"])} for r in rows]
             out["billboard"] = [{"id": r["id"], "kind": r["kind"], "title": r["title"], "year": r["year"], "overview": (r["overview"] or "")[:320], "backdrop": si.image_url(r["backdrop"], "w1280"),
                                  "poster": si.image_url(r["poster"], "w500"), "genres": json.loads(r["genres"] or "[]")[:3], "rating": r["rating"]} for r in rows if r["backdrop"]][:5]
             return out
