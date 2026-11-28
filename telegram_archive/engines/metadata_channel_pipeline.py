@@ -1052,10 +1052,33 @@ def _local_inventory(ctx, channel_id: str, limit: int, *, pending_only: bool = F
                 (now, channel_id),
             )
             ctx.db.conn.commit()
-        sql = ("SELECT m.id,m.source_channel,m.source_message_id,m.filename,m.title "
-               "FROM archive_x_catalogued_media m WHERE m.source_channel=? "
-               "AND NOT EXISTS (SELECT 1 FROM archive_x_published_media pm WHERE pm.id=m.id) "
-               "ORDER BY COALESCE(NULLIF(m.upload_date,''),m.created_at) DESC, CAST(m.source_message_id AS INTEGER) DESC")
+        # The catalogue rows of the channel, newest first, are read in one short hold of the database lock. Which of them are already published is then asked
+        # for a few hundred at a time with the lock let go in between: asking for all of them in one statement (NOT EXISTS over the published view) held
+        # the lock for 30 to 130 s on a large library, the app's event loop stood still with it, and the watchdog stopped the job ("heartbeat_lag").
+        with ctx.db.lock:
+            candidates = ctx.db.conn.execute(
+                "SELECT m.id,m.source_channel,m.source_message_id,m.filename,m.title FROM media m "
+                "WHERE m.source_channel=? AND COALESCE(m.status,'')<>'SOURCE_DELETED' AND COALESCE(m.source_message_id,0)>0 "
+                "AND (CAST(m.source_channel AS TEXT) GLOB '-[0-9]*' OR (CAST(m.source_channel AS TEXT)<>'' AND CAST(m.source_channel AS TEXT) NOT GLOB '*[^0-9]*')) "
+                "ORDER BY COALESCE(NULLIF(m.upload_date,''),m.created_at) DESC, CAST(m.source_message_id AS INTEGER) DESC",
+                [channel_id],
+            ).fetchall()
+        pending_rows: list[Any] = []
+        for start in range(0, len(candidates), 300):
+            chunk = candidates[start:start + 300]
+            marks = ",".join("?" * len(chunk))
+            with ctx.db.lock:
+                done = {int(r[0]) for r in ctx.db.conn.execute(f"SELECT pm.id FROM archive_x_published_media pm WHERE pm.id IN ({marks})", [int(r["id"]) for r in chunk])}
+            pending_rows.extend(r for r in chunk if int(r["id"]) not in done)
+            if limit and len(pending_rows) >= limit:
+                pending_rows = pending_rows[:limit]
+                break
+        return [{
+            "media_id": int(row["id"]),
+            "channel_id": int(row["source_channel"]),
+            "message_id": int(row["source_message_id"]),
+            "filename": str(row["filename"] or row["title"] or f"Video {row['source_message_id']}"),
+        } for row in pending_rows]
     else:
         sql = ("SELECT id,source_channel,source_message_id,filename,title FROM media "
                "WHERE source_channel=? AND COALESCE(status,'')<>'SOURCE_DELETED' "
@@ -1116,7 +1139,7 @@ async def _inventory(ctx, channel_id: str, limit: int, *, full_scan: bool = Fals
                 await asyncio.sleep(min(5.0, max(0.1, until-time.monotonic())))
     if last_exc is None:
         raise RuntimeError("Channel inventory ended without a result")
-    fallback = _local_inventory(ctx, channel_id, limit)
+    fallback = await asyncio.to_thread(_local_inventory, ctx, channel_id, limit)
     # V29.4.133: the Telegram scan did not finish; the step is not
     # reported as done just because older rows could be reused.
     _INVENTORY_WARNINGS[(str(getattr(ctx, "job_id", "")), str(channel_id))] = (f"Telegram scan did not finish ({type(last_exc).__name__}: {str(last_exc)[:160]}); using {len(fallback)} videos found earlier")
@@ -1508,7 +1531,7 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
     inventory_selected = "inventory" in selected
     inventory_auto_added = channel_id in _auto_added_channels(payload, "inventory")
     if not videos and inventory_auto_added:
-        videos = _local_inventory(ctx, channel_id, limit, pending_only=not bool(payload.get("force_metadata") or payload.get("force_entity")))
+        videos = await asyncio.to_thread(_local_inventory, ctx, channel_id, limit, pending_only=not bool(payload.get("force_metadata") or payload.get("force_entity")))
         entry["videos"] = videos
     inventory_needed_for_auto_dependency = not inventory_auto_added or not videos
     if inventory_selected and inventory_needed_for_auto_dependency and _phase_state(entry, "inventory") != "COMPLETED":
@@ -1553,7 +1576,7 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
                 # the just-persisted inventory result when no DB query interface
                 # is available; runtime database errors are not swallowed.
                 if hasattr(ctx.db, "conn"):
-                    pending = _local_inventory(ctx, channel_id, pending_limit, pending_only=not force_all)
+                    pending = await asyncio.to_thread(_local_inventory, ctx, channel_id, pending_limit, pending_only=not force_all)
                 else:
                     pending = list(videos)
                 pending_ids = {int(v.get("media_id") or 0) for v in pending}
@@ -1594,10 +1617,10 @@ async def _run_channel(ctx, payload: dict[str, Any], entry: dict[str, Any], chan
     # the actual on-disk assets before deciding which items need work.
     snapshot_integrity_scan = len(selected) == 1 and selected[0] == "snapshots"
     if snapshot_integrity_scan:
-        videos = _local_inventory(ctx, channel_id, limit, pending_only=False)
+        videos = await asyncio.to_thread(_local_inventory, ctx, channel_id, limit, pending_only=False)
         entry["videos"] = videos
     elif not videos and "inventory" not in selected:
-        videos = _local_inventory(ctx, channel_id, limit, pending_only=pending_only or not bool(payload.get("force_metadata") or payload.get("force_entity")))
+        videos = await asyncio.to_thread(_local_inventory, ctx, channel_id, limit, pending_only=pending_only or not bool(payload.get("force_metadata") or payload.get("force_entity")))
         entry["videos"] = videos
 
     if inventory_auto_added and videos and _phase_state(entry, "inventory") != "COMPLETED":

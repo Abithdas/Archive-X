@@ -307,6 +307,28 @@ def test_videos_deleted_from_telegram_are_not_treated_as_pending(monkeypatch):
     assert len(h.pipe._local_inventory(h.make_ctx(db), ch, 1, pending_only=True)) == 1             # a limit is honoured
 
 
+def test_a_big_pending_read_is_done_in_short_holds_of_the_database_lock(monkeypatch):
+    """A job on a large library was stopped by the watchdog (heartbeat_lag) because one statement held the lock for minutes: it is read in small batches now."""
+    db = h.fresh_db()
+    ch, hist = channel_with_videos(3)
+    h.install(monkeypatch, hist)
+    h.run(h.pipe._discover_and_store_inventory(h.make_ctx(db), ch, 0, full_scan=True))
+    with db.lock:
+        for n in range(10, 760):
+            db.conn.execute("INSERT INTO media (source_channel, source_message_id, filename) VALUES (?,?,?)", (ch, n, f"v{n}.mp4"))
+        db.conn.commit()
+    holds = []
+    real = db.lock
+    class Counting:
+        def __enter__(self): holds.append(1); return real.__enter__()
+        def __exit__(self, *a): return real.__exit__(*a)
+        def __getattr__(self, name): return getattr(real, name)
+    monkeypatch.setattr(db, "lock", Counting(), raising=False)
+    got = h.pipe._local_inventory(h.make_ctx(db), ch, 0, pending_only=True)
+    assert len(got) == 753 and len(holds) >= 4                       # every video, read in several short holds
+    assert [v["message_id"] for v in h.pipe._local_inventory(h.make_ctx(db), ch, 2, pending_only=True)] and len(h.pipe._local_inventory(h.make_ctx(db), ch, 2, pending_only=True)) == 2
+
+
 def test_a_caption_sync_that_fails_does_not_fail_the_stage(monkeypatch):
     db = h.fresh_db()
     ch, hist = channel_with_videos(3)
