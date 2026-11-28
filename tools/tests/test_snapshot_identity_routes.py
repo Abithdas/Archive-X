@@ -20,6 +20,7 @@ def client(tmp_path, monkeypatch):
     pw = "correct-horse-battery"
     c.post("/api/auth/setup", json={"username": "admin", "password": pw, "confirmation": pw}, headers=H)
     assert c.post("/login", json={"username": "admin", "password": pw}, headers=H).status_code == 200
+    assert c.post("/api/content-mode", json={"mode": "nsfw"}, headers=H).status_code == 200      # snapshot suggestions name adult performers and studios: NSFW only (SFW has none, see test_sfw_no_adult_providers)
     yield c, db, tmp_path
 
 

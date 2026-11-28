@@ -90,7 +90,7 @@ mod engine_tests {
         assert_eq!(engine_choice(true, true), "lav");
         assert_eq!(engine_choice(true, false), "lav");
         assert_eq!(engine_choice(false, true), "mpv");
-        assert_eq!(engine_choice(false, false), "lav");    // nothing installed: the LAV message says what is missing
+        assert_eq!(engine_choice(false, false), "lav"); // nothing installed: the LAV message says what is missing
     }
 }
 
