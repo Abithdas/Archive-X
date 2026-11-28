@@ -149,13 +149,18 @@ FRAME_WIDTH = 960   # as wide as the upload pipeline asks of reusable frames (or
 
 def _frame(ffmpeg: str, path: str, t: float, out: Path) -> bool:
     out.unlink(missing_ok=True)   # only a frame made now counts: near the very end ffmpeg can finish without writing one, and an old file must not stand in for it
-    cmd = [ffmpeg, "-v", "error", "-y", "-ss", f"{max(0.0, t):.3f}", "-i", path, "-frames:v", "1", "-an", "-sn", "-vf", f"scale='min({FRAME_WIDTH},iw)':-2", "-q:v", "3", str(out)]
-    try:
-        done = subprocess.run(cmd, capture_output=True, timeout=45, creationflags=_NO_WINDOW, stdin=subprocess.DEVNULL)
-        return done.returncode == 0 and out.is_file() and out.stat().st_size > 256
-    except (OSError, subprocess.SubprocessError):
-        _swallowed_note("local_videos.frame")
-        return False
+    scale = ["-frames:v", "1", "-an", "-sn", "-vf", f"scale='min({FRAME_WIDTH},iw)':-2", "-q:v", "3", str(out)]
+
+    def run(cmd: list[str]) -> bool:
+        try:
+            done = subprocess.run(cmd, capture_output=True, timeout=45, creationflags=_NO_WINDOW, stdin=subprocess.DEVNULL)
+            return done.returncode == 0 and out.is_file() and out.stat().st_size > 256
+        except (OSError, subprocess.SubprocessError):
+            _swallowed_note("local_videos.frame")
+            return False
+    # Seeking before the input is fast. A file with few key frames (a recording in an MPEG-TS, a long GOP) can give nothing that way, and the caller's next try
+    # at second 0 would make every snapshot the same picture; seeking after the input decodes from the start but always lands where it was asked.
+    return run([ffmpeg, "-v", "error", "-y", "-ss", f"{max(0.0, t):.3f}", "-i", path, *scale]) or run([ffmpeg, "-v", "error", "-y", "-i", path, "-ss", f"{max(0.0, t):.3f}", *scale])
 
 
 def build_snapshots(db, channel: str, message_id: int, path: str, duration: float, *, force: bool = False) -> bool:

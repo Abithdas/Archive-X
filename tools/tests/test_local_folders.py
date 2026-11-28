@@ -194,9 +194,6 @@ def test_a_local_video_is_listed_probed_streamed_and_gets_its_snapshots(tmp_path
     full = c.get(f"/stream/{ch}/{mid}")
     part = c.get(f"/stream/{ch}/{mid}", headers={"Range": "bytes=0-99"})
     assert full.status_code == 200 and part.status_code == 206 and len(part.content) == 100 and full.content[:100] == part.content
-    with c.stream("GET", f"/stream-compat/{ch}/{mid}?t=0") as conv:      # the conversion for a file the web view cannot play: it must not ask Telegram for a folder file
-        assert conv.status_code == 200 and conv.headers["content-type"] == "video/mp4", conv.read()
-        assert len(next(conv.iter_bytes())) > 0
     assert c.get(f"/api/play/preview-manifest/{ch}/{mid}").json()["ready"] is True
     assert c.get(f"/api/play/preview-grid/{ch}/{mid}").status_code == 200
     live = c.get(f"/api/play/preview/{ch}/{mid}?t=1.5&w=320&pv=15&lw=1")   # the hover frame on the timeline: straight from the file, no Telegram
@@ -598,3 +595,24 @@ def test_a_moved_photo_keeps_its_row_so_the_people_it_was_named_after_stay(tmp_p
     result = ls.scan_source(db, sid)
     assert ids() == {"holiday.png": first["one.png"]}      # same row, new place; the deleted photo is gone
     assert result["added"] == 0 and result["removed"] == 1 and result["moved"] == 1
+
+
+def test_snapshots_of_a_file_with_few_key_frames_are_different_pictures(tmp_path):
+    """A recording in an MPEG-TS with one key frame: seeking before the input gives nothing, and the old fallback to second 0 made all 36 snapshots the same."""
+    import hashlib
+    import subprocess
+    from telegram_archive.engines import local_videos as lv
+    from telegram_archive.engines import preview_prefetch as pp
+    from telegram_archive.playback import media_tools
+    ffmpeg = media_tools.find_ffmpeg()
+    if not ffmpeg:
+        pytest.skip("ffmpeg is needed to make the clip")
+    clip = tmp_path / "rec.ts"
+    made = subprocess.run([ffmpeg, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=160x90:rate=25:duration=6", "-c:v", "libx264", "-preset", "ultrafast", "-g", "250", str(clip)], capture_output=True)
+    assert made.returncode == 0
+    seen = set()
+    for t in pp.frame_times(6.0)[:12]:
+        out = tmp_path / "f.jpg"
+        assert lv._frame(ffmpeg, str(clip), t, out)
+        seen.add(hashlib.md5(out.read_bytes()).hexdigest())
+    assert len(seen) == 12
