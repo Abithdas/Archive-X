@@ -29,6 +29,8 @@ interface StreamItem {
   provider?: string
   /** A debrid service already has it: it starts at once. */
   cached?: boolean
+  /** The release's file name, as the add-on writes it on the first line of its description. */
+  release?: string
 }
 interface Streams { ok: boolean; items: StreamItem[]; skipped: number; addons: string[]; torrents?: boolean; streaming_server?: { url: string; up: boolean } | null }
 type StreamSort = 'addon' | 'quality' | 'seeds' | 'largest' | 'smallest'
@@ -66,6 +68,18 @@ export function sizeText(bytes: number): string {
   const v = bytes / 1024 ** i
   return `${v >= 100 || i < 2 ? Math.round(v) : v.toFixed(1)} ${units[i]}`
 }
+
+/** What kind of release a stream is, as a short line ("Web · HEVC"), from what the add-on says about it. Empty when nothing is known: the row then shows the add-on's own text. */
+export function typeLine(item: Pick<StreamItem, 'source' | 'release' | 'name'>): string {
+  const text = `${item.release ?? ''} ${item.name}`
+  const source = [[/remux/i, 'Remux'], [/blu-?ray|bdrip|brrip/i, 'BluRay'], [/web/i, 'Web'], [/hdtv|tvrip/i, 'HDTV'], [/dvd/i, 'DVD'], [/\bcam\b|telesync|\bts\b/i, 'CAM']] as const
+  const kind = source.find(([re]) => re.test(item.source ?? '') || re.test(text))?.[1] ?? ''
+  const codec = /hevc|x\.?265|h\.?265/i.test(text) ? 'HEVC' : /\bav1\b/i.test(text) ? 'AV1' : ''
+  return [kind, codec].filter(Boolean).join(' · ')
+}
+
+/** The row's first line: the kind of release when it is known (the file name then has a line of its own below), else the add-on's own text. */
+const headline = (item: StreamItem): string => (item.release ? typeLine(item) : '') || item.name
 
 function qualityLabel(height: number): string {
   if (height >= 2000) return '4K'
@@ -168,7 +182,11 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
     return same(b) - same(a) || order || a.index - b.index
   })
   const visibleAddons = addonNames.filter((name) => rows.some(({ item }) => item.addon === name))
-  const selectClass = 'h-8 max-w-full appearance-none rounded-full border border-line bg-surface-2 px-3 pr-7 text-[11px] font-semibold text-fg outline-none transition-colors hover:bg-fg/10 focus-visible:ring-2 focus-visible:ring-accent'
+  // a filter that is set turns white, so what narrows the list is plain to see (the sort order is not a filter)
+  const pill = (active: boolean) => 'h-8 max-w-full appearance-none rounded-full border px-3 pr-7 text-[11px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent ' + (active ? 'border-white bg-white text-black' : 'border-line bg-surface-2 text-fg hover:bg-fg/10')
+  const selectClass = pill(false)
+  const filtering = Boolean(selectedAddon || quality || language || source || hdr !== 'all' || instant)
+  const reset = () => { setSelectedAddon(''); setQuality(''); change({ language: '', source: '', hdr: 'all', instant: false }) }
   const countLabel = rows.length + ' stream' + (rows.length === 1 ? '' : 's')
   return (
     <section aria-label="From your add-ons" className="grid gap-2">
@@ -177,6 +195,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => setDownloads(true)} className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line px-2.5 text-[11px] font-semibold text-muted hover:text-fg"><Icon name="download" className="size-3.5" />Downloads{downloadCount ? ` (${downloadCount})` : ''}</button>
           <span aria-live="polite" className="text-[11px] text-muted">{countLabel}</span>
+          {filtering ? <button type="button" onClick={reset} className="text-[11px] font-semibold text-fg underline">Reset</button> : null}
         </div>
       </div>
       <DownloadsDialog open={downloads} onClose={() => setDownloads(false)} />
@@ -193,31 +212,32 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
           </div>
           <div aria-label="Stream filters" className="flex flex-wrap items-center gap-1.5">
             <label><span className="sr-only">Addon order</span><select aria-label="Addon order" className={selectClass} value={sort} onChange={(e) => setSort(e.target.value as StreamSort)}><option value="addon">↕ Addon order</option><option value="quality">Best quality</option><option value="seeds">Most seeds</option><option value="largest">Largest first</option><option value="smallest">Smallest first</option></select></label>
-            {qualityOptions.length > 1 ? <label><span className="sr-only">Quality</span><select aria-label="Quality" className={selectClass} value={quality} onChange={(e) => setQuality(e.target.value)}><option value="">Quality</option>{qualityOptions.map((height) => <option key={height} value={String(height)}>{qualityLabel(height)}</option>)}</select></label> : null}
-            {languageOptions.length > 1 ? <label><span className="sr-only">Language</span><select aria-label="Language" className={selectClass} value={language} onChange={(e) => setLanguage(e.target.value)}><option value="">Language</option>{languageOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label> : null}
-            {sourceOptions.length > 1 ? <label><span className="sr-only">Source</span><select aria-label="Source" className={selectClass} value={source} onChange={(e) => setSource(e.target.value)}><option value="">Source</option>{sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label> : null}
-            {hdrOptions.length ? <label><span className="sr-only">HDR / DV</span><select aria-label="HDR / DV" className={selectClass} value={hdr} onChange={(e) => setHdr(e.target.value as HdrFilter)}><option value="all">HDR / DV</option>{hdrOptions.includes('HDR') ? <option value="hdr">HDR</option> : null}{hdrOptions.includes('DV') ? <option value="dv">Dolby Vision</option> : null}<option value="none">No HDR / DV</option></select></label> : null}
+            {qualityOptions.length > 1 ? <label><span className="sr-only">Quality</span><select aria-label="Quality" className={pill(Boolean(quality))} value={quality} onChange={(e) => setQuality(e.target.value)}><option value="">Quality</option>{qualityOptions.map((height) => <option key={height} value={String(height)}>{qualityLabel(height)}</option>)}</select></label> : null}
+            {languageOptions.length > 1 ? <label><span className="sr-only">Language</span><select aria-label="Language" className={pill(Boolean(language))} value={language} onChange={(e) => setLanguage(e.target.value)}><option value="">Language</option>{languageOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label> : null}
+            {sourceOptions.length > 1 ? <label><span className="sr-only">Source</span><select aria-label="Source" className={pill(Boolean(source))} value={source} onChange={(e) => setSource(e.target.value)}><option value="">Source</option>{sourceOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label> : null}
+            {hdrOptions.length ? <label><span className="sr-only">HDR / DV</span><select aria-label="HDR / DV" className={pill(hdr !== 'all')} value={hdr} onChange={(e) => setHdr(e.target.value as HdrFilter)}><option value="all">HDR / DV</option>{hdrOptions.includes('HDR') ? <option value="hdr">HDR</option> : null}{hdrOptions.includes('DV') ? <option value="dv">Dolby Vision</option> : null}<option value="none">No HDR / DV</option></select></label> : null}
             {d.items.some((item) => item.cached) ? <button type="button" aria-pressed={instant} onClick={() => change({ instant: !instant })} className={'h-8 rounded-full border px-3 text-[11px] font-semibold transition-colors ' + (instant ? 'border-accent/60 bg-accent/15 text-fg' : 'border-line bg-surface-2 text-muted hover:text-fg')}>Instant only</button> : null}
           </div>
           {!rows.length ? <p className="m-0 rounded-xl border border-dashed border-line px-3 py-3 text-xs text-muted">Nothing matches those filters.</p> : visibleAddons.map((name) => (
             <ul key={name} aria-label={name} className="m-0 grid list-none gap-1 p-0">
               {rows.filter(({ item }) => item.addon === name).map(({ item, index }) => (
                 <li key={name + ':' + item.name + ':' + index} className="m-0">
-                  <div onClick={item.kind === 'play' ? () => open(item) : undefined} className={'group/row grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-line px-3 py-2' + (item.kind === 'play' ? ' cursor-pointer transition-colors hover:bg-fg/5' : '')}>
-                    <div className="grid min-w-14 place-items-center rounded-lg bg-fg/5 px-2 py-2 text-center">
-                      <span className="text-[13px] font-black">{qualityLabel(item.height ?? 0) || '—'}</span>
+                  <div onClick={item.kind === 'play' ? () => open(item) : undefined} className={'group/row grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-b border-line/70 px-2 py-3.5' + (item.kind === 'play' ? ' cursor-pointer transition-colors hover:bg-fg/[0.07]' : '')}>
+                    <div className="grid h-14 w-[88px] place-items-center rounded-lg bg-fg/10 px-2 text-center transition-colors group-hover/row:bg-accent group-hover/row:text-accent-fg">
+                      <span className="text-[17px] font-black tracking-tight">{qualityLabel(item.height ?? 0) || '—'}</span>
                       {(item.hdr ?? []).length ? <span className="text-[9px] font-bold uppercase text-muted">{(item.hdr ?? []).includes('DV') ? 'Dolby Vision' : 'HDR'}</span> : null}
                     </div>
                     <div className="min-w-0">
-                      {item.kind === 'link' ? <a href={item.href} target="_blank" rel="noreferrer" className="line-clamp-2 block break-words text-[13px] font-semibold hover:underline" title={item.name}>{item.name}<span aria-hidden="true" className="ml-1 opacity-60">↗</span></a>
-                        : item.kind === 'play' ? <button type="button" onClick={() => open(item)} className="line-clamp-2 block w-full break-words text-left text-[13px] font-semibold hover:underline" title={item.name}>{item.name}</button>
-                        : <p className="m-0 line-clamp-2 break-words text-[13px] font-semibold text-muted" title={item.name}>{item.name}</p>}
-                      <p className="m-0 mt-0.5 flex flex-wrap items-center gap-x-1 text-[10px] text-muted">
-                        {[item.addon, item.provider, item.source, (item.languages ?? []).join(', '), item.seeders != null ? `${item.seeders} seeds` : '', sizeText(item.size ?? 0)].filter(Boolean).join(' · ')}
+                      {item.kind === 'link' ? <a href={item.href} target="_blank" rel="noreferrer" className="line-clamp-2 block break-words text-[14px] font-extrabold hover:underline" title={item.name}>{headline(item)}<span aria-hidden="true" className="ml-1 opacity-60">↗</span></a>
+                        : item.kind === 'play' ? <button type="button" onClick={() => open(item)} aria-label={item.name} className="line-clamp-2 block w-full break-words text-left text-[14px] font-extrabold hover:underline" title={item.name}>{headline(item)}</button>
+                        : <p className="m-0 line-clamp-2 break-words text-[14px] font-extrabold text-muted" title={item.name}>{headline(item)}</p>}
+                      <p className="m-0 mt-1 flex flex-wrap items-center gap-x-1 text-xs leading-snug text-fg/70">
+                        {[item.addon, item.provider, headline(item) === item.name ? item.source : '', (item.languages ?? []).join(', '), item.seeders != null ? `${item.seeders} seeds` : '', sizeText(item.size ?? 0)].filter(Boolean).join(' · ')}
                         {item.cached ? <span className="ml-2 rounded-full bg-fg/10 px-1.5 py-px text-[10px] font-bold">Instant</span> : null}
                         {group && item.bingeGroup === group ? <span className="ml-2 rounded-full bg-accent/15 px-1.5 py-px text-[10px] font-bold text-accent">Same as last episode</span> : null}
-                        {item.kind === 'play' ? <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-accent"><Icon name="play" className="size-3" />Play</span> : item.kind === 'blocked' && item.torrent ? <span className="ml-2">A torrent: it needs Stremio's streaming server, which is not running{d.streaming_server ? ` at ${d.streaming_server.url}` : ''}. <Link to="/settings" onClick={() => { try { localStorage.setItem('ax_next_settings_panel', 'addons') } catch { /* private mode */ } }} className="font-semibold text-accent underline">Set it up</Link></span> : item.kind === 'blocked' && item.host ? <span className="ml-2">Not played here ({item.host})</span> : null}
+                        {item.kind === 'play' && headline(item) === item.name ? <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-accent"><Icon name="play" className="size-3" />Play</span> : item.kind === 'play' ? null : item.kind === 'blocked' && item.torrent ? <span className="ml-2">A torrent: it needs Stremio's streaming server, which is not running{d.streaming_server ? ` at ${d.streaming_server.url}` : ''}. <Link to="/settings" onClick={() => { try { localStorage.setItem('ax_next_settings_panel', 'addons') } catch { /* private mode */ } }} className="font-semibold text-accent underline">Set it up</Link></span> : item.kind === 'blocked' && item.host ? <span className="ml-2">Not played here ({item.host})</span> : null}
                       </p>
+                      {item.release && headline(item) !== item.name ? <p className="m-0 mt-0.5 truncate text-[11px] text-faint" title={item.release}>{item.release}</p> : null}
                     </div>
                     {item.torrent && item.kind === 'play' ? (
                       <button type="button" aria-label={`Download ${item.name}`} title="Download" disabled={download.isPending}

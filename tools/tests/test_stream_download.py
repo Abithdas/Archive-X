@@ -77,3 +77,9 @@ def test_the_torrent_address_reads_back_as_it_was_built(server):  # noqa: F811
     assert ss.parse_torrent_url(server.url, ss.torrent_url(server.url, HASH, None, [])) == (HASH, None, [])
     with pytest.raises(ValueError):
         ss.parse_torrent_url(server.url, server.url + "/settings")
+
+
+def test_a_stream_carries_its_release_file_name_from_the_first_line_of_its_description():
+    from telegram_archive.metadata import addon_client as ac
+    got, _ = ac.classify_streams([{**TORRENT, "title": "The.End.of.Oak.Street.2026.1080p.WEB-DL\n👤 41 💾 1.5 GB ⚙️ ThePirateBay"}, {"infoHash": HASH, "name": "x"}], "Torrentio")
+    assert got[0]["release"] == "The.End.of.Oak.Street.2026.1080p.WEB-DL" and got[0]["seeders"] == 41 and "release" not in got[1]

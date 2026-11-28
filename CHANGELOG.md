@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **The stream list on a title page reads like dx.bi's.** Each stream has the kind of release in bold ("Web · HEVC"), its facts under it (add-on, provider, language, seeds, size), and the release's file name dimmed on its own line, instead of one run-on line; rows are flat with thin dividers and a larger quality tile that lights up under the pointer; a filter that is set turns white, and Reset clears them all.
+
 - **A Download button on every torrent stream, and a Downloads window (like dx.bi's).** Rest the pointer on a torrent in a title's stream list and a download button appears; pressing it saves that exact stream into the Collection folder through Stremio's streaming server, with nothing else of the title looked for, and opens the Downloads window. The window (also behind the new Downloads button on the streams header) lists what is downloading, failed and saved, with progress, **Delete** (a running download is stopped and its partial file removed; a saved file stays in your library) and **Try again** for a failed one, and a Settings tab for the download folder and quality. Downloads you choose run even when automatic downloads are off; looking for releases still only happens while automatic downloads are on. Only torrents can be downloaded for now.
 
 - **Native player: the seek preview and every menu open above the bar.** They used to open below the controls (outside the picture, because the picture is a separate window above the page). Now the seek preview, Settings, speed, captions and buffer menus open upwards like the browser player's, and the picture steps aside while one is open (it already did for dialogs).

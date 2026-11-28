@@ -4,7 +4,7 @@ import { withRouter } from '@/test/withRouter'
 
 const toastError = vi.hoisted(() => vi.fn())
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: toastError }), Toaster: () => null }))
-import { AddonExtras, AddonStreams, readStreamPrefs, sizeText } from './AddonStreams'
+import { AddonExtras, AddonStreams, readStreamPrefs, sizeText, typeLine } from './AddonStreams'
 
 beforeAll(() => { HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }; HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') } })
 afterEach(() => vi.unstubAllGlobals())
@@ -218,5 +218,39 @@ describe('the download button on a stream', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Downloads' })
     expect(await within(dialog).findByRole('progressbar', { name: 'The End of Oak Street download' })).toHaveAttribute('aria-valuenow', '50')
     expect(within(dialog).getByText('Saved to D:/Dl')).toBeInTheDocument()
+  })
+})
+
+describe('how a stream row reads (like dx.bi)', () => {
+  beforeEach(() => { localStorage.clear() })
+  it('names the kind of release from the source and codec', () => {
+    expect(typeLine({ name: 'Torrentio', source: 'WEB-DL', release: 'The.End.of.Oak.Street.2026.1080p.WEB-DL.HEVC.x265' })).toBe('Web · HEVC')
+    expect(typeLine({ name: 'Torrentio', release: 'Movie 2020 1080p BluRay x264' })).toBe('BluRay')
+    expect(typeLine({ name: 'Torrentio', release: 'Movie 2020 2160p REMUX AV1' })).toBe('Remux · AV1')
+    expect(typeLine({ name: 'Home server 1080p' })).toBe('')                                    // nothing known: the row shows the add-on's own text
+  })
+  it('puts the kind first, the facts under it and the file name last, and says each thing once', async () => {
+    const data = { ...TORRENTS, items: [{ addon: 'Torrentio', name: 'Torrentio · 1080p · The.End.of.Oak.Street.WEB-DL.HEVC', release: 'The.End.of.Oak.Street.WEB-DL.HEVC', kind: 'play', play: '/api/screen/stream/a', torrent: true, seeders: 1239, size: 1.5 * 1024 ** 3, provider: 'ThePirateBay', source: 'WEB-DL', languages: ['English'], height: 1080 }] }
+    vi.stubGlobal('fetch', vi.fn(async (u: string) => json(u === '/api/collection' ? {} : data)))
+    withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
+    const list = await screen.findByRole('list', { name: 'Torrentio' })
+    expect(within(list).getByRole('button', { name: 'Torrentio · 1080p · The.End.of.Oak.Street.WEB-DL.HEVC' })).toHaveTextContent('Web · HEVC')
+    expect(within(list).getByText('Torrentio · ThePirateBay · English · 1239 seeds · 1.5 GB')).toBeInTheDocument()   // no "WEB-DL" again: the first line has it
+    expect(within(list).getByText('The.End.of.Oak.Street.WEB-DL.HEVC')).toHaveAttribute('title', 'The.End.of.Oak.Street.WEB-DL.HEVC')
+    expect(within(list).queryByText('Play')).toBeNull()
+  })
+  it('turns a filter white while it is set and has a Reset that clears them', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (u: string) => json(u === '/api/collection' ? {} : TORRENTS)))
+    withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
+    await screen.findByRole('list', { name: 'Torrentio' })
+    expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull()
+    const quality = screen.getByLabelText('Quality')
+    expect(quality.className).not.toContain('bg-white')
+    fireEvent.change(quality, { target: { value: '1080' } })
+    expect(screen.getByLabelText('Quality').className).toContain('bg-white')
+    expect(screen.getByText('1 stream')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(screen.getByLabelText('Quality').className).not.toContain('bg-white')
+    expect(screen.getByText('3 streams')).toBeInTheDocument()
   })
 })

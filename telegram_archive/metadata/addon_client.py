@@ -245,6 +245,9 @@ def classify_streams(streams, addon: str) -> tuple[list[dict], int]:
             skipped += 1
         if len(out) > made:
             out[-1].update(stream_facts(st))
+            release = str(st.get("title") or st.get("description") or "").strip().split("\n")[0].strip()[:200]      # Torrentio and the like put the release's file name on the first line
+            if release:
+                out[-1]["release"] = release
     return out[:60], skipped
 
 
