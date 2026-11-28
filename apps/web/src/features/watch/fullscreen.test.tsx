@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { enterFullscreen, leaveFullscreen, playClick, playInFullscreen, useBackOnEscape } from './fullscreen'
+import { enterFullscreen, leaveFullscreen, markGoingBack, playClick, playInFullscreen, useBackOnEscape } from './fullscreen'
 
 const setFullscreen = (on: boolean) => {
   Object.defineProperty(document, 'fullscreenElement', { value: on ? document.documentElement : null, configurable: true })
@@ -38,12 +38,20 @@ describe('useBackOnEscape', () => {
     setFullscreen(false)                                 // Esc: the browser ends it, the app did not
     expect(back).toHaveBeenCalledTimes(1)
   })
-  it('stays on the page when the player\'s own full screen button ends it', () => {
+  it('goes back too when the player\'s own full screen button ends it', () => {
     playInFullscreen()
     const back = vi.fn()
     renderHook(() => useBackOnEscape(back))
     setFullscreen(true)
     act(() => leaveFullscreen())
+    expect(back).toHaveBeenCalledTimes(1)
+  })
+  it('goes back only once when a Back button does it', () => {
+    playInFullscreen()
+    const back = vi.fn()
+    renderHook(() => useBackOnEscape(back))
+    setFullscreen(true)
+    act(() => { markGoingBack(); leaveFullscreen() })
     expect(back).not.toHaveBeenCalled()
   })
   it('does nothing on a page that was not opened by Play (full screen from the player\'s button, then Esc)', () => {

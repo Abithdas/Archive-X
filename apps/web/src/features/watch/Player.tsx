@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/api/client'
 import { Icon } from '@/design/Icon'
-import { PlayIcon } from './PlayerIcons'
+import { BackIcon, PlayIcon } from './PlayerIcons'
 import { MenuItem, MenuSection } from './PlayerParts'
 import { SkipButton, skipNow, skipTarget, type Skip } from './skip'
 import { CaptionStyleItems, PictureSoundItems, PlaybackItems, PlayerControls, RATES, playerKey } from './PlayerControls'
@@ -17,7 +17,7 @@ import { loadPrefs as loadPlayerPrefs, savePrefs as savePlayerPrefs } from './pl
 import { browserDecoding, sampleOf, statRows, type StreamFacts, type StreamSample } from './streamStats'
 import { CaptionOverlay } from './CaptionOverlay'
 import { releasePlayback } from './release'
-import { enterFullscreen, leaveFullscreen, useFullscreen } from './fullscreen'
+import { enterFullscreen, leaveFullscreen, markGoingBack, useFullscreen } from './fullscreen'
 import { loadStyle, saveStyle } from './captionStyle'
 import { useAltAudio, useTracks, type AddonRef, type MediaRef } from './useTracks'
 
@@ -33,7 +33,7 @@ const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) &
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
 
-export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable, facts, addon, convert, skips = [] }: { skips?: Skip[]; convert?: Convert; addon?: AddonRef; facts?: StreamFacts; onUnplayable?: () => void; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc?: () => void; onOpenNative?: () => void }) {
+export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable, onBack, facts, addon, convert, skips = [] }: { onBack?: () => void; skips?: Skip[]; convert?: Convert; addon?: AddonRef; facts?: StreamFacts; onUnplayable?: () => void; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc?: () => void; onOpenNative?: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
   const pendingStart = useRef<number | null>(null)
@@ -321,6 +321,11 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
         <SkipButton skip={passing} canNext={Boolean(onNext)} className={cn('absolute right-4 sm:right-8', overlay ? 'bottom-24' : 'bottom-4')}
           onPress={() => { if (passing?.type === 'credits' && onNext) onNext(); else if (passing) seek(skipTarget(passing, dur)) }} />
       </div>
+      {isFs && onBack ? (
+        <div className={cn('absolute inset-x-0 top-0 z-30 bg-gradient-to-b from-black/70 to-transparent px-4 pb-8 pt-4 transition-opacity duration-300 sm:px-8', hideBar && 'pointer-events-none opacity-0')}>
+          <button type="button" onClick={() => { markGoingBack(); onBack() }} aria-label="Back" title="Back (Esc)" className="grid size-10 place-items-center rounded-full text-white hover:bg-white/15"><BackIcon /></button>
+        </div>
+      ) : null}
       <div data-ov={overlay ? '' : undefined} onPointerEnter={() => { overBar.current = true; setIdle(false) }} onPointerLeave={() => { overBar.current = false }}
         className={cn('@container grid gap-1.5', overlay && 'absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-3 pb-2 pt-12 text-white [--color-fg:#fff] [--color-muted:#c9d1e0] transition-opacity duration-300 sm:px-4', isFs && 'px-4 pb-3 sm:px-8', !overlay && 'gap-3', overlay && !isFs && 'rounded-b-[18px] sm:rounded-b-[22px]', hideBar && 'pointer-events-none opacity-0')}>
         <PlayerControls
@@ -332,6 +337,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
           pip={{ onClick: pip, label: 'Picture in picture', title: 'Picture in picture' }}
           tracksMenu={tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || (tracks.info.addon ?? []).length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
           onFullscreen={full}
+          onBack={isFs && onBack ? () => { markGoingBack(); onBack() } : undefined}
           settings={<>
             <MenuItem pressed={block} onClick={() => { const on = !block; setBlock(on); setBlocking(on); flash(on ? 'Chrome Live Caption blocked after reload' : 'Chrome Live Caption allowed after reload') }} label="Keep Chrome's Live Caption off this player">Keep Chrome's Live Caption off <span className={block ? 'text-emerald-400' : 'text-muted'}>{block ? 'ON' : 'OFF'}</span></MenuItem>
             <p className="max-w-[15rem] px-2.5 pb-1 text-[11px] leading-snug text-muted">Plays the sound through the app so Chrome's own black "Live Caption" box has nothing to caption. Applies after a page reload.</p>

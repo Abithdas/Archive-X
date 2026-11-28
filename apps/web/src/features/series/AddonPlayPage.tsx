@@ -58,7 +58,7 @@ export function AddonPlayPage({ play }: { play: AddonPlay }) {
       </div>
       {nativeOk ? (
         <NativePane key={play.src} decoding={decoding} skips={skips} linkPath={`/api/screen/stream-link/${token}`} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} startAt={startAt} autoPlay onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} onBrowser={() => setEngine('web')} onClose={() => router.history.back()} />
-      ) : <Player key={play.src} skips={skips} src={play.src} convert={{ url: (t) => `/api/screen/stream-compat/${token}?t=${t.toFixed(3)}`, info: `/api/screen/stream-compat/${token}/info` }} autoPlay startAt={startAt} onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} />}
+      ) : <Player onBack={() => router.history.back()} key={play.src} skips={skips} src={play.src} convert={{ url: (t) => `/api/screen/stream-compat/${token}?t=${t.toFixed(3)}`, info: `/api/screen/stream-compat/${token}/info` }} autoPlay startAt={startAt} onTime={(t, d) => save(t, d)} onEnd={() => save(known.current.d, known.current.d, true)} addon={{ kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, filename: play.name }} />}
     </div>
   )
 }

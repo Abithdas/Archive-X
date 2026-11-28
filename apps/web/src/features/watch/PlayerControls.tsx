@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { cn } from '@/design/cn'
 import { IconSwap } from '@/design/IconSwap'
 import { formatDuration } from '@/features/library/format'
-import { BufferIcon, ChevronIcon, FullscreenIcon, GearIcon, NextIcon, PauseIcon, PipIcon, PlayIcon, PrevIcon, VolumeIcon } from './PlayerIcons'
+import { BackIcon, BufferIcon, ChevronIcon, FullscreenIcon, GearIcon, NextIcon, PauseIcon, PipIcon, PlayIcon, PrevIcon, VolumeIcon } from './PlayerIcons'
 import { Divider, MenuHead, MenuItem, MenuRow, PopMenu, VolumeBar } from './PlayerParts'
 import { Timeline, type PreviewInfo } from './Timeline'
 import type { Segment } from './timelineLogic'
@@ -32,6 +32,8 @@ export interface ControlsProps {
   tracksMenu?: ReactNode
   settings: ReactNode
   onFullscreen: () => void
+  /** Full screen only: leaves it and goes back to the page the person came from. */
+  onBack?: () => void
   /** Menus open downwards when the picture is a window that would hide them. */
   drop?: 'up' | 'down'
   trailing?: ReactNode
@@ -49,6 +51,7 @@ export function PlayerControls(p: ControlsProps) {
       </div>
       <div className="flex items-center justify-between py-1 text-xs font-medium text-fg/80 sm:text-[13px]">
         <div className="flex min-w-0 items-center gap-1 @lg:gap-2.5">
+          {p.onBack ? <button type="button" className={BTN} onClick={p.onBack} aria-label="Back" title="Back (Esc)"><BackIcon /></button> : null}
           <button type="button" className={BTN} onClick={p.onPrev} disabled={!p.onPrev} aria-label="Previous video" title="Previous (Shift+P)"><PrevIcon /></button>
           <button type="button" className={BTN} onClick={p.onToggle} disabled={p.toggleDisabled} aria-label={p.playing ? 'Pause' : 'Play'} title="Play / pause (Space)"><IconSwap on={p.playing} offIcon={<PlayIcon />} onIcon={<PauseIcon />} /></button>
           <button type="button" className={BTN} onClick={p.onNext} disabled={!p.onNext} aria-label="Next video" title="Next (N)"><NextIcon /></button>

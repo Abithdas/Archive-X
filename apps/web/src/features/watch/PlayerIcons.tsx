@@ -6,6 +6,7 @@ const Stroke = ({ children, cls = 'size-[18px]' }: { children: ReactNode; cls?: 
 )
 export const PlayIcon = ({ cls = 'size-5' }: { cls?: string }) => <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className={cls} fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
 export const PauseIcon = ({ cls = 'size-5' }: { cls?: string }) => <Stroke cls={cls}><path d="M8 5v14M16 5v14" strokeWidth="2.4" /></Stroke>
+export const BackIcon = () => <Stroke><path d="M19 12H5M11 6l-6 6 6 6" /></Stroke>
 export const NextIcon = () => <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="size-[18px]" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg>
 export const PrevIcon = () => <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="size-[18px]" fill="currentColor"><path d="M18 18l-8.5-6L18 6v12zM8 6v12H6V6h2z" /></svg>
 export const BufferIcon = () => <Stroke cls="size-3.5"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></Stroke>

@@ -6,7 +6,7 @@ import { CcMenu } from './CcMenu'
 import { deviceScale, native, pixelRect, type NativeCommand, type NativeTrack, type Opened, type Snapshot , type VideoLayer } from './nativeBridge'
 import { afterJump, aspectOf, decodingLabel, hwCode, quiet, stallStep, videoVisible, type StallState } from './nativeLogic'
 import { releasePlayback } from './release'
-import { enterFullscreen, fullscreenOn, leaveFullscreen, useFullscreen } from './fullscreen'
+import { enterFullscreen, fullscreenOn, leaveFullscreen, markGoingBack, useFullscreen } from './fullscreen'
 import { PlayIcon } from './PlayerIcons'
 import { CaptionStyleItems, PlaybackItems, PlayerControls, playerKey } from './PlayerControls'
 import { loadStyle, saveStyle } from './captionStyle'
@@ -318,7 +318,7 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
       {wide ? (
         // A slim bar above the picture with the way back (leaving full screen is the button in the bar below, or Esc). No name of the video or file is shown in full screen.
         <div className={cn('flex items-center px-3 pt-2 text-white', under && 'absolute inset-x-0 top-0 z-30 bg-gradient-to-b from-black/70 to-transparent pb-8 transition-opacity duration-300', hideBar && 'pointer-events-none opacity-0')}>
-          <button type="button" onClick={() => { if (fullscreenOn()) leaveFullscreen(); else void document.exitFullscreen().catch(noop); onClose?.() }} aria-label="Back" title="Back" className="grid size-10 place-items-center rounded-full hover:bg-white/15"><Icon name="arrow-left" className="size-5" /></button>
+          <button type="button" onClick={() => { markGoingBack(); if (fullscreenOn()) leaveFullscreen(); else void document.exitFullscreen().catch(noop); onClose?.() }} aria-label="Back" title="Back" className="grid size-10 place-items-center rounded-full hover:bg-white/15"><Icon name="arrow-left" className="size-5" /></button>
         </div>
       ) : null}
       <div ref={stage} data-testid="stage" style={wide ? undefined : { aspectRatio: shape }} className={under ? 'absolute inset-0 h-full w-full overflow-hidden bg-transparent' : cn('relative w-full overflow-hidden', wide ? 'h-full min-h-0 bg-black' : 'bg-[#111215] rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>

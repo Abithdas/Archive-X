@@ -7,7 +7,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react'
  */
 let want = false
 let auto = false      // the video page was opened by playInFullscreen (a click on Play), so there is no video page to stay on once full screen is left
-let escaped = false   // full screen ended by Esc or the system, not by the player's own button
+let backing = false   // a Back button is already taking the person back, so ending full screen must not go back a second time
 const subs = new Set<() => void>()
 const emit = () => subs.forEach((f) => f())
 const root = (): HTMLElement | null => (typeof document === 'undefined' ? null : document.documentElement)
@@ -18,7 +18,7 @@ export const fullscreenOn = active
 
 export function enterFullscreen(): void {
   want = true
-  escaped = false
+  backing = false
   emit()
   const r = root()
   void Promise.resolve(r?.requestFullscreen?.()).catch(() => { want = false; emit() })
@@ -34,7 +34,7 @@ export function leaveFullscreen(): void {
 if (typeof document !== 'undefined') {
   // Esc, or the system, ended full screen: it is over until it is asked for again.
   document.addEventListener('fullscreenchange', () => {
-    if (want && document.fullscreenElement !== root()) { want = false; escaped = true }
+    if (want && document.fullscreenElement !== root()) want = false
     emit()
   })
 }
@@ -48,7 +48,7 @@ export const markPlayNext = (cid: string, mid: number | string): void => { playK
 export const shouldPlayNow = (cid: string, mid: number | string): boolean => playKey === `${cid}:${mid}`
 
 // ---- playing straight into full screen (SFW), like dx.bi: no video page to look at ----------------------------------------------------------------
-/** Press Play: full screen is asked for in this very click (the browser only allows it then) and the video page opens already in it. Esc then takes the person back to where they were. */
+/** Press Play: full screen is asked for in this very click (the browser only allows it then) and the video page opens already in it. Leaving full screen (Esc, the full screen button, Back) then takes the person back to where they pressed Play. */
 export function playInFullscreen(): void {
   auto = true
   enterFullscreen()
@@ -65,7 +65,10 @@ export const playClick = (e: { button: number; metaKey: boolean; ctrlKey: boolea
   if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) playInFullscreen()
 }
 
-/** On the video page: when it was opened by Play and full screen is left with Esc, go back to the page the person came from. Leaving with the player's own button keeps the video in its window. */
+/** Marks that a Back button is taking the person back itself (call it just before going back). */
+export const markGoingBack = (): void => { backing = true }
+
+/** On the video page: when it was opened by Play and full screen is left in any way (Esc, the full screen button, the system), go back to the page the person pressed Play on. */
 export function useBackOnEscape(back: () => void): void {
   const fs = useFullscreen()
   const opened = useRef(auto)           // set by Play just before this page was shown
@@ -74,7 +77,7 @@ export function useBackOnEscape(back: () => void): void {
   go.current = back
   useEffect(() => {
     if (fs) { seen.current = true; return }
-    if (seen.current && opened.current && escaped) { seen.current = false; opened.current = false; auto = false; escaped = false; go.current() }
+    if (seen.current && opened.current && !backing) { seen.current = false; opened.current = false; auto = false; go.current() }
   }, [fs])
-  useEffect(() => () => { auto = false }, [])
+  useEffect(() => () => { auto = false }, [])   // (backing is cleared by the next enterFullscreen: the full screen of the page being left ends after this one is gone)
 }
