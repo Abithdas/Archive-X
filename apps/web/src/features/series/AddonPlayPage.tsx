@@ -6,6 +6,7 @@ import { useRouter } from '@tanstack/react-router'
 import { Player } from '@/features/watch/Player'
 import { NativePane } from '@/features/watch/NativePane'
 import { hasNativeBridge, native } from '@/features/watch/nativeBridge'
+import { leaveFullscreen, useBackOnEscape } from '@/features/watch/fullscreen'
 import { useSkipTimes } from '@/features/watch/skip'
 
 export interface AddonPlay { src: string; name: string; kind: 'movie' | 'series'; ident: string; season?: number; episode?: number }
@@ -19,6 +20,8 @@ const progressUrl = (p: AddonPlay) => `/api/screen/addon-progress?${new URLSearc
 
 export function AddonPlayPage({ play }: { play: AddonPlay }) {
   const router = useRouter()
+  useBackOnEscape(() => router.history.back())
+  useEffect(() => () => leaveFullscreen(), [])   // leaving the page leaves full screen
   const last = useRef(0)
   const known = useRef({ t: 0, d: 0 })
   // Where this title stopped before (the player waits for the answer, so it starts there instead of jumping after it began).

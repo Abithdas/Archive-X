@@ -22,7 +22,7 @@ import { gridReady, gridTimes } from './grid'
 import { MarkersSection } from './MarkersSection'
 import { QuickEditDialog } from './QuickEditDialog'
 import { Player } from './Player'
-import { leaveFullscreen, markPlayNext, shouldPlayNow, useFullscreen } from './fullscreen'
+import { leaveFullscreen, markPlayNext, shouldPlayNow, useBackOnEscape, useFullscreen } from './fullscreen'
 import { hasNativeBridge, native } from './nativeBridge'
 import { useSkipTimes } from './skip'
 import { useContentMode } from '@/features/content/useContentMode'
@@ -191,6 +191,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const track = (t: number, d: number) => { here.current = t; resume.onTime(t, d) }
   const toBrowser = () => { setChosenWeb(true); switchTo('web') }
   const fs = useFullscreen()
+  useBackOnEscape(() => router.history.back())
   useEffect(() => () => leaveFullscreen(), [])   // leaving the video page leaves full screen
   if (video.isPending) return fs ? <Curtain /> : <Skel />
   if (video.isError || !item) {

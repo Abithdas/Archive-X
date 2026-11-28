@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { playClick } from '@/features/watch/fullscreen'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { api } from '@/api/client'
 import { Button } from '@/design/Button'
@@ -434,7 +435,7 @@ export function SfwHome() {
                     </>
                   )
                   const a = r.addon
-                  if (!a) return <Link key={`${r.cid}:${r.mid}`} to="/watch/$cid/$mid" params={{ cid: r.cid, mid: String(r.mid) }} aria-label={`Continue ${r.title}`} className={cls}>{inner}</Link>
+                  if (!a) return <Link key={`${r.cid}:${r.mid}`} to="/watch/$cid/$mid" onClick={playClick} params={{ cid: r.cid, mid: String(r.mid) }} aria-label={`Continue ${r.title}`} className={cls}>{inner}</Link>
                   const key = `addon:${a.kind}:${a.ident}:${a.season ?? ''}:${a.episode ?? ''}`
                   return a.season != null && a.episode != null
                     ? <Link key={key} to="/discover/$kind/$id/$season/$episode" params={{ kind: a.kind, id: a.ident, season: String(a.season), episode: String(a.episode) }} aria-label={`Continue ${r.title}`} className={cls}>{inner}</Link>

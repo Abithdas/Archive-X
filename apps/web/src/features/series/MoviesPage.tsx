@@ -1,6 +1,7 @@
 import { useSearch } from '@/app/search'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { playClick } from '@/features/watch/fullscreen'
 import { useState } from 'react'
 import { api } from '@/api/client'
 import { Empty } from '@/design/Empty'
@@ -77,7 +78,7 @@ export function MovieDetailPage({ id }: { id: number }) {
         <Chips label="Cast" cast items={d.cast.slice(0, 6).map((c) => c.name)} title={(n) => d.cast.find((c) => c.name === n)?.character} />
         {d.companies.length ? <p className="text-xs text-faint">{d.companies.join(' · ')}</p> : null}
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {best ? <Link to="/watch/$cid/$mid" params={{ cid: best.cid, mid: String(best.mid) }} className="inline-flex h-12 w-fit items-center gap-2 rounded-full bg-accent px-6 text-[15px] font-bold text-accent-fg transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"><Icon name="play" className="size-4" />Play</Link> : null}
+          {best ? <Link to="/watch/$cid/$mid" onClick={playClick} params={{ cid: best.cid, mid: String(best.mid) }} className="inline-flex h-12 w-fit items-center gap-2 rounded-full bg-accent px-6 text-[15px] font-bold text-accent-fg transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"><Icon name="play" className="size-4" />Play</Link> : null}
           <ReviewsButton data={reviews.data} title={d.title} className="inline-flex h-12 items-center rounded-full border border-line-2 px-5 text-sm font-semibold transition-colors hover:bg-fg/10" />
         </div>
       </div>
@@ -98,7 +99,7 @@ export function MovieDetailPage({ id }: { id: number }) {
           const langs = (v.languages ?? []).join(', ')
           return (
             <li key={`${v.cid}:${v.mid}`} className="mo-enter m-0" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
-              <Link to="/watch/$cid/$mid" params={{ cid: v.cid, mid: String(v.mid) }} className="group flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-fg/10 focus-visible:bg-fg/10">
+              <Link to="/watch/$cid/$mid" onClick={playClick} params={{ cid: v.cid, mid: String(v.mid) }} className="group flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-fg/10 focus-visible:bg-fg/10">
                 <span aria-hidden="true" className="grid h-12 w-[4.5rem] shrink-0 place-content-center rounded-lg bg-fg/10 text-center transition-colors group-hover:bg-fg group-hover:text-bg"><b className="text-[17px] font-extrabold leading-none">{badge.top}</b>{badge.bottom ? <small className="mt-0.5 text-[10px] font-semibold leading-none opacity-80">{badge.bottom}</small> : null}</span>
                 <span className="min-w-0 flex-1"><span className="block font-semibold">{versionText(v) || v.filename}{i === 0 && d.versions.length > 1 && copySort === 'best' && !filterCount(copyFilter) ? <span className="ml-2 rounded-full bg-good/15 px-2 py-0.5 text-[11px] font-bold text-good">Best</span> : null}</span>
                   {langs ? <span className="block truncate text-xs text-muted">{langs}</span> : null}

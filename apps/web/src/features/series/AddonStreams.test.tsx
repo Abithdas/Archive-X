@@ -1,6 +1,8 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
+import { leaveFullscreen } from '@/features/watch/fullscreen'
+const leaveFullscreenForTest = () => leaveFullscreen()
 
 const toastError = vi.hoisted(() => vi.fn())
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: toastError }), Toaster: () => null }))
@@ -252,5 +254,19 @@ describe('how a stream row reads (like dx.bi)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
     expect(screen.getByLabelText('Quality').className).not.toContain('bg-white')
     expect(screen.getByText('3 streams')).toBeInTheDocument()
+  })
+})
+
+describe('playing a stream', () => {
+  it('goes into full screen in the same click, like dx.bi', async () => {
+    const request = vi.fn(async () => undefined)
+    document.documentElement.requestFullscreen = request as never
+    vi.stubGlobal('fetch', vi.fn(async (u: string) => json(u === '/api/collection' ? {} : DATA)))
+    withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
+    const home = await screen.findByRole('list', { name: 'Home server' })
+    fireEvent.click(within(home).getByRole('button', { name: /Dune 1080p/ }))
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('Add-on player page')).toBeInTheDocument()
+    leaveFullscreenForTest()
   })
 })

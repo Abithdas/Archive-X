@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Icon } from '@/design/Icon'
 import { errorText } from '@/features/content/useContentMode'
 import { DownloadsDialog, downloadsOf } from '@/features/collection/DownloadsDialog'
+import { playInFullscreen } from '@/features/watch/fullscreen'
 import { collectionKey, useCollection } from '@/features/collection/useCollection'
 import { StreamingActions } from '@/features/settings/StreamingSetup'
 
@@ -144,6 +145,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
   })
   const open = (item: StreamItem) => {
     if (!item.play) return
+    playInFullscreen()                                                  // straight into full screen, like dx.bi (this is the click that allows it)
     if (kind === 'series' && item.bingeGroup) { rememberBinge(ident, item.bingeGroup); setGroup(item.bingeGroup) }
     void navigate({ to: '/addon-play', search: { src: item.play, name: item.name, kind, ident, season, episode } })
   }
@@ -229,7 +231,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
                     </div>
                     <div className="min-w-0">
                       {item.kind === 'link' ? <a href={item.href} target="_blank" rel="noreferrer" className="line-clamp-2 block break-words text-[14px] font-extrabold hover:underline" title={item.name}>{headline(item)}<span aria-hidden="true" className="ml-1 opacity-60">↗</span></a>
-                        : item.kind === 'play' ? <button type="button" onClick={() => open(item)} aria-label={item.name} className="line-clamp-2 block w-full break-words text-left text-[14px] font-extrabold hover:underline" title={item.name}>{headline(item)}</button>
+                        : item.kind === 'play' ? <button type="button" onClick={(e) => { e.stopPropagation(); open(item) }} aria-label={item.name} className="line-clamp-2 block w-full break-words text-left text-[14px] font-extrabold hover:underline" title={item.name}>{headline(item)}</button>
                         : <p className="m-0 line-clamp-2 break-words text-[14px] font-extrabold text-muted" title={item.name}>{headline(item)}</p>}
                       <p className="m-0 mt-1 flex flex-wrap items-center gap-x-1 text-xs leading-snug text-fg/70">
                         {[item.addon, item.provider, headline(item) === item.name ? item.source : '', (item.languages ?? []).join(', '), item.seeders != null ? `${item.seeders} seeds` : '', sizeText(item.size ?? 0)].filter(Boolean).join(' · ')}
