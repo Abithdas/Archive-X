@@ -3,6 +3,10 @@ import { Link } from '@tanstack/react-router'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { api } from '@/api/client'
 import { Icon } from '@/design/Icon'
+import { useContentMode } from '@/features/content/useContentMode'
+import { experienceFrom } from '@/features/settings/logic'
+import { useExperienceSettings } from '@/features/settings/queries'
+import { HoverTrailer } from './HoverTrailer'
 import { PLACEHOLDER } from './PosterCard'
 
 /** What a preview shows: what the row's list already knows about the title. */
@@ -150,12 +154,17 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
   useEffect(() => { if (closing && !still) { card.style.transition = 'opacity .2s ease'; card.style.opacity = '' } }, [closing, card, still])
 
   // The row's list does not carry the length or the title's logo: the same one-title lookup the details use fills them in a moment after the panel opens.
-  const detail = useQuery({ queryKey: ['discover-one', item.kind, item.imdb] as const, queryFn: () => api<{ runtime?: string; logo?: string }>(`/api/screen/discover/${item.kind === 'tv' ? 'series' : 'movie'}/${item.imdb}`), retry: false, enabled: hasPage(item), staleTime: 600_000 })
+  const detail = useQuery({ queryKey: ['discover-one', item.kind, item.imdb] as const, queryFn: () => api<{ runtime?: string; logo?: string; trailer?: string }>(`/api/screen/discover/${item.kind === 'tv' ? 'series' : 'movie'}/${item.imdb}`), retry: false, enabled: hasPage(item), staleTime: 600_000 })
   const minutes = Number(/^(\d+)\s*(?:min)?$/i.exec(String(detail.data?.runtime ?? '').trim())?.[1] ?? 0)
   const length = minutes ? (minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`) : String(detail.data?.runtime ?? '')
   const endsAt = minutes && item.kind === 'movie' ? new Date(Date.now() + minutes * 60_000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
   const art = item.background || item.poster || PLACEHOLDER
   const on = opened && !closing
+  // The trailer plays in the card only in SFW and only when Settings allow it (it is loaded from YouTube); the card's own picture stays until the trailer really plays.
+  const sfw = useContentMode().data?.mode === 'sfw'
+  const trailersAllowed = experienceFrom(useExperienceSettings().data).hover_trailers   // (a hook is never skipped: both are asked every time)
+  const wantTrailer = sfw && trailersAllowed && !still
+  const [trailerOn, setTrailerOn] = useState(false)
   const media = (
     <span className="relative block aspect-video w-full overflow-hidden bg-surface-3">
       {item.background ? <img src={art} alt="" className={on ? 'mo-preview-art absolute inset-0 size-full object-cover' : 'absolute inset-0 size-full object-cover'} /> : (
@@ -165,8 +174,9 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
           <img src={art} alt="" className={on ? 'mo-preview-art absolute inset-y-0 left-1/2 h-full -translate-x-1/2 object-contain' : 'absolute inset-y-0 left-1/2 h-full -translate-x-1/2 object-contain'} />
         </>
       )}
-      <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(0deg,#181818_0%,rgba(24,24,24,0.2)_30%,transparent_55%)]" />
-      {detail.data?.logo ? <img src={detail.data.logo} alt={item.title} className="absolute bottom-2 left-4 max-h-14 max-w-[70%] object-contain object-left drop-shadow-lg" /> : <span className="absolute inset-x-4 bottom-2 text-lg font-extrabold leading-tight text-white drop-shadow-lg">{item.title}</span>}
+      {wantTrailer && on && detail.data?.trailer ? <HoverTrailer key={detail.data.trailer} id={detail.data.trailer} title={item.title} onPlaying={setTrailerOn} onExpand={onDone} /> : null}
+      <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(0deg,#181818_0%,rgba(24,24,24,0.2)_30%,transparent_55%)]" />
+      {detail.data?.logo ? <img src={detail.data.logo} alt={item.title} className={`absolute bottom-2 left-4 max-h-14 max-w-[70%] object-contain object-left drop-shadow-lg transition-opacity duration-[600ms] ${trailerOn ? 'opacity-0' : ''}`} /> : <span className={`absolute inset-x-4 bottom-2 text-lg font-extrabold leading-tight text-white drop-shadow-lg transition-opacity duration-[600ms] ${trailerOn ? 'opacity-0' : ''}`}>{item.title}</span>}
     </span>
   )
   const round = 'grid size-9 shrink-0 place-items-center rounded-full border-2 border-white/45 text-white transition-colors hover:border-white hover:bg-white/10'

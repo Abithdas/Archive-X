@@ -69,7 +69,7 @@ describe('experienceFrom', () => {
     expect(NATIVE_MODES.map(([k]) => k)).toEqual(['off', 'fallback', 'always'])
   })
   it('applies the classic defaults', () => {
-    expect(experienceFrom(undefined)).toEqual({ native_player: 'off', video_decoding: 'auto', autoplay: false, autonext: false, resume_prompt: true, live_seek_preview: true, partial_cache_prompt: false, autonext_mode: 'context' })
+    expect(experienceFrom(undefined)).toEqual({ native_player: 'off', video_decoding: 'auto', autoplay: false, autonext: false, resume_prompt: true, live_seek_preview: true, hover_trailers: true, partial_cache_prompt: false, autonext_mode: 'context' })
   })
   it('reads saved values and rejects an unknown autoplay source', () => {
     expect(experienceFrom({ autoplay: true, resume_prompt: false, partial_cache_prompt: true, autonext_mode: 'studio' })).toMatchObject({ autoplay: true, resume_prompt: false, partial_cache_prompt: true, autonext_mode: 'studio' })

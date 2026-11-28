@@ -98,6 +98,7 @@ export interface Experience {
   autonext: boolean
   resume_prompt: boolean
   live_seek_preview: boolean
+  hover_trailers: boolean
   partial_cache_prompt: boolean
   autonext_mode: string
 }
@@ -109,7 +110,7 @@ export function experienceFrom(r: Obj | undefined): Experience {
   return {
     native_player: NATIVE_MODES.some(([k]) => k === native) ? (native as NativeMode) : 'off',
     video_decoding: DECODING_MODES.some(([k]) => k === s(x.video_decoding)) ? (s(x.video_decoding) as DecodingMode) : 'auto',
-    autoplay: Boolean(x.autoplay), autonext: Boolean(x.autonext), resume_prompt: x.resume_prompt !== false, live_seek_preview: x.live_seek_preview !== false,
+    autoplay: Boolean(x.autoplay), autonext: Boolean(x.autonext), resume_prompt: x.resume_prompt !== false, live_seek_preview: x.live_seek_preview !== false, hover_trailers: x.hover_trailers !== false,
     partial_cache_prompt: x.partial_cache_prompt === true, autonext_mode: AUTONEXT_MODES.some(([k]) => k === mode) ? mode : 'context',
   }
 }

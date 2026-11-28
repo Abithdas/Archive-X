@@ -149,6 +149,7 @@ export function ExperiencePanel() {
       <Row title="Ask to resume playback" hint="Offer to continue where you left off"><Switch label="Ask to resume playback" checked={form.resume_prompt} onChange={(v) => set('resume_prompt', v)} /></Row>
       <Row title="Live seek preview (timeline hover)" hint="Show frames while scrubbing"><Switch label="Live seek preview" checked={form.live_seek_preview} onChange={(v) => set('live_seek_preview', v)} /></Row>
       <p className="py-2 text-xs text-muted">Hover the playback timeline to preview a frame. On touch screens, drag to seek.</p>
+      <Row title="Trailers in expanded cards" hint="Movies and shows (SFW only): a muted trailer from YouTube plays in the card"><Switch label="Trailers in expanded cards" checked={form.hover_trailers} onChange={(v) => set('hover_trailers', v)} /></Row>
       <Row title="Video decoding" hint="The native player and the conversion"><select aria-label="Video decoding" value={form.video_decoding} onChange={(e) => set('video_decoding', e.target.value as DecodingMode)} className={PICK}>
         {DECODING_MODES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
       </select></Row>

@@ -600,6 +600,7 @@ def register_system_routes(
                 "theme_preset": (db.setting("ax_theme_preset", "nord") if db.setting("ax_theme_preset", "nord") in {"nord", "nero-gold", "black-essence","pastel-lavender", "pastel-mint", "minimal-slate", "minimal-sand", "teal-coral", "neon-lime", "golden-noir", "custom"} else "nord"),
                 "grid_density": (db.setting("ax_grid_density", "default") if db.setting("ax_grid_density", "default") in {"compact", "default", "spacious"} else "default"),
                 "live_seek_preview": bool(db.setting("ta_live_seek_preview", "1") not in {"0", "false", "False"}),
+                "hover_trailers": bool(db.setting("ta_hover_trailers", "1") not in {"0", "false", "False"}),
                 # Include this in bootstrap as well as the dedicated settings route;
                 # otherwise the seeded GET cache can temporarily default it to enabled.
                 "resume_prompt": bool(db.setting("ta_resume_prompt", "1") not in {"0", "false", "False"}),
