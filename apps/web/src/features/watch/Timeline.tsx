@@ -12,7 +12,7 @@ const clock = (s: number) => formatDuration(s) || '0:00'
  * scene title. Dragging scrubs and seeks on release (no flood of range requests while moving); arrow keys, PageUp/Down,
  * Home and End work when focused.
  */
-export function Timeline({ time, duration, buffered, segments, preview, onSeek, onTip }: { time: number; duration: number; buffered: number; segments: Segment[]; preview?: PreviewInfo; onSeek: (t: number) => void; /** Show the hover picture under the bar: above it would be hidden by the native video window. */ onTip?: (on: boolean) => void }) {
+export function Timeline({ time, duration, buffered, segments, preview, onSeek }: { time: number; duration: number; buffered: number; segments: Segment[]; preview?: PreviewInfo; onSeek: (t: number) => void }) {
   const track = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<{ t: number; x: number } | null>(null)
   const [drag, setDrag] = useState<number | null>(null)
@@ -34,8 +34,6 @@ export function Timeline({ time, duration, buffered, segments, preview, onSeek, 
   current.current = bucket
   const liveOk = !!preview?.live && failures.current < 3
   const choice = tip && duration > 0 ? choosePreview(tip.t, duration, liveState[bucket], preview?.times, liveOk) : null
-  const tipOn = Boolean(tip && duration && choice)
-  useEffect(() => { onTip?.(tipOn); return () => onTip?.(false) }, [tipOn, onTip])   // the native player steps its picture aside while the preview is up
   useEffect(() => { setLiveState({}); failures.current = 0 }, [preview])
   // Ask for the exact frame once the pointer has rested on a second for a moment (a little longer while dragging).
   useEffect(() => {

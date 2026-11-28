@@ -2,7 +2,7 @@
 
 Archive X is a **Windows desktop app** that turns Telegram channels and local folders into one private media library. Everything runs on the user's PC: the library, caches and settings stay local, and Telegram is used only to read and move channel media. Desktop only is a decision (ADR 0005): there is no hosted mode, LAN access, HTTPS certificate or web login.
 
-Sizes (18 November 2026): about 106,000 lines of Python in `telegram_archive/` (218 files), 456 TypeScript files in `apps/web/src/`, about 11,900 lines of Rust in `crates/` and `apps/desktop/`, and a C++ video engine in `native/axplayer/`. How the Rust side is growing is in [plan.md](plan.md) and [adr/](adr/README.md).
+Sizes (18 November 2026): about 106,000 lines of Python in `telegram_archive/` (218 files), 456 TypeScript files in `apps/web/src/`, about 11,900 lines of Rust in `crates/` and `apps/desktop/`. How the Rust side is growing is in [plan.md](plan.md) and [adr/](adr/README.md).
 
 ## 1. Processes
 
@@ -19,7 +19,6 @@ Sizes (18 November 2026): about 106,000 lines of Python in `telegram_archive/` (
 | `apps/desktop` (Tauri 2) | Splash window, starts the backend and front door through `crates/launcher-core`, opens the window on a one-time session URL, quits cleanly. On Windows every child process is held by a kill-on-close job object, so quitting leaves nothing behind. |
 | `crates/ax-server` | The front door. Serves the built web app, answers the routes listed in `native.rs`, and forwards everything else to Python. It also sends plain video files itself (ADR 0010). |
 | `telegram_archive/` | The backend: one process, one Telethon session, one SQLite database, durable jobs. Binds `127.0.0.1` on a free port with a per-launch secret; other programs cannot use its API. |
-| `crates/native-player`, `native/axplayer` | The native video player that draws in its own window above the app (ADR 0004). |
 
 Python is deliberately **one process**: Telegram, jobs, playback and watchers are process-local singletons.
 

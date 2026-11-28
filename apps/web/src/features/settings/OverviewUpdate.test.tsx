@@ -1,7 +1,7 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
-import type { UpdateState } from '@/features/watch/nativeBridge'
+import type { UpdateState } from '@/app/desktopBridge'
 import { OverviewPanel } from './panels'
 
 const base: UpdateState = { phase: 'uptodate', current: '30.4.3', version: null, notes: null, received: 0, total: 0, percent: null, error: null, checkedAt: Math.floor(Date.now() / 1000) - 30 }

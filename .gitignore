@@ -23,13 +23,5 @@ apps/desktop/src-tauri/resources/rust/*
 apps/desktop/src-tauri/resources/web/*
 !apps/desktop/src-tauri/resources/web/.gitkeep
 
-# fetched by packaging/scripts/fetch-lav.sh
-apps/desktop/src-tauri/resources/lav/*
-!apps/desktop/src-tauri/resources/lav/.gitkeep
-apps/desktop/src-tauri/resources/mpv/*
-!apps/desktop/src-tauri/resources/mpv/.gitkeep
-native/axplayer/third_party/
-apps/desktop/src-tauri/resources/axplayer/*
-!apps/desktop/src-tauri/resources/axplayer/.gitkeep
 # The web app's build output (made by npm run build; CI and the installer build it themselves)
 apps/web/dist/

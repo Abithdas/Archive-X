@@ -15,7 +15,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 BUNDLED = [
-    ("LAV Filters (splitter, video and audio decoders)", "GPL-2.0-or-later (LGPL parts)", "https://github.com/Nevcairiel/LAVFilters", "packaging/scripts/fetch-lav.sh, pinned by tag and SHA-256; loaded by the native player"),
     ("FFmpeg (static GPL build)", "GPL-3.0-or-later", "https://github.com/BtbN/FFmpeg-Builds", "packaging/scripts/fetch-ffmpeg.sh, pinned by SHA-256; run as a separate program"),
     ("Python runtime", "PSF-2.0", "https://www.python.org/", "inside the packaged backend"),
     ("llama.cpp engine (llama-server)", "MIT", "https://github.com/ggml-org/llama.cpp", "not in the installer: downloaded when the person presses Set up on AI Assistance (release b12400, pinned by SHA-256), run as a separate program on this PC"),
@@ -83,7 +82,7 @@ def main():
         "| --- | --- | --- | --- |",
         *(f"| {n} | {l} | {u} | {h} |" for n, l, u, h in BUNDLED),
         "",
-        "The source code of LAV Filters and FFmpeg is available from the links above, at the versions pinned in the scripts named.",
+        "The source code of FFmpeg is available from the links above, at the versions pinned in the scripts named.",
         "",
         "## Rust crates",
         "",

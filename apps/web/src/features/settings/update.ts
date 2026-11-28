@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatBytes } from '@/design/format'
-import { hasNativeBridge, updates, type UpdateState } from '@/features/watch/nativeBridge'
+import { hasDesktopShell, updates, type UpdateState } from '@/app/desktopBridge'
 
 const KEY = ['app-update'] as const
 const busy = (s: UpdateState | undefined) => s?.phase === 'checking' || s?.phase === 'downloading' || s?.phase === 'installing'
@@ -8,7 +8,7 @@ const busy = (s: UpdateState | undefined) => s?.phase === 'checking' || s?.phase
 /** The app update as the desktop shell sees it, refreshed while something is going on. Without the desktop shell (a browser) there is nothing to ask. */
 export function useAppUpdate() {
   const qc = useQueryClient()
-  const here = hasNativeBridge()
+  const here = hasDesktopShell()
   const state = useQuery({ queryKey: KEY, queryFn: updates.status, enabled: here, retry: false, refetchInterval: (q) => (busy(q.state.data) ? 700 : 20_000) })
   const put = (s: UpdateState) => qc.setQueryData(KEY, s)
   const check = useMutation({ mutationFn: updates.check, onSuccess: put })

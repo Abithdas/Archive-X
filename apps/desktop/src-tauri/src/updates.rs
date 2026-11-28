@@ -2,7 +2,7 @@
 //!
 //! Everything happens in Rust. The question is a native dialog and the download progress is shown in the window title. The state (looking,
 //! up to date, a version is ready, downloading with its percent, installing, failed) is also kept here and read by Settings, Overview through
-//! three commands (update_status, update_check, update_install: capabilities/native-player.json), which is also where an update that was
+//! three commands (update_status, update_check, update_install: capabilities/page.json), which is also where an update that was
 //! answered "Later" is started. A failed check is logged and ignored: with no
 //! network, no release yet, or a private repository the app simply carries on. ARCHIVE_X_NO_UPDATE_CHECK=1 turns the check off.
 //! Updates are accepted only when signed with the key whose public half is in tauri.conf.json (plugins.updater.pubkey).

@@ -78,7 +78,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with: { toolchain: stable }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-      - run: cargo test -p archive-x-launcher-core -p archive-x-native-player
+      - run: cargo test -p archive-x-launcher-core
 
   front-door:
     runs-on: ubuntu-latest
@@ -90,7 +90,7 @@ jobs:
       # The desktop shell (archive-x-desktop) needs the Linux web-view libraries, so it is built and tested on Windows in desktop.yml.
       - run: cargo fmt --all --check
       - run: cargo test -p ax-server -p ax-db -p ax-names -p ax-faces -p ax-core -p ax-jobs -p ax-backup -p ax-config -p ax-ai
-      - run: cargo clippy -p ax-server -p ax-db -p ax-names -p ax-faces -p ax-core -p ax-jobs -p ax-backup -p ax-config -p ax-ai -p archive-x-launcher-core -p archive-x-native-player --all-targets -- -D warnings
+      - run: cargo clippy -p ax-server -p ax-db -p ax-names -p ax-faces -p ax-core -p ax-jobs -p ax-backup -p ax-config -p ax-ai -p archive-x-launcher-core --all-targets -- -D warnings
 
   parity:
     # The Rust front door must answer like the Python backend: the same seeded library behind both, SFW and NSFW, reads and writes.

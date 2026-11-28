@@ -1,5 +1,5 @@
 import { ApiError, api } from '@/api/client'
-import { hasNativeBridge } from '@/features/watch/nativeBridge'
+import { hasDesktopShell } from '@/app/desktopBridge'
 
 const LOG_BUNDLE_URL = '/api/diagnostics/logs.zip'
 
@@ -17,7 +17,7 @@ const fileNameFrom = (disposition: string | null) => /filename\*?=(?:UTF-8'')?"?
  * Downloads folder and says where, because an app window cannot always show a save dialog; in a browser it is an ordinary download.
  */
 export async function downloadLogBundle(): Promise<LogBundleResult> {
-  if (hasNativeBridge()) {
+  if (hasDesktopShell()) {
     const r = await api<{ name: string; path: string; files: number }>(`${LOG_BUNDLE_URL}?save=1`)
     return { kind: 'saved', name: r.name, path: r.path, files: r.files }
   }

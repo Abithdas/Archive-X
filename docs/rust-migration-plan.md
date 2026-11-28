@@ -39,7 +39,7 @@ rust-anything's whole-app flow starts by writing each decision as an ADR. Recomm
 | D3 | Web framework | `axum` on `hyper` (already hyper-based in `ax-server`). |
 | D4 | SQLite | `rusqlite` (already used). Keep the schema and in-place migrations; port `database.py` migrations verbatim. |
 | D5 | Single process | Keep one process with explicit shared state (`Arc` services), not global singletons, so tests no longer depend on module state. |
-| D6 | Video/image work | PyAV and Pillow replaced by `ffmpeg-next` or the existing `axplayer` C++ engine for decode, and the `image` crate for derivatives. Decide whether ffmpeg is bundled or shelled out. |
+| D6 | Video/image work | PyAV and Pillow replaced by `ffmpeg-next` for decode, and the `image` crate for derivatives. Decide whether ffmpeg is bundled or shelled out. |
 | D7 | Local AI | Keep the llama-style runtime as a child process (already is); port only the orchestration, tools and safety rules. |
 | D8 | Cutover | Per-route-group switches (`--native-routes`) stay until a group is 100% in Rust; Python is removed last, behind a single release. |
 | D9 | Data compatibility | Same SQLite file and encrypted credentials format, so upgrading users keep everything. |

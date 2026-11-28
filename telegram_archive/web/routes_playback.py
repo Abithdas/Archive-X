@@ -192,8 +192,8 @@ def register_playback_routes(
                 "width": int((row["width"] if row else 0) or 0), "height": int((row["height"] if row else 0) or 0), "fps": float((row["fps"] if row else 0) or 0),
                 "bitrate": int((row["bitrate"] if row else 0) or 0), "codec": str((row["codec"] if row else "") or ""), "audio_codec": str((row["audio_codec"] if row else "") or ""),
                 "streamable": True, "streamability_label": "Local file", "local_file": True}
-        # What the browser can do with it, by the same rule as for a Telegram video: the page uses it to hand a file the browser cannot play straight
-        # to the native player instead of trying an in-browser conversion first.
+        # What the browser can do with it, by the same rule as for a Telegram video: the page uses it to start the in-browser conversion of a file the
+        # browser cannot play.
         probed = await asyncio.to_thread(_local_probe, path)
         info["format"] = str(probed.get("format") or "")
         info["vcodec"] = str(probed.get("vcodec") or info["codec"] or "")
@@ -1371,8 +1371,6 @@ def register_playback_routes(
         for compatibility playback. Hardware decode is preferred and hardware
         encode is used when the exact device/driver path actually works.
         """
-        if str(db.setting("ta_video_decoding", "auto") or "auto") == "software":   # Settings, Playback, Video decoding: the processor only, for the decoder and the encoder
-            return {"status": "ready", "decoder": None, "encoder": "libx264", "profile": {}, "reason": "software decoding chosen in Settings"}
         codec = str(info.get("vcodec") or "").lower()
         pix = str(info.get("pix_fmt") or "").lower()
         key2 = (int(key[0]), int(key[1]))

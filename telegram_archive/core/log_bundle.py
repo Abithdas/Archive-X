@@ -223,16 +223,7 @@ def system_text(config: Any, ffmpeg: str | None) -> str:
             lines.append(f"ffmpeg ver  : {out.splitlines()[0] if out else '?'}")
         except Exception as exc:
             lines.append(f"ffmpeg ver  : could not run ({exc.__class__.__name__})")
-    lines.append(f"native player: {'present' if _native_player_present(config) else 'not installed'}")
     return "\n".join(lines) + "\n"
-
-
-def _native_player_present(config: Any) -> bool:
-    try:
-        base = Path(sys.executable).resolve().parent
-        return any((p / "axplayer.dll").exists() for p in (base, base / "axplayer", base.parent / "axplayer"))
-    except OSError:
-        return False
 
 
 def environment_text(environ: Mapping[str, str] | None = None) -> str:

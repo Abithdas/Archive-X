@@ -87,13 +87,7 @@ export function validationMessage(r: { telegram?: Obj; metadata?: Obj; web?: Obj
 }
 
 export const AUTONEXT_MODES = [['context', 'Current queue'], ['collection', 'Collection'], ['performer', 'Same performer'], ['studio', 'Same studio'], ['recommended', 'Recommended']] as const
-export const NATIVE_MODES = [['off', 'Never by itself (a button on the video page)'], ['fallback', 'Only when the browser cannot play the video'], ['always', 'Always']] as const
-export type NativeMode = (typeof NATIVE_MODES)[number][0]
-export const DECODING_MODES = [['auto', 'Automatic (the graphics card when it can)'], ['hardware', 'Prefer the graphics card'], ['software', 'Processor only']] as const
-export type DecodingMode = (typeof DECODING_MODES)[number][0]
 export interface Experience {
-  native_player: NativeMode
-  video_decoding: DecodingMode
   autoplay: boolean
   autonext: boolean
   resume_prompt: boolean
@@ -106,10 +100,7 @@ export interface Experience {
 export function experienceFrom(r: Obj | undefined): Experience {
   const x = r ?? {}
   const mode = s(x.autonext_mode)
-  const native = s(x.native_player)
   return {
-    native_player: NATIVE_MODES.some(([k]) => k === native) ? (native as NativeMode) : 'off',
-    video_decoding: DECODING_MODES.some(([k]) => k === s(x.video_decoding)) ? (s(x.video_decoding) as DecodingMode) : 'auto',
     autoplay: Boolean(x.autoplay), autonext: Boolean(x.autonext), resume_prompt: x.resume_prompt !== false, live_seek_preview: x.live_seek_preview !== false, hover_trailers: x.hover_trailers !== false,
     partial_cache_prompt: x.partial_cache_prompt === true, autonext_mode: AUTONEXT_MODES.some(([k]) => k === mode) ? mode : 'context',
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { UpdateState } from '@/features/watch/nativeBridge'
+import type { UpdateState } from '@/app/desktopBridge'
 import { agoText, updateView } from './update'
 
 const base: UpdateState = { phase: 'idle', current: '30.4.3', version: null, notes: null, received: 0, total: 0, percent: null, error: null, checkedAt: null }

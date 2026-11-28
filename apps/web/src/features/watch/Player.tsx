@@ -14,7 +14,7 @@ import { CcMenu } from './CcMenu'
 import { blockingEnabled, resumeAudio, routeThroughApp, setBlocking, setBoost, setSoundMode } from './audioGraph'
 import { SHARPEN_ID, loadPS, normalizePS, pictureFilter, savePS, zoomScale, type PictureSound } from './pictureSound'
 import { loadPrefs as loadPlayerPrefs, savePrefs as savePlayerPrefs } from './playerPrefs'
-import { browserDecoding, sampleOf, statRows, type StreamFacts, type StreamSample } from './streamStats'
+import { sampleOf, statRows, type StreamFacts, type StreamSample } from './streamStats'
 import { CaptionOverlay } from './CaptionOverlay'
 import { releasePlayback } from './release'
 import { enterFullscreen, leaveFullscreen, markGoingBack, useFullscreen } from './fullscreen'
@@ -25,7 +25,7 @@ export const nextRate = (r: number) => RATES[(RATES.findIndex((x) => x === r) + 
 /** The player's box over the whole screen (it is in the top layer, whose containing block is the screen). */
 const FULL_BOX: React.CSSProperties = { position: 'fixed', inset: 0, width: '100%', height: '100%', maxWidth: 'none', maxHeight: 'none', margin: 0, padding: 0, border: 0, overflow: 'hidden' }
 /** How to ask this PC for a converted version of the video: `url(t)` starts it at second `t`; `info` answers its length (`{ duration }`) when the page does not know it. */
-export interface Convert { url: (t: number) => string; info?: string; /** Convert only a video that plays without sound, never one that fails (another engine takes those). */ silentOnly?: boolean }
+export interface Convert { url: (t: number) => string; info?: string }
 const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) && dur > 0 ? Math.min(dur, t) : t)
 
 /**
@@ -33,7 +33,7 @@ const clampTime = (t: number, dur: number) => Math.max(0, Number.isFinite(dur) &
  * picture-in-picture, full screen, keyboard shortcuts, and the same "could not be played" fallback (retry or open in VLC).
  */
 
-export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onOpenNative, onUnplayable, onBack, facts, addon, convert, skips = [] }: { onBack?: () => void; skips?: Skip[]; convert?: Convert; addon?: AddonRef; facts?: StreamFacts; onUnplayable?: () => void; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc?: () => void; onOpenNative?: () => void }) {
+export function Player({ media, infoPending = false, src, poster, durationHint, segments = [], preview, autoPlay = false, autoNext = false, startAt = 0, snapshots, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onOpenVlc, onBack, facts, addon, convert, skips = [] }: { onBack?: () => void; skips?: Skip[]; convert?: Convert; addon?: AddonRef; facts?: StreamFacts; media?: MediaRef; infoPending?: boolean; seekRequest?: { t: number; n: number }; snapshots?: SnapshotData; startAt?: number; onTime?: (position: number, duration: number) => void; onPlayed?: () => void; onEnd?: () => void; autoPlay?: boolean; autoNext?: boolean; src: string; poster?: string; durationHint?: number | null; segments?: Segment[]; preview?: PreviewInfo; onPrev?: () => void; onNext?: () => void; onOpenVlc?: () => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const startApplied = useRef(false)
   const pendingStart = useRef<number | null>(null)
@@ -61,7 +61,6 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   useEffect(() => { savePlayerPrefs({ volume, muted, rate }) }, [volume, muted, rate])
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
-  useEffect(() => { if (failed) onUnplayable?.() }, [failed]) // eslint-disable-line react-hooks/exhaustive-deps -- the page switches to the native player once, when this video cannot be played here
   const [attempt, setAttempt] = useState(0)
   // A file this web view cannot decode is converted by this PC into an MP4 it can (what Stremio's streaming server does): `conv.base` is the second the converted stream starts at,
   // so the clock, the timeline and every seek are shifted by it, and a seek outside what was already converted starts a new conversion there.
@@ -80,34 +79,32 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   useEffect(() => { if (conv && convDur > 0) setDur(convDur) }, [conv, convDur])   // a live converted stream cannot tell its own length: the server does
   /** The player cannot play this: convert it from where it stopped (once), and only when that fails too is the video unplayable. */
   const fail = () => {
-    if (convert && !convert.silentOnly && !conv) { keepPlaying.current = !(video.current?.paused ?? true) || autoPlay; setConv({ base: Math.max(0, now() || pendingStart.current || startAt || 0) }); setLoading(true); return }
+    if (convert && !conv) { keepPlaying.current = !(video.current?.paused ?? true) || autoPlay; setConv({ base: Math.max(0, now() || pendingStart.current || startAt || 0) }); setLoading(true); return }
     setFailed(true); setLoading(false)
   }
   const silentChecked = useRef(false)
   const blackChecked = useRef(false)
-  /** The picture plays but no sound is ever decoded (the browser says it supports Dolby audio and then has no decoder): the sound is converted, or another engine takes over. */
+  /** The picture plays but no sound is ever decoded (the browser says it supports Dolby audio and then has no decoder): the sound is converted. */
   const checkSilent = (v: HTMLVideoElement) => {
     if (silentChecked.current || conv || v.paused || v.muted || v.volume === 0 || v.currentTime < 3) return
     silentChecked.current = true
     const c = v as HTMLVideoElement & { webkitAudioDecodedByteCount?: number; webkitVideoDecodedByteCount?: number }
     if (c.webkitAudioDecodedByteCount !== 0 || !((c.webkitVideoDecodedByteCount ?? 0) > 0)) return   // sound is coming (or this browser does not tell)
     if (convert) { keepPlaying.current = true; setConv({ base: v.currentTime }); setLoading(true) }
-    else onUnplayable?.()
   }
   /** The sound plays but not one picture byte is ever decoded (HEVC, MPEG-4, ProRes or MJPEG this web view has no decoder for: a black screen with sound, and no error to react to):
-   *  the video is converted, or another engine takes over. */
+   *  the video is converted. */
   const checkBlack = (v: HTMLVideoElement) => {
     if (blackChecked.current || conv || v.paused || v.currentTime < 1.5) return
     const c = v as HTMLVideoElement & { webkitVideoDecodedByteCount?: number }
     if (c.webkitVideoDecodedByteCount !== 0) return   // a picture is being decoded (or this browser does not tell)
     blackChecked.current = true
-    if (convert && !convert.silentOnly) { keepPlaying.current = true; setConv({ base: v.currentTime }); setLoading(true) }
-    else onUnplayable?.()
+    if (convert) { keepPlaying.current = true; setConv({ base: v.currentTime }); setLoading(true) }
   }
   const failRef = useRef(fail)
   failRef.current = fail
   const keepPlaying = useRef(false)   // a seek that starts a new conversion reloads the video: it carries on playing if it was playing
-  // The video plays as it is: this web view plays what Windows can decode. A file it cannot play is handed to the native player (see WatchPage), never converted here.
+  // The video plays as it is: this web view plays what Windows can decode. A file it cannot play is converted from where it stopped (see fail()).
   const [committed, setCommitted] = useState(false)   // the source was handed to the video: late codec info must not switch it mid-play
   const ready = !infoPending
   useEffect(() => { setCommitted(false) }, [src])
@@ -135,14 +132,6 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   useEffect(() => setShift(0), [src])
   useEffect(() => { setBoostFailed(!(setBoost(video.current, ps.boost / 100) && setSoundMode(video.current, ps.sound))) }, [ps.boost, ps.sound])
   const [sample, setSample] = useState<StreamSample | null>(null)
-  const [decoding, setDecoding] = useState<string | undefined>()
-  const pictureW = sample?.width ?? 0
-  useEffect(() => {   // the Stats say whether the picture is decoded on the graphics card, once the picture has a size
-    let dead = false
-    if (!pictureW) return
-    void browserDecoding(facts?.vcodec, Boolean(conv), { width: pictureW, height: sample?.height ?? 0 }).then((d) => { if (!dead) setDecoding(d) })
-    return () => { dead = true }
-  }, [facts?.vcodec, Boolean(conv), pictureW]) // eslint-disable-line react-hooks/exhaustive-deps -- asked when the codec, the conversion or the picture size changes
   const tracks = useTracks(media, video, time, playing, shift, addon)
   useAltAudio(video, altAudio, tracks.altUrl, muted, volume, rate)
   const tap = useRef<TapState | null>(null)
@@ -310,10 +299,9 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
             <p className="max-w-lg text-sm font-bold leading-snug sm:text-lg">
               <span className="sm:hidden">This video could not be played here.</span><span className="hidden sm:inline">This video could not be played from the original stream (this player cannot decode this file, or Telegram is not connected).</span>
             </p>
-            <p className="hidden max-w-lg text-xs text-zinc-400 sm:block">{onOpenNative ? 'This player cannot decode every file (some HEVC, 10-bit and MKV videos). The native player can.' : 'You can retry the original stream or open it in VLC.'}</p>
+            <p className="hidden max-w-lg text-xs text-zinc-400 sm:block">You can retry the original stream or open it in VLC.</p>
             <div className="flex flex-wrap justify-center gap-2">
-              {onOpenNative ? <button type="button" onClick={onOpenNative} className="h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg sm:h-10 sm:px-4">Play with the native player</button> : null}
-              <button type="button" onClick={() => setAttempt(attempt + 1)} className={onOpenNative ? 'h-9 rounded-xl border border-white/20 bg-white/10 px-3 text-sm font-bold sm:h-10 sm:px-4' : 'h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg sm:h-10 sm:px-4'}>Retry original</button>
+              <button type="button" onClick={() => setAttempt(attempt + 1)} className="h-9 rounded-xl bg-accent px-3 text-sm font-bold text-accent-fg sm:h-10 sm:px-4">Retry original</button>
               {onOpenVlc ? <button type="button" onClick={onOpenVlc} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 text-sm font-bold sm:h-10 sm:px-4"><Icon name="brand-vlc" />Open in VLC</button> : null}
             </div>
           </div>
@@ -333,7 +321,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
           playing={playing} onToggle={toggle} onPrev={onPrev} onNext={onNext}
           rate={rate} onRate={(r) => { setRate(r); flash(`Speed: ${r}x`) }}
           muted={muted} volume={volume} onMute={() => setMuted(!muted)} onVolume={(v) => { setVolume(v); setMuted(false) }}
-          status={{ chip: buffer >= 99 ? 'Cached' : `${buffer}%`, good: buffer >= 99, rows: statRows(buffer, sample, { ...facts, decoding, audio: tracks.info?.audio.find((a) => tracks.audio === null ? a.default || a.ordinal === 0 : a.index === tracks.audio)?.label }) }}
+          status={{ chip: buffer >= 99 ? 'Cached' : `${buffer}%`, good: buffer >= 99, rows: statRows(buffer, sample, { ...facts, audio: tracks.info?.audio.find((a) => tracks.audio === null ? a.default || a.ordinal === 0 : a.index === tracks.audio)?.label }) }}
           pip={{ onClick: pip, label: 'Picture in picture', title: 'Picture in picture' }}
           tracksMenu={tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || (tracks.info.addon ?? []).length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
           onFullscreen={full}

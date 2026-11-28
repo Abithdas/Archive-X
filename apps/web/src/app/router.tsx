@@ -121,13 +121,6 @@ const addonPlay = createRoute({
   },
 })
 
-// The native player is no longer a page of its own: it plays inside the video page. An old /native/... link opens that page with it chosen.
-const nativePlayer = createRoute({
-  getParentRoute: () => root,
-  path: '/native/$cid/$mid',
-  beforeLoad: ({ params }) => { throw redirect({ to: '/watch/$cid/$mid', params, search: { engine: 'native' } as never, replace: true }) },
-})
-
 const routeTree = root.addChildren([
   index,
   addonPlay,
@@ -145,7 +138,6 @@ const routeTree = root.addChildren([
   createRoute({ getParentRoute: () => root, path: '/series', beforeLoad: () => { useScreenView.getState().setView('series'); throw redirect({ to: '/videos', replace: true }) } }),
   studio,
   watch,
-  nativePlayer,
   createRoute({ getParentRoute: () => root, path: '/studios', component: () => <EntityDirectory kind="studios" /> }),
   createRoute({ getParentRoute: () => root, path: '/photos', component: PhotosPage }),
   // People lives inside Photos; an old /people link opens that view.

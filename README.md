@@ -43,7 +43,7 @@ The app updates itself: **Settings → Overview** checks for new versions and in
 
 **Home and Discover (movies and shows).** One page for what is yours and what to find next: a billboard from your library, *Continue watching*, *Airing this week*, *Recently added*, your series and movies as one card each (never one per episode), and **Discover** with popular titles by genre, a search, and a details window. Titles you already own are marked.
 
-**Plays anything.** A player with 36 preview frames under the timeline, resume, scene markers, speed, captions and picture-in-picture. Files a browser cannot play start in a **native player** (hardware decoding) that works the same way, with the same controls and keys.
+**Plays anything.** A player with 36 preview frames under the timeline, resume, scene markers, speed, captions and picture-in-picture.
 
 **One library, many sources.** Telegram channels and folders on your PC sit side by side. Each is marked in or out of the library, SFW or NSFW. Move or rename a file in a folder and it keeps its name, favourite and resume point.
 
@@ -93,9 +93,8 @@ The Windows installer is built by the [Desktop workflow](.github/workflows/deskt
 | --- | --- | --- |
 | `apps/web/` | The interface shown in the window | TypeScript, React 19, Vite, Tailwind |
 | `apps/desktop/` | The desktop shell: starts and stops everything, updates | Rust, Tauri 2 |
-| `crates/` | Front door, database access, performer names, face learning, launcher, native player wrapper | Rust |
+| `crates/` | Front door, database access, performer names, face learning, launcher | Rust |
 | `telegram_archive/` | Telegram, jobs, metadata, playback cache, content modes | Python (FastAPI, Telethon, SQLite) |
-| `native/axplayer/` | The native video engine | C++ |
 | `packaging/`, `tools/`, `docs/` | Installer tooling, tests and release scripts, architecture and plans | Python, shell, Markdown |
 
 Start with [docs/architecture.md](docs/architecture.md). The reasons for the big choices are in [docs/adr/](docs/adr/README.md), and the plan is in [docs/plan.md](docs/plan.md).

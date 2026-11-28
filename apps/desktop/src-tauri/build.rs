@@ -1,14 +1,7 @@
 fn main() {
-    // The native player's, the updater's and the window buttons' commands (src/native.rs, COMMANDS; src/updates.rs; src/window.rs) become permissions named allow-native-open and so on, so that a capability
-    // can name exactly them. Keep this list and COMMANDS the same (a test in native.rs checks).
+    // The updater's, the window buttons' and open_external's commands (src/updates.rs; src/window.rs) become permissions named allow-update-check and so on, so that a capability
+    // can name exactly them.
     const COMMANDS: &[&str] = &[
-        "native_available",
-        "native_open",
-        "native_command",
-        "native_rect",
-        "native_state",
-        "native_tracks",
-        "native_diagnostics",
         "update_status",
         "update_check",
         "update_install",

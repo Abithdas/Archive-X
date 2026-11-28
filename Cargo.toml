@@ -16,7 +16,6 @@ members = [
     "crates/ax-names",
     "crates/ax-faces",
     "crates/launcher-core",
-    "crates/native-player",
     "apps/desktop/src-tauri",
 ]
 

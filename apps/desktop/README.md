@@ -5,12 +5,12 @@ A native Windows window (Tauri 2) around the Archive X backend and the Rust fron
 ```
 apps/desktop/
   src-tauri/   the Tauri app: splash window, starts the backend and front door, opens the one-time session URL,
-               quits cleanly, in-app updates, native player window
+               quits cleanly, in-app updates
   ui/          splash.html, shown while the backend starts
 crates/launcher-core/   Rust library: start the backend, read its ready line, health checks, graceful shutdown,
                         and (on Windows) the kill-on-close job object that holds every child process
 packaging/backend/      freezes telegram_archive into archive-x-backend (PyInstaller, one folder)
-packaging/scripts/      fetch-ffmpeg.sh and fetch-lav.sh (pinned, SHA-256 checked), make_latest_json.py (update manifest)
+packaging/scripts/      fetch-ffmpeg.sh (pinned, SHA-256 checked), make_latest_json.py (update manifest)
 ```
 
 ## How it runs

@@ -1,4 +1,3 @@
-import { startsNative } from './nativeLogic'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -23,10 +22,8 @@ import { MarkersSection } from './MarkersSection'
 import { QuickEditDialog } from './QuickEditDialog'
 import { Player } from './Player'
 import { leaveFullscreen, markPlayNext, shouldPlayNow, useBackOnEscape, useFullscreen } from './fullscreen'
-import { hasNativeBridge, native } from './nativeBridge'
 import { useSkipTimes } from './skip'
 import { useContentMode } from '@/features/content/useContentMode'
-import { NativePane } from './NativePane'
 import { useResume } from './useResume'
 import { QUEUE_MODES, isQueueMode, queueFor, type QueueMode } from './queue'
 import { frameIndexFor, normaliseChapters, toSegments } from './timelineLogic'
@@ -163,33 +160,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
   const resume = useResume({ cid, mid, name: item?.name ?? '', duration: item?.duration ?? 0, enabled: exp.resume_prompt, settled: Boolean(item) && !expQuery.isPending, autoplay: exp.autoplay, frameFor })
   const idOf = (list: Array<{ id: number; name: string }> | undefined, name: string) => list?.find((e) => e.name.toLowerCase() === name.toLowerCase())?.id
 
-  // The desktop app's native player (LAV decoders), when the engine is installed: an extra way to play, never the default.
-  const [nativeOk, setNativeOk] = useState(false)
-  useEffect(() => {
-    if (!hasNativeBridge()) return
-    let dead = false
-    native.available().then((a) => { if (!dead) setNativeOk(a.available) }).catch(() => undefined)
-    return () => { dead = true }
-  }, [])
-  // Which engine plays this video: the browser's, or the native one in the same place on the same page. The Experience setting decides when the
-  // native one starts by itself ('always', or 'fallback': only when the browser cannot play the file); the person can switch either way for one video.
-  const [engine, setEngine] = useState<'web' | 'native'>('web')
-  const [chosenWeb, setChosenWeb] = useState(false)
-  const nativeMode = exp.native_player
-  const askedNative = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('engine') === 'native'
-  useEffect(() => { setEngine('web'); setChosenWeb(false) }, [cid, mid])
-  const playFacts = playInfo.data
-  useEffect(() => {
-    const canPlayType = (t: string) => (typeof document === 'undefined' ? '' : document.createElement('video').canPlayType(t))
-    if (startsNative({ nativeOk, chosenWeb, mode: nativeMode, asked: askedNative, info: playFacts, canPlayType })) setEngine('native')
-  }, [nativeOk, nativeMode, chosenWeb, askedNative, cid, mid, playFacts])
-  // Changing engine in the middle of a video carries on from where it was (the two players are one: only the source of the picture differs).
-  const here = useRef(0)
-  const [carry, setCarry] = useState<number | null>(null)
-  useEffect(() => { here.current = 0; setCarry(null) }, [cid, mid])
-  const switchTo = (to: 'web' | 'native') => { if (here.current > 2) setCarry(here.current); setEngine(to) }
-  const track = (t: number, d: number) => { here.current = t; resume.onTime(t, d) }
-  const toBrowser = () => { setChosenWeb(true); switchTo('web') }
+  const track = (t: number, d: number) => resume.onTime(t, d)
   const fs = useFullscreen()
   useBackOnEscape(() => router.history.back())
   useEffect(() => () => leaveFullscreen(), [])   // leaving the video page leaves full screen
@@ -222,11 +193,7 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
       <div className="grid min-w-0 content-start gap-4">
 
         {resume.ready ? (
-          engine === 'native' ? (
-            <NativePane key={`${item._cid}:${item.id}`} decoding={exp.video_decoding} skips={skips} media={{ cid: String(item._cid), mid: item.id }} durationHint={item.duration} size={{ width: item.width, height: item.height }} segments={segments} preview={preview} snapshots={snapshots} startAt={carry ?? resume.startAt} autoPlay={carry !== null ? true : resume.autoPlay || shouldPlayNow(item._cid, item.id)} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onBrowser={toBrowser} onClose={() => router.history.back()} />
-          ) : (
-          <Player onBack={() => router.history.back()} skips={skips} facts={{ vcodec: playInfo.data?.vcodec || item.codec || undefined, tenBit: playInfo.data?.ten_bit, container: containerLabel(playInfo.data?.format, item.name), acodec: playInfo.data?.acodec, bitrate: item.size && item.duration ? Math.round((item.size * 8) / item.duration) : undefined, source: local ? 'This PC' : 'Telegram' }} media={{ cid: String(item._cid), mid: item.id }} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={carry !== null ? true : resume.autoPlay || shouldPlayNow(item._cid, item.id)} startAt={carry ?? resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} onOpenNative={nativeOk ? () => switchTo('native') : undefined} onUnplayable={nativeOk && nativeMode === 'fallback' && !chosenWeb ? () => switchTo('native') : undefined} convert={{ url: (t) => `/stream-compat/${encodeURIComponent(item._cid)}/${item.id}?t=${t.toFixed(3)}`, silentOnly: nativeOk && nativeMode === 'fallback' && !chosenWeb }} />
-          )
+          <Player onBack={() => router.history.back()} skips={skips} facts={{ vcodec: playInfo.data?.vcodec || item.codec || undefined, tenBit: playInfo.data?.ten_bit, container: containerLabel(playInfo.data?.format, item.name), acodec: playInfo.data?.acodec, bitrate: item.size && item.duration ? Math.round((item.size * 8) / item.duration) : undefined, source: local ? 'This PC' : 'Telegram' }} media={{ cid: String(item._cid), mid: item.id }} infoPending={infoWait} src={`/stream/${encodeURIComponent(item._cid)}/${item.id}`} durationHint={item.duration} segments={segments} preview={preview} autoPlay={resume.autoPlay || shouldPlayNow(item._cid, item.id)} startAt={resume.startAt} snapshots={snapshots} seekRequest={seekRequest} onTime={track} onPlayed={resume.onPlayed} onEnd={resume.onEnd} autoNext={exp.autonext} onPrev={prev ? () => go(prev) : undefined} onNext={next ? () => go(next) : undefined} onOpenVlc={vlc} convert={{ url: (t) => `/stream-compat/${encodeURIComponent(item._cid)}/${item.id}?t=${t.toFixed(3)}` }} />
         ) : fs ? <Curtain /> : (
           <div className="aspect-video w-full rounded-[18px] border border-line bg-black" aria-hidden="true" />
         )}
@@ -303,7 +270,6 @@ export function WatchPage({ cid, mid }: { cid: string; mid: number }) {
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={vlc} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="brand-vlc" />Open in VLC</button>
             <button type="button" onClick={mpc} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="play" />Open in MPC-HC</button>
-            {nativeOk ? <button type="button" aria-pressed={engine === 'native'} onClick={() => (engine === 'native' ? toBrowser() : setEngine('native'))} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-2 px-3.5 text-sm font-semibold hover:bg-fg/5"><Icon name="play" />{engine === 'native' ? 'Use the browser player' : 'Play with the native player'}</button> : null}
             <button type="button" aria-pressed={Boolean(item.favorite)} disabled={fav.isPending} onClick={() => fav.mutate({ mediaId: item.media_id, favorite: !item.favorite }, { onError: () => toast.error('Could not update favourite') })} className={cn('inline-flex h-10 items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold hover:bg-fg/5', item.favorite ? 'border-[#f40051]/60' : 'border-line-2')}>
               <LikeHeart liked={Boolean(item.favorite)} />{item.favorite ? 'Favourited' : 'Favourite'}
             </button>

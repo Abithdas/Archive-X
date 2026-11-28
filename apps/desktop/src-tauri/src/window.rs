@@ -2,7 +2,7 @@
 //! native title bar goes while that bar is showing and comes back if the page is not there (the splash and error pages keep it).
 //!
 //! Each command acts on the window it was called from, and the page that may call them is the one served by the local backend
-//! (capabilities/native-player.json): they move, shrink, grow and close that one window, and nothing else.
+//! (capabilities/page.json): they move, shrink, grow and close that one window, and nothing else.
 
 use tauri::WebviewWindow;
 

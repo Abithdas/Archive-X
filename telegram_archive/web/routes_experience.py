@@ -65,16 +65,6 @@ def _safe_theme_preset(value, legacy_mode='system'):
     return 'nord'
 
 
-_NATIVE_MODES = {'off', 'fallback', 'always'}
-_DECODING = {'auto', 'hardware', 'software'}
-
-
-def _native_mode(value):
-    """How the desktop app's native player is used: 'off' (a button only, the default), 'fallback' (only when the browser cannot play the video), or 'always'."""
-    v = str(value or '').strip().lower()
-    return v if v in _NATIVE_MODES else 'off'
-
-
 def _safe_grid_density(value):
     value = str(value or 'default').strip().lower()
     return value if value in {'compact', 'default', 'spacious'} else 'default'
@@ -341,8 +331,6 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
             'hover_trailers': bool(db.setting('ta_hover_trailers', '1') not in {'0', 'false', 'False'}),
             'resume_prompt': bool(db.setting('ta_resume_prompt', '1') not in {'0', 'false', 'False'}),
             'partial_cache_prompt': bool(db.setting('ta_partial_cache_prompt', '0') not in {'0', 'false', 'False'}),
-            'native_player': _native_mode(db.setting('ta_native_player', 'off')),
-            'video_decoding': (db.setting('ta_video_decoding', 'auto') if db.setting('ta_video_decoding', 'auto') in _DECODING else 'auto'),
         }
         return keys
 
@@ -351,7 +339,7 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
     async def save_experience_settings(request: Request):
         require_auth(request)
         data = await request.json()
-        allowed = {'autoplay','autonext','autonext_mode','theme_mode','theme_preset','grid_density','ui_scale','live_seek_preview','resume_prompt','partial_cache_prompt','native_player','video_decoding','hover_trailers'}
+        allowed = {'autoplay','autonext','autonext_mode','theme_mode','theme_preset','grid_density','ui_scale','live_seek_preview','resume_prompt','partial_cache_prompt','hover_trailers'}
         for k in allowed:
             if k not in data:
                 continue
@@ -359,14 +347,6 @@ def register(router, *, db, require_auth, resources=None, playback_state=None, p
             if k in {'autoplay','autonext','live_seek_preview','resume_prompt','partial_cache_prompt','hover_trailers'}:
                 v = '1' if bool(v) else '0'
                 db.set_setting(f'ta_{k}', v)
-            elif k == 'video_decoding':
-                v = str(v).strip().lower()
-                if v not in _DECODING: raise HTTPException(400, 'Invalid video decoding mode')
-                db.set_setting('ta_video_decoding', v)
-            elif k == 'native_player':
-                v = str(v).strip().lower()
-                if v not in _NATIVE_MODES: raise HTTPException(400, 'Invalid native player mode')
-                db.set_setting('ta_native_player', v)
             elif k == 'theme_mode':
                 v = str(v).strip().lower()
                 if v == 'auto-time': v = 'system'

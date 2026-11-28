@@ -21,10 +21,3 @@ def test_a_tag_or_branch_is_caught(tmp_path):
 def test_a_short_sha_is_not_enough(tmp_path):
     (tmp_path / "a.yml").write_text("steps:\n  - uses: x/y@abc1234\n")
     assert len(pins.unpinned(tmp_path)) == 1
-
-
-def test_the_lav_download_is_checksum_and_commit_pinned():
-    script = (ROOT / "packaging" / "scripts" / "fetch-lav.sh").read_text()
-    assert re.search(r'DEFAULT_SHA256="[0-9a-f]{64}"', script)
-    assert re.search(r'DEFAULT_COMMIT="[0-9a-f]{40}"', script)
-    assert "checksum mismatch" in script.lower()

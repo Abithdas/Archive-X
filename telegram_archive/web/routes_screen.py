@@ -658,16 +658,6 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                     pass
         return StreamingResponse(body(), media_type="video/mp4", headers={"Accept-Ranges": "none", "Cache-Control": "no-store", "X-Accel-Buffering": "no", "X-Compat-Start": f"{t0:.3f}"})
 
-    @router.get("/api/screen/stream-link/{token}")
-    async def stream_link(token: str, request: Request):
-        """The address of a listed stream, for the desktop app's native player: it opens addresses itself and cannot carry the web session. Only streams this app listed as playable."""
-        require_auth(request)
-        _sfw_only()
-        hit = stream_tokens.get(token)
-        if not hit:
-            raise HTTPException(404, "That stream is no longer available. Open the title's page again.")
-        return {"url": hit[1]}
-
     @router.get("/api/screen/cast/{name}")
     async def cast_person(name: str, request: Request):
         """What a cast member is in: the movies and shows of the library that list them, and their other work from TMDB. Asked by name, from a title's cast list."""

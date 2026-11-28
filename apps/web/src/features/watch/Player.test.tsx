@@ -141,31 +141,14 @@ describe('Player', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry original' }))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
-  it('offers the native player first when the browser cannot play the file (desktop app)', () => {
-    const native = vi.fn()
-    const { container } = render(<Player src="/stream/-1/1" durationHint={120} onOpenVlc={() => {}} onOpenNative={native} />)
-    fireEvent.error(container.querySelector('video')!)
-    fireEvent.click(screen.getByRole('button', { name: 'Play with the native player' }))
-    expect(native).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('button', { name: 'Retry original' })).toBeInTheDocument()
-  })
-  it('tells the page once when the file cannot be played, so it can switch to the native player by itself', () => {
-    const unplayable = vi.fn()
-    const { container } = render(<Player src="/stream/-1/1" durationHint={120} onOpenVlc={() => {}} onUnplayable={unplayable} />)
-    expect(unplayable).not.toHaveBeenCalled()
-    fireEvent.error(container.querySelector('video')!)
-    expect(unplayable).toHaveBeenCalledTimes(1)
-  })
-  it('never converts a file it cannot decode: a decode error is a failure, handed on, with no conversion request', () => {
+  it('with no conversion offered, a decode error is a failure with no conversion request', () => {
     const asked: string[] = []
     vi.stubGlobal('fetch', vi.fn(async (u: string) => { asked.push(String(u)); return new Response('{}', { status: 404 }) }))
-    const unplayable = vi.fn()
-    const { container } = render(<Player src="/stream/-1/1" media={{ cid: '-1', mid: 1 }} durationHint={120} onOpenVlc={() => {}} onUnplayable={unplayable} />)
+    const { container } = render(<Player src="/stream/-1/1" media={{ cid: '-1', mid: 1 }} durationHint={120} onOpenVlc={() => {}} />)
     const v = container.querySelector('video')!
     Object.defineProperty(v, 'error', { value: { code: 4 }, configurable: true })
     fireEvent.error(v)
     expect(screen.getByRole('alert')).toHaveTextContent('could not be played')
-    expect(unplayable).toHaveBeenCalledTimes(1)
     expect(asked.some((u) => /hls|smart|convert/i.test(u))).toBe(false)
     expect(screen.queryByText(/Converting/i)).toBeNull()
     vi.unstubAllGlobals()
@@ -221,17 +204,14 @@ describe('Timeline', () => {
     expect(screen.getByText('Main')).toBeInTheDocument()
     expect(screen.getByText('1:15')).toBeInTheDocument()
   })
-  it('tells when the hover picture comes and goes, and always draws it above the bar', () => {
-    const tips: boolean[] = []
-    render(<Timeline time={0} duration={100} buffered={0} segments={[]} onSeek={() => {}} onTip={(on) => tips.push(on)} />)
+  it('always draws the hover picture above the bar', () => {
+    render(<Timeline time={0} duration={100} buffered={0} segments={[]} onSeek={() => {}} />)
     const s = screen.getByRole('slider', { name: 'Seek' })
     s.getBoundingClientRect = () => rect as DOMRect
     fireEvent.pointerMove(s, { clientX: 150 })
-    expect(tips.at(-1)).toBe(true)
     expect((screen.getByText('1:15').closest('div[class*="bottom-full"]'))).not.toBeNull()
-    fireEvent.pointerLeave(s)
-    expect(tips.at(-1)).toBe(false)
   })
+
 })
 
 describe('telegramLink', () => {

@@ -15,7 +15,7 @@ PC's date and time, for example `archive-x-logs-2026-11-14_08-12-45.zip`.
 | `diagnostics/report.txt` | the canonical diagnostic report (the same one `/api/diagnostics/report` makes) |
 | `diagnostics/playback-and-events.json` | the playback snapshot and the last 300 structured events |
 | `diagnostics/ignored-errors.json` | errors the app caught and carried on from, most frequent first |
-| `system/system.txt` | app version, Windows version, CPU cores, free memory and disk, ffmpeg version, whether the native player is installed |
+| `system/system.txt` | app version, Windows version, CPU cores, free memory and disk, ffmpeg version |
 | `system/environment.txt` | the `ARCHIVE_X_*` settings of this run (anything that looks like a secret is blanked) |
 | `manifest.json`, `README.txt` | every file with its size and whether it was cut, and everything that was left out, with the reason |
 

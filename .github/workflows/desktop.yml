@@ -84,27 +84,6 @@ jobs:
           cp target/release/ax-server.exe apps/desktop/src-tauri/resources/rust/ax-server.exe
           cp -r apps/web/dist/. apps/desktop/src-tauri/resources/web/
 
-      - name: Fetch LAV Filters and build the native player engine
-        shell: bash
-        env: { GH_TOKEN: "${{ github.token }}" }
-        run: |
-          bash packaging/scripts/fetch-lav.sh
-          bash packaging/scripts/fetch-lav.sh --headers
-          cmake -S native/axplayer -B build-axplayer -A x64
-          cmake --build build-axplayer --config Release
-          mkdir -p apps/desktop/src-tauri/resources/axplayer
-          cp build-axplayer/Release/axplayer.dll apps/desktop/src-tauri/resources/axplayer/
-
-      # libmpv is the native player's default engine (it plays what the browser cannot, and it can sit under the see-through app window so the page is drawn over the
-      # picture); the LAV engine above stays in the installer as the fallback (ARCHIVE_X_NATIVE_ENGINE=lav).
-      - name: Fetch libmpv and build its engine
-        shell: bash
-        run: |
-          bash packaging/scripts/fetch-mpv.sh
-          cmake -S native/axplayer -B build-axmpv -A x64 -DAX_ENGINE=mpv
-          cmake --build build-axmpv --config Release
-          cp build-axmpv/Release/axmpv.dll apps/desktop/src-tauri/resources/axplayer/
-
       - name: Launcher tests against the frozen backend
         env: { ARCHIVE_X_BACKEND_EXE: "${{ github.workspace }}\\packaging\\backend\\dist\\archive-x-backend\\archive-x-backend.exe" }
         run: |

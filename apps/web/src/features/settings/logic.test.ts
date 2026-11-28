@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUTONEXT_MODES, NATIVE_MODES, PANELS, depsSummary, experienceFrom, iconsSummary, isPanel, pills, statusRows, telegramText, validationMessage } from './logic'
+import { AUTONEXT_MODES, PANELS, depsSummary, experienceFrom, iconsSummary, isPanel, pills, statusRows, telegramText, validationMessage } from './logic'
 
 const fmt = (n: number) => `${n} B`
 describe('panels', () => {
@@ -60,16 +60,8 @@ describe('pills and validation', () => {
 })
 
 describe('experienceFrom', () => {
-  it('reads the native player mode and falls back to "only when the browser cannot play it"', () => {
-    expect(experienceFrom({ native_player: 'always' }).native_player).toBe('always')
-    expect(experienceFrom({ native_player: 'off' }).native_player).toBe('off')
-    expect(experienceFrom({ native_player: 'sometimes' }).native_player).toBe('off')
-    expect(experienceFrom({ video_decoding: 'software' }).video_decoding).toBe('software')
-    expect(experienceFrom({ video_decoding: 'fast' }).video_decoding).toBe('auto')
-    expect(NATIVE_MODES.map(([k]) => k)).toEqual(['off', 'fallback', 'always'])
-  })
   it('applies the classic defaults', () => {
-    expect(experienceFrom(undefined)).toEqual({ native_player: 'off', video_decoding: 'auto', autoplay: false, autonext: false, resume_prompt: true, live_seek_preview: true, hover_trailers: true, partial_cache_prompt: false, autonext_mode: 'context' })
+    expect(experienceFrom(undefined)).toEqual({ autoplay: false, autonext: false, resume_prompt: true, live_seek_preview: true, hover_trailers: true, partial_cache_prompt: false, autonext_mode: 'context' })
   })
   it('reads saved values and rejects an unknown autoplay source', () => {
     expect(experienceFrom({ autoplay: true, resume_prompt: false, partial_cache_prompt: true, autonext_mode: 'studio' })).toMatchObject({ autoplay: true, resume_prompt: false, partial_cache_prompt: true, autonext_mode: 'studio' })

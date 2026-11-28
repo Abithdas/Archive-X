@@ -44,21 +44,3 @@ describe('containerLabel', () => {
     expect(containerLabel(undefined, undefined)).toBeUndefined()
   })
 })
-
-describe('browserDecoding', () => {
-  const caps = (powerEfficient: boolean, supported = true) => { Object.defineProperty(navigator, 'mediaCapabilities', { value: { decodingInfo: async () => ({ supported, smooth: true, powerEfficient }) }, configurable: true }) }
-  it('says hardware for a power-efficient decoder and software for the others', async () => {
-    const { browserDecoding } = await import('./streamStats')
-    caps(true); expect(await browserDecoding('h264', false, { width: 1920, height: 1080 })).toBe('Hardware (graphics card)')
-    caps(false); expect(await browserDecoding('hevc', false, { width: 1920, height: 1080 })).toBe('Software (processor)')
-    caps(false, false); expect(await browserDecoding('hevc', false, { width: 1920, height: 1080 })).toBe('Not supported here')
-  })
-  it('asks about H.264 for a converted video, and says nothing it cannot know', async () => {
-    const { browserDecoding, codecTypeFor, statRows } = await import('./streamStats')
-    expect(codecTypeFor('mpeg2video', true)).toContain('avc1')
-    expect(codecTypeFor('mpeg2video', false)).toBeNull()
-    expect(await browserDecoding('mpeg2video', false, { width: 640, height: 360 })).toBeUndefined()
-    expect(await browserDecoding('h264', false, { width: 0, height: 0 })).toBeUndefined()
-    expect(statRows(100, null, { vcodec: 'h264', decoding: 'Hardware (graphics card)' }).find((r) => r.k === 'Decoding')).toMatchObject({ v: 'Hardware (graphics card)', good: true })
-  })
-})

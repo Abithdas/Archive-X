@@ -5,7 +5,7 @@ import { Player } from './Player'
 const convert = { url: (t: number) => `/convert?t=${t}`, info: '/convert/info' }
 const opened = (src = '/raw') => {
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ duration: 600 }), { headers: { 'Content-Type': 'application/json' } })))
-  const r = render(<Player src={src} convert={convert} onUnplayable={undefined} />)
+  const r = render(<Player src={src} convert={convert} />)
   return { ...r, video: () => r.container.querySelector('video')! }
 }
 afterEach(() => vi.unstubAllGlobals())
@@ -72,17 +72,6 @@ describe('Player converts what the web view cannot decode', () => {
       const a = opened(); playing(a.video(), 0, 1); expect(a.video().getAttribute('src')).toBe('/raw'); a.unmount()
       const b = opened(); Object.defineProperty(b.video(), 'muted', { value: true, configurable: true }); playing(b.video(), 0); expect(b.video().getAttribute('src')).toBe('/raw')
     })
-    it('hands over to the other engine when it cannot convert, and with silentOnly a failure is not converted', () => {
-      const away = vi.fn()
-      const { container } = render(<Player src="/raw" onUnplayable={away} />)
-      playing(container.querySelector('video')!, 0)
-      expect(away).toHaveBeenCalledTimes(1)
-      const other = render(<Player src="/raw2" convert={{ ...convert, silentOnly: true }} />)
-      const v = other.container.querySelector('video')!
-      fireEvent.error(v)
-      expect(v.getAttribute('src')).toBe('/raw2')
-      expect(screen.getAllByRole('alert').length).toBeGreaterThan(0)
-    })
   })
 
   describe('a video whose picture is never decoded (sound only, a black screen)', () => {
@@ -102,12 +91,6 @@ describe('Player converts what the web view cannot decode', () => {
       const a = opened(); black(a.video(), 120000); expect(a.video().getAttribute('src')).toBe('/raw'); a.unmount()
       const b = opened(); black(b.video(), undefined); expect(b.video().getAttribute('src')).toBe('/raw'); b.unmount()
       const c = opened(); black(c.video(), 0, 0.5); expect(c.video().getAttribute('src')).toBe('/raw')
-    })
-    it('hands over to the native player when it cannot be converted here', () => {
-      const away = vi.fn()
-      const { container } = render(<Player src="/raw" onUnplayable={away} />)
-      black(container.querySelector('video')!, 0)
-      expect(away).toHaveBeenCalledTimes(1)
     })
   })
 })

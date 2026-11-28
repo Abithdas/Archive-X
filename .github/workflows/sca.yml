@@ -2,7 +2,7 @@ name: Dependency scan (SCA)
 
 # Known vulnerabilities and license policy for every dependency the app is built from: Python (requirements.txt, resolved fresh as the installer
 # does), the frontend (npm), the Rust workspace, and the workflow files themselves. Runs weekly (new advisories appear without any change of ours),
-# on every change to a dependency list, and on demand. What it cannot see: native libraries inside wheels, LAV Filters and ffmpeg (docs/security/SCA-REPORT.md).
+# on every change to a dependency list, and on demand. What it cannot see: native libraries inside wheels and ffmpeg (docs/security/SCA-REPORT.md).
 
 on:
   workflow_dispatch:

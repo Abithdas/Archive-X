@@ -17,8 +17,7 @@
         "minWidth": 360,
         "minHeight": 560,
         "center": true,
-        "backgroundColor": "#232833",
-        "transparent": true
+        "backgroundColor": "#232833"
       }
     ],
     "security": {
@@ -41,9 +40,6 @@
       "../../../packaging/backend/dist/archive-x-backend": "backend",
       "resources/ffmpeg": "ffmpeg",
       "resources/rust": "rust",
-      "resources/lav": "lav",
-      "resources/mpv": "mpv",
-      "resources/axplayer": "axplayer",
       "resources/web": "web",
       "../../../LICENSE": "licenses/LICENSE",
       "../../../THIRD-PARTY-NOTICES.md": "licenses/THIRD-PARTY-NOTICES.md"

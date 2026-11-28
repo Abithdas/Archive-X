@@ -6,7 +6,6 @@ import { ApiError, api } from '@/api/client'
 import { useStorage } from '@/api/hooks'
 import { updateView, useAppUpdate } from './update'
 import { CaptionModel } from './CaptionModel'
-import { hasNativeBridge } from '@/features/watch/nativeBridge'
 import { Icon } from '@/design/Icon'
 import { ThemePreview } from './ThemePreview'
 import { ThemeToggle } from '@/design/ThemeToggle'
@@ -14,7 +13,7 @@ import { Switch } from '@/design/Switch'
 import { cn } from '@/design/cn'
 import { formatBytes } from '@/design/format'
 import { THEMES, SCALE_MAX, SCALE_MIN, SCALE_PRESETS } from '@/theme/themes'
-import { AUTONEXT_MODES, DECODING_MODES, NATIVE_MODES, experienceFrom, pills, statusRows, type DecodingMode, type Experience, type NativeMode, type PanelId } from './logic'
+import { AUTONEXT_MODES, experienceFrom, pills, statusRows, type Experience, type PanelId } from './logic'
 import { useAuthStatus, useExperienceSettings, useIconsStatus, useMetadataSettings, usePreflight, useWebLogin } from './queries'
 import { CustomThemes } from './CustomThemes'
 import { useAppearance, useAppearanceActions } from './useAppearance'
@@ -150,18 +149,6 @@ export function ExperiencePanel() {
       <Row title="Live seek preview (timeline hover)" hint="Show frames while scrubbing"><Switch label="Live seek preview" checked={form.live_seek_preview} onChange={(v) => set('live_seek_preview', v)} /></Row>
       <p className="py-2 text-xs text-muted">Hover the playback timeline to preview a frame. On touch screens, drag to seek.</p>
       <Row title="Trailers in expanded cards" hint="Movies and shows (SFW only): a muted trailer from YouTube plays in the card"><Switch label="Trailers in expanded cards" checked={form.hover_trailers} onChange={(v) => set('hover_trailers', v)} /></Row>
-      <Row title="Video decoding" hint="The native player and the conversion"><select aria-label="Video decoding" value={form.video_decoding} onChange={(e) => set('video_decoding', e.target.value as DecodingMode)} className={PICK}>
-        {DECODING_MODES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-      </select></Row>
-      <p className="py-2 text-xs text-muted">Decoding by the graphics card is lighter on the processor and the battery; the processor works with every video. The native player and the conversion of videos the browser cannot play follow this choice. The browser's own player is up to Windows: the video's Stats show which one is in use.</p>
-      {hasNativeBridge() ? (
-        <>
-          <Row title="Native player (desktop app)" hint="Plays files the browser cannot"><select aria-label="Native player" value={form.native_player} onChange={(e) => set('native_player', e.target.value as NativeMode)} className={PICK}>
-            {NATIVE_MODES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-          </select></Row>
-          <p className="py-2 text-xs text-muted">The native player plays files the browser cannot (some HEVC, 10-bit and MKV videos) with hardware decoding. It is shown on the same video page, with captions under the picture.</p>
-        </>
-      ) : null}
       <Row title="Ask about partial cache on close"><Switch label="Ask about partial cache on close" checked={form.partial_cache_prompt} onChange={(v) => set('partial_cache_prompt', v)} /></Row>
       <p className="py-2 text-xs text-muted">Off keeps cached bytes automatically without showing the close popup.</p>
       <Row title="Autoplay source" hint="Which videos come next"><select value={form.autonext_mode} onChange={(e) => set('autonext_mode', e.target.value)} aria-label="Autoplay source" className={PICK}>
