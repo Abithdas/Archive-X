@@ -58,13 +58,14 @@ describe('LibraryPage', () => {
       return json({})
     }))
   }
-  it('in SFW the videos page is Home: movies and shows as cards, with no Discover page, never one card for each episode', async () => {
+  it('in SFW the videos page is Home: movies and shows as cards, and Discover, never one card for each episode', async () => {
     stack('sfw')
     withRouter(<LibraryPage />)
     expect(await screen.findByRole('tab', { name: 'For you' })).toBeInTheDocument()
     expect(screen.queryByRole('article', { name: 'First scene' })).toBeNull()
     expect(screen.queryByRole('tab', { name: 'All' })).toBeNull()                      // the old All | Movies | Series switch is gone
-    expect(screen.queryByRole('tab', { name: 'Discover' })).toBeNull()                 // there is no separate Discover page: its lists are rows on Home
+    fireEvent.click(screen.getByRole('tab', { name: 'Discover' }))
+    expect(await screen.findByRole('region', { name: 'Discover' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Library' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Series' }))
     expect(await screen.findByRole('link', { name: 'Open Dark' })).toBeInTheDocument()

@@ -31,7 +31,7 @@ export function useTitle(kind: 'movie' | 'series', id: string) {
   return useQuery({ queryKey: ['discover-one', kind === 'series' ? 'tv' : 'movie', id] as const, queryFn: () => api<Title>(`/api/screen/discover/${kind}/${id}`), retry: false, staleTime: 10 * 60_000, enabled: ID.test(id) })
 }
 
-const backToHome = () => useHomeTab.getState().setTab('home')
+const backToDiscover = () => useHomeTab.getState().setTab('discover')
 
 function dateText(iso: string): string {
   const d = iso ? new Date(`${iso}T12:00:00`) : null
@@ -110,7 +110,7 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
       ) : null}
     </div>
   )
-  return <TitleStage backdrop={d ? d.background || d.poster || PLACEHOLDER : undefined} back="/videos" onBack={backToHome} backLabel="Back to Home" left={left} panel={panel} panelLabel="Episodes and add-ons" />
+  return <TitleStage backdrop={d ? d.background || d.poster || PLACEHOLDER : undefined} back="/videos" onBack={backToDiscover} backLabel="Back to Discover" left={left} panel={panel} panelLabel="Episodes and add-ons" />
 }
 
 /** One episode of a show: its own story and date, the episodes before and after it, and where the show can be watched. */
