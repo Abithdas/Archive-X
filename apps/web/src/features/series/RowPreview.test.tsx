@@ -31,7 +31,7 @@ describe('a row card preview', () => {
     expect(screen.queryByRole('dialog')).toBeNull()                                      // not at once: passing over a row opens nothing
     act(() => { vi.advanceTimersByTime(500) })
     const box = screen.getByRole('dialog', { name: 'Preview of The Matrix' })
-    expect(box).toHaveTextContent('A hacker learns the truth.')
+    expect(box).not.toHaveTextContent('A hacker learns the truth.')   // like dx.bi's panel: buttons, rating, year, length and genres, no story
     expect(box).toHaveTextContent('Action · Sci-Fi')
     expect(box).toHaveTextContent('8.7')
     at(150, 200)                                                                         // still on the card

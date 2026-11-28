@@ -1,5 +1,8 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { api } from '@/api/client'
+import { Icon } from '@/design/Icon'
 import { PLACEHOLDER } from './PosterCard'
 
 /** What a preview shows: what the row's list already knows about the title. */
@@ -28,8 +31,7 @@ interface Shown { item: Previewable; card: HTMLElement; closing?: boolean }
 
 /**
  * Rest the pointer on a card of a row and its preview unfolds out of the card, the way dx.bi's does: the panel is revealed from the poster's own
- * outline outwards while the poster fades into the panel's picture, the titles beside it glide aside to make room, and a soft glow of the title's
- * colours comes up around it. It stays while the pointer is on the card or the panel and closes shortly after the pointer has left.
+ * outline outwards while the poster fades into the panel's picture, the titles beside it glide aside to make room, and It stays while the pointer is on the card or the panel and closes shortly after the pointer has left.
  */
 export function useRowPreview(): { hover: (item: Previewable) => (el: HTMLElement) => void; node: ReactNode } {
   const [shown, setShown] = useState<Shown | null>(null)
@@ -89,7 +91,7 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
   const wrapper = card.parentElement   // the poster's own box in the row: its neighbours are the other titles
   const [rect] = useState(() => { const r = card.getBoundingClientRect(), dx = displacedBy(wrapper); return new DOMRect(r.left - dx, r.top, r.width, r.height) })   // where the card rests, not where it is passing
-  const width = Math.round(Math.min(Math.max(rect.width * 1.72, 19 * rem), Math.min(30 * rem, window.innerWidth - 24)))
+  const width = Math.round(Math.min(Math.max(rect.width * 1.8, 21 * rem), Math.min(32 * rem, window.innerWidth - 24)))
 
   // Final geometry: wider than the card, centred on it, always fully on screen (at either end it grows inwards from the card's own edge).
   useLayoutEffect(() => {
@@ -113,7 +115,7 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
     const toLeft = Math.max(0, mine.left - left), toRight = Math.max(0, left + width - mine.right)
     const pushes: Array<[HTMLElement, number]> = at < 0 ? [] : siblings.filter((_, i) => i !== at).map((n) => [n, siblings.indexOf(n) < at ? -toLeft : toRight])
     setGeo({ left: Math.round(left), top: Math.round(top), width, pushes,
-      from: `inset(${px(rect.top - top)} ${px(left + width - rect.right)} ${px(top + height - rect.bottom)} ${px(rect.left - left)} round 8px)`,
+      from: `inset(${px(rect.top - top)} ${px(left + width - rect.right)} ${px(top + height - rect.bottom)} ${px(rect.left - left)} round 6px)`,
       ghost: { left: Math.round(rect.left - left), top: Math.round(rect.top - top), width: Math.round(rect.width), height: Math.round(rect.height) } })
   }, [rect, rem, width, wrapper])
 
@@ -137,7 +139,11 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
     }
   }, [geo, card, still, wrapper])
 
-  const meta = [item.year, item.kind === 'tv' ? 'Series' : 'Movie'].filter(Boolean).join(' · ')
+  // The row's list does not carry the length or the title's logo: the same one-title lookup the details use fills them in a moment after the panel opens.
+  const detail = useQuery({ queryKey: ['discover-one', item.kind, item.imdb] as const, queryFn: () => api<{ runtime?: string; logo?: string }>(`/api/screen/discover/${item.kind === 'tv' ? 'series' : 'movie'}/${item.imdb}`), retry: false, enabled: hasPage(item), staleTime: 600_000 })
+  const minutes = Number(/^(\d+)\s*(?:min)?$/i.exec(String(detail.data?.runtime ?? '').trim())?.[1] ?? 0)
+  const length = minutes ? (minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`) : String(detail.data?.runtime ?? '')
+  const endsAt = minutes && item.kind === 'movie' ? new Date(Date.now() + minutes * 60_000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
   const art = item.background || item.poster || PLACEHOLDER
   const on = opened && !closing
   const media = (
@@ -149,27 +155,33 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
           <img src={art} alt="" className={on ? 'mo-preview-art absolute inset-y-0 left-1/2 h-full -translate-x-1/2 object-contain' : 'absolute inset-y-0 left-1/2 h-full -translate-x-1/2 object-contain'} />
         </>
       )}
-      <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(0deg,#181818_0%,rgba(24,24,24,0.35)_22%,transparent_45%)]" />
-      <span className="absolute inset-x-3.5 bottom-2.5 text-lg font-extrabold leading-tight text-white drop-shadow-lg">{item.title}</span>
+      <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(0deg,#181818_0%,rgba(24,24,24,0.2)_30%,transparent_55%)]" />
+      {detail.data?.logo ? <img src={detail.data.logo} alt={item.title} className="absolute bottom-2 left-4 max-h-14 max-w-[70%] object-contain object-left drop-shadow-lg" /> : <span className="absolute inset-x-4 bottom-2 text-lg font-extrabold leading-tight text-white drop-shadow-lg">{item.title}</span>}
     </span>
   )
+  const round = 'grid size-9 shrink-0 place-items-center rounded-full border-2 border-white/45 text-white transition-colors hover:border-white hover:bg-white/10'
+  const go = hasPage(item) ? { to: '/discover/$kind/$id' as const, params: { kind: item.kind === 'tv' ? 'series' : 'movie', id: item.imdb }, onClick: onDone } : null
   return (
     <div ref={box} role="dialog" data-row-preview aria-label={`Preview of ${item.title}`}
       style={{ position: 'fixed', zIndex: 900, left: geo?.left ?? 0, top: geo?.top ?? 0, width, minHeight: Math.round(rect.height), visibility: geo ? 'visible' : 'hidden',
         opacity: closing ? 0 : 1, transform: closing ? 'scale(0.97)' : 'none', transition: still ? 'none' : closing ? `transform ${CLOSING_MS}ms ease, opacity ${CLOSING_MS}ms ease` : 'opacity .1s ease' }}>
-      {/* a deep shadow underneath for lift, and the title's own colours glowing softly around it once it has opened */}
+      {/* a deep shadow underneath for lift */}
       <span aria-hidden="true" style={{ position: 'absolute', inset: '10% 6% -4%', zIndex: -2, borderRadius: 18, background: 'rgba(0,0,0,.85)', filter: 'blur(28px)', opacity: on ? 1 : 0, transition: still ? 'none' : 'opacity .4s ease .12s', pointerEvents: 'none' }} />
-      <span aria-hidden="true" style={{ position: 'absolute', inset: '-14px -18px -22px', zIndex: -1, borderRadius: 22, background: `#181818 center / cover no-repeat url("${art}")`, filter: 'blur(30px) saturate(1.5) brightness(.9)', opacity: on ? 0.55 : 0, transform: on ? 'none' : 'scale(.92)', transition: still ? 'none' : `opacity .55s ease .16s, transform .6s ${EASE} .1s`, pointerEvents: 'none' }} />
-      <div style={{ position: 'relative', minHeight: 'inherit', display: 'flex', flexDirection: 'column', borderRadius: 8, background: '#181818', overflow: 'hidden', clipPath: geo && !on && !closing ? geo.from : 'inset(0 round 8px)', transition: still ? 'none' : `clip-path .48s ${EASE}`, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.08)' }}>
+      <div style={{ position: 'relative', minHeight: 'inherit', display: 'flex', flexDirection: 'column', borderRadius: 6, background: '#181818', overflow: 'hidden', clipPath: geo && !on && !closing ? geo.from : 'inset(0 round 6px)', transition: still ? 'none' : `clip-path .48s ${EASE}`, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.08)' }}>
         {hasPage(item) ? <Link to="/discover/$kind/$id" params={{ kind: item.kind === 'tv' ? 'series' : 'movie', id: item.imdb }} onClick={onDone} aria-label={`Open ${item.title}`} className="block">{media}</Link> : media}
-        <div className={on ? 'mo-preview-body grid gap-2 p-3.5' : 'grid gap-2 p-3.5 opacity-0'}>
-          <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-semibold">
-            {item.rating ? <span className="inline-flex items-center gap-1"><span aria-hidden="true" className="text-amber-300">★</span>{item.rating}</span> : null}
-            {meta ? <span className="text-muted">{meta}</span> : null}
+        <div className={on ? 'mo-preview-body grid gap-2.5 px-4 pb-4 pt-2' : 'grid gap-2.5 px-4 pb-4 pt-2 opacity-0'}>
+          <div className="flex items-center gap-2">
+            {go ? <Link {...go} aria-label={`Play ${item.title}`} className="grid size-9 shrink-0 place-items-center rounded-full bg-white text-black transition-transform hover:scale-105"><Icon name="play" className="size-4" /></Link> : null}
+            {go ? <Link {...go} aria-label={`More about ${item.title}`} className={`${round} ml-auto`}><Icon name="chevron-down" className="size-4" /></Link> : null}
+          </div>
+          <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-semibold text-white/85">
+            {item.rating ? <span><b className="font-bold text-emerald-400">{item.rating}</b> IMDb</span> : null}
+            {item.year ? <span>{item.year}</span> : null}
+            {length ? <span>{length}</span> : null}
+            {endsAt ? <span>Ends at {endsAt}</span> : null}
             {item.library ? <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-accent-fg">In your library</span> : null}
           </p>
-          {item.genres.length ? <p className="m-0 text-xs text-muted">{item.genres.slice(0, 3).join(' · ')}</p> : null}
-          {item.overview ? <p className="m-0 line-clamp-3 text-[13px] leading-snug text-fg/85">{item.overview}</p> : null}
+          {item.genres.length ? <p className="m-0 text-sm text-white">{item.genres.slice(0, 3).join(' · ')}</p> : null}
         </div>
         {/* the card's own poster, fading into the panel's picture as it unfolds */}
         {geo ? <span aria-hidden="true" style={{ position: 'absolute', zIndex: 5, left: geo.ghost.left, top: geo.ghost.top, width: geo.ghost.width, height: geo.ghost.height, borderRadius: 8, background: `#222 center / cover no-repeat url("${item.poster || art}")`, pointerEvents: 'none', opacity: on || closing ? 0 : 1, transition: still ? 'none' : 'opacity .3s ease .16s' }} /> : null}
