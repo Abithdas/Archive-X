@@ -17,7 +17,8 @@ from ..core.safe_paths import inside
 from ..core.swallowed import note as _swallowed_note
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
-VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".m4v", ".webm", ".ts", ".mpg", ".mpeg", ".flv", ".m2ts"}
+VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".m4v", ".webm", ".ts", ".mpg", ".mpeg", ".flv", ".m2ts",
+                    ".mts", ".m2t", ".3gp", ".3g2", ".vob", ".ogv", ".divx", ".asf", ".f4v", ".mpe", ".qt", ".mxf"}   # the containers FFmpeg reads; the same ones the upload and import paths accept
 SOURCE_KIND = "local"
 MAX_FILES = 500_000
 

@@ -84,4 +84,30 @@ describe('Player converts what the web view cannot decode', () => {
       expect(screen.getAllByRole('alert').length).toBeGreaterThan(0)
     })
   })
+
+  describe('a video whose picture is never decoded (sound only, a black screen)', () => {
+    const black = (v: HTMLVideoElement, videoBytes: number | undefined, at = 2) => {
+      Object.defineProperty(v, 'paused', { value: false, configurable: true })
+      Object.defineProperty(v, 'currentTime', { value: at, configurable: true, writable: true })
+      Object.defineProperty(v, 'muted', { value: true, configurable: true })   // the silent check leaves a muted video alone, so only this check is looked at
+      if (videoBytes !== undefined) Object.defineProperty(v, 'webkitVideoDecodedByteCount', { value: videoBytes, configurable: true })
+      fireEvent.timeUpdate(v)
+    }
+    it('is converted from where it is', () => {
+      const { video } = opened()
+      black(video(), 0)
+      expect(video().getAttribute('src')).toBe('/convert?t=2')
+    })
+    it('is left alone while a picture is decoded, when the browser does not say, or in the first second', () => {
+      const a = opened(); black(a.video(), 120000); expect(a.video().getAttribute('src')).toBe('/raw'); a.unmount()
+      const b = opened(); black(b.video(), undefined); expect(b.video().getAttribute('src')).toBe('/raw'); b.unmount()
+      const c = opened(); black(c.video(), 0, 0.5); expect(c.video().getAttribute('src')).toBe('/raw')
+    })
+    it('hands over to the native player when it cannot be converted here', () => {
+      const away = vi.fn()
+      const { container } = render(<Player src="/raw" onUnplayable={away} />)
+      black(container.querySelector('video')!, 0)
+      expect(away).toHaveBeenCalledTimes(1)
+    })
+  })
 })

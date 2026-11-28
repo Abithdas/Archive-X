@@ -1946,6 +1946,9 @@ def register_playback_routes(
 
     async def _compat_info(channel_id, message_id):
         try:
+            from ..engines import local_scanner as _ls
+            if _ls.is_local_channel(channel_id):   # a file in a folder on this PC: probed in place, there is no Telegram message to ask
+                return await _local_play_info(channel_id, message_id)
             return await _get_info(channel_id, message_id, wait=True, timeout=40)
         except Exception:
             return {}

@@ -48,7 +48,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
     window.addEventListener('pagehide', release)
     return () => { window.removeEventListener('pagehide', release); release() }
   }, [mediaCid, mediaMid])
-  useEffect(() => { startApplied.current = false; pendingStart.current = null; silentChecked.current = false; setStarted(false) }, [src])   // a new video may have its own start position
+  useEffect(() => { startApplied.current = false; pendingStart.current = null; silentChecked.current = false; blackChecked.current = false; setStarted(false) }, [src])   // a new video may have its own start position
   const box = useRef<HTMLDivElement>(null)
   const [playing, setPlaying] = useState(false)
   const [time, setTime] = useState(0)
@@ -84,6 +84,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
     setFailed(true); setLoading(false)
   }
   const silentChecked = useRef(false)
+  const blackChecked = useRef(false)
   /** The picture plays but no sound is ever decoded (the browser says it supports Dolby audio and then has no decoder): the sound is converted, or another engine takes over. */
   const checkSilent = (v: HTMLVideoElement) => {
     if (silentChecked.current || conv || v.paused || v.muted || v.volume === 0 || v.currentTime < 3) return
@@ -91,6 +92,16 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
     const c = v as HTMLVideoElement & { webkitAudioDecodedByteCount?: number; webkitVideoDecodedByteCount?: number }
     if (c.webkitAudioDecodedByteCount !== 0 || !((c.webkitVideoDecodedByteCount ?? 0) > 0)) return   // sound is coming (or this browser does not tell)
     if (convert) { keepPlaying.current = true; setConv({ base: v.currentTime }); setLoading(true) }
+    else onUnplayable?.()
+  }
+  /** The sound plays but not one picture byte is ever decoded (HEVC, MPEG-4, ProRes or MJPEG this web view has no decoder for: a black screen with sound, and no error to react to):
+   *  the video is converted, or another engine takes over. */
+  const checkBlack = (v: HTMLVideoElement) => {
+    if (blackChecked.current || conv || v.paused || v.currentTime < 1.5) return
+    const c = v as HTMLVideoElement & { webkitVideoDecodedByteCount?: number }
+    if (c.webkitVideoDecodedByteCount !== 0) return   // a picture is being decoded (or this browser does not tell)
+    blackChecked.current = true
+    if (convert && !convert.silentOnly) { keepPlaying.current = true; setConv({ base: v.currentTime }); setLoading(true) }
     else onUnplayable?.()
   }
   const failRef = useRef(fail)
@@ -262,6 +273,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
             setBuffered(b.length ? base + b.end(b.length - 1) : base)
             setSample(sampleOf(e.currentTarget))
             checkSilent(e.currentTarget)
+            checkBlack(e.currentTarget)
           }}
           onEnded={() => { onEnd?.(); if (autoNext) onNext?.() }}
           onError={fail}

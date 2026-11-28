@@ -194,6 +194,9 @@ def test_a_local_video_is_listed_probed_streamed_and_gets_its_snapshots(tmp_path
     full = c.get(f"/stream/{ch}/{mid}")
     part = c.get(f"/stream/{ch}/{mid}", headers={"Range": "bytes=0-99"})
     assert full.status_code == 200 and part.status_code == 206 and len(part.content) == 100 and full.content[:100] == part.content
+    with c.stream("GET", f"/stream-compat/{ch}/{mid}?t=0") as conv:      # the conversion for a file the web view cannot play: it must not ask Telegram for a folder file
+        assert conv.status_code == 200 and conv.headers["content-type"] == "video/mp4", conv.read()
+        assert len(next(conv.iter_bytes())) > 0
     assert c.get(f"/api/play/preview-manifest/{ch}/{mid}").json()["ready"] is True
     assert c.get(f"/api/play/preview-grid/{ch}/{mid}").status_code == 200
     live = c.get(f"/api/play/preview/{ch}/{mid}?t=1.5&w=320&pv=15&lw=1")   # the hover frame on the timeline: straight from the file, no Telegram

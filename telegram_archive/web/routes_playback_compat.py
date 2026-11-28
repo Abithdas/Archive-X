@@ -156,10 +156,14 @@ def register_playback_compat_routes(
         ffmpeg = media_tools.find_ffmpeg()
         if not ffmpeg:
             raise HTTPException(503, "ffmpeg is required for compatibility playback (run Setup-And-Run.ps1)")
-        engine, message = await _engine_message(
-            channel_id, message_id,
-            playback_claim=_playback_claim_from(request.query_params),
-        )
+        from ..engines import local_scanner as _ls
+        if _ls.is_local_channel(channel_id):
+            engine = message = None   # a file in a folder on this PC: ffmpeg reads it through the app's own /stream, no Telegram is involved
+        else:
+            engine, message = await _engine_message(
+                channel_id, message_id,
+                playback_claim=_playback_claim_from(request.query_params),
+            )
         try: target_time = max(0.0, float(request.query_params.get("t", "0") or 0))
         except (TypeError, ValueError, OverflowError): target_time = 0.0
         info = await _compat_info(channel_id, message_id)
