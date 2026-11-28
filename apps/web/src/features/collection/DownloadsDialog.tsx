@@ -7,8 +7,8 @@ import { PLACEHOLDER } from '@/features/series/PosterCard'
 import { useCollection, useCollectionActions, percent, type CollectionItem, type CollectionTitle } from './useCollection'
 
 const BTN = 'h-9 rounded-xl bg-fg/10 px-3.5 text-[13px] font-bold hover:bg-fg/15 disabled:opacity-50'
-const SHOWN: ReadonlyArray<CollectionItem['state']> = ['DOWNLOADING', 'FAILED', 'DONE']
-const STATE_TEXT: Partial<Record<CollectionItem['state'], string>> = { DOWNLOADING: 'Downloading', FAILED: 'Failed', DONE: 'Saved' }
+const SHOWN: ReadonlyArray<CollectionItem['state']> = ['DOWNLOADING', 'PAUSED', 'FAILED', 'DONE']
+const STATE_TEXT: Partial<Record<CollectionItem['state'], string>> = { DOWNLOADING: 'Downloading', PAUSED: 'Paused', FAILED: 'Failed', DONE: 'Saved' }
 
 /** The downloads Archive X is making or has made: every item of the Collection that is downloading, failed or saved. */
 export function downloadsOf(titles: readonly CollectionTitle[]): Array<{ title: CollectionTitle; items: CollectionItem[] }> {
@@ -18,16 +18,19 @@ export function downloadsOf(titles: readonly CollectionTitle[]): Array<{ title: 
 function Row({ title, it }: { title: CollectionTitle; it: CollectionItem }) {
   const act = useCollectionActions()
   const pct = percent(it.got, it.total)
-  const detail = it.state === 'DOWNLOADING' ? (pct === null ? 'Starting…' : `${pct}%`) + (it.total ? ` · of ${sizeOf(it.total)}` : '') : it.state === 'FAILED' ? it.note : it.total ? sizeOf(it.total) : ''
+  const live = it.state === 'DOWNLOADING' || it.state === 'PAUSED'
+  const detail = live ? (pct === null ? 'Starting…' : `${pct}%`) + (it.total ? ` · of ${sizeOf(it.total)}` : '') : it.state === 'FAILED' ? it.note : it.total ? sizeOf(it.total) : ''
   return (
     <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 rounded-xl px-2 py-2">
       <img src={title.poster || PLACEHOLDER} alt="" loading="lazy" className="aspect-video h-[54px] rounded-md bg-surface-3 object-cover" />
       <div className="min-w-0">
         <p className="m-0 truncate text-sm font-extrabold" title={it.release || it.label}>{title.kind === 'movie' ? title.title : `${title.title} · ${it.label}`}</p>
         <p className={cn('m-0 truncate text-xs', it.state === 'FAILED' ? 'text-warn' : 'text-muted')} title={it.release}>{[STATE_TEXT[it.state], detail].filter(Boolean).join(' · ')}</p>
-        {it.state === 'DOWNLOADING' && pct !== null ? <div role="progressbar" aria-label={`${title.title} download`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="mt-1.5 h-1 overflow-hidden rounded-full bg-fg/15"><span className="block h-full bg-accent transition-[width] duration-500" style={{ width: `${pct}%` }} /></div> : null}
+        {live && pct !== null ? <div role="progressbar" aria-label={`${title.title} download`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="mt-1.5 h-1 overflow-hidden rounded-full bg-fg/15"><span className="block h-full bg-accent transition-[width] duration-500" style={{ width: `${pct}%` }} /></div> : null}
       </div>
       <div className="flex gap-2">
+        {it.state === 'DOWNLOADING' ? <button type="button" aria-label={`Pause ${title.title}`} onClick={() => act.item.mutate({ id: it.id, action: 'pause' })} className={BTN}>Pause</button> : null}
+        {it.state === 'PAUSED' ? <button type="button" aria-label={`Resume ${title.title}`} onClick={() => act.item.mutate({ id: it.id, action: 'resume' })} className={BTN}>Resume</button> : null}
         {it.state === 'FAILED' ? <button type="button" onClick={() => act.item.mutate({ id: it.id, action: 'retry' })} className={BTN}>Try again</button> : null}
         <button type="button" aria-label={`Delete ${title.title}`} onClick={() => act.deleteItem.mutate(it.id, { onError: (e) => toast.error(errorText(e, 'Could not delete.')) })} className={BTN}>Delete</button>
       </div>
@@ -64,6 +67,10 @@ function Settings() {
       <div className={FIELD}>
         <div><p className="m-0 text-sm font-extrabold">Quality</p><p className="m-0 text-xs text-muted">What Archive X picks when it finds a release itself (Collection). A stream you press Download on is saved as it is.</p></div>
         <select aria-label="Quality" value={s.quality} onChange={(e) => save({ quality: Number(e.target.value) }, 'Saved.')} className="h-10 rounded-lg border border-line-2 bg-bg px-3 text-sm font-semibold text-fg"><option value={720}>720p</option><option value={1080}>1080p</option><option value={2160}>4K</option></select>
+      </div>
+      <div className={FIELD}>
+        <div><p className="m-0 text-sm font-extrabold">Downloads at once</p><p className="m-0 text-xs text-muted">More at once can be quicker on a fast connection.</p></div>
+        <select aria-label="Downloads at once" value={s.parallel} onChange={(e) => save({ parallel: Number(e.target.value) }, 'Saved.')} className="h-10 rounded-lg border border-line-2 bg-bg px-3 text-sm font-semibold text-fg">{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}</select>
       </div>
       <p className="m-0 px-1 text-xs text-faint">Downloads are ordinary video files, so other players can open them too. Only download what you have the right to.</p>
     </div>

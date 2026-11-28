@@ -10,8 +10,8 @@ import { PLACEHOLDER } from '@/features/series/PosterCard'
 import { useCollection, useCollectionActions, percent, summary, type CollectionItem, type CollectionTitle } from './useCollection'
 
 const BTN = 'h-9 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
-const CHIP: Record<CollectionItem['state'], string> = { WANTED: 'bg-warn/15 text-warn', DOWNLOADING: 'bg-accent/15 text-accent', DONE: 'bg-good/15 text-good', SKIPPED: 'bg-surface-3 text-muted', FAILED: 'bg-warn/15 text-warn' }
-const STATE_TEXT: Record<CollectionItem['state'], string> = { WANTED: 'Waiting', DOWNLOADING: 'Downloading', DONE: 'Done', SKIPPED: 'Skipped', FAILED: 'Failed' }
+const CHIP: Record<CollectionItem['state'], string> = { WANTED: 'bg-warn/15 text-warn', DOWNLOADING: 'bg-accent/15 text-accent', DONE: 'bg-good/15 text-good', SKIPPED: 'bg-surface-3 text-muted', FAILED: 'bg-warn/15 text-warn', PAUSED: 'bg-surface-3 text-muted' }
+const STATE_TEXT: Record<CollectionItem['state'], string> = { WANTED: 'Waiting', DOWNLOADING: 'Downloading', DONE: 'Done', SKIPPED: 'Skipped', FAILED: 'Failed', PAUSED: 'Paused' }
 
 function Item({ it }: { it: CollectionItem }) {
   const act = useCollectionActions()

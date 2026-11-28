@@ -28,7 +28,7 @@ describe('streams from the add-ons on a title page', () => {
     expect(screen.getByRole('link', { name: /Trailer/ })).toHaveAttribute('target', '_blank')
     expect(within(home).getByText('Not played here (cdn.example)')).toBeInTheDocument()
     expect(screen.getByText('2 streams of a kind this app does not use were left out.')).toBeInTheDocument()
-    fireEvent.click(within(home).getByRole('button', { name: /Dune 1080p/ }))
+    fireEvent.click(within(home).getByRole('button', { name: 'Dune 1080p' }))
     expect(await screen.findByText('Add-on player page')).toBeInTheDocument()   // a page of its own with the app's player, not a small box in the panel
     expect(document.querySelector('dialog[open]')).toBeNull()
   })
@@ -143,7 +143,7 @@ describe('same kind of stream on the next episode (bingeGroup)', () => {
     ] }
     vi.stubGlobal('fetch', vi.fn(async () => json(eps)))
     const first = withRouter(<AddonStreams kind="series" ident="tt0903747" season={1} episode={1} />)
-    fireEvent.click(await screen.findByRole('button', { name: /Mine 720p/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Mine 720p' }))
     first.unmount()
     withRouter(<AddonStreams kind="series" ident="tt0903747" season={1} episode={2} />)
     const list = await screen.findByRole('list', { name: 'A' })
@@ -184,12 +184,12 @@ describe('the download button on a stream', () => {
     }))
     return calls
   }
-  it('is on each torrent stream and not on a direct file, and does not play the stream', async () => {
+  it('is on each stream that can be saved (a torrent or a plain link), and does not play the stream', async () => {
     serveStreams()
     withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
     const list = await screen.findByRole('list', { name: 'Torrentio' })
-    expect(within(list).getAllByRole('button', { name: /^Download / })).toHaveLength(3)                       // the three torrents, not the direct file
-    expect(within(list).queryByRole('button', { name: 'Download A direct file' })).toBeNull()
+    expect(within(list).getAllByRole('button', { name: /^Download / })).toHaveLength(4)                       // the three torrents and the plain link
+    expect(within(list).getByRole('button', { name: 'Download A direct file' })).toBeInTheDocument()
     fireEvent.click(within(list).getByRole('button', { name: 'Download Torrentio 4k · B' }))
     expect(screen.queryByText('Add-on player page')).toBeNull()                                                // the click is the download, not the row's play
   })
@@ -264,7 +264,7 @@ describe('playing a stream', () => {
     vi.stubGlobal('fetch', vi.fn(async (u: string) => json(u === '/api/collection' ? {} : DATA)))
     withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
     const home = await screen.findByRole('list', { name: 'Home server' })
-    fireEvent.click(within(home).getByRole('button', { name: /Dune 1080p/ }))
+    fireEvent.click(within(home).getByRole('button', { name: 'Dune 1080p' }))
     expect(request).toHaveBeenCalledTimes(1)
     expect(await screen.findByText('Add-on player page')).toBeInTheDocument()
     leaveFullscreenForTest()

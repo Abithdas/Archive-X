@@ -136,7 +136,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
   const setSource = (v: string) => change({ source: v })
   const setHdr = (v: HdrFilter) => change({ hdr: v })
   const [quality, setQuality] = useState('')
-  // Download: one stream saved to this computer (dx.bi's download icon on a stream), with the Downloads window showing how it goes.
+  // Download: one stream (a torrent, or a plain link) saved to this computer (dx.bi's download icon on a stream), with the Downloads window showing how it goes.
   const [downloads, setDownloads] = useState(false)
   const download = useMutation({
     mutationFn: (item: StreamItem) => api('/api/screen/stream-download', { method: 'POST', json: { play: item.play, kind, ident, season, episode, name: item.name } }),
@@ -241,7 +241,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
                       </p>
                       {item.release && headline(item) !== item.name ? <p className="m-0 mt-0.5 truncate text-[11px] text-faint" title={item.release}>{item.release}</p> : null}
                     </div>
-                    {item.torrent && item.kind === 'play' ? (
+                    {item.kind === 'play' ? (
                       <button type="button" aria-label={`Download ${item.name}`} title="Download" disabled={download.isPending}
                         onClick={(e) => { e.stopPropagation(); download.mutate(item) }}
                         className="grid size-9 place-items-center rounded-full bg-fg/10 text-fg opacity-0 transition-opacity hover:bg-fg/20 focus-visible:opacity-100 group-hover/row:opacity-100 disabled:opacity-40 [@media(hover:none)]:opacity-100"><Icon name="download" className="size-4" /></button>

@@ -8,7 +8,7 @@ beforeAll(() => { HTMLDialogElement.prototype.showModal = function () { this.set
 afterEach(() => vi.unstubAllGlobals())
 const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { 'content-type': 'application/json' } })
 
-const SETTINGS = { on: false, dir: 'C:/Videos/Archive X Collection', quality: 1080, max_gb_movie: 12, max_gb_episode: 4 }
+const SETTINGS = { on: false, dir: 'C:/Videos/Archive X Collection', quality: 1080, max_gb_movie: 12, max_gb_episode: 4, parallel: 1 }
 const item = (o: Record<string, unknown>) => ({ season: 0, episode: 0, name: '', label: 'The End of Oak Street', air_date: '', release: '1080p Web · Torrentio', note: '', got: 0, total: 0, attempts: 1, ...o })
 const MOVIE = { id: 1, kind: 'movie', imdb: 'tt1', title: 'The End of Oak Street', year: 2026, poster: '', scope: 'all', monitored: false, manual: true, counts: { WANTED: 0, DOWNLOADING: 1, DONE: 0, SKIPPED: 0 }, items: [item({ id: 9, state: 'DOWNLOADING', got: 322_122_548, total: 1_610_612_736 })] }
 const SHOW = { id: 2, kind: 'series', imdb: 'tt2', title: 'Dark', year: 2017, poster: '', scope: 'all', monitored: true, counts: { WANTED: 1, DOWNLOADING: 0, DONE: 1, SKIPPED: 0, FAILED: 1 },
@@ -58,6 +58,28 @@ describe('DownloadsDialog', () => {
     await waitFor(() => expect(calls.some((c) => c.url === '/api/collection/items/9' && c.method === 'DELETE')).toBe(true))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(calls.find((c) => c.url === '/api/collection/items/22/retry')?.method).toBe('POST'))
+  })
+  it('pauses a running download and resumes a paused one, and still shows how far each got', async () => {
+    const paused = { ...MOVIE, items: [item({ id: 31, state: 'PAUSED', got: 805_306_368, total: 1_610_612_736, release: 'x', label: 'Paused film' })], counts: { WANTED: 0, DOWNLOADING: 0, DONE: 0, SKIPPED: 0, PAUSED: 1 } }
+    const calls = serve([MOVIE, { ...paused, id: 3, title: 'Second film' }])
+    withRouter(<DownloadsDialog open onClose={() => {}} />)
+    const dialog = await screen.findByRole('dialog', { name: 'Downloads' })
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Pause The End of Oak Street' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/collection/items/9/pause')?.method).toBe('POST'))
+    expect(within(dialog).getByText('Paused · 50% · of 1.5 GB')).toBeInTheDocument()
+    expect(within(dialog).getByRole('progressbar', { name: 'Second film download' })).toHaveAttribute('aria-valuenow', '50')
+    expect(within(dialog).queryByRole('button', { name: 'Pause Second film' })).toBeNull()                 // only a running one can be paused
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Resume Second film' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/collection/items/31/resume')?.method).toBe('POST'))
+  })
+  it('chooses how many downloads run at once under Settings', async () => {
+    const calls = serve([])
+    withRouter(<DownloadsDialog open onClose={() => {}} />)
+    fireEvent.click(await screen.findByRole('tab', { name: 'Settings' }))
+    const pick = await screen.findByRole('combobox', { name: 'Downloads at once' })
+    expect(pick).toHaveValue('1')
+    fireEvent.change(pick, { target: { value: '3' } })
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/collection/settings')?.body).toEqual({ parallel: 3 }))
   })
   it('warns when the streaming server is not running while something is listed', async () => {
     serve([MOVIE], { up: false, ready: false, installed: false })

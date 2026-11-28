@@ -131,3 +131,46 @@ def test_resuming_is_an_sfw_feature_only(listed):
     _play(c, item)
     c.post("/api/content-mode", json={"mode": "nsfw"}, headers=H)
     assert c.post("/api/screen/stream-resume", json={"kind": "movie", "ident": "tt0133093"}, headers=H).status_code == 409
+
+
+# ---- pause, resume, plain links and downloads at once --------------------------------------------------------------------------------------------
+def test_a_download_can_be_paused_and_resumed_from_the_list(listed):
+    db, c, item, kicks = listed
+    c.post("/api/screen/stream-download", json={"play": item["play"], "kind": "movie", "ident": "tt0133093", "name": item["name"]}, headers=H)
+    iid = col.overview(db)["titles"][0]["items"][0]["id"]
+    kicks.clear()
+    assert c.post(f"/api/collection/items/{iid}/pause", headers=H).json() == {"ok": True}
+    assert col.overview(db)["titles"][0]["items"][0]["state"] == "PAUSED" and col.overview(db)["titles"][0]["counts"]["PAUSED"] == 1
+    assert c.post(f"/api/collection/items/{iid}/pause", headers=H).status_code == 404               # not running any more
+    assert c.post(f"/api/collection/items/{iid}/resume", headers=H).json() == {"ok": True}
+    assert col.overview(db)["titles"][0]["items"][0]["state"] == "DOWNLOADING" and kicks                  # carried on, and the worker woken
+    assert c.post(f"/api/collection/items/{iid}/resume", headers=H).status_code == 404
+    assert c.post(f"/api/collection/items/{iid}/dance", headers=H).status_code == 404
+
+
+def test_a_plain_link_stream_can_be_downloaded_too_and_an_unplayable_one_cannot(tmp_path, monkeypatch, server):  # noqa: F811
+    db, c = app(tmp_path, monkeypatch, [{"name": "Direct 1080p", "url": "https://cdn.example/m.mkv"}])
+    db.set_setting("collection_dir", str(tmp_path / "Col"))
+    monkeypatch.setattr(cw.Worker, "kick", lambda self: None)
+    monkeypatch.setattr(cw.Worker, "start", lambda self: None)
+    monkeypatch.setattr(cw, "meta_of_factory", lambda db_: (lambda kind, ident: {"name": "The Matrix", "releaseInfo": "1999"}))
+    c.post("/api/content-mode", json={"mode": "sfw"}, headers=H)
+    (item,) = c.get("/api/screen/streams/movie/tt0133093").json()["items"]
+    assert item["kind"] == "play" and "torrent" not in item
+    got = c.post("/api/screen/stream-download", json={"play": item["play"], "kind": "movie", "ident": "tt0133093", "name": item["name"]}, headers=H)
+    assert got.status_code == 200
+    row = db.conn.execute("SELECT state, info_hash, source_url FROM collection_items").fetchone()
+    assert (row["state"], row["info_hash"], row["source_url"]) == ("DOWNLOADING", "", "https://cdn.example/m.mkv")
+    assert "source_url" not in str(c.get("/api/collection").json())                                  # the link itself never goes back to the page
+    # a failed plain-link download is tried again from the same link
+    iid = row = db.conn.execute("SELECT id FROM collection_items").fetchone()["id"]
+    db.conn.execute("UPDATE collection_items SET state='FAILED' WHERE id=?", (iid,)); db.conn.commit()
+    assert c.post(f"/api/collection/items/{iid}/retry", headers=H).status_code == 200
+    assert db.conn.execute("SELECT state FROM collection_items").fetchone()["state"] == "DOWNLOADING"
+
+
+def test_the_number_of_downloads_at_once_is_a_setting(listed):
+    db, c, _, _ = listed
+    assert c.get("/api/collection").json()["settings"]["parallel"] == 1
+    assert c.post("/api/collection/settings", json={"parallel": 3}, headers=H).json()["settings"]["parallel"] == 3
+    assert c.post("/api/collection/settings", json={"parallel": 99}, headers=H).json()["settings"]["parallel"] == 4

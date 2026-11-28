@@ -2,6 +2,7 @@
 import json
 import threading
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -374,3 +375,105 @@ def test_a_download_that_is_removed_while_it_runs_is_stopped_and_the_round_goes_
     col.tick(db, meta_of=lambda k, i: {}, finder=lambda *a: [], server_base=server.url, ensure_server=lambda: (True, ""), download=download, import_files=lambda d, r: None, today=TODAY)
     assert first not in [i["id"] for i in items(db)]                 # gone, and the other one was still attempted (it failed or finished, but is no longer waiting)
     assert all(i["state"] != "DOWNLOADING" for i in items(db))
+
+
+# ---- pause and resume, plain links, and several downloads at once --------------------------------------------------------------------------------
+class _Body:
+    """A download that serves BIG from the byte asked for (like the streaming server), and runs `hook(n)` before the n-th read."""
+    def __init__(self, rng="", hook=None):
+        start = int(rng[6:].rstrip("-")) if rng.startswith("bytes=") else 0
+        self.data, self.hook, self.n, self.start = BIG[start:], hook, 0, start
+        self.status = 206 if start else 200
+        self.headers = {"Content-Length": str(len(self.data)), "Content-Type": "video/x-matroska", **({"Content-Range": f"bytes {start}-{len(BIG) - 1}/{len(BIG)}"} if start else {})}
+        self.pos = 0
+    def read(self, n):
+        self.n += 1
+        if self.hook:
+            self.hook(self.n)
+        chunk = self.data[self.pos:self.pos + min(n, 300_000)]
+        self.pos += len(chunk)
+        return chunk
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+
+
+def _clock():
+    t = {"v": 0.0}
+    def now():
+        t["v"] += 2.5
+        return t["v"]
+    return now
+
+
+def test_a_paused_download_keeps_what_it_has_and_carries_on_from_there_when_resumed(db, server):
+    got = col.enqueue_stream(db, "movie", "tt0133093", "The Matrix", 1999, "", 0, 0, release="r", info_hash=HASH, file_idx=None, trackers=[])
+    iid = got["item_id"]
+    seen = []
+    def open_torrent(base, url, rng):
+        seen.append(rng)
+        return _Body(rng, hook=(lambda n: col.pause_item(db, iid)) if not rng else None)       # the person presses Pause at the first read
+    run = lambda: col.tick(db, meta_of=lambda k, i: {}, finder=lambda *a: [], server_base=server.url, ensure_server=lambda: (True, ""), import_files=lambda d, r: None, today=TODAY,
+                           download=lambda d, it, base, **kw: col.download_item(d, it, base, open_torrent=open_torrent, now=_clock(), **kw))
+    run()
+    assert items(db)[0]["state"] == "PAUSED"
+    part = col._part_path(db, iid)
+    kept = part.stat().st_size
+    assert 0 < kept < len(BIG)                                                              # what was fetched is kept
+    assert col.pause_item(db, iid) is False                                                # not running any more
+    assert col.resume_item(db, iid) is True and col.resume_item(db, iid) is False
+    run()
+    assert seen[-1] == f"bytes={kept}-"                                                    # it asked for the rest only
+    row = items(db)[0]
+    assert row["state"] == "DONE" and Path(row["path"]).stat().st_size == len(BIG)
+
+
+def test_a_plain_link_is_downloaded_as_it_is_with_the_same_resume_and_filing(db, server):
+    col.enqueue_stream(db, "movie", "tt0133093", "The Matrix", 1999, "", 0, 0, release="Matrix 1080p", url="https://cdn.example/m.mkv")
+    row = items(db)[0]
+    assert row["source_url"] == "https://cdn.example/m.mkv" and row["info_hash"] == ""
+    asked = []
+    def open_direct(url, rng):
+        asked.append((url, rng))
+        return _Body(rng)
+    col.tick(db, meta_of=lambda k, i: {}, finder=lambda *a: [], server_base=server.url, ensure_server=lambda: (True, ""), import_files=lambda d, r: None, today=TODAY,
+             download=lambda d, it, base, **kw: col.download_item(d, it, base, open_direct=open_direct, open_torrent=lambda *a: (_ for _ in ()).throw(AssertionError("not a torrent")), **kw))
+    assert asked == [("https://cdn.example/m.mkv", "")]
+    done = items(db)[0]
+    assert done["state"] == "DONE" and done["path"].endswith("The Matrix (1999).mkv")
+
+
+def test_a_plain_link_that_may_not_be_opened_fails_with_a_plain_reason(db):
+    col.enqueue_stream(db, "movie", "tt0133093", "The Matrix", 1999, "", 0, 0, release="r", url="http://127.0.0.1:9/x.mkv")
+    item = dict(items(db)[0])
+    with pytest.raises(RuntimeError, match="The link could not be opened"):
+        col.download_item(db, item, "http://127.0.0.1:11470")
+
+
+def test_downloads_run_one_after_another_unless_the_person_allows_more_at_once(db, server):
+    for n in range(3):
+        col.enqueue_stream(db, "movie", f"tt01000{n}0", f"Film {n}", 2000 + n, "", 0, 0, release=f"r{n}", info_hash=f"{n}" * 40, file_idx=None, trackers=[])
+    assert col.settings(db)["parallel"] == 1
+    import threading
+    live, peak = [0], [0]
+    gate = threading.Lock()
+    def download(d, it, base, **kw):
+        with gate:
+            live[0] += 1; peak[0] = max(peak[0], live[0])
+        import time as _t; _t.sleep(0.15)
+        with gate:
+            live[0] -= 1
+        return str(Path(col.settings(d)["dir"]) / f"{it['id']}.mkv")
+    run = lambda: col.tick(db, meta_of=lambda k, i: {}, finder=lambda *a: [], server_base=server.url, ensure_server=lambda: (True, ""), import_files=lambda d, r: None, today=TODAY, download=download)
+    assert run()["downloaded"] == 3 and peak[0] == 1
+    for it in items(db):
+        with db.lock:
+            db.conn.execute("UPDATE collection_items SET state='DOWNLOADING' WHERE id=?", (it["id"],)); db.conn.commit()
+    col.save_settings(db, {"parallel": 2})
+    live[0] = peak[0] = 0
+    assert run()["downloaded"] == 3 and peak[0] == 2                                        # two at a time, never more
+
+
+def test_the_number_of_downloads_at_once_is_kept_between_one_and_four(db):
+    for given, kept in ((2, 2), ("3", 3), (0, 1), (9, 4), ("x", 1)):
+        col.save_settings(db, {"parallel": given})
+        assert col.settings(db)["parallel"] == kept

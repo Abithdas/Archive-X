@@ -81,7 +81,7 @@ def register_collection_routes(router: APIRouter, *, db, require_auth) -> None:
     def set_state(item_id: int, state: str, note: str, reset: bool) -> bool:
         col.ensure(db)
         with db.lock:
-            failed = db.conn.execute("SELECT 1 FROM collection_items WHERE id=? AND state='FAILED' AND info_hash<>''", (int(item_id),)).fetchone()
+            failed = db.conn.execute("SELECT 1 FROM collection_items WHERE id=? AND state='FAILED' AND (info_hash<>'' OR source_url<>'')", (int(item_id),)).fetchone()
             if failed and state == "WANTED":          # a download chosen by hand that failed: try that same release again
                 db.conn.execute("UPDATE collection_items SET state='DOWNLOADING', note='', got=0, total=0 WHERE id=?", (int(item_id),))
                 db.conn.commit()
@@ -93,9 +93,17 @@ def register_collection_routes(router: APIRouter, *, db, require_auth) -> None:
 
     @router.post("/api/collection/items/{item_id}/{action}")
     async def collection_item(item_id: int, action: str, request: Request):
-        """`retry` looks for this item again now (forgetting the releases that failed); `skip` stops looking for it."""
+        """`retry` looks for this item again now (forgetting the releases that failed); `skip` stops looking for it; `pause` and `resume` stop and carry on a download."""
         require_auth(request)
         sfw_only()
+        if action in ("pause", "resume"):
+            ok = await asyncio.to_thread(col.pause_item if action == "pause" else col.resume_item, db, item_id)
+            if not ok:
+                raise HTTPException(404, "That download is not " + ("running." if action == "pause" else "paused."))
+            if action == "resume":
+                cw.start_for(db)
+                cw.worker_for(db).kick()
+            return {"ok": True}
         if action not in ("retry", "skip"):
             raise HTTPException(404, "Unknown action.")
         ok = await asyncio.to_thread(set_state, item_id, "WANTED" if action == "retry" else "SKIPPED", "" if action == "retry" else "Skipped", action == "retry")

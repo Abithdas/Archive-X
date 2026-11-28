@@ -486,7 +486,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
 
     @router.post("/api/screen/stream-download")
     async def download_stream(request: Request):
-        """Download one listed torrent stream to this computer (the Download button on a stream): `play` is the stream's own address from the list, with the title it belongs to
+        """Download one listed stream to this computer (the Download button on a stream; a torrent, or a plain link that may be played here): `play` is the stream's own address from the list, with the title it belongs to
         (`kind`, `ident`, and for a show `season` and `episode`). It is saved into the Collection folder and shown in Downloads. Nothing else of the title is looked for."""
         require_auth(request)
         _sfw_only()
@@ -502,12 +502,16 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         if not hit:
             raise HTTPException(404, "That stream is no longer available. Open the title's page again.")
         server = ss.configured(db)
+        direct = ""
         try:
             info_hash, file_idx, trackers = ss.parse_torrent_url(server, hit[1])
+            if not info_hash:
+                raise HTTPException(400, "That is not a torrent hash.")
         except ValueError:
-            raise HTTPException(400, "Only torrents can be downloaded for now.")
-        if not info_hash:
-            raise HTTPException(400, "That is not a torrent hash.")
+            # not a torrent: a plain link (a debrid or direct file) is downloaded as it is, from the places a stream may be played from and nowhere else
+            if not ac.stream_origin(hit[1]):
+                raise HTTPException(400, "That stream cannot be downloaded.")
+            info_hash, file_idx, trackers, direct = "", None, [], hit[1]
         season = body.get("season") if isinstance(body.get("season"), int) else 0
         episode = body.get("episode") if isinstance(body.get("episode"), int) else 0
         if kind == "series" and not (season >= 0 and episode >= 1):
@@ -526,7 +530,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 raise HTTPException(502, "The catalogue could not name that title. Try again in a moment.")
             try:
                 return col.enqueue_stream(db, kind, ident, title, year, str(meta.get("poster") or body.get("poster") or ""), season, episode,
-                                          release=str(body.get("name") or ""), info_hash=info_hash, file_idx=file_idx, trackers=trackers)
+                                          release=str(body.get("name") or ""), info_hash=info_hash, file_idx=file_idx, trackers=trackers, url=direct)
             except ValueError as exc:
                 raise HTTPException(409, str(exc))
         out = await asyncio.to_thread(work)
