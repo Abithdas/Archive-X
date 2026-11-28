@@ -243,8 +243,14 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
   return (
     // One page for both engines (see PlayerControls.tsx): the same frame, the same bar, menus and keys. The one difference is that the controls cannot sit
     // on the picture, because the native picture is a window above the page; in full screen the bar stays under the picture for the same reason.
-    <div ref={box} className={cn('@container relative grid outline-none', isFs ? 'h-full w-full grid-rows-[minmax(0,1fr)_auto] gap-2 bg-black' : 'w-full gap-4 sm:w-[var(--pw)] sm:gap-5')} data-testid="native-pane" tabIndex={-1}
+    <div ref={box} className={cn('@container relative grid outline-none', isFs ? 'h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-2 bg-black' : 'w-full gap-4 sm:w-[var(--pw)] sm:gap-5')} data-testid="native-pane" tabIndex={-1}
       style={isFs ? undefined : ({ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${shape.toFixed(4)})))` } as CSSProperties)}>
+      {isFs ? (
+        // A slim bar above the picture with the way back (leaving full screen is the button in the bar below, or Esc). No name of the video or file is shown in full screen.
+        <div className="flex items-center px-3 pt-2 text-white">
+          <button type="button" onClick={() => { void document.exitFullscreen().catch(noop); onClose?.() }} aria-label="Back" title="Back" className="grid size-10 place-items-center rounded-full hover:bg-white/15"><Icon name="arrow-left" className="size-5" /></button>
+        </div>
+      ) : null}
       <div ref={stage} data-testid="stage" style={isFs ? undefined : { aspectRatio: shape }} className={cn('relative w-full overflow-hidden', isFs ? 'h-full min-h-0 bg-black' : 'bg-[#111215] rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
         {phase === 'ready' && mini ? <div role="status" className="absolute inset-0 grid place-items-center content-center gap-2 p-4 text-center text-sm text-white/70"><p>Playing in the mini player.</p><button type="button" onClick={flipMini} className="h-9 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Back to the page</button></div> : null}
         {phase === 'ready' && started && !shown && !scrolling && !mini ? <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-white/70">The picture is hidden while a menu is open or it is scrolled partly out of view. The sound keeps playing.</p> : null}
@@ -274,8 +280,6 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
         <SkipButton skip={skipNow(skips, position, duration)} canNext={Boolean(onNext)} className="absolute -top-14 right-0"
           onPress={() => { const p = skipNow(skips, position, duration); if (p?.type === 'credits' && onNext) onNext(); else if (p) seekTo(skipTarget(p, duration)) }} />
         <PlayerControls
-          // In full screen everything is under the picture, the way back too (nothing across the top; leaving full screen is the button at the right of this bar, or Esc).
-          leading={isFs ? <button type="button" onClick={() => { void document.exitFullscreen().catch(noop); onClose?.() }} aria-label="Back" title="Back" className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-white/15"><Icon name="arrow-left" className="size-5" /></button> : undefined}
           time={jump?.to ?? position} duration={duration} buffered={0} segments={segments} preview={preview} onSeek={seekTo} tipBelow
           playing={playing || holding} onToggle={toggle} toggleDisabled={phase !== 'ready'} disabled={phase !== 'ready'} onPrev={onPrev} onNext={onNext}
           rate={rate} onRate={(r) => { pickRate(r); flash(`Speed: ${r}x`) }}

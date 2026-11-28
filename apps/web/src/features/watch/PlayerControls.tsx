@@ -35,8 +35,6 @@ export interface ControlsProps {
   /** Menus open downwards when the picture is a window that would hide them. */
   drop?: 'up' | 'down'
   trailing?: ReactNode
-  /** Before the previous button (the native player's way back in full screen). */
-  leading?: ReactNode
   disabled?: boolean
 }
 
@@ -51,7 +49,6 @@ export function PlayerControls(p: ControlsProps) {
       </div>
       <div className="flex items-center justify-between py-1 text-xs font-medium text-fg/80 sm:text-[13px]">
         <div className="flex min-w-0 items-center gap-1 @lg:gap-2.5">
-          {p.leading}
           <button type="button" className={BTN} onClick={p.onPrev} disabled={!p.onPrev} aria-label="Previous video" title="Previous (Shift+P)"><PrevIcon /></button>
           <button type="button" className={BTN} onClick={p.onToggle} disabled={p.toggleDisabled} aria-label={p.playing ? 'Pause' : 'Play'} title="Play / pause (Space)"><IconSwap on={p.playing} offIcon={<PlayIcon />} onIcon={<PauseIcon />} /></button>
           <button type="button" className={BTN} onClick={p.onNext} disabled={!p.onNext} aria-label="Next video" title="Next (N)"><NextIcon /></button>
