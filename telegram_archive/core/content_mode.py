@@ -52,6 +52,15 @@ def _of_visible_media(table: str, col: str) -> str:
     return f"SELECT t.* FROM main.{table} t JOIN main.media m ON m.id=t.{col} WHERE {_channel_ok('m.source_channel', 'video')}"
 
 
+def _unknown_shown(table: str, kind: str, placeholder: str) -> str:
+    """The protected "Unknown Performer" / "Unknown Studio" row is one row for the whole app (it is rated adult), but a video of the other mode that has no
+    cast or no studio is linked to it too. So the row is shown in either mode as long as a video the mode shows is linked to it: each mode then lists, under
+    Unknown, exactly its own videos (the link tables are already narrowed to the mode's videos), and never the other mode's."""
+    link = f"main.video_{kind}s"
+    return (f"(lower(trim({table}.name))='{placeholder}' AND EXISTS (SELECT 1 FROM {link} t JOIN main.media m ON m.id=t.video_id "
+            f"WHERE t.{kind}_id={table}.id AND {_channel_ok('m.source_channel', 'video')}))")
+
+
 # One statement per entry; every one is `CREATE TEMP VIEW <table> AS ...` so the view shadows the table of the same name.
 VISIBILITY_VIEWS: tuple[tuple[str, str], ...] = (
     # The library is made of these three views of `media`. A view stored in the database reads the real `media`, never the shadow below,
@@ -69,8 +78,8 @@ VISIBILITY_VIEWS: tuple[tuple[str, str], ...] = (
     ("video_tags", _of_visible_media("video_tags", "video_id")),
     ("watch_history", _of_visible_media("watch_history", "media_id")),
     ("scene_markers", _of_visible_media("scene_markers", "media_id")),
-    ("performers", f"SELECT * FROM main.performers WHERE COALESCE(content_rating,'nsfw')={_MODE_SQL}"),
-    ("studios", f"SELECT * FROM main.studios WHERE COALESCE(content_rating,'nsfw')={_MODE_SQL}"),
+    ("performers", f"SELECT * FROM main.performers WHERE COALESCE(content_rating,'nsfw')={_MODE_SQL} OR {_unknown_shown('performers', 'performer', 'unknown performer')}"),
+    ("studios", f"SELECT * FROM main.studios WHERE COALESCE(content_rating,'nsfw')={_MODE_SQL} OR {_unknown_shown('studios', 'studio', 'unknown studio')}"),
     ("tags", f"SELECT * FROM main.tags WHERE COALESCE(content_rating,'nsfw')={_MODE_SQL}"),
 )
 
