@@ -1371,6 +1371,8 @@ def register_playback_routes(
         for compatibility playback. Hardware decode is preferred and hardware
         encode is used when the exact device/driver path actually works.
         """
+        if str(db.setting("ta_video_decoding", "auto") or "auto") == "software":   # Settings, Playback, Video decoding: the processor only, for the decoder and the encoder
+            return {"status": "ready", "decoder": None, "encoder": "libx264", "profile": {}, "reason": "software decoding chosen in Settings"}
         codec = str(info.get("vcodec") or "").lower()
         pix = str(info.get("pix_fmt") or "").lower()
         key2 = (int(key[0]), int(key[1]))

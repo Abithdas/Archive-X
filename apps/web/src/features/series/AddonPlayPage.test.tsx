@@ -23,7 +23,7 @@ describe('AddonPlayPage', () => {
     api.mockImplementation((url: string) => (url.startsWith('/api/screen/addon-progress?') ? Promise.resolve({ position: 300 }) : Promise.resolve({ ok: true })))
     wrap()
     await screen.findByTestId('player')
-    expect(api.mock.calls[0]![0]).toBe('/api/screen/addon-progress?kind=series&ident=tt0903747&season=1&episode=2')
+    expect(api.mock.calls.find((c) => String(c[0]).startsWith('/api/screen/addon-progress?'))![0]).toBe('/api/screen/addon-progress?kind=series&ident=tt0903747&season=1&episode=2')
     const props = player.mock.calls.at(-1)![0] as { startAt: number; onTime: (t: number, d: number) => void; onEnd: () => void }
     expect(props.startAt).toBe(300)
     props.onTime(310, 1000)

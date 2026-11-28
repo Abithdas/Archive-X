@@ -181,6 +181,8 @@ pub struct Snapshot {
     /// What is really on screen where the video window is: distinct colours (1 or 2 = flat) and brightness range.
     screen_distinct: i32,
     screen_luma_range: i32,
+    /// What decodes the picture right now: "software", or the hardware decoder in use (for example "dxva2-copy"); empty before a video is loaded.
+    decoder: String,
 }
 
 #[derive(Serialize)]
@@ -338,6 +340,7 @@ pub async fn native_state(state: State<'_, NativeState>) -> Result<Snapshot, Str
         frames_dropped: s.frames_dropped,
         screen_distinct: s.screen_distinct,
         screen_luma_range: s.screen_luma_range,
+        decoder: p.decoder(),
     })
 }
 

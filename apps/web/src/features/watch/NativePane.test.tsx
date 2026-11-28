@@ -48,6 +48,22 @@ const mount = (props: Partial<React.ComponentProps<typeof NativePane>> = {}) => 
 const ready = async () => { await waitFor(() => expect(cmds('play')).toHaveLength(1)); await screen.findByRole('button', { name: 'Pause' }) }
 
 describe('NativePane', () => {
+  it('asks the engine for the decoding the setting names, and says which decoder is in use in the Stats', async () => {
+    state = { ...state, decoder: 'dxva2-copy' }
+    mount({ decoding: 'software' })
+    await ready()
+    expect(calls.find((c) => c.command === 'native_open')!.args).toMatchObject({ hw: 0 })
+    fireEvent.click(screen.getByRole('button', { name: 'Buffer status' }))
+    expect(await screen.findByText('Decoding')).toBeInTheDocument()
+    expect(screen.getByText('Hardware (DXVA2)')).toBeInTheDocument()
+  })
+  it('leaves the engine its own default for the automatic setting, and asks for Direct3D 11 when the card is preferred', async () => {
+    const a = mount({ decoding: 'auto' }); await ready()
+    expect(calls.find((c) => c.command === 'native_open')!.args?.hw).toBeUndefined()
+    a.unmount(); calls = []
+    mount({ decoding: 'hardware' }); await ready()
+    expect(calls.find((c) => c.command === 'native_open')!.args).toMatchObject({ hw: 5 })
+  })
   it('opens the signed stream in the native player, starts playing, and shows the same kind of controls as the page player', async () => {
     mount()
     await ready()

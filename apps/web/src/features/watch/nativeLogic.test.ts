@@ -112,3 +112,15 @@ describe('which engine starts', () => {
     expect(startsNative({ ...base, mode: 'never', asked: true })).toBe(true)
   })
 })
+
+describe('video decoding', () => {
+  it('maps the setting to the engine option and names the decoder in use', async () => {
+    const { hwCode, decodingLabel } = await import('./nativeLogic')
+    expect([hwCode('auto'), hwCode('hardware'), hwCode('software'), hwCode(undefined)]).toEqual([undefined, 5, 0, undefined])
+    expect(decodingLabel('')).toBe('Starting…')
+    expect(decodingLabel('software')).toBe('Software (processor)')
+    expect(decodingLabel('dxva2-copy')).toBe('Hardware (DXVA2)')
+    expect(decodingLabel('d3d11va')).toBe('Hardware (Direct3D 11)')
+    expect(decodingLabel('vulkan')).toBe('Hardware (vulkan)')
+  })
+})

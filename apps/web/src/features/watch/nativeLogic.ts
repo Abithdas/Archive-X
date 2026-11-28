@@ -78,3 +78,17 @@ export function startsNative(o: { nativeOk: boolean; chosenWeb: boolean; mode: s
   if (o.mode === 'always' || o.asked) return true
   return o.mode === 'fallback' && needsNative(o.info, o.canPlayType)
 }
+
+/** The engine's hardware option for the "Video decoding" setting: nothing (its own safe default, DXVA2 copy-back), Direct3D 11 for "prefer the graphics card", 0 for the processor only. */
+export function hwCode(decoding?: string): number | undefined {
+  return decoding === 'software' ? 0 : decoding === 'hardware' ? 5 : undefined
+}
+
+/** What the player's state says decodes the picture, for the Stats: the engine names "software" or the hardware decoder it really uses. */
+export function decodingLabel(decoder?: string): string {
+  const d = (decoder ?? '').trim().toLowerCase()
+  if (!d) return 'Starting…'
+  if (d === 'software') return 'Software (processor)'
+  const NAMES: Record<string, string> = { 'dxva2-copy': 'DXVA2', dxva2: 'DXVA2', d3d11va: 'Direct3D 11', 'd3d11va-copy': 'Direct3D 11', nvdec: 'NVIDIA NVDEC', qsv: 'Intel Quick Sync' }
+  return `Hardware (${NAMES[d] ?? d})`
+}

@@ -4,7 +4,7 @@ import { cn } from '@/design/cn'
 import { Icon } from '@/design/Icon'
 import { CcMenu } from './CcMenu'
 import { deviceScale, native, pixelRect, type NativeCommand, type NativeTrack, type Opened, type Snapshot , type VideoLayer } from './nativeBridge'
-import { afterJump, aspectOf, quiet, stallStep, videoVisible, type StallState } from './nativeLogic'
+import { afterJump, aspectOf, decodingLabel, hwCode, quiet, stallStep, videoVisible, type StallState } from './nativeLogic'
 import { releasePlayback } from './release'
 import { enterFullscreen, fullscreenOn, leaveFullscreen, useFullscreen } from './fullscreen'
 import { PlayIcon } from './PlayerIcons'
@@ -42,7 +42,7 @@ function covered(own?: Element | null): boolean {
  * captions (live or from the file) are in a strip under it. The picture steps aside while a dialog or menu is open or the stage is scrolled partly out
  * of view. After a jump, if the stream is too slow and the picture crawls, playback stops for a moment to refill, as a browser would.
  */
-export function NativePane({ media, addon, linkPath, onClose, durationHint, size, segments = [], preview, snapshots, startAt = 0, autoPlay = true, autoNext = false, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onBrowser, skips = [] }: { skips?: Skip[];
+export function NativePane({ media, addon, linkPath, onClose, durationHint, size, segments = [], preview, snapshots, startAt = 0, autoPlay = true, autoNext = false, seekRequest, onTime, onPlayed, onEnd, onPrev, onNext, onBrowser, skips = [], decoding }: { skips?: Skip[]; decoding?: string;
   /** A library video (`media`), or an add-on stream: `linkPath` answers `{ url }` with the address the engine opens, `addon` names the title for its subtitle files. */
   media?: { cid: string; mid: number }; addon?: AddonRef; linkPath?: string; onClose?: () => void; durationHint?: number | null; size?: { width?: number | null; height?: number | null }; segments?: Segment[]; preview?: PreviewInfo; snapshots?: SnapshotData
   startAt?: number; autoPlay?: boolean; autoNext?: boolean; seekRequest?: { t: number; n: number }
@@ -129,7 +129,7 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
       setPhase('opening')
       const link = await api<{ url: string }>(media ? `/api/play/device-link/${encodeURIComponent(media.cid)}/${media.mid}` : String(linkPath))
       if (dead) return
-      const o = await native.open(link.url, rect(), undefined, fullscreenOn() && !underFailed ? 'under' : undefined)
+      const o = await native.open(link.url, rect(), hwCode(decoding), fullscreenOn() && !underFailed ? 'under' : undefined)
       if (dead) { void native.command('close').catch(noop); return }
       setOpened(o)
       layerRef.current = o.layer; setLayer(o.layer)
@@ -355,7 +355,7 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
           playing={playing || holding} onToggle={toggle} toggleDisabled={phase !== 'ready'} disabled={phase !== 'ready'} onPrev={onPrev} onNext={onNext}
           rate={rate} onRate={(r) => { pickRate(r); flash(`Speed: ${r}x`) }}
           muted={muted} volume={volume} onMute={flipMute} onVolume={setVol}
-          status={{ chip: 'Native', good: true, rows: [{ k: 'Playback', v: opened?.decoder ? `Native · ${opened.decoder}` : 'Native player' }] }}
+          status={{ chip: 'Native', good: true, rows: [{ k: 'Playback', v: opened?.decoder ? `Native · ${opened.decoder}` : 'Native player' }, { k: 'Decoding', v: decodingLabel(snap?.decoder || undefined), good: Boolean(snap?.decoder) && snap?.decoder !== 'software' }] }}
           pip={{ onClick: flipMini, label: 'Mini player', title: 'Mini player: keeps playing in the corner while you scroll the page', pressed: mini, disabled: phase !== 'ready' }}
           tracksMenu={info ? <CcMenu info={info} audio={info.audio.find((t) => t.ordinal === audioPick)?.index ?? null} sub={tracks.sub} live={tracks.live} altBusy={false} onAudio={pickAudio} onSub={tracks.pickSub} /> : null}
           onFullscreen={full}

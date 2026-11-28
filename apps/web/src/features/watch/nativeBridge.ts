@@ -19,6 +19,8 @@ export interface Snapshot {
   windowVisible: boolean; windowWidth: number; windowHeight: number; layer: VideoLayer
   /** What the renderer says it drew and dropped (-1: unknown), and what is really on screen there: distinct colours (1 or 2 = flat) and brightness range. */
   framesDrawn: number; framesDropped: number; screenDistinct: number; screenLumaRange: number
+  /** What decodes the picture now: "software", or the hardware decoder in use; empty before a video is loaded. */
+  decoder?: string
 }
 export interface NativeTrack { name: string; selected: boolean }
 /** Where the video goes, in device pixels of the app window. */

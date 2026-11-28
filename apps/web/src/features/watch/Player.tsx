@@ -14,7 +14,7 @@ import { CcMenu } from './CcMenu'
 import { blockingEnabled, resumeAudio, routeThroughApp, setBlocking, setBoost, setSoundMode } from './audioGraph'
 import { SHARPEN_ID, loadPS, normalizePS, pictureFilter, savePS, zoomScale, type PictureSound } from './pictureSound'
 import { loadPrefs as loadPlayerPrefs, savePrefs as savePlayerPrefs } from './playerPrefs'
-import { sampleOf, statRows, type StreamFacts, type StreamSample } from './streamStats'
+import { browserDecoding, sampleOf, statRows, type StreamFacts, type StreamSample } from './streamStats'
 import { CaptionOverlay } from './CaptionOverlay'
 import { releasePlayback } from './release'
 import { enterFullscreen, leaveFullscreen, useFullscreen } from './fullscreen'
@@ -135,6 +135,14 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
   useEffect(() => setShift(0), [src])
   useEffect(() => { setBoostFailed(!(setBoost(video.current, ps.boost / 100) && setSoundMode(video.current, ps.sound))) }, [ps.boost, ps.sound])
   const [sample, setSample] = useState<StreamSample | null>(null)
+  const [decoding, setDecoding] = useState<string | undefined>()
+  const pictureW = sample?.width ?? 0
+  useEffect(() => {   // the Stats say whether the picture is decoded on the graphics card, once the picture has a size
+    let dead = false
+    if (!pictureW) return
+    void browserDecoding(facts?.vcodec, Boolean(conv), { width: pictureW, height: sample?.height ?? 0 }).then((d) => { if (!dead) setDecoding(d) })
+    return () => { dead = true }
+  }, [facts?.vcodec, Boolean(conv), pictureW]) // eslint-disable-line react-hooks/exhaustive-deps -- asked when the codec, the conversion or the picture size changes
   const tracks = useTracks(media, video, time, playing, shift, addon)
   useAltAudio(video, altAudio, tracks.altUrl, muted, volume, rate)
   const tap = useRef<TapState | null>(null)
@@ -320,7 +328,7 @@ export function Player({ media, infoPending = false, src, poster, durationHint, 
           playing={playing} onToggle={toggle} onPrev={onPrev} onNext={onNext}
           rate={rate} onRate={(r) => { setRate(r); flash(`Speed: ${r}x`) }}
           muted={muted} volume={volume} onMute={() => setMuted(!muted)} onVolume={(v) => { setVolume(v); setMuted(false) }}
-          status={{ chip: buffer >= 99 ? 'Cached' : `${buffer}%`, good: buffer >= 99, rows: statRows(buffer, sample, { ...facts, audio: tracks.info?.audio.find((a) => tracks.audio === null ? a.default || a.ordinal === 0 : a.index === tracks.audio)?.label }) }}
+          status={{ chip: buffer >= 99 ? 'Cached' : `${buffer}%`, good: buffer >= 99, rows: statRows(buffer, sample, { ...facts, decoding, audio: tracks.info?.audio.find((a) => tracks.audio === null ? a.default || a.ordinal === 0 : a.index === tracks.audio)?.label }) }}
           pip={{ onClick: pip, label: 'Picture in picture', title: 'Picture in picture' }}
           tracksMenu={tracks.info && (tracks.info.audio.length > 1 || tracks.info.subtitles.length > 0 || (tracks.info.addon ?? []).length > 0 || tracks.info.captions.available) ? <CcMenu info={tracks.info} audio={tracks.audio} sub={tracks.sub} live={tracks.live} altBusy={tracks.altBusy} onAudio={tracks.pickAudio} onSub={tracks.pickSub} /> : null}
           onFullscreen={full}
