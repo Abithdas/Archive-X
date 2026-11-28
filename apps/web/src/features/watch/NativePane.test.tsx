@@ -245,22 +245,114 @@ describe('NativePane, an add-on stream and full screen', () => {
     expect(calls.find((c) => c.command === 'native_open')!.args).toMatchObject({ url: 'https://cdn.example/film.mkv' })
   })
 
-  it('has a back arrow on top in full screen, and no name of the video', async () => {
-    const exit = vi.fn(async () => undefined)
-    Object.defineProperty(document, 'exitFullscreen', { value: exit, configurable: true })
+  it('has a back arrow in full screen, and no name of the video', async () => {
+    document.documentElement.requestFullscreen = vi.fn(async () => undefined) as never
     const onClose = vi.fn()
     mount({ onClose })
     await ready()
     expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()   // on the page the page's own back arrow is used
-    const pane = screen.getByTestId('native-pane')
-    Object.defineProperty(document, 'fullscreenElement', { value: pane, configurable: true })
+    act(() => enterFullscreen())
+    Object.defineProperty(document, 'fullscreenElement', { value: document.documentElement, configurable: true })
     act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
     expect(await screen.findByRole('button', { name: 'Back' })).toBeInTheDocument()
     expect(screen.queryByText('The Matrix')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Leave full screen' })).toBeNull()   // the bottom bar has the full screen button
     fireEvent.click(await screen.findByRole('button', { name: 'Back' }))
-    expect(exit).toHaveBeenCalledTimes(1)
     expect(onClose).toHaveBeenCalledTimes(1)                                   // the arrow leaves full screen and goes back
     Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
+    act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
   })
+
+  it('full screen is the whole page, from its own button too', async () => {
+    const request = vi.fn(async () => undefined)
+    document.documentElement.requestFullscreen = request as never
+    mount()
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: 'Full screen' }))
+    expect(request).toHaveBeenCalledTimes(1)
+    act(() => leaveFullscreen())
+  })
+
+  // ---- the see-through arrangement (dx.bi's): in full screen the video is a window UNDER the app window and the page is drawn over it ----------------------------
+  const fullScreenNow = () => {
+    act(() => enterFullscreen())
+    Object.defineProperty(document, 'fullscreenElement', { value: document.documentElement, configurable: true })
+    act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
+  }
+  const fullScreenOver = () => {
+    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
+    act(() => { leaveFullscreen(); document.dispatchEvent(new Event('fullscreenchange')) })
+  }
+  const answerUnder = () => { overrides.native_open = () => ({ ...OPENED, layer: 'under' }); state = { ...state, layer: 'under' } }
+
+  it('asks for the under layer when the page is already in full screen, and draws the controls and the box over the picture', async () => {
+    document.documentElement.requestFullscreen = vi.fn(async () => undefined) as never
+    answerUnder()
+    fullScreenNow()
+    mount()
+    await ready()
+    expect(calls.find((c) => c.command === 'native_open')!.args).toMatchObject({ layer: 'under' })
+    const pane = screen.getByTestId('native-pane')
+    expect(pane.hasAttribute('data-ax-under-pane')).toBe(true)
+    expect(document.documentElement.classList.contains('ax-under')).toBe(true)          // the page and the window around the pane are see-through
+    expect(pane.className).toContain('bg-transparent')
+    const controls = screen.getByRole('button', { name: 'Pause' }).closest('[data-ov]') as HTMLElement
+    expect(controls.className).toContain('absolute')                                    // the controls are on the picture, not under it
+    expect(controls.className).toContain('bottom-0')
+    await new Promise((r) => setTimeout(r, 150))
+    expect(cmds('hide')).toHaveLength(0)                                                // nothing steps aside: the video window is under the page
+    expect(screen.queryByText(/The picture is hidden/)).toBeNull()
+    expect(calls.some((c) => c.command === 'native_rect')).toBe(true)                   // it still follows the stage
+    fullScreenOver()
+    expect(document.documentElement.classList.contains('ax-under')).toBe(false)         // out of full screen the page is solid again
+  })
+
+  it('a menu opening over the picture does not take the picture away in the under layer', async () => {
+    document.documentElement.requestFullscreen = vi.fn(async () => undefined) as never
+    answerUnder()
+    fullScreenNow()
+    mount()
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    await screen.findByRole('menu', { name: 'Settings' })
+    await new Promise((r) => setTimeout(r, 200))
+    expect(cmds('hide')).toHaveLength(0)
+    fullScreenOver()
+  })
+
+  it('moves the video between the window above the page and the window under it as full screen starts and ends', async () => {
+    document.documentElement.requestFullscreen = vi.fn(async () => undefined) as never
+    mount()
+    await ready()
+    expect(cmds('under')).toHaveLength(0)
+    fullScreenNow()
+    await waitFor(() => expect(cmds('under')).toHaveLength(1))
+    fullScreenOver()
+    await waitFor(() => expect(cmds('popup').length).toBeGreaterThan(0))
+    expect(cmds('under')).toHaveLength(1)
+  })
+
+  it('stays with the window above the page when the engine cannot do the under layer (it answers popup)', async () => {
+    document.documentElement.requestFullscreen = vi.fn(async () => undefined) as never
+    fullScreenNow()
+    mount()                                                                              // asked for under, the default mock answers popup
+    await ready()
+    expect(calls.find((c) => c.command === 'native_open')!.args).toMatchObject({ layer: 'under' })
+    expect(document.documentElement.classList.contains('ax-under')).toBe(false)
+    expect(screen.getByTestId('native-pane').hasAttribute('data-ax-under-pane')).toBe(false)
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument()            // the full screen layout with the controls around the picture, as before
+    fullScreenOver()
+  })
+
+  it('goes back to the window above the page, for good, when the screen over the picture stays flat while it plays', async () => {
+    document.documentElement.requestFullscreen = vi.fn(async () => undefined) as never
+    answerUnder()
+    state = { ...state, position: 30, screenDistinct: 1, screenLumaRange: 0, playing: true }
+    overrides.native_state = () => ({ ...state })                                   // the real shell answers a new object every time
+    fullScreenNow()
+    mount()
+    await ready()
+    await waitFor(() => expect(cmds('popup').length).toBeGreaterThan(0), { timeout: 8000 })   // about four seconds of flat screen
+    fullScreenOver()
+  }, 12_000)
 })

@@ -1,9 +1,28 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><title>under-spike</title>
 <style>
-  html, body { margin: 0; background: transparent; }
-  /* an opaque box, a half-white box and a thin frame: all drawn by the page, over where the video is */
+  /* The page of the real app: a solid background and content that must NOT show over the video. */
+  html, body { margin: 0; background: #444; }
+  #root { position: fixed; inset: 0; background: #444; color: #fff; font: 24px sans-serif; padding: 20px; }
+  /* Copied from apps/web/src/styles.css: the page and the window show nothing but the player's own box while the video is under them. */
+  html.ax-under, html.ax-under body { background: transparent !important; }
+  html.ax-under #root { visibility: hidden; }
+  html.ax-under #root [data-ax-under-pane] { visibility: visible; }
+  /* The player's box: a top-layer popover over the whole window, see-through (as NativePane.tsx draws it in full screen). */
+  #pane { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; overflow: hidden; background: transparent; }
+  /* an opaque box, a half-white box: drawn by the page, over where the video is */
   #opaque { position: fixed; left: 40px; top: 40px; width: 200px; height: 120px; background: #ff00ff; }
   #half { position: fixed; left: 300px; top: 40px; width: 200px; height: 120px; background: rgba(255, 255, 255, 0.5); }
 </style></head>
-<body><div id="opaque"></div><div id="half"></div></body></html>
+<body>
+<div id="root">The page's own content: it must not be visible over the video.
+  <div id="pane" popover="manual" data-ax-under-pane><div id="opaque"></div><div id="half"></div></div>
+</div>
+<script>
+  // after a moment (the video is opening under the window): the player's box takes the top layer and the page is hidden around it
+  setTimeout(function () {
+    document.documentElement.classList.add('ax-under');
+    try { document.getElementById('pane').showPopover(); } catch (e) { document.title = 'popover failed: ' + e; }
+  }, 800);
+</script>
+</body></html>

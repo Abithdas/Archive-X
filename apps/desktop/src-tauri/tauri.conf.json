@@ -17,7 +17,8 @@
         "minWidth": 360,
         "minHeight": 560,
         "center": true,
-        "backgroundColor": "#232833"
+        "backgroundColor": "#232833",
+        "transparent": true
       }
     ],
     "security": {

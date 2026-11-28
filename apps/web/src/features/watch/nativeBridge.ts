@@ -9,8 +9,8 @@ const invoke = (): Invoke | undefined => (window as unknown as { __TAURI_INTERNA
 
 export const hasNativeBridge = () => typeof invoke() === 'function'
 
-/** Where the video window sits: in front of the page, behind it, or in its own window above the app. */
-export type VideoLayer = 'front' | 'behind' | 'popup'
+/** Where the video window sits: in front of the page, behind it, in its own window above the app, or in its own window UNDER the app window (which is then see-through: the page is drawn over the picture, as in dx.bi). */
+export type VideoLayer = 'front' | 'behind' | 'popup' | 'under'
 export interface Availability { available: boolean; reason: string }
 export interface Opened { duration: number; width: number; height: number; decoder: string; layer: VideoLayer }
 export interface Snapshot {
@@ -34,11 +34,11 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
   }
 }
 
-export type NativeCommand = 'play' | 'pause' | 'stop' | 'seek' | 'rate' | 'volume' | 'mute' | 'audio' | 'front' | 'back' | 'popup' | 'hide' | 'close'
+export type NativeCommand = 'play' | 'pause' | 'stop' | 'seek' | 'rate' | 'volume' | 'mute' | 'audio' | 'front' | 'back' | 'popup' | 'under' | 'hide' | 'close'
 
 export const native = {
   available: () => call<Availability>('native_available'),
-  open: (url: string, rect: PixelRect, hw?: number) => call<Opened>('native_open', { url, ...rect, hw }),
+  open: (url: string, rect: PixelRect, hw?: number, layer?: 'popup' | 'under') => call<Opened>('native_open', { url, ...rect, hw, layer }),
   command: (command: NativeCommand, value?: number) => call<void>('native_command', { command, value }),
   rect: (rect: PixelRect) => call<void>('native_rect', { ...rect }),
   state: () => call<Snapshot>('native_state'),

@@ -181,5 +181,15 @@ clicks are let through best-effort), and changing the layer between a child wind
 | Plays generated H.264, 10-bit HEVC + AC3 and MPEG-4 + MP3 videos headless on a Windows runner | Job `engine-mpv` in `native-player.yml` (**not run yet**; Wine does not work in the development sandbox) |
 | Picture in the video window, hardware decoding, sound, clicks through the window | **Not verified on a real PC** |
 
-To try it on a PC: run the `desktop.yml` workflow with `bundle_mpv` set (the installer then holds both engines, about 120 MB larger) and start the app with `ARCHIVE_X_NATIVE_ENGINE=mpv`.
+libmpv is now the default engine and is always in the installer (about 120 MB larger); the LAV engine stays as the fallback: `ARCHIVE_X_NATIVE_ENGINE=lav` forces it.
+
+### The "under" layer (the dx.bi arrangement), proved on a Windows runner
+`AX_LAYER_UNDER` (libmpv engine): the video is its own borderless top-level window and the app window is made **owned by it** (an owned window is always above its owner), so the
+app window must be see-through (`"transparent": true` in `tauri.conf.json`, the web view's background transparent). The page is then drawn over the picture: controls, captions,
+menus and the seek preview, with nothing stepping aside. The earlier attempts used a *child* window behind or in front of the web view, which Windows hides or paints over
+("airspace"); two top-level windows composited by DWM do not have that problem. `.github/workflows/native-under.yml` proves it on `windows-latest` with a throwaway Tauri app
+(`native/under-spike`) and real screenshots (`tools/under-spike-check.ps1`): with and without a title bar the page's opaque box shows over the video, a half-white box blends
+over it, and the control run with the window above the page does not show them. The page does it in full screen only (`NativePane.tsx`: `html.ax-under` hides the page around
+a see-through top-layer box); inline playback keeps the window above the page with the controls around it. If the screen over a playing video stays one flat colour for about
+four seconds, the pane goes back to the window above the page and stays there for the session.
 Without that variable the LAV engine is used when it is installed, and libmpv only when it is all there is. The Experience setting and the page do not change.

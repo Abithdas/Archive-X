@@ -143,3 +143,9 @@ body {
 }
 @media (hover: hover) { [data-glow]:hover::after { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { [data-glow]::after { display: none; } } }
+
+/* The native player in full screen, the "under" layer (NativePane.tsx): the video is a window beneath the app window, and the page is drawn over it, so the page and
+   the window show nothing but the player's own box. Only the installed app does this; the app window is created see-through (tauri.conf.json). */
+html.ax-under, html.ax-under body { background: transparent !important; }
+html.ax-under #root { visibility: hidden; }
+html.ax-under #root [data-ax-under-pane] { visibility: visible; }

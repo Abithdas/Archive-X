@@ -16,10 +16,6 @@ on:
         description: "Publish a release with this version (for example 30.1.0). Empty = only build the installers."
         required: false
         default: ""
-      bundle_mpv:
-        description: "Also bundle the libmpv player engine (about 120 MB more) to try it: set ARCHIVE_X_NATIVE_ENGINE=mpv on the PC. Empty = LAV only."
-        required: false
-        default: ""
   push:
     tags: ["desktop-v*"]
 
@@ -99,8 +95,9 @@ jobs:
           mkdir -p apps/desktop/src-tauri/resources/axplayer
           cp build-axplayer/Release/axplayer.dll apps/desktop/src-tauri/resources/axplayer/
 
-      - name: Fetch libmpv and build its engine (only when asked for)
-        if: ${{ github.event.inputs.bundle_mpv != '' }}
+      # libmpv is the native player's default engine (it plays what the browser cannot, and it can sit under the see-through app window so the page is drawn over the
+      # picture); the LAV engine above stays in the installer as the fallback (ARCHIVE_X_NATIVE_ENGINE=lav).
+      - name: Fetch libmpv and build its engine
         shell: bash
         run: |
           bash packaging/scripts/fetch-mpv.sh

@@ -36,13 +36,15 @@ struct Inner {
     player: Option<Arc<Player>>,
 }
 
-/// Which engine plays: `ARCHIVE_X_NATIVE_ENGINE=mpv` picks libmpv (axmpv.dll and the folder with libmpv-2.dll), `lav` picks the LAV Filters (axplayer.dll). Unset, the LAV
-/// engine is used when it is installed, and libmpv otherwise (an installer that has only libmpv, see packaging/scripts/fetch-mpv.sh).
+/// Which engine plays: `ARCHIVE_X_NATIVE_ENGINE=mpv` picks libmpv (axmpv.dll and the folder with libmpv-2.dll), `lav` picks the LAV Filters (axplayer.dll). Unset, libmpv
+/// is used when it is installed (it is the default engine: it plays what the browser cannot, and it can sit under the see-through app window), and the LAV engine when
+/// it is not (an installer without libmpv).
 fn engine_choice(has_lav: bool, has_mpv: bool) -> &'static str {
     match std::env::var("ARCHIVE_X_NATIVE_ENGINE").ok().as_deref() {
         Some("mpv") => "mpv",
         Some("lav") => "lav",
-        _ if has_lav || !has_mpv => "lav",
+        _ if has_mpv => "mpv",
+        _ if has_lav => "lav",
         _ => "mpv",
     }
 }
@@ -85,12 +87,12 @@ mod engine_tests {
     use super::engine_choice;
 
     #[test]
-    fn lav_is_used_when_installed_and_libmpv_only_when_it_is_all_there_is() {
+    fn libmpv_is_the_default_and_lav_is_the_fallback() {
         std::env::remove_var("ARCHIVE_X_NATIVE_ENGINE");
-        assert_eq!(engine_choice(true, true), "lav");
-        assert_eq!(engine_choice(true, false), "lav");
+        assert_eq!(engine_choice(true, true), "mpv");
         assert_eq!(engine_choice(false, true), "mpv");
-        assert_eq!(engine_choice(false, false), "lav"); // nothing installed: the LAV message says what is missing
+        assert_eq!(engine_choice(true, false), "lav");
+        assert_eq!(engine_choice(false, false), "mpv"); // nothing installed: the libmpv message says what is missing
     }
 }
 
@@ -209,6 +211,7 @@ pub async fn native_open(
     w: i32,
     h: i32,
     hw: Option<i32>,
+    layer: Option<String>,
 ) -> Result<Opened, String> {
     let (dll, lav) = locate(&app)?;
     // The lock is held only for short steps. Opening a stream can take many seconds (a slow source), and everything else (hide, close, the
@@ -222,7 +225,12 @@ pub async fn native_open(
         }
         (inner.engine.clone().ok_or("the engine is not loaded")?, mine)
     };
-    let layer = start_layer();
+    // The page names the layer it wants ("under" in full screen, where the page is drawn over the picture); otherwise the default, or what the environment says.
+    let layer = match layer.as_deref() {
+        Some("under") => VideoLayer::Under,
+        Some("popup") => VideoLayer::Popup,
+        _ => start_layer(),
+    };
     let player = engine.create_player(&lav, Options { hw_accel: hw_from(hw), headless: false, video_layer: layer }).map_err(|e| e.to_string())?;
     #[cfg(windows)]
     let parent = window.hwnd().ok().map(|h| h.0 as isize);
@@ -230,6 +238,8 @@ pub async fn native_open(
     let parent: Option<isize> = None;
     player.open(&url, "Archive X", parent, Rect { x, y, w, h }).map_err(|e| e.to_string())?;
     let s = player.state();
+    // The layer the engine really used (the LAV engine has no "under": it opens the popup), and the web view is made see-through only when it is the under one.
+    let layer = s.video_layer;
     let opened = Opened { duration: s.duration, width: s.video_width, height: s.video_height, decoder: player.decoder(), layer: layer_name(layer) };
     let mut inner = state.inner.lock().map_err(|_| "the player is busy".to_string())?;
     if state.generation.load(Ordering::SeqCst) != mine {

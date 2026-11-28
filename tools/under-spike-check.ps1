@@ -1,4 +1,5 @@
-# Runs the proof app (native/under-spike) and checks, on the real desktop, what the screen shows:
+# Runs the proof app (native/under-spike) and checks, on the real desktop, what the screen shows. The proof page is built like the app's full-screen player: a solid page, hidden
+# around a see-through top-layer box (html.ax-under), so a point of the page's own content showing over the video would fail the video point:
 #   a point inside the video only            -> the video's colour (green)
 #   a point under the page's opaque box      -> the page's colour (magenta) when the page is over the video ("under"); the video's when it is not ("popup")
 #   a point under the page's half-white box  -> the video blended with white (the page really blends over the picture)
@@ -33,17 +34,17 @@ try {
   Write-Host "screen $($b.Width)x$($b.Height); client at $($doc.client_x),$($doc.client_y) size $($doc.client_w)x$($doc.client_h); layer $($doc.layer); window $($doc.window_width)x$($doc.window_height)"
   Write-Host "video point   : $video"; Write-Host "opaque box    : $opaque"; Write-Host "half-white box: $half"
   Write-Host "diagnostics:`n$($doc.diagnostics)"
-  # (each test is parenthesised: PowerShell evaluates -and and the comparisons left to right, so `$c -and $c[1] -ge 150` compares True with 150)
-  $isGreen = { param($c) ($null -ne $c) -and ($c[1] -ge 150) -and ($c[0] -le 80) -and ($c[2] -le 80) }
-  $isMagenta = { param($c) ($null -ne $c) -and ($c[0] -ge 200) -and ($c[2] -ge 200) -and ($c[1] -le 60) }
-  $isBlend = { param($c) ($null -ne $c) -and ($c[0] -ge 90) -and ($c[2] -ge 90) -and ($c[1] -ge 180) -and ($c[0] -le 200) }
+  # plain functions with explicit integers (a colour is read as three numbers; a scriptblock taking the whole array gave a wrong answer on the runner)
+  function IsGreen([int]$r, [int]$g, [int]$b) { return ($g -ge 150) -and ($r -le 80) -and ($b -le 80) }
+  function IsMagenta([int]$r, [int]$g, [int]$b) { return ($r -ge 200) -and ($b -ge 200) -and ($g -le 60) }
+  function IsBlend([int]$r, [int]$g, [int]$b) { return ($r -ge 90) -and ($b -ge 90) -and ($g -ge 180) -and ($r -le 200) }
   $fail = @()
-  if (-not (& $isGreen $video)) { $fail += "the video point is not the video's green: $video" }
+  if (($null -eq $video) -or -not (IsGreen $video[0] $video[1] $video[2])) { $fail += "the video point is not the video's green: $video" }
   if ($Layer -eq "under") {
-    if (-not (& $isMagenta $opaque)) { $fail += "the page's opaque box does not show over the video: $opaque" }
-    if (-not (& $isBlend $half)) { $fail += "the page's half-white box is not blended over the video: $half" }
+    if (($null -eq $opaque) -or -not (IsMagenta $opaque[0] $opaque[1] $opaque[2])) { $fail += "the page's opaque box does not show over the video: $opaque" }
+    if (($null -eq $half) -or -not (IsBlend $half[0] $half[1] $half[2])) { $fail += "the page's half-white box is not blended over the video: $half" }
   } else {
-    if (& $isMagenta $opaque) { $fail += "control run: the page's box shows over the video, so this check cannot tell the layers apart" }
+    if (($null -ne $opaque) -and (IsMagenta $opaque[0] $opaque[1] $opaque[2])) { $fail += "control run: the page's box shows over the video, so this check cannot tell the layers apart" }
   }
   if ($fail.Count) { $fail | ForEach-Object { Write-Host "FAIL  $_" }; exit 1 }
   Write-Host "PASS  $Name"
