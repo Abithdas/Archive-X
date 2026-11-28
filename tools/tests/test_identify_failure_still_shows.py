@@ -5,6 +5,20 @@ from test_screen_identify import _client, Database
 from telegram_archive.engines import local_scanner as ls
 
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _providers_unreachable(monkeypatch):
+    """A folder starts looking its videos up by itself, and on a machine with a network that automatic lookup can find a real film for the file name
+    (the CI runner did: a cast came back where the test expects none). Here the providers are down for every request, the automatic ones included."""
+    from telegram_archive.engines import screen_identify as si
+
+    def down(*a, **k):
+        raise ConnectionResetError("closed by the remote host")
+    monkeypatch.setattr(si, "http_fetch", down)
+
+
 def _folder(tmp_path, db, c, H, rating):
     big = tmp_path / "Folder"
     big.mkdir()
