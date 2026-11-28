@@ -226,6 +226,7 @@ def test_an_unreachable_server_is_a_plain_reason(db):
 # ---- a round ---------------------------------------------------------------------------------------------------------------------------------------
 def test_a_round_finds_downloads_and_brings_the_file_into_the_library(db, server):
     title(db)
+    db.set_setting("collection_on", "1")
     imported = []
     class Resp:
         status, headers, pos = 200, {"Content-Length": str(len(BIG)), "Content-Type": "video/x-matroska"}, 0
@@ -242,6 +243,7 @@ def test_a_round_finds_downloads_and_brings_the_file_into_the_library(db, server
 
 def test_a_round_does_not_download_when_the_streaming_server_cannot_be_reached(db):
     title(db)
+    db.set_setting("collection_on", "1")
     out = col.tick(db, meta_of=lambda k, i: meta_series((1, 1, "2020-01-01")), finder=lambda *a: [{**cand("Dark 1080p", "x"), "infoHash": HASH}], server_base="http://127.0.0.1:9",
                    ensure_server=lambda: (False, "The streaming server is not running."), import_files=lambda d, r: None, today=TODAY)
     assert out["downloaded"] == 0
@@ -251,6 +253,7 @@ def test_a_round_does_not_download_when_the_streaming_server_cannot_be_reached(d
 
 def test_a_failed_download_goes_back_to_wanted_and_the_round_goes_on(db, server):
     title(db)
+    db.set_setting("collection_on", "1")
     def broken(d, it, base, **kw):
         raise RuntimeError("The download stalled.")
     out = col.tick(db, meta_of=lambda k, i: meta_series((1, 1, "2020-01-01")), finder=lambda *a: [{**cand("Dark 1080p", "x"), "infoHash": HASH}], server_base=server.url,
@@ -293,3 +296,81 @@ def test_settings_validate_and_the_overview_lists_titles_with_counts(db):
     ov = col.overview(db)
     assert ov["titles"][0]["counts"]["WANTED"] == 2 and ov["titles"][0]["items"][0]["label"] == "S01E01 · Ep 1"
     assert col.remove_title(db, ov["titles"][0]["id"]) is True and col.overview(db)["titles"] == [] and items(db) == []
+
+
+# ---- a download chosen by hand (the Download button on a stream) -------------------------------------------------------------------------------------
+def test_a_chosen_stream_is_downloaded_without_automatic_downloads_and_nothing_else_is_looked_for(db, server):
+    got = col.enqueue_stream(db, "series", "tt5753856", "Dark", 2017, "", 1, 2, release="Dark S01E02 1080p", info_hash=HASH, file_idx=1, trackers=["udp://t"], name="Alone")
+    assert col.settings(db)["on"] is False and col.has_downloads(db)
+    class Resp:
+        status, headers, pos = 200, {"Content-Length": str(len(BIG)), "Content-Type": "video/x-matroska"}, 0
+        def read(self, n): chunk = BIG[self.pos:self.pos + n]; self.pos += len(chunk); return chunk
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    searched = []
+    out = col.tick(db, meta_of=lambda k, i: (_ for _ in ()).throw(AssertionError("nothing is read while automatic downloads are off")), finder=lambda *a: searched.append(a) or [],
+                   server_base=server.url, ensure_server=lambda: (True, ""), download=lambda d, it, base, **kw: col.download_item(d, it, base, open_torrent=lambda *a: Resp(), **kw),
+                   import_files=lambda d, r: None, today=TODAY)
+    assert out == {"new": 0, "searched": 0, "downloaded": 1} and searched == []
+    row = items(db)[0]
+    assert row["id"] == got["item_id"] and row["state"] == "DONE" and row["path"].endswith("Dark - S01E02.mkv")
+    title_row = col.overview(db)["titles"][0]
+    assert title_row["manual"] is True and title_row["monitored"] is False and not col.has_downloads(db)
+
+
+def test_the_same_stream_cannot_be_started_twice_and_a_saved_one_says_so(db):
+    args = ("series", "tt5753856", "Dark", 2017, "", 1, 2)
+    kw = dict(release="r", info_hash=HASH, file_idx=None, trackers=[])
+    col.enqueue_stream(db, *args, **kw)
+    with pytest.raises(ValueError, match="already downloading"):
+        col.enqueue_stream(db, *args, **kw)
+    with db.lock:
+        db.conn.execute("UPDATE collection_items SET state='DONE'")
+        db.conn.commit()
+    with pytest.raises(ValueError, match="already saved"):
+        col.enqueue_stream(db, *args, **kw)
+
+
+def test_a_chosen_download_that_fails_stays_as_failed_with_its_release_and_can_be_started_again(db):
+    got = col.enqueue_stream(db, "movie", "tt0133093", "The Matrix", 1999, "", 0, 0, release="The Matrix 1080p", info_hash=HASH, file_idx=None, trackers=[])
+    item = dict(items(db)[0])
+    col.fail_item(db, item, "The download stalled.")
+    row = items(db)[0]
+    assert row["state"] == "FAILED" and row["note"] == "The download stalled." and row["release"] == "The Matrix 1080p" and row["info_hash"] == HASH
+    col.enqueue_stream(db, "movie", "tt0133093", "The Matrix", 1999, "", 0, 0, release="The Matrix 1080p", info_hash=HASH, file_idx=None, trackers=[])
+    assert items(db)[0]["state"] == "DOWNLOADING" and items(db)[0]["id"] == got["item_id"]
+
+
+def test_removing_the_only_item_of_a_manual_download_removes_its_title_and_a_kept_title_stays(db):
+    col.enqueue_stream(db, "movie", "tt0133093", "The Matrix", 1999, "", 0, 0, release="r", info_hash=HASH, file_idx=None, trackers=[])
+    assert col.delete_item(db, items(db)[0]["id"]) is True and col.overview(db)["titles"] == []
+    assert col.delete_item(db, 999) is False
+    col.add_title(db, "movie", "tt0133093", "The Matrix", 1999)
+    col.enqueue_stream(db, "movie", "tt0133093", "The Matrix", 1999, "", 0, 0, release="r", info_hash=HASH, file_idx=None, trackers=[])
+    col.delete_item(db, items(db)[0]["id"])
+    assert [t["title"] for t in col.overview(db)["titles"]] == ["The Matrix"]
+
+
+def test_a_download_that_is_removed_while_it_runs_is_stopped_and_the_round_goes_on(db, server):
+    col.enqueue_stream(db, "movie", "tt0133093", "The Matrix", 1999, "", 0, 0, release="r", info_hash=HASH, file_idx=None, trackers=[])
+    col.enqueue_stream(db, "movie", "tt0111161", "Other", 1994, "", 0, 0, release="o", info_hash="b" * 40, file_idx=None, trackers=[])
+    first = items(db)[0]["id"]
+    ticks = {"n": 0}
+    class Resp:
+        status, headers = 200, {"Content-Length": str(len(BIG) * 3), "Content-Type": "video/x-matroska"}
+        def read(self, n):
+            ticks["n"] += 1
+            if ticks["n"] == 2:
+                col.delete_item(db, first)                          # the person presses Delete while it downloads
+            return BIG[:n] if ticks["n"] <= 6 else b""              # the other download is a short one
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    clock = {"t": 0.0}
+    def now():
+        clock["t"] += 2.5                                           # every read counts as a progress step
+        return clock["t"]
+    def download(d, it, base, **kw):
+        return col.download_item(d, it, base, open_torrent=lambda *a: Resp(), now=now, **kw)
+    col.tick(db, meta_of=lambda k, i: {}, finder=lambda *a: [], server_base=server.url, ensure_server=lambda: (True, ""), download=download, import_files=lambda d, r: None, today=TODAY)
+    assert first not in [i["id"] for i in items(db)]                 # gone, and the other one was still attempted (it failed or finished, but is no longer waiting)
+    assert all(i["state"] != "DOWNLOADING" for i in items(db))

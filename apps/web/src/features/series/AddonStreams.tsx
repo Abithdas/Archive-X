@@ -1,8 +1,12 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '@/api/client'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { toast } from 'sonner'
 import { Icon } from '@/design/Icon'
+import { errorText } from '@/features/content/useContentMode'
+import { DownloadsDialog, downloadsOf } from '@/features/collection/DownloadsDialog'
+import { collectionKey, useCollection } from '@/features/collection/useCollection'
 import { StreamingActions } from '@/features/settings/StreamingSetup'
 
 interface StreamItem {
@@ -117,6 +121,13 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
   const setSource = (v: string) => change({ source: v })
   const setHdr = (v: HdrFilter) => change({ hdr: v })
   const [quality, setQuality] = useState('')
+  // Download: one stream saved to this computer (dx.bi's download icon on a stream), with the Downloads window showing how it goes.
+  const [downloads, setDownloads] = useState(false)
+  const download = useMutation({
+    mutationFn: (item: StreamItem) => api('/api/screen/stream-download', { method: 'POST', json: { play: item.play, kind, ident, season, episode, name: item.name } }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: collectionKey }); setDownloads(true) },
+    onError: (e) => toast.error(errorText(e, 'Could not start the download.')),
+  })
   const open = (item: StreamItem) => {
     if (!item.play) return
     if (kind === 'series' && item.bingeGroup) { rememberBinge(ident, item.bingeGroup); setGroup(item.bingeGroup) }
@@ -125,6 +136,8 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
   const extra = kind === 'series' ? '?season=' + (season ?? '') + '&episode=' + (episode ?? '') : ''
   const q = useQuery({ queryKey: ['addon-streams', kind, ident, season ?? null, episode ?? null] as const, queryFn: () => api<Streams>('/api/screen/streams/' + kind + '/' + ident + extra), retry: false, staleTime: 5 * 60_000, enabled: /^tt\d+$/.test(ident) && (kind === 'movie' || (season !== undefined && episode !== undefined)) })
   const d = q.data
+  const saved = useCollection(Boolean(d?.items?.length))   // the count on the Downloads button; asked only when there are streams to download
+  const downloadCount = downloadsOf(saved.data?.titles ?? []).reduce((n, g) => n + g.items.length, 0)
   useEffect(() => {
     setSelectedAddon('')
     setQuality('')
@@ -161,8 +174,12 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
     <section aria-label="From your add-ons" className="grid gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-bold">From your add-ons</h3>
-        <span aria-live="polite" className="text-[11px] text-muted">{countLabel}</span>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => setDownloads(true)} className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line px-2.5 text-[11px] font-semibold text-muted hover:text-fg"><Icon name="download" className="size-3.5" />Downloads{downloadCount ? ` (${downloadCount})` : ''}</button>
+          <span aria-live="polite" className="text-[11px] text-muted">{countLabel}</span>
+        </div>
       </div>
+      <DownloadsDialog open={downloads} onClose={() => setDownloads(false)} />
       {d.items.length ? (
         <>
           {d.torrents && d.streaming_server && !d.streaming_server.up ? <StartServer onUp={() => void qc.invalidateQueries({ queryKey: ['addon-streams'] })} /> : null}
@@ -186,7 +203,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
             <ul key={name} aria-label={name} className="m-0 grid list-none gap-1 p-0">
               {rows.filter(({ item }) => item.addon === name).map(({ item, index }) => (
                 <li key={name + ':' + item.name + ':' + index} className="m-0">
-                  <div onClick={item.kind === 'play' ? () => open(item) : undefined} className={'grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-xl border border-line px-3 py-2' + (item.kind === 'play' ? ' cursor-pointer transition-colors hover:bg-fg/5' : '')}>
+                  <div onClick={item.kind === 'play' ? () => open(item) : undefined} className={'group/row grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-line px-3 py-2' + (item.kind === 'play' ? ' cursor-pointer transition-colors hover:bg-fg/5' : '')}>
                     <div className="grid min-w-14 place-items-center rounded-lg bg-fg/5 px-2 py-2 text-center">
                       <span className="text-[13px] font-black">{qualityLabel(item.height ?? 0) || '—'}</span>
                       {(item.hdr ?? []).length ? <span className="text-[9px] font-bold uppercase text-muted">{(item.hdr ?? []).includes('DV') ? 'Dolby Vision' : 'HDR'}</span> : null}
@@ -202,6 +219,11 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
                         {item.kind === 'play' ? <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-accent"><Icon name="play" className="size-3" />Play</span> : item.kind === 'blocked' && item.torrent ? <span className="ml-2">A torrent: it needs Stremio's streaming server, which is not running{d.streaming_server ? ` at ${d.streaming_server.url}` : ''}. <Link to="/settings" onClick={() => { try { localStorage.setItem('ax_next_settings_panel', 'addons') } catch { /* private mode */ } }} className="font-semibold text-accent underline">Set it up</Link></span> : item.kind === 'blocked' && item.host ? <span className="ml-2">Not played here ({item.host})</span> : null}
                       </p>
                     </div>
+                    {item.torrent && item.kind === 'play' ? (
+                      <button type="button" aria-label={`Download ${item.name}`} title="Download" disabled={download.isPending}
+                        onClick={(e) => { e.stopPropagation(); download.mutate(item) }}
+                        className="grid size-9 place-items-center rounded-full bg-fg/10 text-fg opacity-0 transition-opacity hover:bg-fg/20 focus-visible:opacity-100 group-hover/row:opacity-100 disabled:opacity-40 [@media(hover:none)]:opacity-100"><Icon name="download" className="size-4" /></button>
+                    ) : <span aria-hidden="true" />}
                   </div>
                 </li>
               ))}

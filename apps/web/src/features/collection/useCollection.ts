@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
 
-export type ItemState = 'WANTED' | 'DOWNLOADING' | 'DONE' | 'SKIPPED'
+export type ItemState = 'WANTED' | 'DOWNLOADING' | 'DONE' | 'SKIPPED' | 'FAILED'
 export interface CollectionItem { id: number; season: number; episode: number; name: string; label: string; air_date: string; state: ItemState; release: string; note: string; got: number; total: number; attempts: number }
-export interface CollectionTitle { id: number; kind: 'movie' | 'series'; imdb: string; title: string; year: number | null; poster: string; scope: 'all' | 'new'; monitored: boolean; counts: Record<ItemState, number>; items: CollectionItem[] }
+export interface CollectionTitle { id: number; kind: 'movie' | 'series'; imdb: string; title: string; year: number | null; poster: string; scope: 'all' | 'new'; monitored: boolean; /** Only a home for a download chosen by hand (nothing else of it is looked for). */ manual?: boolean; counts: Record<Exclude<ItemState, 'FAILED'>, number> & { FAILED?: number }; items: CollectionItem[] }
 export interface CollectionSettings { on: boolean; dir: string; quality: number; max_gb_movie: number; max_gb_episode: number }
 export interface CollectionState { settings: CollectionSettings; titles: CollectionTitle[]; server: { up: boolean; ready: boolean; installed: boolean }; running: boolean }
 export const collectionKey = ['collection'] as const
@@ -29,6 +29,8 @@ export function useCollectionActions() {
     remove: useMutation({ mutationFn: (id: number) => api(`/api/collection/titles/${id}`, { method: 'DELETE' }), onSuccess: done }),
     settings: useMutation({ mutationFn: (b: Partial<CollectionSettings>) => api('/api/collection/settings', { method: 'POST', json: b }), onSuccess: done }),
     item: useMutation({ mutationFn: (b: { id: number; action: 'retry' | 'skip' }) => api(`/api/collection/items/${b.id}/${b.action}`, { method: 'POST', json: {} }), onSuccess: done }),
+    /** Take one download out of the list (a running one is stopped; a finished file stays in the library). */
+    deleteItem: useMutation({ mutationFn: (id: number) => api(`/api/collection/items/${id}`, { method: 'DELETE' }), onSuccess: done }),
     run: useMutation({ mutationFn: () => api('/api/collection/run', { method: 'POST', json: {} }), onSuccess: done }),
   }
 }
@@ -40,6 +42,7 @@ export function summary(t: Pick<CollectionTitle, 'kind' | 'counts'>): string {
   if (c.DOWNLOADING) parts.push(`${c.DOWNLOADING} downloading`)
   if (c.WANTED) parts.push(`${c.WANTED} waiting for a release`)
   if (c.DONE) parts.push(t.kind === 'movie' ? 'in your library' : `${c.DONE} done`)
+  if (c.FAILED) parts.push(`${c.FAILED} failed`)
   if (c.SKIPPED) parts.push(`${c.SKIPPED} skipped`)
   return parts.join(' · ') || (t.kind === 'movie' ? 'Not released for long enough yet' : 'Nothing missing')
 }

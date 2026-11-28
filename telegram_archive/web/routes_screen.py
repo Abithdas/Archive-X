@@ -484,6 +484,56 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                     "streaming_server": {"url": server, "up": _server_up(server)} if any(i.get("torrent") for i in items) else None}
         return await asyncio.to_thread(work)
 
+    @router.post("/api/screen/stream-download")
+    async def download_stream(request: Request):
+        """Download one listed torrent stream to this computer (the Download button on a stream): `play` is the stream's own address from the list, with the title it belongs to
+        (`kind`, `ident`, and for a show `season` and `episode`). It is saved into the Collection folder and shown in Downloads. Nothing else of the title is looked for."""
+        require_auth(request)
+        _sfw_only()
+        from ..engines import collection as col
+        from ..engines import collection_worker as cw
+        body = await request.json()
+        body = body if isinstance(body, dict) else {}
+        kind, ident = str(body.get("kind") or ""), str(body.get("ident") or "")
+        if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident):
+            raise HTTPException(400, "A movie or show with an IMDb number is required.")
+        token = str(body.get("play") or "").rsplit("/", 1)[-1]
+        hit = stream_tokens.get(token)
+        if not hit:
+            raise HTTPException(404, "That stream is no longer available. Open the title's page again.")
+        server = ss.configured(db)
+        try:
+            info_hash, file_idx, trackers = ss.parse_torrent_url(server, hit[1])
+        except ValueError:
+            raise HTTPException(400, "Only torrents can be downloaded for now.")
+        if not info_hash:
+            raise HTTPException(400, "That is not a torrent hash.")
+        season = body.get("season") if isinstance(body.get("season"), int) else 0
+        episode = body.get("episode") if isinstance(body.get("episode"), int) else 0
+        if kind == "series" and not (season >= 0 and episode >= 1):
+            raise HTTPException(400, "A show needs its season and episode.")
+
+        def work():
+            meta = {}
+            try:
+                meta = cw.meta_of_factory(db)(kind, ident)
+            except Exception:
+                pass
+            title = str(meta.get("name") or body.get("title") or "").strip()
+            digits = re.match(r"\d{4}", str(meta.get("releaseInfo") or meta.get("year") or ""))
+            year = int(digits.group(0)) if digits else (int(body["year"]) if isinstance(body.get("year"), int) else None)
+            if not title:
+                raise HTTPException(502, "The catalogue could not name that title. Try again in a moment.")
+            try:
+                return col.enqueue_stream(db, kind, ident, title, year, str(meta.get("poster") or body.get("poster") or ""), season, episode,
+                                          release=str(body.get("name") or ""), info_hash=info_hash, file_idx=file_idx, trackers=trackers)
+            except ValueError as exc:
+                raise HTTPException(409, str(exc))
+        out = await asyncio.to_thread(work)
+        cw.start_for(db)
+        cw.worker_for(db).kick()
+        return {"ok": True, **out}
+
     @router.get("/api/screen/stream/{token}")
     async def play_stream(token: str, request: Request):
         """Plays a direct stream that was listed as playable, passing its bytes on (and the range the player asks for). Only the addresses this app listed can be played."""

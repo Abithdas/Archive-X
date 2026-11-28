@@ -125,6 +125,16 @@ def is_torrent_url(base: str, url: str) -> bool:
     return (parts.scheme, parts.netloc) == (want.scheme, want.netloc) and bool(_PATH.fullmatch(parts.path)) and not parts.fragment and not parts.username
 
 
+def parse_torrent_url(base: str, url: str) -> tuple[str, int | None, list[str]]:
+    """The inverse of `torrent_url`: (info-hash, file number or None, trackers). Raises ValueError for anything that is not such an address of this server."""
+    if not is_torrent_url(base, url):
+        raise ValueError("That is not a torrent link of the streaming server.")
+    parts = urllib.parse.urlsplit(str(url))
+    h, idx = parts.path.strip("/").split("/")[:2]
+    file_idx = int(idx) if idx.lstrip("-").isdigit() and int(idx) >= 0 else None
+    return info_hash_of(h), file_idx, [t for t in urllib.parse.parse_qs(parts.query).get("tr", []) if t][:MAX_TRACKERS]
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None

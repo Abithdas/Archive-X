@@ -81,6 +81,11 @@ def register_collection_routes(router: APIRouter, *, db, require_auth) -> None:
     def set_state(item_id: int, state: str, note: str, reset: bool) -> bool:
         col.ensure(db)
         with db.lock:
+            failed = db.conn.execute("SELECT 1 FROM collection_items WHERE id=? AND state='FAILED' AND info_hash<>''", (int(item_id),)).fetchone()
+            if failed and state == "WANTED":          # a download chosen by hand that failed: try that same release again
+                db.conn.execute("UPDATE collection_items SET state='DOWNLOADING', note='', got=0, total=0 WHERE id=?", (int(item_id),))
+                db.conn.commit()
+                return True
             cur = db.conn.execute(
                 "UPDATE collection_items SET state=?, note=?, next_at=''" + (", attempts=0, avoid='[]'" if reset else "") + " WHERE id=? AND state<>'DONE'", (state, note, int(item_id)))
             db.conn.commit()
@@ -97,7 +102,17 @@ def register_collection_routes(router: APIRouter, *, db, require_auth) -> None:
         if not ok:
             raise HTTPException(404, "That item is finished or does not exist.")
         if action == "retry":
+            cw.start_for(db)
             cw.worker_for(db).kick()
+        return {"ok": True}
+
+    @router.delete("/api/collection/items/{item_id}")
+    async def collection_item_remove(item_id: int, request: Request):
+        """Take one download out of the list (a running one is stopped and its partial file removed; a finished file stays in the library)."""
+        require_auth(request)
+        sfw_only()
+        if not await asyncio.to_thread(col.delete_item, db, item_id):
+            raise HTTPException(404, "That item does not exist.")
         return {"ok": True}
 
     @router.post("/api/collection/run")

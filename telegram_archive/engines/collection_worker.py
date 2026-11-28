@@ -78,10 +78,11 @@ class Worker:
             self.running = False
 
     def _loop(self) -> None:
-        self.stop_event.wait(45)                       # the app is busy opening: the first round waits
+        self.wake.wait(45)                             # the app is busy opening: the first round waits (a download the person just chose does not)
+        self.wake.clear()
         while not self.stop_event.is_set():
             try:
-                if col.settings(self.db)["on"]:
+                if col.settings(self.db)["on"] or col.has_downloads(self.db):     # downloads chosen by hand run even with automatic downloads off
                     self.run_once()
             except Exception as exc:
                 self.db.log(f"Collection worker error: {type(exc).__name__}: {exc}", "WARN")

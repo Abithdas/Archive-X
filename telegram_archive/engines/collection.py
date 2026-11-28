@@ -136,6 +136,60 @@ def remove_title(db, title_id: int) -> bool:
         return bool(cur.rowcount)
 
 
+def enqueue_stream(db, kind: str, imdb: str, title: str, year: int | None, poster: str, season: int, episode: int, *, release: str, info_hash: str, file_idx, trackers: list[str], name: str = "") -> dict:
+    """Download one chosen stream (the person pressed Download on it): the item goes straight to DOWNLOADING with that release, and nothing else is looked for.
+
+    A title that is not already kept is added unmonitored: it is only a home for this download, and no other episode of it is searched for. Raises ValueError with a plain
+    reason when this one is already downloading or saved.
+    """
+    ensure(db)
+    kind = "movie" if kind == "movie" else "series"
+    season, episode = (0, 0) if kind == "movie" else (int(season), int(episode))
+    now = _iso(now_utc())
+    with db.lock:
+        row = db.conn.execute("SELECT id FROM collection_titles WHERE imdb=?", (imdb,)).fetchone()
+        tid = int(row["id"]) if row else int(db.conn.execute(
+            "INSERT INTO collection_titles(kind,imdb,title,year,poster,scope,monitored,added_at) VALUES(?,?,?,?,?,'all',0,?)", (kind, imdb, str(title)[:200], year, str(poster)[:500], now)).lastrowid)
+        have = db.conn.execute("SELECT id, state FROM collection_items WHERE title_id=? AND season=? AND episode=?", (tid, season, episode)).fetchone()
+        if have and have["state"] == "DOWNLOADING":
+            raise ValueError("That is already downloading.")
+        if have and have["state"] == "DONE":
+            raise ValueError("That is already saved on this computer.")
+        values = (str(release)[:240], info_hash, file_idx if isinstance(file_idx, int) else None, json.dumps(list(trackers)[:30]), now)
+        if have:
+            iid = int(have["id"])
+            db.conn.execute("UPDATE collection_items SET state='DOWNLOADING', release=?, info_hash=?, file_idx=?, trackers=?, got=0, total=0, note='', next_at='', updated_at=? WHERE id=?", (*values, iid))
+        else:
+            iid = int(db.conn.execute(
+                "INSERT INTO collection_items(title_id,season,episode,name,state,attempts,release,info_hash,file_idx,trackers,updated_at) VALUES(?,?,?,?,'DOWNLOADING',1,?,?,?,?,?)",
+                (tid, season, episode, str(name)[:160], *values)).lastrowid)
+        db.conn.commit()
+    return {"title_id": tid, "item_id": iid}
+
+
+def delete_item(db, item_id: int) -> bool:
+    """Take one item out of the list (a download in progress is stopped and its partial file removed; a finished file stays where it is, in the library). A title that was
+    only a home for a manual download is removed with its last item."""
+    ensure(db)
+    with db.lock:
+        it = db.conn.execute("SELECT i.id, i.title_id, t.monitored FROM collection_items i JOIN collection_titles t ON t.id=i.title_id WHERE i.id=?", (int(item_id),)).fetchone()
+        if not it:
+            return False
+        db.conn.execute("DELETE FROM collection_items WHERE id=?", (int(item_id),))
+        left = db.conn.execute("SELECT COUNT(*) AS n FROM collection_items WHERE title_id=?", (int(it["title_id"]),)).fetchone()["n"]
+        if not left and not it["monitored"]:
+            db.conn.execute("DELETE FROM collection_titles WHERE id=?", (int(it["title_id"]),))
+        db.conn.commit()
+    _drop_part(db, int(item_id))
+    return True
+
+
+def has_downloads(db) -> bool:
+    ensure(db)
+    with db.reading() as conn:
+        return conn.execute("SELECT 1 FROM collection_items WHERE state='DOWNLOADING' LIMIT 1").fetchone() is not None
+
+
 def _part_path(db, item_id: int) -> Path:
     return Path(settings(db)["dir"]) / ".downloading" / f"{int(item_id)}.part"
 
@@ -311,6 +365,8 @@ def download_item(db, item: dict, server_base: str, *, open_torrent=None, should
                 if last_data - last_save >= 2:
                     last_save = last_data
                     _progress(db, item["id"], got, total)
+                    if not _downloading(db, item["id"]):
+                        raise Stopped()                            # the person removed or paused it meanwhile
                 if now() - last_data > stall:
                     raise RuntimeError("The download stalled.")
     if total and got < total:
@@ -324,6 +380,11 @@ def download_item(db, item: dict, server_base: str, *, open_torrent=None, should
     os.replace(part, dest)
     _progress(db, item["id"], got, got)
     return str(dest)
+
+
+def _downloading(db, item_id: int) -> bool:
+    with db.reading() as conn:
+        return conn.execute("SELECT 1 FROM collection_items WHERE id=? AND state='DOWNLOADING'", (int(item_id),)).fetchone() is not None
 
 
 def _progress(db, item_id: int, got: int, total: int) -> None:
@@ -343,6 +404,14 @@ def fail_item(db, item: dict, reason: str, now: datetime | None = None) -> None:
     now = now or now_utc()
     avoid = json.loads(item["avoid"] or "[]") + [item["info_hash"]]
     _drop_part(db, item["id"])
+    with db.reading() as conn:
+        t = conn.execute("SELECT monitored FROM collection_titles WHERE id=?", (item["title_id"],)).fetchone()
+    if t is not None and not t["monitored"]:
+        # a download the person chose by hand is not searched for again: it stays in the list as failed, with the release kept so that Try again can retry it
+        with db.lock:
+            db.conn.execute("UPDATE collection_items SET state='FAILED', got=0, total=0, note=?, updated_at=? WHERE id=?", (reason[:240], _iso(now), item["id"]))
+            db.conn.commit()
+        return
     with db.lock:
         db.conn.execute("UPDATE collection_items SET state='WANTED', avoid=?, release='', info_hash='', file_idx=NULL, got=0, total=0, next_at=?, note=?, updated_at=? WHERE id=?",
                         (json.dumps(avoid[-12:]), _iso(now + timedelta(hours=backoff_hours(int(item["attempts"])))), reason[:240], _iso(now), item["id"]))
@@ -398,8 +467,8 @@ def overview(db) -> dict:
     out = []
     for t in titles:
         mine = by.get(t["id"], [])
-        counts = {s: sum(1 for i in mine if i["state"] == s) for s in ("WANTED", "DOWNLOADING", "DONE", "SKIPPED")}
-        out.append({"id": t["id"], "kind": t["kind"], "imdb": t["imdb"], "title": t["title"], "year": t["year"], "poster": t["poster"], "scope": t["scope"], "monitored": bool(t["monitored"]),
+        counts = {s: sum(1 for i in mine if i["state"] == s) for s in ("WANTED", "DOWNLOADING", "DONE", "SKIPPED", "FAILED")}
+        out.append({"id": t["id"], "kind": t["kind"], "imdb": t["imdb"], "title": t["title"], "year": t["year"], "poster": t["poster"], "scope": t["scope"], "monitored": bool(t["monitored"]), "manual": not t["monitored"],
                     "counts": counts, "items": [{"id": i["id"], "season": i["season"], "episode": i["episode"], "name": i["name"], "label": rules.release_label(i["season"], i["episode"], i["name"]),
                                                  "air_date": i["air_date"], "state": i["state"], "release": i["release"], "note": i["note"], "got": i["got"], "total": i["total"], "attempts": i["attempts"]} for i in mine]})
     return {"settings": cfg, "titles": out}
@@ -412,10 +481,10 @@ def tick(db, *, meta_of, finder, server_base: str, ensure_server, stop: threadin
     stop = stop or threading.Event()
     done = new = searched = 0
     try:
-        new = refresh(db, meta_of, today=today)
+        new = refresh(db, meta_of, today=today) if cfg["on"] else 0           # what is missing is looked for only while automatic downloads are on
         now = _iso(now_utc())
         with db.reading() as conn:
-            due = [dict(r) for r in conn.execute(
+            due = [] if not cfg["on"] else [dict(r) for r in conn.execute(
                 "SELECT i.* FROM collection_items i JOIN collection_titles t ON t.id=i.title_id WHERE t.monitored=1 AND i.state='WANTED' AND (i.next_at='' OR i.next_at<=?) ORDER BY i.air_date DESC, i.id LIMIT ?",
                 (now, SEARCHES_PER_ROUND)).fetchall()]
         for it in due:
@@ -442,7 +511,10 @@ def tick(db, *, meta_of, finder, server_base: str, ensure_server, stop: threadin
             try:
                 path = download(db, it, server_base, should_stop=stop.is_set)
             except Stopped:
-                break
+                if _downloading(db, it["id"]):
+                    break                                          # the worker is stopping: the partial file is kept for next time
+                _drop_part(db, it["id"])                           # the person removed it: carry on with the next
+                continue
             except Exception as exc:
                 fail_item(db, it, str(exc) or type(exc).__name__)
                 db.log(f"Collection: {it['release'] or it['id']} failed: {exc}", "WARN")

@@ -10,8 +10,8 @@ import { PLACEHOLDER } from '@/features/series/PosterCard'
 import { useCollection, useCollectionActions, percent, summary, type CollectionItem, type CollectionTitle } from './useCollection'
 
 const BTN = 'h-9 rounded-xl border border-line-2 px-3 text-sm font-semibold hover:bg-fg/5 disabled:opacity-50'
-const CHIP: Record<CollectionItem['state'], string> = { WANTED: 'bg-warn/15 text-warn', DOWNLOADING: 'bg-accent/15 text-accent', DONE: 'bg-good/15 text-good', SKIPPED: 'bg-surface-3 text-muted' }
-const STATE_TEXT: Record<CollectionItem['state'], string> = { WANTED: 'Waiting', DOWNLOADING: 'Downloading', DONE: 'Done', SKIPPED: 'Skipped' }
+const CHIP: Record<CollectionItem['state'], string> = { WANTED: 'bg-warn/15 text-warn', DOWNLOADING: 'bg-accent/15 text-accent', DONE: 'bg-good/15 text-good', SKIPPED: 'bg-surface-3 text-muted', FAILED: 'bg-warn/15 text-warn' }
+const STATE_TEXT: Record<CollectionItem['state'], string> = { WANTED: 'Waiting', DOWNLOADING: 'Downloading', DONE: 'Done', SKIPPED: 'Skipped', FAILED: 'Failed' }
 
 function Item({ it }: { it: CollectionItem }) {
   const act = useCollectionActions()
@@ -22,6 +22,7 @@ function Item({ it }: { it: CollectionItem }) {
         <span className="min-w-0 flex-1 font-semibold [overflow-wrap:anywhere]">{it.label}</span>
         <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold', CHIP[it.state])}>{it.state === 'DOWNLOADING' && pct !== null ? `Downloading ${pct}%` : STATE_TEXT[it.state]}</span>
         {it.state === 'WANTED' || it.state === 'DOWNLOADING' ? <button type="button" onClick={() => act.item.mutate({ id: it.id, action: 'skip' })} className="text-xs font-semibold text-muted hover:text-fg">Skip</button> : null}
+        {it.state === 'FAILED' ? <button type="button" onClick={() => act.item.mutate({ id: it.id, action: 'retry' })} className="text-xs font-semibold text-accent hover:underline">Try again</button> : null}
         {it.state === 'SKIPPED' || (it.state === 'WANTED' && it.attempts > 0) ? <button type="button" onClick={() => act.item.mutate({ id: it.id, action: 'retry' })} className="text-xs font-semibold text-accent hover:underline">Look again now</button> : null}
       </div>
       {it.state === 'DOWNLOADING' && pct !== null ? <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label={`${it.label} download`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}><span className="block h-full rounded-full bg-accent" style={{ width: `${pct}%` }} /></div> : null}

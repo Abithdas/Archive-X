@@ -1,6 +1,9 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRouter } from '@/test/withRouter'
+
+const toastError = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: toastError }), Toaster: () => null }))
 import { AddonExtras, AddonStreams, readStreamPrefs, sizeText } from './AddonStreams'
 
 beforeAll(() => { HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }; HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') } })
@@ -48,7 +51,7 @@ const TORRENTS = { ok: true, skipped: 0, addons: ['Torrentio'], torrents: true, 
   { addon: 'Torrentio', name: 'Torrentio 4k · B', kind: 'play', play: '/api/screen/stream/b', torrent: true, seeders: 90, size: 12 * 1024 ** 3, provider: 'IndexB', height: 2160, cached: true },
   { addon: 'Torrentio', name: 'Torrentio 720p · C', kind: 'play', play: '/api/screen/stream/c', torrent: true, seeders: 40, size: 1.2 * 1024 ** 3, provider: 'IndexC', height: 720 },
 ] }
-const order = () => within(screen.getByRole('list', { name: 'Torrentio' })).getAllByRole('button').map((b) => b.textContent?.slice(0, 22))
+const order = () => within(screen.getByRole('list', { name: 'Torrentio' })).getAllByRole('button').filter((b) => !/^Download /.test(b.getAttribute('aria-label') ?? '')).map((b) => b.textContent?.slice(0, 22))
 
 describe('torrent streams', () => {
   beforeEach(() => { localStorage.clear() })
@@ -162,5 +165,58 @@ describe('torrents without the streaming server', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Start it' }))
     await waitFor(() => expect(calls).toContain('POST /api/screen/streaming-server/start'))
     await waitFor(() => expect(calls.filter((c) => c.includes('/api/screen/streams/')).length).toBeGreaterThan(1))   // asked again now that it is up
+  })
+})
+
+describe('the download button on a stream', () => {
+  beforeEach(() => { localStorage.clear() })
+  const serveStreams = (extra: (u: string, init?: RequestInit) => Response | null = () => null) => {
+    const calls: Array<{ url: string; method: string; body?: unknown }> = []
+    vi.stubGlobal('fetch', vi.fn(async (u: string, init?: RequestInit) => {
+      calls.push({ url: u, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : undefined })
+      const own = extra(u, init)
+      if (own) return own
+      if (u.startsWith('/api/screen/streams/')) return json({ ...TORRENTS, items: [...TORRENTS.items, { addon: 'Torrentio', name: 'A direct file', kind: 'play', play: '/api/screen/stream/d', height: 1080 }] })
+      if (u === '/api/collection') return json({ settings: { on: false, dir: 'C:/Videos/Archive X Collection', quality: 1080, max_gb_movie: 12, max_gb_episode: 4 }, titles: [], server: { up: true, ready: true, installed: false }, running: false })
+      return json({ ok: true })
+    }))
+    return calls
+  }
+  it('is on each torrent stream and not on a direct file, and does not play the stream', async () => {
+    serveStreams()
+    withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
+    const list = await screen.findByRole('list', { name: 'Torrentio' })
+    expect(within(list).getAllByRole('button', { name: /^Download / })).toHaveLength(3)                       // the three torrents, not the direct file
+    expect(within(list).queryByRole('button', { name: 'Download A direct file' })).toBeNull()
+    fireEvent.click(within(list).getByRole('button', { name: 'Download Torrentio 4k · B' }))
+    expect(screen.queryByText('Add-on player page')).toBeNull()                                                // the click is the download, not the row's play
+  })
+  it('sends the stream with its title and opens the Downloads window', async () => {
+    const calls = serveStreams()
+    withRouter(<AddonStreams kind="series" ident="tt0903747" season={1} episode={2} />)
+    const list = await screen.findByRole('list', { name: 'Torrentio' })
+    fireEvent.click(within(list).getByRole('button', { name: 'Download Torrentio 1080p · A' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Downloads' })
+    expect(within(dialog).getByRole('tab', { name: 'Downloads (0)' })).toBeInTheDocument()
+    const sent = calls.find((c) => c.url === '/api/screen/stream-download')!
+    expect(sent.method).toBe('POST')
+    expect(sent.body).toEqual({ play: '/api/screen/stream/a', kind: 'series', ident: 'tt0903747', season: 1, episode: 2, name: 'Torrentio 1080p · A' })
+  })
+  it('says why it could not start and does not open the window', async () => {
+    serveStreams((u) => (u === '/api/screen/stream-download' ? new Response(JSON.stringify({ detail: 'That is already downloading.' }), { status: 409, headers: { 'content-type': 'application/json' } }) : null))
+    withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
+    const list = await screen.findByRole('list', { name: 'Torrentio' })
+    fireEvent.click(within(list).getByRole('button', { name: 'Download Torrentio 4k · B' }))
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('That is already downloading.'))
+    expect(screen.queryByRole('dialog', { name: 'Downloads' })).toBeNull()
+  })
+  it('has a Downloads button on the streams header that opens the window, with a count of what is there', async () => {
+    serveStreams((u) => (u === '/api/collection' ? json({ settings: { on: false, dir: 'D:/Dl', quality: 1080, max_gb_movie: 12, max_gb_episode: 4 }, running: false, server: { up: true, ready: true, installed: false }, titles: [
+      { id: 1, kind: 'movie', imdb: 'tt1', title: 'The End of Oak Street', year: 2026, poster: '', scope: 'all', monitored: false, manual: true, counts: { WANTED: 0, DOWNLOADING: 1, DONE: 0, SKIPPED: 0 }, items: [{ id: 9, season: 0, episode: 0, name: '', label: 'The End of Oak Street', air_date: '', state: 'DOWNLOADING', release: '1080p Web', note: '', got: 750, total: 1500, attempts: 1 }] }] }) : null))
+    withRouter(<AddonStreams kind="movie" ident="tt1160419" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Downloads (1)' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Downloads' })
+    expect(await within(dialog).findByRole('progressbar', { name: 'The End of Oak Street download' })).toHaveAttribute('aria-valuenow', '50')
+    expect(within(dialog).getByText('Saved to D:/Dl')).toBeInTheDocument()
   })
 })
