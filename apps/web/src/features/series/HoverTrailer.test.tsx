@@ -44,7 +44,18 @@ describe('the trailer in an expanded card', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Watch trailer full screen' }))
     const layer = document.querySelector('[data-trailer-theatre]')!
     expect(layer.querySelector('iframe')!.src).toContain('mute=0')
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument()      // a clear way back, on the page's side of the frame
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(layer.getAttribute('style')).toContain('opacity: 0')                    // fading out, then gone
+    layer.remove()
+  })
+
+  it('Esc also closes it', () => {
+    render(<HoverTrailer id="dQw4w9WgXcQ" title="Film" onPlaying={() => undefined} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Watch trailer full screen' }))
+    const layer = document.querySelector('[data-trailer-theatre]')!
     fireEvent.keyDown(window, { key: 'Escape' })
+    expect(layer.getAttribute('style')).toContain('opacity: 0')
     layer.remove()
   })
 })

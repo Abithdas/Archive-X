@@ -19,27 +19,38 @@ const embed = (id: string, extra: string) => `https://www.youtube-nocookie.com/e
 export function openTheatre(id: string, start: number, title: string): void {
   if (!VALID.test(id) || typeof document === 'undefined') return
   const el = document.createElement('div')
-  el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', `${title} trailer`); el.dataset.trailerTheatre = ''
-  el.style.cssText = 'position:fixed;inset:0;z-index:2000;background:#000;opacity:0;transition:opacity .25s ease'
+  el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', `${title} trailer`); el.dataset.trailerTheatre = ''; el.tabIndex = -1
+  el.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:#000;opacity:0;transition:opacity .25s ease;outline:none'
   const frame = document.createElement('iframe')
-  frame.title = `${title} trailer`; frame.allow = 'autoplay; encrypted-media; fullscreen'
+  frame.title = `${title} trailer`; frame.allow = 'autoplay; encrypted-media; fullscreen'; frame.tabIndex = -1
   frame.src = embed(id, `autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&playsinline=1&start=${Math.max(0, Math.floor(start))}`)
   frame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0'
-  const close = document.createElement('button')
-  close.type = 'button'; close.setAttribute('aria-label', 'Close trailer'); close.textContent = '✕'
-  close.style.cssText = 'position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(0,0,0,.55);color:#fff;font-size:18px;cursor:pointer'
-  el.append(frame, close)
+  // A strip along the top that is always on the page's side of the frame: the way back is never under YouTube's own controls.
+  const bar = document.createElement('div')
+  bar.style.cssText = 'position:absolute;left:0;right:0;top:0;z-index:2;padding:16px 20px 36px;background:linear-gradient(180deg,rgba(0,0,0,.75),transparent);pointer-events:none'
+  const back = document.createElement('button')
+  back.type = 'button'; back.setAttribute('aria-label', 'Back'); back.title = 'Back (Esc)'
+  back.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>'
+  back.style.cssText = 'pointer-events:auto;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.55);background:rgba(0,0,0,.55);color:#fff;cursor:pointer'
+  bar.append(back)
+  el.append(frame, bar)
+  let closed = false
   const done = () => {
+    if (closed) return
+    closed = true
     window.removeEventListener('keydown', onKey, true)
     document.removeEventListener('fullscreenchange', onFs)
     if (document.fullscreenElement === el) void document.exitFullscreen().catch(() => undefined)
     el.style.opacity = '0'; setTimeout(() => el.remove(), 260)
   }
-  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); done() } }
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); e.stopImmediatePropagation(); done() } }
   const onFs = () => { if (!document.fullscreenElement) done() }
-  close.addEventListener('click', done)
+  back.addEventListener('click', done)
   window.addEventListener('keydown', onKey, true)
+  // YouTube's frame takes the keyboard when it loads: take it back, so Esc reaches this page (the browser's own full screen Esc still works either way).
+  frame.addEventListener('load', () => { try { frame.blur(); el.focus({ preventScroll: true }) } catch { /* gone */ } })
   document.body.append(el)
+  el.focus({ preventScroll: true })
   requestAnimationFrame(() => { el.style.opacity = '1' })
   void Promise.resolve(el.requestFullscreen?.()).then(() => document.addEventListener('fullscreenchange', onFs)).catch(() => undefined)
 }
