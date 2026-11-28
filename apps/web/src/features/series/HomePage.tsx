@@ -46,7 +46,7 @@ function Row({ title, hint, children, arrowTop = 132, onSeeAll }: { title: strin
   return (
     <section aria-label={title} className="grid gap-3">
       <div className="flex items-baseline justify-between gap-3"><h2 className="text-xl font-extrabold tracking-tight">{title}</h2>{onSeeAll ? <button type="button" onClick={onSeeAll} className="text-[13px] font-semibold text-muted transition-colors hover:text-fg">See all →</button> : hint ? <span className="text-[13px] text-muted">{hint}</span> : null}</div>
-      <HScroll label={`${title}, scroll sideways`} arrowTop={arrowTop} className="-mx-4 -mb-7 -mt-2 flex snap-x gap-4 px-4 pb-10 pt-3">{children}</HScroll>
+      <HScroll label={`${title}, scroll sideways`} arrowTop={arrowTop} className="-mx-4 -mb-7 -mt-2 flex snap-x scroll-px-4 gap-4 px-4 pb-10 pt-3">{children}</HScroll>
     </section>
   )
 }
