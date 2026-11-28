@@ -6,7 +6,9 @@ import { useSearch } from '@/app/search'
 import { useUi } from '@/app/ui'
 import { useHomeTab, useScreenView } from './view'
 
-const toDiscover = async () => fireEvent.click(await screen.findByRole('tab', { name: 'Discover' }))
+// There is no Discover page any more: "See all" on the Popular movies row opens the whole list in a pop-up over Home.
+const browse = () => screen.getByRole('dialog', { name: 'Browse' })
+const toDiscover = async () => { const row = await screen.findByRole('region', { name: 'Popular movies' }); fireEvent.click(within(row).getByRole('button', { name: /See all/ })) }
 
 beforeAll(() => { HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }; HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') } })
 afterEach(() => { vi.unstubAllGlobals(); useHomeTab.setState({ tab: 'home' }); useScreenView.setState({ view: 'all' }); useSearch.setState({ q: '' }) })
@@ -47,29 +49,26 @@ describe('SFW Home', () => {
 
   it('keeps a part of the page after it is left: coming back shows it at once, asks for nothing, and replays no entrance', async () => {
     const urls = mount()
-    await toDiscover()
-    const catalogue = await screen.findByRole('list', { name: 'Catalogue' })
+    const popular = await screen.findByRole('region', { name: 'Popular movies' })
     const asked = () => urls.filter((u) => u.startsWith('/api/screen/discover?')).length
     const before = asked()
     fireEvent.click(screen.getByRole('tab', { name: 'Library' }))
     expect(await screen.findByRole('region', { name: 'Your library' })).toBeInTheDocument()
-    expect(screen.queryByRole('list', { name: 'Catalogue' })).not.toBeInTheDocument()          // hidden, not gone
-    fireEvent.click(screen.getByRole('tab', { name: 'Discover' }))
-    expect(screen.getByRole('list', { name: 'Catalogue' })).toBe(catalogue)                      // the very same list: nothing was rebuilt
+    expect(screen.queryByRole('region', { name: 'Popular movies' })).not.toBeInTheDocument()   // hidden, not gone
+    fireEvent.click(screen.getByRole('tab', { name: 'For you' }))
+    expect(screen.getByRole('region', { name: 'Popular movies' })).toBe(popular)                // the very same row: nothing was rebuilt
     expect(asked()).toBe(before)
     expect(screen.queryByRole('region', { name: 'Your library' })).not.toBeInTheDocument()
-    expect(catalogue.closest('.mo-enter')).toBeNull()                                            // no slide-in on every switch
   })
 
-  it('prepares Discover and the Library out of sight once For you has settled, so the first switch to them is instant', async () => {
-    const urls = mount()
+  it('prepares the Library out of sight once For you has settled, so the first switch to it is instant', async () => {
+    mount()
     await screen.findByRole('link', { name: 'Continue Dark' })
-    expect(screen.queryByRole('list', { name: 'Catalogue' })).not.toBeInTheDocument()
-    await vi.waitFor(() => expect(urls.some((u) => u.startsWith('/api/screen/discover?type=movie&skip=0') && urls.filter((x) => x.startsWith('/api/screen/discover?')).length >= 1)).toBe(true), { timeout: 4000 })
-    await vi.waitFor(() => expect(screen.getAllByRole('list', { name: 'Catalogue', hidden: true }).length).toBeGreaterThan(0), { timeout: 4000 })
-    expect(screen.queryByRole('list', { name: 'Catalogue' })).not.toBeInTheDocument()          // prepared, but not shown
-    await toDiscover()
-    expect(screen.getByRole('list', { name: 'Catalogue' })).toBeInTheDocument()                  // there at once
+    expect(screen.queryByRole('region', { name: 'Your library' })).not.toBeInTheDocument()
+    await vi.waitFor(() => expect(screen.getAllByRole('region', { name: 'Your library', hidden: true }).length).toBeGreaterThan(0), { timeout: 4000 })
+    expect(screen.queryByRole('region', { name: 'Your library' })).not.toBeInTheDocument()      // prepared, but not shown
+    fireEvent.click(screen.getByRole('tab', { name: 'Library' }))
+    expect(screen.getByRole('region', { name: 'Your library' })).toBeInTheDocument()            // there at once
   })
 
   it('has one tab bar, at the same place whichever part is open, and one page heading', async () => {
@@ -77,7 +76,7 @@ describe('SFW Home', () => {
     await screen.findByRole('link', { name: 'Continue Dark' })
     expect(screen.getAllByRole('tablist', { name: 'Home' })).toHaveLength(1)                     // over the hero on For you
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    await toDiscover()
+    fireEvent.click(screen.getByRole('tab', { name: 'Library' }))
     expect(screen.getAllByRole('tablist', { name: 'Home' })).toHaveLength(1)                     // under the bar on the others
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
@@ -92,34 +91,34 @@ describe('SFW Home', () => {
     expect(within(screen.getByRole('region', { name: 'Featured' })).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/movies/1')
   })
 
-  it('Discover marks what you have, opens the details of a title, and finds more by genre and by search', async () => {
+  it('Browse marks what you have, opens the details of a title, and finds more by genre and by search', async () => {
     const urls = mount()
     await toDiscover()
     const list = await screen.findByRole('list', { name: 'Catalogue' })
     expect(within(list).getByText('In your library')).toBeInTheDocument()
     expect(within(list).getByRole('link', { name: 'Open Dune' })).toHaveAttribute('href', '/discover/movie/tt0000002')   // a poster opens the title's page, no pop-up
-    expect(document.querySelector('dialog[open]')).toBeNull()
-    expect(screen.getByRole('heading', { name: 'Popular movies' })).toBeInTheDocument()
+    expect(within(browse()).getByRole('heading', { name: 'Popular movies' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Filters/ }))                                     // one Filters button, like the Photos page
     const genres = screen.getByRole('group', { name: 'Genre' })
     for (const g of ['All genres', 'Biography', 'History', 'Sport']) expect(within(genres).getByRole('button', { name: g })).toBeInTheDocument()
     fireEvent.click(within(genres).getByRole('button', { name: 'Drama' }))
-    expect(await screen.findByRole('heading', { name: 'Drama movies' })).toBeInTheDocument()            // the page says which genre is on
+    expect(await within(browse()).findByRole('heading', { name: 'Drama movies' })).toBeInTheDocument()            // the page says which genre is on
     await vi.waitFor(() => expect(urls.some((u) => u.includes('genre=Drama'))).toBe(true))
     fireEvent.click(within(genres).getByRole('button', { name: 'Comedy' }))                              // genres add up: both are asked for
-    expect(await screen.findByRole('heading', { name: 'Drama · Comedy movies' })).toBeInTheDocument()
+    expect(await within(browse()).findByRole('heading', { name: 'Drama · Comedy movies' })).toBeInTheDocument()
     await vi.waitFor(() => expect(urls.some((u) => u.includes('genre=Drama%2CComedy'))).toBe(true))
     fireEvent.click(within(screen.getByRole('group', { name: 'Kind' })).getByRole('button', { name: 'Series' }))
     expect(screen.getByRole('button', { name: /Filters/ })).toHaveTextContent('3')                           // the count of what is chosen: series, Drama and Comedy
     await vi.waitFor(() => expect(urls.some((u) => u.includes('type=series'))).toBe(true))
     act(() => useSearch.getState().set('dune'))                                                            // typed in the one search box, in the top bar
     await vi.waitFor(() => expect(urls.some((u) => u.includes('search=dune'))).toBe(true))
-    expect(screen.queryByRole('region', { name: 'Featured' })).toBeNull()                                  // a search shows only its results
+    expect(screen.queryByRole('region', { name: 'Featured' })).toBeNull()                                  // a search shows only its results, on Home itself
   })
 
   it('says so when Cinemeta is switched off, instead of an empty page', async () => {
     mount((u) => (u.startsWith('/api/screen/discover') && !u.includes('/discover/') ? json({ ok: true, disabled: true, items: [] }) : undefined))
-    await toDiscover()
+    await screen.findByRole('link', { name: 'Continue Dark' })
+    act(() => useSearch.getState().set('dune'))
     expect(await screen.findByText(/it is switched off/)).toBeInTheDocument()
   })
 
@@ -132,7 +131,7 @@ describe('SFW Home', () => {
     expect(within(panel).getByText('The Matrix')).toBeInTheDocument()                                  // the first title is shown at once
     fireEvent.focus(within(list).getByRole('link', { name: 'Open Dune' }))
     expect(await within(await screen.findByRole('complementary', { name: 'Details' })).findByText('Dune')).toBeInTheDocument()
-    expect(document.querySelector('dialog[open]')).toBeNull()
+    expect(document.querySelectorAll('dialog[open]')).toHaveLength(1)                                   // only Browse itself: the details are beside the posters
   })
 
   it('the featured picture has a dot for each title and the active one fills as time runs out', async () => {
@@ -143,26 +142,33 @@ describe('SFW Home', () => {
     expect(feat.querySelectorAll('.mo-dot-fill').length).toBe(1)
   })
 
-  it('has For you, Discover and Library under one heading; popular rows lead to Discover, the Library part lists your series and movies, and a search jumps to Discover', async () => {
+  it('has For you, Library and Collection under one heading and no Discover page: See all opens the list in a pop-up, the Library part lists your series and movies, and a search is answered on Home', async () => {
     const urls = mount()
     expect(await screen.findByRole('region', { name: 'Featured' })).toBeInTheDocument()                    // For you is where it opens
+    expect(screen.queryByRole('tab', { name: 'Discover' })).toBeNull()
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['For you', 'Library', 'Collection'])
     const row = await screen.findByRole('region', { name: 'Popular movies' })
     fireEvent.click(within(row).getByRole('button', { name: 'See all →' }))
-    expect(await screen.findByRole('list', { name: 'Catalogue' })).toBeInTheDocument()                     // "See all" opens Discover
+    expect(await within(browse()).findByRole('list', { name: 'Catalogue' })).toBeInTheDocument()           // "See all" opens the whole list over Home
+    fireEvent.click(within(browse()).getByRole('button', { name: 'Close' }))
+    await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'Browse' })).toBeNull())
     fireEvent.click(screen.getByRole('tab', { name: 'Library' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Series' }))
     await vi.waitFor(() => expect(urls.some((u) => u.startsWith('/api/screen/series'))).toBe(true))
     fireEvent.click(screen.getByRole('tab', { name: 'For you' }))
     act(() => useSearch.getState().set('dune'))                                                            // typed in the one search box, in the top bar
-    expect(await screen.findByRole('tab', { name: 'Discover', selected: true })).toBeInTheDocument()       // a search is always answered by Discover
+    expect(await screen.findByRole('list', { name: 'Catalogue' })).toBeInTheDocument()                     // the results are on Home, under its own tabs
+    expect(screen.getAllByRole('tab')).toHaveLength(3)
     await vi.waitFor(() => expect(urls.some((u) => u.includes('search=dune'))).toBe(true))
+    act(() => useSearch.getState().set(''))
+    expect(await screen.findByRole('region', { name: 'Popular movies' })).toBeInTheDocument()              // clearing the search is back to the rows
   })
 
   it('lets the featured picture run under the top bar while it is on screen, and gives the bar back otherwise', async () => {
     mount()
     await screen.findByRole('region', { name: 'Featured' })
     expect(useUi.getState().immersive).toBe(true)
-    await toDiscover()
+    fireEvent.click(screen.getByRole('tab', { name: 'Library' }))
     await vi.waitFor(() => expect(useUi.getState().immersive).toBe(false))
   })
 
@@ -173,7 +179,7 @@ describe('SFW Home', () => {
     const lists = screen.getByRole('group', { name: 'List' })
     for (const l of ['Popular', 'New', 'Featured', 'Netflix', 'HBO Max', 'Disney+', 'Prime Video', 'Apple TV+', 'Anime airing now', 'Top anime series', 'Top anime movies']) expect(within(lists).getByRole('button', { name: l })).toBeInTheDocument()
     fireEvent.click(within(lists).getByRole('button', { name: 'Netflix' }))
-    expect(await screen.findByRole('heading', { name: 'Netflix movies' })).toBeInTheDocument()
+    expect(await within(browse()).findByRole('heading', { name: 'Netflix movies' })).toBeInTheDocument()
     await vi.waitFor(() => expect(urls.some((u) => u.includes('catalog=netflix'))).toBe(true))
     fireEvent.click(await screen.findByRole('button', { name: 'Show more' }))
     await vi.waitFor(() => expect(urls.some((u) => u.includes('catalog=netflix') && u.includes('skip=1'))).toBe(true))          // TMDB pages by number, not by fifty
@@ -188,9 +194,9 @@ describe('SFW Home', () => {
     await toDiscover()
     fireEvent.click(await screen.findByRole('button', { name: /Filters/ }))
     fireEvent.click(within(screen.getByRole('group', { name: 'List' })).getByRole('button', { name: 'Top anime series' }))
-    expect(await screen.findByRole('heading', { name: 'Top anime series' })).toBeInTheDocument()
+    expect(await within(browse()).findByRole('heading', { name: 'Top anime series' })).toBeInTheDocument()
     expect(within(screen.getByRole('group', { name: 'Kind' })).getByRole('button', { name: 'Movies' })).toBeDisabled()
-    expect(await screen.findByRole('link', { name: 'Open One Piece' })).toHaveAttribute('href', expect.stringContaining('/discover/series/kitsu'))   // an anime opens its own page, with its episodes
+    expect(await within(browse()).findByRole('link', { name: 'Open One Piece' })).toHaveAttribute('href', expect.stringContaining('/discover/series/kitsu'))   // an anime opens its own page, with its episodes
   })
 
   it('puts the lists of the add-ons you added in Filters, and asks the server for the one you pick', async () => {
@@ -199,7 +205,7 @@ describe('SFW Home', () => {
     await toDiscover()
     fireEvent.click(await screen.findByRole('button', { name: /Filters/ }))
     fireEvent.click(await within(await screen.findByRole('group', { name: 'Your add-ons' })).findByRole('button', { name: 'My Catalogs: Top films (movies)' }))
-    expect(await screen.findByRole('heading', { name: 'My Catalogs: Top films (movies)' })).toBeInTheDocument()
+    expect(await within(browse()).findByRole('heading', { name: 'My Catalogs: Top films (movies)' })).toBeInTheDocument()
     await vi.waitFor(() => expect(urls.some((u) => u.includes('catalog=addon%3Aabcdef0123%3Amovie%3Atop'))).toBe(true))
     expect(within(screen.getByRole('group', { name: 'Kind' })).getByRole('button', { name: 'Series' })).toBeDisabled()    // the add-on's list has its own kind
   })

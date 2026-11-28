@@ -350,12 +350,12 @@ const HOME_ROWS: ReadonlyArray<{ title: string; kind: Kind; catalog?: Catalog; g
 ]
 
 const WARM_UP_MS = 1500
-const TABS: ReadonlyArray<readonly [HomeTab, string]> = [['home', 'For you'], ['discover', 'Discover'], ['library', 'Library'], ['collection', 'Collection']]
+const TABS: ReadonlyArray<readonly [HomeTab, string]> = [['home', 'For you'], ['library', 'Library'], ['collection', 'Collection']]
 
 /**
  * Home for movies and shows (SFW), in three parts under one heading: For you (what to carry on with, what airs, what was added, and what is
- * popular), Discover (the open catalogue by kind and genre, with details beside the posters) and Library (all your series or movies).
- * Typing in the search box shows Discover's results from any part.
+ * popular), Library (all your series or movies) and Collection. There is no separate Discover page: typing in the search box shows the results right here,
+ * and a row's "See all" opens the whole list in a pop-up (the open catalogue by kind and genre, with details beside the posters).
  */
 export function SfwHome() {
   const labels = useLabels()
@@ -370,9 +370,10 @@ export function SfwHome() {
   const [catalog, setCatalog] = useState<Catalog>('popular')
   const [lib, setLib] = useState<'series' | 'movies'>(view === 'series' ? 'series' : 'movies')
   const searching = text.trim().length >= 2
-  const tab: HomeTab = searching ? 'discover' : view !== 'all' && stored === 'home' ? 'library' : stored
+  const tab: HomeTab = view !== 'all' && stored === 'home' ? 'library' : stored
+  const [browse, setBrowse] = useState(false)   // a row's "See all": the whole list, in a pop-up over Home
   const go = (t: HomeTab) => { setStored(t); if (t !== 'library') useScreenView.getState().setView('all') }
-  const seeAll = (k: Kind, c: Catalog = 'popular', g = '') => { setKind(k); setGenre(g); setCatalog(c); go('discover') }
+  const seeAll = (k: Kind, c: Catalog = 'popular', g = '') => { setKind(k); setGenre(g); setCatalog(c); setBrowse(true) }
   const addons = useAddons()
   const d = home.data
   const setImmersive = useUi((x) => x.setImmersive)
@@ -406,7 +407,7 @@ export function SfwHome() {
     shownTab.current = tab
     scroller.scrollTop = scrolls.current[tab] ?? 0
   }, [tab])
-  const part = (id: HomeTab, layout: string, body: ReactNode) => (seen.has(id) ? <div key={id} hidden={tab !== id} className={tab === id ? `mo-tab-in ${layout}` : undefined}>{body}</div> : null)
+  const part = (id: HomeTab, layout: string, body: ReactNode) => (seen.has(id) ? <div key={id} hidden={searching || tab !== id} className={!searching && tab === id ? `mo-tab-in ${layout}` : undefined}>{body}</div> : null)
   return (
     <section ref={box} className={cn('flex w-full flex-1 flex-col', !bleed && 'px-4 pb-10 pt-4 sm:px-10')}>
       <h1 className="sr-only">{labels.videos}</h1>
@@ -458,7 +459,7 @@ export function SfwHome() {
             </div>
           </>
       ))}
-      {part('discover', 'grid gap-8', <Discover text={text} kind={kind} setKind={setKind} genre={genre} setGenre={setGenre} catalog={catalog} setCatalog={setCatalog} />)}
+      {searching ? <div className="mo-tab-in grid gap-8"><Discover text={text} kind={kind} setKind={setKind} genre={genre} setGenre={setGenre} catalog={catalog} setCatalog={setCatalog} /></div> : null}
       {part('collection', 'grid gap-8', <CollectionPage />)}
       {part('library', 'grid gap-8', (
           <section aria-label="Your library" className="grid gap-4">
@@ -471,6 +472,7 @@ export function SfwHome() {
             {lib === 'series' ? <SeriesList /> : <MoviesList />}
           </section>
       ))}
+      {browse ? <Dialog open onClose={() => setBrowse(false)} title="Browse" wide><Discover text="" kind={kind} setKind={setKind} genre={genre} setGenre={setGenre} catalog={catalog} setCatalog={setCatalog} /></Dialog> : null}
     </section>
   )
 }

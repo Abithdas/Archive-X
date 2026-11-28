@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **No separate Discover page.** The Discover tab is gone: Home has For you, Library and Collection. A row's "See all" now opens the whole list in a pop-up over Home (with the same kind, genre and list filters, and the details beside the posters), and typing in the search box shows the results right on Home, replacing the rows until you clear it. Going back from a title returns to Home.
+
 - **In SFW, Play goes straight into full screen, like dx.bi.** Pressing a stream, Play on a movie or episode, or a Continue watching card now opens the video already in full screen (full screen is asked for in that same click, which is the only time the browser allows it), so you never see a separate video page. Esc takes you back to the page you came from. The player's own full screen button still gives a windowed view, and Next keeps full screen as before. The native player does not do this yet.
 
 - **The stream list on a title page reads like dx.bi's.** Each stream has the kind of release in bold ("Web · HEVC"), its facts under it (add-on, provider, language, seeds, size), and the release's file name dimmed on its own line, instead of one run-on line; rows are flat with thin dividers and a larger quality tile that lights up under the pointer; a filter that is set turns white, and Reset clears them all.
