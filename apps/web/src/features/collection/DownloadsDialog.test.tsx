@@ -72,6 +72,48 @@ describe('DownloadsDialog', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Resume Second film' }))
     await waitFor(() => expect(calls.find((c) => c.url === '/api/collection/items/31/resume')?.method).toBe('POST'))
   })
+  it('lists what is kept with its progress, and each episode can be skipped or looked for again', async () => {
+    const dark = { id: 1, kind: 'series', imdb: 'tt5753856', title: 'Dark', year: 2017, poster: '', scope: 'all', monitored: true, counts: { WANTED: 1, DOWNLOADING: 1, DONE: 3, SKIPPED: 0 },
+      items: [item({ id: 11, season: 1, episode: 4, label: 'S01E04 · Ep 4', state: 'DOWNLOADING', release: 'Dark S01E04 1080p', got: 50, total: 200 }), item({ id: 12, season: 1, episode: 5, label: 'S01E05 · Ep 5', state: 'WANTED', note: 'No release found yet', attempts: 2 })] }
+    const calls = serve([dark, MOVIE])
+    withRouter(<DownloadsDialog open onClose={() => {}} />)
+    const dialog = await screen.findByRole('dialog', { name: 'Downloads' })
+    fireEvent.click(await within(dialog).findByRole('tab', { name: 'Kept (1)' }))                       // only what is kept: the one-off download is not in it
+    expect(within(dialog).getByText('Dark')).toBeInTheDocument()
+    expect(within(dialog).queryByText('The End of Oak Street')).toBeNull()
+    expect(within(dialog).getByText('1 downloading · 1 waiting for a release · 3 done')).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Show 2 episodes' }))
+    const list = within(within(dialog).getByRole('list', { name: 'Dark episodes' }))
+    expect(list.getByText('Downloading 25%')).toBeInTheDocument()
+    expect(list.getByRole('progressbar', { name: 'S01E04 · Ep 4 download' })).toHaveAttribute('aria-valuenow', '25')
+    fireEvent.click(list.getByRole('button', { name: 'Look again now' }))
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/collection/items/12/retry' && c.method === 'POST')).toBe(true))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Stop keeping' }))
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/collection/titles/1' && c.method === 'DELETE')).toBe(true))
+  })
+  it('says how to keep something when nothing is kept, and offers the streaming server when it is not running', async () => {
+    serve([], { up: true, ready: true, installed: false })
+    const { unmount } = withRouter(<DownloadsDialog open onClose={() => {}} />)
+    fireEvent.click(await screen.findByRole('tab', { name: 'Kept (0)' }))
+    expect(await screen.findByText(/Nothing kept yet/)).toBeInTheDocument()
+    unmount()
+    const dark = { id: 1, kind: 'series', imdb: 'tt5753856', title: 'Dark', year: 2017, poster: '', scope: 'all', monitored: true, counts: { WANTED: 1, DOWNLOADING: 0, DONE: 0, SKIPPED: 0 }, items: [] }
+    serve([dark], { up: false, ready: false, installed: false })
+    withRouter(<DownloadsDialog open onClose={() => {}} />)
+    fireEvent.click(await screen.findByRole('tab', { name: 'Kept (1)' }))
+    expect(await screen.findByText(/Downloads need Stremio's streaming server/)).toBeInTheDocument()
+  })
+  it('turns automatic downloads on and off and changes the largest sizes under Settings', async () => {
+    const calls = serve([])
+    withRouter(<DownloadsDialog open onClose={() => {}} />)
+    fireEvent.click(await screen.findByRole('tab', { name: 'Settings' }))
+    fireEvent.click(await screen.findByRole('switch', { name: 'Download automatically' }))
+    await waitFor(() => expect(calls.find((c) => c.url === '/api/collection/settings')?.body).toEqual({ on: true }))
+    const movie = screen.getByLabelText('Largest movie (GB)')
+    fireEvent.change(movie, { target: { value: '20' } })
+    fireEvent.blur(movie)
+    await waitFor(() => expect(calls.filter((c) => c.url === '/api/collection/settings').pop()?.body).toEqual({ max_gb_movie: 20 }))
+  })
   it('chooses how many downloads run at once under Settings', async () => {
     const calls = serve([])
     withRouter(<DownloadsDialog open onClose={() => {}} />)

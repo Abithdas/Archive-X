@@ -1,6 +1,5 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CollectionPage } from './CollectionPage'
 import { KeepButton } from './KeepButton'
 import { percent, summary } from './useCollection'
 import { withRouter } from '@/test/withRouter'
@@ -36,49 +35,8 @@ describe('summary and progress', () => {
   })
 })
 
-describe('CollectionPage', () => {
-  it('says how to start when nothing is kept', async () => {
-    serve({})
-    withRouter(<CollectionPage />)
-    expect(await screen.findByText('Nothing kept yet')).toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: 'Quality' })).toHaveValue('1080')
-  })
-
-  it('lists what is kept with its progress, and each episode can be skipped or looked for again', async () => {
-    const calls = serve({ titles: [DARK] })
-    withRouter(<CollectionPage />)
-    expect(await screen.findByText('Dark')).toBeInTheDocument()
-    expect(screen.getByText('1 downloading · 1 waiting for a release · 3 done')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Show 2 episodes' }))
-    const list = within(screen.getByRole('list', { name: 'Dark episodes' }))
-    expect(list.getByText('Downloading 25%')).toBeInTheDocument()
-    expect(list.getByRole('progressbar', { name: 'S01E04 · Ep 4 download' })).toHaveAttribute('aria-valuenow', '25')
-    expect(list.getByText('No release found yet')).toBeInTheDocument()
-    fireEvent.click(list.getByRole('button', { name: 'Look again now' }))
-    await waitFor(() => expect(calls.some((c) => c.url === '/api/collection/items/12/retry' && c.method === 'POST')).toBe(true))
-  })
-
-  it('turns automatic downloads on and off, changes the quality and stops keeping a title', async () => {
-    const calls = serve({ titles: [DARK], settings: { ...SETTINGS, on: false } })
-    withRouter(<CollectionPage />)
-    fireEvent.click(await screen.findByRole('switch', { name: 'Download automatically' }))
-    await waitFor(() => expect(calls.find((c) => c.url === '/api/collection/settings')?.body).toEqual({ on: true }))
-    fireEvent.change(screen.getByRole('combobox', { name: 'Quality' }), { target: { value: '2160' } })
-    await waitFor(() => expect(calls.filter((c) => c.url === '/api/collection/settings').pop()?.body).toEqual({ quality: 2160 }))
-    fireEvent.click(screen.getByRole('button', { name: 'Stop keeping' }))
-    await waitFor(() => expect(calls.some((c) => c.url === '/api/collection/titles/1' && c.method === 'DELETE')).toBe(true))
-  })
-
-  it('offers to set up the streaming server when something is kept and the server is not running', async () => {
-    serve({ titles: [DARK], server: { up: false, ready: false, installed: false } })
-    withRouter(<CollectionPage />)
-    expect(await screen.findByText(/Downloads need Stremio's streaming server/)).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: 'Set it up' })).toBeInTheDocument()
-  })
-})
-
 describe('KeepButton', () => {
-  it('keeps a movie in one press and then shows it is in the Collection', async () => {
+  it('keeps a movie in one press', async () => {
     const calls = serve({})
     withRouter(<KeepButton kind="movie" imdb="tt0133093" title="The Matrix" year={1999} poster="https://img/p.jpg" />)
     fireEvent.click(await screen.findByRole('button', { name: 'Keep this' }))
@@ -96,7 +54,7 @@ describe('KeepButton', () => {
   it('shows a kept title as such and stops keeping it on a second press', async () => {
     const calls = serve({ titles: [DARK] })
     withRouter(<KeepButton kind="series" imdb="tt5753856" title="Dark" />)
-    fireEvent.click(await screen.findByRole('button', { name: 'In your Collection' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Kept' }))
     await waitFor(() => expect(calls.some((c) => c.url === '/api/collection/titles/1' && c.method === 'DELETE')).toBe(true))
   })
 

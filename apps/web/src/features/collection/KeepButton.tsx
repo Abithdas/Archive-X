@@ -11,14 +11,14 @@ export function KeepButton({ kind, imdb, title, year, poster, className, label }
   const act = useCollectionActions()
   const [menu, setMenu] = useState(false)
   if (!/^tt\d{5,10}$/.test(imdb)) return null
-  const kept = state.data?.titles.find((t) => t.imdb === imdb)
+  const kept = state.data?.titles.find((t) => t.imdb === imdb && t.monitored)      // a title only downloaded by hand is not kept
   const add = (scope: 'all' | 'new') => act.add.mutate({ kind, imdb, title, year: year ?? null, poster: poster ?? '', scope }, {
-    onSuccess: () => { setMenu(false); toast(state.data?.settings.on ? `Keeping ${title}: Archive X will look for it now.` : `Added ${title} to the Collection. Turn on automatic downloads on the Collection page to start.`) },
-    onError: (e) => toast.error(errorText(e, 'Could not add it to the Collection.')),
+    onSuccess: () => { setMenu(false); toast(state.data?.settings.on ? `Keeping ${title}: Archive X will look for it now.` : `Added ${title} to Kept. Turn on automatic downloads in Downloads, Settings to start.`) },
+    onError: (e) => toast.error(errorText(e, 'Could not keep it.')),
   })
   const base = 'inline-flex h-11 items-center gap-2 rounded-full px-6 text-sm font-bold transition-[transform,background-color,filter] active:scale-[0.97]'
   if (kept) {
-    return <button type="button" onClick={() => act.remove.mutate(kept.id, { onSuccess: () => toast(`${title} is no longer kept. Files already downloaded stay.`) })} className={cn(base, 'border border-accent/60 bg-accent/15 text-fg hover:bg-accent/25', className)} title="Stop keeping this up to date"><Icon name="check" className="size-4" />In your Collection</button>
+    return <button type="button" onClick={() => act.remove.mutate(kept.id, { onSuccess: () => toast(`${title} is no longer kept. Files already downloaded stay.`) })} className={cn(base, 'border border-accent/60 bg-accent/15 text-fg hover:bg-accent/25', className)} title="Stop keeping this up to date"><Icon name="check" className="size-4" />Kept</button>
   }
   if (kind === 'movie') return <button type="button" disabled={act.add.isPending} onClick={() => add('all')} className={cn(base, 'border border-line-2 font-semibold hover:bg-fg/10 disabled:opacity-60', className)}><Icon name="download" className="size-4" />{label ?? 'Keep this'}</button>
   return (

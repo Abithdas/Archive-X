@@ -17,7 +17,8 @@ import { Chips } from './TitleStage'
 import { MoviesList } from './MoviesPage'
 import { PLACEHOLDER, PosterCard } from './PosterCard'
 import { useRowPreview } from './RowPreview'
-import { CollectionPage } from '@/features/collection/CollectionPage'
+import { DownloadsDialog, downloadsOf } from '@/features/collection/DownloadsDialog'
+import { useCollection } from '@/features/collection/useCollection'
 import { SeriesList } from './SeriesPage'
 import { countText } from './series'
 import { useHomeTab, useScreenView, type HomeTab } from './view'
@@ -350,7 +351,7 @@ const HOME_ROWS: ReadonlyArray<{ title: string; kind: Kind; catalog?: Catalog; g
 ]
 
 const WARM_UP_MS = 1500
-const TABS: ReadonlyArray<readonly [HomeTab, string]> = [['home', 'For you'], ['discover', 'Discover'], ['library', 'Library'], ['collection', 'Collection']]
+const TABS: ReadonlyArray<readonly [HomeTab, string]> = [['home', 'For you'], ['discover', 'Discover'], ['library', 'Library']]
 
 /**
  * Home for movies and shows (SFW), in three parts under one heading: For you (what to carry on with, what airs, what was added, and what is
@@ -392,8 +393,15 @@ export function SfwHome() {
   const setImmersive = useUi((x) => x.setImmersive)
   const bleed = tab === 'home' && !searching && (home.isPending || Boolean(d?.billboard.length))   // while it loads, the hero's place is kept: nothing jumps when the data arrives
   useEffect(() => { setImmersive(bleed); return () => setImmersive(false) }, [bleed, setImmersive])
+  const [downloads, setDownloads] = useState(false)
+  const saved = useCollection(true)
+  const downloadCount = downloadsOf(saved.data?.titles ?? []).reduce((n, g) => n + g.items.length, 0)
+  // The Downloads window (what is downloading and saved, what is kept, and how): a button beside the tabs, not a page of its own.
+  const downloadsButton = (glass: boolean) => (
+    <button type="button" onClick={() => setDownloads(true)} className={cn('inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors', glass ? 'bg-black/50 text-white hover:bg-black/70' : 'bg-fg/10 text-fg hover:bg-fg/15')}><Icon name="download" className="size-4" />Downloads{downloadCount ? ` (${downloadCount})` : ''}</button>
+  )
   const tabs = (glass: boolean) => (
-    <div role="tablist" aria-label="Home" className={cn('flex w-fit gap-1 rounded-full p-1', glass ? 'bg-black/50 text-white' : 'mb-6 bg-fg/10')}>
+    <div role="tablist" aria-label="Home" className={cn('flex w-fit gap-1 rounded-full p-1', glass ? 'bg-black/50 text-white' : 'bg-fg/10')}>
       {TABS.map(([id, label]) => (
         <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => { setText(''); go(id) }}
           className={cn('rounded-full px-5 py-2 text-sm font-semibold transition-[background-color,color] duration-300', tab === id ? (glass ? 'bg-white text-black' : 'bg-fg text-bg') : glass ? 'text-white/85 hover:text-white' : 'text-fg/80 hover:text-fg')}>{label}</button>
@@ -424,13 +432,13 @@ export function SfwHome() {
   return (
     <section ref={box} className={cn('flex w-full flex-1 flex-col', !bleed && 'px-4 pb-10 pt-4 sm:px-10')}>
       <h1 className="sr-only">{labels.videos}</h1>
-      {bleed ? null : tabs(false)}
+      {bleed ? null : <div className="mb-6 flex flex-wrap items-center justify-between gap-3">{tabs(false)}{downloadsButton(false)}</div>}
       {part('home', bleed ? 'flex flex-col' : 'grid gap-8', (
           <>
             {bleed ? (
               <div className="relative">
                 {d?.billboard.length ? <Hero items={d.billboard} /> : <div aria-hidden="true" className="-mb-28 min-h-[min(84vh,780px)] bg-surface-2" />}
-                <div className="absolute inset-x-0 top-20 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10">{tabs(true)}</div>
+                <div className="absolute inset-x-0 top-20 z-10 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-10">{tabs(true)}{downloadsButton(true)}</div>
               </div>
             ) : null}
             <div className={cn('grid gap-8', bleed && 'relative z-10 px-4 pb-10 sm:px-10')}>
@@ -474,7 +482,6 @@ export function SfwHome() {
           </>
       ))}
       {part('discover', 'grid gap-8', <Discover text={text} kind={kind} setKind={setKind} genre={genre} setGenre={setGenre} catalog={catalog} setCatalog={setCatalog} />)}
-      {part('collection', 'grid gap-8', <CollectionPage />)}
       {part('library', 'grid gap-8', (
           <section aria-label="Your library" className="grid gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -486,6 +493,7 @@ export function SfwHome() {
             {lib === 'series' ? <SeriesList /> : <MoviesList />}
           </section>
       ))}
+      {downloads ? <DownloadsDialog open onClose={() => setDownloads(false)} /> : null}
     </section>
   )
 }

@@ -37,6 +37,15 @@ describe('SFW Home', () => {
   const CARD = { cid: '', mid: 0, title: 'The Matrix', sub: '1999', image: '', pct: 60, left: 7, resume: true, addon: { kind: 'movie', ident: 'tt0133093', season: null, episode: null } }
   const withCard = (resume: Response) => mount((url) => url.startsWith('/api/screen/home') ? json({ ...HOME, continue: [CARD] }) : url === '/api/screen/stream-resume' ? resume : undefined)
 
+  it('has For you, Discover and Library, and a Downloads button beside them that opens the Downloads window: no Collection page', async () => {
+    mount()
+    await screen.findByRole('link', { name: 'Continue Dark' })
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['For you', 'Discover', 'Library'])
+    fireEvent.click(screen.getByRole('button', { name: /^Downloads/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Downloads' })
+    expect(within(dialog).getByRole('tab', { name: /^Kept/ })).toBeInTheDocument()        // what used to be the Collection page lives in the window
+    expect(within(dialog).getByRole('tab', { name: 'Settings' })).toBeInTheDocument()
+  })
   it('starts a remembered add-on title again at once, in full screen, instead of opening its title page', async () => {
     const request = vi.fn(async () => undefined)
     document.documentElement.requestFullscreen = request as never

@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **No Collection page: it is part of the Downloads window.** Home has For you, Discover and Library again (Discover is back), and the Collection tab is gone. A Downloads button beside the tabs opens the window, which now has **Downloads** (what is downloading, paused, failed or saved), **Kept** (the movies and shows you pressed Keep this on, with their episodes, Skip, Look again now and Stop keeping) and **Settings** (automatic downloads, folder, quality, the largest sizes, downloads at once). The Keep this button now reads **Kept** once a title is kept (a title you only downloaded by hand no longer shows as kept).
+
 - **Downloads can be paused, work for plain links, and run several at once.** In the Downloads window a running download has **Pause** (it keeps what it fetched and carries on from there with **Resume**), the download button now also appears on debrid and direct streams (they are fetched as they are, only from places a stream may be played from, with the same resume and filing as torrents; the link itself is kept on this computer and never sent back to the page), and Settings has **Downloads at once** (1 to 4, one by default).
 
 - **The native player goes into full screen when Play does.** When the whole page is in full screen (Play in SFW), the native player now shows itself over the screen in the top layer, like the browser player, with its picture window following it and its back arrow in the bar above; leaving full screen puts it back in its place. Its own full screen button works as before.

@@ -10,7 +10,7 @@ same with the pieces Archive X already has, and none of the setup:
   `Movies/Title (Year)/Title (Year).mkv` and `Series/Title (Year)/Season 01/Title - S01E02.mkv`;
 * the Collection folder is a local folder of the library, so a finished file is scanned, named and shown like any other.
 
-It is off until the person turns it on, and every step is visible on the Collection page: what is wanted, what is downloading, what failed and why.
+It is off until the person turns it on, and every step is visible in the Downloads window (Kept and Downloads): what is wanted, what is downloading, what failed and why.
 """
 from __future__ import annotations
 
