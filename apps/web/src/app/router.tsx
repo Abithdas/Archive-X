@@ -108,6 +108,8 @@ const addonPlay = createRoute({
   validateSearch: (s: Record<string, unknown>) => ({
     src: typeof s.src === 'string' && /^\/api\/screen\/stream\/[\w-]{8,60}$/.test(s.src) ? s.src : '',
     name: typeof s.name === 'string' ? s.name.slice(0, 300) : '',
+    title: typeof s.title === 'string' ? s.title.slice(0, 200) : undefined,   // the title's own name and picture, for Continue watching (the stream's name is a release file name)
+    poster: typeof s.poster === 'string' && /^https:\/\//.test(s.poster) ? s.poster.slice(0, 500) : undefined,
     kind: s.kind === 'movie' ? 'movie' as const : 'series' as const,
     ident: typeof s.ident === 'string' && /^tt\d{5,10}$/.test(s.ident) ? s.ident : '',
     season: Number.isInteger(Number(s.season)) && s.season !== undefined && s.season !== '' ? Number(s.season) : undefined,

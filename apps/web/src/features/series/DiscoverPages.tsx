@@ -87,7 +87,7 @@ export function DiscoverTitlePage({ kind, id }: { kind: 'movie' | 'series'; id: 
     )
   const panel = !d || (!seasons.length && !wid) ? null : (
     <div className="grid gap-5">
-      {d.kind === 'movie' && wid ? <AddonStreams kind="movie" ident={wid} /> : null}
+      {d.kind === 'movie' && wid ? <AddonStreams kind="movie" ident={wid} title={d.title} poster={d.poster} /> : null}
       {wid.startsWith('tt') ? <AddonExtras kind={d.kind === 'tv' ? 'series' : 'movie'} ident={wid} /> : null}
       {seasons.length ? (
         <section aria-label="Seasons and episodes" className="grid gap-2">
@@ -148,7 +148,7 @@ export function DiscoverEpisodePage({ id, season, episode }: { id: string; seaso
     )
   const panel = !d || !ep || !wid ? null : (
     <div className="grid gap-3">
-      <AddonStreams kind="series" ident={wid} season={ep.ws ?? season} episode={ep.we ?? episode} />
+      <AddonStreams kind="series" ident={wid} season={ep.ws ?? season} episode={ep.we ?? episode} title={d.title} poster={d.poster} />
     </div>
   )
   return <TitleStage backdrop={ep?.thumb || d?.background || d?.poster || undefined} back={`/discover/series/${id}`} backLabel="Back to the show" left={left} panel={panel} panelLabel="From your add-ons" />

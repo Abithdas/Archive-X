@@ -33,6 +33,13 @@ describe('AddonPlayPage', () => {
     props.onEnd()                                                                 // the end is always sent, as the whole duration
     await waitFor(() => expect(api).toHaveBeenLastCalledWith('/api/screen/addon-progress', { method: 'POST', json: expect.objectContaining({ position: 1000, duration: 1000 }) }))
   })
+  it('sends the title and its picture with the progress, so Continue watching never shows the stream\'s release name', async () => {
+    api.mockResolvedValue({ position: 0 })
+    render(<QueryClientProvider client={new QueryClient()}><AddonPlayPage play={{ ...play, kind: 'movie', ident: 'tt0133093', season: undefined, episode: undefined, name: 'Rl.Tkn.2024.1080p.mkv', title: 'The Matrix', poster: 'https://img.example/m.jpg' }} /></QueryClientProvider>)
+    await screen.findByTestId('player')
+    ;(player.mock.calls.at(-1)![0] as { onTime: (t: number, d: number) => void }).onTime(60, 8000)
+    await waitFor(() => expect(api).toHaveBeenCalledWith('/api/screen/addon-progress', { method: 'POST', json: expect.objectContaining({ name: 'Rl.Tkn.2024.1080p.mkv', title: 'The Matrix', poster: 'https://img.example/m.jpg' }) }))
+  })
   it('starts from the beginning when nothing was kept', async () => {
     api.mockResolvedValue({ position: 0 })
     wrap()

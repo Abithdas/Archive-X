@@ -1326,6 +1326,12 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
     def _same_addon_title(e: dict, kind: str, ident: str, season, episode) -> bool:
         return e.get("kind") == kind and e.get("ident") == ident and e.get("season") == season and e.get("episode") == episode
 
+    def _release_title(name: str) -> str:
+        """A readable guess at a title from a stream's release file name ("Some.Film.2019.1080p.WEBRip.x264-GRP.mkv" -> "Some Film"), for a saved title that was never given its own name."""
+        base = re.sub(r"\.(mkv|mp4|avi|mov|m4v|webm|ts|wmv|flv)$", "", str(name or "").strip(), flags=re.I)
+        base = re.split(r"[.\s_\-\[(]+(?:(?:19|20)\d\d|\d{3,4}p|s\d{1,2}e\d{1,3}|\d{1,2}x\d{2}|web[-.]?(?:rip|dl)|bluray|brrip|hdtv|dvdrip|hdrip|x26[45]|h\.?26[45]|hevc|remux)\b", base, maxsplit=1, flags=re.I)[0]
+        return re.sub(r"[._]+", " ", base).strip(" -") or ""
+
     @router.post("/api/screen/addon-progress")
     async def addon_progress(request: Request):
         """Remember where a title played from an add-on stopped, so Home can offer to continue it. A finished title is dropped from the list."""
@@ -1342,6 +1348,9 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident) or not duration:
             raise HTTPException(400, "kind must be movie or series, ident an IMDb id, and duration above zero")
         name = str(body.get("name") or "")[:200]
+        title = str(body.get("title") or "").strip()[:200]                      # the title's own name and picture (the stream's name is a release file name)
+        poster = str(body.get("poster") or "").strip()[:500]
+        poster = poster if poster.startswith("https://") else ""
         src = str(body.get("src") or "").rsplit("/", 1)[-1]
 
         def torrent_of_src():
@@ -1365,6 +1374,9 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 if not finished and position >= 5:
                     entry = {"kind": kind, "ident": ident, "season": season, "episode": episode, "name": name, "position": round(position, 1),
                              "duration": round(duration, 1), "at": config.now_iso()}
+                    for key, value in (("title", title or (before or {}).get("title")), ("poster", poster or (before or {}).get("poster"))):   # a save without them (an older page) keeps the ones already known
+                        if value:
+                            entry[key] = value
                     keep = now_stream or (before or {}).get("stream")          # a save without the stream (an older page) keeps the one already known
                     if keep:
                         entry["stream"] = keep
@@ -1402,7 +1414,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                 url = ss.torrent_url(server, st["hash"], st.get("idx"), [t for t in st.get("trackers") or [] if isinstance(t, str)])
             except ValueError:
                 raise HTTPException(404, "Nothing is remembered to resume.")
-            return {"play": f"/api/screen/stream/{_stream_token(url)}", "name": str(hit.get("name") or ""), "position": float(hit.get("position") or 0)}
+            return {"play": f"/api/screen/stream/{_stream_token(url)}", "name": str(hit.get("name") or ""), "title": str(hit.get("title") or ""), "poster": str(hit.get("poster") or ""), "position": float(hit.get("position") or 0)}
         return await asyncio.to_thread(work)
 
     @router.get("/api/screen/addon-progress")
@@ -1466,9 +1478,9 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                     seasoned = e.get("season") is not None and e.get("episode") is not None
                     out["continue"].append({
                         "cid": "", "mid": 0, "addon": {"kind": e["kind"], "ident": e["ident"], "season": e.get("season"), "episode": e.get("episode")}, "resume": bool(e.get("stream")),
-                        "title": (t["title"] if t else "") or e.get("name") or "Video",
+                        "title": (t["title"] if t else "") or e.get("title") or _release_title(e.get("name") or "") or "Video",
                         "sub": (f"S{e['season']} · E{e['episode']}" + (f" · {ep['name']}" if ep and ep["name"] else "")) if seasoned else (str(t["year"]) if t and t["year"] else ""),
-                        "image": si.image_url((ep["still"] if ep and ep["still"] else "") or (t["poster"] if t else "") or "", "w500"),
+                        "image": si.image_url((ep["still"] if ep and ep["still"] else "") or (t["poster"] if t else "") or e.get("poster") or "", "w500"),
                         "pct": round(100 * float(e["position"]) / float(e["duration"])), "left": max(1, round((float(e["duration"]) - float(e["position"])) / 60)), "at": str(e.get("at") or "")})
                 out["continue"] = sorted(out["continue"], key=lambda r: r["at"], reverse=True)[:12]
                 rows = c.execute(

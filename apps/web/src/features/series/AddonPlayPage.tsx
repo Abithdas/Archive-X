@@ -11,7 +11,7 @@ import { useSkipTimes } from '@/features/watch/skip'
 import { useExperienceSettings } from '@/features/settings/queries'
 import { experienceFrom } from '@/features/settings/logic'
 
-export interface AddonPlay { src: string; name: string; kind: 'movie' | 'series'; ident: string; season?: number; episode?: number }
+export interface AddonPlay { src: string; name: string; title?: string; poster?: string; kind: 'movie' | 'series'; ident: string; season?: number; episode?: number }
 
 /** A stream from one of the person's add-ons, played on a page of its own with the same player as the library's videos (the subtitle files the add-ons list are in its CC menu). */
 export const ADDON_SAVE_EVERY_MS = 10_000
@@ -36,7 +36,7 @@ export function AddonPlayPage({ play }: { play: AddonPlay }) {
     if (!force && now - last.current < ADDON_SAVE_EVERY_MS) return
     last.current = now
     if (!play.ident || !(duration > 0)) return
-    void api('/api/screen/addon-progress', { method: 'POST', json: { kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, name: play.name, position, duration, src: play.src } }).catch(() => { /* best-effort */ })
+    void api('/api/screen/addon-progress', { method: 'POST', json: { kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, name: play.name, title: play.title, poster: play.poster, position, duration, src: play.src } }).catch(() => { /* best-effort */ })
   }
   // In the desktop app the native player plays it (the same engine as the library's videos); the browser's player is one click away.
   const [engine, setEngine] = useState<'native' | 'web'>('web')

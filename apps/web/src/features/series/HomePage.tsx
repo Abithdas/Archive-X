@@ -382,8 +382,8 @@ export function SfwHome() {
     e.preventDefault()
     playInFullscreen()                                                              // asked for in this click: the browser allows it only now
     const season = a.season ?? undefined, episode = a.episode ?? undefined
-    api<{ play: string; name: string }>('/api/screen/stream-resume', { method: 'POST', json: { kind: a.kind, ident: a.ident, season, episode } })
-      .then((r) => navigate({ to: '/addon-play', search: { src: r.play, name: r.name, kind: a.kind, ident: a.ident, season, episode } }))
+    api<{ play: string; name: string; title?: string; poster?: string }>('/api/screen/stream-resume', { method: 'POST', json: { kind: a.kind, ident: a.ident, season, episode } })
+      .then((r) => navigate({ to: '/addon-play', search: { src: r.play, name: r.name, title: r.title || undefined, poster: r.poster || undefined, kind: a.kind, ident: a.ident, season, episode } }))
       .catch(() => {
         cancelFullscreenPlay()
         void (season !== undefined && episode !== undefined ? navigate({ to: '/discover/$kind/$id/$season/$episode', params: { kind: a.kind, id: a.ident, season: String(season), episode: String(episode) } }) : navigate({ to: '/discover/$kind/$id', params: { kind: a.kind, id: a.ident } }))

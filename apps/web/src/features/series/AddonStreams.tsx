@@ -123,7 +123,7 @@ function StartServer({ onUp }: { onUp: () => void }) {
   )
 }
 
-export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' | 'series'; ident: string; season?: number; episode?: number }) {
+export function AddonStreams({ kind, ident, season, episode, title, poster }: { kind: 'movie' | 'series'; ident: string; season?: number; episode?: number; title?: string; poster?: string }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [group, setGroup] = useState(() => (kind === 'series' ? lastBinge(ident) : ''))
@@ -147,7 +147,7 @@ export function AddonStreams({ kind, ident, season, episode }: { kind: 'movie' |
     if (!item.play) return
     playInFullscreen()                                                  // straight into full screen, like dx.bi (this is the click that allows it)
     if (kind === 'series' && item.bingeGroup) { rememberBinge(ident, item.bingeGroup); setGroup(item.bingeGroup) }
-    void navigate({ to: '/addon-play', search: { src: item.play, name: item.name, kind, ident, season, episode } })
+    void navigate({ to: '/addon-play', search: { src: item.play, name: item.name, title, poster, kind, ident, season, episode } })
   }
   const extra = kind === 'series' ? '?season=' + (season ?? '') + '&episode=' + (episode ?? '') : ''
   const q = useQuery({ queryKey: ['addon-streams', kind, ident, season ?? null, episode ?? null] as const, queryFn: () => api<Streams>('/api/screen/streams/' + kind + '/' + ident + extra), retry: false, staleTime: 5 * 60_000, enabled: /^tt\d+$/.test(ident) && (kind === 'movie' || (season !== undefined && episode !== undefined)) })
