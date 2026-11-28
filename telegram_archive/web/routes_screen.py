@@ -1338,18 +1338,68 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
         if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident) or not duration:
             raise HTTPException(400, "kind must be movie or series, ident an IMDb id, and duration above zero")
         name = str(body.get("name") or "")[:200]
+        src = str(body.get("src") or "").rsplit("/", 1)[-1]
+
+        def torrent_of_src():
+            """The torrent that is playing (its hash, file and trackers), so that Continue can start the same one again without listing the streams; None for any other stream."""
+            hit = stream_tokens.get(src)
+            if not hit:
+                return None
+            try:
+                h, idx, trackers = ss.parse_torrent_url(ss.configured(db), hit[1])
+            except ValueError:
+                return None
+            return {"hash": h, "idx": idx, "trackers": trackers} if h else None
 
         def save():
             from .. import config
+            now_stream = torrent_of_src()
             with db.lock:
+                before = next((e for e in _addon_history() if _same_addon_title(e, kind, ident, season, episode)), None)
                 rest = [e for e in _addon_history() if not _same_addon_title(e, kind, ident, season, episode)]
                 finished = position >= duration * 0.95
                 if not finished and position >= 5:
-                    rest.insert(0, {"kind": kind, "ident": ident, "season": season, "episode": episode, "name": name, "position": round(position, 1),
-                                    "duration": round(duration, 1), "at": config.now_iso()})
+                    entry = {"kind": kind, "ident": ident, "season": season, "episode": episode, "name": name, "position": round(position, 1),
+                             "duration": round(duration, 1), "at": config.now_iso()}
+                    keep = now_stream or (before or {}).get("stream")          # a save without the stream (an older page) keeps the one already known
+                    if keep:
+                        entry["stream"] = keep
+                    rest.insert(0, entry)
                 db.set_setting(ADDON_HISTORY_KEY, rest[:ADDON_HISTORY_MAX])
             return not finished
         return {"ok": True, "kept": await asyncio.to_thread(save)}
+
+    @router.post("/api/screen/stream-resume")
+    async def stream_resume(request: Request):
+        """Continue a title that was played from an add-on: starts the same torrent again (it was remembered with the position) and answers the address to play, without listing the
+        streams. 404 when nothing is remembered to resume, 409 when the streaming server is not running (the page then opens the title's own page instead)."""
+        require_auth(request)
+        _sfw_only()
+        body = await request.json()
+        body = body if isinstance(body, dict) else {}
+        kind, ident = str(body.get("kind") or ""), str(body.get("ident") or "")
+        try:
+            season = int(body["season"]) if body.get("season") not in (None, "") else None
+            episode = int(body["episode"]) if body.get("episode") not in (None, "") else None
+        except (TypeError, ValueError):
+            raise HTTPException(400, "Invalid season or episode")
+        if kind not in ("movie", "series") or not re.fullmatch(r"tt\d{5,10}", ident):
+            raise HTTPException(400, "Unknown title")
+
+        def work():
+            hit = next((e for e in _addon_history() if _same_addon_title(e, kind, ident, season, episode)), None)
+            st = (hit or {}).get("stream")
+            if not hit or not isinstance(st, dict) or not st.get("hash"):
+                raise HTTPException(404, "Nothing is remembered to resume. Open the title's page and pick a stream.")
+            server = ss.configured(db)
+            if not _server_up(server, True):
+                raise HTTPException(409, "Stremio's streaming server is not running.")
+            try:
+                url = ss.torrent_url(server, st["hash"], st.get("idx"), [t for t in st.get("trackers") or [] if isinstance(t, str)])
+            except ValueError:
+                raise HTTPException(404, "Nothing is remembered to resume.")
+            return {"play": f"/api/screen/stream/{_stream_token(url)}", "name": str(hit.get("name") or ""), "position": float(hit.get("position") or 0)}
+        return await asyncio.to_thread(work)
 
     @router.get("/api/screen/addon-progress")
     async def addon_progress_one(request: Request, kind: str, ident: str, season: int | None = None, episode: int | None = None):
@@ -1411,7 +1461,7 @@ def register_screen_routes(router: APIRouter, *, db, require_auth, fetch=None):
                     ep = c.execute("SELECT e.name,e.still FROM screen_episodes e JOIN screen_titles t ON t.id=e.title_id WHERE t.imdb_id=? AND e.season=? AND e.episode=?", (e["ident"], e.get("season"), e.get("episode"))).fetchone() if e.get("season") is not None else None
                     seasoned = e.get("season") is not None and e.get("episode") is not None
                     out["continue"].append({
-                        "cid": "", "mid": 0, "addon": {"kind": e["kind"], "ident": e["ident"], "season": e.get("season"), "episode": e.get("episode")},
+                        "cid": "", "mid": 0, "addon": {"kind": e["kind"], "ident": e["ident"], "season": e.get("season"), "episode": e.get("episode")}, "resume": bool(e.get("stream")),
                         "title": (t["title"] if t else "") or e.get("name") or "Video",
                         "sub": (f"S{e['season']} · E{e['episode']}" + (f" · {ep['name']}" if ep and ep["name"] else "")) if seasoned else (str(t["year"]) if t and t["year"] else ""),
                         "image": si.image_url((ep["still"] if ep and ep["still"] else "") or (t["poster"] if t else "") or "", "w500"),

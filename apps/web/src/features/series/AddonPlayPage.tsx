@@ -33,7 +33,7 @@ export function AddonPlayPage({ play }: { play: AddonPlay }) {
     if (!force && now - last.current < ADDON_SAVE_EVERY_MS) return
     last.current = now
     if (!play.ident || !(duration > 0)) return
-    void api('/api/screen/addon-progress', { method: 'POST', json: { kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, name: play.name, position, duration } }).catch(() => { /* best-effort */ })
+    void api('/api/screen/addon-progress', { method: 'POST', json: { kind: play.kind, ident: play.ident, season: play.season, episode: play.episode, name: play.name, position, duration, src: play.src } }).catch(() => { /* best-effort */ })
   }
   // In the desktop app the native player plays it (the same engine as the library's videos); the browser's player is one click away.
   const [engine, setEngine] = useState<'native' | 'web'>('web')

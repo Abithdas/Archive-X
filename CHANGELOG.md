@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **Continue watching resumes add-on titles at once, in full screen.** A card for something you watched through an add-on remembers the torrent that was playing with the position; a plain click starts it again right away in full screen, without opening the title page and picking a stream. If the streaming server is not running or nothing is remembered, the title's page opens as before.
+
 - **No separate Discover page.** The Discover tab is gone: Home has For you, Library and Collection. A row's "See all" now opens the whole list in a pop-up over Home (with the same kind, genre and list filters, and the details beside the posters), and typing in the search box shows the results right on Home, replacing the rows until you clear it. Going back from a title returns to Home.
 
 - **In SFW, Play goes straight into full screen, like dx.bi.** Pressing a stream, Play on a movie or episode, or a Continue watching card now opens the video already in full screen (full screen is asked for in that same click, which is the only time the browser allows it), so you never see a separate video page. Esc takes you back to the page you came from. The player's own full screen button still gives a windowed view, and Next keeps full screen as before. The native player does not do this yet.

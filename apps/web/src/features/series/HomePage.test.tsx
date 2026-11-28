@@ -36,6 +36,37 @@ function mount(over: (u: string) => Response | undefined = () => undefined) {
 }
 
 describe('SFW Home', () => {
+  const CARD = { cid: '', mid: 0, title: 'The Matrix', sub: '1999', image: '', pct: 60, left: 7, resume: true, addon: { kind: 'movie', ident: 'tt0133093', season: null, episode: null } }
+  const withCard = (resume: Response) => mount((url) => url.startsWith('/api/screen/home') ? json({ ...HOME, continue: [CARD] }) : url === '/api/screen/stream-resume' ? resume : undefined)
+
+  it('starts a remembered add-on title again at once, in full screen, instead of opening its title page', async () => {
+    const request = vi.fn(async () => undefined)
+    document.documentElement.requestFullscreen = request as never
+    const urls = withCard(json({ play: '/api/screen/stream/abcdefgh1234', name: 'The Matrix', position: 600 }))
+    fireEvent.click(await screen.findByRole('link', { name: 'Continue The Matrix' }))
+    expect(request).toHaveBeenCalledTimes(1)                                                        // asked for in the click itself
+    expect(await screen.findByText('Add-on player page')).toBeInTheDocument()
+    expect(urls).toContain('/api/screen/stream-resume')
+  })
+  it('falls back to the title page, out of full screen, when the stream cannot be started again', async () => {
+    document.documentElement.requestFullscreen = vi.fn(async () => undefined) as never
+    const exit = vi.fn(async () => undefined)
+    document.exitFullscreen = exit as never
+    Object.defineProperty(document, 'fullscreenElement', { value: document.documentElement, configurable: true })
+    withCard(json({ detail: 'Stremio\'s streaming server is not running.' }, 409))
+    fireEvent.click(await screen.findByRole('link', { name: 'Continue The Matrix' }))
+    await vi.waitFor(() => expect(exit).toHaveBeenCalled())
+    expect(screen.queryByText('Add-on player page')).toBeNull()
+    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
+  })
+  it('leaves a card that has nothing remembered, or a click meant for a new tab, as a plain link', async () => {
+    const request = vi.fn(async () => undefined)
+    document.documentElement.requestFullscreen = request as never
+    withCard(json({}))
+    const link = await screen.findByRole('link', { name: 'Continue The Matrix' })
+    fireEvent.click(link, { ctrlKey: true })
+    expect(request).not.toHaveBeenCalled()
+  })
   it('lists what was watched through an add-on too, and opens its title page (an episode, or the movie)', async () => {
     mount((url) => url.startsWith('/api/screen/home') ? json({ ...HOME, continue: [
       ...HOME.continue,

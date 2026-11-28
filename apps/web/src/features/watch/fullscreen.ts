@@ -54,6 +54,12 @@ export function playInFullscreen(): void {
   enterFullscreen()
 }
 
+/** The video could not be started after all (the click had already gone to full screen): back to the page, out of full screen. */
+export function cancelFullscreenPlay(): void {
+  auto = false
+  leaveFullscreen()
+}
+
 /** For a Link to a video: a plain click plays in full screen; a click that means something else (new tab, new window, a download) is left alone. */
 export const playClick = (e: { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean }): void => {
   if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) playInFullscreen()

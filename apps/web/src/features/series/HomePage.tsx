@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { playClick } from '@/features/watch/fullscreen'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { cancelFullscreenPlay, playClick, playInFullscreen } from '@/features/watch/fullscreen'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { api } from '@/api/client'
 import { Button } from '@/design/Button'
@@ -26,7 +26,7 @@ const GENRES = ['Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crim
 
 interface Billboard { id: number; kind: 'tv' | 'movie'; title: string; year: number | null; overview: string; backdrop: string; poster: string; genres: string[]; rating: number | null }
 /** A title watched through an add-on has no library file: its card goes back to the title's own page, where the streams are listed and the last position is picked up. */
-interface Resume { cid: string; mid: number; title: string; sub: string; image: string; pct: number; left: number; addon?: { kind: 'movie' | 'series'; ident: string; season?: number | null; episode?: number | null } }
+interface Resume { cid: string; mid: number; title: string; sub: string; image: string; pct: number; left: number; /** The torrent that was playing is remembered: the card starts it again in full screen. */ resume?: boolean; addon?: { kind: 'movie' | 'series'; ident: string; season?: number | null; episode?: number | null } }
 interface Airing { id: number; title: string; poster: string; season: number; episode: number; name: string; date: string }
 interface Recent { id: number; kind: 'tv' | 'movie'; title: string; year: number | null; poster: string }
 interface HomeData { continue: Resume[]; airing: Airing[]; recent: Recent[]; billboard: Billboard[] }
@@ -375,6 +375,20 @@ export function SfwHome() {
   const go = (t: HomeTab) => { setStored(t); if (t !== 'library') useScreenView.getState().setView('all') }
   const seeAll = (k: Kind, c: Catalog = 'popular', g = '') => { setKind(k); setGenre(g); setCatalog(c); setBrowse(true) }
   const addons = useAddons()
+  const navigate = useNavigate()
+  /** A card of something watched through an add-on whose torrent is remembered: a plain click starts it again at once, in full screen. Otherwise (or if it cannot start) the title's own page opens. */
+  const resumeAddon = (e: React.MouseEvent, a: NonNullable<Resume['addon']>) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    playInFullscreen()                                                              // asked for in this click: the browser allows it only now
+    const season = a.season ?? undefined, episode = a.episode ?? undefined
+    api<{ play: string; name: string }>('/api/screen/stream-resume', { method: 'POST', json: { kind: a.kind, ident: a.ident, season, episode } })
+      .then((r) => navigate({ to: '/addon-play', search: { src: r.play, name: r.name, kind: a.kind, ident: a.ident, season, episode } }))
+      .catch(() => {
+        cancelFullscreenPlay()
+        void (season !== undefined && episode !== undefined ? navigate({ to: '/discover/$kind/$id/$season/$episode', params: { kind: a.kind, id: a.ident, season: String(season), episode: String(episode) } }) : navigate({ to: '/discover/$kind/$id', params: { kind: a.kind, id: a.ident } }))
+      })
+  }
   const d = home.data
   const setImmersive = useUi((x) => x.setImmersive)
   const bleed = tab === 'home' && !searching && (home.isPending || Boolean(d?.billboard.length))   // while it loads, the hero's place is kept: nothing jumps when the data arrives
@@ -438,9 +452,10 @@ export function SfwHome() {
                   const a = r.addon
                   if (!a) return <Link key={`${r.cid}:${r.mid}`} to="/watch/$cid/$mid" onClick={playClick} params={{ cid: r.cid, mid: String(r.mid) }} aria-label={`Continue ${r.title}`} className={cls}>{inner}</Link>
                   const key = `addon:${a.kind}:${a.ident}:${a.season ?? ''}:${a.episode ?? ''}`
+                  const resumeClick = r.resume ? (e: React.MouseEvent) => resumeAddon(e, a) : undefined
                   return a.season != null && a.episode != null
-                    ? <Link key={key} to="/discover/$kind/$id/$season/$episode" params={{ kind: a.kind, id: a.ident, season: String(a.season), episode: String(a.episode) }} aria-label={`Continue ${r.title}`} className={cls}>{inner}</Link>
-                    : <Link key={key} to="/discover/$kind/$id" params={{ kind: a.kind, id: a.ident }} aria-label={`Continue ${r.title}`} className={cls}>{inner}</Link>
+                    ? <Link key={key} onClick={resumeClick} to="/discover/$kind/$id/$season/$episode" params={{ kind: a.kind, id: a.ident, season: String(a.season), episode: String(a.episode) }} aria-label={`Continue ${r.title}`} className={cls}>{inner}</Link>
+                    : <Link key={key} onClick={resumeClick} to="/discover/$kind/$id" params={{ kind: a.kind, id: a.ident }} aria-label={`Continue ${r.title}`} className={cls}>{inner}</Link>
                 })}
               </Row>
             ) : null}

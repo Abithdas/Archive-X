@@ -83,3 +83,51 @@ def test_a_stream_carries_its_release_file_name_from_the_first_line_of_its_descr
     from telegram_archive.metadata import addon_client as ac
     got, _ = ac.classify_streams([{**TORRENT, "title": "The.End.of.Oak.Street.2026.1080p.WEB-DL\n👤 41 💾 1.5 GB ⚙️ ThePirateBay"}, {"infoHash": HASH, "name": "x"}], "Torrentio")
     assert got[0]["release"] == "The.End.of.Oak.Street.2026.1080p.WEB-DL" and got[0]["seeders"] == 41 and "release" not in got[1]
+
+
+# ---- Continue watching starts the same torrent again ---------------------------------------------------------------------------------------------
+def _play(c, item, **extra):
+    body = {"kind": "movie", "ident": "tt0133093", "name": "The Matrix", "position": 600, "duration": 1000, "src": item["play"], **extra}
+    return c.post("/api/screen/addon-progress", json=body, headers=H)
+
+
+def test_the_torrent_that_was_playing_is_remembered_with_the_position_and_the_card_can_resume(listed):
+    db, c, item, _ = listed
+    assert _play(c, item).json() == {"ok": True, "kept": True}
+    card = next(x for x in c.get("/api/screen/home").json()["continue"] if x.get("addon"))
+    assert card["resume"] is True
+    got = c.post("/api/screen/stream-resume", json={"kind": "movie", "ident": "tt0133093"}, headers=H)
+    assert got.status_code == 200
+    out = got.json()
+    assert out["name"] == "The Matrix" and out["position"] == 600.0 and out["play"].startswith("/api/screen/stream/")
+    again = c.get(out["play"], headers={"Range": "bytes=0-9"})                                      # the new address plays the same torrent through the server
+    assert again.status_code == 206 and len(again.content) == 10
+
+
+def test_a_save_without_the_stream_keeps_the_one_already_known_and_a_plain_stream_has_none(listed):
+    db, c, item, _ = listed
+    _play(c, item)
+    c.post("/api/screen/addon-progress", json={"kind": "movie", "ident": "tt0133093", "name": "The Matrix", "position": 700, "duration": 1000}, headers=H)   # an older page: no src
+    assert next(x for x in c.get("/api/screen/home").json()["continue"] if x.get("addon"))["resume"] is True
+    _play(c, item, ident="tt0111161", name="Other", src="/api/screen/stream/unknown")                 # a stream that is not a listed torrent: nothing to resume
+    other = next(x for x in c.get("/api/screen/home").json()["continue"] if x.get("addon") and x["addon"]["ident"] == "tt0111161")
+    assert other["resume"] is False
+    assert c.post("/api/screen/stream-resume", json={"kind": "movie", "ident": "tt0111161"}, headers=H).status_code == 404
+
+
+def test_resuming_says_plainly_when_the_streaming_server_is_not_running_or_nothing_is_remembered(listed):
+    db, c, item, _ = listed
+    assert c.post("/api/screen/stream-resume", json={"kind": "movie", "ident": "tt0133093"}, headers=H).status_code == 404
+    _play(c, item)
+    db.set_setting(ss.SETTING, "http://127.0.0.1:9")                                                  # nothing listens there now
+    down = c.post("/api/screen/stream-resume", json={"kind": "movie", "ident": "tt0133093"}, headers=H)
+    assert down.status_code == 409 and "not running" in down.json()["detail"]
+    for bad in ({"kind": "book", "ident": "tt0133093"}, {"kind": "movie", "ident": "nope"}, {"kind": "series", "ident": "tt0133093", "season": "x"}):
+        assert c.post("/api/screen/stream-resume", json=bad, headers=H).status_code == 400
+
+
+def test_resuming_is_an_sfw_feature_only(listed):
+    _, c, item, _ = listed
+    _play(c, item)
+    c.post("/api/content-mode", json={"mode": "nsfw"}, headers=H)
+    assert c.post("/api/screen/stream-resume", json={"kind": "movie", "ident": "tt0133093"}, headers=H).status_code == 409

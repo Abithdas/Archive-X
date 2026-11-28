@@ -27,7 +27,7 @@ describe('AddonPlayPage', () => {
     const props = player.mock.calls.at(-1)![0] as { startAt: number; onTime: (t: number, d: number) => void; onEnd: () => void }
     expect(props.startAt).toBe(300)
     props.onTime(310, 1000)
-    await waitFor(() => expect(api).toHaveBeenCalledWith('/api/screen/addon-progress', { method: 'POST', json: { kind: 'series', ident: 'tt0903747', season: 1, episode: 2, name: 'Pilot', position: 310, duration: 1000 } }))
+    await waitFor(() => expect(api).toHaveBeenCalledWith('/api/screen/addon-progress', { method: 'POST', json: { kind: 'series', ident: 'tt0903747', season: 1, episode: 2, name: 'Pilot', position: 310, duration: 1000, src: '/api/screen/stream/abcdefgh' } }))
     props.onTime(320, 1000)                                                       // within ten seconds of the last save: not sent again
     expect(api.mock.calls.filter((c) => c[0] === '/api/screen/addon-progress')).toHaveLength(1)
     props.onEnd()                                                                 // the end is always sent, as the whole duration
