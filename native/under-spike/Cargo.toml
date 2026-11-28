@@ -1,0 +1,18 @@
+# A throwaway proof, built only by .github/workflows/native-under.yml: a transparent Tauri window over a video window of the libmpv engine.
+# It answers one question on a real Windows desktop: does the page draw over the video (the dx.bi arrangement) when the video window is a top-level
+# window under the app window (the app window owned by it)? It is not part of the app and has its own workspace.
+[package]
+name = "under-spike"
+version = "0.0.1"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+archive-x-native-player = { path = "../../crates/native-player" }
+serde_json = "1"

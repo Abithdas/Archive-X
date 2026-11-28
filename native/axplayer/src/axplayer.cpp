@@ -802,6 +802,7 @@ AXAPI int ax_create(const wchar_t *lav_dir, const AxOptions *options, AxPlayer *
     p->lav_dir = lav_dir;
     if (options) p->opt = *options;
     else p->opt.hw_accel = AX_HW_DXVA2_COPYBACK;
+    if (p->opt.video_layer > AX_LAYER_POPUP) p->opt.video_layer = AX_LAYER_POPUP;      // the under layer is the libmpv engine's: here it is the popup
     std::wstring dir = p->lav_dir;
     if (!dir.empty() && dir.back() != L'\\' && dir.back() != L'/') dir += L'\\';
     for (const wchar_t *f : {L"LAVSplitter.ax", L"LAVVideo.ax", L"LAVAudio.ax"}) {

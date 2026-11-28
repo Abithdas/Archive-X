@@ -225,6 +225,36 @@ struct AxPlayer {
 
     // ---- the video window (the same layers as axplayer.cpp) ---------------------------------------------------------
     bool popup() const { return opt.video_layer == AX_LAYER_POPUP && parent_hwnd != nullptr; }
+    bool under() const { return opt.video_layer == AX_LAYER_UNDER && parent_hwnd != nullptr; }
+    bool toplevel() const { return popup() || under(); }       // its own window, not a child of the page
+    // the under layer: the app window is owned by the video window while it plays (an owned window is always above its owner), and what it was before is put back
+    bool owner_set = false;
+    LONG_PTR prev_owner = 0;
+    LONG_PTR prev_exstyle = 0;
+    HWND owned_app = nullptr;
+
+    void own_the_app() {
+        if (!under() || !window || owner_set) return;
+        owned_app = parent_hwnd;
+        prev_owner = GetWindowLongPtrW(owned_app, GWLP_HWNDPARENT);
+        prev_exstyle = GetWindowLongPtrW(owned_app, GWL_EXSTYLE);
+        SetWindowLongPtrW(owned_app, GWL_EXSTYLE, prev_exstyle | WS_EX_APPWINDOW);       // an owned window has no taskbar button otherwise
+        SetWindowLongPtrW(owned_app, GWLP_HWNDPARENT, reinterpret_cast<LONG_PTR>(window));
+        owner_set = true;
+        SetWindowPos(owned_app, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+
+    // Must run before the video window is destroyed: destroying an owner destroys what it owns, and that is the app window.
+    void release_the_app() {
+        if (!owner_set) return;
+        if (owned_app && IsWindow(owned_app)) {
+            SetWindowLongPtrW(owned_app, GWLP_HWNDPARENT, prev_owner);
+            SetWindowLongPtrW(owned_app, GWL_EXSTYLE, prev_exstyle);
+            SetWindowPos(owned_app, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        }
+        owner_set = false;
+        owned_app = nullptr;
+    }
 
     void round_corners() {
         if (!window) return;
@@ -242,7 +272,7 @@ struct AxPlayer {
         last_x = x; last_y = y; last_w = std::max(w, 1); last_h = std::max(h_, 1);
         if (!window) return;
         page_hid.store(false);
-        if (popup()) {
+        if (toplevel()) {
             POINT pt{x, y};
             ClientToScreen(parent_hwnd, &pt);
             popup_x = pt.x; popup_y = pt.y;
@@ -256,7 +286,7 @@ struct AxPlayer {
     }
 
     void follow_parent() {
-        if (!window || !popup()) return;
+        if (!window || !toplevel()) return;
         bool want = IsWindowVisible(parent_hwnd) && !IsIconic(parent_hwnd);
         if (want && page_hid.load()) return;
         if (want != (IsWindowVisible(window) != 0)) ShowWindow(window, want ? SW_SHOWNOACTIVATE : SW_HIDE);
@@ -295,7 +325,11 @@ struct AxPlayer {
         }
         parent_hwnd = parent;
         HINSTANCE inst = GetModuleHandleW(nullptr);
-        if (popup()) {
+        if (under()) {
+            POINT pt{x, y};
+            ClientToScreen(parent, &pt);
+            window = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, kVideoClass, L"", WS_POPUP | WS_CLIPCHILDREN, pt.x, pt.y, std::max(w, 1), std::max(h_, 1), nullptr, nullptr, inst, nullptr);   // no owner: the app window is the owned one
+        } else if (popup()) {
             POINT pt{x, y};
             ClientToScreen(parent, &pt);
             window = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, kVideoClass, L"", WS_POPUP | WS_CLIPCHILDREN, pt.x, pt.y, std::max(w, 1), std::max(h_, 1), parent, nullptr, inst, nullptr);
@@ -308,12 +342,14 @@ struct AxPlayer {
         child_hooked = false;
         hide_target.store(window);
         place(x, y, w, h_);
+        own_the_app();
         return S_OK;
     }
 
     // ---- the player -------------------------------------------------------------------------------------------------
     void close_player() {
         hide_target.store(nullptr);
+        release_the_app();                                          // before anything is hidden or destroyed: the app window must not go with the video window
         if (window) {
             ShowWindow(window, SW_HIDE);
             if (popup()) SetWindowLongPtrW(window, GWLP_HWNDPARENT, 0);
@@ -485,7 +521,7 @@ struct AxPlayer {
         else {
             RECT r{};
             GetWindowRect(window, &r);
-            o << (popup() ? L"own window above the app" : (opt.video_layer ? L"child window in front" : L"child window behind")) << L", " << (IsWindowVisible(window) ? L"shown" : L"hidden")
+            o << (under() ? L"own window under the app (the app window is transparent)" : popup() ? L"own window above the app" : (opt.video_layer ? L"child window in front" : L"child window behind")) << L", " << (IsWindowVisible(window) ? L"shown" : L"hidden")
               << L", " << (r.right - r.left) << L"x" << (r.bottom - r.top) << L" at " << r.left << L"," << r.top << L", mpv window " << (FindWindowExW(window, nullptr, nullptr, nullptr) ? L"present" : L"absent");
         }
         o << L"\nhardware decoding requested: " << wide(hwdec_for(opt.hw_accel)) << L", in use: " << (decoder.empty() ? L"-" : decoder);
@@ -500,10 +536,11 @@ struct AxPlayer {
     }
 
     void set_layer(int layer) {
-        layer = std::min<int>(AX_LAYER_POPUP, std::max<int>(AX_LAYER_BEHIND, layer));
-        bool was_popup = popup();
+        layer = std::min<int>(AX_LAYER_UNDER, std::max<int>(AX_LAYER_BEHIND, layer));
+        bool was_kind = toplevel();
+        bool was_under = under();
         opt.video_layer = layer;
-        if (window && own_window && was_popup != popup() && h) {
+        if (window && own_window && (was_kind != toplevel() || was_under != under()) && h) {
             // mpv draws into one window for good: a child window and a popup are different kinds, so the video is opened again in the other kind, at the same second.
             double pos = 0;
             get_double("time-pos", pos);

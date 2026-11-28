@@ -1,0 +1,82 @@
+name: Native under-layer proof (Windows)
+
+# Does the page draw over the video when the video is a top-level window UNDER a transparent app window (dx.bi's arrangement)? A throwaway Tauri app
+# (native/under-spike) plays a generated video through the libmpv engine and tools/under-spike-check.ps1 looks at real screenshots of the desktop.
+# The same check runs with the old "window above the page" layer as a control: it must NOT pass there, or the check proves nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+    paths:
+      - "native/under-spike/**"
+      - "native/axplayer/**"
+      - "crates/native-player/**"
+      - "tools/under-spike-check.ps1"
+      - ".github/workflows/native-under.yml"
+
+jobs:
+  under:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: "${{ github.token }}"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Fetch libmpv
+        shell: bash
+        run: bash packaging/scripts/fetch-mpv.sh
+
+      - name: Build axmpv
+        run: |
+          cmake -S native/axplayer -B build-axmpv -A x64 -DAX_ENGINE=mpv
+          cmake --build build-axmpv --config Release
+
+      - name: Fetch ffmpeg (to make the test video)
+        shell: bash
+        env: { FFMPEG_FROM_BTBN: "1" }
+        run: bash packaging/scripts/fetch-ffmpeg.sh
+
+      - name: Make the test video (flat green, 900x560, with sound)
+        shell: bash
+        run: |
+          mkdir -p clips
+          apps/desktop/src-tauri/resources/ffmpeg/ffmpeg.exe -v error -y -f lavfi -i "color=c=0x00c800:s=900x560:r=25:d=120" -f lavfi -i "sine=frequency=440:duration=120" -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest clips/green.mp4
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          workspaces: native/under-spike
+
+      - name: Build the proof app
+        run: cargo build --release --manifest-path native/under-spike/Cargo.toml
+
+      - name: Under the app window, with a title bar
+        shell: pwsh
+        run: |
+          $root = (Get-Location).Path
+          pwsh -NoProfile -File tools/under-spike-check.ps1 -Exe "$root\native\under-spike\target\release\under-spike.exe" -Video "$root\clips\green.mp4" -AxDll "$root\build-axmpv\Release\axmpv.dll" -MpvDir "$root\apps\desktop\src-tauri\resources\mpv" -Layer under -Name under-decorated
+          exit $LASTEXITCODE
+
+      - name: Under the app window, without a title bar
+        if: ${{ always() }}
+        shell: pwsh
+        run: |
+          $root = (Get-Location).Path
+          pwsh -NoProfile -File tools/under-spike-check.ps1 -Exe "$root\native\under-spike\target\release\under-spike.exe" -Video "$root\clips\green.mp4" -AxDll "$root\build-axmpv\Release\axmpv.dll" -MpvDir "$root\apps\desktop\src-tauri\resources\mpv" -Layer under -Name under-frameless -Frameless
+          exit $LASTEXITCODE
+
+      - name: Control, the window above the page (the check must fail to see the page's box)
+        if: ${{ always() }}
+        shell: pwsh
+        run: |
+          $root = (Get-Location).Path
+          pwsh -NoProfile -File tools/under-spike-check.ps1 -Exe "$root\native\under-spike\target\release\under-spike.exe" -Video "$root\clips\green.mp4" -AxDll "$root\build-axmpv\Release\axmpv.dll" -MpvDir "$root\apps\desktop\src-tauri\resources\mpv" -Layer popup -Name control-popup
+          exit $LASTEXITCODE
+
+      - name: Keep the screenshots
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: under-shots
+          path: under-shots

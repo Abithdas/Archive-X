@@ -110,7 +110,9 @@ fn hw_from(code: Option<i32>) -> HwAccel {
 /// real PC: the web view paints over, or hides, a child window placed in the same window.
 fn start_layer() -> VideoLayer {
     let on = |name: &str| std::env::var(name).map(|v| v == "1").unwrap_or(false);
-    if on("ARCHIVE_X_NATIVE_VIDEO_BEHIND") {
+    if on("ARCHIVE_X_NATIVE_VIDEO_UNDER") {
+        VideoLayer::Under
+    } else if on("ARCHIVE_X_NATIVE_VIDEO_BEHIND") {
         VideoLayer::Behind
     } else if on("ARCHIVE_X_NATIVE_VIDEO_FRONT") {
         VideoLayer::Front
@@ -121,7 +123,7 @@ fn start_layer() -> VideoLayer {
 
 /// Only the behind layer needs the web view to be see-through.
 fn background_for(layer: VideoLayer) -> Option<Color> {
-    Some(if layer == VideoLayer::Behind { TRANSPARENT } else { PAGE_BACKGROUND })
+    Some(if matches!(layer, VideoLayer::Behind | VideoLayer::Under) { TRANSPARENT } else { PAGE_BACKGROUND })
 }
 
 fn layer_name(layer: VideoLayer) -> &'static str {
@@ -129,6 +131,7 @@ fn layer_name(layer: VideoLayer) -> &'static str {
         VideoLayer::Behind => "behind",
         VideoLayer::Front => "front",
         VideoLayer::Popup => "popup",
+        VideoLayer::Under => "under",
     }
 }
 
@@ -276,10 +279,11 @@ pub async fn native_command(window: WebviewWindow, state: State<'_, NativeState>
         "volume" => p.set_volume(v.clamp(0.0, 100.0) as u8),
         "mute" => p.set_muted(v != 0.0),
         "audio" => p.select_audio_track(v.max(0.0) as usize),
-        "front" | "back" | "popup" => {
+        "front" | "back" | "popup" | "under" => {
             let layer = match command.as_str() {
                 "front" => VideoLayer::Front,
                 "back" => VideoLayer::Behind,
+                "under" => VideoLayer::Under,
                 _ => VideoLayer::Popup,
             };
             let r = p.set_video_layer(layer);

@@ -45,7 +45,8 @@ enum {
 enum {
     AX_LAYER_BEHIND = 0, /* a child window behind the other child windows (the web page can draw over the video through transparent areas) */
     AX_LAYER_FRONT = 1,  /* a child window in front of them */
-    AX_LAYER_POPUP = 2   /* its own borderless window owned by the parent: always above it, follows it when it moves, resizes or hides */
+    AX_LAYER_POPUP = 2,  /* its own borderless window owned by the parent: always above it, follows it when it moves, resizes or hides */
+    AX_LAYER_UNDER = 3   /* its own borderless window UNDER the parent: the parent becomes owned by it (so it stays above), and the page, in a transparent parent, draws over the video as dx.bi does (libmpv engine; the LAV engine uses the popup) */
 };
 
 typedef struct AxOptions {

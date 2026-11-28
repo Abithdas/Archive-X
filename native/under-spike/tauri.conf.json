@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "under-spike",
+  "version": "0.0.1",
+  "identifier": "app.archivex.underspike",
+  "build": { "frontendDist": "ui" },
+  "app": {
+    "windows": [
+      { "label": "main", "title": "under-spike", "url": "index.html", "x": 0, "y": 0, "width": 900, "height": 560, "resizable": false, "transparent": true, "decorations": true }
+    ],
+    "security": { "csp": null }
+  },
+  "bundle": { "active": false, "icon": ["icons/icon.ico"] }
+}

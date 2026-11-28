@@ -41,6 +41,8 @@ pub enum VideoLayer {
     Front = 1,
     /// Its own borderless window above the app window, following it.
     Popup = 2,
+    /// Its own borderless window under the app window, which is transparent and draws the page over the video (the libmpv engine; the LAV engine uses the popup).
+    Under = 3,
 }
 
 impl VideoLayer {
@@ -48,6 +50,7 @@ impl VideoLayer {
         match code {
             0 => VideoLayer::Behind,
             2 => VideoLayer::Popup,
+            3 => VideoLayer::Under,
             _ => VideoLayer::Front,
         }
     }
