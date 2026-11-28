@@ -24,15 +24,11 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | Name | Version | Licence |
 | --- | --- | --- |
 | adler2 | 2.0.1 | 0BSD OR MIT OR Apache-2.0 |
-| aead | 0.5.2 | MIT OR Apache-2.0 |
-| aes | 0.8.4 | MIT OR Apache-2.0 |
-| aes-gcm | 0.10.3 | Apache-2.0 OR MIT |
 | aho-corasick | 1.1.5 | Unlicense OR MIT |
 | alloc-no-stdlib | 3.0.0 | BSD-3-Clause |
 | alloc-stdlib | 0.3.0 | BSD-3-Clause |
 | android_system_properties | 0.1.6 | MIT OR Apache-2.0 |
 | anyhow | 1.0.104 | MIT OR Apache-2.0 |
-| argon2 | 0.5.3 | MIT OR Apache-2.0 |
 | async-broadcast | 0.7.2 | MIT OR Apache-2.0 |
 | async-channel | 2.5.0 | Apache-2.0 OR MIT |
 | async-executor | 1.14.1 | Apache-2.0 OR MIT |
@@ -50,12 +46,10 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | base64 | 0.21.7 | MIT OR Apache-2.0 |
 | base64 | 0.22.1 | MIT OR Apache-2.0 |
 | base64 | 0.23.1 | MIT OR Apache-2.0 |
-| base64ct | 1.8.3 | Apache-2.0 OR MIT |
 | bit-set | 0.8.0 | Apache-2.0 OR MIT |
 | bit-vec | 0.8.0 | Apache-2.0 OR MIT |
 | bitflags | 1.3.2 | MIT/Apache-2.0 |
 | bitflags | 2.13.2 | MIT OR Apache-2.0 |
-| blake2 | 0.10.6 | MIT OR Apache-2.0 |
 | block-buffer | 0.10.4 | MIT OR Apache-2.0 |
 | block2 | 0.6.2 | MIT |
 | blocking | 1.7.0 | Apache-2.0 OR MIT |
@@ -72,7 +66,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | cargo-platform | 0.1.9 | MIT OR Apache-2.0 |
 | cargo_metadata | 0.19.2 | MIT |
 | cargo_toml | 1.0.1 | Apache-2.0 OR MIT |
-| caseless | 0.2.2 | MIT |
 | cc | 1.11.1 | MIT OR Apache-2.0 |
 | cesu8 | 1.1.0 | Apache-2.0/MIT |
 | cfb | 0.14.0 | MIT |
@@ -80,11 +73,10 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | cfg-if | 1.0.5 | MIT OR Apache-2.0 |
 | cfg_aliases | 0.2.2 | MIT |
 | chrono | 0.4.45 | MIT OR Apache-2.0 |
-| cipher | 0.4.4 | MIT OR Apache-2.0 |
 | combine | 4.6.9 | MIT |
 | concurrent-queue | 2.5.0 | Apache-2.0 OR MIT |
 | constant_time_eq | 0.6.1 | CC0-1.0 OR MIT-0 OR Apache-2.0 |
-| cookie | 0.18.3 | MIT OR Apache-2.0 |
+| cookie | 0.18.2 | MIT OR Apache-2.0 |
 | core-foundation | 0.10.1 | MIT OR Apache-2.0 |
 | core-foundation | 0.9.4 | MIT OR Apache-2.0 |
 | core-foundation-sys | 0.8.7 | MIT OR Apache-2.0 |
@@ -98,7 +90,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | cssparser | 0.37.0 | MPL-2.0 |
 | cssparser-macros | 0.7.1 | MPL-2.0 |
 | ctor | 1.0.13 | Apache-2.0 OR MIT |
-| ctr | 0.9.2 | MIT OR Apache-2.0 |
 | darling | 0.24.1 | MIT |
 | darling_core | 0.24.1 | MIT |
 | darling_macro | 0.24.1 | MIT |
@@ -134,7 +125,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | event-listener-strategy | 0.5.4 | Apache-2.0 OR MIT |
 | fallible-iterator | 0.3.0 | MIT/Apache-2.0 |
 | fallible-streaming-iterator | 0.1.9 | MIT/Apache-2.0 |
-| fancy-regex | 0.14.0 | MIT |
 | fastrand | 2.5.0 | Apache-2.0 OR MIT |
 | fdeflate | 0.3.7 | MIT OR Apache-2.0 |
 | field-offset | 0.3.6 | MIT OR Apache-2.0 |
@@ -146,7 +136,7 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | foreign-types | 0.5.0 | MIT/Apache-2.0 |
 | foreign-types-macros | 0.2.4 | MIT/Apache-2.0 |
 | foreign-types-shared | 0.3.1 | MIT/Apache-2.0 |
-| form_urlencoded | 1.2.3 | MIT OR Apache-2.0 |
+| form_urlencoded | 1.2.2 | MIT OR Apache-2.0 |
 | futures-channel | 0.3.34 | MIT OR Apache-2.0 |
 | futures-core | 0.3.34 | MIT OR Apache-2.0 |
 | futures-executor | 0.3.34 | MIT OR Apache-2.0 |
@@ -167,7 +157,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | getrandom | 0.2.17 | MIT OR Apache-2.0 |
 | getrandom | 0.3.4 | MIT OR Apache-2.0 |
 | getrandom | 0.4.3 | MIT OR Apache-2.0 |
-| ghash | 0.5.1 | Apache-2.0 OR MIT |
 | gio | 0.18.4 | MIT |
 | gio-sys | 0.18.1 | MIT |
 | glib | 0.18.5 | MIT |
@@ -186,7 +175,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | heck | 0.5.0 | MIT OR Apache-2.0 |
 | hermit-abi | 0.5.3 | MIT OR Apache-2.0 |
 | hex | 0.4.3 | MIT OR Apache-2.0 |
-| hmac | 0.12.1 | MIT OR Apache-2.0 |
 | html5ever | 0.39.0 | MIT OR Apache-2.0 |
 | http | 1.5.0 | MIT OR Apache-2.0 |
 | http-body | 1.1.0 | MIT |
@@ -212,7 +200,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | indexmap | 1.9.3 | Apache-2.0 OR MIT |
 | indexmap | 2.14.2 | Apache-2.0 OR MIT |
 | infer | 0.22.0 | MIT |
-| inout | 0.1.4 | MIT OR Apache-2.0 |
 | ipnet | 2.12.2 | MIT OR Apache-2.0 |
 | itoa | 1.0.18 | MIT OR Apache-2.0 |
 | javascriptcore-rs | 1.1.2 | MIT |
@@ -237,7 +224,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | libappindicator-sys | 0.9.0 | Apache-2.0 OR MIT |
 | libc | 0.2.191 | MIT OR Apache-2.0 |
 | libdbus-sys | 0.2.7 | Apache-2.0/MIT |
-| libloading | 0.7.4 | ISC |
 | libredox | 0.1.25 | MIT |
 | libsqlite3-sys | 0.40.0 | MIT |
 | linux-raw-sys | 0.12.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
@@ -246,7 +232,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | log | 0.4.35 | MIT OR Apache-2.0 |
 | markup5ever | 0.39.0 | MIT OR Apache-2.0 |
 | matchers | 0.2.0 | MIT |
-| md5 | 0.7.0 | Apache-2.0/MIT |
 | memchr | 2.8.3 | Unlicense OR MIT |
 | memoffset | 0.9.1 | MIT |
 | mime | 0.3.18 | MIT OR Apache-2.0 |
@@ -285,7 +270,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | objc2-user-notifications | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
 | objc2-web-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
 | once_cell | 1.21.4 | MIT OR Apache-2.0 |
-| opaque-debug | 0.3.1 | MIT OR Apache-2.0 |
 | openssl-probe | 0.2.2 | MIT OR Apache-2.0 |
 | option-ext | 0.2.0 | MPL-2.0 |
 | ordered-stream | 0.2.0 | MIT OR Apache-2.0 |
@@ -295,7 +279,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | parking | 2.2.1 | Apache-2.0 OR MIT |
 | parking_lot | 0.12.5 | MIT OR Apache-2.0 |
 | parking_lot_core | 0.9.12 | MIT OR Apache-2.0 |
-| password-hash | 0.5.0 | MIT OR Apache-2.0 |
 | pem | 3.0.6 | MIT |
 | percent-encoding | 2.3.2 | MIT OR Apache-2.0 |
 | phf | 0.13.1 | MIT |
@@ -309,7 +292,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | plist | 1.10.3 | MIT |
 | png | 0.18.1 | MIT OR Apache-2.0 |
 | polling | 3.11.0 | Apache-2.0 OR MIT |
-| polyval | 0.6.2 | Apache-2.0 OR MIT |
 | portable-atomic | 1.15.0 | Apache-2.0 OR MIT |
 | portable-atomic-util | 0.2.8 | Apache-2.0 OR MIT |
 | potential_utf | 0.1.6 | Unicode-3.0 |
@@ -325,7 +307,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | quote | 1.0.47 | MIT OR Apache-2.0 |
 | r-efi | 5.3.0 | MIT OR Apache-2.0 OR LGPL-2.1-or-later |
 | r-efi | 6.0.0 | MIT OR Apache-2.0 OR LGPL-2.1-or-later |
-| rand_core | 0.6.4 | MIT OR Apache-2.0 |
 | raw-window-handle | 0.6.2 | MIT OR Apache-2.0 OR Zlib |
 | rcgen | 0.13.2 | MIT OR Apache-2.0 |
 | redox_syscall | 0.5.18 | MIT |
@@ -375,7 +356,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | serialize-to-javascript | 0.1.2 | MIT OR Apache-2.0 |
 | serialize-to-javascript-impl | 0.1.2 | MIT OR Apache-2.0 |
 | servo_arc | 0.4.3 | MIT OR Apache-2.0 |
-| sha1 | 0.10.7 | MIT OR Apache-2.0 |
 | sha2 | 0.10.9 | MIT OR Apache-2.0 |
 | sharded-slab | 0.1.7 | MIT |
 | shlex | 2.0.1 | MIT OR Apache-2.0 |
@@ -468,12 +448,10 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | unicase | 2.10.0 | MIT OR Apache-2.0 |
 | unicode-ident | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 |
 | unicode-normalization | 0.1.26 | (MIT OR Apache-2.0) AND Unicode-3.0 |
-| unicode-properties | 0.1.5 | (MIT OR Apache-2.0) AND Unicode-3.0 |
 | unicode-segmentation | 1.13.3 | MIT OR Apache-2.0 |
-| universal-hash | 0.5.1 | MIT OR Apache-2.0 |
 | untrusted | 0.9.0 | ISC |
 | ureq | 2.12.1 | MIT OR Apache-2.0 |
-| url | 2.5.9 | MIT OR Apache-2.0 |
+| url | 2.5.8 | MIT OR Apache-2.0 |
 | urlpattern | 0.6.0 | MIT |
 | utf8_iter | 1.1.0 | Apache-2.0 OR MIT |
 | utf_types | 1.0.0 | Apache-2.0 OR MIT |
@@ -523,7 +501,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | windows-strings | 0.5.1 | MIT OR Apache-2.0 |
 | windows-sys | 0.45.0 | MIT OR Apache-2.0 |
 | windows-sys | 0.52.0 | MIT OR Apache-2.0 |
-| windows-sys | 0.59.0 | MIT OR Apache-2.0 |
 | windows-sys | 0.61.2 | MIT OR Apache-2.0 |
 | windows-targets | 0.42.2 | MIT OR Apache-2.0 |
 | windows-targets | 0.52.6 | MIT OR Apache-2.0 |
@@ -570,7 +547,6 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | zip | 9.5.1 | MIT |
 | zlib-rs | 0.6.8 | Zlib |
 | zmij | 1.0.23 | MIT |
-| zopfli | 0.8.4 | Apache-2.0 |
 | zvariant | 5.15.1 | MIT |
 | zvariant_derive | 5.15.1 | MIT |
 | zvariant_utils | 4.2.0 | MIT |
@@ -828,13 +804,11 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | argon2-cffi | 25.1.0 | MIT |
 | av | 14.2.0 | BSD-3-Clause |
 | cryptg | 0.6.1 | CC0 |
-| cryptography | 41.0.7 | Apache-2.0 OR BSD-3-Clause |
 | cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause |
-| fastapi | 0.165.0 | MIT |
+| fastapi | 0.163.1 | MIT |
 | faster-whisper | 1.2.1 | MIT |
-| onnxruntime | 1.29.0 | MIT License |
+| onnxruntime | 1.32.0 | MIT License |
 | opencv-python-headless | 4.14.0.94 | Apache 2.0 |
-| pillow | 10.2.0 | HPND |
 | pillow | 13.0.0 | MIT-CMU |
 | python-socks | 2.8.2 | Apache-2.0 |
 | qrcode | 8.2 | BSD |
