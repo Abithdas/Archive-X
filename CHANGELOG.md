@@ -4,6 +4,8 @@ One entry per release, newest first. Releases are published from the Desktop wor
 
 ## Unreleased
 
+- **The native player goes into full screen when Play does.** When the whole page is in full screen (Play in SFW), the native player now shows itself over the screen in the top layer, like the browser player, with its picture window following it and its back arrow in the bar above; leaving full screen puts it back in its place. Its own full screen button works as before.
+
 - **Continue watching resumes add-on titles at once, in full screen.** A card for something you watched through an add-on remembers the torrent that was playing with the position; a plain click starts it again right away in full screen, without opening the title page and picking a stream. If the streaming server is not running or nothing is remembered, the title's page opens as before.
 
 - **No separate Discover page.** The Discover tab is gone: Home has For you, Library and Collection. A row's "See all" now opens the whole list in a pop-up over Home (with the same kind, genre and list filters, and the details beside the posters), and typing in the search box shows the results right on Home, replacing the rows until you clear it. Going back from a title returns to Home.

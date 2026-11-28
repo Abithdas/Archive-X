@@ -6,6 +6,7 @@ import { CcMenu } from './CcMenu'
 import { deviceScale, native, pixelRect, type NativeCommand, type NativeTrack, type Opened, type Snapshot } from './nativeBridge'
 import { afterJump, aspectOf, quiet, stallStep, videoVisible, type StallState } from './nativeLogic'
 import { releasePlayback } from './release'
+import { fullscreenOn, leaveFullscreen, useFullscreen } from './fullscreen'
 import { PlayIcon } from './PlayerIcons'
 import { CaptionStyleItems, PlaybackItems, PlayerControls, playerKey } from './PlayerControls'
 import { loadStyle, saveStyle } from './captionStyle'
@@ -19,13 +20,18 @@ import { useTracks, type AddonRef } from './useTracks'
 import { loadPrefs as loadPlayerPrefs, savePrefs as savePlayerPrefs } from './playerPrefs'
 
 const noop = () => undefined
+const FULL_BOX: CSSProperties = { position: 'fixed', inset: 0, width: '100%', height: '100%', maxWidth: 'none', maxHeight: 'none', margin: 0, padding: 0, border: 0, overflow: 'hidden' }
 
 type Phase = 'checking' | 'unavailable' | 'opening' | 'ready' | 'failed'
 
 /** True while a dialog or a menu of the page is open: it would be hidden under the video window, so the video steps aside. */
-function covered(): boolean {
-  // a dialog, a popover, or any open menu (the player's own drop-downs open upwards over the picture, so the picture must give way to them)
-  try { return Boolean(document.querySelector('dialog[open], [popover]:popover-open, [role="menu"]')) } catch { return Boolean(document.querySelector('dialog[open], [role="menu"]')) }
+function covered(own?: Element | null): boolean {
+  // a dialog, a popover, or any open menu (the player's own drop-downs open upwards over the picture, so the picture must give way to them);
+  // the pane's own top-layer box (page-level full screen) is not something laid over the picture
+  try {
+    if (document.querySelector('dialog[open], [role="menu"]')) return true
+    return [...document.querySelectorAll('[popover]:popover-open')].some((el) => !(own && el.contains(own)))
+  } catch { return Boolean(document.querySelector('dialog[open], [role="menu"]')) }
 }
 
 /**
@@ -64,6 +70,10 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
   const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [capStyle, setCapStyle] = useState(loadStyle)
   const [isFs, setIsFs] = useState(false)
+  // Full screen of the whole page (Play in SFW asks for it in the click, see fullscreen.ts): the pane then shows itself over the screen, in the top layer, as the browser player does
+  const pageFs = useFullscreen()
+  const wide = isFs || pageFs
+  const inFs = () => document.fullscreenElement === box.current || fullscreenOn()
   const box = useRef<HTMLDivElement>(null)
   const miniRef = useRef(false)
   const [scrolling, setScrolling] = useState(false)
@@ -92,7 +102,7 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
       const h = w / shapeRef.current
       return { x: Math.round((window.innerWidth - w - 16) * ratio), y: Math.round((window.innerHeight - h - 16) * ratio), w: Math.round(w * ratio), h: Math.round(h * ratio) }
     }
-    if (stage.current && document.fullscreenElement === box.current) {
+    if (stage.current && inFs()) {
       // Full screen: the window is the whole stage (everything above the bar); the engine keeps the picture's shape inside it and the rest is black.
       const r = stage.current.getBoundingClientRect(); const ratio = deviceScale(stage.current)
       return { x: Math.round(r.left * ratio), y: Math.round(r.top * ratio), w: Math.round(r.width * ratio), h: Math.round(r.height * ratio) }
@@ -132,10 +142,10 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
   const sync = useCallback(() => {
     const el = stage.current
     if (!el) return
-    const top = document.fullscreenElement === box.current ? 0 : document.querySelector('header')?.getBoundingClientRect().bottom ?? 0   // in full screen the page's bar is not on screen
+    const top = inFs() ? 0 : document.querySelector('header')?.getBoundingClientRect().bottom ?? 0   // in full screen the page's bar is not on screen
     // While the page is scrolling the picture steps aside and comes back where it settles: moving a separate window in step with the page always
     // lags a little, and the lag showed as a black box left over the page.
-    const visible = startedRef.current && !scrollingRef.current && (miniRef.current ? !covered() : videoVisible(el.getBoundingClientRect(), { top, bottom: window.innerHeight, left: 0, right: window.innerWidth }, covered() || tipRef.current))
+    const visible = startedRef.current && !scrollingRef.current && (miniRef.current ? !covered(box.current) : videoVisible(el.getBoundingClientRect(), { top, bottom: window.innerHeight, left: 0, right: window.innerWidth }, covered(box.current) || tipRef.current))
     if (visible) {
       void native.rect(rect()).catch(noop)
       if (!shownRef.current) { shownRef.current = true; setShown(true); void native.command('popup').catch(noop) }
@@ -217,7 +227,13 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
   const flipMute = () => { send('mute', muted ? 0 : 1); setMuted(!muted); savePlayerPrefs({ muted: !muted }) }
   const flash = (text: string) => { setHint(text); clearTimeout(hintTimer.current); hintTimer.current = setTimeout(() => setHint(''), 900) }
   useEffect(() => () => clearTimeout(hintTimer.current), [])
-  const full = () => (document.fullscreenElement ? void document.exitFullscreen() : void box.current?.requestFullscreen?.())
+  const full = () => (fullscreenOn() ? leaveFullscreen() : document.fullscreenElement ? void document.exitFullscreen() : void box.current?.requestFullscreen?.())
+  useEffect(() => {
+    const el = box.current as (HTMLDivElement & { showPopover?: () => void; hidePopover?: () => void }) | null
+    if (pageFs) { try { el?.showPopover?.() } catch { /* already shown */ } }
+    const t = window.setTimeout(() => sync(), 60)                  // the picture window follows the pane into and out of full screen
+    return () => { window.clearTimeout(t); try { el?.hidePopover?.() } catch { /* already hidden */ } }
+  }, [pageFs, sync])
   useEffect(() => {
     const change = () => { setIsFs(document.fullscreenElement === box.current); window.setTimeout(() => sync(), 60) }
     document.addEventListener('fullscreenchange', change)
@@ -248,15 +264,15 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
   return (
     // One page for both engines (see PlayerControls.tsx): the same frame, the same bar, menus and keys. The one difference is that the controls cannot sit
     // on the picture, because the native picture is a window above the page; in full screen the bar stays under the picture for the same reason.
-    <div ref={box} className={cn('@container relative grid outline-none', isFs ? 'h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-2 bg-black' : 'w-full gap-4 sm:w-[var(--pw)] sm:gap-5')} data-testid="native-pane" tabIndex={-1}
-      style={isFs ? undefined : ({ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${shape.toFixed(4)})))` } as CSSProperties)}>
-      {isFs ? (
+    <div ref={box} popover={pageFs ? 'manual' : undefined} className={cn('@container relative grid outline-none', wide ? 'h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-2 bg-black' : 'w-full gap-4 sm:w-[var(--pw)] sm:gap-5')} data-testid="native-pane" tabIndex={-1}
+      style={pageFs ? FULL_BOX : isFs ? undefined : ({ '--pw': `min(100%, max(330px, calc((100dvh - 290px) / (var(--ax-page-zoom, 1) * var(--ax-ui-zoom, 1)) * ${shape.toFixed(4)})))` } as CSSProperties)}>
+      {wide ? (
         // A slim bar above the picture with the way back (leaving full screen is the button in the bar below, or Esc). No name of the video or file is shown in full screen.
         <div className="flex items-center px-3 pt-2 text-white">
-          <button type="button" onClick={() => { void document.exitFullscreen().catch(noop); onClose?.() }} aria-label="Back" title="Back" className="grid size-10 place-items-center rounded-full hover:bg-white/15"><Icon name="arrow-left" className="size-5" /></button>
+          <button type="button" onClick={() => { if (fullscreenOn()) leaveFullscreen(); else void document.exitFullscreen().catch(noop); onClose?.() }} aria-label="Back" title="Back" className="grid size-10 place-items-center rounded-full hover:bg-white/15"><Icon name="arrow-left" className="size-5" /></button>
         </div>
       ) : null}
-      <div ref={stage} data-testid="stage" style={isFs ? undefined : { aspectRatio: shape }} className={cn('relative w-full overflow-hidden', isFs ? 'h-full min-h-0 bg-black' : 'bg-[#111215] rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
+      <div ref={stage} data-testid="stage" style={wide ? undefined : { aspectRatio: shape }} className={cn('relative w-full overflow-hidden', wide ? 'h-full min-h-0 bg-black' : 'bg-[#111215] rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
         {phase === 'ready' && mini ? <div role="status" className="absolute inset-0 grid place-items-center content-center gap-2 p-4 text-center text-sm text-white/70"><p>Playing in the mini player.</p><button type="button" onClick={flipMini} className="h-9 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Back to the page</button></div> : null}
         {phase === 'ready' && started && !shown && !scrolling && !mini && !tipOn ? <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-white/70">The picture is hidden while a menu is open or it is scrolled partly out of view. The sound keeps playing.</p> : null}
         {status ? <span role="status" className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">{status}</span> : null}

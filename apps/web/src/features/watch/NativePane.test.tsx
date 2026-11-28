@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { enterFullscreen, leaveFullscreen } from './fullscreen'
 import { NativePane } from './NativePane'
 
 type Call = { command: string; args: Record<string, unknown> | undefined }
@@ -139,6 +140,27 @@ describe('NativePane', () => {
     await waitFor(() => expect(cmds('hide')).toHaveLength(hidden + 1))
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(cmds('popup').length).toBeGreaterThan(1))      // closed: the picture is back
+  })
+
+  it('shows itself over the screen when the whole page is in full screen (Play in SFW), without hiding its own picture', async () => {
+    document.documentElement.requestFullscreen = vi.fn(async () => undefined) as never
+    mount()
+    await ready()
+    await waitFor(() => expect(calls.some((c) => c.command === 'native_rect')).toBe(true))
+    const hidden = cmds('hide').length
+    act(() => enterFullscreen())
+    Object.defineProperty(document, 'fullscreenElement', { value: document.documentElement, configurable: true })
+    act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
+    const pane = screen.getByTestId('native-pane')
+    expect(pane.getAttribute('popover')).toBe('manual')                                  // in the top layer, over whatever the page is doing
+    expect(pane.style.position).toBe('fixed')
+    expect(await screen.findByRole('button', { name: 'Back' })).toBeInTheDocument()      // the full screen bar: the way back (no name of the video)
+    await new Promise((r) => setTimeout(r, 150))
+    expect(cmds('hide')).toHaveLength(hidden)                                            // its own top-layer box is not "something over the picture"
+    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
+    act(() => { leaveFullscreen(); document.dispatchEvent(new Event('fullscreenchange')) })
+    expect(screen.getByTestId('native-pane').getAttribute('popover')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()
   })
 
   it('hides the picture when the stage is scrolled partly out of view', async () => {
