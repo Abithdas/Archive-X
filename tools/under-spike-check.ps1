@@ -34,18 +34,19 @@ try {
   Write-Host "screen $($b.Width)x$($b.Height); client at $($doc.client_x),$($doc.client_y) size $($doc.client_w)x$($doc.client_h); layer $($doc.layer); window $($doc.window_width)x$($doc.window_height)"
   Write-Host "video point   : $video"; Write-Host "opaque box    : $opaque"; Write-Host "half-white box: $half"
   Write-Host "diagnostics:`n$($doc.diagnostics)"
-  # plain functions with explicit integers (a colour is read as three numbers; a scriptblock taking the whole array gave a wrong answer on the runner)
-  function IsGreen([int]$r, [int]$g, [int]$b) { return ($g -ge 150) -and ($r -le 80) -and ($b -le 80) }
-  function IsMagenta([int]$r, [int]$g, [int]$b) { return ($r -ge 200) -and ($b -ge 200) -and ($g -le 60) }
-  function IsBlend([int]$r, [int]$g, [int]$b) { return ($r -ge 90) -and ($b -ge 90) -and ($g -ge 180) -and ($r -le 200) }
+  # Plain comparisons on three integers, no helper functions: the helpers answered "false" for a correct 0 200 0 on the runner. A failure prints the numbers it judged.
+  function Rgb($c) { if ($null -eq $c) { return @(-1, -1, -1) }; return @([int]$c[0], [int]$c[1], [int]$c[2]) }
+  $v = Rgb $video; $o = Rgb $opaque; $h = Rgb $half
+  $videoGreen = ($v[1] -ge 150) -and ($v[0] -le 80) -and ($v[2] -le 80)
+  $boxMagenta = ($o[0] -ge 200) -and ($o[2] -ge 200) -and ($o[1] -le 60)
+  $halfBlend = ($h[0] -ge 90) -and ($h[2] -ge 90) -and ($h[1] -ge 180) -and ($h[0] -le 200)
+  Write-Host "judged: video=$($v -join ',') green=$videoGreen; box=$($o -join ',') magenta=$boxMagenta; half=$($h -join ',') blend=$halfBlend"
   $fail = @()
-  if (($null -eq $video) -or -not (IsGreen $video[0] $video[1] $video[2])) { $fail += "the video point is not the video's green: $video" }
+  if (-not $videoGreen) { $fail += "the video point is not the video's green: $($v -join ' ')" }
   if ($Layer -eq "under") {
-    if (($null -eq $opaque) -or -not (IsMagenta $opaque[0] $opaque[1] $opaque[2])) { $fail += "the page's opaque box does not show over the video: $opaque" }
-    if (($null -eq $half) -or -not (IsBlend $half[0] $half[1] $half[2])) { $fail += "the page's half-white box is not blended over the video: $half" }
-  } else {
-    if (($null -ne $opaque) -and (IsMagenta $opaque[0] $opaque[1] $opaque[2])) { $fail += "control run: the page's box shows over the video, so this check cannot tell the layers apart" }
-  }
+    if (-not $boxMagenta) { $fail += "the page's opaque box does not show over the video: $($o -join ' ')" }
+    if (-not $halfBlend) { $fail += "the page's half-white box is not blended over the video: $($h -join ' ')" }
+  } elseif ($boxMagenta) { $fail += "control run: the page's box shows over the video, so this check cannot tell the layers apart" }
   if ($fail.Count) { $fail | ForEach-Object { Write-Host "FAIL  $_" }; exit 1 }
   Write-Host "PASS  $Name"
 } finally {

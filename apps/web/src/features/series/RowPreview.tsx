@@ -35,6 +35,9 @@ interface Shown { item: Previewable; card: HTMLElement; closing?: boolean }
  */
 export function useRowPreview(): { hover: (item: Previewable) => (el: HTMLElement) => void; node: ReactNode } {
   const [shown, setShown] = useState<Shown | null>(null)
+  const [fading, setFading] = useState<Shown | null>(null)   // the preview that is handing over to the next one: it fades out under the new panel instead of vanishing
+  const fadeEnd = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const current = useRef<Shown | null>(null)
   const open = useRef<ReturnType<typeof setTimeout>>(undefined)
   const close = useRef<ReturnType<typeof setTimeout>>(undefined)
   const gone = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -43,7 +46,7 @@ export function useRowPreview(): { hover: (item: Previewable) => (el: HTMLElemen
   const showing = useRef(false)
   const rowAt = useRef<{ row: HTMLElement | null | undefined; left: number }>({ row: null, left: 0 })
   const end = useCallback((quick?: boolean) => {
-    clearTimeout(gone.current)
+    clearTimeout(gone.current); clearTimeout(fadeEnd.current); setFading(null)
     card.current = null
     if (quick || reduced()) return setShown(null)
     setShown((s) => (s ? { ...s, closing: true } : s))
@@ -60,7 +63,10 @@ export function useRowPreview(): { hover: (item: Previewable) => (el: HTMLElemen
     clearTimeout(open.current); clearTimeout(close.current); clearTimeout(gone.current)
     card.current = el
     const switching = showing.current || Date.now() - lastOpen.current < 400
-    open.current = setTimeout(() => { if (el.isConnected) { const row = el.parentElement?.parentElement; rowAt.current = { row, left: row?.scrollLeft ?? 0 }; setShown({ item, card: el }) } }, switching ? SWITCH_AFTER_MS : OPEN_AFTER_MS)
+    open.current = setTimeout(() => { if (el.isConnected) { const row = el.parentElement?.parentElement; rowAt.current = { row, left: row?.scrollLeft ?? 0 }
+      const old = current.current
+      if (old && !old.closing && old.card !== el) { setFading({ ...old, closing: true }); clearTimeout(fadeEnd.current); fadeEnd.current = setTimeout(() => setFading(null), CLOSING_MS) }
+      setShown({ item, card: el }) } }, switching ? SWITCH_AFTER_MS : OPEN_AFTER_MS)
   }, [])
   useEffect(() => {
     const move = (e: PointerEvent) => {
@@ -73,11 +79,12 @@ export function useRowPreview(): { hover: (item: Previewable) => (el: HTMLElemen
     document.addEventListener('pointermove', move)
     window.addEventListener('scroll', away, true)
     window.addEventListener('resize', away)
-    return () => { document.removeEventListener('pointermove', move); window.removeEventListener('scroll', away, true); window.removeEventListener('resize', away); clearTimeout(open.current); clearTimeout(close.current); clearTimeout(gone.current) }
+    return () => { document.removeEventListener('pointermove', move); window.removeEventListener('scroll', away, true); window.removeEventListener('resize', away); clearTimeout(open.current); clearTimeout(close.current); clearTimeout(gone.current); clearTimeout(fadeEnd.current) }
   }, [hide, inside, end])
+  current.current = shown
   showing.current = Boolean(shown && !shown.closing)
   if (showing.current) lastOpen.current = Date.now()
-  const node = shown ? <Preview key={`${shown.item.kind}:${shown.item.imdb}`} {...shown} onDone={() => end(true)} /> : null
+  const node = <>{fading ? <Preview key={`${fading.item.kind}:${fading.item.imdb}`} {...fading} onDone={() => undefined} /> : null}{shown ? <Preview key={`${shown.item.kind}:${shown.item.imdb}`} {...shown} onDone={() => end(true)} /> : null}</>
   return { hover, node }
 }
 
@@ -133,11 +140,14 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
     })
     return () => {
       cancelAnimationFrame(raf)
+      if (newest !== mine) return   // a newer preview has taken the row over: what it moved is its to put back
       card.style.opacity = ''
       if (row) setTimeout(() => { if (newest === mine) row.style.scrollSnapType = '' }, 500)
       for (const [n] of geo.pushes) { n.style.transform = ''; setTimeout(() => { if (newest === mine) n.style.transition = '' }, 500) }
     }
   }, [geo, card, still, wrapper])
+  // Handing over (or closing): the card's own poster comes back as the panel fades, not after it has gone, so the row never shows a hole.
+  useEffect(() => { if (closing && !still) { card.style.transition = 'opacity .2s ease'; card.style.opacity = '' } }, [closing, card, still])
 
   // The row's list does not carry the length or the title's logo: the same one-title lookup the details use fills them in a moment after the panel opens.
   const detail = useQuery({ queryKey: ['discover-one', item.kind, item.imdb] as const, queryFn: () => api<{ runtime?: string; logo?: string }>(`/api/screen/discover/${item.kind === 'tv' ? 'series' : 'movie'}/${item.imdb}`), retry: false, enabled: hasPage(item), staleTime: 600_000 })
