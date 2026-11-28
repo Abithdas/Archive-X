@@ -224,6 +224,7 @@ The source code of FFmpeg is available from the links above, at the versions pin
 | libappindicator-sys | 0.9.0 | Apache-2.0 OR MIT |
 | libc | 0.2.191 | MIT OR Apache-2.0 |
 | libdbus-sys | 0.2.7 | Apache-2.0/MIT |
+| libloading | 0.7.4 | ISC |
 | libredox | 0.1.25 | MIT |
 | libsqlite3-sys | 0.40.0 | MIT |
 | linux-raw-sys | 0.12.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
