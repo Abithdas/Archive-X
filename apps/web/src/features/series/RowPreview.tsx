@@ -175,8 +175,9 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
     <div ref={box} role="dialog" data-row-preview aria-label={`Preview of ${item.title}`}
       style={{ position: 'fixed', zIndex: 900, left: geo?.left ?? 0, top: geo?.top ?? 0, width, minHeight: Math.round(rect.height), visibility: geo ? 'visible' : 'hidden',
         opacity: closing ? 0 : 1, transform: closing ? 'scale(0.97)' : 'none', transition: still ? 'none' : closing ? `transform ${CLOSING_MS}ms ease, opacity ${CLOSING_MS}ms ease` : 'opacity .1s ease' }}>
-      {/* a deep shadow underneath for lift */}
+      {/* a deep shadow underneath for lift, and the title's own colours glowing softly around it once it has opened */}
       <span aria-hidden="true" style={{ position: 'absolute', inset: '10% 6% -4%', zIndex: -2, borderRadius: 18, background: 'rgba(0,0,0,.85)', filter: 'blur(28px)', opacity: on ? 1 : 0, transition: still ? 'none' : 'opacity .4s ease .12s', pointerEvents: 'none' }} />
+      <span aria-hidden="true" style={{ position: 'absolute', inset: '-14px -18px -22px', zIndex: -1, borderRadius: 22, background: `#181818 center / cover no-repeat url("${art}")`, filter: 'blur(30px) saturate(1.5) brightness(.9)', opacity: on ? 0.55 : 0, transform: on ? 'none' : 'scale(.92)', transition: still ? 'none' : `opacity .55s ease .16s, transform .6s ${EASE} .1s`, pointerEvents: 'none' }} />
       <div style={{ position: 'relative', minHeight: 'inherit', display: 'flex', flexDirection: 'column', borderRadius: 6, background: '#181818', overflow: 'hidden', clipPath: geo && !on && !closing ? geo.from : 'inset(0 round 6px)', transition: still ? 'none' : `clip-path .48s ${EASE}`, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.08)' }}>
         {hasPage(item) ? <Link to="/discover/$kind/$id" params={{ kind: item.kind === 'tv' ? 'series' : 'movie', id: item.imdb }} onClick={onDone} aria-label={`Open ${item.title}`} className="block">{media}</Link> : media}
         <div className={on ? 'mo-preview-body grid gap-2.5 px-4 pb-4 pt-2' : 'grid gap-2.5 px-4 pb-4 pt-2 opacity-0'}>
