@@ -41,21 +41,6 @@ const pageParams = (item: Found) => ({ kind: item.kind === 'tv' ? 'series' : 'mo
 
 const openIn = (kind: 'tv' | 'movie') => (kind === 'tv' ? '/series/$id' : '/movies/$id')
 
-/** The cards of "Recently added": they expand on hover like the catalogue rows' (play, length, trailer in SFW), and open the title's own library page. */
-function RecentCards({ recent }: { recent: Recent[] }) {
-  const preview = useRowPreview()
-  return (
-    <>
-      {recent.map((r) => {
-        const item: Previewable = { imdb: r.imdb ?? '', kind: r.kind, title: r.title, year: r.year, poster: r.poster, background: r.background ?? '', rating: '', overview: r.overview ?? '', genres: r.genres ?? [], library: null,   // (the whole row is the library: no "In your library" tag on each)
-          open: { to: openIn(r.kind), params: { id: String(r.id) } } }
-        return <PosterCard key={`${r.kind}:${r.id}`} to={openIn(r.kind)} params={{ id: String(r.id) }} image={r.poster} title={r.title} sub={r.year ? String(r.year) : r.kind === 'tv' ? 'Series' : 'Movie'} className="w-[168px] shrink-0 snap-start" onHover={preview.hover(item)} />
-      })}
-      {preview.node}
-    </>
-  )
-}
-
 /** A row of things to scroll sideways, under a heading; arrows appear on the sides when something is out of view. */
 function Row({ title, hint, children, arrowTop = 132, onSeeAll }: { title: string; hint?: string; children: ReactNode; arrowTop?: number; onSeeAll?: () => void }) {
   return (
@@ -63,6 +48,24 @@ function Row({ title, hint, children, arrowTop = 132, onSeeAll }: { title: strin
       <div className="flex items-baseline justify-between gap-3"><h2 className="text-xl font-extrabold tracking-tight">{title}</h2>{onSeeAll ? <button type="button" onClick={onSeeAll} className="text-[13px] font-semibold text-muted transition-colors hover:text-fg">See all →</button> : hint ? <span className="text-[13px] text-muted">{hint}</span> : null}</div>
       <HScroll label={`${title}, scroll sideways`} arrowTop={arrowTop} className="-mx-4 -mb-7 -mt-2 flex snap-x gap-4 px-4 pb-10 pt-3">{children}</HScroll>
     </section>
+  )
+}
+
+/** "Recently added": its cards expand on hover like the catalogue rows' (play, length, trailer in SFW) and open the title's own library page. The expanded card sits beside the row, not in it
+ *  (the row moves its own children aside to make room, and must not move the card as well). */
+function RecentRow({ recent }: { recent: Recent[] }) {
+  const preview = useRowPreview()
+  return (
+    <>
+      <Row title="Recently added" hint="Newest in your library">
+        {recent.map((r) => {
+          const item: Previewable = { imdb: r.imdb ?? '', kind: r.kind, title: r.title, year: r.year, poster: r.poster, background: r.background ?? '', rating: '', overview: r.overview ?? '', genres: r.genres ?? [], library: null,   // (the whole row is the library: no "In your library" tag on each)
+            open: { to: openIn(r.kind), params: { id: String(r.id) } } }
+          return <PosterCard key={`${r.kind}:${r.id}`} to={openIn(r.kind)} params={{ id: String(r.id) }} image={r.poster} title={r.title} sub={r.year ? String(r.year) : r.kind === 'tv' ? 'Series' : 'Movie'} className="w-[168px] shrink-0 snap-start" onHover={preview.hover(item)} />
+        })}
+      </Row>
+      {preview.node}
+    </>
   )
 }
 
@@ -487,9 +490,7 @@ export function SfwHome() {
               </Row>
             ) : null}
             {d?.recent.length ? (
-              <Row title="Recently added" hint="Newest in your library">
-                <RecentCards recent={d.recent} />
-              </Row>
+              <RecentRow recent={d.recent} />
             ) : null}
             {HOME_ROWS.map((r) => <WhenNear key={r.title}><CatalogRow {...r} onSeeAll={() => seeAll(r.kind, r.catalog, r.genre)} /></WhenNear>)}
             {(addons.data?.items ?? []).flatMap((a) => (a.lists ?? []).slice(0, 4).map((l) => <WhenNear key={addonKey(a, l)}><CatalogRow title={`${a.name}: ${l.name}`} kind="series" catalog={addonKey(a, l)} onSeeAll={() => seeAll('series', addonKey(a, l))} /></WhenNear>))}
