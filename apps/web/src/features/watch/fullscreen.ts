@@ -13,9 +13,6 @@ const emit = () => subs.forEach((f) => f())
 const root = (): HTMLElement | null => (typeof document === 'undefined' ? null : document.documentElement)
 const active = () => want && typeof document !== 'undefined' && document.fullscreenElement === root()
 
-/** The page is in full screen because the person asked the video page for it. */
-export const fullscreenOn = active
-
 export function enterFullscreen(): void {
   want = true
   backing = false
