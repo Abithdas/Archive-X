@@ -33,9 +33,10 @@ try {
   Write-Host "screen $($b.Width)x$($b.Height); client at $($doc.client_x),$($doc.client_y) size $($doc.client_w)x$($doc.client_h); layer $($doc.layer); window $($doc.window_width)x$($doc.window_height)"
   Write-Host "video point   : $video"; Write-Host "opaque box    : $opaque"; Write-Host "half-white box: $half"
   Write-Host "diagnostics:`n$($doc.diagnostics)"
-  $isGreen = { param($c) $c -and $c[1] -ge 150 -and $c[0] -le 80 -and $c[2] -le 80 }
-  $isMagenta = { param($c) $c -and $c[0] -ge 200 -and $c[2] -ge 200 -and $c[1] -le 60 }
-  $isBlend = { param($c) $c -and $c[0] -ge 90 -and $c[2] -ge 90 -and $c[1] -ge 180 -and $c[0] -le 200 }
+  # (each test is parenthesised: PowerShell evaluates -and and the comparisons left to right, so `$c -and $c[1] -ge 150` compares True with 150)
+  $isGreen = { param($c) ($null -ne $c) -and ($c[1] -ge 150) -and ($c[0] -le 80) -and ($c[2] -le 80) }
+  $isMagenta = { param($c) ($null -ne $c) -and ($c[0] -ge 200) -and ($c[2] -ge 200) -and ($c[1] -le 60) }
+  $isBlend = { param($c) ($null -ne $c) -and ($c[0] -ge 90) -and ($c[2] -ge 90) -and ($c[1] -ge 180) -and ($c[0] -le 200) }
   $fail = @()
   if (-not (& $isGreen $video)) { $fail += "the video point is not the video's green: $video" }
   if ($Layer -eq "under") {

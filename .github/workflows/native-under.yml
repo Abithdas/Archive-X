@@ -19,6 +19,8 @@ jobs:
   under:
     runs-on: windows-latest
     timeout-minutes: 45
+    permissions:
+      contents: write   # only to publish the screenshots to the throwaway branch under-proof
     env:
       GH_TOKEN: "${{ github.token }}"
     steps:
@@ -80,3 +82,17 @@ jobs:
         with:
           name: under-shots
           path: under-shots
+
+      - name: Publish the screenshots to a throwaway branch (to look at them)
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          mkdir -p "$RUNNER_TEMP/shots" && cp under-shots/*.png under-shots/*.json "$RUNNER_TEMP/shots/"
+          git checkout --orphan under-proof
+          git rm -rf -q . || true
+          cp "$RUNNER_TEMP"/shots/* .
+          git add -- *.png *.json
+          git commit -q -m "Screenshots of run ${{ github.run_id }} (commit ${{ github.sha }})"
+          git push -f origin under-proof
