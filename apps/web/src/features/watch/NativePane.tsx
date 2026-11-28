@@ -321,7 +321,7 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
           <button type="button" onClick={() => { if (fullscreenOn()) leaveFullscreen(); else void document.exitFullscreen().catch(noop); onClose?.() }} aria-label="Back" title="Back" className="grid size-10 place-items-center rounded-full hover:bg-white/15"><Icon name="arrow-left" className="size-5" /></button>
         </div>
       ) : null}
-      <div ref={stage} data-testid="stage" style={wide ? undefined : { aspectRatio: shape }} className={cn('relative w-full overflow-hidden', under ? 'absolute inset-0 h-full bg-transparent' : wide ? 'h-full min-h-0 bg-black' : 'bg-[#111215] rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
+      <div ref={stage} data-testid="stage" style={wide ? undefined : { aspectRatio: shape }} className={under ? 'absolute inset-0 h-full w-full overflow-hidden bg-transparent' : cn('relative w-full overflow-hidden', wide ? 'h-full min-h-0 bg-black' : 'bg-[#111215] rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
         {phase === 'ready' && mini ? <div role="status" className="absolute inset-0 grid place-items-center content-center gap-2 p-4 text-center text-sm text-white/70"><p>Playing in the mini player.</p><button type="button" onClick={flipMini} className="h-9 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Back to the page</button></div> : null}
         {phase === 'ready' && started && !shown && !scrolling && !mini && !tipOn && !under ? <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-white/70">The picture is hidden while a menu is open or it is scrolled partly out of view. The sound keeps playing.</p> : null}
         {status ? <span role="status" className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">{status}</span> : null}
@@ -346,7 +346,7 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
       ) : null}
 
       <div data-ov={under ? '' : undefined} onPointerEnter={() => { overBar.current = true; setIdle(false) }} onPointerLeave={() => { overBar.current = false }}
-        className={cn('@container relative grid gap-3', under && 'absolute inset-x-0 bottom-0 z-30 gap-1.5 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-4 pb-3 pt-12 text-white transition-opacity duration-300 [--color-fg:#fff] [--color-muted:#c9d1e0] sm:px-8', hideBar && 'pointer-events-none opacity-0')}>
+        className={cn('@container grid', under ? 'absolute inset-x-0 bottom-0 z-30 gap-1.5 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-4 pb-3 pt-12 text-white transition-opacity duration-300 [--color-fg:#fff] [--color-muted:#c9d1e0] sm:px-8' : 'relative gap-3', hideBar && 'pointer-events-none opacity-0')}>
         {hint ? <div role="status" className="pointer-events-none absolute -top-9 left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-[#141417]/90 px-4 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-md">{hint}</div> : null}
         <SkipButton skip={skipNow(skips, position, duration)} canNext={Boolean(onNext)} className="absolute -top-14 right-0"
           onPress={() => { const p = skipNow(skips, position, duration); if (p?.type === 'credits' && onNext) onNext(); else if (p) seekTo(skipTarget(p, duration)) }} />
