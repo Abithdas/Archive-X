@@ -81,6 +81,7 @@ export function HoverTrailer({ id, title, onPlaying, onExpand }: { id: string; t
       const info = d?.info
       if (info && typeof info === 'object' && typeof (info as { currentTime?: number }).currentTime === 'number') time.current = (info as { currentTime: number }).currentTime
       const state = info && typeof info === 'object' ? (info as { playerState?: number }).playerState : info
+      if (state === 0) { post(frame.current, 'seekTo', [0, true]); post(frame.current, 'playVideo') }   // the trailer loops by itself: YouTube's own loop is a playlist, which draws previous and next buttons over the picture
       if (state === 1 && !started) {
         started = true
         reveal = setTimeout(() => { post(frame.current, 'seekTo', [0, true]); time.current = 0; setShown(true); playing.current(true); if (!muted) post(frame.current, 'unMute') }, REVEAL_AFTER_MS)
@@ -100,7 +101,7 @@ export function HoverTrailer({ id, title, onPlaying, onExpand }: { id: string; t
     <>
       <span aria-hidden="true" data-hover-trailer className={`pointer-events-none absolute inset-0 overflow-hidden transition-opacity duration-[600ms] ${shown ? 'opacity-100' : 'opacity-0'}`}>
         <iframe ref={frame} title={`${title} trailer`} tabIndex={-1} allow="autoplay; encrypted-media" className="absolute left-1/2 top-1/2 h-[140%] w-[140%] -translate-x-1/2 -translate-y-1/2 border-0"
-          src={embed(id, 'autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&modestbranding=1&playsinline=1&rel=0&loop=1&enablejsapi=1&playlist=' + encodeURIComponent(id))}
+          src={embed(id, 'autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&modestbranding=1&playsinline=1&rel=0&enablejsapi=1')}
           onLoad={() => { try { frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*') } catch { /* gone */ } }} />
       </span>
       <button type="button" onClick={expand} aria-label="Watch trailer full screen" title="Full screen" className={`${BTN} right-12 ${shown ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>{EXPAND}</button>

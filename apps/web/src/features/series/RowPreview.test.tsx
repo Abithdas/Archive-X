@@ -54,4 +54,32 @@ describe('a row card preview', () => {
     act(() => { vi.advanceTimersByTime(400) })
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
+
+  it('puts a row back when the pointer goes from it straight to a card of another row', async () => {
+    const other: Previewable = { ...item, imdb: 'tt0234215', title: 'Reloaded' }
+    function TwoRows() {
+      const a = useRowPreview(), b = useRowPreview()
+      return <>
+        <div data-testid="row-a" className="flex"><PosterCard image="" title={item.title} onHover={a.hover(item)} /><PosterCard image="" title="Neighbour A" /></div>{a.node}
+        <div data-testid="row-b" className="flex"><PosterCard image="" title={other.title} onHover={b.hover(other)} /></div>{b.node}
+      </>
+    }
+    withRouter(<TwoRows />)
+    const first = await screen.findByRole('button', { name: 'Details of The Matrix' }), second = await screen.findByRole('button', { name: 'Details of Reloaded' })
+    vi.spyOn(first, 'getBoundingClientRect').mockReturnValue(rect(100, 100, 270, 350))
+    vi.spyOn(second, 'getBoundingClientRect').mockReturnValue(rect(100, 500, 270, 750))
+    vi.useFakeTimers()
+    fireEvent.pointerEnter(first, { pointerType: 'mouse' }); act(() => { vi.advanceTimersByTime(500) })
+    expect(screen.getByRole('dialog', { name: 'Preview of The Matrix' })).toBeInTheDocument()
+    const neighbour = screen.getByTestId('row-a').children[1] as HTMLElement
+    act(() => { vi.advanceTimersByTime(50) })                                  // the titles glide aside
+    expect(neighbour.style.transform).not.toBe('')                           // (the preview has pushed it aside)
+    fireEvent.pointerEnter(second, { pointerType: 'mouse' }); act(() => { vi.advanceTimersByTime(600) })    // the next row opens while this one is still open (a quick move)
+    expect(screen.getAllByRole('dialog').length).toBe(2)
+    at(900, 900); act(() => { vi.advanceTimersByTime(1500) })                                                              // and away
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(neighbour.style.transform).toBe('')                                    // the first row went back, whichever row opened last
+    expect(first.parentElement!.style.transform).toBe('')
+    expect(first.style.opacity).toBe('')
+  })
 })

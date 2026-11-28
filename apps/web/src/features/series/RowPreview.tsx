@@ -22,8 +22,12 @@ const EASE = 'cubic-bezier(0.2, 0.85, 0.25, 1)'
 const reduced = () => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches && document.documentElement.dataset.motion !== 'full'
 
 // Moving from one card to its neighbour: the old preview's clean-up (its delayed timers) must not undo what the new one has started, so only the newest preview
-// is allowed to put the row and its titles back.
-let newest = 0
+// OF THAT ROW is allowed to put the row and its titles back. (One counter for the whole page used to let a preview in another row stop this row being put back:
+// its titles stayed pushed aside and the row broke up.)
+let claims = 0
+const latest = new WeakMap<Element, number>()
+const claim = (row: Element | null | undefined): number => { const t = ++claims; if (row) latest.set(row, t); return t }
+const isLatest = (row: Element | null | undefined, t: number): boolean => !row || latest.get(row) === t
 
 /** How far the titles of the row are displaced right now (a preview pushing them aside, or letting them go): a preview opens over a title's resting place, never where it is passing. */
 function displacedBy(wrapper: HTMLElement | null): number {
@@ -136,20 +140,23 @@ function Preview({ item, card, closing, onDone }: Shown & { onDone: () => void }
   useEffect(() => {
     if (!geo) return
     const row = wrapper?.parentElement
-    const mine = ++newest
+    const mine = claim(row)
     const raf = requestAnimationFrame(() => {
       setOpened(true)
       if (row && geo.pushes.length) row.style.scrollSnapType = 'none'   // rows snap to their titles: pushing titles aside moves the snap points, and the re-snap would scroll the row and close this
 
       if (!still) for (const [n, dx] of geo.pushes) { n.style.transition = `transform .46s ${EASE}`; n.style.transform = `translate3d(${Math.round(dx)}px,0,0)` }
+      // The card the preview opens over rests in its own place: a previous preview may have left it pushed aside, and it would stay there.
+      if (wrapper && !still) { wrapper.style.transition = `transform .46s ${EASE}`; wrapper.style.transform = '' }
       card.style.transition = 'opacity .15s .2s'; card.style.opacity = '0'
     })
     return () => {
       cancelAnimationFrame(raf)
-      if (newest !== mine) return   // a newer preview has taken the row over: what it moved is its to put back
-      card.style.opacity = ''
-      if (row) setTimeout(() => { if (newest === mine) row.style.scrollSnapType = '' }, 500)
-      for (const [n] of geo.pushes) { n.style.transform = ''; setTimeout(() => { if (newest === mine) n.style.transition = '' }, 500) }
+      card.style.opacity = ''   // this card's own picture always comes back, whoever has the row now
+      if (!isLatest(row, mine)) return   // a newer preview of this row has taken it over: what it moved is its to put back
+      if (row) setTimeout(() => { if (isLatest(row, mine)) row.style.scrollSnapType = '' }, 500)
+      // every title of the row goes back (not only the ones this preview pushed: the one it opened over may still be displaced from the preview before)
+      for (const n of row ? ([...row.children] as HTMLElement[]) : geo.pushes.map(([x]) => x)) { n.style.transform = ''; setTimeout(() => { if (isLatest(row, mine)) n.style.transition = '' }, 500) }
     }
   }, [geo, card, still, wrapper])
   // Handing over (or closing): the card's own poster comes back as the panel fades, not after it has gone, so the row never shows a hole.

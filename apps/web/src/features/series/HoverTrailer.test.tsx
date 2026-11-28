@@ -24,6 +24,9 @@ describe('the trailer in an expanded card', () => {
     act(() => { vi.advanceTimersByTime(2900) })
     expect(playing).toHaveBeenCalledWith(true)
     expect(document.querySelector('[data-hover-trailer]')).toHaveClass('opacity-100')
+    expect(frame.src).not.toContain('playlist')                                             // a playlist draws previous/next buttons over the picture
+    say(frame, { playerState: 0 })                                                         // the end: it starts again by itself
+    expect(sent.some((m) => m.includes('"playVideo"'))).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Unmute trailer' }))
     expect(sent.some((m) => m.includes('"unMute"'))).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Mute trailer' }))
