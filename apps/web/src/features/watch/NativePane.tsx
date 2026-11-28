@@ -24,7 +24,8 @@ type Phase = 'checking' | 'unavailable' | 'opening' | 'ready' | 'failed'
 
 /** True while a dialog or a menu of the page is open: it would be hidden under the video window, so the video steps aside. */
 function covered(): boolean {
-  try { return Boolean(document.querySelector('dialog[open], [popover]:popover-open')) } catch { return Boolean(document.querySelector('dialog[open]')) }
+  // a dialog, a popover, or any open menu (the player's own drop-downs open upwards over the picture, so the picture must give way to them)
+  try { return Boolean(document.querySelector('dialog[open], [popover]:popover-open, [role="menu"]')) } catch { return Boolean(document.querySelector('dialog[open], [role="menu"]')) }
 }
 
 /**
@@ -134,7 +135,7 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
     const top = document.fullscreenElement === box.current ? 0 : document.querySelector('header')?.getBoundingClientRect().bottom ?? 0   // in full screen the page's bar is not on screen
     // While the page is scrolling the picture steps aside and comes back where it settles: moving a separate window in step with the page always
     // lags a little, and the lag showed as a black box left over the page.
-    const visible = startedRef.current && !scrollingRef.current && (miniRef.current ? !covered() : videoVisible(el.getBoundingClientRect(), { top, bottom: window.innerHeight, left: 0, right: window.innerWidth }, covered()))
+    const visible = startedRef.current && !scrollingRef.current && (miniRef.current ? !covered() : videoVisible(el.getBoundingClientRect(), { top, bottom: window.innerHeight, left: 0, right: window.innerWidth }, covered() || tipRef.current))
     if (visible) {
       void native.rect(rect()).catch(noop)
       if (!shownRef.current) { shownRef.current = true; setShown(true); void native.command('popup').catch(noop) }
@@ -142,6 +143,10 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
       shownRef.current = false; setShown(false); void native.command('hide').catch(noop)
     }
   }, [rect])
+  // The seek preview and every menu open upwards over the picture, like the browser player's: the picture (a window above the page) steps aside while they are up.
+  const tipRef = useRef(false)
+  const [tipOn, setTipOn] = useState(false)
+  const onTip = useCallback((on: boolean) => { if (tipRef.current === on) return; tipRef.current = on; setTipOn(on); sync() }, [sync])
   useEffect(() => {
     if (phase !== 'ready' || !stage.current) return
     let raf = 0
@@ -253,7 +258,7 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
       ) : null}
       <div ref={stage} data-testid="stage" style={isFs ? undefined : { aspectRatio: shape }} className={cn('relative w-full overflow-hidden', isFs ? 'h-full min-h-0 bg-black' : 'bg-[#111215] rounded-[18px] shadow-2xl ring-1 ring-white/10 sm:rounded-[22px]')}>
         {phase === 'ready' && mini ? <div role="status" className="absolute inset-0 grid place-items-center content-center gap-2 p-4 text-center text-sm text-white/70"><p>Playing in the mini player.</p><button type="button" onClick={flipMini} className="h-9 rounded-xl bg-accent px-4 text-sm font-bold text-accent-fg">Back to the page</button></div> : null}
-        {phase === 'ready' && started && !shown && !scrolling && !mini ? <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-white/70">The picture is hidden while a menu is open or it is scrolled partly out of view. The sound keeps playing.</p> : null}
+        {phase === 'ready' && started && !shown && !scrolling && !mini && !tipOn ? <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-white/70">The picture is hidden while a menu is open or it is scrolled partly out of view. The sound keeps playing.</p> : null}
         {status ? <span role="status" className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">{status}</span> : null}
         {snapshots && !started && !broken ? <SnapshotGrid data={snapshots} onPick={(t) => { seekTo(t); send('play') }} /> : null}
         {phase === 'ready' && !started && !broken ? (
@@ -280,14 +285,14 @@ export function NativePane({ media, addon, linkPath, onClose, durationHint, size
         <SkipButton skip={skipNow(skips, position, duration)} canNext={Boolean(onNext)} className="absolute -top-14 right-0"
           onPress={() => { const p = skipNow(skips, position, duration); if (p?.type === 'credits' && onNext) onNext(); else if (p) seekTo(skipTarget(p, duration)) }} />
         <PlayerControls
-          time={jump?.to ?? position} duration={duration} buffered={0} segments={segments} preview={preview} onSeek={seekTo} tipBelow
+          time={jump?.to ?? position} duration={duration} buffered={0} segments={segments} preview={preview} onSeek={seekTo} onTip={onTip}
           playing={playing || holding} onToggle={toggle} toggleDisabled={phase !== 'ready'} disabled={phase !== 'ready'} onPrev={onPrev} onNext={onNext}
           rate={rate} onRate={(r) => { pickRate(r); flash(`Speed: ${r}x`) }}
           muted={muted} volume={volume} onMute={flipMute} onVolume={setVol}
           status={{ chip: 'Native', good: true, rows: [{ k: 'Playback', v: opened?.decoder ? `Native · ${opened.decoder}` : 'Native player' }] }}
           pip={{ onClick: flipMini, label: 'Mini player', title: 'Mini player: keeps playing in the corner while you scroll the page', pressed: mini, disabled: phase !== 'ready' }}
-          tracksMenu={info ? <CcMenu drop="down" info={info} audio={info.audio.find((t) => t.ordinal === audioPick)?.index ?? null} sub={tracks.sub} live={tracks.live} altBusy={false} onAudio={pickAudio} onSub={tracks.pickSub} /> : null}
-          onFullscreen={full} drop="down"
+          tracksMenu={info ? <CcMenu info={info} audio={info.audio.find((t) => t.ordinal === audioPick)?.index ?? null} sub={tracks.sub} live={tracks.live} altBusy={false} onAudio={pickAudio} onSub={tracks.pickSub} /> : null}
+          onFullscreen={full}
           settings={<>
             <CaptionStyleItems style={capStyle} onChange={(patch) => setCapStyle((c) => { const n = { ...c, ...patch }; saveStyle(n); return n })} />
             <PlaybackItems tracks={tracks} loop={loop} onLoop={() => { const on = !loop; loopRef.current = on; setLoop(on); flash(`Auto-repeat: ${on ? 'ON' : 'OFF'}`) }} />

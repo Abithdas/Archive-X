@@ -221,6 +221,17 @@ describe('Timeline', () => {
     expect(screen.getByText('Main')).toBeInTheDocument()
     expect(screen.getByText('1:15')).toBeInTheDocument()
   })
+  it('tells when the hover picture comes and goes, and always draws it above the bar', () => {
+    const tips: boolean[] = []
+    render(<Timeline time={0} duration={100} buffered={0} segments={[]} onSeek={() => {}} onTip={(on) => tips.push(on)} />)
+    const s = screen.getByRole('slider', { name: 'Seek' })
+    s.getBoundingClientRect = () => rect as DOMRect
+    fireEvent.pointerMove(s, { clientX: 150 })
+    expect(tips.at(-1)).toBe(true)
+    expect((screen.getByText('1:15').closest('div[class*="bottom-full"]'))).not.toBeNull()
+    fireEvent.pointerLeave(s)
+    expect(tips.at(-1)).toBe(false)
+  })
 })
 
 describe('telegramLink', () => {

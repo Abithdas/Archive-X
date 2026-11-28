@@ -21,8 +21,8 @@ export interface BufferStatus { chip: string; good: boolean; rows: Array<{ k: st
 export interface ControlsProps {
   time: number; duration: number; buffered: number
   segments?: Segment[]; preview?: PreviewInfo; onSeek: (t: number) => void
-  /** The hover picture goes under the bar when the bar is under a picture that is a separate window (the native one). */
-  tipBelow?: boolean
+  /** Told when the hover picture comes and goes: the native player's picture is a separate window above the page, so it steps aside while the preview is shown over it. */
+  onTip?: (on: boolean) => void
   playing: boolean; onToggle: () => void; toggleDisabled?: boolean
   onPrev?: () => void; onNext?: () => void
   rate: number; onRate: (r: number) => void
@@ -45,7 +45,7 @@ export function PlayerControls(p: ControlsProps) {
     <>
       <div>
         <div className="mb-1 flex items-center justify-between px-0.5 text-[13px] font-semibold tracking-tight tabular-nums" aria-hidden="true"><span>{clock(p.time)}</span><span className="font-medium text-muted">{p.duration ? clock(p.duration) : '–:––'}</span></div>
-        <Timeline time={p.time} duration={p.duration} buffered={p.buffered} segments={p.segments ?? []} preview={p.preview} onSeek={p.onSeek} tipBelow={p.tipBelow} />
+        <Timeline time={p.time} duration={p.duration} buffered={p.buffered} segments={p.segments ?? []} preview={p.preview} onSeek={p.onSeek} onTip={p.onTip} />
       </div>
       <div className="flex items-center justify-between py-1 text-xs font-medium text-fg/80 sm:text-[13px]">
         <div className="flex min-w-0 items-center gap-1 @lg:gap-2.5">

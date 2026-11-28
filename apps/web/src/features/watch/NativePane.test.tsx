@@ -127,6 +127,20 @@ describe('NativePane', () => {
     await waitFor(() => expect(cmds('popup').length).toBeGreaterThan(0))
   })
 
+  it('opens every menu upwards over the picture, and the picture steps aside while one is open', async () => {
+    mount()
+    await ready()
+    await waitFor(() => expect(calls.some((c) => c.command === 'native_rect')).toBe(true))
+    const hidden = cmds('hide').length
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    const menu = await screen.findByRole('menu', { name: 'Settings' })
+    expect(menu.className).toContain('mo-drop-up')                           // above the bar, not below it
+    expect(menu.className).not.toContain('mo-drop-down')
+    await waitFor(() => expect(cmds('hide')).toHaveLength(hidden + 1))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(cmds('popup').length).toBeGreaterThan(1))      // closed: the picture is back
+  })
+
   it('hides the picture when the stage is scrolled partly out of view', async () => {
     mount()
     await ready()
