@@ -209,17 +209,18 @@ describe('NativePane, an add-on stream and full screen', () => {
     expect(calls.find((c) => c.command === 'native_open')!.args).toMatchObject({ url: 'https://cdn.example/film.mkv' })
   })
 
-  it('has a back arrow and the title on top in full screen', async () => {
+  it('has a back arrow on top in full screen, and no name of the video', async () => {
     const exit = vi.fn(async () => undefined)
     Object.defineProperty(document, 'exitFullscreen', { value: exit, configurable: true })
     const onClose = vi.fn()
-    mount({ onClose, title: 'The Matrix' })
+    mount({ onClose })
     await ready()
     expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()   // on the page the page's own back arrow is used
     const pane = screen.getByTestId('native-pane')
     Object.defineProperty(document, 'fullscreenElement', { value: pane, configurable: true })
     act(() => { document.dispatchEvent(new Event('fullscreenchange')) })
-    expect(await screen.findByText('The Matrix')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Back' })).toBeInTheDocument()
+    expect(screen.queryByText('The Matrix')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Leave full screen' })).toBeNull()   // the bottom bar has the full screen button
     fireEvent.click(await screen.findByRole('button', { name: 'Back' }))
     expect(exit).toHaveBeenCalledTimes(1)
